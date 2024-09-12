@@ -1,0 +1,254 @@
+---
+# yamllint disable rule:truthy rule:truthy rule:line-length
+name: "CI"
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - stable
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  INFRAHUB_DB_USERNAME: neo4j
+  INFRAHUB_DB_PASSWORD: admin
+  INFRAHUB_DB_ADDRESS: localhost
+  INFRAHUB_DB_PORT: 7687
+  INFRAHUB_DB_PROTOCOL: bolt
+  INFRAHUB_BROKER_ADDRESS: message-queue
+  INFRAHUB_LOG_LEVEL: CRITICAL
+  INFRAHUB_IMAGE_NAME: "opsmill/infrahub"
+  INFRAHUB_IMAGE_VER: "local"
+  PYTEST_XDIST_WORKER_COUNT: 4
+  INFRAHUB_TEST_IN_DOCKER: 1
+  VALE_VERSION: "3.0.7"
+  GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+  METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT }}
+
+jobs:
+   # ------------------------------------------ Check Files Changes  ------------------------------------------
+  files-changed:
+    name: Detect which file has changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      documentation: ${{ steps.changes.outputs.documentation_all }}
+      helm: ${{ steps.changes.outputs.helm_all }}
+      python: ${{ steps.changes.outputs.python_all }}
+      yaml: ${{ steps.changes.outputs.yaml_all }}
+      poetry_files: ${{ steps.changes.outputs.python_sdk_poetry_files }}
+      github_workflows: ${{ steps.changes.outputs.github_workflows }}
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: Check for file changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+
+ # ------------------------------------------ All Linter  ------------------------------------------
+
+  yaml-lint:
+    if: needs.files-changed.outputs.yaml == 'true'
+    needs: ["files-changed"]
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: "Setup environment"
+        run: "pip install yamllint==1.35.1"
+      - name: "Linting: yamllint"
+        run: "yamllint -s ."
+
+  python-lint:
+    if: needs.files-changed.outputs.python == 'true'
+    needs: ["files-changed"]
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: "Setup environment"
+        run: "pip install ruff==0.5.0"
+      - name: "Linting: ruff check"
+        run: "ruff check ."
+      - name: "Linting: ruff format"
+        run: "ruff format --check --diff ."
+
+  markdown-lint:
+    if: needs.files-changed.outputs.documentation == 'true'
+    needs: ["files-changed"]
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: "Linting: markdownlint"
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          config: .markdownlint.yaml
+          globs: |
+            **/*.{md,mdx}
+            !changelog/*.md
+            !python_sdk/changelog/*.md
+
+  action-lint:
+    if: needs.files-changed.outputs.github_workflows == 'true'
+    needs: ["files-changed"]
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: Check workflow files
+        run: |
+          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+        shell: bash
+        env:
+          SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004
+
+
+  unit-tests:
+    strategy:
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.files-changed.outputs.sdk == 'true'
+    needs: ["files-changed", "yaml-lint", "python-lint"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      INFRAHUB_DB_TYPE: neo4j
+    defaults:
+      run:
+        working-directory: python_sdk/
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: "Setup environment"
+        run: |
+          pipx install poetry
+          poetry config virtualenvs.prefer-active-python true
+          pip install invoke toml
+      - name: "Install Package"
+        run: "poetry install --all-extras"
+      - name: "Mypy Tests"
+        run: "poetry run mypy --show-error-codes infrahub_sdk/"
+      - name: "Pylint Tests"
+        run: "poetry run pylint infrahub_sdk/"
+      - name: "Unit Tests"
+        run: "poetry --directory python_sdk run coverage run --source=infrahub_sdk -m pytest python_sdk/tests/unit/"
+        working-directory: ./
+      - name: "Create coverage file"
+        run: "poetry --directory python_sdk run coverage xml"
+        working-directory: ./
+      - name: "Coveralls : Unit Tests"
+        uses: coverallsapp/github-action@v2
+        continue-on-error: true
+        env:
+          COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
+        with:
+          flag-name: python-sdk-unit
+          parallel: true
+
+
+  # integration-tests:
+  #   if: |
+  #     always() && !cancelled() &&
+  #     !contains(needs.*.result, 'failure') &&
+  #     !contains(needs.*.result, 'cancelled')
+  #   needs: ["python-sdk-unit-tests"]
+  #   runs-on:
+  #     group: huge-runners
+  #   timeout-minutes: 30
+  #   env:
+  #     INFRAHUB_DB_TYPE: memgraph
+  #   steps:
+  #     - name: "Check out repository code"
+  #       uses: "actions/checkout@v4"
+  #     - name: "Install Invoke"
+  #       run: "pip install toml invoke"
+
+  #     - name: "Set environment variables"
+  #       run: echo INFRAHUB_BUILD_NAME=infrahub-${{ runner.name }} >> $GITHUB_ENV
+  #     - name: "Set environment variables"
+  #       run: echo INFRAHUB_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }} >> $GITHUB_ENV
+  #     - name: "Clear docker environment"
+  #       run: docker compose -p $INFRAHUB_BUILD_NAME down -v --remove-orphans --rmi local
+
+  #     - name: "Build Test Image"
+  #       run: "invoke dev.build"
+  #     - name: "Pull External Docker Images"
+  #       run: "invoke dev.pull"
+  #     - name: "Integration Tests"
+  #       run: "invoke sdk.test-integration"
+  #     - name: "Coveralls : Integration Tests"
+  #       uses: coverallsapp/github-action@v2
+  #       continue-on-error: true
+  #       env:
+  #         COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
+  #       with:
+  #         flag-name: python-sdk-integration
+  #         parallel: true
+
+
+
+  # ------------------------------------------ Coverall Report  ------------------------------------------
+  # coverall-report:
+  #   needs:
+  #     - backend-tests-integration
+  #     - backend-tests-unit
+  #     - frontend-tests
+  #     - python-sdk-integration-tests
+  #   if: |
+  #     always() && !cancelled()
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   steps:
+      # # NOTE: The ref value should be different when triggered by pull_request event.
+      # #       See: https://github.com/lewagon/wait-on-check-action/issues/25.
+      # - name: Wait on tests (PR)
+      #   uses: lewagon/wait-on-check-action@e106e5c43e8ca1edea6383a39a01c5ca495fd812
+      #   if: github.event_name == 'pull_request'
+      #   with:
+      #     ref: ${{ github.event.pull_request.head.sha }}
+      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+      #     wait-interval: 10
+      #     running-workflow-name: report
+      #     allowed-conclusions: success,skipped,cancelled,failure
+
+      # - name: Wait on tests (push)
+      #   if: github.event_name != 'pull_request'
+      #   uses: lewagon/wait-on-check-action@e106e5c43e8ca1edea6383a39a01c5ca495fd812
+      #   with:
+      #     ref: ${{ github.sha }}
+      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
+      #     wait-interval: 10
+      #     running-workflow-name: report
+      #     allowed-conclusions: success,skipped,cancelled,failure
+
+      # - uses: coverallsapp/github-action@v2
+      #   continue-on-error: true
+      #   env:
+      #     COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
+      #   with:
+      #     carryforward: "backend-unit,backend-integration,frontend-unit,python-sdk-unit,python-sdk-integration"
+      #     parallel-finished: true
