@@ -1,3 +1,9 @@
+
+<div style="border: 1px solid #f5c6cb; background-color: #f8d7da; padding: 10px; border-radius: 5px; color: #721c24;">
+  <strong>⚠️ Warning:</strong> This repository is still a WORK IN PROGRESS. Soon it will be the new home of the Python SDK for Infrahub but for now the project still lives in the main repository
+</div>
+</br>
+
 <!-- markdownlint-disable -->
 ![Infrahub Logo](https://assets-global.website-files.com/657aff4a26dd8afbab24944b/657b0e0678f7fd35ce130776_Logo%20INFRAHUB.svg)
 <!-- markdownlint-restore -->
