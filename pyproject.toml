@@ -315,9 +315,15 @@ max-complexity = 17
     "ANN201",  # ANN201 Missing return type annotation for public function
     "ANN202",  # Missing return type annotation for private function
     "ANN204",  # Missing return type annotation for special method
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
 ]
 
+"infrahub_sdk/client.py" = [
+    ##################################################################################################
+    # Review and change the below later                                                              #
+    ##################################################################################################
+    "PLR0904",  # Too many public methods
+]
 
 "tests/**/*.py" = [
     "PLR2004", # Magic value used in comparison
@@ -345,8 +351,8 @@ directory = "changelog"
 filename = "CHANGELOG.md"
 start_string = "<!-- towncrier release notes start -->\n"
 underlines = ["", "", ""]
-title_format = "## [{version}](https://github.com/opsmill/infrahub/tree/v{version}) - {project_date}"
-issue_format = "[#{issue}](https://github.com/opsmill/infrahub/issues/{issue})"
+title_format = "## [{version}](https://github.com/opsmill/infrahub-sdk-python/tree/v{version}) - {project_date}"
+issue_format = "[#{issue}](https://github.com/opsmill/infrahub-sdk-python/issues/{issue})"
 orphan_prefix = "+"
 
 [[tool.towncrier.type]]
