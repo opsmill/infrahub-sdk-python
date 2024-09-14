@@ -39,7 +39,7 @@ jobs:
       helm: ${{ steps.changes.outputs.helm_all }}
       python: ${{ steps.changes.outputs.python_all }}
       yaml: ${{ steps.changes.outputs.yaml_all }}
-      poetry_files: ${{ steps.changes.outputs.python_sdk_poetry_files }}
+      poetry_files: ${{ steps.changes.outputs.poetry_files }}
       github_workflows: ${{ steps.changes.outputs.github_workflows }}
     steps:
       - name: "Check out repository code"
@@ -128,7 +128,7 @@ jobs:
       always() && !cancelled() &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
-      needs.files-changed.outputs.python_all == 'true'
+      needs.files-changed.outputs.python == 'true'
     needs: ["files-changed", "yaml-lint", "python-lint"]
     runs-on: ubuntu-latest
     timeout-minutes: 30
