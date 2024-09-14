@@ -1,7 +1,6 @@
 
-<div style="border: 1px solid #f5c6cb; background-color: #f8d7da; padding: 10px; border-radius: 5px; color: #721c24;">
-  <strong>⚠️ Warning:</strong> This repository is still a WORK IN PROGRESS. Soon it will be the new home of the Python SDK for Infrahub but for now the project still lives in the main repository
-</div>
+> ⚠️ **Warning** 
+> This repository is still a WORK IN PROGRESS. Soon it will be the new home of the Python SDK for Infrahub but for now the project still lives in the main repository
 </br>
 
 <!-- markdownlint-disable -->
