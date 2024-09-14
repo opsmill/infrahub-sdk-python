@@ -10,7 +10,7 @@ development_files: &development_files
   - "development/**"
   - "tasks/**"
 
-poetry_files: &infrahub_poetry_files
+poetry_files: &poetry_files
   - "pyproject.toml"
   - "poetry.lock"
 
@@ -19,6 +19,7 @@ doc_files: &doc_files
 
 python_all: &python_all
   - "**/*.py"
+  - *poetry_files
 
 yaml_all: &yaml_all
   - "**/*.{yml,yaml}"
