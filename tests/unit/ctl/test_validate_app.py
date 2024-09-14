@@ -3,6 +3,7 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.utils import get_fixtures_dir
 from infrahub_sdk.ctl.validate import app
+from tests.helpers.cli import remove_ansi_color
 
 runner = CliRunner()
 
@@ -20,7 +21,7 @@ def test_validate_schema_empty():
 
     result = runner.invoke(app=app, args=["schema", str(fixture_file)])
     assert result.exit_code == 1
-    assert "'version' | Field required (missing)" in result.stdout
+    assert "'version' | Field required (missing)" in remove_ansi_color(result.stdout)
 
 
 def test_validate_schema_non_valid():
@@ -28,7 +29,7 @@ def test_validate_schema_non_valid():
 
     result = runner.invoke(app=app, args=["schema", str(fixture_file)])
     assert result.exit_code == 1
-    assert "Schema not valid" in result.stdout
+    assert "Schema not valid" in remove_ansi_color(result.stdout)
 
 
 @pytest.mark.xfail(reason="FIXME: Currently not catching the proper exception")

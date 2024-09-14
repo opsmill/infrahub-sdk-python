@@ -13,7 +13,7 @@
   color: "f25009"
 
 # ----------------------------------
-# TYPE INFRAHUB (default)
+# TYPE
 # ----------------------------------
 - name: "type/feature"
   description: "New feature or request"
@@ -31,9 +31,6 @@
   description: "Item we know we need to improve way it is implemented"
   color: "73FA20"
 
-# ----------------------------------
-# TYPE ALL
-# ----------------------------------
 - name: "type/question"
   description: "Question or discussion"
   color: "d876e3"

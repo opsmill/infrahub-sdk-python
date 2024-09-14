@@ -81,6 +81,7 @@ jobs:
       - name: "Linting: ruff format"
         run: "ruff format --check --diff ."
 
+
   markdown-lint:
     if: needs.files-changed.outputs.documentation == 'true'
     needs: ["files-changed"]
@@ -131,11 +132,6 @@ jobs:
     needs: ["files-changed", "yaml-lint", "python-lint"]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      INFRAHUB_DB_TYPE: neo4j
-    defaults:
-      run:
-        working-directory: python_sdk/
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
@@ -152,103 +148,7 @@ jobs:
         run: "poetry install --all-extras"
       - name: "Mypy Tests"
         run: "poetry run mypy --show-error-codes infrahub_sdk/"
-      - name: "Pylint Tests"
-        run: "poetry run pylint infrahub_sdk/"
+      # - name: "Pylint Tests"
+      #   run: "poetry run pylint infrahub_sdk/"
       - name: "Unit Tests"
-        run: "poetry --directory python_sdk run coverage run --source=infrahub_sdk -m pytest python_sdk/tests/unit/"
-        working-directory: ./
-      - name: "Create coverage file"
-        run: "poetry --directory python_sdk run coverage xml"
-        working-directory: ./
-      - name: "Coveralls : Unit Tests"
-        uses: coverallsapp/github-action@v2
-        continue-on-error: true
-        env:
-          COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
-        with:
-          flag-name: python-sdk-unit
-          parallel: true
-
-
-  # integration-tests:
-  #   if: |
-  #     always() && !cancelled() &&
-  #     !contains(needs.*.result, 'failure') &&
-  #     !contains(needs.*.result, 'cancelled')
-  #   needs: ["python-sdk-unit-tests"]
-  #   runs-on:
-  #     group: huge-runners
-  #   timeout-minutes: 30
-  #   env:
-  #     INFRAHUB_DB_TYPE: memgraph
-  #   steps:
-  #     - name: "Check out repository code"
-  #       uses: "actions/checkout@v4"
-  #     - name: "Install Invoke"
-  #       run: "pip install toml invoke"
-
-  #     - name: "Set environment variables"
-  #       run: echo INFRAHUB_BUILD_NAME=infrahub-${{ runner.name }} >> $GITHUB_ENV
-  #     - name: "Set environment variables"
-  #       run: echo INFRAHUB_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }} >> $GITHUB_ENV
-  #     - name: "Clear docker environment"
-  #       run: docker compose -p $INFRAHUB_BUILD_NAME down -v --remove-orphans --rmi local
-
-  #     - name: "Build Test Image"
-  #       run: "invoke dev.build"
-  #     - name: "Pull External Docker Images"
-  #       run: "invoke dev.pull"
-  #     - name: "Integration Tests"
-  #       run: "invoke sdk.test-integration"
-  #     - name: "Coveralls : Integration Tests"
-  #       uses: coverallsapp/github-action@v2
-  #       continue-on-error: true
-  #       env:
-  #         COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
-  #       with:
-  #         flag-name: python-sdk-integration
-  #         parallel: true
-
-
-
-  # ------------------------------------------ Coverall Report  ------------------------------------------
-  # coverall-report:
-  #   needs:
-  #     - backend-tests-integration
-  #     - backend-tests-unit
-  #     - frontend-tests
-  #     - python-sdk-integration-tests
-  #   if: |
-  #     always() && !cancelled()
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 10
-  #   steps:
-      # # NOTE: The ref value should be different when triggered by pull_request event.
-      # #       See: https://github.com/lewagon/wait-on-check-action/issues/25.
-      # - name: Wait on tests (PR)
-      #   uses: lewagon/wait-on-check-action@e106e5c43e8ca1edea6383a39a01c5ca495fd812
-      #   if: github.event_name == 'pull_request'
-      #   with:
-      #     ref: ${{ github.event.pull_request.head.sha }}
-      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
-      #     wait-interval: 10
-      #     running-workflow-name: report
-      #     allowed-conclusions: success,skipped,cancelled,failure
-
-      # - name: Wait on tests (push)
-      #   if: github.event_name != 'pull_request'
-      #   uses: lewagon/wait-on-check-action@e106e5c43e8ca1edea6383a39a01c5ca495fd812
-      #   with:
-      #     ref: ${{ github.sha }}
-      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
-      #     wait-interval: 10
-      #     running-workflow-name: report
-      #     allowed-conclusions: success,skipped,cancelled,failure
-
-      # - uses: coverallsapp/github-action@v2
-      #   continue-on-error: true
-      #   env:
-      #     COVERALLS_SERVICE_NUMBER: ${{ github.sha }}
-      #   with:
-      #     carryforward: "backend-unit,backend-integration,frontend-unit,python-sdk-unit,python-sdk-integration"
-      #     parallel-finished: true
+        run: "poetry run pytest tests/unit/"

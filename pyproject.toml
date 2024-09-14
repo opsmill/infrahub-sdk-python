@@ -63,6 +63,7 @@ types-pyyaml = "*"
 ruff = "0.5.0"
 pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
+invoke = "^2.2.0"
 
 [tool.poetry.extras]
 ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "toml", "typer"]
