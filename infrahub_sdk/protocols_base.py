@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Protocol, Union, runtime_checkable
-
-if TYPE_CHECKING:
-    import ipaddress
-
-    from infrahub_sdk.schema import MainSchemaTypes
+from typing import Any, Optional, Protocol, runtime_checkable
 
 
-@runtime_checkable
 class RelatedNode(Protocol): ...
 
 
-@runtime_checkable
 class RelatedNodeSync(Protocol): ...
 
 
@@ -86,19 +79,19 @@ class DropdownOptional(Attribute):
 
 
 class IPNetwork(Attribute):
-    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+    value: str
 
 
 class IPNetworkOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+    value: Optional[str]
 
 
 class IPHost(Attribute):
-    value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+    value: str
 
 
 class IPHostOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
+    value: Optional[str]
 
 
 class HashedPassword(Attribute):
@@ -125,60 +118,29 @@ class ListAttributeOptional(Attribute):
     value: Optional[list[Any]]
 
 
-@runtime_checkable
 class CoreNodeBase(Protocol):
-    _schema: MainSchemaTypes
     id: str
     display_label: Optional[str]
+    hfid: Optional[list[str]]
+    hfid_str: Optional[str]
 
-    @property
-    def hfid(self) -> Optional[list[str]]: ...
 
-    @property
-    def hfid_str(self) -> Optional[str]: ...
-
-    def get_human_friendly_id_as_string(self, include_kind: bool = False) -> Optional[str]: ...
-
+class CoreNode(CoreNodeBase, Protocol):
     def get_kind(self) -> str: ...
 
-    def is_ip_prefix(self) -> bool: ...
-
-    def is_ip_address(self) -> bool: ...
-
-    def is_resource_pool(self) -> bool: ...
-
-    def get_raw_graphql_data(self) -> Optional[dict]: ...
-
-    def validate_filters(self, filters: Optional[dict[str, Any]] = None) -> bool: ...
-
-    def extract(self, params: dict[str, str]) -> dict[str, Any]: ...
-
-
-@runtime_checkable
-class CoreNode(CoreNodeBase, Protocol):
-    async def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None: ...
-
-    async def delete(self) -> None: ...
+    async def save(self) -> None: ...
 
     async def update(self, do_full_update: bool) -> None: ...
 
-    async def create(self, allow_upsert: bool = False) -> None: ...
 
-    async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
-
-    async def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
-
-
-@runtime_checkable
 class CoreNodeSync(CoreNodeBase, Protocol):
-    def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None: ...
+    id: str
+    display_label: Optional[str]
+    hfid: Optional[list[str]]
+    hfid_str: Optional[str]
 
-    def delete(self) -> None: ...
+    def get_kind(self) -> str: ...
+
+    def save(self) -> None: ...
 
     def update(self, do_full_update: bool) -> None: ...
-
-    def create(self, allow_upsert: bool = False) -> None: ...
-
-    def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
-
-    def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
