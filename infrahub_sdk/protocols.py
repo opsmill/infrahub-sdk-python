@@ -72,6 +72,10 @@ class CoreArtifactTarget(CoreNode):
     artifacts: RelationshipManager
 
 
+class CoreBasePermission(CoreNode):
+    roles: RelationshipManager
+
+
 class CoreCheck(CoreNode):
     name: StringOptional
     label: StringOptional
@@ -317,6 +321,11 @@ class CoreGeneratorValidator(CoreValidator):
     definition: RelatedNode
 
 
+class CoreGlobalPermission(CoreBasePermission):
+    name: String
+    action: Dropdown
+
+
 class CoreGraphQLQuery(CoreNode):
     name: String
     description: StringOptional
@@ -355,6 +364,14 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+
+
+class CoreObjectPermission(CoreBasePermission):
+    branch: String
+    namespace: String
+    name: String
+    action: Enum
+    decision: Enum
 
 
 class CoreObjectThread(CoreThread):
@@ -428,6 +445,16 @@ class CoreTransformPython(CoreTransformation):
     class_name: String
 
 
+class CoreUserGroup(CoreGroup):
+    roles: RelationshipManager
+
+
+class CoreUserRole(CoreNode):
+    name: String
+    groups: RelationshipManager
+    permissions: RelationshipManager
+
+
 class CoreUserValidator(CoreValidator):
     check_definition: RelatedNode
     repository: RelatedNode
@@ -488,6 +515,10 @@ class BuiltinIPPrefixSync(CoreNodeSync):
 
 class CoreArtifactTargetSync(CoreNodeSync):
     artifacts: RelationshipManagerSync
+
+
+class CoreBasePermissionSync(CoreNodeSync):
+    roles: RelationshipManagerSync
 
 
 class CoreCheckSync(CoreNodeSync):
@@ -735,6 +766,11 @@ class CoreGeneratorValidatorSync(CoreValidatorSync):
     definition: RelatedNodeSync
 
 
+class CoreGlobalPermissionSync(CoreBasePermissionSync):
+    name: String
+    action: Dropdown
+
+
 class CoreGraphQLQuerySync(CoreNodeSync):
     name: String
     description: StringOptional
@@ -773,6 +809,14 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+
+
+class CoreObjectPermissionSync(CoreBasePermissionSync):
+    branch: String
+    namespace: String
+    name: String
+    action: Enum
+    decision: Enum
 
 
 class CoreObjectThreadSync(CoreThreadSync):
@@ -844,6 +888,16 @@ class CoreTransformJinja2Sync(CoreTransformationSync):
 class CoreTransformPythonSync(CoreTransformationSync):
     file_path: String
     class_name: String
+
+
+class CoreUserGroupSync(CoreGroupSync):
+    roles: RelationshipManagerSync
+
+
+class CoreUserRoleSync(CoreNodeSync):
+    name: String
+    groups: RelationshipManagerSync
+    permissions: RelationshipManagerSync
 
 
 class CoreUserValidatorSync(CoreValidatorSync):
