@@ -97,7 +97,6 @@ jobs:
           globs: |
             **/*.{md,mdx}
             !changelog/*.md
-            !python_sdk/changelog/*.md
 
   action-lint:
     if: needs.files-changed.outputs.github_workflows == 'true'

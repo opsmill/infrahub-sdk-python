@@ -1,5 +1,5 @@
 
-> ⚠️ **Warning** 
+> ⚠️ **Warning**
 > This repository is still a WORK IN PROGRESS. Soon it will be the new home of the Python SDK for Infrahub but for now the project still lives in the main repository
 </br>
 
