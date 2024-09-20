@@ -92,8 +92,20 @@ class InfrahubTransform:
 
 
 def get_transform_class_instance(
-    transform_config: InfrahubPythonTransformConfig, search_path: Optional[Path] = None
+    transform_config: InfrahubPythonTransformConfig,
+    search_path: Optional[Path] = None,
+    client: Optional[InfrahubClient] = None,
+    branch: str = "",
 ) -> InfrahubTransform:
+    """Gets an uninstantiated InfrahubTransform class.
+
+    Args:
+        transform_config: A config object with information required to find and load the transform.
+        search_path: The path in which to search for a python file containing the transform. The current directory is
+            assumed if not speicifed.
+        client: The infrahub client used to interact with infrahub's API.
+        branch: git branch in which t
+    """
     if transform_config.file_path.is_absolute() or search_path is None:
         search_location = transform_config.file_path
     else:
@@ -108,7 +120,8 @@ def get_transform_class_instance(
         transform_class = getattr(module, transform_config.class_name)
 
         # Create an instance of the class
-        transform_instance = transform_class()
+        transform_instance = asyncio.run(transform_class.init(client=client, branch=branch))
+
     except (FileNotFoundError, AttributeError) as exc:
         raise InfrahubTransformNotFoundError(name=transform_config.name) from exc
 
