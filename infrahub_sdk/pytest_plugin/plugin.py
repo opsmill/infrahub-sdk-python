@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional, Union
 
@@ -33,6 +34,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--infrahub-key",
         action="store",
         dest="infrahub_key",
+        default=os.getenv("INFRAHUB_API_TOKEN"),
         metavar="INFRAHUB_TESTS_API_KEY",
         help="Key to use when querying the Infrahub instance for live testing",
     )
