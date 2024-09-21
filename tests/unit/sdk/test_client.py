@@ -315,6 +315,20 @@ async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_r
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_not_found_none(
+    httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type
+):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        response = await clients.standard.get(
+            kind="CoreRepository", name__value="infrahub-demo-core", raise_when_missing=False
+        )
+    else:
+        response = clients.sync.get(kind="CoreRepository", name__value="infrahub-demo-core", raise_when_missing=False)
+
+    assert response is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_found_many(
     httpx_mock: HTTPXMock,
     clients,
