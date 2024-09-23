@@ -18,7 +18,6 @@ from infrahub_sdk.ctl.exceptions import QueryNotFoundError
 from infrahub_sdk.exceptions import (
     AuthenticationError,
     Error,
-    FilterNotFoundError,
     GraphQLError,
     NodeNotFoundError,
     SchemaNotFoundError,
@@ -57,7 +56,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int):
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, FilterNotFoundError)):
+    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError)):
         console.print(f"[red]Error: {str(exc)}")
         raise typer.Exit(code=exit_code)
 

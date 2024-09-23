@@ -623,9 +623,6 @@ class InfrahubClient(BaseClient):
         node = InfrahubNode(client=self, schema=schema, branch=branch)
         filters = kwargs
 
-        if filters:
-            node.validate_filters(filters=filters)
-
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
 
@@ -1679,9 +1676,6 @@ class InfrahubClientSync(BaseClient):
 
         node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         filters = kwargs
-
-        if filters:
-            node.validate_filters(filters=filters)
 
         nodes: list[InfrahubNodeSync] = []
         related_nodes: list[InfrahubNodeSync] = []
