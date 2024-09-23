@@ -56,14 +56,7 @@ class InfrahubTransform:
             stacklevel=1,
         )
 
-        item = cls(*args, **kwargs)
-
-        if client:
-            item.client = client
-        else:
-            item.client = InfrahubClient(address=item.server_url)
-
-        return item
+        return cls(*args, **kwargs)
 
     @property
     def branch_name(self) -> str:
