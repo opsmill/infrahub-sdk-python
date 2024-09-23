@@ -10,7 +10,6 @@ from infrahub_sdk.config import Config
 from infrahub_sdk.exceptions import (
     AuthenticationError,
     Error,
-    FilterNotFoundError,
     GraphQLError,
     NodeNotFoundError,
     ServerNotReachableError,
@@ -50,7 +49,6 @@ __all__ = [
     "InfrahubNodeSync",
     "InfrahubRepositoryConfig",
     "InfrahubSchema",
-    "FilterNotFoundError",
     "generate_uuid",
     "GenericSchema",
     "GraphQLQueryAnalyzer",
