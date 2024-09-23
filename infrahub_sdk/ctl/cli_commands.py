@@ -16,7 +16,7 @@ from rich.traceback import Traceback
 from infrahub_sdk import __version__ as sdk_version
 from infrahub_sdk import protocols as sdk_protocols
 from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.client import InfrahubClient
+from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl import config
 from infrahub_sdk.ctl.branch import app as branch_app
 from infrahub_sdk.ctl.check import run as run_check
@@ -196,7 +196,7 @@ def render_jinja2_template(template_path: Path, variables: dict[str, str], data:
 
 def _run_transform(
     query_name: str,
-    client: InfrahubClient,
+    client: InfrahubClient | InfrahubClientSync,
     variables: dict[str, Any],
     transform_func: Callable,
     branch: str,
@@ -208,7 +208,7 @@ def _run_transform(
 
     Args:
         query_name: Name of the query to load.
-        client: InfrahubClient object used to execute a graphql query against the infrahub API
+        client: client object used to execute a graphql query against the infrahub API
         variables: Dictionary of variables used for graphql query
         transform_func: A function used to transform the return from the graphql query into a different form
         branch: Name of the *infrahub* branch that should be queried for data
@@ -217,9 +217,14 @@ def _run_transform(
     """
     branch = get_branch(branch)
     query_str = repository_config.get_query(name=query_name).load_query()
+    query_dict = dict(query=query_str, variables=variables, branch_name=branch)
 
     try:
-        response = client.execute_graphql(query=query_str, variables=variables, branch_name=branch)
+        if isinstance(client, InfrahubClient):
+            response = asyncio.run(client.execute_graphql(**query_dict))
+        else:
+            response = client.execute_graphql(**query_dict)
+
         if debug:
             message = ("-" * 40, f"Response for GraphQL Query {query_name}", response, "-" * 40)
             console.print("\n".join(message))
@@ -338,12 +343,9 @@ def transform(
 
     transform_config = matched[0]
 
-    # Get Infrahub Client
-    client = initialize_client_sync()
-
     # Get python transform class instance
     try:
-        transform = get_transform_class_instance(transform_config=transform_config, branch=branch, client=client)
+        transform = get_transform_class_instance(transform_config=transform_config, branch=branch)
     except InfrahubTransformNotFoundError as exc:
         console.print(f"Unable to load {transform_name} from python_transforms")
         raise typer.Exit(1) from exc

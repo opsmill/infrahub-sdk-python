@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import importlib
 import os
+import warnings
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from git import Repo
@@ -41,9 +43,18 @@ class InfrahubTransform:
         if not self.query:
             raise ValueError("A query must be provided")
 
+    @cached_property
+    def client(self):
+        return InfrahubClient(address=self.server_url)
+
     @classmethod
     async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubTransform:
         """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
+        warnings.warn(
+            "InfrahubClient.init has been deprecated and will be removed in Infrahub SDK 0.14.0 or the next major version",
+            DeprecationWarning,
+            stacklevel=1,
+        )
 
         item = cls(*args, **kwargs)
 
@@ -94,7 +105,7 @@ class InfrahubTransform:
 def get_transform_class_instance(
     transform_config: InfrahubPythonTransformConfig,
     search_path: Optional[Path] = None,
-    client: Optional[InfrahubClient] = None,
+    # client: Optional[InfrahubClient] = None,
     branch: str = "",
 ) -> InfrahubTransform:
     """Gets an uninstantiated InfrahubTransform class.
@@ -120,7 +131,7 @@ def get_transform_class_instance(
         transform_class = getattr(module, transform_config.class_name)
 
         # Create an instance of the class
-        transform_instance = asyncio.run(transform_class.init(client=client, branch=branch))
+        transform_instance = transform_class(branch=branch)
 
     except (FileNotFoundError, AttributeError) as exc:
         raise InfrahubTransformNotFoundError(name=transform_config.name) from exc
