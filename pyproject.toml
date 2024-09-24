@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "0.13.1-dev0"
+version = "0.13.1"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -64,6 +64,7 @@ ruff = "0.5.0"
 pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
+towncrier = "^24.8.0"
 
 [tool.poetry.extras]
 ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "toml", "typer"]
@@ -346,7 +347,7 @@ max-complexity = 17
 
 [tool.towncrier]
 
-package = "infrahub-sdk"
+package = "infrahub_sdk"
 directory = "changelog"
 filename = "CHANGELOG.md"
 start_string = "<!-- towncrier release notes start -->\n"
