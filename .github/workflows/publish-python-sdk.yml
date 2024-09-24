@@ -4,7 +4,7 @@ name: Publish Infrahub Python SDK
 on:  # yamllint disable rule:truthy
   push:
     tags:
-      - "python-sdk-v*"
+      - "v*"
 
 jobs:
   publish_to_pypi:
@@ -14,7 +14,7 @@ jobs:
       - name: "Set up Python"
         uses: "actions/setup-python@v5"
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: "Install Poetry"
         uses: "snok/install-poetry@v1"
@@ -35,7 +35,6 @@ jobs:
 
       - name: "Install Dependencies"
         run: "poetry install"
-        working-directory: "./python_sdk"
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
 
       - name: "Add PyPI secret"
@@ -43,12 +42,9 @@ jobs:
 
       - name: "Poetry build"
         run: "poetry build"
-        working-directory: "./python_sdk"
 
       - name: "show output"
         run: "ls -la dist/"
-        working-directory: "./python_sdk"
 
       - name: "Poetry push PyPI"
         run: "poetry publish"
-        working-directory: "./python_sdk"
