@@ -363,6 +363,41 @@ class InfrahubClient(BaseClient):
     async def get(
         self,
         kind: type[SchemaType],
+        raise_when_missing: Literal[False],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> Optional[SchemaType]: ...
+
+    @overload
+    async def get(
+        self,
+        kind: type[SchemaType],
+        raise_when_missing: Literal[True],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaType: ...
+
+    @overload
+    async def get(
+        self,
+        kind: type[SchemaType],
+        raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
         id: Optional[str] = ...,
@@ -379,6 +414,41 @@ class InfrahubClient(BaseClient):
     async def get(
         self,
         kind: str,
+        raise_when_missing: Literal[False],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> Optional[InfrahubNode]: ...
+
+    @overload
+    async def get(
+        self,
+        kind: str,
+        raise_when_missing: Literal[True],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> InfrahubNode: ...
+
+    @overload
+    async def get(
+        self,
+        kind: str,
+        raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
         id: Optional[str] = ...,
@@ -394,6 +464,7 @@ class InfrahubClient(BaseClient):
     async def get(
         self,
         kind: Union[str, type[SchemaType]],
+        raise_when_missing: bool = True,
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
         id: Optional[str] = None,
@@ -404,7 +475,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         **kwargs: Any,
-    ) -> Union[InfrahubNode, SchemaType]:
+    ) -> Union[InfrahubNode, SchemaType, None]:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -437,8 +508,10 @@ class InfrahubClient(BaseClient):
             **filters,
         )
 
-        if len(results) == 0:
+        if len(results) == 0 and raise_when_missing:
             raise NodeNotFoundError(branch_name=branch, node_type=schema.kind, identifier=filters)
+        if len(results) == 0 and not raise_when_missing:
+            return None
         if len(results) > 1:
             raise IndexError("More than 1 node returned")
 
@@ -1731,6 +1804,41 @@ class InfrahubClientSync(BaseClient):
     def get(
         self,
         kind: type[SchemaTypeSync],
+        raise_when_missing: Literal[False],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> Optional[SchemaTypeSync]: ...
+
+    @overload
+    def get(
+        self,
+        kind: type[SchemaTypeSync],
+        raise_when_missing: Literal[True],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaTypeSync: ...
+
+    @overload
+    def get(
+        self,
+        kind: type[SchemaTypeSync],
+        raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
         id: Optional[str] = ...,
@@ -1747,6 +1855,41 @@ class InfrahubClientSync(BaseClient):
     def get(
         self,
         kind: str,
+        raise_when_missing: Literal[False],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> Optional[InfrahubNodeSync]: ...
+
+    @overload
+    def get(
+        self,
+        kind: str,
+        raise_when_missing: Literal[True],
+        at: Optional[Timestamp] = ...,
+        branch: Optional[str] = ...,
+        id: Optional[str] = ...,
+        hfid: Optional[list[str]] = ...,
+        include: Optional[list[str]] = ...,
+        exclude: Optional[list[str]] = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        **kwargs: Any,
+    ) -> InfrahubNodeSync: ...
+
+    @overload
+    def get(
+        self,
+        kind: str,
+        raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
         id: Optional[str] = ...,
@@ -1762,6 +1905,7 @@ class InfrahubClientSync(BaseClient):
     def get(
         self,
         kind: Union[str, type[SchemaTypeSync]],
+        raise_when_missing: bool = True,
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
         id: Optional[str] = None,
@@ -1772,7 +1916,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         **kwargs: Any,
-    ) -> Union[InfrahubNodeSync, SchemaTypeSync]:
+    ) -> Union[InfrahubNodeSync, SchemaTypeSync, None]:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
@@ -1805,8 +1949,10 @@ class InfrahubClientSync(BaseClient):
             **filters,
         )
 
-        if len(results) == 0:
+        if len(results) == 0 and raise_when_missing:
             raise NodeNotFoundError(branch_name=branch, node_type=schema.kind, identifier=filters)
+        if len(results) == 0 and not raise_when_missing:
+            return None
         if len(results) > 1:
             raise IndexError("More than 1 node returned")
 
