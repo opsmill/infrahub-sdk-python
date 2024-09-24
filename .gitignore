@@ -6,9 +6,6 @@ coverage.xml
 script.py
 **/*.local.*
 .vscode/settings.json
-node_modules/*
-development/docker-compose.override.yml
-development/docker-compose.dev-override.yml
 .DS_Store
 .python-version
 .ruff_cache
@@ -23,7 +20,7 @@ docs/build
 
 storage/*
 .coverage.*
-python_sdk/dist/*
+dist/*
 .benchmarks/*
 
 # Test reports
@@ -31,5 +28,3 @@ python_sdk/dist/*
 
 # Generated files
 generated/
-query_performance_results/
-sync/dist/
