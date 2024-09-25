@@ -137,14 +137,16 @@ def get_transform_class_instance(
     branch: str = "",
     repository_config: Optional[InfrahubRepositoryConfig] = None,
 ) -> InfrahubTransform:
-    """Gets an uninstantiated InfrahubTransform class.
+    """Gets an instance of the InfrahubTransform class.
 
     Args:
         transform_config: A config object with information required to find and load the transform.
         search_path: The path in which to search for a python file containing the transform. The current directory is
             assumed if not speicifed.
-        client: The infrahub client used to interact with infrahub's API.
-        branch: git branch in which t
+        branch: Infrahub branch which will be targeted in graphql query used to acquire data for transformation.
+        repository_config: Repository config object. This is dpendency injected into the InfrahubTransform instance
+            providing it with the ability to interact with other data in the repository where the transform is defined
+            (e.g. a graphql query file).
     """
     if transform_config.file_path.is_absolute() or search_path is None:
         search_location = transform_config.file_path
