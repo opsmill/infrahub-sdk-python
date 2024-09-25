@@ -16,7 +16,6 @@ from rich.traceback import Traceback
 from infrahub_sdk import __version__ as sdk_version
 from infrahub_sdk import protocols as sdk_protocols
 from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl import config
 from infrahub_sdk.ctl.branch import app as branch_app
 from infrahub_sdk.ctl.check import run as run_check
@@ -29,7 +28,7 @@ from infrahub_sdk.ctl.repository import app as repository_app
 from infrahub_sdk.ctl.repository import get_repository_config
 from infrahub_sdk.ctl.schema import app as schema
 from infrahub_sdk.ctl.transform import list_transforms
-from infrahub_sdk.ctl.utils import catch_exception, parse_cli_vars
+from infrahub_sdk.ctl.utils import catch_exception, execute_graphql_query, parse_cli_vars
 from infrahub_sdk.ctl.validate import app as validate_app
 from infrahub_sdk.exceptions import GraphQLError, InfrahubTransformNotFoundError
 from infrahub_sdk.jinja2 import identify_faulty_jinja_code
@@ -196,7 +195,6 @@ def render_jinja2_template(template_path: Path, variables: dict[str, str], data:
 
 def _run_transform(
     query_name: str,
-    client: InfrahubClient | InfrahubClientSync,
     variables: dict[str, Any],
     transform_func: Callable,
     branch: str,
@@ -207,23 +205,20 @@ def _run_transform(
     Query GraphQL for the required data then run a transform on that data.
 
     Args:
-        query_name: Name of the query to load.
-        client: client object used to execute a graphql query against the infrahub API
+        query_name: Name of the query to load (e.g. tags_query)
         variables: Dictionary of variables used for graphql query
-        transform_func: A function used to transform the return from the graphql query into a different form
+        transformer_func: The function responsible for transforming data received from graphql
+        transform: A function used to transform the return from the graphql query into a different form
         branch: Name of the *infrahub* branch that should be queried for data
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
     """
     branch = get_branch(branch)
-    query_str = repository_config.get_query(name=query_name).load_query()
-    query_dict = dict(query=query_str, variables=variables, branch_name=branch)
 
     try:
-        if isinstance(client, InfrahubClient):
-            response = asyncio.run(client.execute_graphql(**query_dict))
-        else:
-            response = client.execute_graphql(**query_dict)
+        response = execute_graphql_query(
+            query=query_name, variables_dict=variables, branch=branch, debug=debug, repository_config=repository_config
+        )
 
         if debug:
             message = ("-" * 40, f"Response for GraphQL Query {query_name}", response, "-" * 40)
@@ -285,16 +280,12 @@ def render(
     )
     repository_config.queries.append(query_config_obj)
 
-    # Get client used to make call to API
-    client = initialize_client_sync()
-
     # Construct transform function used to transform data returned from the API
     transform_func = functools.partial(render_jinja2_template, transform_config.template_path, variables_dict)
 
     # Query GQL and run the transform
     result = _run_transform(
         query_name=transform_config.query,
-        client=client,
         variables=variables_dict,
         transform_func=transform_func,
         branch=branch,
@@ -345,7 +336,9 @@ def transform(
 
     # Get python transform class instance
     try:
-        transform = get_transform_class_instance(transform_config=transform_config, branch=branch)
+        transform = get_transform_class_instance(
+            transform_config=transform_config, branch=branch, repository_config=repository_config
+        )
     except InfrahubTransformNotFoundError as exc:
         console.print(f"Unable to load {transform_name} from python_transforms")
         raise typer.Exit(1) from exc
@@ -354,16 +347,8 @@ def transform(
     query_config_obj = InfrahubRepositoryGraphQLConfig(name=transform.query, file_path=Path(transform.query + ".gql"))
     repository_config.queries.append(query_config_obj)
 
-    # Run Transformer
-    result = _run_transform(
-        query_name=transform.query,
-        client=transform.client,
-        variables=variables_dict,
-        transform_func=transform.transform,
-        branch=branch,
-        debug=debug,
-        repository_config=repository_config,
-    )
+    # Run Transform
+    result = asyncio.run(transform.run(variables=variables_dict))
 
     json_string = ujson.dumps(result, indent=2, sort_keys=True)
     if out:

@@ -8,6 +8,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
+import httpx
 from git import Repo
 
 from infrahub_sdk import InfrahubClient
@@ -17,7 +18,7 @@ from .exceptions import InfrahubTransformNotFoundError
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from .schema import InfrahubPythonTransformConfig
+    from .schema import InfrahubPythonTransformConfig, InfrahubRepositoryConfig
 
 INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
 
@@ -27,13 +28,20 @@ class InfrahubTransform:
     query: str
     timeout: int = 10
 
-    def __init__(self, branch: str = "", root_directory: str = "", server_url: str = ""):
+    def __init__(
+        self,
+        branch: str = "",
+        root_directory: str = "",
+        server_url: str = "",
+        repository_config: Optional[InfrahubRepositoryConfig] = None,
+    ):
         self.git: Repo
 
         self.branch = branch
 
         self.server_url = server_url or os.environ.get("INFRAHUB_URL", "http://127.0.0.1:8000")
         self.root_directory = root_directory or os.getcwd()
+        self.repository_config = repository_config
 
         self.client: InfrahubClient
 
@@ -44,7 +52,7 @@ class InfrahubTransform:
             raise ValueError("A query must be provided")
 
     @cached_property
-    def client(self):
+    def client(self) -> InfrahubClient:
         return InfrahubClient(address=self.server_url)
 
     @classmethod
@@ -60,8 +68,6 @@ class InfrahubTransform:
 
         if client:
             item.client = client
-        else:
-            item.client = InfrahubClient(address=item.server_url)
 
         return item
 
@@ -72,7 +78,7 @@ class InfrahubTransform:
         if self.branch:
             return self.branch
 
-        if not self.git:
+        if not hasattr(self, "git") or not self.git:
             self.git = Repo(self.root_directory)
 
         self.branch = str(self.git.active_branch)
@@ -83,17 +89,40 @@ class InfrahubTransform:
     def transform(self, data: dict) -> Any:
         pass
 
-    async def collect_data(self) -> dict:
+    async def collect_data(self, variables: Optional[dict] = None) -> dict:
         """Query the result of the GraphQL Query defined in self.query and return the result"""
 
-        return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name)
+        if not variables:
+            variables = {}
 
-    async def run(self, data: Optional[dict] = None) -> Any:
+        # Try getting data from stored graphql query endpoint
+        try:
+            return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name, variables=variables)
+        # If we run into an error, the stored graphql query may not exist. Try to query the GraphQL API directly instead.
+        except httpx.HTTPStatusError:
+            if not self.repository_config:
+                raise
+            query_str = self.repository_config.get_query(name=self.query).load_query()
+            return await self.client.execute_graphql(query=query_str, variables=variables, branch_name=self.branch_name)
+
+    async def run(self, data: Optional[dict] = None, variables: Optional[dict] = None) -> Any:
         """Execute the transformation after collecting the data from the GraphQL query.
-        The result of the check is determined based on the presence or not of ERROR log messages."""
+
+        The result of the check is determined based on the presence or not of ERROR log messages.
+
+        Args:
+            data: The data on which to run the transform. Data will be queried from the API if not provided
+            variables: Variables to use in the graphQL query to filter returned data
+
+        Returns: Transformed data
+        """
+
+        if not variables:
+            variables = {}
 
         if not data:
-            data = await self.collect_data()
+            data = await self.collect_data(variables=variables)
+
         unpacked = data.get("data") or data
 
         if asyncio.iscoroutinefunction(self.transform):
@@ -105,8 +134,8 @@ class InfrahubTransform:
 def get_transform_class_instance(
     transform_config: InfrahubPythonTransformConfig,
     search_path: Optional[Path] = None,
-    # client: Optional[InfrahubClient] = None,
     branch: str = "",
+    repository_config: Optional[InfrahubRepositoryConfig] = None,
 ) -> InfrahubTransform:
     """Gets an uninstantiated InfrahubTransform class.
 
@@ -131,7 +160,7 @@ def get_transform_class_instance(
         transform_class = getattr(module, transform_config.class_name)
 
         # Create an instance of the class
-        transform_instance = transform_class(branch=branch)
+        transform_instance = transform_class(branch=branch, repository_config=repository_config)
 
     except (FileNotFoundError, AttributeError) as exc:
         raise InfrahubTransformNotFoundError(name=transform_config.name) from exc
