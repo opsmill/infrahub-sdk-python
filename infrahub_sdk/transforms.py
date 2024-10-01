@@ -5,7 +5,6 @@ import importlib
 import os
 import warnings
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 import httpx
@@ -33,17 +32,17 @@ class InfrahubTransform:
         branch: str = "",
         root_directory: str = "",
         server_url: str = "",
+        client: Optional[InfrahubClient] = None,
         repository_config: Optional[InfrahubRepositoryConfig] = None,
     ):
         self.git: Repo
 
         self.branch = branch
-
         self.server_url = server_url or os.environ.get("INFRAHUB_URL", "http://127.0.0.1:8000")
         self.root_directory = root_directory or os.getcwd()
         self.repository_config = repository_config
 
-        self.client: InfrahubClient
+        self._client = client
 
         if not self.name:
             self.name = self.__class__.__name__
@@ -51,9 +50,12 @@ class InfrahubTransform:
         if not self.query:
             raise ValueError("A query must be provided")
 
-    @cached_property
+    @property
     def client(self) -> InfrahubClient:
-        return InfrahubClient(address=self.server_url)
+        if not self._client:
+            self._client = InfrahubClient(address=self.server_url)
+
+        return self._client
 
     @classmethod
     async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubTransform:
@@ -63,11 +65,10 @@ class InfrahubTransform:
             DeprecationWarning,
             stacklevel=1,
         )
+        if client:
+            kwargs["client"] = client
 
         item = cls(*args, **kwargs)
-
-        if client:
-            item.client = client
 
         return item
 
@@ -136,6 +137,7 @@ def get_transform_class_instance(
     search_path: Optional[Path] = None,
     branch: str = "",
     repository_config: Optional[InfrahubRepositoryConfig] = None,
+    client: Optional[InfrahubClient] = None,
 ) -> InfrahubTransform:
     """Gets an instance of the InfrahubTransform class.
 
@@ -147,6 +149,7 @@ def get_transform_class_instance(
         repository_config: Repository config object. This is dpendency injected into the InfrahubTransform instance
             providing it with the ability to interact with other data in the repository where the transform is defined
             (e.g. a graphql query file).
+        client: InfrahubClient used to interact with infrahub API.
     """
     if transform_config.file_path.is_absolute() or search_path is None:
         search_location = transform_config.file_path
@@ -162,7 +165,7 @@ def get_transform_class_instance(
         transform_class = getattr(module, transform_config.class_name)
 
         # Create an instance of the class
-        transform_instance = transform_class(branch=branch, repository_config=repository_config)
+        transform_instance = transform_class(branch=branch, client=client, repository_config=repository_config)
 
     except (FileNotFoundError, AttributeError) as exc:
         raise InfrahubTransformNotFoundError(name=transform_config.name) from exc

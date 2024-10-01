@@ -34,7 +34,7 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
 
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
-    client = await initialize_client()
+    client = initialize_client()
     branches = await client.branch.all()
 
     table = Table(title="List of all branches")
@@ -91,7 +91,7 @@ async def create(
 
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
-    client = await initialize_client()
+    client = initialize_client()
     branch = await client.branch.create(branch_name=branch_name, description=description, sync_with_git=sync_with_git)
     console.print(f"Branch {branch_name!r} created successfully ({branch.id}).")
 
@@ -103,7 +103,7 @@ async def delete(branch_name: str, _: str = CONFIG_PARAM) -> None:
 
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
-    client = await initialize_client()
+    client = initialize_client()
     await client.branch.delete(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' deleted successfully.")
 
@@ -115,7 +115,7 @@ async def rebase(branch_name: str, _: str = CONFIG_PARAM) -> None:
 
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
-    client = await initialize_client()
+    client = initialize_client()
     await client.branch.rebase(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' rebased successfully.")
 
@@ -127,7 +127,7 @@ async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
 
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
-    client = await initialize_client()
+    client = initialize_client()
     await client.branch.merge(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' merged successfully.")
 
@@ -137,6 +137,6 @@ async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
 async def validate(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET)."""
 
-    client = await initialize_client()
+    client = initialize_client()
     await client.branch.validate(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' is valid.")

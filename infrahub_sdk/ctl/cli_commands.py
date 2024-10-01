@@ -156,7 +156,7 @@ async def run(
     if not hasattr(module, method):
         raise typer.Abort(f"Unable to Load the method {method} in the Python script at {script}")
 
-    client = await initialize_client(
+    client = initialize_client(
         branch=branch, timeout=timeout, max_concurrent_execution=concurrent, identifier=module_name
     )
     func = getattr(module, method)
@@ -334,10 +334,16 @@ def transform(
 
     transform_config = matched[0]
 
+    # Get client
+    client = initialize_client()
+
     # Get python transform class instance
     try:
         transform = get_transform_class_instance(
-            transform_config=transform_config, branch=branch, repository_config=repository_config
+            transform_config=transform_config,
+            branch=branch,
+            repository_config=repository_config,
+            client=client,
         )
     except InfrahubTransformNotFoundError as exc:
         console.print(f"Unable to load {transform_name} from python_transforms")
