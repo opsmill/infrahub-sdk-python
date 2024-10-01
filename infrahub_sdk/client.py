@@ -486,14 +486,14 @@ class InfrahubClient(BaseClient):
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
-        elif hfid:
+        if hfid:
             if isinstance(schema, NodeSchema) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
                 raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")
-        elif kwargs:
-            filters = kwargs
-        else:
+        if kwargs:
+            filters.update(kwargs)
+        if len(filters) == 0:
             raise ValueError("At least one filter must be provided to get()")
 
         results = await self.filters(
@@ -777,6 +777,7 @@ class InfrahubClient(BaseClient):
             _type_: _description_
         """
 
+        branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, Union[str, dict]] = {"query": query}
@@ -1520,6 +1521,7 @@ class InfrahubClientSync(BaseClient):
             dict: The result of the GraphQL query or mutation.
         """
 
+        branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, Union[str, dict]] = {"query": query}
@@ -1927,14 +1929,14 @@ class InfrahubClientSync(BaseClient):
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
-        elif hfid:
+        if hfid:
             if isinstance(schema, NodeSchema) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
                 raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")
-        elif kwargs:
-            filters = kwargs
-        else:
+        if kwargs:
+            filters.update(kwargs)
+        if len(filters) == 0:
             raise ValueError("At least one filter must be provided to get()")
 
         results = self.filters(
