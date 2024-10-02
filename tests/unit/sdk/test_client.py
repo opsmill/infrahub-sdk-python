@@ -607,7 +607,7 @@ async def test_allocate_next_ip_prefix(
     assert ip_prefix.description.value == "test"
 
 
-EXPECTED_ECHO = """URL: http://mock/graphql
+EXPECTED_ECHO = """URL: http://mock/graphql/main
 QUERY:
 
     query GetTags($name: String!) {

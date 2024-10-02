@@ -575,6 +575,7 @@ class InfrahubClient(BaseClient):
             _type_: _description_
         """
 
+        branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, Union[str, dict]] = {"query": query}
@@ -1112,6 +1113,7 @@ class InfrahubClientSync(BaseClient):
             dict: The result of the GraphQL query or mutation.
         """
 
+        branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, Union[str, dict]] = {"query": query}
