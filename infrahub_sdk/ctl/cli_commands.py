@@ -36,7 +36,6 @@ from infrahub_sdk.schema import (
     AttributeSchema,
     GenericSchema,
     InfrahubRepositoryConfig,
-    InfrahubRepositoryGraphQLConfig,
     NodeSchema,
     RelationshipSchema,
 )
@@ -273,12 +272,6 @@ def render(
         console.print(f'[red]Unable to find "{transform_name}" in {config.INFRAHUB_REPO_CONFIG_FILE}')
         list_jinja2_transforms(config=repository_config)
         raise typer.Exit(1) from exc
-
-    # Load query config object and add to repository config
-    query_config_obj = InfrahubRepositoryGraphQLConfig(
-        name=transform_config.query, file_path=Path(transform_config.query + ".gql")
-    )
-    repository_config.queries.append(query_config_obj)
 
     # Construct transform function used to transform data returned from the API
     transform_func = functools.partial(render_jinja2_template, transform_config.template_path, variables_dict)
