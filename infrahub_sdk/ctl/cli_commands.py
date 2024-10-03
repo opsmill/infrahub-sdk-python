@@ -208,7 +208,6 @@ def _run_transform(
         query_name: Name of the query to load (e.g. tags_query)
         variables: Dictionary of variables used for graphql query
         transformer_func: The function responsible for transforming data received from graphql
-        transform: A function used to transform the return from the graphql query into a different form
         branch: Name of the *infrahub* branch that should be queried for data
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
@@ -220,9 +219,10 @@ def _run_transform(
             query=query_name, variables_dict=variables, branch=branch, debug=debug, repository_config=repository_config
         )
 
-        if debug:
-            message = ("-" * 40, f"Response for GraphQL Query {query_name}", response, "-" * 40)
-            console.print("\n".join(message))
+        # TODO: response is a dict and can't be printed to the console in this way.
+        # if debug:
+        #     message = ("-" * 40, f"Response for GraphQL Query {query_name}", response, "-" * 40)
+        #     console.print("\n".join(message))
     except QueryNotFoundError as exc:
         console.print(f"[red]Unable to find query : {exc}")
         raise typer.Exit(1) from exc
@@ -342,19 +342,20 @@ def transform(
         transform = get_transform_class_instance(
             transform_config=transform_config,
             branch=branch,
-            repository_config=repository_config,
             client=client,
         )
     except InfrahubTransformNotFoundError as exc:
         console.print(f"Unable to load {transform_name} from python_transforms")
         raise typer.Exit(1) from exc
 
-    # Load query config
-    query_config_obj = InfrahubRepositoryGraphQLConfig(name=transform.query, file_path=Path(transform.query + ".gql"))
-    repository_config.queries.append(query_config_obj)
+    # Get data
+    query_str = repository_config.get_query(name=transform.query).load_query()
+    data = asyncio.run(
+        transform.client.execute_graphql(query=query_str, variables=variables_dict, branch_name=transform.branch_name)
+    )
 
     # Run Transform
-    result = asyncio.run(transform.run(variables=variables_dict))
+    result = asyncio.run(transform.run(data=data))
 
     json_string = ujson.dumps(result, indent=2, sort_keys=True)
     if out:
