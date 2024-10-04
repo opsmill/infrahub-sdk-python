@@ -40,7 +40,7 @@ async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
         console.print("[red]Invalid JSON file")
         raise typer.Exit(1) from exc
 
-    client = await initialize_client()
+    client = initialize_client()
 
     try:
         client.schema.validate(schema_data)
