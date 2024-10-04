@@ -87,15 +87,6 @@ class NodeNotFoundError(Error):
         """
 
 
-class FilterNotFoundError(Error):
-    def __init__(self, identifier: str, kind: str, message: Optional[str] = None, filters: Optional[list[str]] = None):
-        self.identifier = identifier
-        self.kind = kind
-        self.filters = filters or []
-        self.message = message or f"{identifier!r} is not a valid filter for {self.kind!r} ({', '.join(self.filters)})."
-        super().__init__(self.message)
-
-
 class InfrahubCheckNotFoundError(Error):
     def __init__(self, name: str, message: Optional[str] = None):
         self.message = message or f"The requested InfrahubCheck '{name}' was not found."
