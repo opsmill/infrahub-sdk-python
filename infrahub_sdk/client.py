@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
-import warnings
 from functools import wraps
 from time import sleep
 from typing import (
@@ -304,19 +303,6 @@ class InfrahubClient(BaseClient):
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
-
-    @classmethod
-    async def init(
-        cls,
-        address: str = "",
-        config: Optional[Union[Config, dict[str, Any]]] = None,
-    ) -> InfrahubClient:
-        warnings.warn(
-            "InfrahubClient.init has been deprecated and will be removed in Infrahub SDK 0.14.0 or the next major version",
-            DeprecationWarning,
-            stacklevel=1,
-        )
-        return cls(address=address, config=config)
 
     @overload
     async def create(
@@ -1433,19 +1419,6 @@ class InfrahubClientSync(BaseClient):
         self.store = NodeStoreSync()
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
-
-    @classmethod
-    def init(
-        cls,
-        address: str = "",
-        config: Optional[Union[Config, dict[str, Any]]] = None,
-    ) -> InfrahubClientSync:
-        warnings.warn(
-            "InfrahubClientSync.init has been deprecated and will be removed in Infrahub SDK 0.14.0 or the next major version",
-            DeprecationWarning,
-            stacklevel=1,
-        )
-        return cls(address=address, config=config)
 
     @overload
     def create(
