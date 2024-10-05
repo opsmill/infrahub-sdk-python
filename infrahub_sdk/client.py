@@ -21,8 +21,7 @@ from typing import (
 
 import httpx
 import ujson
-from typing_extensions import NotRequired, Self
-from typing_extensions import TypedDict as ExtensionTypedDict
+from typing_extensions import Self
 
 from infrahub_sdk.batch import InfrahubBatch
 from infrahub_sdk.branch import (
@@ -33,6 +32,7 @@ from infrahub_sdk.branch import (
 from infrahub_sdk.config import Config
 from infrahub_sdk.constants import InfrahubClientMode
 from infrahub_sdk.data import RepositoryBranchInfo, RepositoryData
+from infrahub_sdk.diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
 from infrahub_sdk.exceptions import (
     AuthenticationError,
     Error,
@@ -64,34 +64,6 @@ if TYPE_CHECKING:
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
 SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
-
-
-class NodeDiff(ExtensionTypedDict):
-    branch: str
-    kind: str
-    id: str
-    action: str
-    display_label: str
-    elements: list[NodeDiffElement]
-
-
-class NodeDiffElement(ExtensionTypedDict):
-    name: str
-    element_type: str
-    action: str
-    summary: NodeDiffSummary
-    peers: NotRequired[list[NodeDiffPeer]]
-
-
-class NodeDiffSummary(ExtensionTypedDict):
-    added: int
-    updated: int
-    removed: int
-
-
-class NodeDiffPeer(ExtensionTypedDict):
-    action: str
-    summary: NodeDiffSummary
 
 
 class ProcessRelationsNode(TypedDict):
@@ -1011,41 +983,26 @@ class InfrahubClient(BaseClient):
         tracker: Optional[str] = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
-        query = """
-            query {
-                DiffSummary {
-                    branch
-                    id
-                    kind
-                    action
-                    display_label
-                    elements {
-                        element_type
-                        name
-                        action
-                        summary {
-                            added
-                            updated
-                            removed
-                        }
-                        ... on DiffSummaryElementRelationshipMany {
-                            peers {
-                                action
-                                summary {
-                                    added
-                                    updated
-                                    removed
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        """
+        query = get_diff_summary_query()
         response = await self.execute_graphql(
-            query=query, branch_name=branch, timeout=timeout, tracker=tracker, raise_for_error=raise_for_error
+            query=query,
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            raise_for_error=raise_for_error,
+            variables={"branch_name": branch},
         )
-        return response["DiffSummary"]
+
+        node_diffs: list[NodeDiff] = []
+        diff_tree = response["DiffTree"]
+
+        if diff_tree is None or "nodes" not in diff_tree:
+            return []
+        for node_dict in diff_tree["nodes"]:
+            node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+            node_diffs.append(node_diff)
+
+        return node_diffs
 
     @overload
     async def allocate_next_ip_address(
@@ -2003,41 +1960,26 @@ class InfrahubClientSync(BaseClient):
         tracker: Optional[str] = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
-        query = """
-            query {
-                DiffSummary {
-                    branch
-                    id
-                    kind
-                    action
-                    display_label
-                    elements {
-                        element_type
-                        name
-                        action
-                        summary {
-                            added
-                            updated
-                            removed
-                        }
-                        ... on DiffSummaryElementRelationshipMany {
-                            peers {
-                                action
-                                summary {
-                                    added
-                                    updated
-                                    removed
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        """
+        query = get_diff_summary_query()
         response = self.execute_graphql(
-            query=query, branch_name=branch, timeout=timeout, tracker=tracker, raise_for_error=raise_for_error
+            query=query,
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            raise_for_error=raise_for_error,
+            variables={"branch_name": branch},
         )
-        return response["DiffSummary"]
+
+        node_diffs: list[NodeDiff] = []
+        diff_tree = response["DiffTree"]
+
+        if diff_tree is None or "nodes" not in diff_tree:
+            return []
+        for node_dict in diff_tree["nodes"]:
+            node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+            node_diffs.append(node_diff)
+
+        return node_diffs
 
     @overload
     def allocate_next_ip_address(
