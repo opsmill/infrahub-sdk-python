@@ -21,6 +21,8 @@ if TYPE_CHECKING:
         IntegerOptional,
         Boolean,
         BooleanOptional,
+        Checkbox,
+        CheckboxOptional,
         DateTime,
         DateTimeOptional,
         Dropdown,

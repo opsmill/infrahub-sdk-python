@@ -70,6 +70,7 @@ class CodeGenerator:
     def _jinja2_filter_render_attribute(value: AttributeSchema) -> str:
         attribute_kind_map = {
             "boolean": "Boolean",
+            "checkbox": "Checkbox",
             "datetime": "DateTime",
             "dropdown": "Dropdown",
             "hashedpassword": "HashedPassword",

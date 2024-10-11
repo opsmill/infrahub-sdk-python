@@ -53,6 +53,14 @@ class BooleanOptional(Attribute):
     value: Optional[bool]
 
 
+class Checkbox(Attribute):
+    value: bool
+
+
+class CheckboxOptional(Attribute):
+    value: Optional[bool]
+
+
 class DateTime(Attribute):
     value: str
 
