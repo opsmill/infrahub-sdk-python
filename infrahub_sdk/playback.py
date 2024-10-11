@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any, Optional
 
@@ -44,7 +45,7 @@ class JSONPlayback(BaseSettings):
     ) -> httpx.Response:
         content: Optional[bytes] = None
         if payload:
-            content = str(ujson.dumps(payload)).encode("utf-8")
+            content = str(json.dumps(payload)).encode("UTF-8")
         request = httpx.Request(method=method.value, url=url, headers=headers, content=content)
 
         filename = generate_request_filename(request)
