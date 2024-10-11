@@ -142,7 +142,7 @@ jobs:
         run: |
           pipx install poetry
           poetry config virtualenvs.prefer-active-python true
-          pip install invoke toml
+          pip install invoke toml codecov
       - name: "Install Package"
         run: "poetry install --all-extras"
       - name: "Mypy Tests"
@@ -151,3 +151,8 @@ jobs:
       #   run: "poetry run pylint infrahub_sdk/"
       - name: "Unit Tests"
         run: "poetry run pytest tests/unit/"
+      - name: "Upload coverage to Codecov"
+        run: |
+          codecov --flags python-${{ matrix.python-version }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
