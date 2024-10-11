@@ -20,6 +20,7 @@ doc_files: &doc_files
 python_all: &python_all
   - "**/*.py"
   - *poetry_files
+  - *ci_config
 
 yaml_all: &yaml_all
   - "**/*.{yml,yaml}"

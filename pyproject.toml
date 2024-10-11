@@ -144,7 +144,7 @@ filterwarnings = [
     "ignore:Module already imported so cannot be rewritten",
     "ignore:Deprecated call to",
 ]
-addopts = "-vs --cov-report term-missing --cov-report xml --dist loadscope"
+addopts = "-vs --cov infrahub_sdk --cov-report term-missing --cov-report xml --dist loadscope"
 
 [tool.mypy]
 pretty = true
