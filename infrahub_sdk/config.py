@@ -54,7 +54,7 @@ class ConfigBase(BaseSettings):
     pagination_size: int = Field(default=50, description="Page size for queries to the server")
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
     retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
-    timeout: int = Field(default=10, description="Default connection timeout in seconds")
+    timeout: int = Field(default=60, description="Default connection timeout in seconds")
     transport: RequesterTransport = Field(
         default=RequesterTransport.HTTPX, description="Set an alternate transport using a predefined option"
     )
