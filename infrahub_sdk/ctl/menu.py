@@ -1,0 +1,60 @@
+import logging
+from pathlib import Path
+
+import typer
+from rich.console import Console
+
+from infrahub_sdk.async_typer import AsyncTyper
+from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.utils import catch_exception, init_logging
+from infrahub_sdk.spec.menu import MenuFile
+
+from .parameters import CONFIG_PARAM
+from .utils import load_yamlfile_from_disk_and_exit
+
+app = AsyncTyper()
+console = Console()
+
+
+@app.callback()
+def callback() -> None:
+    """
+    Manage the menu in a remote Infrahub instance.
+    """
+
+
+@app.command()
+@catch_exception(console=console)
+async def load(
+    menus: list[Path],
+    debug: bool = False,
+    branch: str = typer.Option("main", help="Branch on which to load the menu."),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Load one or multiple menu files into Infrahub."""
+
+    init_logging(debug=debug)
+
+    logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
+
+    files = load_yamlfile_from_disk_and_exit(paths=menus, file_type=MenuFile, console=console)
+    client = await initialize_client()
+
+    default_kind = "CoreMenuItem"
+
+    for file in files:
+        file.validate_content()
+        if not file.spec.kind:
+            file.spec.kind = default_kind
+
+        schema = await client.schema.get(kind=file.spec.kind, branch=branch)
+
+        for idx, item in enumerate(file.spec.data):
+            await file.spec.create_node(
+                client=client,
+                schema=schema,
+                data=item,
+                branch=branch,
+                default_schema_kind=default_kind,
+                context={"list_index": idx},
+            )
