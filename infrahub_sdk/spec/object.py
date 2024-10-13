@@ -8,7 +8,7 @@ from infrahub_sdk.yaml import InfrahubFile, InfrahubFileKind
 
 
 class InfrahubObjectFileData(BaseModel):
-    kind: str | None = None
+    kind: Optional[str] = None
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
