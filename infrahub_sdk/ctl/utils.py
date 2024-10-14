@@ -3,7 +3,7 @@ import logging
 import traceback
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 
 import pendulum
 import typer
@@ -14,7 +14,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
+from infrahub_sdk.ctl.exceptions import FileNotValidError, QueryNotFoundError
 from infrahub_sdk.exceptions import (
     AuthenticationError,
     Error,
@@ -25,8 +25,11 @@ from infrahub_sdk.exceptions import (
     ServerNotResponsiveError,
 )
 from infrahub_sdk.schema import InfrahubRepositoryConfig
+from infrahub_sdk.yaml import YamlFile
 
 from .client import initialize_client_sync
+
+YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
 
 
 def init_logging(debug: bool = False) -> None:
@@ -179,3 +182,25 @@ def get_fixtures_dir() -> Path:
     """Get the directory which stores fixtures that are common to multiple unit/integration tests."""
     here = Path(__file__).resolve().parent
     return here.parent.parent / "tests" / "fixtures"
+
+
+def load_yamlfile_from_disk_and_exit(
+    paths: list[Path], file_type: type[YamlFileVar], console: Console
+) -> list[YamlFileVar]:
+    has_error = False
+    try:
+        data_files = file_type.load_from_disk(paths=paths)
+    except FileNotValidError as exc:
+        console.print(f"[red]{exc.message}")
+        raise typer.Exit(1) from exc
+
+    for data_file in data_files:
+        if data_file.valid and data_file.content:
+            continue
+        console.print(f"[red]{data_file.error_message} ({data_file.location})")
+        has_error = True
+
+    if has_error:
+        raise typer.Exit(1)
+
+    return data_files

@@ -11,13 +11,12 @@ from rich.console import Console
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.async_typer import AsyncTyper
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.exceptions import FileNotValidError
 from infrahub_sdk.ctl.utils import catch_exception, init_logging
 from infrahub_sdk.queries import SCHEMA_HASH_SYNC_STATUS
-from infrahub_sdk.utils import find_files
 from infrahub_sdk.yaml import SchemaFile
 
 from .parameters import CONFIG_PARAM
+from .utils import load_yamlfile_from_disk_and_exit
 
 app = AsyncTyper()
 console = Console()
@@ -28,45 +27,6 @@ def callback() -> None:
     """
     Manage the schema in a remote Infrahub instance.
     """
-
-
-def load_schemas_from_disk(schemas: list[Path]) -> list[SchemaFile]:
-    schemas_data: list[SchemaFile] = []
-    for schema in schemas:
-        if schema.is_file():
-            schema_file = SchemaFile(location=schema)
-            schema_file.load_content()
-            schemas_data.append(schema_file)
-        elif schema.is_dir():
-            files = find_files(extension=["yaml", "yml", "json"], directory=schema)
-            for item in files:
-                schema_file = SchemaFile(location=item)
-                schema_file.load_content()
-                schemas_data.append(schema_file)
-        else:
-            raise FileNotValidError(name=schema, message=f"Schema path: {schema} does not exist!")
-
-    return schemas_data
-
-
-def load_schemas_from_disk_and_exit(schemas: list[Path]) -> list[SchemaFile]:
-    has_error = False
-    try:
-        schemas_data = load_schemas_from_disk(schemas=schemas)
-    except FileNotValidError as exc:
-        console.print(f"[red]{exc.message}")
-        raise typer.Exit(1) from exc
-
-    for schema_file in schemas_data:
-        if schema_file.valid and schema_file.content:
-            continue
-        console.print(f"[red]{schema_file.error_message} ({schema_file.location})")
-        has_error = True
-
-    if has_error:
-        raise typer.Exit(1)
-
-    return schemas_data
 
 
 def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[SchemaFile]) -> None:
@@ -153,7 +113,7 @@ async def load(
 
     init_logging(debug=debug)
 
-    schemas_data = load_schemas_from_disk_and_exit(schemas=schemas)
+    schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     schema_definition = "schema" if len(schemas_data) == 1 else "schemas"
     client = await initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
@@ -203,7 +163,7 @@ async def check(
 
     init_logging(debug=debug)
 
-    schemas_data = load_schemas_from_disk_and_exit(schemas=schemas)
+    schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     client = await initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 

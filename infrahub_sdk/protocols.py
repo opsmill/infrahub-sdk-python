@@ -143,6 +143,7 @@ class CoreMenu(CoreNode):
     namespace: String
     name: String
     label: StringOptional
+    kind: StringOptional
     path: StringOptional
     description: StringOptional
     icon: StringOptional
@@ -607,6 +608,7 @@ class CoreMenuSync(CoreNodeSync):
     namespace: String
     name: String
     label: StringOptional
+    kind: StringOptional
     path: StringOptional
     description: StringOptional
     icon: StringOptional

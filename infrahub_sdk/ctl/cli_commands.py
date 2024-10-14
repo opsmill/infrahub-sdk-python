@@ -22,13 +22,19 @@ from infrahub_sdk.ctl.check import run as run_check
 from infrahub_sdk.ctl.client import initialize_client, initialize_client_sync
 from infrahub_sdk.ctl.exceptions import QueryNotFoundError
 from infrahub_sdk.ctl.generator import run as run_generator
+from infrahub_sdk.ctl.menu import app as menu_app
+from infrahub_sdk.ctl.object import app as object_app
 from infrahub_sdk.ctl.render import list_jinja2_transforms
 from infrahub_sdk.ctl.repository import app as repository_app
 from infrahub_sdk.ctl.repository import get_repository_config
 from infrahub_sdk.ctl.schema import app as schema_app
-from infrahub_sdk.ctl.schema import load_schemas_from_disk_and_exit
 from infrahub_sdk.ctl.transform import list_transforms
-from infrahub_sdk.ctl.utils import catch_exception, execute_graphql_query, parse_cli_vars
+from infrahub_sdk.ctl.utils import (
+    catch_exception,
+    execute_graphql_query,
+    load_yamlfile_from_disk_and_exit,
+    parse_cli_vars,
+)
 from infrahub_sdk.ctl.validate import app as validate_app
 from infrahub_sdk.exceptions import GraphQLError, InfrahubTransformNotFoundError
 from infrahub_sdk.jinja2 import identify_faulty_jinja_code
@@ -39,6 +45,7 @@ from infrahub_sdk.schema import (
 )
 from infrahub_sdk.transforms import get_transform_class_instance
 from infrahub_sdk.utils import get_branch, write_to_file
+from infrahub_sdk.yaml import SchemaFile
 
 from .exporter import dump
 from .importer import load
@@ -50,6 +57,9 @@ app.add_typer(branch_app, name="branch")
 app.add_typer(schema_app, name="schema")
 app.add_typer(validate_app, name="validate")
 app.add_typer(repository_app, name="repository")
+app.add_typer(menu_app, name="menu")
+app.add_typer(object_app, name="object", hidden=True)
+
 app.command(name="dump")(dump)
 app.command(name="load")(load)
 
@@ -338,7 +348,7 @@ def protocols(  # noqa: PLR0915
     schema: dict[str, MainSchemaTypes] = {}
 
     if schemas:
-        schemas_data = load_schemas_from_disk_and_exit(schemas=schemas)
+        schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
 
         for data in schemas_data:
             data.load_content()
