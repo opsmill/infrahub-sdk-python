@@ -6,6 +6,8 @@ from .object import InfrahubObjectFileData
 
 
 class InfrahubMenuFileData(InfrahubObjectFileData):
+    kind: str = "CoreMenuItem"
+
     @classmethod
     def enrich_node(cls, data: dict, context: dict) -> dict:
         if "kind" in data and "path" not in data:

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import typer
@@ -5,7 +6,6 @@ from rich.console import Console
 
 from infrahub_sdk.async_typer import AsyncTyper
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.exceptions import FileNotValidError
 from infrahub_sdk.ctl.utils import catch_exception, init_logging
 from infrahub_sdk.spec.object import ObjectFile
 
@@ -35,13 +35,13 @@ async def load(
 
     init_logging(debug=debug)
 
+    logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
+
     files = load_yamlfile_from_disk_and_exit(paths=paths, file_type=ObjectFile, console=console)
     client = await initialize_client()
 
     for file in files:
         file.validate_content()
-        if not file.spec.kind:
-            raise FileNotValidError(name=str(file.location), message="kind must be specified.")
         schema = await client.schema.get(kind=file.spec.kind, branch=branch)
 
         for item in file.spec.data:

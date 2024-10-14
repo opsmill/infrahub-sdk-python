@@ -8,7 +8,7 @@ from infrahub_sdk.yaml import InfrahubFile, InfrahubFileKind
 
 
 class InfrahubObjectFileData(BaseModel):
-    kind: Optional[str] = None
+    kind: str
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
@@ -35,21 +35,21 @@ class InfrahubObjectFileData(BaseModel):
         remaining_rels = []
         for key, value in data.items():
             if key in schema.attribute_names:
-                # NOTE we could validate the format of the data but the API will do it as well
                 clean_data[key] = value
 
             if key in schema.relationship_names:
                 rel_schema = schema.get_relationship(name=key)
 
-                if not isinstance(value, dict) and "data" in value:
-                    raise ValueError(f"relationship {key} must be a dict with 'data'")
+                if isinstance(value, dict) and "data" not in value:
+                    raise ValueError(f"Relationship {key} must be a dict with 'data'")
 
-                if rel_schema.cardinality == "one" or rel_schema.optional is False:
-                    raise ValueError(
-                        "Not supported yet, we need to have a way to define connect object before they exist"
-                    )
-                    # clean_data[key] = value[data]
-                remaining_rels.append(key)
+                # This is a simple implementation for now, need to revisit once we have the integration tests
+                if isinstance(value, (list)):
+                    clean_data[key] = value
+                elif rel_schema.cardinality == "one" and isinstance(value, str):
+                    clean_data[key] = [value]
+                else:
+                    remaining_rels.append(key)
 
         if context:
             clean_context = {

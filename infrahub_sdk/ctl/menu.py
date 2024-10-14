@@ -40,13 +40,8 @@ async def load(
     files = load_yamlfile_from_disk_and_exit(paths=menus, file_type=MenuFile, console=console)
     client = await initialize_client()
 
-    default_kind = "CoreMenuItem"
-
     for file in files:
         file.validate_content()
-        if not file.spec.kind:
-            file.spec.kind = default_kind
-
         schema = await client.schema.get(kind=file.spec.kind, branch=branch)
 
         for idx, item in enumerate(file.spec.data):
@@ -55,6 +50,6 @@ async def load(
                 schema=schema,
                 data=item,
                 branch=branch,
-                default_schema_kind=default_kind,
+                default_schema_kind=file.spec.kind,
                 context={"list_index": idx},
             )
