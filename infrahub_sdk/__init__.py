@@ -74,4 +74,7 @@ __all__ = [
     "ValidationError",
 ]
 
-__version__ = importlib.metadata.version("infrahub-sdk")
+try:
+    __version__ = importlib.metadata.version("infrahub-sdk")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = importlib.metadata.version("infrahub-server")
