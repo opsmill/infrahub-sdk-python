@@ -20,7 +20,6 @@ class RelatedNodeSync(Protocol): ...
 class Attribute(Protocol):
     name: str
     id: Optional[str]
-
     is_default: Optional[bool]
     is_from_profile: Optional[bool]
     is_inherited: Optional[bool]
@@ -29,92 +28,156 @@ class Attribute(Protocol):
     is_protected: Optional[bool]
 
 
-class String(Attribute):
-    value: str
-
-
-class StringOptional(Attribute):
-    value: Optional[str]
-
-
-class Integer(Attribute):
+class IDAttribute(Attribute):
     value: int
 
 
-class IntegerOptional(Attribute):
+class IDAttributeOptional(Attribute):
     value: Optional[int]
 
 
-class Boolean(Attribute):
-    value: bool
-
-
-class BooleanOptional(Attribute):
-    value: Optional[bool]
-
-
-class Checkbox(Attribute):
-    value: bool
-
-
-class CheckboxOptional(Attribute):
-    value: Optional[bool]
-
-
-class DateTime(Attribute):
+class DropdownAttribute(Attribute):
     value: str
 
 
-class DateTimeOptional(Attribute):
+class DropdownAttributeOptional(Attribute):
     value: Optional[str]
 
 
-class Enum(Attribute):
+class TextAttribute(Attribute):
     value: str
 
 
-class EnumOptional(Attribute):
+class TextAttributeOptional(Attribute):
     value: Optional[str]
 
 
-class URL(Attribute):
+class TextAreaAttribute(Attribute):
     value: str
 
 
-class URLOptional(Attribute):
+class TextAreaAttributeOptional(Attribute):
     value: Optional[str]
 
 
-class Dropdown(Attribute):
+class DateTimeAttribute(Attribute):
     value: str
 
 
-class DropdownOptional(Attribute):
+class DateTimeAttributeOptional(Attribute):
     value: Optional[str]
 
 
-class IPNetwork(Attribute):
-    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+class EmailAttribute(Attribute):
+    value: str
 
 
-class IPNetworkOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+class EmailAttributeOptional(Attribute):
+    value: Optional[str]
 
 
-class IPHost(Attribute):
+class PasswordAttribute(Attribute):
+    value: str
+
+
+class PasswordAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class HashedPasswordAttribute(Attribute):
+    value: str
+
+
+class HashedPasswordAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class URLAttribute(Attribute):
+    value: str
+
+
+class URLAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class FileAttribute(Attribute):
+    value: str
+
+
+class FileAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class MacAddressAttribute(Attribute):
+    value: str
+
+
+class MacAddressAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class ColorAttribute(Attribute):
+    value: str
+
+
+class ColorAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class NumberAttribute(Attribute):
+    value: float
+
+
+class NumberAttributeOptional(Attribute):
+    value: Optional[float]
+
+
+class BandwidthAttribute(Attribute):
+    value: float
+
+
+class BandwidthAttributeOptional(Attribute):
+    value: Optional[float]
+
+
+class IPHostAttribute(Attribute):
     value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
 
-class IPHostOptional(Attribute):
+class IPHostAttributeOptional(Attribute):
     value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
 
 
-class HashedPassword(Attribute):
-    value: str
+class IPNetworkAttribute(Attribute):
+    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 
 
-class HashedPasswordOptional(Attribute):
-    value: Any
+class IPNetworkAttributeOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+
+
+class BooleanAttribute(Attribute):
+    value: bool
+
+
+class BooleanAttributeOptional(Attribute):
+    value: Optional[bool]
+
+
+class CheckboxAttribute(Attribute):
+    value: bool
+
+
+class CheckboxAttributeOptional(Attribute):
+    value: Optional[bool]
+
+
+class ListAttribute(Attribute):
+    value: list[Any]
+
+
+class ListAttributeOptional(Attribute):
+    value: Optional[list[Any]]
 
 
 class JSONAttribute(Attribute):
@@ -125,12 +188,12 @@ class JSONAttributeOptional(Attribute):
     value: Optional[Any]
 
 
-class ListAttribute(Attribute):
-    value: list[Any]
+class AnyAttribute(Attribute):
+    value: float
 
 
-class ListAttributeOptional(Attribute):
-    value: Optional[list[Any]]
+class AnyAttributeOptional(Attribute):
+    value: Optional[float]
 
 
 @runtime_checkable
