@@ -3,6 +3,9 @@ ci_config: &ci_config
   - ".github/workflows/ci.yml"
   - ".github/file-filters.yml"
 
+coverage_config: &coverage_config
+  - "codecov.yml"
+
 github_workflows: &github_workflows
   - ".github/workflows/*.yml"
 
@@ -21,6 +24,7 @@ python_all: &python_all
   - "**/*.py"
   - *poetry_files
   - *ci_config
+  - *coverage_config
 
 yaml_all: &yaml_all
   - "**/*.{yml,yaml}"
