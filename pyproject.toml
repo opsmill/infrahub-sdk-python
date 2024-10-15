@@ -281,7 +281,6 @@ ignore = [
     "SIM114",  # Combine `if` branches using logical `or` operator
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SIM118",  # Use `key in dict` instead of `key in dict.keys)
-    "SIM300",  # Yoda condition detected
     "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
     "UP007",   # Use X | Y for type annotations
     "UP031",   # Use format specifiers instead of percent format
