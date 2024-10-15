@@ -206,7 +206,7 @@ def _run_transform(
     Args:
         query_name: Name of the query to load (e.g. tags_query)
         variables: Dictionary of variables used for graphql query
-        transformer_func: The function responsible for transforming data received from graphql
+        transform_func: The function responsible for transforming data received from graphql
         branch: Name of the *infrahub* branch that should be queried for data
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
