@@ -164,7 +164,7 @@ jobs:
         if: matrix.python-version == '3.12'
         run: |
           source $(poetry env info --path)/bin/activate
-          coverage run -m pytest tests/unit/pytest_plugin
+          coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
           coverage report -m
           coverage xml
           codecov --flags python-filler-${{ matrix.python-version }}
