@@ -9,7 +9,6 @@ from infrahub_sdk.constants import InfrahubClientMode
 from infrahub_sdk.exceptions import (
     Error,
     FeatureNotSupportedError,
-    FilterNotFoundError,
     NodeNotFoundError,
     UninitializedError,
 )
@@ -985,26 +984,6 @@ class InfrahubNodeBase:
             data["@filters"]["partial_match"] = True
 
         return data
-
-    def validate_filters(self, filters: Optional[dict[str, Any]] = None) -> bool:
-        if not filters:
-            return True
-
-        for filter_name in filters.keys():
-            found = False
-            for filter_schema in self._schema.filters:
-                if filter_name == filter_schema.name:
-                    found = True
-                    break
-            if not found:
-                valid_filters = [entry.name for entry in self._schema.filters]
-                raise FilterNotFoundError(
-                    identifier=filter_name,
-                    kind=self._schema.kind,
-                    filters=valid_filters,
-                )
-
-        return True
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
         """Extract some datapoints defined in a flat notation."""

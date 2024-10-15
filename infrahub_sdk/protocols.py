@@ -72,6 +72,10 @@ class CoreArtifactTarget(CoreNode):
     artifacts: RelationshipManager
 
 
+class CoreBasePermission(CoreNode):
+    roles: RelationshipManager
+
+
 class CoreCheck(CoreNode):
     name: StringOptional
     label: StringOptional
@@ -200,6 +204,16 @@ class CoreAccount(LineageOwner, LineageSource, CoreGenericAccount):
     pass
 
 
+class CoreAccountGroup(CoreGroup):
+    roles: RelationshipManager
+
+
+class CoreAccountRole(CoreNode):
+    name: String
+    groups: RelationshipManager
+    permissions: RelationshipManager
+
+
 class CoreArtifact(CoreTaskTarget):
     name: String
     status: Enum
@@ -317,6 +331,11 @@ class CoreGeneratorValidator(CoreValidator):
     definition: RelatedNode
 
 
+class CoreGlobalPermission(CoreBasePermission):
+    name: String
+    action: Dropdown
+
+
 class CoreGraphQLQuery(CoreNode):
     name: String
     description: StringOptional
@@ -355,6 +374,14 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+
+
+class CoreObjectPermission(CoreBasePermission):
+    branch: String
+    namespace: String
+    name: String
+    action: Enum
+    decision: Enum
 
 
 class CoreObjectThread(CoreThread):
@@ -490,6 +517,10 @@ class CoreArtifactTargetSync(CoreNodeSync):
     artifacts: RelationshipManagerSync
 
 
+class CoreBasePermissionSync(CoreNodeSync):
+    roles: RelationshipManagerSync
+
+
 class CoreCheckSync(CoreNodeSync):
     name: StringOptional
     label: StringOptional
@@ -618,6 +649,16 @@ class CoreAccountSync(LineageOwnerSync, LineageSourceSync, CoreGenericAccountSyn
     pass
 
 
+class CoreAccountGroupSync(CoreGroupSync):
+    roles: RelationshipManagerSync
+
+
+class CoreAccountRoleSync(CoreNodeSync):
+    name: String
+    groups: RelationshipManagerSync
+    permissions: RelationshipManagerSync
+
+
 class CoreArtifactSync(CoreTaskTargetSync):
     name: String
     status: Enum
@@ -735,6 +776,11 @@ class CoreGeneratorValidatorSync(CoreValidatorSync):
     definition: RelatedNodeSync
 
 
+class CoreGlobalPermissionSync(CoreBasePermissionSync):
+    name: String
+    action: Dropdown
+
+
 class CoreGraphQLQuerySync(CoreNodeSync):
     name: String
     description: StringOptional
@@ -773,6 +819,14 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+
+
+class CoreObjectPermissionSync(CoreBasePermissionSync):
+    branch: String
+    namespace: String
+    name: String
+    action: Enum
+    decision: Enum
 
 
 class CoreObjectThreadSync(CoreThreadSync):
