@@ -150,9 +150,23 @@ jobs:
       # - name: "Pylint Tests"
       #   run: "poetry run pylint infrahub_sdk/"
       - name: "Unit Tests"
-        run: "poetry run pytest tests/unit/"
+        run: "poetry run pytest --cov infrahub_sdk tests/unit/"
       - name: "Upload coverage to Codecov"
         run: |
           codecov --flags python-${{ matrix.python-version }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      # The pytest-cov plugin doesn't quite work with content that is
+      # auto-imported by our own infrahub pytest plugin, this workaround
+      # reports the missing lines
+      - name: "Report coverage for pytest-plugin"
+        if: matrix.python-version == '3.12'
+        run: |
+          source $(poetry env info --path)/bin/activate
+          coverage run -m pytest tests/unit/pytest_plugin
+          coverage report -m
+          coverage xml
+          codecov --flags python-filler-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
