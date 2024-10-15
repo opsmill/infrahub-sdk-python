@@ -1309,10 +1309,10 @@ async def test_node_get_relationship_not_in_store(client, location_schema, locat
         node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
 
     with pytest.raises(NodeNotFoundError):
-        node.primary_tag.peer  # pylint: disable=pointless-statement
+        _ = node.primary_tag.peer
 
     with pytest.raises(NodeNotFoundError):
-        node.tags[0].peer  # pylint: disable=pointless-statement
+        _ = node.tags[0].peer
 
 
 @pytest.mark.parametrize("client_type", client_types)
