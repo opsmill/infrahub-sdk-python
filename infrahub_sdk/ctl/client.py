@@ -1,8 +1,8 @@
 from typing import Any, Optional
 
-from infrahub_sdk import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.config import Config
-from infrahub_sdk.ctl import config
+from .. import InfrahubClient, InfrahubClientSync
+from ..config import Config
+from ..ctl import config
 
 
 async def initialize_client(

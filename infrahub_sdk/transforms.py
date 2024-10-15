@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from git import Repo
 
-from infrahub_sdk import InfrahubClient
-
+from . import InfrahubClient
 from .exceptions import InfrahubTransformNotFoundError
 
 if TYPE_CHECKING:

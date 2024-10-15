@@ -4,11 +4,10 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.transfer.exceptions import TransferError
-from infrahub_sdk.transfer.importer.json import LineDelimitedJSONImporter
-from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
-
+from ..ctl.client import initialize_client
+from ..transfer.exceptions import TransferError
+from ..transfer.importer.json import LineDelimitedJSONImporter
+from ..transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 from .parameters import CONFIG_PARAM
 
 

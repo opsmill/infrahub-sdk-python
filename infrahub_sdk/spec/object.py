@@ -2,9 +2,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-from infrahub_sdk.client import InfrahubClient
-from infrahub_sdk.schema import MainSchemaTypes
-from infrahub_sdk.yaml import InfrahubFile, InfrahubFileKind
+from ..client import InfrahubClient
+from ..schema import MainSchemaTypes
+from ..yaml import InfrahubFile, InfrahubFileKind
 
 
 class InfrahubObjectFileData(BaseModel):

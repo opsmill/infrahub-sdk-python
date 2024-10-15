@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from pydantic import BaseModel
 
-from infrahub_sdk.exceptions import BranchNotFoundError
-from infrahub_sdk.graphql import Mutation, Query
-from infrahub_sdk.utils import decode_json
+from .exceptions import BranchNotFoundError
+from .graphql import Mutation, Query
+from .utils import decode_json
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
+    from .client import InfrahubClient, InfrahubClientSync
 
 
 class BranchData(BaseModel):

@@ -10,15 +10,15 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
-from infrahub_sdk._importer import import_module
-from infrahub_sdk.exceptions import InvalidResponseError, ModuleImportError, SchemaNotFoundError, ValidationError
-from infrahub_sdk.generator import InfrahubGenerator
-from infrahub_sdk.graphql import Mutation
-from infrahub_sdk.utils import duplicates
+from ._importer import import_module
+from .exceptions import InvalidResponseError, ModuleImportError, SchemaNotFoundError, ValidationError
+from .generator import InfrahubGenerator
+from .graphql import Mutation
+from .utils import duplicates
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
-    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+    from .client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
+    from .node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
 

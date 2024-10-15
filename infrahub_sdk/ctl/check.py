@@ -11,14 +11,14 @@ import typer
 from rich.console import Console
 from rich.logging import RichHandler
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.checks import InfrahubCheck
-from infrahub_sdk.ctl import config
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
-from infrahub_sdk.ctl.repository import get_repository_config
-from infrahub_sdk.ctl.utils import catch_exception, execute_graphql_query
-from infrahub_sdk.schema import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
+from .. import InfrahubClient
+from ..checks import InfrahubCheck
+from ..ctl import config
+from ..ctl.client import initialize_client
+from ..ctl.exceptions import QueryNotFoundError
+from ..ctl.repository import get_repository_config
+from ..ctl.utils import catch_exception, execute_graphql_query
+from ..schema import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
 
 app = typer.Typer()
 console = Console()

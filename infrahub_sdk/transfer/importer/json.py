@@ -8,17 +8,16 @@ import ujson
 from rich.console import Console
 from rich.progress import Progress
 
-from infrahub_sdk.batch import InfrahubBatch
-from infrahub_sdk.client import InfrahubClient
-from infrahub_sdk.exceptions import GraphQLError
-from infrahub_sdk.node import InfrahubNode, RelatedNode, RelationshipManager
-from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
-
+from ...batch import InfrahubBatch
+from ...client import InfrahubClient
+from ...exceptions import GraphQLError
+from ...node import InfrahubNode, RelatedNode, RelationshipManager
+from ...transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 from ..exceptions import TransferFileNotFoundError
 from .interface import ImporterInterface
 
 if TYPE_CHECKING:
-    from infrahub_sdk.schema import NodeSchema, RelationshipSchema
+    from .schema import NodeSchema, RelationshipSchema
 
 
 class LineDelimitedJSONImporter(ImporterInterface):

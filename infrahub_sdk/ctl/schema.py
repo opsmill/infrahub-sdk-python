@@ -8,13 +8,12 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.utils import catch_exception, init_logging
-from infrahub_sdk.queries import SCHEMA_HASH_SYNC_STATUS
-from infrahub_sdk.yaml import SchemaFile
-
+from .. import InfrahubClient
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client
+from ..ctl.utils import catch_exception, init_logging
+from ..queries import SCHEMA_HASH_SYNC_STATUS
+from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
 

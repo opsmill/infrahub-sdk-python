@@ -13,40 +13,39 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import Traceback
 
-from infrahub_sdk import __version__ as sdk_version
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.code_generator import CodeGenerator
-from infrahub_sdk.ctl import config
-from infrahub_sdk.ctl.branch import app as branch_app
-from infrahub_sdk.ctl.check import run as run_check
-from infrahub_sdk.ctl.client import initialize_client, initialize_client_sync
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
-from infrahub_sdk.ctl.generator import run as run_generator
-from infrahub_sdk.ctl.menu import app as menu_app
-from infrahub_sdk.ctl.object import app as object_app
-from infrahub_sdk.ctl.render import list_jinja2_transforms
-from infrahub_sdk.ctl.repository import app as repository_app
-from infrahub_sdk.ctl.repository import get_repository_config
-from infrahub_sdk.ctl.schema import app as schema_app
-from infrahub_sdk.ctl.transform import list_transforms
-from infrahub_sdk.ctl.utils import (
+from .. import __version__ as sdk_version
+from ..async_typer import AsyncTyper
+from ..code_generator import CodeGenerator
+from ..ctl import config
+from ..ctl.branch import app as branch_app
+from ..ctl.check import run as run_check
+from ..ctl.client import initialize_client, initialize_client_sync
+from ..ctl.exceptions import QueryNotFoundError
+from ..ctl.generator import run as run_generator
+from ..ctl.menu import app as menu_app
+from ..ctl.object import app as object_app
+from ..ctl.render import list_jinja2_transforms
+from ..ctl.repository import app as repository_app
+from ..ctl.repository import get_repository_config
+from ..ctl.schema import app as schema_app
+from ..ctl.transform import list_transforms
+from ..ctl.utils import (
     catch_exception,
     execute_graphql_query,
     load_yamlfile_from_disk_and_exit,
     parse_cli_vars,
 )
-from infrahub_sdk.ctl.validate import app as validate_app
-from infrahub_sdk.exceptions import GraphQLError, InfrahubTransformNotFoundError
-from infrahub_sdk.jinja2 import identify_faulty_jinja_code
-from infrahub_sdk.schema import (
+from ..ctl.validate import app as validate_app
+from ..exceptions import GraphQLError, InfrahubTransformNotFoundError
+from ..jinja2 import identify_faulty_jinja_code
+from ..schema import (
     InfrahubRepositoryConfig,
     MainSchemaTypes,
     SchemaRoot,
 )
-from infrahub_sdk.transforms import get_transform_class_instance
-from infrahub_sdk.utils import get_branch, write_to_file
-from infrahub_sdk.yaml import SchemaFile
-
+from ..transforms import get_transform_class_instance
+from ..utils import get_branch, write_to_file
+from ..yaml import SchemaFile
 from .exporter import dump
 from .importer import load
 from .parameters import CONFIG_PARAM

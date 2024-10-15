@@ -23,17 +23,17 @@ import httpx
 import ujson
 from typing_extensions import Self
 
-from infrahub_sdk.batch import InfrahubBatch
-from infrahub_sdk.branch import (
+from .batch import InfrahubBatch
+from .branch import (
     BranchData,
     InfrahubBranchManager,
     InfrahubBranchManagerSync,
 )
-from infrahub_sdk.config import Config
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.data import RepositoryBranchInfo, RepositoryData
-from infrahub_sdk.diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
-from infrahub_sdk.exceptions import (
+from .config import Config
+from .constants import InfrahubClientMode
+from .data import RepositoryBranchInfo, RepositoryData
+from .diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
+from .exceptions import (
     AuthenticationError,
     Error,
     GraphQLError,
@@ -41,20 +41,20 @@ from infrahub_sdk.exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
 )
-from infrahub_sdk.graphql import Mutation, Query
-from infrahub_sdk.node import (
+from .graphql import Mutation, Query
+from .node import (
     InfrahubNode,
     InfrahubNodeSync,
 )
-from infrahub_sdk.object_store import ObjectStore, ObjectStoreSync
-from infrahub_sdk.protocols_base import CoreNode, CoreNodeSync
-from infrahub_sdk.queries import get_commit_update_mutation
-from infrahub_sdk.query_groups import InfrahubGroupContext, InfrahubGroupContextSync
-from infrahub_sdk.schema import InfrahubSchema, InfrahubSchemaSync, NodeSchema
-from infrahub_sdk.store import NodeStore, NodeStoreSync
-from infrahub_sdk.timestamp import Timestamp
-from infrahub_sdk.types import AsyncRequester, HTTPMethod, SyncRequester
-from infrahub_sdk.utils import decode_json, is_valid_uuid
+from .object_store import ObjectStore, ObjectStoreSync
+from .protocols_base import CoreNode, CoreNodeSync
+from .queries import get_commit_update_mutation
+from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
+from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchema
+from .store import NodeStore, NodeStoreSync
+from .timestamp import Timestamp
+from .types import AsyncRequester, HTTPMethod, SyncRequester
+from .utils import decode_json, is_valid_uuid
 
 if TYPE_CHECKING:
     from types import TracebackType

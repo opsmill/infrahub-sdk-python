@@ -4,11 +4,11 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.playback import JSONPlayback
-from infrahub_sdk.recorder import JSONRecorder, NoRecorder, Recorder, RecorderType
-from infrahub_sdk.types import AsyncRequester, InfrahubLoggers, RequesterTransport, SyncRequester
-from infrahub_sdk.utils import get_branch, is_valid_url
+from .constants import InfrahubClientMode
+from .playback import JSONPlayback
+from .recorder import JSONRecorder, NoRecorder, Recorder, RecorderType
+from .types import AsyncRequester, InfrahubLoggers, RequesterTransport, SyncRequester
+from .utils import get_branch, is_valid_url
 
 
 class ProxyMountsConfig(BaseSettings):
