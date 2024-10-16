@@ -1,11 +1,19 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
-from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import GraphQLError
 
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+    from tests.unit.sdk.conftest import BothClients
+
 
 async def test_batch_return_exception(
-    httpx_mock: HTTPXMock, mock_query_mutation_location_create_failed, mock_schema_query_01, clients
+    httpx_mock: HTTPXMock, mock_query_mutation_location_create_failed, mock_schema_query_01, clients: BothClients
 ):  # pylint: disable=unused-argument
     batch = await clients.standard.create_batch(return_exceptions=True)
     locations = ["JFK1", "JFK1"]
@@ -30,7 +38,7 @@ async def test_batch_return_exception(
 
 
 async def test_batch_exception(
-    httpx_mock: HTTPXMock, mock_query_mutation_location_create_failed, mock_schema_query_01, clients
+    httpx_mock: HTTPXMock, mock_query_mutation_location_create_failed, mock_schema_query_01, clients: BothClients
 ):  # pylint: disable=unused-argument
     batch = await clients.standard.create_batch(return_exceptions=False)
     locations = ["JFK1", "JFK1"]
@@ -40,11 +48,11 @@ async def test_batch_exception(
         batch.add(task=obj.save, node=obj)
 
     with pytest.raises(GraphQLError) as exc:
-        async for node, result in batch.execute():
+        async for _, _ in batch.execute():
             pass
     assert "An error occurred while executing the GraphQL Query" in str(exc.value)
 
 
-async def test_batch_not_implemented_sync(clients):
+async def test_batch_not_implemented_sync(clients: BothClients):
     with pytest.raises(NotImplementedError):
         clients.sync.create_batch()
