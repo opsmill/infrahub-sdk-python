@@ -1065,7 +1065,7 @@ class InfrahubNode(InfrahubNodeBase):
                 setattr(
                     self.__class__,
                     rel_name,
-                    generate_relationship_property(name=rel_name, node=self, node_class=RelatedNode),  # type: ignore[arg-type]
+                    generate_relationship_property(name=rel_name, node=self),
                 )
                 setattr(self, rel_name, rel_data)
             else:
@@ -1542,7 +1542,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 setattr(
                     self.__class__,
                     rel_name,
-                    generate_relationship_property(name=rel_name, node=self, node_class=RelatedNodeSync),  # type: ignore[arg-type]
+                    generate_relationship_property(name=rel_name, node=self),
                 )
                 setattr(self, rel_name, rel_data)
             else:
@@ -1993,13 +1993,12 @@ class NodeProperty:
         return self.id
 
 
-def generate_relationship_property(node: Union[InfrahubNode, InfrahubNodeSync], name: str, node_class):  # type: ignore
+def generate_relationship_property(node: Union[InfrahubNode, InfrahubNodeSync], name: str) -> property:
     """Generates a property that stores values under a private non-public name.
 
     Args:
         node (Union[InfrahubNode, InfrahubNodeSync]): The node instance.
         name (str): The name of the relationship property.
-        node_class: The class of the node.
 
     Returns:
         A property object for managing the relationship.
@@ -2008,20 +2007,29 @@ def generate_relationship_property(node: Union[InfrahubNode, InfrahubNodeSync], 
     internal_name = "_" + name.lower()
     external_name = name
 
-    @property  # type: ignore
-    def prop(self):  # type: ignore
+    def prop_getter(self: InfrahubNodeBase) -> Any:
         return getattr(self, internal_name)
 
-    @prop.setter
-    def prop(self, value):  # type: ignore
+    def prop_setter(self: InfrahubNodeBase, value: Any) -> None:
         if isinstance(value, RelatedNodeBase) or value is None:
             setattr(self, internal_name, value)
         else:
             schema = [rel for rel in self._schema.relationships if rel.name == external_name][0]
-            setattr(
-                self,
-                internal_name,
-                node_class(name=external_name, branch=node._branch, client=node._client, schema=schema, data=value),
-            )
+            if isinstance(node, InfrahubNode):
+                setattr(
+                    self,
+                    internal_name,
+                    RelatedNode(
+                        name=external_name, branch=node._branch, client=node._client, schema=schema, data=value
+                    ),
+                )
+            else:
+                setattr(
+                    self,
+                    internal_name,
+                    RelatedNodeSync(
+                        name=external_name, branch=node._branch, client=node._client, schema=schema, data=value
+                    ),
+                )
 
-    return prop
+    return property(prop_getter, prop_setter)
