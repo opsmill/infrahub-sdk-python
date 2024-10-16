@@ -77,7 +77,7 @@ async def test_schema_data_validation(rfile_schema, client_type):
             schema=rfile_schema, data={"name": "some-name", "invalid_field": "yes"}
         )
 
-    assert "invalid_field is not a valid value for CoreTransformJinja2" == excinfo.value.message
+    assert excinfo.value.message == "invalid_field is not a valid value for CoreTransformJinja2"
 
 
 @pytest.mark.parametrize("client_type", client_types)
