@@ -68,30 +68,14 @@ class CodeGenerator:
 
     @staticmethod
     def _jinja2_filter_render_attribute(value: AttributeSchema) -> str:
-        attribute_kind_map = {
-            "boolean": "Boolean",
-            "datetime": "DateTime",
-            "dropdown": "Dropdown",
-            "hashedpassword": "HashedPassword",
-            "iphost": "IPHost",
-            "ipnetwork": "IPNetwork",
-            "json": "JSONAttribute",
-            "list": "ListAttribute",
-            "number": "Integer",
-            "password": "String",
-            "text": "String",
-            "textarea": "String",
-            "url": "URL",
-        }
+        attribute_kind: str = value.kind
 
-        name = value.name
-        kind = value.kind
+        attribute_kind += "Attribute"
 
-        attribute_kind = attribute_kind_map[kind.lower()]
         if value.optional:
-            attribute_kind = f"{attribute_kind}Optional"
+            attribute_kind += "Optional"
 
-        return f"{name}: {attribute_kind}"
+        return f"{value.name}: {attribute_kind}"
 
     @staticmethod
     def _jinja2_filter_render_relationship(value: RelationshipSchema, sync: bool = False) -> str:
