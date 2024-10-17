@@ -5,9 +5,9 @@ from unittest import mock
 import pytest
 from rich.console import Console
 
-from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync, ValidationError
+from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
-from infrahub_sdk.exceptions import SchemaNotFoundError
+from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.schema import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
