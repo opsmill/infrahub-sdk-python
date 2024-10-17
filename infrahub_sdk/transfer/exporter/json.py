@@ -6,16 +6,15 @@ import ujson
 from rich.console import Console
 from rich.progress import Progress
 
-from infrahub_sdk.client import InfrahubClient
-from infrahub_sdk.queries import QUERY_RELATIONSHIPS
-from infrahub_sdk.schema import MainSchemaTypes, NodeSchema
-
+from ...client import InfrahubClient
+from ...queries import QUERY_RELATIONSHIPS
+from ...schema import MainSchemaTypes, NodeSchema
 from ..constants import ILLEGAL_NAMESPACES
 from ..exceptions import FileAlreadyExistsError, InvalidNamespaceError
 from .interface import ExporterInterface
 
 if TYPE_CHECKING:
-    from infrahub_sdk.node import InfrahubNode
+    from .node import InfrahubNode
 
 
 class LineDelimitedJSONExporter(ExporterInterface):

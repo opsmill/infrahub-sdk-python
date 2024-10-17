@@ -1,7 +1,6 @@
 from typing import Optional
 
-from infrahub_sdk.yaml import InfrahubFile, InfrahubFileKind
-
+from ..yaml import InfrahubFile, InfrahubFileKind
 from .object import InfrahubObjectFileData
 
 

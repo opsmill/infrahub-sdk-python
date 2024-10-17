@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import importlib.metadata
 
-from infrahub_sdk.analyzer import GraphQLOperation, GraphQLQueryAnalyzer, GraphQLQueryVariable
-from infrahub_sdk.batch import InfrahubBatch
-from infrahub_sdk.branch import InfrahubBranchManager, InfrahubBranchManagerSync
-from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.config import Config
-from infrahub_sdk.exceptions import (
+from .analyzer import GraphQLOperation, GraphQLQueryAnalyzer, GraphQLQueryVariable
+from .batch import InfrahubBatch
+from .branch import InfrahubBranchManager, InfrahubBranchManagerSync
+from .client import InfrahubClient, InfrahubClientSync
+from .config import Config
+from .exceptions import (
     AuthenticationError,
     Error,
     GraphQLError,
@@ -16,9 +16,9 @@ from infrahub_sdk.exceptions import (
     ServerNotResponsiveError,
     ValidationError,
 )
-from infrahub_sdk.graphql import Mutation, Query
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
-from infrahub_sdk.schema import (
+from .graphql import Mutation, Query
+from .node import InfrahubNode, InfrahubNodeSync
+from .schema import (
     AttributeSchema,
     GenericSchema,
     InfrahubRepositoryConfig,
@@ -31,9 +31,9 @@ from infrahub_sdk.schema import (
     RelationshipSchema,
     SchemaRoot,
 )
-from infrahub_sdk.store import NodeStore, NodeStoreSync
-from infrahub_sdk.timestamp import Timestamp
-from infrahub_sdk.uuidt import UUIDT, generate_uuid
+from .store import NodeStore, NodeStoreSync
+from .timestamp import Timestamp
+from .uuidt import UUIDT, generate_uuid
 
 __all__ = [
     "AttributeSchema",

@@ -5,13 +5,12 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.exceptions import FileNotValidError
-from infrahub_sdk.ctl.utils import init_logging
-from infrahub_sdk.graphql import Mutation
-from infrahub_sdk.schema import InfrahubRepositoryConfig
-
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client
+from ..ctl.exceptions import FileNotValidError
+from ..ctl.utils import init_logging
+from ..graphql import Mutation
+from ..schema import InfrahubRepositoryConfig
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -88,7 +87,7 @@ async def add(
         },
     }
 
-    client = await initialize_client()
+    client = initialize_client()
 
     if username:
         credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)

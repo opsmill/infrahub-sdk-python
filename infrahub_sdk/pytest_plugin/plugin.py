@@ -5,9 +5,8 @@ from typing import Optional, Union
 from pytest import Collector, Config, Item, Parser, Session
 from pytest import exit as exit_test
 
-from infrahub_sdk import InfrahubClientSync
-from infrahub_sdk.utils import is_valid_url
-
+from .. import InfrahubClientSync
+from ..utils import is_valid_url
 from .loader import InfrahubYamlFile
 from .utils import load_repository_config
 

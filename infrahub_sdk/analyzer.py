@@ -12,7 +12,7 @@ from graphql import (
 )
 from pydantic import BaseModel
 
-from infrahub_sdk.utils import calculate_dict_depth, calculate_dict_height, extract_fields
+from .utils import calculate_dict_depth, calculate_dict_height, extract_fields
 
 
 class GraphQLQueryVariable(BaseModel):

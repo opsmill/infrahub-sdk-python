@@ -156,27 +156,11 @@ module = "infrahub_sdk.ctl.check"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.cli_commands"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.exporter"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.generator"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.importer"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.schema"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.utils"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
@@ -245,7 +229,6 @@ ignore = [
     "B008",    #  Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
     "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "C408",    # Unnecessary `dict` call (rewrite as a literal)
-    "C414",    # Unnecessary `list` call within `sorted()`
     "FURB110", # Replace ternary `if` expression with `or` operator
     "FURB113", # Use `lines.extend((" " * self.indentation + "}", "}"))` instead of repeatedly calling `lines.append()`
     "FURB177", # Prefer `Path.cwd()` over `Path().resolve()` for current-directory lookups
@@ -267,12 +250,10 @@ ignore = [
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
     "RET504",  # Unnecessary assignment to `data` before `return` statement
     "RUF",     # Unused `noqa` directive
-    "S105",    # Possible hardcoded password assigned to: "PASS"
     "S108",    # Probable insecure usage of temporary file or directory
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "S701",    # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True`
     "SIM102",  # Use a single `if` statement instead of nested `if` statements
-    "SIM103",  # Return the condition directly
     "SIM105",  # Use `contextlib.suppress(KeyError)` instead of `try`-`except`-`pass`
     "SIM108",  # Use ternary operator `key_str = f"{value[ALIAS_KEY]}: {key}" if ALIAS_KEY in value and value[ALIAS_KEY] else key` instead of `if`-`else`-block
     "SIM110",  # Use `return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))` instead of `for` loop
@@ -282,7 +263,6 @@ ignore = [
     "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
     "UP007",   # Use X | Y for type annotations
     "UP031",   # Use format specifiers instead of percent format
-    "UP034",   # Avoid extraneous parentheses
 ]
 
 
@@ -322,10 +302,15 @@ max-complexity = 17
     "PLR0904",  # Too many public methods
 ]
 
+"infrahub_sdk/pytest_plugin/models.py" = [
+    "S105",  # 'PASS' is not a password but a state
+]
+
+
 "tests/**/*.py" = [
     "PLR2004", # Magic value used in comparison
     "S101",    # Use of assert detected
-    "S106",    # Possible hardcoded password assigned to variable
+    "S105",    # Possible hardcoded password assigned to variable
     "S106",    # Possible hardcoded password assigned to argument
 
     ##################################################################################################

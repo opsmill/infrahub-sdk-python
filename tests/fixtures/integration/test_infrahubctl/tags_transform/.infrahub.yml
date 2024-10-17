@@ -1,0 +1,15 @@
+---
+python_transforms:
+  - name: tags_transform
+    class_name: TagsTransform
+    file_path: "tags_transform.py"
+
+queries:
+  - name: "tags_query"
+    file_path: "tags_query.gql"
+
+jinja2_transforms:
+  - name: my-jinja2-transform        # Unique name for your transform
+    description: "short description" # (optional)
+    query: "tags_query"              # Name or ID of the GraphQLQuery
+    template_path: "tags_tpl.j2"     # Path to the main Jinja2 template

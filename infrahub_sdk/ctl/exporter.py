@@ -6,14 +6,13 @@ from typing import List
 import typer
 from rich.console import Console
 
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.transfer.exceptions import TransferError
-from infrahub_sdk.transfer.exporter.json import LineDelimitedJSONExporter
-
+from ..ctl.client import initialize_client
+from ..transfer.exceptions import TransferError
+from ..transfer.exporter.json import LineDelimitedJSONExporter
 from .parameters import CONFIG_PARAM
 
 
-def directory_name_with_timestamp():
+def directory_name_with_timestamp() -> str:
     right_now = datetime.now(timezone.utc).astimezone()
     timestamp = right_now.strftime("%Y%m%d-%H%M%S")
     return f"infrahubexport-{timestamp}"
@@ -39,9 +38,10 @@ def dump(
     """Export nodes and their relationships out of the database."""
     console = Console()
 
-    client = aiorun(
-        initialize_client(branch=branch, timeout=timeout, max_concurrent_execution=concurrent, retry_on_failure=True)
+    client = initialize_client(
+        branch=branch, timeout=timeout, max_concurrent_execution=concurrent, retry_on_failure=True
     )
+
     exporter = LineDelimitedJSONExporter(client, console=Console() if not quiet else None)
     try:
         aiorun(exporter.export(export_directory=directory, namespaces=namespace, branch=branch, exclude=exclude))

@@ -4,7 +4,7 @@ import importlib
 import sys
 from typing import TYPE_CHECKING, Optional
 
-from infrahub_sdk.exceptions import ModuleImportError
+from .exceptions import ModuleImportError
 
 if TYPE_CHECKING:
     from pathlib import Path

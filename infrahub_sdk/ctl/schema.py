@@ -8,13 +8,12 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.utils import catch_exception, init_logging
-from infrahub_sdk.queries import SCHEMA_HASH_SYNC_STATUS
-from infrahub_sdk.yaml import SchemaFile
-
+from .. import InfrahubClient
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client
+from ..ctl.utils import catch_exception, init_logging
+from ..queries import SCHEMA_HASH_SYNC_STATUS
+from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
 
@@ -115,7 +114,7 @@ async def load(
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     schema_definition = "schema" if len(schemas_data) == 1 else "schemas"
-    client = await initialize_client()
+    client = initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
     start_time = time.time()
@@ -164,7 +163,7 @@ async def check(
     init_logging(debug=debug)
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
-    client = await initialize_client()
+    client = initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
     success, response = await client.schema.check(schemas=[item.content for item in schemas_data], branch=branch)

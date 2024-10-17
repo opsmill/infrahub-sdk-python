@@ -2,8 +2,7 @@ from pathlib import Path
 
 import yaml
 
-from infrahub_sdk.schema import InfrahubRepositoryConfig
-
+from ..schema import InfrahubRepositoryConfig
 from .exceptions import FileNotValidError
 
 

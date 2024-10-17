@@ -5,23 +5,23 @@ import re
 from copy import copy
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Union, get_args
 
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.exceptions import (
+from .constants import InfrahubClientMode
+from .exceptions import (
     Error,
     FeatureNotSupportedError,
     NodeNotFoundError,
     UninitializedError,
 )
-from infrahub_sdk.graphql import Mutation, Query
-from infrahub_sdk.schema import GenericSchema, RelationshipCardinality, RelationshipKind
-from infrahub_sdk.utils import compare_lists, get_flat_value
-from infrahub_sdk.uuidt import UUIDT
+from .graphql import Mutation, Query
+from .schema import GenericSchema, RelationshipCardinality, RelationshipKind
+from .utils import compare_lists, get_flat_value
+from .uuidt import UUIDT
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
-    from infrahub_sdk.schema import AttributeSchema, MainSchemaTypes, RelationshipSchema
+    from .client import InfrahubClient, InfrahubClientSync
+    from .schema import AttributeSchema, MainSchemaTypes, RelationshipSchema
 
 # pylint: disable=too-many-lines
 

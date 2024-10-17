@@ -1,6 +1,6 @@
 import typer
 
-from infrahub_sdk.ctl import config
+from ..ctl import config
 
 
 def load_configuration(value: str) -> str:
