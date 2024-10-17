@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Protocol, Union, runtime_checka
 if TYPE_CHECKING:
     import ipaddress
 
-    from infrahub_sdk.schema import MainSchemaTypes
+    from .schema import MainSchemaTypes
 
 
 @runtime_checkable

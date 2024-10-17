@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.exceptions import NodeNotFoundError
-from infrahub_sdk.utils import dict_hash
+from .constants import InfrahubClientMode
+from .exceptions import NodeNotFoundError
+from .utils import dict_hash
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
-    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
-    from infrahub_sdk.schema import MainSchemaTypes
+    from .client import InfrahubClient, InfrahubClientSync
+    from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
+    from .schema import MainSchemaTypes
 
 
 class InfrahubGroupContextBase:

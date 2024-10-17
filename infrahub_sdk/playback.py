@@ -7,8 +7,8 @@ import ujson
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from infrahub_sdk.types import HTTPMethod
-from infrahub_sdk.utils import generate_request_filename
+from .types import HTTPMethod
+from .utils import generate_request_filename
 
 
 class JSONPlayback(BaseSettings):

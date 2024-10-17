@@ -10,13 +10,13 @@ import ujson
 from git.repo import Repo
 from pydantic import BaseModel, Field
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.exceptions import InfrahubCheckNotFoundError
+from . import InfrahubClient
+from .exceptions import InfrahubCheckNotFoundError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from infrahub_sdk.schema import InfrahubCheckDefinitionConfig
+    from .schema import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
 

@@ -6,10 +6,9 @@ from typing import List
 import typer
 from rich.console import Console
 
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.transfer.exceptions import TransferError
-from infrahub_sdk.transfer.exporter.json import LineDelimitedJSONExporter
-
+from ..ctl.client import initialize_client
+from ..transfer.exceptions import TransferError
+from ..transfer.exporter.json import LineDelimitedJSONExporter
 from .parameters import CONFIG_PARAM
 
 

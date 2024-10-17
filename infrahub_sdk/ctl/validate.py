@@ -9,13 +9,12 @@ from pydantic import ValidationError
 from rich.console import Console
 from ujson import JSONDecodeError
 
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client, initialize_client_sync
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
-from infrahub_sdk.ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
-from infrahub_sdk.exceptions import GraphQLError
-from infrahub_sdk.utils import get_branch, write_to_file
-
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client, initialize_client_sync
+from ..ctl.exceptions import QueryNotFoundError
+from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
+from ..exceptions import GraphQLError
+from ..utils import get_branch, write_to_file
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()

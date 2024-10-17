@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING, Optional
 
 from git.repo import Repo
 
-from infrahub_sdk.exceptions import UninitializedError
+from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient
-    from infrahub_sdk.node import InfrahubNode
-    from infrahub_sdk.store import NodeStore
+    from .client import InfrahubClient
+    from .node import InfrahubNode
+    from .store import NodeStore
 
 
 class InfrahubGenerator:

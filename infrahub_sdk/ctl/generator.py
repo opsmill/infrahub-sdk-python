@@ -3,12 +3,12 @@ from typing import Optional
 
 from rich.console import Console
 
-from infrahub_sdk import InfrahubNode
-from infrahub_sdk.ctl import config
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.repository import get_repository_config
-from infrahub_sdk.ctl.utils import execute_graphql_query, parse_cli_vars
-from infrahub_sdk.schema import InfrahubRepositoryConfig
+from .. import InfrahubNode
+from ..ctl import config
+from ..ctl.client import initialize_client
+from ..ctl.repository import get_repository_config
+from ..ctl.utils import execute_graphql_query, parse_cli_vars
+from ..schema import InfrahubRepositoryConfig
 
 
 async def run(

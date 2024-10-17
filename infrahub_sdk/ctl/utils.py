@@ -14,8 +14,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from infrahub_sdk.ctl.exceptions import FileNotValidError, QueryNotFoundError
-from infrahub_sdk.exceptions import (
+from ..ctl.exceptions import FileNotValidError, QueryNotFoundError
+from ..exceptions import (
     AuthenticationError,
     Error,
     GraphQLError,
@@ -24,9 +24,8 @@ from infrahub_sdk.exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
 )
-from infrahub_sdk.schema import InfrahubRepositoryConfig
-from infrahub_sdk.yaml import YamlFile
-
+from ..schema import InfrahubRepositoryConfig
+from ..yaml import YamlFile
 from .client import initialize_client_sync
 
 YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)

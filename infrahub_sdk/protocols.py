@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING
 from .protocols_base import CoreNode, CoreNodeSync
 
 if TYPE_CHECKING:
-    from infrahub_sdk.node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
-
+    from .node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
     from .protocols_base import (
         URL,
         Boolean,
