@@ -20,7 +20,6 @@ class RelatedNodeSync(Protocol): ...
 class Attribute(Protocol):
     name: str
     id: Optional[str]
-
     is_default: Optional[bool]
     is_from_profile: Optional[bool]
     is_inherited: Optional[bool]
@@ -29,6 +28,8 @@ class Attribute(Protocol):
     is_protected: Optional[bool]
 
 
+# TODO: Consolidate them into on single set of classes
+# Classes for builtin schema attribute
 class String(Attribute):
     value: str
 
@@ -117,12 +118,165 @@ class JSONAttributeOptional(Attribute):
     value: Optional[Any]
 
 
+# Classes for user defined schema attribute
+class IDAttribute(Attribute):
+    value: int
+
+
+class IDAttributeOptional(Attribute):
+    value: Optional[int]
+
+
+class DropdownAttribute(Attribute):
+    value: str
+
+
+class DropdownAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class TextAttribute(Attribute):
+    value: str
+
+
+class TextAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class TextAreaAttribute(Attribute):
+    value: str
+
+
+class TextAreaAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class DateTimeAttribute(Attribute):
+    value: str
+
+
+class DateTimeAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class EmailAttribute(Attribute):
+    value: str
+
+
+class EmailAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class PasswordAttribute(Attribute):
+    value: str
+
+
+class PasswordAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class HashedPasswordAttribute(Attribute):
+    value: str
+
+
+class HashedPasswordAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class URLAttribute(Attribute):
+    value: str
+
+
+class URLAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class FileAttribute(Attribute):
+    value: str
+
+
+class FileAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class MacAddressAttribute(Attribute):
+    value: str
+
+
+class MacAddressAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class ColorAttribute(Attribute):
+    value: str
+
+
+class ColorAttributeOptional(Attribute):
+    value: Optional[str]
+
+
+class NumberAttribute(Attribute):
+    value: float
+
+
+class NumberAttributeOptional(Attribute):
+    value: Optional[float]
+
+
+class BandwidthAttribute(Attribute):
+    value: float
+
+
+class BandwidthAttributeOptional(Attribute):
+    value: Optional[float]
+
+
+class IPHostAttribute(Attribute):
+    value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+
+
+class IPHostAttributeOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
+
+
+class IPNetworkAttribute(Attribute):
+    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+
+
+class IPNetworkAttributeOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+
+
+class BooleanAttribute(Attribute):
+    value: bool
+
+
+class BooleanAttributeOptional(Attribute):
+    value: Optional[bool]
+
+
+class CheckboxAttribute(Attribute):
+    value: bool
+
+
+class CheckboxAttributeOptional(Attribute):
+    value: Optional[bool]
+
+
 class ListAttribute(Attribute):
     value: list[Any]
 
 
 class ListAttributeOptional(Attribute):
     value: Optional[list[Any]]
+
+
+class AnyAttribute(Attribute):
+    value: float
+
+
+class AnyAttributeOptional(Attribute):
+    value: Optional[float]
 
 
 @runtime_checkable
