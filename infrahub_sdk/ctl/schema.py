@@ -115,7 +115,7 @@ async def load(
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     schema_definition = "schema" if len(schemas_data) == 1 else "schemas"
-    client = await initialize_client()
+    client = initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
     start_time = time.time()
@@ -164,7 +164,7 @@ async def check(
     init_logging(debug=debug)
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
-    client = await initialize_client()
+    client = initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
     success, response = await client.schema.check(schemas=[item.content for item in schemas_data], branch=branch)

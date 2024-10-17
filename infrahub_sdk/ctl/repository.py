@@ -88,7 +88,7 @@ async def add(
         },
     }
 
-    client = await initialize_client()
+    client = initialize_client()
 
     if username:
         credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)

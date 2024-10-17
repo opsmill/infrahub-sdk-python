@@ -38,7 +38,7 @@ async def load(
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
 
     files = load_yamlfile_from_disk_and_exit(paths=paths, file_type=ObjectFile, console=console)
-    client = await initialize_client()
+    client = initialize_client()
 
     for file in files:
         file.validate_content()

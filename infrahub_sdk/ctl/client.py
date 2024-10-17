@@ -5,7 +5,7 @@ from infrahub_sdk.config import Config
 from infrahub_sdk.ctl import config
 
 
-async def initialize_client(
+def initialize_client(
     branch: Optional[str] = None,
     identifier: Optional[str] = None,
     timeout: Optional[int] = None,
