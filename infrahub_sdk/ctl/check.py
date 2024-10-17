@@ -196,7 +196,7 @@ async def run_checks(
     log = logging.getLogger("infrahub")
 
     check_summary: list[bool] = []
-    client = await initialize_client()
+    client = initialize_client()
     for check_module in check_modules:
         if check_module.definition.targets:
             result = await run_targeted_check(
