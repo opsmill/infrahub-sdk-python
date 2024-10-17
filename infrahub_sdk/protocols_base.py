@@ -28,6 +28,97 @@ class Attribute(Protocol):
     is_protected: Optional[bool]
 
 
+# TODO: Consolidate them into on single set of classes
+# Classes for builtin schema attribute
+class String(Attribute):
+    value: str
+
+
+class StringOptional(Attribute):
+    value: Optional[str]
+
+
+class Integer(Attribute):
+    value: int
+
+
+class IntegerOptional(Attribute):
+    value: Optional[int]
+
+
+class Boolean(Attribute):
+    value: bool
+
+
+class BooleanOptional(Attribute):
+    value: Optional[bool]
+
+
+class DateTime(Attribute):
+    value: str
+
+
+class DateTimeOptional(Attribute):
+    value: Optional[str]
+
+
+class Enum(Attribute):
+    value: str
+
+
+class EnumOptional(Attribute):
+    value: Optional[str]
+
+
+class URL(Attribute):
+    value: str
+
+
+class URLOptional(Attribute):
+    value: Optional[str]
+
+
+class Dropdown(Attribute):
+    value: str
+
+
+class DropdownOptional(Attribute):
+    value: Optional[str]
+
+
+class IPNetwork(Attribute):
+    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+
+
+class IPNetworkOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+
+
+class IPHost(Attribute):
+    value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+
+
+class IPHostOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
+
+
+class HashedPassword(Attribute):
+    value: str
+
+
+class HashedPasswordOptional(Attribute):
+    value: Any
+
+
+class JSONAttribute(Attribute):
+    value: Any
+
+
+class JSONAttributeOptional(Attribute):
+    value: Optional[Any]
+
+
+# Classes for user defined schema attribute
 class IDAttribute(Attribute):
     value: int
 
