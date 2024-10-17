@@ -3,11 +3,11 @@ from typing import Optional
 
 from rich.console import Console
 
-from .. import InfrahubNode
 from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.repository import get_repository_config
 from ..ctl.utils import execute_graphql_query, parse_cli_vars
+from ..node import InfrahubNode
 from ..schema import InfrahubRepositoryConfig
 
 
