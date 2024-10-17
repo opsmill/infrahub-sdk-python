@@ -160,15 +160,7 @@ module = "infrahub_sdk.ctl.cli_commands"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.exporter"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.generator"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.importer"
 ignore_errors = true
 
 [[tool.mypy.overrides]]

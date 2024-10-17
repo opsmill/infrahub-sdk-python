@@ -12,7 +12,7 @@ from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 from .parameters import CONFIG_PARAM
 
 
-def local_directory():
+def local_directory() -> Path:
     # We use a function here to avoid failure when generating the documentation due to directory name
     return Path().resolve()
 
@@ -35,9 +35,10 @@ def load(
     """Import nodes and their relationships into the database."""
     console = Console()
 
-    client = aiorun(
-        initialize_client(branch=branch, timeout=timeout, max_concurrent_execution=concurrent, retry_on_failure=True)
+    client = initialize_client(
+        branch=branch, timeout=timeout, max_concurrent_execution=concurrent, retry_on_failure=True
     )
+
     importer = LineDelimitedJSONImporter(
         client,
         InfrahubSchemaTopologicalSorter(),
