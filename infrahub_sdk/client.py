@@ -299,11 +299,12 @@ class InfrahubClient(BaseClient):
         kind: Union[str, type[SchemaType]],
         data: Optional[dict] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         **kwargs: Any,
     ) -> Union[InfrahubNode, SchemaType]:
         branch = branch or self.default_branch
 
-        schema = await self.schema.get(kind=kind, branch=branch)
+        schema = await self.schema.get(kind=kind, branch=branch, timeout=timeout)
 
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
@@ -1430,10 +1431,11 @@ class InfrahubClientSync(BaseClient):
         kind: Union[str, type[SchemaTypeSync]],
         data: Optional[dict] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         **kwargs: Any,
     ) -> Union[InfrahubNodeSync, SchemaTypeSync]:
         branch = branch or self.default_branch
-        schema = self.schema.get(kind=kind, branch=branch)
+        schema = self.schema.get(kind=kind, branch=branch, timeout=timeout)
 
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
