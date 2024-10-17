@@ -3,7 +3,7 @@ import logging
 import traceback
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, Coroutine, NoReturn, Optional, TypeVar, Union
 
 import pendulum
 import typer
@@ -29,6 +29,7 @@ from ..yaml import YamlFile
 from .client import initialize_client_sync
 
 YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
+T = TypeVar("T")
 
 
 def init_logging(debug: bool = False) -> None:
@@ -42,7 +43,7 @@ def init_logging(debug: bool = False) -> None:
     logging.getLogger("infrahubctl")
 
 
-def handle_exception(exc: Exception, console: Console, exit_code: int):
+def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
     """Handle exeception in a different fashion based on its type."""
     if isinstance(exc, Exit):
         raise typer.Exit(code=exc.exit_code)
@@ -67,16 +68,18 @@ def handle_exception(exc: Exception, console: Console, exit_code: int):
     raise typer.Exit(code=exit_code)
 
 
-def catch_exception(console: Optional[Console] = None, exit_code: int = 1):
+def catch_exception(
+    console: Optional[Console] = None, exit_code: int = 1
+) -> Callable[[Callable[..., T]], Callable[..., Union[T, Coroutine[Any, Any, T], NoReturn]]]:
     """Decorator to handle exception for commands."""
     if not console:
         console = Console()
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Coroutine[Any, Any, T], NoReturn]]:
         if asyncio.iscoroutinefunction(func):
 
             @wraps(func)
-            async def async_wrapper(*args: Any, **kwargs: Any):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Union[T, NoReturn]:
                 try:
                     return await func(*args, **kwargs)
                 except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
@@ -85,7 +88,7 @@ def catch_exception(console: Optional[Console] = None, exit_code: int = 1):
             return async_wrapper
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any):
+        def wrapper(*args: Any, **kwargs: Any) -> Union[T, NoReturn]:
             try:
                 return func(*args, **kwargs)
             except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
@@ -116,8 +119,10 @@ def execute_graphql_query(
     )
 
     if debug:
-        message = ("-" * 40, f"Response for GraphQL Query {query}", response, "-" * 40)
-        console.print("\n".join(message))
+        console.print("-" * 40)
+        console.print(f"Response for GraphQL Query {query}")
+        console.print(response)
+        console.print("-" * 40)
 
     return response
 
