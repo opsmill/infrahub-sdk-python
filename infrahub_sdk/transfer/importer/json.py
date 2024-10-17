@@ -17,7 +17,7 @@ from ..exceptions import TransferFileNotFoundError
 from .interface import ImporterInterface
 
 if TYPE_CHECKING:
-    from .schema import NodeSchema, RelationshipSchema
+    from ...schema import NodeSchema, RelationshipSchema
 
 
 class LineDelimitedJSONImporter(ImporterInterface):
@@ -163,7 +163,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         self, batches: list[InfrahubBatch], progress_bar_message: str = "Executing batches"
     ) -> Sequence[Any]:
         if self.console:
-            task_count = sum((batch.num_tasks for batch in batches))
+            task_count = sum(batch.num_tasks for batch in batches)
             progress = Progress()
             progress.start()
             progress_task = progress.add_task(f"{progress_bar_message}...", total=task_count)

@@ -983,6 +983,4 @@ class SchemaLoadResponse(BaseModel):
 
     @property
     def schema_updated(self) -> bool:
-        if self.hash and self.previous_hash and self.hash != self.previous_hash:
-            return True
-        return False
+        return bool(self.hash and self.previous_hash and self.hash != self.previous_hash)
