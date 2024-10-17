@@ -324,6 +324,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: Literal[False],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -341,6 +342,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: Literal[True],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -358,6 +360,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -375,6 +378,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: Literal[False],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -392,6 +396,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: Literal[True],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -409,6 +414,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -425,6 +431,7 @@ class InfrahubClient(BaseClient):
         raise_when_missing: bool = True,
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         id: Optional[str] = None,
         hfid: Optional[list[str]] = None,
         include: Optional[list[str]] = None,
@@ -458,6 +465,7 @@ class InfrahubClient(BaseClient):
             kind=kind,
             at=at,
             branch=branch,
+            timeout=timeout,
             populate_store=populate_store,
             include=include,
             exclude=exclude,
@@ -476,7 +484,12 @@ class InfrahubClient(BaseClient):
         return results[0]
 
     async def _process_nodes_and_relationships(
-        self, response: dict[str, Any], schema_kind: str, branch: str, prefetch_relationships: bool
+        self,
+        response: dict[str, Any],
+        schema_kind: str,
+        branch: str,
+        prefetch_relationships: bool,
+        timeout: Optional[int] = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
 
@@ -485,6 +498,7 @@ class InfrahubClient(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -496,11 +510,13 @@ class InfrahubClient(BaseClient):
         related_nodes: list[InfrahubNode] = []
 
         for item in response.get(schema_kind, {}).get("edges", []):
-            node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item)
+            node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
             if prefetch_relationships:
-                await node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes)
+                await node._process_relationships(
+                    node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout
+                )
 
         return ProcessRelationsNode(nodes=nodes, related_nodes=related_nodes)
 
@@ -510,6 +526,7 @@ class InfrahubClient(BaseClient):
         kind: type[SchemaType],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -525,6 +542,7 @@ class InfrahubClient(BaseClient):
         kind: str,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -539,6 +557,7 @@ class InfrahubClient(BaseClient):
         kind: Union[str, type[SchemaType]],
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         populate_store: bool = False,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
@@ -554,6 +573,7 @@ class InfrahubClient(BaseClient):
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -568,6 +588,7 @@ class InfrahubClient(BaseClient):
             kind=kind,
             at=at,
             branch=branch,
+            timeout=timeout,
             populate_store=populate_store,
             offset=offset,
             limit=limit,
@@ -583,6 +604,7 @@ class InfrahubClient(BaseClient):
         kind: type[SchemaType],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -600,6 +622,7 @@ class InfrahubClient(BaseClient):
         kind: str,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -616,6 +639,7 @@ class InfrahubClient(BaseClient):
         kind: Union[str, type[SchemaType]],
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         populate_store: bool = False,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
@@ -632,6 +656,7 @@ class InfrahubClient(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -679,10 +704,15 @@ class InfrahubClient(BaseClient):
                 branch_name=branch,
                 at=at,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
+                timeout=timeout,
             )
 
             process_result: ProcessRelationsNode = await self._process_nodes_and_relationships(
-                response=response, schema_kind=schema.kind, branch=branch, prefetch_relationships=prefetch_relationships
+                response=response,
+                schema_kind=schema.kind,
+                branch=branch,
+                prefetch_relationships=prefetch_relationships,
+                timeout=timeout,
             )
             nodes.extend(process_result["nodes"])
             related_nodes.extend(process_result["related_nodes"])
@@ -1509,6 +1539,7 @@ class InfrahubClientSync(BaseClient):
         kind: type[SchemaTypeSync],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -1524,6 +1555,7 @@ class InfrahubClientSync(BaseClient):
         kind: str,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -1538,6 +1570,7 @@ class InfrahubClientSync(BaseClient):
         kind: Union[str, type[SchemaTypeSync]],
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         populate_store: bool = False,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
@@ -1552,6 +1585,7 @@ class InfrahubClientSync(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -1567,6 +1601,7 @@ class InfrahubClientSync(BaseClient):
             kind=kind,
             at=at,
             branch=branch,
+            timeout=timeout,
             populate_store=populate_store,
             offset=offset,
             limit=limit,
@@ -1577,7 +1612,12 @@ class InfrahubClientSync(BaseClient):
         )
 
     def _process_nodes_and_relationships(
-        self, response: dict[str, Any], schema_kind: str, branch: str, prefetch_relationships: bool
+        self,
+        response: dict[str, Any],
+        schema_kind: str,
+        branch: str,
+        prefetch_relationships: bool,
+        timeout: Optional[int] = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
 
@@ -1586,6 +1626,7 @@ class InfrahubClientSync(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -1597,11 +1638,11 @@ class InfrahubClientSync(BaseClient):
         related_nodes: list[InfrahubNodeSync] = []
 
         for item in response.get(schema_kind, {}).get("edges", []):
-            node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item)
+            node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
             if prefetch_relationships:
-                node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes)
+                node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout)
 
         return ProcessRelationsNodeSync(nodes=nodes, related_nodes=related_nodes)
 
@@ -1611,6 +1652,7 @@ class InfrahubClientSync(BaseClient):
         kind: type[SchemaTypeSync],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -1628,6 +1670,7 @@ class InfrahubClientSync(BaseClient):
         kind: str,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         populate_store: bool = ...,
         offset: Optional[int] = ...,
         limit: Optional[int] = ...,
@@ -1644,6 +1687,7 @@ class InfrahubClientSync(BaseClient):
         kind: Union[str, type[SchemaTypeSync]],
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         populate_store: bool = False,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
@@ -1660,6 +1704,7 @@ class InfrahubClientSync(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -1706,11 +1751,16 @@ class InfrahubClientSync(BaseClient):
                 query=query.render(),
                 branch_name=branch,
                 at=at,
+                timeout=timeout,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
             )
 
             process_result: ProcessRelationsNodeSync = self._process_nodes_and_relationships(
-                response=response, schema_kind=schema.kind, branch=branch, prefetch_relationships=prefetch_relationships
+                response=response,
+                schema_kind=schema.kind,
+                branch=branch,
+                prefetch_relationships=prefetch_relationships,
+                timeout=timeout,
             )
             nodes.extend(process_result["nodes"])
             related_nodes.extend(process_result["related_nodes"])
@@ -1739,6 +1789,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: Literal[False],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1756,6 +1807,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: Literal[True],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1773,6 +1825,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1790,6 +1843,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: Literal[False],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1807,6 +1861,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: Literal[True],
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1824,6 +1879,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: bool = ...,
         at: Optional[Timestamp] = ...,
         branch: Optional[str] = ...,
+        timeout: Optional[int] = ...,
         id: Optional[str] = ...,
         hfid: Optional[list[str]] = ...,
         include: Optional[list[str]] = ...,
@@ -1840,6 +1896,7 @@ class InfrahubClientSync(BaseClient):
         raise_when_missing: bool = True,
         at: Optional[Timestamp] = None,
         branch: Optional[str] = None,
+        timeout: Optional[int] = None,
         id: Optional[str] = None,
         hfid: Optional[list[str]] = None,
         include: Optional[list[str]] = None,
@@ -1873,6 +1930,7 @@ class InfrahubClientSync(BaseClient):
             kind=kind,
             at=at,
             branch=branch,
+            timeout=timeout,
             populate_store=populate_store,
             include=include,
             exclude=exclude,
