@@ -11,7 +11,7 @@ class TestObjectStore(TestInfrahubApp):
     async def test_upload_and_get(self, client: InfrahubClient):
         response = await client.object_store.upload(content=FILE_CONTENT_01)
 
-        assert sorted(list(response.keys())) == ["checksum", "identifier"]
+        assert sorted(response.keys()) == ["checksum", "identifier"]
         assert response["checksum"] == "aa19b96860ec59a73906dd8660bb3bad"
         assert response["identifier"]
 
