@@ -206,7 +206,7 @@ def _run_transform(
     branch: str,
     debug: bool,
     repository_config: InfrahubRepositoryConfig,
-):
+) -> Any:
     """
     Query GraphQL for the required data then run a transform on that data.
 
@@ -382,7 +382,8 @@ def protocols(  # noqa: PLR0915
 
         for data in schemas_data:
             data.load_content()
-            schema_root = SchemaRoot(**data.content)
+            schema_root_data = data.content or {}
+            schema_root = SchemaRoot(**schema_root_data)
             schema.update({item.kind: item for item in schema_root.nodes + schema_root.generics})
 
     else:
@@ -401,7 +402,7 @@ def protocols(  # noqa: PLR0915
 
 @app.command(name="version")
 @catch_exception(console=console)
-def version(_: str = CONFIG_PARAM):
+def version(_: str = CONFIG_PARAM) -> None:
     """Display the version of Infrahub and the version of the Python SDK in use."""
 
     client = initialize_client_sync()
