@@ -168,10 +168,6 @@ module = "infrahub_sdk.ctl.schema"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.utils"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
 ignore_errors = true
 
