@@ -271,14 +271,6 @@ class ListAttributeOptional(Attribute):
     value: Optional[list[Any]]
 
 
-class JSONAttribute(Attribute):
-    value: Any
-
-
-class JSONAttributeOptional(Attribute):
-    value: Optional[Any]
-
-
 class AnyAttribute(Attribute):
     value: float
 
