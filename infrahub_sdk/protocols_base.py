@@ -76,6 +76,14 @@ class DropdownOptional(Attribute):
     value: Optional[str]
 
 
+class Enum(Attribute):
+    value: str
+
+
+class EnumOptional(Attribute):
+    value: Optional[str]
+
+
 class Integer(Attribute):
     value: int
 
