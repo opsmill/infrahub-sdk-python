@@ -28,30 +28,12 @@ class Attribute(Protocol):
     is_protected: Optional[bool]
 
 
-# TODO: Consolidate them into on single set of classes
-# Classes for builtin schema attribute
 class String(Attribute):
     value: str
 
 
 class StringOptional(Attribute):
     value: Optional[str]
-
-
-class Integer(Attribute):
-    value: int
-
-
-class IntegerOptional(Attribute):
-    value: Optional[int]
-
-
-class Boolean(Attribute):
-    value: bool
-
-
-class BooleanOptional(Attribute):
-    value: Optional[bool]
 
 
 class DateTime(Attribute):
@@ -62,12 +44,12 @@ class DateTimeOptional(Attribute):
     value: Optional[str]
 
 
-class Enum(Attribute):
+class HashedPassword(Attribute):
     value: str
 
 
-class EnumOptional(Attribute):
-    value: Optional[str]
+class HashedPasswordOptional(Attribute):
+    value: Any
 
 
 class URL(Attribute):
@@ -75,6 +57,14 @@ class URL(Attribute):
 
 
 class URLOptional(Attribute):
+    value: Optional[str]
+
+
+class MacAddress(Attribute):
+    value: str
+
+
+class MacAddressOptional(Attribute):
     value: Optional[str]
 
 
@@ -86,12 +76,12 @@ class DropdownOptional(Attribute):
     value: Optional[str]
 
 
-class IPNetwork(Attribute):
-    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+class Integer(Attribute):
+    value: int
 
 
-class IPNetworkOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+class IntegerOptional(Attribute):
+    value: Optional[int]
 
 
 class IPHost(Attribute):
@@ -102,164 +92,19 @@ class IPHostOptional(Attribute):
     value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
 
 
-class HashedPassword(Attribute):
-    value: str
-
-
-class HashedPasswordOptional(Attribute):
-    value: Any
-
-
-class JSONAttribute(Attribute):
-    value: Any
-
-
-class JSONAttributeOptional(Attribute):
-    value: Optional[Any]
-
-
-# Classes for user defined schema attribute
-class IDAttribute(Attribute):
-    value: int
-
-
-class IDAttributeOptional(Attribute):
-    value: Optional[int]
-
-
-class DropdownAttribute(Attribute):
-    value: str
-
-
-class DropdownAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class TextAttribute(Attribute):
-    value: str
-
-
-class TextAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class TextAreaAttribute(Attribute):
-    value: str
-
-
-class TextAreaAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class DateTimeAttribute(Attribute):
-    value: str
-
-
-class DateTimeAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class EmailAttribute(Attribute):
-    value: str
-
-
-class EmailAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class PasswordAttribute(Attribute):
-    value: str
-
-
-class PasswordAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class HashedPasswordAttribute(Attribute):
-    value: str
-
-
-class HashedPasswordAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class URLAttribute(Attribute):
-    value: str
-
-
-class URLAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class FileAttribute(Attribute):
-    value: str
-
-
-class FileAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class MacAddressAttribute(Attribute):
-    value: str
-
-
-class MacAddressAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class ColorAttribute(Attribute):
-    value: str
-
-
-class ColorAttributeOptional(Attribute):
-    value: Optional[str]
-
-
-class NumberAttribute(Attribute):
-    value: float
-
-
-class NumberAttributeOptional(Attribute):
-    value: Optional[float]
-
-
-class BandwidthAttribute(Attribute):
-    value: float
-
-
-class BandwidthAttributeOptional(Attribute):
-    value: Optional[float]
-
-
-class IPHostAttribute(Attribute):
-    value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
-
-
-class IPHostAttributeOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
-
-
-class IPNetworkAttribute(Attribute):
+class IPNetwork(Attribute):
     value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 
 
-class IPNetworkAttributeOptional(Attribute):
+class IPNetworkOptional(Attribute):
     value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
 
 
-class BooleanAttribute(Attribute):
+class Boolean(Attribute):
     value: bool
 
 
-class BooleanAttributeOptional(Attribute):
-    value: Optional[bool]
-
-
-class CheckboxAttribute(Attribute):
-    value: bool
-
-
-class CheckboxAttributeOptional(Attribute):
+class BooleanOptional(Attribute):
     value: Optional[bool]
 
 
@@ -269,6 +114,14 @@ class ListAttribute(Attribute):
 
 class ListAttributeOptional(Attribute):
     value: Optional[list[Any]]
+
+
+class JSONAttribute(Attribute):
+    value: Any
+
+
+class JSONAttributeOptional(Attribute):
+    value: Optional[Any]
 
 
 class AnyAttribute(Attribute):

@@ -13,6 +13,30 @@ from infrahub_sdk.schema import (
     RelationshipSchema,
 )
 
+ATTRIBUTE_KIND_MAP = {
+    "ID": "String",
+    "Text": "String",
+    "TextArea": "String",
+    "DateTime": "DateTime",
+    "Email": "String",
+    "Password": "String",
+    "HashedPassword": "HashedPassword",
+    "URL": "URL",
+    "File": "String",
+    "MacAddress": "MacAddress",
+    "Color": "String",
+    "Dropdown": "Dropdown",
+    "Number": "Integer",
+    "Bandwidth": "Integer",
+    "IPHost": "IPHost",
+    "IPNetwork": "IPNetwork",
+    "Boolean": "Boolean",
+    "Checkbox": "Boolean",
+    "List": "ListAttribute",
+    "JSON": "JSONAttribute",
+    "Any": "AnyAttribute",
+}
+
 
 class CodeGenerator:
     def __init__(self, schema: dict[str, MainSchemaTypes]):
@@ -68,9 +92,7 @@ class CodeGenerator:
 
     @staticmethod
     def _jinja2_filter_render_attribute(value: AttributeSchema) -> str:
-        attribute_kind: str = value.kind
-
-        attribute_kind += "Attribute"
+        attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
         if value.optional:
             attribute_kind += "Optional"
