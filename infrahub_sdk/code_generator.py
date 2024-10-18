@@ -13,6 +13,30 @@ from infrahub_sdk.schema import (
     RelationshipSchema,
 )
 
+ATTRIBUTE_KIND_MAP = {
+    "ID": "String",
+    "Text": "String",
+    "TextArea": "String",
+    "DateTime": "DateTime",
+    "Email": "String",
+    "Password": "String",
+    "HashedPassword": "HashedPassword",
+    "URL": "URL",
+    "File": "String",
+    "MacAddress": "MacAddress",
+    "Color": "String",
+    "Dropdown": "Dropdown",
+    "Number": "Integer",
+    "Bandwidth": "Integer",
+    "IPHost": "IPHost",
+    "IPNetwork": "IPNetwork",
+    "Boolean": "Boolean",
+    "Checkbox": "Boolean",
+    "List": "ListAttribute",
+    "JSON": "JSONAttribute",
+    "Any": "AnyAttribute",
+}
+
 
 class CodeGenerator:
     def __init__(self, schema: dict[str, MainSchemaTypes]):
@@ -68,30 +92,12 @@ class CodeGenerator:
 
     @staticmethod
     def _jinja2_filter_render_attribute(value: AttributeSchema) -> str:
-        attribute_kind_map = {
-            "boolean": "Boolean",
-            "datetime": "DateTime",
-            "dropdown": "Dropdown",
-            "hashedpassword": "HashedPassword",
-            "iphost": "IPHost",
-            "ipnetwork": "IPNetwork",
-            "json": "JSONAttribute",
-            "list": "ListAttribute",
-            "number": "Integer",
-            "password": "String",
-            "text": "String",
-            "textarea": "String",
-            "url": "URL",
-        }
+        attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
-        name = value.name
-        kind = value.kind
-
-        attribute_kind = attribute_kind_map[kind.lower()]
         if value.optional:
-            attribute_kind = f"{attribute_kind}Optional"
+            attribute_kind += "Optional"
 
-        return f"{name}: {attribute_kind}"
+        return f"{value.name}: {attribute_kind}"
 
     @staticmethod
     def _jinja2_filter_render_relationship(value: RelationshipSchema, sync: bool = False) -> str:

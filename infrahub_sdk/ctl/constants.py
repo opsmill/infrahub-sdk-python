@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from infrahub_sdk.node import RelatedNode, RelationshipManager
     {% endif %}
     from infrahub_sdk.protocols_base import (
+        AnyAttribute,
+        AnyAttributeOptional,
         String,
         StringOptional,
         Integer,
@@ -27,6 +29,8 @@ if TYPE_CHECKING:
         DropdownOptional,
         HashedPassword,
         HashedPasswordOptional,
+        MacAddress,
+        MacAddressOptional,
         IPHost,
         IPHostOptional,
         IPNetwork,
@@ -38,9 +42,9 @@ if TYPE_CHECKING:
         URL,
         URLOptional,
     )
-
-
 {% for generic in generics %}
+
+
 class {{ generic.namespace + generic.name }}(CoreNode):
     {% if not generic.attributes|default([]) and not generic.relationships|default([]) %}
     pass
@@ -60,11 +64,10 @@ class {{ generic.namespace + generic.name }}(CoreNode):
     children: RelationshipManager
     {% endif %}
     {% endif %}
-
 {% endfor %}
-
-
 {% for node in nodes %}
+
+
 class {{ node.namespace + node.name }}({{ node.inherit_from | join(", ") or "CoreNode" }}):
     {% if not node.attributes|default([]) and not node.relationships|default([]) %}
     pass
@@ -84,10 +87,10 @@ class {{ node.namespace + node.name }}({{ node.inherit_from | join(", ") or "Cor
     children: RelationshipManager
     {% endif %}
     {% endif %}
-
 {% endfor %}
-
 {% for node in profiles %}
+
+
 class {{ node.namespace + node.name }}({{ node.inherit_from | join(", ") or "CoreNode" }}):
     {% if not node.attributes|default([]) and not node.relationships|default([]) %}
     pass
@@ -107,6 +110,6 @@ class {{ node.namespace + node.name }}({{ node.inherit_from | join(", ") or "Cor
     children: RelationshipManager
     {% endif %}
     {% endif %}
-
 {% endfor %}
+
 """
