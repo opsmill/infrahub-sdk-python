@@ -20,7 +20,6 @@ class RelatedNodeSync(Protocol): ...
 class Attribute(Protocol):
     name: str
     id: Optional[str]
-
     is_default: Optional[bool]
     is_from_profile: Optional[bool]
     is_inherited: Optional[bool]
@@ -37,22 +36,6 @@ class StringOptional(Attribute):
     value: Optional[str]
 
 
-class Integer(Attribute):
-    value: int
-
-
-class IntegerOptional(Attribute):
-    value: Optional[int]
-
-
-class Boolean(Attribute):
-    value: bool
-
-
-class BooleanOptional(Attribute):
-    value: Optional[bool]
-
-
 class DateTime(Attribute):
     value: str
 
@@ -61,12 +44,12 @@ class DateTimeOptional(Attribute):
     value: Optional[str]
 
 
-class Enum(Attribute):
+class HashedPassword(Attribute):
     value: str
 
 
-class EnumOptional(Attribute):
-    value: Optional[str]
+class HashedPasswordOptional(Attribute):
+    value: Any
 
 
 class URL(Attribute):
@@ -74,6 +57,14 @@ class URL(Attribute):
 
 
 class URLOptional(Attribute):
+    value: Optional[str]
+
+
+class MacAddress(Attribute):
+    value: str
+
+
+class MacAddressOptional(Attribute):
     value: Optional[str]
 
 
@@ -85,12 +76,20 @@ class DropdownOptional(Attribute):
     value: Optional[str]
 
 
-class IPNetwork(Attribute):
-    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+class Enum(Attribute):
+    value: str
 
 
-class IPNetworkOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+class EnumOptional(Attribute):
+    value: Optional[str]
+
+
+class Integer(Attribute):
+    value: int
+
+
+class IntegerOptional(Attribute):
+    value: Optional[int]
 
 
 class IPHost(Attribute):
@@ -101,12 +100,28 @@ class IPHostOptional(Attribute):
     value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
 
 
-class HashedPassword(Attribute):
-    value: str
+class IPNetwork(Attribute):
+    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
 
 
-class HashedPasswordOptional(Attribute):
-    value: Any
+class IPNetworkOptional(Attribute):
+    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+
+
+class Boolean(Attribute):
+    value: bool
+
+
+class BooleanOptional(Attribute):
+    value: Optional[bool]
+
+
+class ListAttribute(Attribute):
+    value: list[Any]
+
+
+class ListAttributeOptional(Attribute):
+    value: Optional[list[Any]]
 
 
 class JSONAttribute(Attribute):
@@ -117,12 +132,12 @@ class JSONAttributeOptional(Attribute):
     value: Optional[Any]
 
 
-class ListAttribute(Attribute):
-    value: list[Any]
+class AnyAttribute(Attribute):
+    value: float
 
 
-class ListAttributeOptional(Attribute):
-    value: Optional[list[Any]]
+class AnyAttributeOptional(Attribute):
+    value: Optional[float]
 
 
 @runtime_checkable
