@@ -18,6 +18,7 @@ from typing import (
     Union,
     overload,
 )
+from urllib.parse import urlencode
 
 import httpx
 import ujson
@@ -200,7 +201,7 @@ class BaseClient:
         if at:
             at = Timestamp(at)
             url_params["at"] = at.to_string()
-            url += "?" + "&".join([f"{key}={value}" for key, value in url_params.items()])
+            url += "?" + urlencode(url_params)
 
         return url
 
@@ -951,14 +952,19 @@ class InfrahubClient(BaseClient):
 
         if url_params:
             url_params_str = []
+            url_params_dict = {}
             for key, value in url_params.items():
                 if isinstance(value, (list)):
                     for item in value:
-                        url_params_str.append(f"{key}={item}")
+                        url_params_str.append((key, item))
                 else:
-                    url_params_str.append(f"{key}={value}")
+                    url_params_dict[key] = value
 
-            url += "?" + "&".join(url_params_str)
+            url += "?"
+            if url_params_dict:
+                url += urlencode(url_params_dict) + "&"
+            if url_params_str:
+                url += urlencode(url_params_str)
 
         payload = {}
         if variables:
@@ -1928,14 +1934,19 @@ class InfrahubClientSync(BaseClient):
 
         if url_params:
             url_params_str = []
+            url_params_dict = {}
             for key, value in url_params.items():
                 if isinstance(value, (list)):
                     for item in value:
-                        url_params_str.append(f"{key}={item}")
+                        url_params_str.append((key, item))
                 else:
-                    url_params_str.append(f"{key}={value}")
+                    url_params_dict[key] = value
 
-            url += "?" + "&".join(url_params_str)
+            url += "?"
+            if url_params_dict:
+                url += urlencode(url_params_dict) + "&"
+            if url_params_str:
+                url += urlencode(url_params_str)
 
         payload = {}
         if variables:
