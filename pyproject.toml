@@ -249,7 +249,14 @@ ignore = [
     "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
     "RET504",  # Unnecessary assignment to `data` before `return` statement
-    "RUF",     # Unused `noqa` directive
+    "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
+    "RUF010",  # [*] Use explicit conversion flag
+    "RUF015",  # Prefer `next(iter(input_data["variables"].keys()))` over single element slice
+    "RUF019",  # [*] Unnecessary key check before dictionary access
+    "RUF020",  # [*] `Union[NoReturn, T]` is equivalent to `T`
+    "RUF022",  # [*] `__all__` is not sorted
+    "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
+    "RUF100",  # [*] Unused `noqa` directive
     "S108",    # Probable insecure usage of temporary file or directory
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "S701",    # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True`
