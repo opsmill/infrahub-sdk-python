@@ -314,11 +314,13 @@ class RelatedNode(RelatedNodeBase):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    async def fetch(self) -> None:
+    async def fetch(self, timeout: Optional[int] = None) -> None:
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
-        self._peer = await self._client.get(kind=self.typename, id=self.id, populate_store=True, branch=self._branch)
+        self._peer = await self._client.get(
+            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout
+        )
 
     @property
     def peer(self) -> InfrahubNode:
@@ -359,11 +361,13 @@ class RelatedNodeSync(RelatedNodeBase):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    def fetch(self) -> None:
+    def fetch(self, timeout: Optional[int] = None) -> None:
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
-        self._peer = self._client.get(kind=self.typename, id=self.id, populate_store=True, branch=self._branch)
+        self._peer = self._client.get(
+            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout
+        )
 
     @property
     def peer(self) -> InfrahubNodeSync:
@@ -1045,13 +1049,18 @@ class InfrahubNode(InfrahubNodeBase):
 
     @classmethod
     async def from_graphql(
-        cls, client: InfrahubClient, branch: str, data: dict, schema: Optional[MainSchemaTypes] = None
+        cls,
+        client: InfrahubClient,
+        branch: str,
+        data: dict,
+        schema: Optional[MainSchemaTypes] = None,
+        timeout: Optional[int] = None,
     ) -> Self:
         if not schema:
             node_kind = data.get("__typename", None) or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
-            schema = await client.schema.get(kind=node_kind, branch=branch)
+            schema = await client.schema.get(kind=node_kind, branch=branch, timeout=timeout)
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
@@ -1104,7 +1113,7 @@ class InfrahubNode(InfrahubNodeBase):
         content = await self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    async def delete(self) -> None:
+    async def delete(self, timeout: Optional[int] = None) -> None:
         input_data = {"data": {"id": self.id}}
         mutation_query = {"ok": None}
         query = Mutation(
@@ -1115,14 +1124,17 @@ class InfrahubNode(InfrahubNodeBase):
         await self._client.execute_graphql(
             query=query.render(),
             branch_name=self._branch,
+            timeout=timeout,
             tracker=f"mutation-{str(self._schema.kind).lower()}-delete",
         )
 
-    async def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None:
+    async def save(
+        self, allow_upsert: bool = False, update_group_context: Optional[bool] = None, timeout: Optional[int] = None
+    ) -> None:
         if self._existing is False or allow_upsert is True:
-            await self.create(allow_upsert=allow_upsert)
+            await self.create(allow_upsert=allow_upsert, timeout=timeout)
         else:
-            await self.update()
+            await self.update(timeout=timeout)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1297,7 +1309,9 @@ class InfrahubNode(InfrahubNodeBase):
 
         return query_result
 
-    async def _process_mutation_result(self, mutation_name: str, response: dict[str, Any]) -> None:
+    async def _process_mutation_result(
+        self, mutation_name: str, response: dict[str, Any], timeout: Optional[int] = None
+    ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
         self._existing = True
@@ -1324,10 +1338,10 @@ class InfrahubNode(InfrahubNodeBase):
             related_node = RelatedNode(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            await related_node.fetch()
+            await related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    async def create(self, allow_upsert: bool = False) -> None:
+    async def create(self, allow_upsert: bool = False, timeout: Optional[int] = None) -> None:
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
@@ -1345,11 +1359,15 @@ class InfrahubNode(InfrahubNodeBase):
             variables=input_data["mutation_variables"],
         )
         response = await self._client.execute_graphql(
-            query=query.render(), branch_name=self._branch, tracker=tracker, variables=input_data["variables"]
+            query=query.render(),
+            branch_name=self._branch,
+            tracker=tracker,
+            variables=input_data["variables"],
+            timeout=timeout,
         )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response)
+        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    async def update(self, do_full_update: bool = False) -> None:
+    async def update(self, do_full_update: bool = False, timeout: Optional[int] = None) -> None:
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -1363,13 +1381,14 @@ class InfrahubNode(InfrahubNodeBase):
         response = await self._client.execute_graphql(
             query=query.render(),
             branch_name=self._branch,
+            timeout=timeout,
             tracker=f"mutation-{str(self._schema.kind).lower()}-update",
             variables=input_data["variables"],
         )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response)
+        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     async def _process_relationships(
-        self, node_data: dict[str, Any], branch: str, related_nodes: list[InfrahubNode]
+        self, node_data: dict[str, Any], branch: str, related_nodes: list[InfrahubNode], timeout: Optional[int] = None
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1377,19 +1396,24 @@ class InfrahubNode(InfrahubNodeBase):
             node_data (dict[str, Any]): The item from the GraphQL response corresponding to the node.
             branch (str): The branch name.
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNode):
                 relation = node_data["node"].get(rel_name)
                 if relation.get("node", None):
-                    related_node = await InfrahubNode.from_graphql(client=self._client, branch=branch, data=relation)
+                    related_node = await InfrahubNode.from_graphql(
+                        client=self._client, branch=branch, data=relation, timeout=timeout
+                    )
                     related_nodes.append(related_node)
             elif rel and isinstance(rel, RelationshipManager):
                 peers = node_data["node"].get(rel_name)
                 if peers:
                     for peer in peers["edges"]:
-                        related_node = await InfrahubNode.from_graphql(client=self._client, branch=branch, data=peer)
+                        related_node = await InfrahubNode.from_graphql(
+                            client=self._client, branch=branch, data=peer, timeout=timeout
+                        )
                         related_nodes.append(related_node)
 
     async def get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]:
@@ -1522,13 +1546,18 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
     @classmethod
     def from_graphql(
-        cls, client: InfrahubClientSync, branch: str, data: dict, schema: Optional[MainSchemaTypes] = None
+        cls,
+        client: InfrahubClientSync,
+        branch: str,
+        data: dict,
+        schema: Optional[MainSchemaTypes] = None,
+        timeout: Optional[int] = None,
     ) -> Self:
         if not schema:
             node_kind = data.get("__typename", None) or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
-            schema = client.schema.get(kind=node_kind, branch=branch)
+            schema = client.schema.get(kind=node_kind, branch=branch, timeout=timeout)
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
@@ -1578,7 +1607,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         content = self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    def delete(self) -> None:
+    def delete(self, timeout: Optional[int] = None) -> None:
         input_data = {"data": {"id": self.id}}
         mutation_query = {"ok": None}
         query = Mutation(
@@ -1590,13 +1619,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
             query=query.render(),
             branch_name=self._branch,
             tracker=f"mutation-{str(self._schema.kind).lower()}-delete",
+            timeout=timeout,
         )
 
-    def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None:
+    def save(
+        self, allow_upsert: bool = False, update_group_context: Optional[bool] = None, timeout: Optional[int] = None
+    ) -> None:
         if self._existing is False or allow_upsert is True:
-            self.create(allow_upsert=allow_upsert)
+            self.create(allow_upsert=allow_upsert, timeout=timeout)
         else:
-            self.update()
+            self.update(timeout=timeout)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1770,7 +1802,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return query_result
 
-    def _process_mutation_result(self, mutation_name: str, response: dict[str, Any]) -> None:
+    def _process_mutation_result(
+        self, mutation_name: str, response: dict[str, Any], timeout: Optional[int] = None
+    ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
         self._existing = True
@@ -1797,10 +1831,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_node = RelatedNodeSync(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            related_node.fetch()
+            related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    def create(self, allow_upsert: bool = False) -> None:
+    def create(self, allow_upsert: bool = False, timeout: Optional[int] = None) -> None:
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
@@ -1819,11 +1853,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
         response = self._client.execute_graphql(
-            query=query.render(), branch_name=self._branch, tracker=tracker, variables=input_data["variables"]
+            query=query.render(),
+            branch_name=self._branch,
+            tracker=tracker,
+            variables=input_data["variables"],
+            timeout=timeout,
         )
-        self._process_mutation_result(mutation_name=mutation_name, response=response)
+        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    def update(self, do_full_update: bool = False) -> None:
+    def update(self, do_full_update: bool = False, timeout: Optional[int] = None) -> None:
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -1840,11 +1878,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
             branch_name=self._branch,
             tracker=f"mutation-{str(self._schema.kind).lower()}-update",
             variables=input_data["variables"],
+            timeout=timeout,
         )
-        self._process_mutation_result(mutation_name=mutation_name, response=response)
+        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     def _process_relationships(
-        self, node_data: dict[str, Any], branch: str, related_nodes: list[InfrahubNodeSync]
+        self,
+        node_data: dict[str, Any],
+        branch: str,
+        related_nodes: list[InfrahubNodeSync],
+        timeout: Optional[int] = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNodeSync and add Related Nodes to a list.
 
@@ -1852,19 +1895,25 @@ class InfrahubNodeSync(InfrahubNodeBase):
             node_data (dict[str, Any]): The item from the GraphQL response corresponding to the node.
             branch (str): The branch name.
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNodeSync):
                 relation = node_data["node"].get(rel_name)
                 if relation.get("node", None):
-                    related_node = InfrahubNodeSync.from_graphql(client=self._client, branch=branch, data=relation)
+                    related_node = InfrahubNodeSync.from_graphql(
+                        client=self._client, branch=branch, data=relation, timeout=timeout
+                    )
                     related_nodes.append(related_node)
             elif rel and isinstance(rel, RelationshipManagerSync):
                 peers = node_data["node"].get(rel_name)
                 if peers:
                     for peer in peers["edges"]:
-                        related_node = InfrahubNodeSync.from_graphql(client=self._client, branch=branch, data=peer)
+                        related_node = InfrahubNodeSync.from_graphql(
+                            client=self._client, branch=branch, data=peer, timeout=timeout
+                        )
                         related_nodes.append(related_node)
 
     def get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubNodeSync]:
