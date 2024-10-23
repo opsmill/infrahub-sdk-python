@@ -409,7 +409,7 @@ class TestSchemaExportImportManyRelationships(TestInfrahubApp):
         }
 
     @pytest.fixture(scope="class")
-    async def initial_dataset(self, client: InfrahubClient, schema):  # noqa: PLR0914
+    async def initial_dataset(self, client: InfrahubClient, schema):
         await client.schema.load(schemas=[schema])
 
         bmw = await client.create(

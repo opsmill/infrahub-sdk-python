@@ -310,5 +310,5 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node):
         output = console.file.getvalue()
         expected_console = """Unable to load the schema:
   Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z]+$' (string_pattern_mismatch)
-"""  # noqa: E501
+"""
         assert output == expected_console

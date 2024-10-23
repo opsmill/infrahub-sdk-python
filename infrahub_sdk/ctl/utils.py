@@ -48,38 +48,38 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, Exit):
         raise typer.Exit(code=exc.exit_code)
     if isinstance(exc, AuthenticationError):
-        console.print(f"[red]Authentication failure: {str(exc)}")
+        console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (ServerNotReachableError, ServerNotResponsiveError)):
-        console.print(f"[red]{str(exc)}")
+        console.print(f"[red]{exc!s}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, HTTPError):
-        console.print(f"[red]HTTP communication failure: {str(exc)} on {exc.request.method} to {exc.request.url}")
+        console.print(f"[red]HTTP communication failure: {exc!s} on {exc.request.method} to {exc.request.url}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError)):
-        console.print(f"[red]Error: {str(exc)}")
+        console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
-    console.print(f"[red]Error: {str(exc)}")
+    console.print(f"[red]Error: {exc!s}")
     console.print(traceback.format_exc())
     raise typer.Exit(code=exit_code)
 
 
 def catch_exception(
     console: Optional[Console] = None, exit_code: int = 1
-) -> Callable[[Callable[..., T]], Callable[..., Union[T, Coroutine[Any, Any, T], NoReturn]]]:
+) -> Callable[[Callable[..., T]], Callable[..., Union[T, Coroutine[Any, Any, T]]]]:
     """Decorator to handle exception for commands."""
     if not console:
         console = Console()
 
-    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Coroutine[Any, Any, T], NoReturn]]:
+    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Coroutine[Any, Any, T]]]:
         if asyncio.iscoroutinefunction(func):
 
             @wraps(func)
-            async def async_wrapper(*args: Any, **kwargs: Any) -> Union[T, NoReturn]:
+            async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 try:
                     return await func(*args, **kwargs)
                 except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
@@ -88,7 +88,7 @@ def catch_exception(
             return async_wrapper
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Union[T, NoReturn]:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             try:
                 return func(*args, **kwargs)
             except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
