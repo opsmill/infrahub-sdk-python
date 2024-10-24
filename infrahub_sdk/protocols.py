@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 from .protocols_base import CoreNode, CoreNodeSync
 
 if TYPE_CHECKING:
-    from .node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
+    from infrahub_sdk.node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
+
     from .protocols_base import (
         URL,
         Boolean,
@@ -148,6 +149,7 @@ class CoreMenu(CoreNode):
     icon: StringOptional
     protected: Boolean
     order_weight: Integer
+    required_permissions: ListAttributeOptional
     section: Enum
     parent: RelatedNode
     children: RelationshipManager
@@ -397,7 +399,6 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
 
 
 class CoreObjectPermission(CoreBasePermission):
-    branch: String
     namespace: String
     name: String
     action: Enum
@@ -613,6 +614,7 @@ class CoreMenuSync(CoreNodeSync):
     icon: StringOptional
     protected: Boolean
     order_weight: Integer
+    required_permissions: ListAttributeOptional
     section: Enum
     parent: RelatedNodeSync
     children: RelationshipManagerSync
@@ -862,7 +864,6 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
 
 
 class CoreObjectPermissionSync(CoreBasePermissionSync):
-    branch: String
     namespace: String
     name: String
     action: Enum
