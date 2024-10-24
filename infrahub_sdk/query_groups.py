@@ -49,7 +49,7 @@ class InfrahubGroupContextBase:
         """Convert the params in dict format, into a string"""
         params_as_str: list[str] = []
         for key, value in self.params.items():
-            params_as_str.append(f"{key}: {str(value)}")
+            params_as_str.append(f"{key}: {value!s}")
         return ", ".join(params_as_str)
 
     def _generate_group_name(self, suffix: Optional[str] = None) -> str:

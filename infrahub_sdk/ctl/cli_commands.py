@@ -366,7 +366,7 @@ def transform(
 
 @app.command(name="protocols")
 @catch_exception(console=console)
-def protocols(  # noqa: PLR0915
+def protocols(
     schemas: list[Path] = typer.Option(None, help="List of schemas or directory to load."),
     branch: str = typer.Option(None, help="Branch of schema to export Python protocols for."),
     sync: bool = typer.Option(False, help="Generate for sync or async."),
