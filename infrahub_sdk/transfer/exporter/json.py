@@ -54,7 +54,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
 
                     # Record the relationship only if it's not known in one way or another
                     if not forward and not backward:
-                        many_relationship_identifiers[(node_schema.kind, relationship.peer)] = relationship.identifier
+                        many_relationship_identifiers[node_schema.kind, relationship.peer] = relationship.identifier
 
         return many_relationship_identifiers
 
