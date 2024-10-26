@@ -75,7 +75,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
       - name: "Setup environment"
-        run: "pip install ruff==0.5.0"
+        run: "pip install ruff==0.7.1"
       - name: "Linting: ruff check"
         run: "ruff check ."
       - name: "Linting: ruff format"
