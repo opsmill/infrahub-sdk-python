@@ -11,6 +11,7 @@ from ..ctl.exceptions import FileNotValidError
 from ..ctl.utils import init_logging
 from ..graphql import Mutation
 from ..schema import InfrahubRepositoryConfig
+from ._file import read_file
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -40,11 +41,9 @@ def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
 
 
 def load_repository_config_file(repo_config_file: Path) -> dict:
-    if not repo_config_file.is_file():
-        raise FileNotFoundError(repo_config_file)
+    yaml_data = read_file(file_name=repo_config_file)
 
     try:
-        yaml_data = repo_config_file.read_text()
         data = yaml.safe_load(yaml_data)
     except yaml.YAMLError as exc:
         raise FileNotValidError(name=str(repo_config_file)) from exc

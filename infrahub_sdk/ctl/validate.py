@@ -4,10 +4,8 @@ from typing import Optional
 
 import typer
 import ujson
-import yaml
 from pydantic import ValidationError
 from rich.console import Console
-from ujson import JSONDecodeError
 
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client, initialize_client_sync
@@ -15,7 +13,9 @@ from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
 from ..exceptions import GraphQLError
 from ..utils import get_branch, write_to_file
+from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
+from .utils import load_yamlfile_from_disk_and_exit
 
 app = AsyncTyper()
 console = Console()
@@ -33,16 +33,15 @@ def callback() -> None:
 async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
     """Validate the format of a schema file either in JSON or YAML"""
 
-    try:
-        schema_data = yaml.safe_load(schema.read_text()) or {}
-    except JSONDecodeError as exc:
-        console.print("[red]Invalid JSON file")
-        raise typer.Exit(1) from exc
+    schema_data = load_yamlfile_from_disk_and_exit(paths=[schema], file_type=SchemaFile, console=console)
+    if not schema_data:
+        console.print(f"[red]Unable to find {schema}")
+        raise typer.Exit(1)
 
     client = initialize_client()
 
     try:
-        client.schema.validate(schema_data)
+        client.schema.validate(schema_data[0].payload)
     except ValidationError as exc:
         console.print(f"[red]Schema not valid, found {len(exc.errors())} error(s)")
         for error in exc.errors():
