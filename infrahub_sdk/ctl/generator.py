@@ -69,6 +69,11 @@ async def run(
             kind="CoreGroup", branch=branch, include=["members"], name__value=generator_config.targets
         )
         await targets.members.fetch()
+
+        if not targets.members.peers:
+            console.print(f"[red]No members found within '{generator_config.targets}', not running generator '{generator_name}'")
+            return
+
         for member in targets.members.peers:
             check_parameter = {}
             if identifier:
