@@ -71,7 +71,9 @@ async def run(
         await targets.members.fetch()
 
         if not targets.members.peers:
-            console.print(f"[red]No members found within '{generator_config.targets}', not running generator '{generator_name}'")
+            console.print(
+                f"[red]No members found within '{generator_config.targets}', not running generator '{generator_name}'"
+            )
             return
 
         for member in targets.members.peers:
