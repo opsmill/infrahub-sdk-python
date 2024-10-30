@@ -1,11 +1,12 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field
 from typing_extensions import Self
 
+from .ctl._file import read_file
 from .ctl.exceptions import FileNotValidError
 from .utils import find_files
 
@@ -37,7 +38,12 @@ class LocalFile(BaseModel):
 class YamlFile(LocalFile):
     def load_content(self) -> None:
         try:
-            self.content = yaml.safe_load(self.location.read_text())
+            self.content = yaml.safe_load(read_file(self.location))
+        except FileNotValidError as exc:
+            self.error_message = exc.message
+            self.valid = False
+            return
+
         except yaml.YAMLError:
             self.error_message = "Invalid YAML/JSON file"
             self.valid = False
@@ -94,4 +100,6 @@ class InfrahubFile(YamlFile):
 
 
 class SchemaFile(YamlFile):
-    pass
+    @property
+    def payload(self) -> dict[str, Any]:
+        return self.content or {}
