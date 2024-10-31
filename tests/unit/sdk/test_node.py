@@ -1487,7 +1487,9 @@ async def test_create_input_data_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client, schema=simple_device_schema, data={"name": "device-01", "primary_address": ip_pool}
+            client=client,
+            schema=simple_device_schema,
+            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
     else:
         ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
@@ -1504,13 +1506,16 @@ async def test_create_input_data_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client, schema=simple_device_schema, data={"name": "device-01", "primary_address": ip_pool}
+            client=client,
+            schema=simple_device_schema,
+            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
 
     assert device._generate_input_data()["data"] == {
         "data": {
             "name": {"value": "device-01"},
             "primary_address": {"from_pool": {"id": "pppppppp-pppp-pppp-pppp-pppppppppppp"}},
+            "ip_address_pool": {"id": "pppppppp-pppp-pppp-pppp-pppppppppppp"},
         },
     }
 
@@ -1534,7 +1539,9 @@ async def test_create_mutation_query_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client, schema=simple_device_schema, data={"name": "device-01", "primary_address": ip_pool}
+            client=client,
+            schema=simple_device_schema,
+            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
     else:
         ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
@@ -1551,11 +1558,17 @@ async def test_create_mutation_query_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client, schema=simple_device_schema, data={"name": "device-01", "primary_address": ip_pool}
+            client=client,
+            schema=simple_device_schema,
+            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
 
     assert device._generate_mutation_query() == {
-        "object": {"id": None, "primary_address": {"node": {"__typename": None, "display_label": None, "id": None}}},
+        "object": {
+            "id": None,
+            "primary_address": {"node": {"__typename": None, "display_label": None, "id": None}},
+            "ip_address_pool": {"node": {"__typename": None, "display_label": None, "id": None}},
+        },
         "ok": None,
     }
 
