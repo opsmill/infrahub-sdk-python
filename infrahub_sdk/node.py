@@ -241,10 +241,10 @@ class RelatedNodeBase:
             return self._peer.typename
         return self._typename
 
-    def _generate_input_data(self) -> dict[str, Any]:
+    def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
 
-        if self.is_resource_pool:
+        if self.is_resource_pool and allocate_from_pool:
             return {"from_pool": {"id": self.id}}
 
         if self.id is not None:
@@ -424,8 +424,8 @@ class RelationshipManagerBase:
     def has_update(self) -> bool:
         return self._has_update
 
-    def _generate_input_data(self) -> list[dict]:
-        return [peer._generate_input_data() for peer in self.peers]
+    def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
+        return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
 
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
@@ -818,6 +818,7 @@ class InfrahubNodeBase:
                 data[item_name] = attr_data
 
         for item_name in self._relationships:
+            allocate_from_pool = False
             rel_schema = self._schema.get_relationship(name=item_name)
             if not rel_schema or rel_schema.read_only:
                 continue
@@ -836,7 +837,12 @@ class InfrahubNodeBase:
             if rel is None or not rel.initialized:
                 continue
 
-            rel_data = rel._generate_input_data()
+            if isinstance(rel, RelatedNode | RelatedNodeSync) and rel.is_resource_pool:
+                # If the relatiionship is a resource pool and the expected schema is different from the one of the pool, this means we expect to get
+                # a resource from the pool itself
+                allocate_from_pool = rel_schema.peer != rel.peer._schema.kind
+
+            rel_data = rel._generate_input_data(allocate_from_pool=allocate_from_pool)
 
             if rel_data and isinstance(rel_data, dict):
                 if variable_values := rel_data.get("data"):
@@ -1426,7 +1432,7 @@ class InfrahubNode(InfrahubNodeBase):
             list[InfrahubNode]: The allocated nodes.
         """
         if not self.is_resource_pool():
-            raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
+            raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
         graphql_query_name = "InfrahubResourcePoolAllocated"
         node_ids_per_kind: dict[str, list[str]] = {}
