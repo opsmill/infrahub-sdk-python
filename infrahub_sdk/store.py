@@ -24,7 +24,7 @@ class NodeStoreBase:
     """Internal Store for InfrahubNode objects.
 
     Often while creating a lot of new objects,
-    we need to save them in order to reuse them laterto associate them with another node for example.
+    we need to save them in order to reuse them later to associate them with another node for example.
     """
 
     def __init__(self) -> None:
