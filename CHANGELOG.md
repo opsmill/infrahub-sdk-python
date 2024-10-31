@@ -11,6 +11,24 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.0.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.0.0) - 2024-10-31
+
+### Removed
+
+- Breaking change: Removed all exports from infrahub_sdk/__init__.py except InfrahubClient, InfrahubClientSync and Config. If you previously imported other classes such as InfrahubNode from the root level these need to change to instead be an absolute path.
+
+### Added
+
+- Add support for specific timeout per request on InfrahubClient and InfrahubNode function calls. ([#25](https://github.com/opsmill/infrahub-sdk-python/issues/25))
+- Added `infrahubctl menu` command to load menu definitions into Infrahub
+
+### Fixed
+
+- Fix SDK playback hash generation to read the correct filename ([#64](https://github.com/opsmill/infrahub-sdk-python/issues/64))
+- CTL: Return friendly error on encoding violations when reading files. ([#102](https://github.com/opsmill/infrahub-sdk-python/issues/102))
+- Changed the default connection timeout in the SDK to 60s.
+- Fixes an issue where InfrahubClient was not properly URL encoding URL parameters.
+
 ## [0.14.1](https://github.com/opsmill/infrahub-sdk-python/tree/v0.14.1) - 2024-10-22
 
 ### Fixed
@@ -22,7 +40,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ### Removed
 
-- Removed depreceted methods InfrahubClient.init and InfrahubClientSync.init ([#33](https://github.com/opsmill/infrahub-sdk-python/issues/33))
+- Removed deprecated methods InfrahubClient.init and InfrahubClientSync.init ([#33](https://github.com/opsmill/infrahub-sdk-python/issues/33))
 
 ### Changed
 
