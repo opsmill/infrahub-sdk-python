@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import ujson
 from httpx import HTTPStatusError
 
-from infrahub_sdk.analyzer import GraphQLQueryAnalyzer
-
+from ...analyzer import GraphQLQueryAnalyzer
 from ..exceptions import OutputMatchError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem

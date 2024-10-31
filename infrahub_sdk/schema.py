@@ -10,15 +10,15 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
-from infrahub_sdk._importer import import_module
-from infrahub_sdk.exceptions import InvalidResponseError, ModuleImportError, SchemaNotFoundError, ValidationError
-from infrahub_sdk.generator import InfrahubGenerator
-from infrahub_sdk.graphql import Mutation
-from infrahub_sdk.utils import duplicates
+from ._importer import import_module
+from .exceptions import InvalidResponseError, ModuleImportError, SchemaNotFoundError, ValidationError
+from .generator import InfrahubGenerator
+from .graphql import Mutation
+from .utils import duplicates
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
-    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+    from .client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
+    from .node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
 
@@ -532,13 +532,14 @@ class InfrahubSchema(InfrahubSchemaBase):
         kind: Union[type[Union[SchemaType, SchemaTypeSync]], str],
         branch: Optional[str] = None,
         refresh: bool = False,
+        timeout: Optional[int] = None,
     ) -> MainSchemaTypes:
         branch = branch or self.client.default_branch
 
         kind_str = self._get_schema_name(schema=kind)
 
         if refresh:
-            self.cache[branch] = await self.fetch(branch=branch)
+            self.cache[branch] = await self.fetch(branch=branch, timeout=timeout)
 
         if branch in self.cache and kind_str in self.cache[branch]:
             return self.cache[branch][kind_str]
@@ -546,7 +547,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         # Fetching the latest schema from the server if we didn't fetch it earlier
         #   because we coulnd't find the object on the local cache
         if not refresh:
-            self.cache[branch] = await self.fetch(branch=branch)
+            self.cache[branch] = await self.fetch(branch=branch, timeout=timeout)
 
         if branch in self.cache and kind_str in self.cache[branch]:
             return self.cache[branch][kind_str]
@@ -715,11 +716,14 @@ class InfrahubSchema(InfrahubSchemaBase):
             dropdown_optional_args=dropdown_optional_args,
         )
 
-    async def fetch(self, branch: str, namespaces: Optional[list[str]] = None) -> MutableMapping[str, MainSchemaTypes]:
+    async def fetch(
+        self, branch: str, namespaces: Optional[list[str]] = None, timeout: Optional[int] = None
+    ) -> MutableMapping[str, MainSchemaTypes]:
         """Fetch the schema from the server for a given branch.
 
         Args:
             branch (str): Name of the branch to fetch the schema for.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
@@ -730,7 +734,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         query_params = urlencode(url_parts)
         url = f"{self.client.address}/api/schema?{query_params}"
 
-        response = await self.client._get(url=url)
+        response = await self.client._get(url=url, timeout=timeout)
         response.raise_for_status()
 
         data: MutableMapping[str, Any] = response.json()
@@ -782,6 +786,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         kind: Union[type[Union[SchemaType, SchemaTypeSync]], str],
         branch: Optional[str] = None,
         refresh: bool = False,
+        timeout: Optional[int] = None,
     ) -> MainSchemaTypes:
         branch = branch or self.client.default_branch
 
@@ -796,7 +801,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         # Fetching the latest schema from the server if we didn't fetch it earlier
         #   because we coulnd't find the object on the local cache
         if not refresh:
-            self.cache[branch] = self.fetch(branch=branch)
+            self.cache[branch] = self.fetch(branch=branch, timeout=timeout)
 
         if branch in self.cache and kind_str in self.cache[branch]:
             return self.cache[branch][kind_str]
@@ -915,11 +920,14 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             dropdown_optional_args=dropdown_optional_args,
         )
 
-    def fetch(self, branch: str, namespaces: Optional[list[str]] = None) -> MutableMapping[str, MainSchemaTypes]:
+    def fetch(
+        self, branch: str, namespaces: Optional[list[str]] = None, timeout: Optional[int] = None
+    ) -> MutableMapping[str, MainSchemaTypes]:
         """Fetch the schema from the server for a given branch.
 
         Args:
             branch (str): Name of the branch to fetch the schema for.
+            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
@@ -930,7 +938,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         query_params = urlencode(url_parts)
         url = f"{self.client.address}/api/schema?{query_params}"
 
-        response = self.client._get(url=url)
+        response = self.client._get(url=url, timeout=timeout)
         response.raise_for_status()
 
         data: MutableMapping[str, Any] = response.json()
@@ -983,6 +991,4 @@ class SchemaLoadResponse(BaseModel):
 
     @property
     def schema_updated(self) -> bool:
-        if self.hash and self.previous_hash and self.hash != self.previous_hash:
-            return True
-        return False
+        return bool(self.hash and self.previous_hash and self.hash != self.previous_hash)

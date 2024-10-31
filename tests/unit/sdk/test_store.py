@@ -1,6 +1,7 @@
 import pytest
 
-from infrahub_sdk import InfrahubNode, NodeStore
+from infrahub_sdk.node import InfrahubNode
+from infrahub_sdk.store import NodeStore
 
 client_types = ["standard", "sync"]
 

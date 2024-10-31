@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import ujson
 from httpx import HTTPStatusError
 
-from infrahub_sdk.checks import get_check_class_instance
-
+from ...checks import get_check_class_instance
 from ..exceptions import CheckDefinitionError, CheckResultError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -15,9 +14,9 @@ from .base import InfrahubItem
 if TYPE_CHECKING:
     from pytest import ExceptionInfo
 
-    from infrahub_sdk.checks import InfrahubCheck
-    from infrahub_sdk.pytest_plugin.models import InfrahubTest
-    from infrahub_sdk.schema import InfrahubRepositoryConfigElement
+    from ...checks import InfrahubCheck
+    from ...schema import InfrahubRepositoryConfigElement
+    from ..models import InfrahubTest
 
 
 class InfrahubCheckItem(InfrahubItem):

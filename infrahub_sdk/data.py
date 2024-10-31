@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from infrahub_sdk.node import InfrahubNode
+from .node import InfrahubNode
 
 
 class RepositoryBranchInfo(BaseModel):

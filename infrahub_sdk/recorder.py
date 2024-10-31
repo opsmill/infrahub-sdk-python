@@ -8,7 +8,7 @@ import httpx
 import ujson
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from infrahub_sdk.utils import generate_request_filename
+from .utils import generate_request_filename
 
 
 class RecorderType(str, enum.Enum):

@@ -73,6 +73,8 @@ class CoreArtifactTarget(CoreNode):
 
 
 class CoreBasePermission(CoreNode):
+    decision: Enum
+    identifier: StringOptional
     roles: RelationshipManager
 
 
@@ -133,6 +135,22 @@ class CoreGroup(CoreNode):
     group_type: Enum
     members: RelationshipManager
     subscribers: RelationshipManager
+    parent: RelatedNode
+    children: RelationshipManager
+
+
+class CoreMenu(CoreNode):
+    namespace: String
+    name: String
+    label: StringOptional
+    kind: StringOptional
+    path: StringOptional
+    description: StringOptional
+    icon: StringOptional
+    protected: Boolean
+    order_weight: Integer
+    required_permissions: ListAttributeOptional
+    section: Enum
     parent: RelatedNode
     children: RelationshipManager
 
@@ -369,6 +387,10 @@ class CoreIPPrefixPool(CoreResourcePool, LineageSource):
     ip_namespace: RelatedNode
 
 
+class CoreMenuItem(CoreMenu):
+    pass
+
+
 class CoreNumberPool(CoreResourcePool, LineageSource):
     node: String
     node_attribute: String
@@ -377,11 +399,9 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
 
 
 class CoreObjectPermission(CoreBasePermission):
-    branch: String
     namespace: String
     name: String
     action: Enum
-    decision: Enum
 
 
 class CoreObjectThread(CoreThread):
@@ -518,6 +538,8 @@ class CoreArtifactTargetSync(CoreNodeSync):
 
 
 class CoreBasePermissionSync(CoreNodeSync):
+    decision: Enum
+    identifier: StringOptional
     roles: RelationshipManagerSync
 
 
@@ -578,6 +600,22 @@ class CoreGroupSync(CoreNodeSync):
     group_type: Enum
     members: RelationshipManagerSync
     subscribers: RelationshipManagerSync
+    parent: RelatedNodeSync
+    children: RelationshipManagerSync
+
+
+class CoreMenuSync(CoreNodeSync):
+    namespace: String
+    name: String
+    label: StringOptional
+    kind: StringOptional
+    path: StringOptional
+    description: StringOptional
+    icon: StringOptional
+    protected: Boolean
+    order_weight: Integer
+    required_permissions: ListAttributeOptional
+    section: Enum
     parent: RelatedNodeSync
     children: RelationshipManagerSync
 
@@ -814,6 +852,10 @@ class CoreIPPrefixPoolSync(CoreResourcePoolSync, LineageSourceSync):
     ip_namespace: RelatedNodeSync
 
 
+class CoreMenuItemSync(CoreMenuSync):
+    pass
+
+
 class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
     node: String
     node_attribute: String
@@ -822,11 +864,9 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
 
 
 class CoreObjectPermissionSync(CoreBasePermissionSync):
-    branch: String
     namespace: String
     name: String
     action: Enum
-    decision: Enum
 
 
 class CoreObjectThreadSync(CoreThreadSync):

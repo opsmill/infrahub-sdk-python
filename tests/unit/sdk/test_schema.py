@@ -5,9 +5,9 @@ from unittest import mock
 import pytest
 from rich.console import Console
 
-from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync, ValidationError
+from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
-from infrahub_sdk.exceptions import SchemaNotFoundError
+from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.schema import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -77,7 +77,7 @@ async def test_schema_data_validation(rfile_schema, client_type):
             schema=rfile_schema, data={"name": "some-name", "invalid_field": "yes"}
         )
 
-    assert "invalid_field is not a valid value for CoreTransformJinja2" == excinfo.value.message
+    assert excinfo.value.message == "invalid_field is not a valid value for CoreTransformJinja2"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -310,5 +310,5 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node):
         output = console.file.getvalue()
         expected_console = """Unable to load the schema:
   Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z]+$' (string_pattern_mismatch)
-"""  # noqa: E501
+"""
         assert output == expected_console

@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
 
-from infrahub_sdk.exceptions import NodeNotFoundError
+from .exceptions import NodeNotFoundError
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import SchemaType
-    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+    from .client import SchemaType
+    from .node import InfrahubNode, InfrahubNodeSync
 
 
 def get_schema_name(schema: Optional[Union[str, type[SchemaType]]] = None) -> Optional[str]:

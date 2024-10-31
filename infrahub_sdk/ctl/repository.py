@@ -5,13 +5,13 @@ import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.exceptions import FileNotValidError
-from infrahub_sdk.ctl.utils import init_logging
-from infrahub_sdk.graphql import Mutation
-from infrahub_sdk.schema import InfrahubRepositoryConfig
-
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client
+from ..ctl.exceptions import FileNotValidError
+from ..ctl.utils import init_logging
+from ..graphql import Mutation
+from ..schema import InfrahubRepositoryConfig
+from ._file import read_file
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -41,11 +41,9 @@ def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
 
 
 def load_repository_config_file(repo_config_file: Path) -> dict:
-    if not repo_config_file.is_file():
-        raise FileNotFoundError(repo_config_file)
+    yaml_data = read_file(file_name=repo_config_file)
 
     try:
-        yaml_data = repo_config_file.read_text()
         data = yaml.safe_load(yaml_data)
     except yaml.YAMLError as exc:
         raise FileNotValidError(name=str(repo_config_file)) from exc

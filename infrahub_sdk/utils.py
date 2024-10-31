@@ -16,7 +16,7 @@ from graphql import (
     SelectionSetNode,
 )
 
-from infrahub_sdk.exceptions import JsonDecodeError
+from .exceptions import JsonDecodeError
 
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo

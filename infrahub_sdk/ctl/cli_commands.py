@@ -13,33 +13,39 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import Traceback
 
-from infrahub_sdk import __version__ as sdk_version
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.code_generator import CodeGenerator
-from infrahub_sdk.ctl import config
-from infrahub_sdk.ctl.branch import app as branch_app
-from infrahub_sdk.ctl.check import run as run_check
-from infrahub_sdk.ctl.client import initialize_client, initialize_client_sync
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
-from infrahub_sdk.ctl.generator import run as run_generator
-from infrahub_sdk.ctl.render import list_jinja2_transforms
-from infrahub_sdk.ctl.repository import app as repository_app
-from infrahub_sdk.ctl.repository import get_repository_config
-from infrahub_sdk.ctl.schema import app as schema_app
-from infrahub_sdk.ctl.schema import load_schemas_from_disk_and_exit
-from infrahub_sdk.ctl.transform import list_transforms
-from infrahub_sdk.ctl.utils import catch_exception, execute_graphql_query, parse_cli_vars
-from infrahub_sdk.ctl.validate import app as validate_app
-from infrahub_sdk.exceptions import GraphQLError, InfrahubTransformNotFoundError
-from infrahub_sdk.jinja2 import identify_faulty_jinja_code
-from infrahub_sdk.schema import (
+from .. import __version__ as sdk_version
+from ..async_typer import AsyncTyper
+from ..code_generator import CodeGenerator
+from ..ctl import config
+from ..ctl.branch import app as branch_app
+from ..ctl.check import run as run_check
+from ..ctl.client import initialize_client, initialize_client_sync
+from ..ctl.exceptions import QueryNotFoundError
+from ..ctl.generator import run as run_generator
+from ..ctl.menu import app as menu_app
+from ..ctl.object import app as object_app
+from ..ctl.render import list_jinja2_transforms
+from ..ctl.repository import app as repository_app
+from ..ctl.repository import get_repository_config
+from ..ctl.schema import app as schema_app
+from ..ctl.transform import list_transforms
+from ..ctl.utils import (
+    catch_exception,
+    execute_graphql_query,
+    load_yamlfile_from_disk_and_exit,
+    parse_cli_vars,
+)
+from ..ctl.validate import app as validate_app
+from ..exceptions import GraphQLError, InfrahubTransformNotFoundError
+from ..jinja2 import identify_faulty_jinja_code
+from ..schema import (
     InfrahubRepositoryConfig,
     MainSchemaTypes,
     SchemaRoot,
 )
-from infrahub_sdk.transforms import get_transform_class_instance
-from infrahub_sdk.utils import get_branch, write_to_file
-
+from ..transforms import get_transform_class_instance
+from ..utils import get_branch, write_to_file
+from ..yaml import SchemaFile
 from .exporter import dump
 from .importer import load
 from .parameters import CONFIG_PARAM
@@ -50,6 +56,9 @@ app.add_typer(branch_app, name="branch")
 app.add_typer(schema_app, name="schema")
 app.add_typer(validate_app, name="validate")
 app.add_typer(repository_app, name="repository")
+app.add_typer(menu_app, name="menu")
+app.add_typer(object_app, name="object", hidden=True)
+
 app.command(name="dump")(dump)
 app.command(name="load")(load)
 
@@ -197,7 +206,7 @@ def _run_transform(
     branch: str,
     debug: bool,
     repository_config: InfrahubRepositoryConfig,
-):
+) -> Any:
     """
     Query GraphQL for the required data then run a transform on that data.
 
@@ -357,7 +366,7 @@ def transform(
 
 @app.command(name="protocols")
 @catch_exception(console=console)
-def protocols(  # noqa: PLR0915
+def protocols(
     schemas: list[Path] = typer.Option(None, help="List of schemas or directory to load."),
     branch: str = typer.Option(None, help="Branch of schema to export Python protocols for."),
     sync: bool = typer.Option(False, help="Generate for sync or async."),
@@ -369,11 +378,12 @@ def protocols(  # noqa: PLR0915
     schema: dict[str, MainSchemaTypes] = {}
 
     if schemas:
-        schemas_data = load_schemas_from_disk_and_exit(schemas=schemas)
+        schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
 
         for data in schemas_data:
             data.load_content()
-            schema_root = SchemaRoot(**data.content)
+            schema_root_data = data.content or {}
+            schema_root = SchemaRoot(**schema_root_data)
             schema.update({item.kind: item for item in schema_root.nodes + schema_root.generics})
 
     else:
@@ -392,7 +402,7 @@ def protocols(  # noqa: PLR0915
 
 @app.command(name="version")
 @catch_exception(console=console)
-def version(_: str = CONFIG_PARAM):
+def version(_: str = CONFIG_PARAM) -> None:
     """Display the version of Infrahub and the version of the Python SDK in use."""
 
     client = initialize_client_sync()

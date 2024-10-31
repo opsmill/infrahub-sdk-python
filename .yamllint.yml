@@ -4,6 +4,7 @@ extends: default
 ignore: |
   /.venv
   /examples
+  tests/unit/sdk/test_data/schema_encoding_error.yml
 
 rules:
   new-lines: disable

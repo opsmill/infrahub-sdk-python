@@ -1,7 +1,6 @@
 from typing import Optional, Sequence
 
-from infrahub_sdk.schema import BaseNodeSchema
-
+from ..schema import BaseNodeSchema
 from ..topological_sort import DependencyCycleExistsError, topological_sort
 from .exceptions import SchemaImportError
 

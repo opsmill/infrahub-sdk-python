@@ -2,9 +2,9 @@ from typing import Any, Mapping, Optional
 
 import jinja2
 
-from infrahub_sdk import protocols as sdk_protocols
-from infrahub_sdk.ctl.constants import PROTOCOLS_TEMPLATE
-from infrahub_sdk.schema import (
+from . import protocols as sdk_protocols
+from .ctl.constants import PROTOCOLS_TEMPLATE
+from .schema import (
     AttributeSchema,
     GenericSchema,
     MainSchemaTypes,

@@ -1,0 +1,17 @@
+---
+coverage:
+  status:
+    project:
+      default:
+        target: 0%
+        # Set the threshold to allow a decrease of up to 5% without failing the PR
+        threshold: 5%
+    patch:
+      default:
+        target: 0%
+        # Set the threshold to allow a decrease of up to 5% in patch coverage without failing the PR
+        threshold: 5%
+
+comment:
+  layout: "header, diff, flags, files"
+  behavior: default

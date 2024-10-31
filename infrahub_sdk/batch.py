@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
-from infrahub_sdk.node import InfrahubNode
+from .node import InfrahubNode
 
 
 @dataclass

@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Optional
 
 import httpx
 
-from infrahub_sdk.exceptions import AuthenticationError, ServerNotReachableError
+from .exceptions import AuthenticationError, ServerNotReachableError
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
+    from .client import InfrahubClient, InfrahubClientSync
 
 
 class ObjectStoreBase:

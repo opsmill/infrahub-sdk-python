@@ -48,12 +48,12 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4) -> lis
         elif isinstance(value, dict) and len(value) == 1 and ALIAS_KEY in value and value[ALIAS_KEY]:
             lines.append(f"{offset_str}{value[ALIAS_KEY]}: {key}")
         elif isinstance(value, dict):
-            if ALIAS_KEY in value and value[ALIAS_KEY]:
+            if value.get(ALIAS_KEY):
                 key_str = f"{value[ALIAS_KEY]}: {key}"
             else:
                 key_str = key
 
-            if FILTERS_KEY in value and value[FILTERS_KEY]:
+            if value.get(FILTERS_KEY):
                 filters_str = ", ".join(
                     [f"{key2}: {convert_to_graphql_as_string(value2)}" for key2, value2 in value[FILTERS_KEY].items()]
                 )

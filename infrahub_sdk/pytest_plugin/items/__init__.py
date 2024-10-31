@@ -13,12 +13,12 @@ from .python_transform import (
 )
 
 __all__ = [
-    "InfrahubItem",
     "InfrahubCheckIntegrationItem",
     "InfrahubCheckSmokeItem",
     "InfrahubCheckUnitProcessItem",
     "InfrahubGraphQLQueryIntegrationItem",
     "InfrahubGraphQLQuerySmokeItem",
+    "InfrahubItem",
     "InfrahubJinja2TransformIntegrationItem",
     "InfrahubJinja2TransformSmokeItem",
     "InfrahubJinja2TransformUnitRenderItem",

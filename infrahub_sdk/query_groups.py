@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.exceptions import NodeNotFoundError
-from infrahub_sdk.utils import dict_hash
+from .constants import InfrahubClientMode
+from .exceptions import NodeNotFoundError
+from .utils import dict_hash
 
 if TYPE_CHECKING:
-    from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
-    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
-    from infrahub_sdk.schema import MainSchemaTypes
+    from .client import InfrahubClient, InfrahubClientSync
+    from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
+    from .schema import MainSchemaTypes
 
 
 class InfrahubGroupContextBase:
@@ -49,7 +49,7 @@ class InfrahubGroupContextBase:
         """Convert the params in dict format, into a string"""
         params_as_str: list[str] = []
         for key, value in self.params.items():
-            params_as_str.append(f"{key}: {str(value)}")
+            params_as_str.append(f"{key}: {value!s}")
         return ", ".join(params_as_str)
 
     def _generate_group_name(self, suffix: Optional[str] = None) -> str:

@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import ujson
 from httpx import HTTPStatusError
 
-from infrahub_sdk.transforms import get_transform_class_instance
-
+from ...transforms import get_transform_class_instance
 from ..exceptions import OutputMatchError, PythonTransformDefinitionError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -15,9 +14,9 @@ from .base import InfrahubItem
 if TYPE_CHECKING:
     from pytest import ExceptionInfo
 
-    from infrahub_sdk.pytest_plugin.models import InfrahubTest
-    from infrahub_sdk.schema import InfrahubRepositoryConfigElement
-    from infrahub_sdk.transforms import InfrahubTransform
+    from ...schema import InfrahubRepositoryConfigElement
+    from ...transforms import InfrahubTransform
+    from ..models import InfrahubTest
 
 
 class InfrahubPythonTransformItem(InfrahubItem):

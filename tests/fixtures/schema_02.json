@@ -11,7 +11,10 @@
             "attributes": [],
             "relationships": [],
             "label": "Node",
-            "used_by": ["BuiltinTag", "BuiltinLocation"],
+            "used_by": [
+                "BuiltinTag",
+                "BuiltinLocation"
+            ],
             "kind": "CoreNode"
         },
         {
@@ -20,8 +23,12 @@
             "description": "A Git Repository integrated with Infrahub",
             "default_filter": "name__value",
             "branch": "agnostic",
-            "order_by": ["name__value"],
-            "display_labels": ["name__value"],
+            "order_by": [
+                "name__value"
+            ],
+            "display_labels": [
+                "name__value"
+            ],
             "attributes": [
                 {
                     "name": "name",
@@ -219,8 +226,12 @@
             "description": "A Git Repository integrated with Infrahub",
             "default_filter": "name__value",
             "branch": "aware",
-            "order_by": ["name__value"],
-            "display_labels": ["name__value"],
+            "order_by": [
+                "name__value"
+            ],
+            "display_labels": [
+                "name__value"
+            ],
             "attributes": [
                 {
                     "name": "default_branch",
@@ -422,7 +433,9 @@
                 }
             ],
             "label": "Repository",
-            "inherit_from": ["CoreGenericRepository"],
+            "inherit_from": [
+                "CoreGenericRepository"
+            ],
             "kind": "CoreRepository"
         },
         {
@@ -432,8 +445,12 @@
             "description": "A Git Repository integrated with Infrahub, Git-side will not be updated",
             "default_filter": "name__value",
             "branch": "aware",
-            "order_by": ["name__value"],
-            "display_labels": ["name__value"],
+            "order_by": [
+                "name__value"
+            ],
+            "display_labels": [
+                "name__value"
+            ],
             "attributes": [
                 {
                     "id": "17a73306-2d08-182e-43e6-1677aaae0c06",
@@ -708,52 +725,13 @@
                     "inherited": false,
                     "cardinality": "many",
                     "branch": "aware",
-                    "optional": true,
-                    "filters": [
-                        {
-                            "name": "id",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "name__value",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "description__value",
-                            "kind": "String",
-                            "description": null
-                        }
-                    ]
+                    "optional": true
                 }
             ],
             "label": null,
             "inherit_from": [],
             "branch": "aware",
-            "default_filter": "name__value",
-            "filters": [
-                {
-                    "name": "ids",
-                    "kind": "List",
-                    "description": null
-                },
-                {
-                    "name": "query__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "description__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "name__value",
-                    "kind": "String",
-                    "description": null
-                }
-            ]
+            "default_filter": "name__value"
         },
         {
             "name": "Repository",
@@ -877,24 +855,7 @@
                     "inherited": false,
                     "cardinality": "many",
                     "branch": "aware",
-                    "optional": true,
-                    "filters": [
-                        {
-                            "name": "id",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "name__value",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "description__value",
-                            "kind": "String",
-                            "description": null
-                        }
-                    ]
+                    "optional": true
                 },
                 {
                     "name": "queries",
@@ -905,29 +866,7 @@
                     "inherited": false,
                     "cardinality": "many",
                     "branch": "aware",
-                    "optional": true,
-                    "filters": [
-                        {
-                            "name": "id",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "query__value",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "description__value",
-                            "kind": "String",
-                            "description": null
-                        },
-                        {
-                            "name": "name__value",
-                            "kind": "String",
-                            "description": null
-                        }
-                    ]
+                    "optional": true
                 }
             ],
             "label": null,
@@ -936,54 +875,7 @@
                 "DataSource"
             ],
             "branch": "aware",
-            "default_filter": "name__value",
-            "filters": [
-                {
-                    "name": "ids",
-                    "kind": "List",
-                    "description": null
-                },
-                {
-                    "name": "username__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "type__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "name__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "description__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "commit__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "location__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "password__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "default_branch__value",
-                    "kind": "String",
-                    "description": null
-                }
-            ]
+            "default_filter": "name__value"
         },
         {
             "name": "Tag",
@@ -1015,40 +907,48 @@
             ],
             "relationships": [],
             "label": null,
-            "inherit_from": ["CoreNode"],
+            "inherit_from": [
+                "CoreNode"
+            ],
             "branch": "aware",
-            "default_filter": "name__value",
-            "filters": [
-                {
-                    "name": "ids",
-                    "kind": "List",
-                    "description": null
-                },
-                {
-                    "name": "name__value",
-                    "kind": "String",
-                    "description": null
-                },
-                {
-                    "name": "description__value",
-                    "kind": "String",
-                    "description": null
-                }
-            ]
+            "default_filter": "name__value"
         },
         {
             "name": "Location",
             "namespace": "Builtin",
             "default_filter": "name__value",
-            "inherit_from": ["CoreNode"],
+            "inherit_from": [
+                "CoreNode"
+            ],
             "attributes": [
-                {"name": "name", "kind": "String", "unique": true},
-                {"name": "description", "kind": "String", "optional": true},
-                {"name": "type", "kind": "String"}
+                {
+                    "name": "name",
+                    "kind": "String",
+                    "unique": true
+                },
+                {
+                    "name": "description",
+                    "kind": "String",
+                    "optional": true
+                },
+                {
+                    "name": "type",
+                    "kind": "String"
+                }
             ],
             "relationships": [
-                {"name": "tags", "peer": "BuiltinTag", "optional": true, "cardinality": "many"},
-                {"name": "primary_tag", "peer": "BuiltinTag", "optional": true, "cardinality": "one"}
+                {
+                    "name": "tags",
+                    "peer": "BuiltinTag",
+                    "optional": true,
+                    "cardinality": "many"
+                },
+                {
+                    "name": "primary_tag",
+                    "peer": "BuiltinTag",
+                    "optional": true,
+                    "cardinality": "one"
+                }
             ]
         }
     ]

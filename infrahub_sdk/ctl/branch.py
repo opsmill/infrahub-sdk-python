@@ -4,10 +4,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.utils import calculate_time_diff, catch_exception
-
+from ..async_typer import AsyncTyper
+from ..ctl.client import initialize_client
+from ..ctl.utils import calculate_time_diff, catch_exception
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()

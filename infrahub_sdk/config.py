@@ -4,11 +4,11 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
-from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.playback import JSONPlayback
-from infrahub_sdk.recorder import JSONRecorder, NoRecorder, Recorder, RecorderType
-from infrahub_sdk.types import AsyncRequester, InfrahubLoggers, RequesterTransport, SyncRequester
-from infrahub_sdk.utils import get_branch, is_valid_url
+from .constants import InfrahubClientMode
+from .playback import JSONPlayback
+from .recorder import JSONRecorder, NoRecorder, Recorder, RecorderType
+from .types import AsyncRequester, InfrahubLoggers, RequesterTransport, SyncRequester
+from .utils import get_branch, is_valid_url
 
 
 class ProxyMountsConfig(BaseSettings):
@@ -54,7 +54,7 @@ class ConfigBase(BaseSettings):
     pagination_size: int = Field(default=50, description="Page size for queries to the server")
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
     retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
-    timeout: int = Field(default=10, description="Default connection timeout in seconds")
+    timeout: int = Field(default=60, description="Default connection timeout in seconds")
     transport: RequesterTransport = Field(
         default=RequesterTransport.HTTPX, description="Set an alternate transport using a predefined option"
     )

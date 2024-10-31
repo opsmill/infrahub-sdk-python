@@ -9,8 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from git import Repo
 
-from infrahub_sdk import InfrahubClient
-
+from . import InfrahubClient
 from .exceptions import InfrahubTransformNotFoundError
 
 if TYPE_CHECKING:
@@ -58,7 +57,7 @@ class InfrahubTransform:
     async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubTransform:
         """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
         warnings.warn(
-            f"{cls.__class__.__name__}.init has been deprecated and will be removed in Infrahub SDK 0.15.0 or the next major version",
+            f"{cls.__class__.__name__}.init has been deprecated and will be removed in the version after Infrahub SDK 1.0.0",
             DeprecationWarning,
             stacklevel=1,
         )

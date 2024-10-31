@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from infrahub_sdk.utils import base16encode
+from .utils import base16encode
 
 BASE = 16
 DIVISOR = BASE - 1

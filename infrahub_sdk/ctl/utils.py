@@ -3,7 +3,7 @@ import logging
 import traceback
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Coroutine, NoReturn, Optional, TypeVar, Union
 
 import pendulum
 import typer
@@ -14,8 +14,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from infrahub_sdk.ctl.exceptions import QueryNotFoundError
-from infrahub_sdk.exceptions import (
+from ..ctl.exceptions import FileNotValidError, QueryNotFoundError
+from ..exceptions import (
     AuthenticationError,
     Error,
     GraphQLError,
@@ -24,9 +24,12 @@ from infrahub_sdk.exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
 )
-from infrahub_sdk.schema import InfrahubRepositoryConfig
-
+from ..schema import InfrahubRepositoryConfig
+from ..yaml import YamlFile
 from .client import initialize_client_sync
+
+YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
+T = TypeVar("T")
 
 
 def init_logging(debug: bool = False) -> None:
@@ -40,41 +43,43 @@ def init_logging(debug: bool = False) -> None:
     logging.getLogger("infrahubctl")
 
 
-def handle_exception(exc: Exception, console: Console, exit_code: int):
+def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
     """Handle exeception in a different fashion based on its type."""
     if isinstance(exc, Exit):
         raise typer.Exit(code=exc.exit_code)
     if isinstance(exc, AuthenticationError):
-        console.print(f"[red]Authentication failure: {str(exc)}")
+        console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (ServerNotReachableError, ServerNotResponsiveError)):
-        console.print(f"[red]{str(exc)}")
+        console.print(f"[red]{exc!s}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, HTTPError):
-        console.print(f"[red]HTTP communication failure: {str(exc)} on {exc.request.method} to {exc.request.url}")
+        console.print(f"[red]HTTP communication failure: {exc!s} on {exc.request.method} to {exc.request.url}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError)):
-        console.print(f"[red]Error: {str(exc)}")
+        console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
-    console.print(f"[red]Error: {str(exc)}")
+    console.print(f"[red]Error: {exc!s}")
     console.print(traceback.format_exc())
     raise typer.Exit(code=exit_code)
 
 
-def catch_exception(console: Optional[Console] = None, exit_code: int = 1):
+def catch_exception(
+    console: Optional[Console] = None, exit_code: int = 1
+) -> Callable[[Callable[..., T]], Callable[..., Union[T, Coroutine[Any, Any, T]]]]:
     """Decorator to handle exception for commands."""
     if not console:
         console = Console()
 
-    def decorator(func: Callable):
+    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Coroutine[Any, Any, T]]]:
         if asyncio.iscoroutinefunction(func):
 
             @wraps(func)
-            async def async_wrapper(*args: Any, **kwargs: Any):
+            async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 try:
                     return await func(*args, **kwargs)
                 except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
@@ -83,7 +88,7 @@ def catch_exception(console: Optional[Console] = None, exit_code: int = 1):
             return async_wrapper
 
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any):
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             try:
                 return func(*args, **kwargs)
             except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
@@ -114,8 +119,10 @@ def execute_graphql_query(
     )
 
     if debug:
-        message = ("-" * 40, f"Response for GraphQL Query {query}", response, "-" * 40)
-        console.print("\n".join(message))
+        console.print("-" * 40)
+        console.print(f"Response for GraphQL Query {query}")
+        console.print(response)
+        console.print("-" * 40)
 
     return response
 
@@ -179,3 +186,25 @@ def get_fixtures_dir() -> Path:
     """Get the directory which stores fixtures that are common to multiple unit/integration tests."""
     here = Path(__file__).resolve().parent
     return here.parent.parent / "tests" / "fixtures"
+
+
+def load_yamlfile_from_disk_and_exit(
+    paths: list[Path], file_type: type[YamlFileVar], console: Console
+) -> list[YamlFileVar]:
+    has_error = False
+    try:
+        data_files = file_type.load_from_disk(paths=paths)
+    except FileNotValidError as exc:
+        console.print(f"[red]{exc.message}")
+        raise typer.Exit(1) from exc
+
+    for data_file in data_files:
+        if data_file.valid and data_file.content:
+            continue
+        console.print(f"[red]{data_file.error_message} ({data_file.location})")
+        has_error = True
+
+    if has_error:
+        raise typer.Exit(1)
+
+    return data_files

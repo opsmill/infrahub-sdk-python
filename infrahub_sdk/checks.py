@@ -10,13 +10,13 @@ import ujson
 from git.repo import Repo
 from pydantic import BaseModel, Field
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.exceptions import InfrahubCheckNotFoundError
+from . import InfrahubClient
+from .exceptions import InfrahubCheckNotFoundError, UninitializedError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from infrahub_sdk.schema import InfrahubCheckDefinitionConfig
+    from .schema import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
 
@@ -41,6 +41,7 @@ class InfrahubCheck:
         output: Optional[str] = None,
         initializer: Optional[InfrahubCheckInitializer] = None,
         params: Optional[dict] = None,
+        client: Optional[InfrahubClient] = None,
     ):
         self.git: Optional[Repo] = None
         self.initializer = initializer or InfrahubCheckInitializer()
@@ -55,7 +56,7 @@ class InfrahubCheck:
 
         self.root_directory = root_directory or os.getcwd()
 
-        self.client: InfrahubClient
+        self._client = client
 
         if not self.name:
             self.name = self.__class__.__name__
@@ -65,6 +66,17 @@ class InfrahubCheck:
 
     def __str__(self) -> str:
         return self.__class__.__name__
+
+    @property
+    def client(self) -> InfrahubClient:
+        if self._client:
+            return self._client
+
+        raise UninitializedError(message="This check has not been initialized with a client")
+
+    @client.setter
+    def client(self, value: InfrahubClient) -> None:
+        self._client = value
 
     @classmethod
     async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubCheck:

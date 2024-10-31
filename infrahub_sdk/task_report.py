@@ -4,12 +4,12 @@ from typing import TYPE_CHECKING, Any, Final, Optional, Protocol, TypedDict, Uni
 
 from typing_extensions import Self
 
-from infrahub_sdk.uuidt import generate_uuid
+from .uuidt import generate_uuid
 
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from infrahub_sdk.client import InfrahubClient
+    from .client import InfrahubClient
 
 
 class Log(TypedDict):
