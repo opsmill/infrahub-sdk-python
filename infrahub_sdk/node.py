@@ -837,7 +837,7 @@ class InfrahubNodeBase:
             if rel is None or not rel.initialized:
                 continue
 
-            if isinstance(rel, RelatedNode | RelatedNodeSync) and rel.is_resource_pool:
+            if isinstance(rel, (RelatedNode, RelatedNodeSync)) and rel.is_resource_pool:
                 # If the relatiionship is a resource pool and the expected schema is different from the one of the pool, this means we expect to get
                 # a resource from the pool itself
                 allocate_from_pool = rel_schema.peer != rel.peer._schema.kind
