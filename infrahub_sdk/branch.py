@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional, Union
+from urllib.parse import urlencode
 
 from pydantic import BaseModel
 
@@ -55,14 +56,16 @@ class InfraHubBranchManagerBase:
         time_to: Optional[str] = None,
     ) -> str:
         """Generate the URL for the diff_data function."""
-        url = f"{client.address}/api/diff/data?branch={branch_name}"
-        url += f"&branch_only={str(branch_only).lower()}"
+        url = f"{client.address}/api/diff/data"
+        url_params = {}
+        url_params["branch"] = branch_name
+        url_params["branch_only"] = str(branch_only).lower()
         if time_from:
-            url += f"&time_from={time_from}"
+            url_params["time_from"] = time_from
         if time_to:
-            url += f"&time_to={time_to}"
+            url_params["time_to"] = time_to
 
-        return url
+        return url + urlencode(url_params)
 
 
 class InfrahubBranchManager(InfraHubBranchManagerBase):
