@@ -234,7 +234,6 @@ ignore = [
     "FURB177", # Prefer `Path.cwd()` over `Path().resolve()` for current-directory lookups
     "N802",    # Function name should be lowercase
     "N806",    # Variable in function should be lowercase
-    "PERF102", # When using only the values of a dict use the `values()` method
     "PERF203", # `try`-`except` within a loop incurs performance overhead
     "PERF401", # Use a list comprehension to create a transformed list
     "PLC0206", # Extracting value from dictionary without calling `.items()`
