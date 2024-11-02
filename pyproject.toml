@@ -153,19 +153,34 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
-ignore_errors = true
+disable_error_code = [
+    "call-overload"
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.generator"
-ignore_errors = true
+disable_error_code = [
+    "attr-defined",
+    "no-untyped-def",
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.schema"
-ignore_errors = true
+disable_error_code = [
+    "arg-type",
+    "attr-defined",
+    "misc",
+    "union-attr",
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
-ignore_errors = true
+disable_error_code = [
+    "arg-type",
+    "attr-defined",
+    "return-value",
+    "union-attr",
+]
 
 [tool.ruff]
 line-length = 120
