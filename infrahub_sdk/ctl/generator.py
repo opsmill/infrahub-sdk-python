@@ -18,7 +18,7 @@ async def run(
     list_available: bool,
     branch: Optional[str] = None,
     variables: Optional[list[str]] = None,
-):  # pylint: disable=unused-argument
+) -> None:  # pylint: disable=unused-argument
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
     if list_available:
