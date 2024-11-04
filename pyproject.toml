@@ -161,7 +161,6 @@ disable_error_code = [
 module = "infrahub_sdk.ctl.generator"
 disable_error_code = [
     "attr-defined",
-    "no-untyped-def",
 ]
 
 [[tool.mypy.overrides]]
