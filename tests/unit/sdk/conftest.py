@@ -821,7 +821,15 @@ async def simple_device_schema() -> NodeSchema:
                 "optional": True,
                 "cardinality": "one",
                 "kind": "Attribute",
-            }
+            },
+            {
+                "name": "ip_address_pool",
+                "peer": "CoreIPAddressPool",
+                "label": "Address allocator",
+                "optional": True,
+                "cardinality": "one",
+                "kind": "Attribute",
+            },
         ],
     }
     return NodeSchema(**data)  # type: ignore
