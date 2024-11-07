@@ -87,6 +87,14 @@ class NodeNotFoundError(Error):
         """
 
 
+class ResourceNotDefinedError(Error):
+    """Raised when trying to access a resource that hasn't been defined."""
+
+    def __init__(self, message: Optional[str] = None):
+        self.message = message or "The requested resource was not found"
+        super().__init__(self.message)
+
+
 class InfrahubCheckNotFoundError(Error):
     def __init__(self, name: str, message: Optional[str] = None):
         self.message = message or f"The requested InfrahubCheck '{name}' was not found."

@@ -62,7 +62,7 @@ class TestInfrahubctlTransform:
         transform_name = "not_existing_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to find requested transform: {transform_name}" in output.stdout
+            assert f"Unable to find '{transform_name}'" in strip_color(output.stdout)
             assert output.exit_code == 1
 
     @staticmethod
@@ -77,7 +77,7 @@ class TestInfrahubctlTransform:
         transform_name = "tags_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to load {transform_name} from python_transforms" in output.stdout
+            assert "No module named 'tags_transform' (tags_transform.py)" in strip_color(output.stdout)
             assert output.exit_code == 1
 
     @staticmethod
@@ -97,7 +97,7 @@ class TestInfrahubctlTransform:
         transform_name = "tags_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to load {transform_name} from python_transforms" in output.stdout
+            assert "The specified class TagsTransform was not found within the module" in output.stdout
             assert output.exit_code == 1
 
     @staticmethod

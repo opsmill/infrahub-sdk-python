@@ -11,9 +11,16 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
 from ._importer import import_module
-from .exceptions import InvalidResponseError, ModuleImportError, SchemaNotFoundError, ValidationError
+from .exceptions import (
+    InvalidResponseError,
+    ModuleImportError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    ValidationError,
+)
 from .generator import InfrahubGenerator
 from .graphql import Mutation
+from .transforms import InfrahubTransform
 from .utils import duplicates
 
 if TYPE_CHECKING:
@@ -120,6 +127,21 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository with the transform code.")
     class_name: str = Field(default="Transform", description="The name of the transform class to run.")
 
+    def load_class(
+        self, import_root: Optional[str] = None, relative_path: Optional[str] = None
+    ) -> type[InfrahubTransform]:
+        module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
+
+        if self.class_name not in dir(module):
+            raise ModuleImportError(message=f"The specified class {self.class_name} was not found within the module")
+
+        transform_class = getattr(module, self.class_name)
+
+        if not issubclass(transform_class, InfrahubTransform):
+            raise ModuleImportError(message=f"The specified class {self.class_name} is not an Infrahub Transform")
+
+        return transform_class
+
 
 class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
@@ -189,7 +211,7 @@ class InfrahubRepositoryConfig(BaseModel):
         for item in getattr(self, RESOURCE_MAP[resource_type]):
             if getattr(item, resource_field) == resource_id:
                 return item
-        raise KeyError(f"Unable to find {resource_id!r} in {RESOURCE_MAP[resource_type]!r}")
+        raise ResourceNotDefinedError(f"Unable to find {resource_id!r} in {RESOURCE_MAP[resource_type]!r}")
 
     def has_jinja2_transform(self, name: str) -> bool:
         return self._has_resource(resource_id=name, resource_type=InfrahubJinja2TransformConfig)

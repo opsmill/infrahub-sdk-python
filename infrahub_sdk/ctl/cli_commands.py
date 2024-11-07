@@ -36,14 +36,13 @@ from ..ctl.utils import (
     parse_cli_vars,
 )
 from ..ctl.validate import app as validate_app
-from ..exceptions import GraphQLError, InfrahubTransformNotFoundError
+from ..exceptions import GraphQLError, ModuleImportError
 from ..jinja2 import identify_faulty_jinja_code
 from ..schema import (
     InfrahubRepositoryConfig,
     MainSchemaTypes,
     SchemaRoot,
 )
-from ..transforms import get_transform_class_instance
 from ..utils import get_branch, write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
@@ -322,32 +321,22 @@ def transform(
         list_transforms(config=repository_config)
         return
 
-    # Load transform config
-    try:
-        matched = [transform for transform in repository_config.python_transforms if transform.name == transform_name]  # pylint: disable=not-an-iterable
-        if not matched:
-            raise ValueError(f"{transform_name} does not exist")
-    except ValueError as exc:
-        console.print(f"[red]Unable to find requested transform: {transform_name}")
-        list_transforms(config=repository_config)
-        raise typer.Exit(1) from exc
-
-    transform_config = matched[0]
+    transform_config = repository_config.get_python_transform(name=transform_name)
 
     # Get client
     client = initialize_client()
 
     # Get python transform class instance
+
+    relative_path = str(transform_config.file_path.parent) if transform_config.file_path.parent != Path() else None
+
     try:
-        transform = get_transform_class_instance(
-            transform_config=transform_config,
-            branch=branch,
-            client=client,
-        )
-    except InfrahubTransformNotFoundError as exc:
-        console.print(f"Unable to load {transform_name} from python_transforms")
+        transform_class = transform_config.load_class(import_root=str(Path.cwd()), relative_path=relative_path)
+    except ModuleImportError as exc:
+        console.print(f"[red]{exc.message}")
         raise typer.Exit(1) from exc
 
+    transform = transform_class(client=client, branch=branch)
     # Get data
     query_str = repository_config.get_query(name=transform.query).load_query()
     data = asyncio.run(

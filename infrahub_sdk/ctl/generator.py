@@ -1,12 +1,14 @@
 from pathlib import Path
 from typing import Optional
 
+import typer
 from rich.console import Console
 
 from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.repository import get_repository_config
 from ..ctl.utils import execute_graphql_query, parse_cli_vars
+from ..exceptions import ModuleImportError
 from ..node import InfrahubNode
 from ..schema import InfrahubRepositoryConfig
 
@@ -25,17 +27,18 @@ async def run(
         list_generators(repository_config=repository_config)
         return
 
-    matched = [generator for generator in repository_config.generator_definitions if generator.name == generator_name]  # pylint: disable=not-an-iterable
+    generator_config = repository_config.get_generator_definition(name=generator_name)
 
     console = Console()
 
-    if not matched:
-        console.print(f"[red]Unable to find requested generator: {generator_name}")
-        list_generators(repository_config=repository_config)
-        return
+    relative_path = str(generator_config.file_path.parent) if generator_config.file_path.parent != Path() else None
 
-    generator_config = matched[0]
-    generator_class = generator_config.load_class()
+    try:
+        generator_class = generator_config.load_class(import_root=str(Path.cwd()), relative_path=relative_path)
+    except ModuleImportError as exc:
+        console.print(f"[red]{exc.message}")
+        raise typer.Exit(1) from exc
+
     variables_dict = parse_cli_vars(variables)
 
     param_key = list(generator_config.parameters.keys())

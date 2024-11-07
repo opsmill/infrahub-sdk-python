@@ -20,6 +20,7 @@ from ..exceptions import (
     Error,
     GraphQLError,
     NodeNotFoundError,
+    ResourceNotDefinedError,
     SchemaNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
@@ -59,7 +60,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError)):
+    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError)):
         console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
