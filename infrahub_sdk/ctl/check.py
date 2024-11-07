@@ -5,7 +5,7 @@ from asyncio import run as aiorun
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Optional
+from typing import Optional, Type
 
 import typer
 from rich.console import Console
@@ -30,7 +30,7 @@ class CheckModule:
     module: ModuleType
     definition: InfrahubCheckDefinitionConfig
 
-    def get_check(self) -> InfrahubCheck:
+    def get_check(self) -> Type[InfrahubCheck]:
         return getattr(self.module, self.definition.class_name)
 
 
@@ -100,7 +100,7 @@ async def run_check(
     log = logging.getLogger("infrahub")
     passed = True
     check_class = check_module.get_check()
-    check = await check_class.init(client=client, params=params, output=output, root_directory=path, branch=branch)
+    check = check_class(client=client, params=params, output=output, root_directory=path, branch=branch)
     param_log = f" - {params}" if params else ""
     try:
         data = execute_graphql_query(
