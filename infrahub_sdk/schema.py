@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import TypeAlias
 
 from ._importer import import_module
+from .checks import InfrahubCheck
 from .exceptions import (
     InvalidResponseError,
     ModuleImportError,
@@ -88,6 +89,19 @@ class InfrahubCheckDefinitionConfig(InfrahubRepositoryConfigElement):
         default=None, description="The group to target when running this check, leave blank for global checks"
     )
     class_name: str = Field(default="Check", description="The name of the check class to run.")
+
+    def load_class(self, import_root: Optional[str] = None, relative_path: Optional[str] = None) -> type[InfrahubCheck]:
+        module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
+
+        if self.class_name not in dir(module):
+            raise ModuleImportError(message=f"The specified class {self.class_name} was not found within the module")
+
+        check_class = getattr(module, self.class_name)
+
+        if not issubclass(check_class, InfrahubCheck):
+            raise ModuleImportError(message=f"The specified class {self.class_name} is not an Infrahub Check")
+
+        return check_class
 
 
 class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
