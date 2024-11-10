@@ -291,6 +291,7 @@ class AttributeSchema(BaseModel):
     max_length: Optional[int] = None
     min_length: Optional[int] = None
     regex: Optional[str] = None
+    order_weight: Optional[int] = None
 
 
 class RelationshipSchema(BaseModel):
@@ -308,6 +309,7 @@ class RelationshipSchema(BaseModel):
     optional: bool = True
     read_only: bool = False
     filters: list[FilterSchema] = Field(default_factory=list)
+    order_weight: Optional[int] = None
 
 
 class BaseNodeSchema(BaseModel):
