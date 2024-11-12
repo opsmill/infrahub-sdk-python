@@ -11,6 +11,28 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.0.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.0.1) - 2024-11-12
+
+### Removed
+
+- Removed previously deprecated InfrahubTransform.init() method
+
+### Deprecated
+
+- Marked InfrahubCheck.init() as deprecated and scheduled to be removed in Infrahub SDK 2.0.0
+
+### Added
+
+- Adds `groups.group_add_subscriber` function to add a subscriber to a group.
+- Adds order_weight property to AttributeSchema and RelationSchema classes.
+
+### Fixed
+
+- Fix generated GraphQL query when having a relationship to a pool node ([#27](https://github.com/opsmill/infrahub-sdk-python/issues/27))
+- CTL: Fix support for relative imports for transforms and generators ([#81](https://github.com/opsmill/infrahub-sdk-python/issues/81))
+- Fixes issues where InfrahubClient was not properly configured for a branch when running the `infrahubctl transform`, `infrahubctl check` and `infrhubctl generator` commands. ([#133](https://github.com/opsmill/infrahub-sdk-python/issues/133))
+- Fixes an issue where a generator would not return any output if there are no members in the generator's target group.
+
 ## [1.0.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.0.0) - 2024-10-31
 
 ### Removed

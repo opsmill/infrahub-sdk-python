@@ -324,7 +324,7 @@ def transform(
     transform_config = repository_config.get_python_transform(name=transform_name)
 
     # Get client
-    client = initialize_client()
+    client = initialize_client(branch=branch)
 
     # Get python transform class instance
 

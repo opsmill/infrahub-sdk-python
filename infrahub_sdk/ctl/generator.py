@@ -46,7 +46,7 @@ async def run(
     if param_key:
         identifier = param_key[0]
 
-    client = initialize_client()
+    client = initialize_client(branch=branch)
     if variables_dict:
         data = execute_graphql_query(
             query=generator_config.query,
