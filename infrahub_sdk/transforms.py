@@ -3,18 +3,17 @@ from __future__ import annotations
 import asyncio
 import importlib
 import os
-import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Optional
 
 from git import Repo
 
-from . import InfrahubClient
-from .exceptions import InfrahubTransformNotFoundError
+from .exceptions import InfrahubTransformNotFoundError, UninitializedError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from . import InfrahubClient
     from .schema import InfrahubPythonTransformConfig
 
 INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
@@ -48,25 +47,10 @@ class InfrahubTransform:
 
     @property
     def client(self) -> InfrahubClient:
-        if not self._client:
-            self._client = InfrahubClient(address=self.server_url)
+        if self._client:
+            return self._client
 
-        return self._client
-
-    @classmethod
-    async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubTransform:
-        """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
-        warnings.warn(
-            f"{cls.__class__.__name__}.init has been deprecated and will be removed in the version after Infrahub SDK 1.0.0",
-            DeprecationWarning,
-            stacklevel=1,
-        )
-        if client:
-            kwargs["client"] = client
-
-        item = cls(*args, **kwargs)
-
-        return item
+        raise UninitializedError("The client has not been initialized")
 
     @property
     def branch_name(self) -> str:

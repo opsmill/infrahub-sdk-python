@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import os
+import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -10,15 +11,17 @@ import ujson
 from git.repo import Repo
 from pydantic import BaseModel, Field
 
-from . import InfrahubClient
 from .exceptions import InfrahubCheckNotFoundError, UninitializedError
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from . import InfrahubClient
     from .schema import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
+
+_client_class = "InfrahubClient"
 
 
 class InfrahubCheckInitializer(BaseModel):
@@ -81,11 +84,17 @@ class InfrahubCheck:
     @classmethod
     async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubCheck:
         """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
-
-        instance = cls(*args, **kwargs)
-        instance.client = client or InfrahubClient()
-
-        return instance
+        warnings.warn(
+            "InfrahubCheck.init has been deprecated and will be removed in the version in Infrahub SDK 2.0.0",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+        if not client:
+            client_module = importlib.import_module("infrahub_sdk.client")
+            client_class = getattr(client_module, _client_class)
+            client = client_class()
+        kwargs["client"] = client
+        return cls(*args, **kwargs)
 
     @property
     def errors(self) -> list[dict[str, Any]]:

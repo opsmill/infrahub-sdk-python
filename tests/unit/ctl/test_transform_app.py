@@ -3,25 +3,27 @@
 import json
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 from git import Repo
 from pytest_httpx._httpx_mock import HTTPXMock
-from typer.testing import Any, CliRunner
+from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
-
-from .utils import change_directory, strip_color
+from tests.helpers.utils import change_directory, strip_color
 
 runner = CliRunner()
 
 
-FIXTURE_BASE_DIR = Path(Path(os.path.abspath(__file__)).parent / ".." / "fixtures" / "integration" / "test_infrahubctl")
+FIXTURE_BASE_DIR = Path(
+    Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
+)
 
 
-def read_fixture(file_name: str, fixture_subdir: str = ".") -> Any:
+def read_fixture(file_name: str, fixture_subdir: str = ".") -> str:
     """Read the contents of a fixture."""
     with Path(FIXTURE_BASE_DIR / fixture_subdir / file_name).open("r", encoding="utf-8") as fhd:
         fixture_contents = fhd.read()
@@ -38,7 +40,7 @@ def tags_transform_dir():
         shutil.copytree(fixture_path, temp_dir, dirs_exist_ok=True)
         # Initialize fixture as git repo. This is necessary to run some infrahubctl commands.
         with change_directory(temp_dir):
-            Repo.init(".")
+            Repo.init(".", initial_branch="main")
 
         yield temp_dir
 
@@ -60,10 +62,11 @@ class TestInfrahubctlTransform:
         transform_name = "not_existing_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to find requested transform: {transform_name}" in output.stdout
+            assert f"Unable to find '{transform_name}'" in strip_color(output.stdout)
             assert output.exit_code == 1
 
     @staticmethod
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
     def test_transform_python_file_not_defined(tags_transform_dir: str) -> None:
         """Case transform python file not defined."""
         # Remove transform file
@@ -74,10 +77,11 @@ class TestInfrahubctlTransform:
         transform_name = "tags_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to load {transform_name} from python_transforms" in output.stdout
+            assert "No module named 'tags_transform' (tags_transform.py)" in strip_color(output.stdout)
             assert output.exit_code == 1
 
     @staticmethod
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
     def test_transform_python_class_not_defined(tags_transform_dir: str) -> None:
         """Case transform python class not defined."""
         # Rename transform inside of python file so the class name searched for no longer exists
@@ -93,10 +97,11 @@ class TestInfrahubctlTransform:
         transform_name = "tags_transform"
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", transform_name, "tag=red"])
-            assert f"Unable to load {transform_name} from python_transforms" in output.stdout
+            assert "The specified class TagsTransform was not found within the module" in output.stdout
             assert output.exit_code == 1
 
     @staticmethod
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
     def test_gql_query_not_defined(tags_transform_dir: str) -> None:
         """Case GraphQL Query is not defined"""
         # Remove GraphQL Query file
@@ -110,6 +115,7 @@ class TestInfrahubctlTransform:
             assert output.exit_code == 1
 
     @staticmethod
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
     def test_infrahubctl_transform_cmd_success(httpx_mock: HTTPXMock, tags_transform_dir: str) -> None:
         """Case infrahubctl transform command executes successfully"""
         httpx_mock.add_response(

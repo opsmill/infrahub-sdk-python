@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.0.0"
+version = "1.0.1a0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -153,19 +153,33 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
-ignore_errors = true
+disable_error_code = [
+    "call-overload"
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.generator"
-ignore_errors = true
+disable_error_code = [
+    "attr-defined",
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.schema"
-ignore_errors = true
+disable_error_code = [
+    "arg-type",
+    "attr-defined",
+    "misc",
+    "union-attr",
+]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
-ignore_errors = true
+disable_error_code = [
+    "arg-type",
+    "attr-defined",
+    "return-value",
+    "union-attr",
+]
 
 [tool.ruff]
 line-length = 120
@@ -234,7 +248,6 @@ ignore = [
     "FURB177", # Prefer `Path.cwd()` over `Path().resolve()` for current-directory lookups
     "N802",    # Function name should be lowercase
     "N806",    # Variable in function should be lowercase
-    "PERF102", # When using only the values of a dict use the `values()` method
     "PERF203", # `try`-`except` within a loop incurs performance overhead
     "PERF401", # Use a list comprehension to create a transformed list
     "PLC0206", # Extracting value from dictionary without calling `.items()`

@@ -58,7 +58,7 @@ class NodeStoreBase:
         if kind_name and kind_name in self._store and key in self._store[kind_name]:  # type: ignore[attr-defined]
             return self._store[kind_name][key]  # type: ignore[attr-defined]
 
-        for _, item in self._store.items():  # type: ignore[attr-defined]
+        for item in self._store.values():  # type: ignore[attr-defined]
             if key in item:
                 return item[key]
 
