@@ -335,7 +335,7 @@ def transform(
     transform_config = matched[0]
 
     # Get client
-    client = initialize_client()
+    client = initialize_client(branch=branch)
 
     # Get python transform class instance
     try:
