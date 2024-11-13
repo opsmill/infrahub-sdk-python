@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Union
+import warnings
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
 from urllib.parse import urlencode
 
 from pydantic import BaseModel
@@ -72,14 +73,44 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     def __init__(self, client: InfrahubClient):
         self.client = client
 
+    @overload
     async def create(
         self,
         branch_name: str,
         sync_with_git: bool = True,
         description: str = "",
-        background_execution: bool = False,
-    ) -> BranchData:
+        wait_until_completion: Literal[True] = True,
+        background_execution: Optional[bool] = False,
+    ) -> BranchData: ...
+
+    @overload
+    async def create(
+        self,
+        branch_name: str,
+        sync_with_git: bool = True,
+        description: str = "",
+        wait_until_completion: Literal[False] = False,
+        background_execution: Optional[bool] = False,
+    ) -> str: ...
+
+    async def create(
+        self,
+        branch_name: str,
+        sync_with_git: bool = True,
+        description: str = "",
+        wait_until_completion: bool = True,
+        background_execution: Optional[bool] = False,
+    ) -> Union[BranchData, str]:
+        if background_execution is not None:
+            warnings.warn(
+                "`background_execution` is deprecated, please use `wait_until_completion` instead.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+        background_execution = background_execution or not wait_until_completion
         input_data = {
+            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
             "background_execution": background_execution,
             "data": {
                 "name": branch_name,
@@ -91,6 +122,10 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         query = Mutation(mutation="BranchCreate", input_data=input_data, query=MUTATION_QUERY_DATA)
         response = await self.client.execute_graphql(query=query.render(), tracker="mutation-branch-create")
 
+        # Make sure server version is recent enough to support background execution, as previously
+        # using background_execution=True had no effect.
+        if background_execution and "task" in response["BranchCreate"]:
+            return BranchData(**response["BranchCreate"]["task"]["id"])
         return BranchData(**response["BranchCreate"]["object"])
 
     async def delete(self, branch_name: str) -> bool:
@@ -209,14 +244,44 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
             raise BranchNotFoundError(identifier=branch_name)
         return BranchData(**data["Branch"][0])
 
+    @overload
     def create(
         self,
         branch_name: str,
         sync_with_git: bool = True,
         description: str = "",
-        background_execution: bool = False,
-    ) -> BranchData:
+        wait_until_completion: Literal[True] = True,
+        background_execution: Optional[bool] = False,
+    ) -> BranchData: ...
+
+    @overload
+    def create(
+        self,
+        branch_name: str,
+        sync_with_git: bool = True,
+        description: str = "",
+        wait_until_completion: Literal[False] = False,
+        background_execution: Optional[bool] = False,
+    ) -> str: ...
+
+    def create(
+        self,
+        branch_name: str,
+        sync_with_git: bool = True,
+        description: str = "",
+        wait_until_completion: bool = True,
+        background_execution: Optional[bool] = False,
+    ) -> Union[BranchData, str]:
+        if background_execution is not None:
+            warnings.warn(
+                "`background_execution` is deprecated, please use `wait_until_completion` instead.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+
+        background_execution = background_execution or not wait_until_completion
         input_data = {
+            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
             "background_execution": background_execution,
             "data": {
                 "name": branch_name,
@@ -228,6 +293,10 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         query = Mutation(mutation="BranchCreate", input_data=input_data, query=MUTATION_QUERY_DATA)
         response = self.client.execute_graphql(query=query.render(), tracker="mutation-branch-create")
 
+        # Make sure server version is recent enough to support background execution, as previously
+        # using background_execution=True had no effect.
+        if background_execution and "task" in response["BranchCreate"]:
+            return BranchData(**response["BranchCreate"]["task"]["id"])
         return BranchData(**response["BranchCreate"]["object"])
 
     def delete(self, branch_name: str) -> bool:
