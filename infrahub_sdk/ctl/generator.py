@@ -23,7 +23,7 @@ async def run(
 ) -> None:  # pylint: disable=unused-argument
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
-    if list_available:
+    if list_available or not generator_name:
         list_generators(repository_config=repository_config)
         return
 
