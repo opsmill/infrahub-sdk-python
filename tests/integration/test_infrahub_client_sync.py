@@ -295,3 +295,26 @@ class TestInfrahubClientSync:
     def test_create_branch_async(self, client: InfrahubClientSync, db: InfrahubDatabase, init_db_base, base_dataset):
         task_id = client.branch.create(branch_name="new-branch-2", wait_until_completion=False)
         assert isinstance(task_id, str)
+
+    # See issue #148.
+    def test_hierarchical(
+        self, client: InfrahubClientSync, db: InfrahubDatabase, init_db_base, base_dataset, hierarchical_schema
+    ):
+        client.schema.load(schemas=[hierarchical_schema])
+
+        location_country = client.create(kind="LocationCountry", name="country_name", shortname="country_shortname")
+        location_country.save()
+
+        location_site = client.create(
+            kind="LocationSite", name="site_name", shortname="site_shortname", parent=location_country
+        )
+        location_site.save()
+
+        nodes = client.all(kind="LocationSite", prefetch_relationships=True, populate_store=True)
+        assert len(nodes) == 1
+        site_node = nodes[0]
+        assert site_node.name.value == "site_name"
+        assert site_node.shortname.value == "site_shortname"
+        country_node = site_node.parent.get()
+        assert country_node.name.value == "country_name"
+        assert country_node.shortname.value == "country_shortname"
