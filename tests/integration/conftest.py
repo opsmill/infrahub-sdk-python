@@ -499,6 +499,54 @@ async def ipam_schema() -> SchemaRoot:
     return SCHEMA
 
 
+@pytest.fixture(scope="module")
+async def hierarchical_schema() -> dict:
+    schema = {
+        "version": "1.0",
+        "generics": [
+            {
+                "name": "Generic",
+                "namespace": "Location",
+                "description": "Generic hierarchical location",
+                "label": "Location",
+                "hierarchical": True,
+                "human_friendly_id": ["name__value"],
+                "include_in_menu": True,
+                "attributes": [
+                    {"name": "name", "kind": "Text", "unique": True, "order_weight": 900},
+                ],
+            }
+        ],
+        "nodes": [
+            {
+                "name": "Country",
+                "namespace": "Location",
+                "description": "A country within a continent.",
+                "inherit_from": ["LocationGeneric"],
+                "generate_profile": False,
+                "default_filter": "name__value",
+                "order_by": ["name__value"],
+                "display_labels": ["name__value"],
+                "children": "LocationSite",
+                "attributes": [{"name": "shortname", "kind": "Text"}],
+            },
+            {
+                "name": "Site",
+                "namespace": "Location",
+                "description": "A site within a country.",
+                "inherit_from": ["LocationGeneric"],
+                "default_filter": "name__value",
+                "order_by": ["name__value"],
+                "display_labels": ["name__value"],
+                "children": "",
+                "parent": "LocationCountry",
+                "attributes": [{"name": "shortname", "kind": "Text"}],
+            },
+        ],
+    }
+    return schema
+
+
 class BusRecorder(InfrahubMessageBus):
     def __init__(self, component_type: Optional[ComponentType] = None):
         self.messages: list[InfrahubMessage] = []
