@@ -1,6 +1,7 @@
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import ujson
 from rich.console import Console

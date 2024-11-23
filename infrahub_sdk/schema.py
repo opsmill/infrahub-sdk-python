@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import MutableMapping
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, TypedDict, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypedDict, TypeVar, Union
 from urllib.parse import urlencode
 
 import httpx

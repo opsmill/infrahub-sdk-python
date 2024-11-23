@@ -1,6 +1,7 @@
 import asyncio
+from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
+from typing import Any, Callable, Optional
 
 from .node import InfrahubNode
 

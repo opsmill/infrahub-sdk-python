@@ -1,9 +1,10 @@
 import asyncio
 import logging
 import traceback
+from collections.abc import Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Coroutine, NoReturn, Optional, TypeVar, Union
+from typing import Any, Callable, NoReturn, Optional, TypeVar, Union
 
 import pendulum
 import typer
