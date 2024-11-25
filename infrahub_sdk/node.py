@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from collections.abc import Iterable
 from copy import copy
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Union, get_args
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, get_args
 
 from .constants import InfrahubClientMode
 from .exceptions import (

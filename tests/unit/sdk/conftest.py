@@ -1,9 +1,10 @@
 import re
 import sys
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass
 from inspect import Parameter
 from io import StringIO
-from typing import AsyncGenerator, Mapping, Optional
+from typing import Optional
 
 import pytest
 import ujson

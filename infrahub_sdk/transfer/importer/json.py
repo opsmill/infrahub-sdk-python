@@ -1,7 +1,8 @@
 from collections import defaultdict
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional
 
 import pyarrow.json as pa_json
 import ujson
