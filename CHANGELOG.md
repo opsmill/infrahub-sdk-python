@@ -11,6 +11,13 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.1.0rc0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.1.0rc0) - 2024-11-26
+
+### Fixed
+
+- CTL: `schema load` return a proper error message when authentication is missing or when the user doesn't have the permission to update the schema. ([#127](https://github.com/opsmill/infrahub-sdk-python/issues/127))
+- CTL: List available transforms and generators if no name is provided ([#140](https://github.com/opsmill/infrahub-sdk-python/issues/140))
+
 ## [1.0.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.0.1) - 2024-11-12
 
 ### Removed
