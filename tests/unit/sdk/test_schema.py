@@ -3,6 +3,7 @@ from io import StringIO
 from unittest import mock
 
 import pytest
+from pytest_httpx import HTTPXMock
 from rich.console import Console
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
@@ -18,6 +19,7 @@ from infrahub_sdk.schema import (
     InfrahubSchemaSync,
     NodeSchema,
 )
+from tests.unit.sdk.conftest import BothClients
 
 async_schema_methods = [method for method in dir(InfrahubSchema) if not method.startswith("_")]
 sync_schema_methods = [method for method in dir(InfrahubSchemaSync) if not method.startswith("_")]
@@ -168,6 +170,27 @@ async def test_remove_enum_option_raises(clients, client_type, mock_schema_query
             clients.sync.schema.add_enum_option("DoesNotExist", "atribute", "option")
         with pytest.raises(ValueError):
             clients.sync.schema.add_enum_option("BuiltinTag", "attribute", "option")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_schema_wait_happy_path(clients: BothClients, client_type: list[str], httpx_mock: HTTPXMock) -> None:
+    """Simplistic unittest that can be removed once we have the integration tests running again."""
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/branch1",
+        json={"data": {"InfrahubStatus": {"summary": {"schema_hash_synced": False}}}},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/branch1",
+        json={"data": {"InfrahubStatus": {"summary": {"schema_hash_synced": True}}}},
+    )
+    if client_type == "standard":
+        await clients.standard.schema.wait_until_converged(branch="branch1")
+    else:
+        clients.sync.schema.wait_until_converged(branch="branch1")
+
+    assert len(httpx_mock.get_requests()) == 2
 
 
 async def test_infrahub_repository_config_getters():
