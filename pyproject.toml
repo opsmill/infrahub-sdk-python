@@ -1,6 +1,11 @@
-[tool.poetry]
+[project]
 name = "infrahub-sdk"
 version = "1.0.1"
+requires-python = ">=3.9"
+
+[tool.poetry]
+name = "infrahub-sdk"
+version = "1.1.0rc0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -276,8 +281,11 @@ ignore = [
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SIM118",  # Use `key in dict` instead of `key in dict.keys)
     "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
+    "TCH003",  # Move standard library import `collections.abc.Iterable` into a type-checking block
+    "UP006",   # Use `dict` instead of `Dict` for type annotation
     "UP007",   # Use X | Y for type annotations
     "UP031",   # Use format specifiers instead of percent format
+    "UP035",   # `typing.Dict` is deprecated, use `dict` instead
 ]
 
 

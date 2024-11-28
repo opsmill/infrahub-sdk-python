@@ -2,8 +2,8 @@
 
 import os
 import re
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 
 @contextmanager

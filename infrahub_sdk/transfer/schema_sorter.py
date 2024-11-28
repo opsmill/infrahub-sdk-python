@@ -1,4 +1,5 @@
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import Optional
 
 from ..schema import BaseNodeSchema
 from ..topological_sort import DependencyCycleExistsError, topological_sort

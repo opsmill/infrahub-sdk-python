@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from collections.abc import Iterable
 from copy import copy
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Union, get_args
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, get_args
 
 from .constants import InfrahubClientMode
 from .exceptions import (
@@ -1275,6 +1276,14 @@ class InfrahubNode(InfrahubNodeBase):
 
             if rel_schema and rel_schema.cardinality == "one":
                 rel_data = RelatedNode._generate_query_data(peer_data=peer_data)
+                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
+                # tries to resolve attributes in this ancestor instead of actual node. To avoid
+                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
+                # to explicit actual node kind we are querying.
+                if rel_schema.kind == RelationshipKind.HIERARCHY:
+                    data_node = rel_data["node"]
+                    rel_data["node"] = {}
+                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
                 rel_data = RelationshipManager._generate_query_data(peer_data=peer_data)
 
@@ -1764,6 +1773,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if rel_schema and rel_schema.cardinality == "one":
                 rel_data = RelatedNodeSync._generate_query_data(peer_data=peer_data)
+                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
+                # tries to resolve attributes in this ancestor instead of actual node. To avoid
+                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
+                # to explicit actual node kind we are querying.
+                if rel_schema.kind == RelationshipKind.HIERARCHY:
+                    data_node = rel_data["node"]
+                    rel_data["node"] = {}
+                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
                 rel_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data)
 

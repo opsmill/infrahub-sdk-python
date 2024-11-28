@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from collections import defaultdict
+from collections.abc import MutableMapping
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, MutableMapping, Optional, TypedDict, TypeVar, Union
+from time import sleep
+from typing import TYPE_CHECKING, Any, Optional, TypedDict, TypeVar, Union
 from urllib.parse import urlencode
 
 import httpx
@@ -21,6 +24,7 @@ from .exceptions import (
 )
 from .generator import InfrahubGenerator
 from .graphql import Mutation
+from .queries import SCHEMA_HASH_SYNC_STATUS
 from .transforms import InfrahubTransform
 from .utils import duplicates
 
@@ -615,14 +619,35 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         return self.cache[branch]
 
-    async def load(self, schemas: list[dict], branch: Optional[str] = None) -> SchemaLoadResponse:
+    async def load(
+        self, schemas: list[dict], branch: Optional[str] = None, wait_until_converged: bool = False
+    ) -> SchemaLoadResponse:
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = await self.client._post(
             url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
         )
 
+        if wait_until_converged:
+            await self.wait_until_converged(branch=branch)
+
         return self._validate_load_schema_response(response=response)
+
+    async def wait_until_converged(self, branch: Optional[str] = None) -> None:
+        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        waited = 0
+        while True:
+            status = await self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
+            if status["InfrahubStatus"]["summary"]["schema_hash_synced"]:
+                self.client.log.info(f"Schema successfully converged after {waited} seconds")
+                return
+
+            if waited >= self.client.config.schema_converge_timeout:
+                self.client.log.warning(f"Schema not converged after {waited} seconds, proceeding regardless")
+                return
+
+            waited += 1
+            await asyncio.sleep(delay=1)
 
     async def check(self, schemas: list[dict], branch: Optional[str] = None) -> tuple[bool, Optional[dict]]:
         branch = branch or self.client.default_branch
@@ -998,14 +1023,35 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         return nodes
 
-    def load(self, schemas: list[dict], branch: Optional[str] = None) -> SchemaLoadResponse:
+    def load(
+        self, schemas: list[dict], branch: Optional[str] = None, wait_until_converged: bool = False
+    ) -> SchemaLoadResponse:
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = self.client._post(
             url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
         )
 
+        if wait_until_converged:
+            self.wait_until_converged(branch=branch)
+
         return self._validate_load_schema_response(response=response)
+
+    def wait_until_converged(self, branch: Optional[str] = None) -> None:
+        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        waited = 0
+        while True:
+            status = self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
+            if status["InfrahubStatus"]["summary"]["schema_hash_synced"]:
+                self.client.log.info(f"Schema successfully converged after {waited} seconds")
+                return
+
+            if waited >= self.client.config.schema_converge_timeout:
+                self.client.log.warning(f"Schema not converged after {waited} seconds, proceeding regardless")
+                return
+
+            waited += 1
+            sleep(1)
 
     def check(self, schemas: list[dict], branch: Optional[str] = None) -> tuple[bool, Optional[dict]]:
         branch = branch or self.client.default_branch

@@ -3,15 +3,14 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+from collections.abc import Coroutine, MutableMapping
 from functools import wraps
 from time import sleep
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Coroutine,
     Literal,
-    MutableMapping,
     Optional,
     TypedDict,
     TypeVar,

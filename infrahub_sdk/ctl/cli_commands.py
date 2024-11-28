@@ -267,7 +267,7 @@ def render(
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
-    if list_available:
+    if list_available or not transform_name:
         list_jinja2_transforms(config=repository_config)
         return
 
@@ -317,7 +317,7 @@ def transform(
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
-    if list_available:
+    if list_available or not transform_name:
         list_transforms(config=repository_config)
         return
 
