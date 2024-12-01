@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from . import InfrahubClient
-    from .schema import InfrahubCheckDefinitionConfig
+    from .schema.repository import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
 

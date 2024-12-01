@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pytest import ExceptionInfo
 
     from ...checks import InfrahubCheck
-    from ...schema import InfrahubRepositoryConfigElement
+    from ...schema.repository import InfrahubRepositoryConfigElement
     from ..models import InfrahubTest
 
 

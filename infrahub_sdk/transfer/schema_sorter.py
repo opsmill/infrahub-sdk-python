@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Optional
 
-from ..schema import BaseNodeSchema
+from ..schema import NodeSchema
 from ..topological_sort import DependencyCycleExistsError, topological_sort
 from .exceptions import SchemaImportError
 
@@ -9,7 +9,7 @@ from .exceptions import SchemaImportError
 class InfrahubSchemaTopologicalSorter:
     def get_sorted_node_schema(
         self,
-        schemas: Sequence[BaseNodeSchema],
+        schemas: Sequence[NodeSchema],
         required_relationships_only: bool = True,
         include: Optional[list[str]] = None,
     ) -> list[set[str]]:

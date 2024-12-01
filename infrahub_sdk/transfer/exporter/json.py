@@ -9,13 +9,13 @@ from rich.progress import Progress
 
 from ...client import InfrahubClient
 from ...queries import QUERY_RELATIONSHIPS
-from ...schema import MainSchemaTypes, NodeSchema
+from ...schema import MainSchemaTypesAPI, NodeSchema
 from ..constants import ILLEGAL_NAMESPACES
 from ..exceptions import FileAlreadyExistsError, InvalidNamespaceError
 from .interface import ExporterInterface
 
 if TYPE_CHECKING:
-    from .node import InfrahubNode
+    from ...node import InfrahubNode
 
 
 class LineDelimitedJSONExporter(ExporterInterface):
@@ -32,7 +32,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
             self.console.print(f"{end}")
 
     def identify_many_to_many_relationships(
-        self, node_schema_map: dict[str, MainSchemaTypes]
+        self, node_schema_map: dict[str, MainSchemaTypesAPI]
     ) -> dict[tuple[str, str], str]:
         # Identify many to many relationships by src/dst couples
         many_relationship_identifiers: dict[tuple[str, str], str] = {}
@@ -60,7 +60,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
         return many_relationship_identifiers
 
     async def retrieve_many_to_many_relationships(
-        self, node_schema_map: dict[str, MainSchemaTypes], branch: str
+        self, node_schema_map: dict[str, MainSchemaTypesAPI], branch: str
     ) -> list[dict[str, Any]]:
         has_remaining_items = True
         page_number = 1
