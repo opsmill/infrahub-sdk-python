@@ -50,7 +50,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
-from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchema
+from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .timestamp import Timestamp
 from .types import AsyncRequester, HTTPMethod, SyncRequester
@@ -448,12 +448,12 @@ class InfrahubClient(BaseClient):
         filters: MutableMapping[str, Any] = {}
 
         if id:
-            if not is_valid_uuid(id) and isinstance(schema, NodeSchema) and schema.default_filter:
+            if not is_valid_uuid(id) and isinstance(schema, NodeSchemaAPI) and schema.default_filter:
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
         if hfid:
-            if isinstance(schema, NodeSchema) and schema.human_friendly_id:
+            if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
                 raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")
@@ -1916,12 +1916,12 @@ class InfrahubClientSync(BaseClient):
         filters: MutableMapping[str, Any] = {}
 
         if id:
-            if not is_valid_uuid(id) and isinstance(schema, NodeSchema) and schema.default_filter:
+            if not is_valid_uuid(id) and isinstance(schema, NodeSchemaAPI) and schema.default_filter:
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
         if hfid:
-            if isinstance(schema, NodeSchema) and schema.human_friendly_id:
+            if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
                 raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")

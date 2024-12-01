@@ -10,14 +10,16 @@ from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.schema import (
+    InfrahubSchema,
+    InfrahubSchemaSync,
+    NodeSchemaAPI,
+)
+from infrahub_sdk.schema.repository import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
     InfrahubPythonTransformConfig,
     InfrahubRepositoryArtifactDefinitionConfig,
     InfrahubRepositoryConfig,
-    InfrahubSchema,
-    InfrahubSchemaSync,
-    NodeSchema,
 )
 from tests.unit.sdk.conftest import BothClients
 
@@ -59,7 +61,7 @@ async def test_fetch_schema(mock_schema_query_01, client_type):  # pylint: disab
         "CoreGraphQLQuery",
         "CoreRepository",
     ]
-    assert isinstance(nodes["BuiltinTag"], NodeSchema)
+    assert isinstance(nodes["BuiltinTag"], NodeSchemaAPI)
 
 
 @pytest.mark.parametrize("client_type", client_types)

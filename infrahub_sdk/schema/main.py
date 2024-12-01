@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -41,6 +42,7 @@ class RelationshipDirection(str, Enum):
 class AttributeKind(str, Enum):
     ID = "ID"
     TEXT = "Text"
+    STRING = "String"  # deprecated
     TEXTAREA = "TextArea"
     DATETIME = "DateTime"
     NUMBER = "Number"
@@ -60,6 +62,15 @@ class AttributeKind(str, Enum):
     LIST = "List"
     JSON = "JSON"
     ANY = "Any"
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "STRING":
+            warnings.warn(
+                f"{name} is deprecated and will be removed in future versions.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return super().__getattribute__(name)
 
 
 class SchemaState(str, Enum):
@@ -252,7 +263,8 @@ class BaseSchema(BaseModel):
 
 
 class GenericSchema(BaseSchema, BaseSchemaAttrRel):
-    pass
+    def convert_api(self) -> GenericSchemaAPI:
+        return GenericSchemaAPI(**self.model_dump())
 
 
 class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
@@ -273,7 +285,8 @@ class BaseNodeSchema(BaseSchema):
 
 
 class NodeSchema(BaseNodeSchema, BaseSchemaAttrRel):
-    pass
+    def convert_api(self) -> NodeSchemaAPI:
+        return NodeSchemaAPI(**self.model_dump())
 
 
 class NodeSchemaAPI(BaseNodeSchema, BaseSchemaAttrRelAPI):

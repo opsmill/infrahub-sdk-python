@@ -9,7 +9,7 @@ from rich.progress import Progress
 
 from ...client import InfrahubClient
 from ...queries import QUERY_RELATIONSHIPS
-from ...schema import MainSchemaTypesAPI, NodeSchema
+from ...schema import MainSchemaTypesAPI, NodeSchemaAPI
 from ..constants import ILLEGAL_NAMESPACES
 from ..exceptions import FileAlreadyExistsError, InvalidNamespaceError
 from .interface import ExporterInterface
@@ -113,7 +113,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
             node_schema_map = {
                 kind: schema
                 for kind, schema in node_schema_map.items()
-                if isinstance(schema, NodeSchema)
+                if isinstance(schema, NodeSchemaAPI)
                 and schema.namespace not in illegal_namespaces
                 and (not exclude or kind not in exclude)
             }

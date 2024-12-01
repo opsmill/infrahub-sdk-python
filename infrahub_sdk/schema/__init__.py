@@ -22,6 +22,7 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
+    BranchSupportType,
     GenericSchema,
     GenericSchemaAPI,
     NodeSchema,
@@ -34,7 +35,6 @@ from .main import (
     SchemaRoot,
     SchemaRootAPI,
 )
-from .repository import InfrahubRepositoryConfig
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -46,9 +46,9 @@ if TYPE_CHECKING:
 __all__ = [
     "AttributeSchema",
     "AttributeSchemaAPI",
+    "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
-    "InfrahubRepositoryConfig",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",

@@ -10,7 +10,7 @@ from ..ctl.repository import get_repository_config
 from ..ctl.utils import execute_graphql_query, parse_cli_vars
 from ..exceptions import ModuleImportError
 from ..node import InfrahubNode
-from ..schema import InfrahubRepositoryConfig
+from ..schema.repository import InfrahubRepositoryConfig
 
 
 async def run(
