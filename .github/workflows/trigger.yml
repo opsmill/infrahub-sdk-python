@@ -1,0 +1,25 @@
+name: Submodule and dependabot Update
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  trigger-submodule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger update in Demo Repository
+        env:
+          OTTO_TOKEN: ${{ secrets.GH_UPDATE_PACKAGE_OTTO }}
+          RELEASE_TAG: "${{ github.event.release.tag_name }}"
+        run: |
+          echo "${{ github.event.release.tag_name }}"
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GH_UPDATE_PACKAGE_OTTO }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/opsmill/infrahub-demo-dc-fabric-develop/dispatches \
+            -d "{\"event_type\":\"trigger-dependabot-update\", \"client_payload\": {\"version\": \"${{ github.event.release.tag_name }}\"}}"
