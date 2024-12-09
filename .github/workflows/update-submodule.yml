@@ -1,5 +1,4 @@
-
- ---
+---
 # yamllint disable rule:truthy
 name: Trigger Submodule update
 
@@ -30,7 +29,7 @@ on:
         default: ''
 
 jobs:
- trigger-submodule:
+  trigger-submodule:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -40,7 +39,7 @@ jobs:
         run: |
           echo "${{ inputs.version }}"
           curl -X POST \
-            -H "Authorization: token ${{ secrets.GH_UPDATE_PACKAGE_OTTO }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/opsmill/infrahub/dispatches \
-            -d "{\"event_type\":\"trigger-submodule-update\", \"client_payload\": {\"version\": \"${{ inputs.version }}\"}}"
+              -H "Authorization: token ${{ secrets.GH_UPDATE_PACKAGE_OTTO }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              https://api.github.com/repos/opsmill/infrahub/dispatches \
+              -d "{\"event_type\":\"trigger-submodule-update\", \"client_payload\": {\"version\": \"${{ inputs.version }}\"}}"
