@@ -1,10 +1,32 @@
 ---
-name: Publish Infrahub Python SDK
+# yamllint disable rule:truthy
+name: Publish Infrahub SDK Package
 
-on:  # yamllint disable rule:truthy
-  push:
-    tags:
-      - "v*"
+on:
+  workflow_dispatch:
+    inputs:
+      runs-on:
+        description: "The OS to run the job on"
+        required: false
+        default: "ubuntu-22.04"
+        type: string
+      publish:
+        type: boolean
+        description: Whether to publish the package to Pypi
+        required: false
+        default: false
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "The OS to run the job on"
+        required: false
+        default: "ubuntu-22.04"
+        type: string
+      publish:
+        type: boolean
+        description: Whether to publish the package to Pypi
+        required: false
+        default: false
 
 jobs:
   publish_to_pypi:
@@ -25,6 +47,8 @@ jobs:
 
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
+        with:
+          submodules: true
 
       - name: "Cache poetry venv"
         uses: "actions/cache@v4"
@@ -47,4 +71,5 @@ jobs:
         run: "ls -la dist/"
 
       - name: "Poetry push PyPI"
+        if: ${{ inputs.publish }}
         run: "poetry publish"
