@@ -129,7 +129,7 @@ async def load(
         for schema_file in schemas_data:
             console.print(f"[green] schema '{schema_file.location}' loaded successfully")
     else:
-        console.print("[green] The schema in Infrahub was is already up to date, no changes were required")
+        console.print("[green] The schema in Infrahub was already up to date, no changes were required")
 
     console.print(f"[green] {len(schemas_data)} {schema_definition} processed in {loading_time:.3f} seconds.")
 
