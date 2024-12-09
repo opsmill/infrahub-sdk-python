@@ -40,7 +40,7 @@ jobs:
         run: |
           echo "${{ inputs.version }}"
           curl -X POST \
-            -H "Authorization: token ${{ secrets.OTTO_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.GH_UPDATE_PACKAGE_OTTO }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/opsmill/infrahub/dispatches \
             -d "{\"event_type\":\"trigger-submodule-update\", \"client_payload\": {\"version\": \"${{ inputs.version }}\"}}"
