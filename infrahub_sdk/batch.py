@@ -27,9 +27,9 @@ class BatchTaskSync:
         result = None
         try:
             result = self.task(*self.args, **self.kwargs)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-exception-caught
             if return_exceptions:
-                return (self.node, exc)
+                return self.node, exc
             raise exc
 
         return self.node, result
@@ -101,7 +101,7 @@ class InfrahubBatchSync:
 
     def execute(self) -> Generator[tuple[Optional[InfrahubNodeSync], Any], None, None]:
         with ThreadPoolExecutor(max_workers=self.max_concurrent_execution) as executor:
-            futures = [executor.submit(task.execute) for task in self._tasks]
+            futures = [executor.submit(task.execute, return_exceptions=self.return_exceptions) for task in self._tasks]
             for future in futures:
                 node, result = future.result()
                 if isinstance(result, Exception) and not self.return_exceptions:
