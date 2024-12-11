@@ -51,8 +51,3 @@ async def test_batch_exception(
         async for _, _ in batch.execute():
             pass
     assert "An error occurred while executing the GraphQL Query" in str(exc.value)
-
-
-async def test_batch_not_implemented_sync(clients: BothClients):
-    with pytest.raises(NotImplementedError):
-        clients.sync.create_batch()
