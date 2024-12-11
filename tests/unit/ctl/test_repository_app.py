@@ -70,30 +70,30 @@ class TestInfrahubctlRepository:
         mock_client.execute_graphql.assert_called_once()
         mock_client.execute_graphql.assert_called_with(
             query="""
-            mutation {
-                CoreRepositoryCreate(
-                    data: {
-                        name: {
-                            value: "Gitlab"
-                        }
-                        location: {
-                            value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
-                        }
-                        description: {
-                            value: ""
-                        }
-                        commit: {
-                            value: ""
-                        }
-                        credential: {
-                            id: "1234"
-                        }
-                    }
-                ){
-                    ok
-                }
+mutation {
+    CoreRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
             }
-            """,
+            location: {
+                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+            }
+            description: {
+                value: ""
+            }
+            commit: {
+                value: ""
+            }
+            credential: {
+                id: "1234"
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
             branch_name="main",
             tracker="mutation-repository-create",
         )
@@ -131,30 +131,30 @@ class TestInfrahubctlRepository:
         mock_client.execute_graphql.assert_called_once()
         mock_client.execute_graphql.assert_called_with(
             query="""
-            mutation {
-                CoreRepositoryCreate(
-                    data: {
-                        name: {
-                            value: "Gitlab"
-                        }
-                        location: {
-                            value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
-                        }
-                        description: {
-                            value: ""
-                        }
-                        commit: {
-                            value: ""
-                        }
-                        credential: {
-                            id: "1234"
-                        }
-                    }
-                ){
-                    ok
-                }
+mutation {
+    CoreRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
             }
-            """,
+            location: {
+                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+            }
+            description: {
+                value: ""
+            }
+            commit: {
+                value: ""
+            }
+            credential: {
+                id: "1234"
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
             branch_name="main",
             tracker="mutation-repository-create",
         )
@@ -191,30 +191,30 @@ class TestInfrahubctlRepository:
         mock_client.execute_graphql.assert_called_once()
         mock_client.execute_graphql.assert_called_with(
             query="""
-            mutation {
-                CoreReadOnlyRepositoryCreate(
-                    data: {
-                        name: {
-                            value: "Gitlab"
-                        }
-                        location: {
-                            value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
-                        }
-                        description: {
-                            value: ""
-                        }
-                        commit: {
-                            value: ""
-                        }
-                        credential: {
-                            id: "1234"
-                        }
-                    }
-                ){
-                    ok
-                }
+mutation {
+    CoreReadOnlyRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
             }
-            """,
+            location: {
+                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+            }
+            description: {
+                value: ""
+            }
+            commit: {
+                value: ""
+            }
+            credential: {
+                id: "1234"
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
             branch_name="main",
             tracker="mutation-repository-create",
         )
@@ -258,30 +258,30 @@ class TestInfrahubctlRepository:
         mock_client.execute_graphql.assert_called_once()
         mock_client.execute_graphql.assert_called_with(
             query="""
-            mutation {
-                CoreRepositoryCreate(
-                    data: {
-                        name: {
-                            value: "Gitlab"
-                        }
-                        location: {
-                            value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
-                        }
-                        description: {
-                            value: "This is a test description"
-                        }
-                        commit: {
-                            value: "myHashCommit"
-                        }
-                        credential: {
-                            id: "1234"
-                        }
-                    }
-                ){
-                    ok
-                }
+mutation {
+    CoreRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
             }
-            """,
+            location: {
+                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+            }
+            description: {
+                value: "This is a test description"
+            }
+            commit: {
+                value: "myHashCommit"
+            }
+            credential: {
+                id: "1234"
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
             branch_name="develop",
             tracker="mutation-repository-create",
         )
