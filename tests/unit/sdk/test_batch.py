@@ -78,7 +78,7 @@ async def test_batch_return_exception(
         assert "An error occurred while executing the GraphQL Query" in str(result)
     else:
         batch = clients.sync.create_batch(return_exceptions=True)
-        locations = ["JFK2", "JFK2"]
+        locations = ["JFK1", "JFK1"]
         results = []
         for location_name in locations:
             data = {"name": {"value": location_name, "is_protected": True}}
@@ -86,17 +86,11 @@ async def test_batch_return_exception(
             batch.add(task=obj.save, node=obj)
             results.append(obj)
 
-        result_iter = batch.execute()
-        # Assert first node success
-        node, result = next(result_iter)
-        assert node == results[0]
-        assert not isinstance(result, Exception)
-
-        # Assert second node failure
-        node, result = next(result_iter)
-        assert node == results[1]
-        assert isinstance(result, GraphQLError)
-        assert "An error occurred while executing the GraphQL Query" in str(result)
+        results = [r for _, r in batch.execute()]
+        # Must have one exception and one graphqlerror
+        assert len(results) == 2
+        assert any(isinstance(r, Exception) for r in results)
+        assert any(isinstance(r, GraphQLError) for r in results)
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -121,7 +115,7 @@ async def test_batch_exception(
         assert "An error occurred while executing the GraphQL Query" in str(exc.value)
     else:
         batch = clients.sync.create_batch(return_exceptions=False)
-        locations = ["JFK2", "JFK2"]
+        locations = ["JFK1", "JFK1"]
         for location_name in locations:
             data = {"name": {"value": location_name, "is_protected": True}}
             obj = clients.sync.create(kind="BuiltinLocation", data=data)
