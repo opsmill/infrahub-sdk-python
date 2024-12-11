@@ -1953,6 +1953,11 @@ class InfrahubClientSync(BaseClient):
         return results[0]
 
     def create_batch(self, return_exceptions: bool = False) -> InfrahubBatchSync:
+        """Create a batch to execute multiple queries concurrently.
+
+        Executing the batch will be performed using a thread pool, meaning it cannot guarantee the execution order. It is not recommended to use such
+        batch to manipulate objects that depend on each others.
+        """
         return InfrahubBatchSync(
             max_concurrent_execution=self.max_concurrent_execution, return_exceptions=return_exceptions
         )
