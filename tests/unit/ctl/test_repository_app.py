@@ -1,28 +1,18 @@
 """Integration tests for infrahubctl commands."""
 
-# import json
-import os
-
-# import sys
 from pathlib import Path
 from unittest import mock
 
 import pytest
-
-# from pytest_httpx._httpx_mock import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.client import InfrahubClient
 from infrahub_sdk.ctl.cli_commands import app
 
-# from tests.helpers.utils import change_directory, strip_color
-
 runner = CliRunner()
 
 
-FIXTURE_BASE_DIR = Path(
-    Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
-)
+FIXTURE_BASE_DIR = Path(Path(__file__).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl")
 
 
 @pytest.fixture
