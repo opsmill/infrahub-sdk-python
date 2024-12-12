@@ -55,27 +55,32 @@ async def echo_clients(clients: BothClients) -> AsyncGenerator[BothClients, None
 
 
 @pytest.fixture
-def replace_async_return_annotation():
+def return_annotation_map() -> dict[str, str]:
+    return {
+        "type[SchemaType]": "type[SchemaTypeSync]",
+        "SchemaType": "SchemaTypeSync",
+        "CoreNode": "CoreNodeSync",
+        "Optional[CoreNode]": "Optional[CoreNodeSync]",
+        "Union[str, type[SchemaType]]": "Union[str, type[SchemaTypeSync]]",
+        "Union[InfrahubNode, SchemaType]": "Union[InfrahubNodeSync, SchemaTypeSync]",
+        "Union[InfrahubNode, SchemaType, None]": "Union[InfrahubNodeSync, SchemaTypeSync, None]",
+        "Union[list[InfrahubNode], list[SchemaType]]": "Union[list[InfrahubNodeSync], list[SchemaTypeSync]]",
+        "InfrahubClient": "InfrahubClientSync",
+        "InfrahubNode": "InfrahubNodeSync",
+        "list[InfrahubNode]": "list[InfrahubNodeSync]",
+        "Optional[InfrahubNode]": "Optional[InfrahubNodeSync]",
+        "Optional[type[SchemaType]]": "Optional[type[SchemaTypeSync]]",
+        "Optional[Union[CoreNode, SchemaType]]": "Optional[Union[CoreNodeSync, SchemaTypeSync]]",
+        "InfrahubBatch": "InfrahubBatchSync",
+    }
+
+
+@pytest.fixture
+def replace_async_return_annotation(return_annotation_map: dict[str, str]):
     """Allows for comparison between sync and async return annotations."""
 
     def replace_annotation(annotation: str) -> str:
-        replacements = {
-            "type[SchemaType]": "type[SchemaTypeSync]",
-            "SchemaType": "SchemaTypeSync",
-            "CoreNode": "CoreNodeSync",
-            "Optional[CoreNode]": "Optional[CoreNodeSync]",
-            "Union[str, type[SchemaType]]": "Union[str, type[SchemaTypeSync]]",
-            "Union[InfrahubNode, SchemaType]": "Union[InfrahubNodeSync, SchemaTypeSync]",
-            "Union[InfrahubNode, SchemaType, None]": "Union[InfrahubNodeSync, SchemaTypeSync, None]",
-            "Union[list[InfrahubNode], list[SchemaType]]": "Union[list[InfrahubNodeSync], list[SchemaTypeSync]]",
-            "InfrahubClient": "InfrahubClientSync",
-            "InfrahubNode": "InfrahubNodeSync",
-            "list[InfrahubNode]": "list[InfrahubNodeSync]",
-            "Optional[InfrahubNode]": "Optional[InfrahubNodeSync]",
-            "Optional[type[SchemaType]]": "Optional[type[SchemaTypeSync]]",
-            "Optional[Union[CoreNode, SchemaType]]": "Optional[Union[CoreNodeSync, SchemaTypeSync]]",
-        }
-        return replacements.get(annotation) or annotation
+        return return_annotation_map.get(annotation) or annotation
 
     return replace_annotation
 
@@ -95,26 +100,11 @@ def replace_async_parameter_annotations(replace_async_return_annotation):
 
 
 @pytest.fixture
-def replace_sync_return_annotation() -> str:
+def replace_sync_return_annotation(return_annotation_map: dict[str, str]) -> str:
     """Allows for comparison between sync and async return annotations."""
 
     def replace_annotation(annotation: str) -> str:
-        replacements = {
-            "type[SchemaTypeSync]": "type[SchemaType]",
-            "SchemaTypeSync": "SchemaType",
-            "CoreNodeSync": "CoreNode",
-            "Optional[CoreNodeSync]": "Optional[CoreNode]",
-            "Union[str, type[SchemaTypeSync]]": "Union[str, type[SchemaType]]",
-            "Union[InfrahubNodeSync, SchemaTypeSync]": "Union[InfrahubNode, SchemaType]",
-            "Union[InfrahubNodeSync, SchemaTypeSync, None]": "Union[InfrahubNode, SchemaType, None]",
-            "Union[list[InfrahubNodeSync], list[SchemaTypeSync]]": "Union[list[InfrahubNode], list[SchemaType]]",
-            "InfrahubClientSync": "InfrahubClient",
-            "InfrahubNodeSync": "InfrahubNode",
-            "list[InfrahubNodeSync]": "list[InfrahubNode]",
-            "Optional[InfrahubNodeSync]": "Optional[InfrahubNode]",
-            "Optional[type[SchemaTypeSync]]": "Optional[type[SchemaType]]",
-            "Optional[Union[CoreNodeSync, SchemaTypeSync]]": "Optional[Union[CoreNode, SchemaType]]",
-        }
+        replacements = {v: k for k, v in return_annotation_map.items()}
         return replacements.get(annotation) or annotation
 
     return replace_annotation

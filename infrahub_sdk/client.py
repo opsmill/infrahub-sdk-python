@@ -23,7 +23,7 @@ import httpx
 import ujson
 from typing_extensions import Self
 
-from .batch import InfrahubBatch
+from .batch import InfrahubBatch, InfrahubBatchSync
 from .branch import (
     BranchData,
     InfrahubBranchManager,
@@ -1454,9 +1454,6 @@ class InfrahubClientSync(BaseClient):
         node = InfrahubNodeSync(client=self, schema=schema, branch=branch, data={"id": id})
         node.delete()
 
-    def create_batch(self, return_exceptions: bool = False) -> InfrahubBatch:
-        raise NotImplementedError("This method hasn't been implemented in the sync client yet.")
-
     def clone(self) -> InfrahubClientSync:
         """Return a cloned version of the client using the same configuration"""
         return InfrahubClientSync(config=self.config)
@@ -1954,6 +1951,16 @@ class InfrahubClientSync(BaseClient):
             raise IndexError("More than 1 node returned")
 
         return results[0]
+
+    def create_batch(self, return_exceptions: bool = False) -> InfrahubBatchSync:
+        """Create a batch to execute multiple queries concurrently.
+
+        Executing the batch will be performed using a thread pool, meaning it cannot guarantee the execution order. It is not recommended to use such
+        batch to manipulate objects that depend on each others.
+        """
+        return InfrahubBatchSync(
+            max_concurrent_execution=self.max_concurrent_execution, return_exceptions=return_exceptions
+        )
 
     def get_list_repositories(
         self, branches: Optional[dict[str, BranchData]] = None, kind: str = "CoreGenericRepository"
