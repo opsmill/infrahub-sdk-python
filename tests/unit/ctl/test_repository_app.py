@@ -12,9 +12,6 @@ from infrahub_sdk.ctl.cli_commands import app
 runner = CliRunner()
 
 
-FIXTURE_BASE_DIR = Path(Path(__file__).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl")
-
-
 @pytest.fixture
 def mock_client() -> mock.Mock:
     """Fixture for a mocked InfrahubClient."""
