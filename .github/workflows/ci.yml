@@ -112,7 +112,7 @@ jobs:
           ./actionlint -color
         shell: bash
         env:
-          SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004
+          SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004 --exclude=SC2129
 
 
   unit-tests:
@@ -123,6 +123,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
     if: |
       always() && !cancelled() &&
       !contains(needs.*.result, 'failure') &&

@@ -1,12 +1,14 @@
 from pathlib import Path
+from typing import Optional
 
 import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
+from infrahub_sdk.ctl.client import initialize_client
+
 from ..async_typer import AsyncTyper
-from ..ctl.client import initialize_client
 from ..ctl.exceptions import FileNotValidError
 from ..ctl.utils import init_logging
 from ..graphql import Mutation
@@ -65,7 +67,7 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: str = "",
+    username: Optional[str] = None,
     password: str = "",
     commit: str = "",
     read_only: bool = False,
@@ -88,10 +90,9 @@ async def add(
 
     client = initialize_client()
 
-    if username:
-        credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)
-        await credential.save()
-        input_data["data"]["credential"] = {"id": credential.id}
+    credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)
+    await credential.save(allow_upsert=True)
+    input_data["data"]["credential"] = {"id": credential.id}
 
     query = Mutation(
         mutation="CoreReadOnlyRepositoryCreate" if read_only else "CoreRepositoryCreate",

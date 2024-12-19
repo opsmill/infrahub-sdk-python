@@ -282,6 +282,12 @@ class RelationshipCardinality(str, Enum):
     MANY = "many"
 
 
+class RelationshipDirection(str, Enum):
+    BIDIR = "bidirectional"
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+
+
 class BranchSupportType(str, Enum):
     AWARE = "aware"
     AGNOSTIC = "agnostic"
@@ -339,6 +345,7 @@ class RelationshipSchema(BaseModel):
     state: SchemaState = SchemaState.PRESENT
     name: str
     peer: str
+    direction: RelationshipDirection = RelationshipDirection.BIDIR
     kind: RelationshipKind = RelationshipKind.GENERIC
     label: Optional[str] = None
     description: Optional[str] = None
@@ -412,6 +419,21 @@ class BaseNodeSchema(BaseModel):
             return None
 
         raise ValueError(f"Unable to find the relationship {id}")
+
+    def get_matching_relationship(
+        self, id: str, direction: RelationshipDirection = RelationshipDirection.BIDIR
+    ) -> RelationshipSchema:
+        valid_direction = RelationshipDirection.BIDIR
+        if direction == RelationshipDirection.INBOUND:
+            valid_direction = RelationshipDirection.OUTBOUND
+        elif direction == RelationshipDirection.OUTBOUND:
+            valid_direction = RelationshipDirection.INBOUND
+
+        for item in self.relationships:
+            if item.identifier == id and item.direction == valid_direction:
+                return item
+
+        raise ValueError(f"Unable to find the relationship {id} / ({valid_direction.value})")
 
     @property
     def attribute_names(self) -> list[str]:
@@ -637,8 +659,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         """Wait until the schema has converged on the selected branch or the timeout has been reached"""
         waited = 0
         while True:
-            status = await self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
-            if status["InfrahubStatus"]["summary"]["schema_hash_synced"]:
+            if await self.in_sync(branch=branch):
                 self.client.log.info(f"Schema successfully converged after {waited} seconds")
                 return
 
@@ -648,6 +669,11 @@ class InfrahubSchema(InfrahubSchemaBase):
 
             waited += 1
             await asyncio.sleep(delay=1)
+
+    async def in_sync(self, branch: Optional[str] = None) -> bool:
+        """Indicate if the schema is in sync across all workers for the provided branch"""
+        response = await self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
+        return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 
     async def check(self, schemas: list[dict], branch: Optional[str] = None) -> tuple[bool, Optional[dict]]:
         branch = branch or self.client.default_branch
@@ -1041,8 +1067,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         """Wait until the schema has converged on the selected branch or the timeout has been reached"""
         waited = 0
         while True:
-            status = self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
-            if status["InfrahubStatus"]["summary"]["schema_hash_synced"]:
+            if self.in_sync(branch=branch):
                 self.client.log.info(f"Schema successfully converged after {waited} seconds")
                 return
 
@@ -1052,6 +1077,11 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
             waited += 1
             sleep(1)
+
+    def in_sync(self, branch: Optional[str] = None) -> bool:
+        """Indicate if the schema is in sync across all workers for the provided branch"""
+        response = self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
+        return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 
     def check(self, schemas: list[dict], branch: Optional[str] = None) -> tuple[bool, Optional[dict]]:
         branch = branch or self.client.default_branch
