@@ -1,1 +1,0 @@
-Fix an issue with with `infrahubctl menu load` that would fail while loading the menu

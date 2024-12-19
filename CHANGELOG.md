@@ -11,18 +11,23 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.2.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.2.0) - 2024-12-19
+
+### Added
+
+- Add batch feature, that use threading, to sync client ([#168](https://github.com/opsmill/infrahub-sdk-python/issues/168))
+- Added InfrahubClient.schema.in_sync method to indicate if a specific branch is in sync across all worker types
+- Added Python 3.13 to the list of supported versions
+
+### Fixed
+
+- Fix an issue with with `infrahubctl menu load` that would fail while loading the menu
+
 ## [1.1.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.10.0) - 2024-11-28
 
 ### Added
 
 - Added InfrahubClient.schema.wait_until_converged() which allowes you to wait until the schema has converged across all Infrahub workers before proceeding with an operation. The InfrahubClient.schema.load() method has also been updated with a new parameter "wait_until_converged".
-
-### Fixed
-
-- CTL: `schema load` return a proper error message when authentication is missing or when the user doesn't have the permission to update the schema. ([#127](https://github.com/opsmill/infrahub-sdk-python/issues/127))
-- CTL: List available transforms and generators if no name is provided ([#140](https://github.com/opsmill/infrahub-sdk-python/issues/140))
-
-## [1.1.0rc0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.1.0rc0) - 2024-11-26
 
 ### Fixed
 
