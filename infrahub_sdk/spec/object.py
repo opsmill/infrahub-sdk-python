@@ -78,7 +78,7 @@ class InfrahubObjectFileData(BaseModel):
             if rel_schema.identifier is None:
                 raise ValueError("identifier must be defined")
 
-            peer_rel = peer_schema.get_relationship_by_identifier(id=rel_schema.identifier)
+            peer_rel = peer_schema.get_matching_relationship(id=rel_schema.identifier, direction=rel_schema.direction)
 
             rel_data = data[rel]["data"]
             context = {}

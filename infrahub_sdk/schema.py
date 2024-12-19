@@ -282,6 +282,12 @@ class RelationshipCardinality(str, Enum):
     MANY = "many"
 
 
+class RelationshipDirection(str, Enum):
+    BIDIR = "bidirectional"
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+
+
 class BranchSupportType(str, Enum):
     AWARE = "aware"
     AGNOSTIC = "agnostic"
@@ -339,6 +345,7 @@ class RelationshipSchema(BaseModel):
     state: SchemaState = SchemaState.PRESENT
     name: str
     peer: str
+    direction: RelationshipDirection = RelationshipDirection.BIDIR
     kind: RelationshipKind = RelationshipKind.GENERIC
     label: Optional[str] = None
     description: Optional[str] = None
@@ -412,6 +419,21 @@ class BaseNodeSchema(BaseModel):
             return None
 
         raise ValueError(f"Unable to find the relationship {id}")
+
+    def get_matching_relationship(
+        self, id: str, direction: RelationshipDirection = RelationshipDirection.BIDIR
+    ) -> RelationshipSchema:
+        valid_direction = RelationshipDirection.BIDIR
+        if direction == RelationshipDirection.INBOUND:
+            valid_direction = RelationshipDirection.OUTBOUND
+        elif direction == RelationshipDirection.OUTBOUND:
+            valid_direction = RelationshipDirection.INBOUND
+
+        for item in self.relationships:
+            if item.identifier == id and item.direction == valid_direction:
+                return item
+
+        raise ValueError(f"Unable to find the relationship {id} / ({valid_direction.value})")
 
     @property
     def attribute_names(self) -> list[str]:
