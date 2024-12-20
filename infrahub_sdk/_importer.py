@@ -22,6 +22,10 @@ def import_module(
     if import_root and relative_path:
         file_on_disk = Path(import_root, relative_path, module_path.name)
 
+    # This is a temporary workaround for to account for issues if "import_root" is a Path instead of a str
+    # Later we should rework this so that import_root and relative_path are all Path objects. Here we must
+    # ensure that anything we add to sys.path is a string and not a Path or PosixPath object.
+    import_root = str(import_root)
     if import_root not in sys.path:
         sys.path.append(import_root)
 
