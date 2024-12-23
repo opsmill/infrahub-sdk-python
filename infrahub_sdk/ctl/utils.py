@@ -26,7 +26,7 @@ from ..exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
 )
-from ..schema import InfrahubRepositoryConfig
+from ..schema.repository import InfrahubRepositoryConfig
 from ..yaml import YamlFile
 from .client import initialize_client_sync
 

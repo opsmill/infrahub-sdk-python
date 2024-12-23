@@ -14,10 +14,10 @@ from infrahub_sdk.node import (
     RelatedNodeBase,
     RelationshipManagerBase,
 )
+from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
-    from infrahub_sdk.schema import GenericSchema
 
 # pylint: disable=no-member,too-many-lines
 # type: ignore[attr-defined]
@@ -133,7 +133,7 @@ async def test_node_hfid(client, schema_with_hfid, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_user(client, location_schema, client_type):
+async def test_init_node_data_user(client, location_schema: NodeSchemaAPI, client_type):
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -151,7 +151,7 @@ async def test_init_node_data_user(client, location_schema, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_user_with_relationships(client, location_schema, client_type):
+async def test_init_node_data_user_with_relationships(client, location_schema: NodeSchemaAPI, client_type):
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -177,7 +177,7 @@ async def test_init_node_data_user_with_relationships(client, location_schema, c
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_graphql(client, location_schema, location_data01, client_type):
+async def test_init_node_data_graphql(client, location_schema: NodeSchemaAPI, location_data01, client_type):
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
     else:
@@ -197,7 +197,7 @@ async def test_init_node_data_graphql(client, location_schema, location_data01, 
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_no_filters(clients, location_schema, client_type):
+async def test_query_data_no_filters(clients, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -297,7 +297,7 @@ async def test_query_data_no_filters(clients, location_schema, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_node(clients, location_schema, client_type):
+async def test_query_data_node(clients, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -748,7 +748,7 @@ async def test_query_data_generic_fragment(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include(client, location_schema, client_type):
+async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"])
@@ -870,7 +870,7 @@ async def test_query_data_include(client, location_schema, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_exclude(client, location_schema, client_type):
+async def test_query_data_exclude(client, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(exclude=["description", "primary_tag"])
@@ -929,7 +929,7 @@ async def test_query_data_exclude(client, location_schema, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data(client, location_schema, client_type):
+async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_type):
     data = {"name": {"value": "JFK1"}, "description": {"value": "JFK Airport"}, "type": {"value": "SITE"}}
 
     if client_type == "standard":

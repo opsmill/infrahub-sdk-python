@@ -12,7 +12,7 @@ from ..async_typer import AsyncTyper
 from ..ctl.exceptions import FileNotValidError
 from ..ctl.utils import init_logging
 from ..graphql import Mutation
-from ..schema import InfrahubRepositoryConfig
+from ..schema.repository import InfrahubRepositoryConfig
 from ._file import read_file
 from .parameters import CONFIG_PARAM
 

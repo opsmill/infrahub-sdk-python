@@ -3,7 +3,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from ..client import InfrahubClient
-from ..schema import MainSchemaTypes
+from ..schema import MainSchemaTypesAPI
 from ..yaml import InfrahubFile, InfrahubFileKind
 
 
@@ -19,7 +19,7 @@ class InfrahubObjectFileData(BaseModel):
     async def create_node(
         cls,
         client: InfrahubClient,
-        schema: MainSchemaTypes,
+        schema: MainSchemaTypesAPI,
         data: dict,
         context: Optional[dict] = None,
         branch: Optional[str] = None,

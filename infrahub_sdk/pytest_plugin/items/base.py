@@ -13,7 +13,7 @@ from ..models import InfrahubInputOutputTest
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ...schema import InfrahubRepositoryConfigElement
+    from ...schema.repository import InfrahubRepositoryConfigElement
     from ..models import InfrahubTest
 
 

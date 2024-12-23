@@ -14,7 +14,7 @@ from .base import InfrahubItem
 if TYPE_CHECKING:
     from pytest import ExceptionInfo
 
-    from ...schema import InfrahubRepositoryConfigElement
+    from ...schema.repository import InfrahubRepositoryConfigElement
     from ...transforms import InfrahubTransform
     from ..models import InfrahubTest
 

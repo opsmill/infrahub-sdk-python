@@ -11,7 +11,7 @@ import ujson
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.schema import BranchSupportType, NodeSchema
+from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
 from infrahub_sdk.utils import get_fixtures_dir
 
 # pylint: disable=redefined-outer-name,unused-argument
@@ -125,7 +125,7 @@ def replace_sync_parameter_annotations(replace_sync_return_annotation):
 
 
 @pytest.fixture
-async def location_schema() -> NodeSchema:
+async def location_schema() -> NodeSchemaAPI:
     data = {
         "name": "Location",
         "namespace": "Builtin",
@@ -157,11 +157,11 @@ async def location_schema() -> NodeSchema:
             },
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def schema_with_hfid() -> dict[str, NodeSchema]:
+async def schema_with_hfid() -> dict[str, NodeSchemaAPI]:
     data = {
         "location": {
             "name": "Location",
@@ -222,11 +222,11 @@ async def schema_with_hfid() -> dict[str, NodeSchema]:
             ],
         },
     }
-    return {k: NodeSchema(**v) for k, v in data.items()}  # type: ignore
+    return {k: NodeSchema(**v).convert_api() for k, v in data.items()}  # type: ignore
 
 
 @pytest.fixture
-async def std_group_schema() -> NodeSchema:
+async def std_group_schema() -> NodeSchemaAPI:
     data = {
         "name": "StandardGroup",
         "namespace": "Core",
@@ -236,7 +236,7 @@ async def std_group_schema() -> NodeSchema:
             {"name": "description", "kind": "String", "optional": True},
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
@@ -506,17 +506,17 @@ async def location_data02():
 
 
 @pytest.fixture
-async def tag_schema() -> NodeSchema:
+async def tag_schema() -> NodeSchemaAPI:
     data = {
         "name": "Tag",
         "namespace": "Builtin",
         "default_filter": "name__value",
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
@@ -694,7 +694,7 @@ async def tag_green_data():
 
 
 @pytest.fixture
-async def rfile_schema() -> NodeSchema:
+async def rfile_schema() -> NodeSchemaAPI:
     data = {
         "name": "TransformJinja2",
         "namespace": "Core",
@@ -730,11 +730,11 @@ async def rfile_schema() -> NodeSchema:
             },
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
-async def ipaddress_schema() -> NodeSchema:
+async def ipaddress_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPAddress",
         "namespace": "Infra",
@@ -754,11 +754,11 @@ async def ipaddress_schema() -> NodeSchema:
             }
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def ipnetwork_schema() -> NodeSchema:
+async def ipnetwork_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPNetwork",
         "namespace": "Infra",
@@ -778,11 +778,11 @@ async def ipnetwork_schema() -> NodeSchema:
             }
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def ipam_ipprefix_schema() -> NodeSchema:
+async def ipam_ipprefix_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPNetwork",
         "namespace": "Ipam",
@@ -791,11 +791,11 @@ async def ipam_ipprefix_schema() -> NodeSchema:
         "order_by": ["prefix_value"],
         "inherit_from": ["BuiltinIPAddress"],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def simple_device_schema() -> NodeSchema:
+async def simple_device_schema() -> NodeSchemaAPI:
     data = {
         "name": "Device",
         "namespace": "Infra",
@@ -823,7 +823,7 @@ async def simple_device_schema() -> NodeSchema:
             },
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
@@ -897,7 +897,7 @@ async def ipam_ipprefix_data():
 
 
 @pytest.fixture
-async def ipaddress_pool_schema() -> NodeSchema:
+async def ipaddress_pool_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPAddressPool",
         "namespace": "Core",
@@ -943,11 +943,11 @@ async def ipaddress_pool_schema() -> NodeSchema:
             },
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def ipprefix_pool_schema() -> NodeSchema:
+async def ipprefix_pool_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPPrefixPool",
         "namespace": "Core",
@@ -1002,11 +1002,11 @@ async def ipprefix_pool_schema() -> NodeSchema:
             },
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
-async def address_schema() -> NodeSchema:
+async def address_schema() -> NodeSchemaAPI:
     data = {
         "name": "Address",
         "namespace": "Infra",
@@ -1021,7 +1021,7 @@ async def address_schema() -> NodeSchema:
         ],
         "relationships": [],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchemaAPI(**data)
 
 
 @pytest.fixture
@@ -1065,7 +1065,7 @@ async def address_data():
 
 
 @pytest.fixture
-async def device_schema() -> NodeSchema:
+async def device_schema() -> NodeSchemaAPI:
     data = {
         "name": "Device",
         "namespace": "Infra",
@@ -1111,7 +1111,7 @@ async def device_schema() -> NodeSchema:
             {"name": "artifacts", "peer": "CoreArtifact", "optional": True, "cardinality": "many", "kind": "Generic"},
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
@@ -1272,7 +1272,7 @@ async def device_data():
 
 
 @pytest.fixture
-async def artifact_definition_schema() -> NodeSchema:
+async def artifact_definition_schema() -> NodeSchemaAPI:
     data = {
         "name": "ArtifactDefinition",
         "namespace": "Core",
@@ -1285,7 +1285,7 @@ async def artifact_definition_schema() -> NodeSchema:
             {"name": "artifact_name", "kind": "Text"},
         ],
     }
-    return NodeSchema(**data)  # type: ignore
+    return NodeSchema(**data).convert_api()  # type: ignore
 
 
 @pytest.fixture
