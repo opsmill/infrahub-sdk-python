@@ -4,7 +4,7 @@ import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
@@ -89,6 +89,8 @@ class RelationshipDeleteBehavior(str, Enum):
 
 
 class AttributeSchema(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: Optional[str] = None
     state: SchemaState = SchemaState.PRESENT
     name: str
@@ -108,12 +110,16 @@ class AttributeSchema(BaseModel):
 
 
 class AttributeSchemaAPI(AttributeSchema):
+    model_config = ConfigDict(use_enum_values=True)
+
     inherited: bool = False
     read_only: bool = False
     allow_override: AllowOverrideType = AllowOverrideType.ANY
 
 
 class RelationshipSchema(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: Optional[str] = None
     state: SchemaState = SchemaState.PRESENT
     name: str
@@ -133,6 +139,8 @@ class RelationshipSchema(BaseModel):
 
 
 class RelationshipSchemaAPI(RelationshipSchema):
+    model_config = ConfigDict(use_enum_values=True)
+
     inherited: bool = False
     read_only: bool = False
     hierarchical: Optional[str] = None
@@ -245,6 +253,8 @@ class BaseSchemaAttrRelAPI(BaseModel):
 
 
 class BaseSchema(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: Optional[str] = None
     state: SchemaState = SchemaState.PRESENT
     name: str
@@ -275,6 +285,8 @@ class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
 
 
 class BaseNodeSchema(BaseSchema):
+    model_config = ConfigDict(use_enum_values=True)
+
     inherit_from: list[str] = Field(default_factory=list)
     branch: Optional[BranchSupportType] = None
     default_filter: Optional[str] = None
@@ -299,6 +311,8 @@ class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
 
 
 class NodeExtensionSchema(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     name: Optional[str] = None
     kind: str
     description: Optional[str] = None
@@ -311,13 +325,20 @@ class NodeExtensionSchema(BaseModel):
 
 
 class SchemaRoot(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     version: str
     generics: list[GenericSchema] = Field(default_factory=list)
     nodes: list[NodeSchema] = Field(default_factory=list)
     node_extensions: list[NodeExtensionSchema] = Field(default_factory=list)
 
+    def to_schema_dict(self) -> dict[str, Any]:
+        return self.model_dump(exclude_unset=True, exclude_defaults=True)
+
 
 class SchemaRootAPI(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     version: str
     generics: list[GenericSchemaAPI] = Field(default_factory=list)
     nodes: list[NodeSchemaAPI] = Field(default_factory=list)
