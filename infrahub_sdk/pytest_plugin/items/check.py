@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import ujson
 from httpx import HTTPStatusError
 
-from ...checks import get_check_class_instance
+from ...import_utils import get_check_or_transform_class
 from ..exceptions import CheckDefinitionError, CheckResultError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -33,10 +33,11 @@ class InfrahubCheckItem(InfrahubItem):
         self.check_instance: InfrahubCheck
 
     def instantiate_check(self) -> None:
-        self.check_instance = get_check_class_instance(
-            check_config=self.resource_config,  # type: ignore[arg-type]
+        check_class = get_check_or_transform_class(
+            config=self.resource_config,  # type: ignore[arg-type]
             search_path=self.session.infrahub_config_path.parent,  # type: ignore[attr-defined]
         )
+        self.check_instance = check_class()
 
     def run_check(self, variables: dict[str, Any]) -> Any:
         self.instantiate_check()

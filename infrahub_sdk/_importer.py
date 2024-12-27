@@ -16,6 +16,15 @@ module_mtime_cache: dict[str, float] = {}
 def import_module(
     module_path: Path, import_root: Optional[str] = None, relative_path: Optional[str] = None
 ) -> ModuleType:
+    """Imports a python module.
+
+    Attributes:
+        module_path (Path): Absolute path of the module to import.
+        import_root (Optional[str]): Absolute string path to the folder.
+        relative_path (Optional[str]): Relative string path between module_path and import_root.
+                                       TODO Compute `relative_path` here instead of having it as a parameter?
+    """
+
     import_root = import_root or str(module_path.parent)
 
     file_on_disk = module_path
@@ -35,6 +44,8 @@ def import_module(
         module_name = relative_path.replace("/", ".") + f".{module_name}"
 
     try:
+        # We hold a mapping of imported modules. If a module is already loaded and does not have recent changes,
+        # then we do not reload/import this module.
         if module_name in sys.modules:
             module = sys.modules[module_name]
             current_mtime = file_on_disk.stat().st_mtime

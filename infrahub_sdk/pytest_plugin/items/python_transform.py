@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import ujson
 from httpx import HTTPStatusError
 
-from ...transforms import get_transform_class_instance
+from ...import_utils import get_check_or_transform_class
 from ..exceptions import OutputMatchError, PythonTransformDefinitionError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -33,10 +33,11 @@ class InfrahubPythonTransformItem(InfrahubItem):
         self.transform_instance: InfrahubTransform
 
     def instantiate_transform(self) -> None:
-        self.transform_instance = get_transform_class_instance(
-            transform_config=self.resource_config,  # type: ignore[arg-type]
+        transform_class = get_check_or_transform_class(
+            config=self.resource_config,  # type: ignore[arg-type]
             search_path=self.session.infrahub_config_path.parent,  # type: ignore[attr-defined]
         )
+        self.transform_instance = transform_class(branch="", client=None)
 
     def run_transform(self, variables: dict[str, Any]) -> Any:
         self.instantiate_transform()
