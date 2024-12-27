@@ -1341,7 +1341,7 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             # Process allocated resource from a pool and update attribute
-            attr.value = object_response[attr_name]
+            attr.value = object_response[attr_name]["value"]
 
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
