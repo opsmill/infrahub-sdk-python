@@ -107,24 +107,44 @@ class SchemaCarPerson:
     ) -> SchemaRoot:
         return SchemaRoot(version="1.0", nodes=[schema_car_base, schema_person_base, schema_manufacturer_base])
 
+    @pytest.fixture(scope="class")
+    async def person_john(self, client: InfrahubClient,) -> InfrahubNode:
+        obj = await client.create(kind=TESTING_PERSON, name="John Doe")
+        await obj.save(allow_upsert=True)
+        return obj
+
+
+    @pytest.fixture(scope="class")
+    async def person_jane(self, client: InfrahubClient) -> InfrahubNode:
+        obj = await client.create(kind=TESTING_PERSON, name="Jane Doe")
+        await obj.save(allow_upsert=True)
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def manufacturer_vw(self, client: InfrahubClient) -> InfrahubNode:
+        obj = await client.create(kind=TESTING_MANUFACTURER, name="Volkswagen")
+        await obj.save(allow_upsert=True)
+        return obj
+
+
     async def create_persons(self, client: InfrahubClient, branch: str) -> list[InfrahubNode]:
         john = await client.create(kind=TESTING_PERSON, name="John Doe", branch=branch)
-        await john.save()
+        await john.save(allow_upsert=True)
 
         jane = await client.create(kind=TESTING_PERSON, name="Jane Doe", branch=branch)
-        await jane.save()
+        await jane.save(allow_upsert=True)
 
         return [john, jane]
 
     async def create_manufacturers(self, client: InfrahubClient, branch: str) -> list[InfrahubNode]:
         obj1 = await client.create(kind=TESTING_MANUFACTURER, name="Volkswagen", branch=branch)
-        await obj1.save()
+        await obj1.save(allow_upsert=True)
 
         obj2 = await client.create(kind=TESTING_MANUFACTURER, name="Renault", branch=branch)
-        await obj2.save()
+        await obj2.save(allow_upsert=True)
 
         obj3 = await client.create(kind=TESTING_MANUFACTURER, name="Mercedes", branch=branch)
-        await obj3.save()
+        await obj3.save(allow_upsert=True)
 
         return [obj1, obj2, obj3]
 

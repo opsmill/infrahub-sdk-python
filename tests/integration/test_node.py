@@ -5,7 +5,7 @@ from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
-from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, SchemaCarPerson
+from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, TESTING_CAR, TESTING_PERSON, SchemaCarPerson
 
 # pylint: disable=unused-argument
 
@@ -13,7 +13,7 @@ from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, Schema
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
     def infrahub_version(self) -> str:
-        return "local"
+        return "1.0.10"
 
     @pytest.fixture(scope="class")
     async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
@@ -51,34 +51,31 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         with pytest.raises(NodeNotFoundError):
             await client.get(kind=TESTING_MANUFACTURER, id=obj.id)
 
-    # async def test_node_create_with_relationships(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_blue: Node,
-    #     tag_red: Node,
-    #     repo01: Node,
-    #     gqlquery01: Node,
-    # ):
-    #     data = {
-    #         "name": {"value": "rfile01"},
-    #         "template_path": {"value": "mytemplate.j2"},
-    #         "query": gqlquery01.id,
-    #         "repository": {"id": repo01.id},
-    #         "tags": [tag_blue.id, tag_red.id],
-    #     }
+    async def test_node_create_with_relationships(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+        person_john: InfrahubNode,
+        manufacturer_vw: InfrahubNode,
+    ):
+        data = {
+            "name": {"value": "Golf"},
+            "color": { "value": "Blue"},
+            "owner": person_john.id,
+            "manufacturer": manufacturer_vw.id
+        }
 
-    #     node = await client.create(kind="CoreTransformJinja2", data=data)
-    #     await node.save()
+        with pytest.raises(NodeNotFoundError):
+            node_after = await client.get(kind=TESTING_CAR, name__value="Golf")
 
-    #     assert node.id is not None
+        node = await client.create(kind=TESTING_CAR, data=data)
+        await node.save()
 
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     assert nodedb.name.value == node.name.value  # type: ignore[attr-defined]
-    #     querydb = await nodedb.query.get_peer(db=db)
-    #     assert node.query.id == querydb.id  # type: ignore[attr-defined]
+        assert node.id is not None
+
+        node_after = await client.get(kind=TESTING_CAR, id=node.id)
+        assert node_after.id == node.id
 
     # async def test_node_update_payload_with_relationships(
     #     self,
