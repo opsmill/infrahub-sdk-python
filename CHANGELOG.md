@@ -11,6 +11,50 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.3.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.3.0) - 2024-12-30
+
+### Added
+
+#### Testing library (**Alpha**)
+
+A new collection of tools and utilities to help with testing is available under `infrahub_sdk.testing`.
+
+The first component available is a `TestInfrahubDockerClient`, a pytest Class designed to help creating integration tests based on Infrahub. See a simple example below to help you get started.
+
+> the installation of `infrahub-testcontainers` is required
+
+```python
+import pytest
+
+from infrahub_sdk import InfrahubClient
+from infrahub_sdk.testing.docker import TestInfrahubDockerClient
+
+class TestInfrahubNode(TestInfrahubDockerClient):
+
+    @pytest.fixture(scope="class")
+    def infrahub_version(self) -> str:
+        """Required (for now) to define the version of infrahub to use."""
+        return "1.0.10"
+
+    @pytest.fixture(scope="class")
+    async def test_create_tag(self, default_branch: str, client: InfrahubClient) -> None:
+        obj = await client.create(kind="BuiltinTag", name="Blue")
+        await obj.save()
+        assert obj.id
+```
+
+### Changed
+
+- The Pydantic models for the schema have been split into multiple versions to align better with the different phase of the lifecycle of the schema.
+  - User input: includes only the options available for a user to define (NodeSchema, AttributeSchema, RelationshipSchema, GenericSchema)
+  - API: Format of the schema as exposed by the API in infrahub with some read only settings (NodeSchemaAPI, AttributeSchemaAPI, RelationshipSchemaAPI, GenericSchemaAPI)
+
+### Fixed
+
+- Fix behaviour of attribute value coming from resource pools for async client ([#66](https://github.com/opsmill/infrahub-sdk-python/issues/66))
+- Convert import_root to a string if it was submitted as a Path object to ensure that anything added to sys.path is a string
+- Fix relative imports for the pytest plugin, note that the relative imports can't be at the top level of the repository alongside .infrahub.yml. They have to be located within a subfolder. ([#166](https://github.com/opsmill/infrahub-sdk-python/issues/166))
+
 ## [1.2.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.2.0) - 2024-12-19
 
 ### Added
@@ -60,7 +104,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ### Removed
 
-- Breaking change: Removed all exports from infrahub_sdk/__init__.py except InfrahubClient, InfrahubClientSync and Config. If you previously imported other classes such as InfrahubNode from the root level these need to change to instead be an absolute path.
+- Breaking change: Removed all exports from `infrahub_sdk/__init__.py` except InfrahubClient, InfrahubClientSync and Config. If you previously imported other classes such as InfrahubNode from the root level these need to change to instead be an absolute path.
 
 ### Added
 
