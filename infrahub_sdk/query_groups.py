@@ -9,7 +9,7 @@ from .utils import dict_hash
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
     from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
-    from .schema import MainSchemaTypes
+    from .schema import MainSchemaTypesAPI
 
 
 class InfrahubGroupContextBase:
@@ -63,7 +63,7 @@ class InfrahubGroupContextBase:
 
         return group_name
 
-    def _generate_group_description(self, schema: MainSchemaTypes) -> str:
+    def _generate_group_description(self, schema: MainSchemaTypesAPI) -> str:
         """Generate the description of the group from the params
         and ensure it's not longer than the maximum length of the description field."""
         if not self.params:

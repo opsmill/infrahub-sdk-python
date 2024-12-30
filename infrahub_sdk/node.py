@@ -14,7 +14,7 @@ from .exceptions import (
     UninitializedError,
 )
 from .graphql import Mutation, Query
-from .schema import GenericSchema, RelationshipCardinality, RelationshipKind
+from .schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
 from .utils import compare_lists, get_flat_value
 from .uuidt import UUIDT
 
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .client import InfrahubClient, InfrahubClientSync
-    from .schema import AttributeSchema, MainSchemaTypes, RelationshipSchema
+    from .schema import AttributeSchemaAPI, MainSchemaTypesAPI, RelationshipSchemaAPI
 
 # pylint: disable=too-many-lines
 
@@ -46,7 +46,7 @@ ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
 class Attribute:
     """Represents an attribute of a Node, including its schema, value, and properties."""
 
-    def __init__(self, name: str, schema: AttributeSchema, data: Union[Any, dict]):
+    def __init__(self, name: str, schema: AttributeSchemaAPI, data: Union[Any, dict]):
         """
         Args:
             name (str): The name of the attribute.
@@ -143,7 +143,7 @@ class Attribute:
 class RelatedNodeBase:
     """Base class for representing a related node in a relationship."""
 
-    def __init__(self, branch: str, schema: RelationshipSchema, data: Union[Any, dict], name: Optional[str] = None):
+    def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Union[Any, dict], name: Optional[str] = None):
         """
         Args:
             branch (str): The branch where the related node resides.
@@ -300,7 +300,7 @@ class RelatedNode(RelatedNodeBase):
         self,
         client: InfrahubClient,
         branch: str,
-        schema: RelationshipSchema,
+        schema: RelationshipSchemaAPI,
         data: Union[Any, dict],
         name: Optional[str] = None,
     ):
@@ -347,7 +347,7 @@ class RelatedNodeSync(RelatedNodeBase):
         self,
         client: InfrahubClientSync,
         branch: str,
-        schema: RelationshipSchema,
+        schema: RelationshipSchemaAPI,
         data: Union[Any, dict],
         name: Optional[str] = None,
     ):
@@ -390,7 +390,7 @@ class RelatedNodeSync(RelatedNodeBase):
 class RelationshipManagerBase:
     """Base class for RelationshipManager and RelationshipManagerSync"""
 
-    def __init__(self, name: str, branch: str, schema: RelationshipSchema):
+    def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI):
         """
         Args:
             name (str): The name of the relationship.
@@ -473,7 +473,7 @@ class RelationshipManager(RelationshipManagerBase):
         client: InfrahubClient,
         node: InfrahubNode,
         branch: str,
-        schema: RelationshipSchema,
+        schema: RelationshipSchemaAPI,
         data: Union[Any, dict],
     ):
         """
@@ -568,7 +568,7 @@ class RelationshipManagerSync(RelationshipManagerBase):
         client: InfrahubClientSync,
         node: InfrahubNodeSync,
         branch: str,
-        schema: RelationshipSchema,
+        schema: RelationshipSchemaAPI,
         data: Union[Any, dict],
     ):
         """
@@ -657,12 +657,12 @@ class RelationshipManagerSync(RelationshipManagerBase):
 class InfrahubNodeBase:
     """Base class for InfrahubNode and InfrahubNodeSync"""
 
-    def __init__(self, schema: MainSchemaTypes, branch: str, data: Optional[dict] = None) -> None:
+    def __init__(self, schema: MainSchemaTypesAPI, branch: str, data: Optional[dict] = None) -> None:
         """
         Args:
-            schema (MainSchemaTypes): The schema of the node.
-            branch (str): The branch where the node resides.
-            data (Optional[dict]): Optional data to initialize the node.
+            schema: The schema of the node.
+            branch: The branch where the node resides.
+            data: Optional data to initialize the node.
         """
         self._schema = schema
         self._data = data
@@ -1035,16 +1035,16 @@ class InfrahubNode(InfrahubNodeBase):
     def __init__(
         self,
         client: InfrahubClient,
-        schema: MainSchemaTypes,
+        schema: MainSchemaTypesAPI,
         branch: Optional[str] = None,
         data: Optional[dict] = None,
     ) -> None:
         """
         Args:
-            client (InfrahubClient): The client used to interact with the backend.
-            schema (MainSchemaTypes): The schema of the node.
-            branch (Optional[str]): The branch where the node resides.
-            data (Optional[dict]): Optional data to initialize the node.
+            client: The client used to interact with the backend.
+            schema: The schema of the node.
+            branch: The branch where the node resides.
+            data: Optional data to initialize the node.
         """
         self._client = client
         self.__class__ = type(f"{schema.kind}InfrahubNode", (self.__class__,), {})
@@ -1060,7 +1060,7 @@ class InfrahubNode(InfrahubNodeBase):
         client: InfrahubClient,
         branch: str,
         data: dict,
-        schema: Optional[MainSchemaTypes] = None,
+        schema: Optional[MainSchemaTypesAPI] = None,
         timeout: Optional[int] = None,
     ) -> Self:
         if not schema:
@@ -1146,7 +1146,7 @@ class InfrahubNode(InfrahubNodeBase):
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
 
-        if not isinstance(self._schema, GenericSchema):
+        if not isinstance(self._schema, GenericSchemaAPI):
             if "CoreGroup" in self._schema.inherit_from:
                 await self._client.group_context.add_related_groups(
                     ids=[self.id], update_group_context=update_group_context
@@ -1183,7 +1183,7 @@ class InfrahubNode(InfrahubNodeBase):
             )
         )
 
-        if isinstance(self._schema, GenericSchema) and fragment:
+        if isinstance(self._schema, GenericSchemaAPI) and fragment:
             for child in self._schema.used_by:
                 child_schema = await self._client.schema.get(kind=child)
                 child_node = InfrahubNode(client=self._client, schema=child_schema)
@@ -1341,7 +1341,7 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             # Process allocated resource from a pool and update attribute
-            attr.value = object_response[attr_name]
+            attr.value = object_response[attr_name]["value"]
 
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1540,7 +1540,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def __init__(
         self,
         client: InfrahubClientSync,
-        schema: MainSchemaTypes,
+        schema: MainSchemaTypesAPI,
         branch: Optional[str] = None,
         data: Optional[dict] = None,
     ) -> None:
@@ -1565,7 +1565,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         client: InfrahubClientSync,
         branch: str,
         data: dict,
-        schema: Optional[MainSchemaTypes] = None,
+        schema: Optional[MainSchemaTypesAPI] = None,
         timeout: Optional[int] = None,
     ) -> Self:
         if not schema:
@@ -1648,7 +1648,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
 
-        if not isinstance(self._schema, GenericSchema):
+        if not isinstance(self._schema, GenericSchemaAPI):
             if "CoreGroup" in self._schema.inherit_from:
                 self._client.group_context.add_related_groups(ids=[self.id], update_group_context=update_group_context)
             else:
@@ -1681,7 +1681,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             )
         )
 
-        if isinstance(self._schema, GenericSchema) and fragment:
+        if isinstance(self._schema, GenericSchemaAPI) and fragment:
             for child in self._schema.used_by:
                 child_schema = self._client.schema.get(kind=child)
                 child_node = InfrahubNodeSync(client=self._client, schema=child_schema)

@@ -17,7 +17,7 @@ from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.repository import get_repository_config
 from ..ctl.utils import catch_exception, execute_graphql_query
 from ..exceptions import ModuleImportError
-from ..schema import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
+from ..schema.repository import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
 
 app = typer.Typer()
 console = Console()

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from . import InfrahubClient
-    from .schema import InfrahubPythonTransformConfig
+    from .schema.repository import InfrahubPythonTransformConfig
 
 INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
 

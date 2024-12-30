@@ -1,6 +1,6 @@
 from rich.console import Console
 
-from ..schema import InfrahubRepositoryConfig
+from ..schema.repository import InfrahubRepositoryConfig
 
 
 def list_transforms(config: InfrahubRepositoryConfig) -> None:

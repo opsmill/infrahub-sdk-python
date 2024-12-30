@@ -38,11 +38,8 @@ from ..ctl.utils import (
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
 from ..jinja2 import identify_faulty_jinja_code
-from ..schema import (
-    InfrahubRepositoryConfig,
-    MainSchemaTypes,
-    SchemaRoot,
-)
+from ..schema import MainSchemaTypesAll, SchemaRoot
+from ..schema.repository import InfrahubRepositoryConfig
 from ..utils import get_branch, write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
@@ -364,7 +361,7 @@ def protocols(
 ) -> None:
     """Export Python protocols corresponding to a schema."""
 
-    schema: dict[str, MainSchemaTypes] = {}
+    schema: dict[str, MainSchemaTypesAll] = {}
 
     if schemas:
         schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)

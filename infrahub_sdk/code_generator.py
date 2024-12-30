@@ -1,17 +1,19 @@
 from collections.abc import Mapping
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import jinja2
 
 from . import protocols as sdk_protocols
 from .ctl.constants import PROTOCOLS_TEMPLATE
 from .schema import (
-    AttributeSchema,
+    AttributeSchemaAPI,
     GenericSchema,
-    MainSchemaTypes,
+    GenericSchemaAPI,
+    MainSchemaTypesAll,
     NodeSchema,
-    ProfileSchema,
-    RelationshipSchema,
+    NodeSchemaAPI,
+    ProfileSchemaAPI,
+    RelationshipSchemaAPI,
 )
 
 ATTRIBUTE_KIND_MAP = {
@@ -40,17 +42,17 @@ ATTRIBUTE_KIND_MAP = {
 
 
 class CodeGenerator:
-    def __init__(self, schema: dict[str, MainSchemaTypes]):
-        self.generics: dict[str, GenericSchema] = {}
-        self.nodes: dict[str, NodeSchema] = {}
-        self.profiles: dict[str, ProfileSchema] = {}
+    def __init__(self, schema: dict[str, MainSchemaTypesAll]):
+        self.generics: dict[str, Union[GenericSchemaAPI, GenericSchema]] = {}
+        self.nodes: dict[str, Union[NodeSchemaAPI, NodeSchema]] = {}
+        self.profiles: dict[str, ProfileSchemaAPI] = {}
 
         for name, schema_type in schema.items():
-            if isinstance(schema_type, GenericSchema):
+            if isinstance(schema_type, (GenericSchemaAPI, GenericSchema)):
                 self.generics[name] = schema_type
-            if isinstance(schema_type, NodeSchema):
+            if isinstance(schema_type, (NodeSchemaAPI, NodeSchema)):
                 self.nodes[name] = schema_type
-            if isinstance(schema_type, ProfileSchema):
+            if isinstance(schema_type, ProfileSchemaAPI):
                 self.profiles[name] = schema_type
 
         self.base_protocols = [
@@ -92,7 +94,7 @@ class CodeGenerator:
         return ", ".join(inherit_from)
 
     @staticmethod
-    def _jinja2_filter_render_attribute(value: AttributeSchema) -> str:
+    def _jinja2_filter_render_attribute(value: AttributeSchemaAPI) -> str:
         attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
         if value.optional:
@@ -101,7 +103,7 @@ class CodeGenerator:
         return f"{value.name}: {attribute_kind}"
 
     @staticmethod
-    def _jinja2_filter_render_relationship(value: RelationshipSchema, sync: bool = False) -> str:
+    def _jinja2_filter_render_relationship(value: RelationshipSchemaAPI, sync: bool = False) -> str:
         name = value.name
         cardinality = value.cardinality
 
@@ -116,12 +118,12 @@ class CodeGenerator:
 
     @staticmethod
     def _sort_and_filter_models(
-        models: Mapping[str, MainSchemaTypes], filters: Optional[list[str]] = None
-    ) -> list[MainSchemaTypes]:
+        models: Mapping[str, MainSchemaTypesAll], filters: Optional[list[str]] = None
+    ) -> list[MainSchemaTypesAll]:
         if filters is None:
             filters = ["CoreNode"]
 
-        filtered: list[MainSchemaTypes] = []
+        filtered: list[MainSchemaTypesAll] = []
         for name, model in models.items():
             if name in filters:
                 continue
