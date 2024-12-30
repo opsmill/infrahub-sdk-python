@@ -16,6 +16,13 @@ module_mtime_cache: dict[str, float] = {}
 def import_module(
     module_path: Path, import_root: Optional[str] = None, relative_path: Optional[str] = None
 ) -> ModuleType:
+    """Imports a python module.
+
+    Args:
+        module_path (Path): Absolute path of the module to import.
+        import_root (Optional[str]): Absolute string path to the current repository.
+        relative_path (Optional[str]): Relative string path between module_path and import_root.
+    """
     import_root = import_root or str(module_path.parent)
 
     file_on_disk = module_path
