@@ -13,7 +13,7 @@ from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, Schema
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
     def infrahub_version(self) -> str:
-        return "local"
+        return "1.0.10"
 
     @pytest.fixture(scope="class")
     async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
