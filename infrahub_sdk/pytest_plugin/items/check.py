@@ -37,9 +37,11 @@ class InfrahubCheckItem(InfrahubItem):
             str(self.resource_config.file_path.parent) if self.resource_config.file_path.parent != Path() else None  # type: ignore[attr-defined]
         )
 
-        self.check_instance = self.resource_config.load_class(  # type: ignore[attr-defined]
+        check_class = self.resource_config.load_class(  # type: ignore[attr-defined]
             import_root=self.repository_base, relative_path=relative_path
         )
+        client = self.session.infrahub_client  # type: ignore[attr-defined]
+        self.check_instance = check_class(branch=client.default_branch, client=client)
 
     def run_check(self, variables: dict[str, Any]) -> Any:
         self.instantiate_check()
