@@ -123,13 +123,16 @@ class Attribute:
 
         return {"data": data, "variables": variables}
 
-    def _generate_query_data(self) -> dict | None:
-        data: dict[str, Any] = {"value": None, "is_default": None, "is_from_profile": None}
+    def _generate_query_data(self, property: bool = False) -> dict | None:
+        data: dict[str, Any] = {"value": None}
 
-        for prop_name in self._properties_flag:
-            data[prop_name] = None
-        for prop_name in self._properties_object:
-            data[prop_name] = {"id": None, "display_label": None, "__typename": None}
+        if property:
+            data.update({"is_default": None, "is_from_profile": None})
+
+            for prop_name in self._properties_flag:
+                data[prop_name] = None
+            for prop_name in self._properties_object:
+                data[prop_name] = {"id": None, "display_label": None, "__typename": None}
 
         return data
 
@@ -266,7 +269,7 @@ class RelatedNodeBase:
         return {}
 
     @classmethod
-    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None) -> dict:
+    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None, property: bool = False) -> dict:
         """Generates the basic structure of a GraphQL query for a single relationship.
 
         Args:
@@ -278,12 +281,13 @@ class RelatedNodeBase:
                 and typename. The method also includes additional properties and any peer_data provided.
         """
         data: dict[str, Any] = {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}}
-
         properties: dict[str, Any] = {}
-        for prop_name in PROPERTIES_FLAG:
-            properties[prop_name] = None
-        for prop_name in PROPERTIES_OBJECT:
-            properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
+
+        if property:
+            for prop_name in PROPERTIES_FLAG:
+                properties[prop_name] = None
+            for prop_name in PROPERTIES_OBJECT:
+                properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
 
         if properties:
             data["properties"] = properties
@@ -433,7 +437,7 @@ class RelationshipManagerBase:
         return {}
 
     @classmethod
-    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None) -> dict:
+    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None, property: bool = False) -> dict:
         """Generates the basic structure of a GraphQL query for relationships with multiple nodes.
 
         Args:
@@ -451,10 +455,11 @@ class RelationshipManagerBase:
         }
 
         properties: dict[str, Any] = {}
-        for prop_name in PROPERTIES_FLAG:
-            properties[prop_name] = None
-        for prop_name in PROPERTIES_OBJECT:
-            properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
+        if property:
+            for prop_name in PROPERTIES_FLAG:
+                properties[prop_name] = None
+            for prop_name in PROPERTIES_OBJECT:
+                properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
 
         if properties:
             data["edges"]["properties"] = properties
@@ -1170,6 +1175,7 @@ class InfrahubNode(InfrahubNodeBase):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
             filters=filters, offset=offset, limit=limit, include=include, exclude=exclude, partial_match=partial_match
@@ -1180,6 +1186,7 @@ class InfrahubNode(InfrahubNodeBase):
                 exclude=exclude,
                 prefetch_relationships=prefetch_relationships,
                 inherited=True,
+                property=property,
             )
         )
 
@@ -1202,6 +1209,7 @@ class InfrahubNode(InfrahubNodeBase):
                     prefetch_relationships=prefetch_relationships,
                     inherited=False,
                     insert_alias=True,
+                    property=property,
                 )
 
                 if child_data:
@@ -1216,6 +1224,7 @@ class InfrahubNode(InfrahubNodeBase):
         inherited: bool = True,
         insert_alias: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -1243,7 +1252,7 @@ class InfrahubNode(InfrahubNodeBase):
             if not inherited and attr._schema.inherited:
                 continue
 
-            attr_data = attr._generate_query_data()
+            attr_data = attr._generate_query_data(property=property)
             if attr_data:
                 data[attr_name] = attr_data
                 if insert_alias:
@@ -1272,10 +1281,14 @@ class InfrahubNode(InfrahubNodeBase):
             if rel_schema and prefetch_relationships:
                 peer_schema = await self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
-                peer_data = await peer_node.generate_query_data_node(include=include, exclude=exclude)
+                peer_data = await peer_node.generate_query_data_node(
+                    include=include,
+                    exclude=exclude,
+                    property=property,
+                )
 
             if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNode._generate_query_data(peer_data=peer_data)
+                rel_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
                 # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
                 # tries to resolve attributes in this ancestor instead of actual node. To avoid
                 # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
@@ -1285,7 +1298,7 @@ class InfrahubNode(InfrahubNodeBase):
                     rel_data["node"] = {}
                     rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManager._generate_query_data(peer_data=peer_data)
+                rel_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
 
             data[rel_name] = rel_data
 
@@ -1668,6 +1681,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
             filters=filters, offset=offset, limit=limit, include=include, exclude=exclude, partial_match=partial_match
@@ -1678,6 +1692,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 exclude=exclude,
                 prefetch_relationships=prefetch_relationships,
                 inherited=True,
+                property=property,
             )
         )
 
@@ -1699,6 +1714,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     prefetch_relationships=prefetch_relationships,
                     inherited=False,
                     insert_alias=True,
+                    property=property,
                 )
 
                 if child_data:
@@ -1713,6 +1729,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         inherited: bool = True,
         insert_alias: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -1740,7 +1757,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if not inherited and attr._schema.inherited:
                 continue
 
-            attr_data = attr._generate_query_data()
+            attr_data = attr._generate_query_data(property=property)
             if attr_data:
                 data[attr_name] = attr_data
                 if insert_alias:
@@ -1769,10 +1786,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if rel_schema and prefetch_relationships:
                 peer_schema = self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
-                peer_data = peer_node.generate_query_data_node(include=include, exclude=exclude)
+                peer_data = peer_node.generate_query_data_node(include=include, exclude=exclude, property=property)
 
             if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNodeSync._generate_query_data(peer_data=peer_data)
+                rel_data = RelatedNodeSync._generate_query_data(peer_data=peer_data, property=property)
                 # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
                 # tries to resolve attributes in this ancestor instead of actual node. To avoid
                 # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
@@ -1782,7 +1799,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     rel_data["node"] = {}
                     rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data)
+                rel_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
 
             data[rel_name] = rel_data
 

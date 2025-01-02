@@ -331,6 +331,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -349,6 +350,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -367,6 +369,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -385,6 +388,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -403,6 +407,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -421,6 +426,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -438,6 +444,7 @@ class InfrahubClient(BaseClient):
         populate_store: bool = False,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
@@ -470,6 +477,7 @@ class InfrahubClient(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
             **filters,
         )
 
@@ -533,6 +541,7 @@ class InfrahubClient(BaseClient):
         exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -549,6 +558,7 @@ class InfrahubClient(BaseClient):
         exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -564,6 +574,7 @@ class InfrahubClient(BaseClient):
         exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -595,6 +606,7 @@ class InfrahubClient(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
         )
 
     @overload
@@ -612,6 +624,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -630,6 +643,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -647,6 +661,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -696,6 +711,7 @@ class InfrahubClient(BaseClient):
                 fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
+                # property=property,
             )
             query = Query(query=query_data)
             response = await self.execute_graphql(
@@ -1549,6 +1565,7 @@ class InfrahubClientSync(BaseClient):
         exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -1565,6 +1582,7 @@ class InfrahubClientSync(BaseClient):
         exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -1580,6 +1598,7 @@ class InfrahubClientSync(BaseClient):
         exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -1611,6 +1630,7 @@ class InfrahubClientSync(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
         )
 
     def _process_nodes_and_relationships(
@@ -1663,6 +1683,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -1681,6 +1702,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -1698,6 +1720,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1747,6 +1770,7 @@ class InfrahubClientSync(BaseClient):
                 fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
+                property=property,
             )
             query = Query(query=query_data)
             response = self.execute_graphql(
@@ -1799,6 +1823,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -1817,6 +1842,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -1835,6 +1861,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -1853,6 +1880,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -1871,6 +1899,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -1889,6 +1918,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -1906,6 +1936,7 @@ class InfrahubClientSync(BaseClient):
         populate_store: bool = False,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
@@ -1938,6 +1969,7 @@ class InfrahubClientSync(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
             **filters,
         )
 
