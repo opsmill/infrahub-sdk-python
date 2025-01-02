@@ -40,7 +40,8 @@ class InfrahubPythonTransformItem(InfrahubItem):
             import_root=self.repository_base, relative_path=relative_path
         )
         client = self.session.infrahub_client  # type: ignore[attr-defined]
-        self.transform_instance = transform_class(branch=client.default_branch, client=client)
+        # TODO: Look into seeing how a transform class may use the branch, but set as a empty string for the time being to keep current behaviour
+        self.transform_instance = transform_class(branch="", client=client)
 
     def run_transform(self, variables: dict[str, Any]) -> Any:
         self.instantiate_transform()
