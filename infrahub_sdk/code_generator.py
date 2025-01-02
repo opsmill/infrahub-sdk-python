@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import Any, Optional, Union
+from typing import Any
 
 import jinja2
 
@@ -43,8 +45,8 @@ ATTRIBUTE_KIND_MAP = {
 
 class CodeGenerator:
     def __init__(self, schema: dict[str, MainSchemaTypesAll]):
-        self.generics: dict[str, Union[GenericSchemaAPI, GenericSchema]] = {}
-        self.nodes: dict[str, Union[NodeSchemaAPI, NodeSchema]] = {}
+        self.generics: dict[str, GenericSchemaAPI | GenericSchema] = {}
+        self.nodes: dict[str, NodeSchemaAPI | NodeSchema] = {}
         self.profiles: dict[str, ProfileSchemaAPI] = {}
 
         for name, schema_type in schema.items():
@@ -118,7 +120,7 @@ class CodeGenerator:
 
     @staticmethod
     def _sort_and_filter_models(
-        models: Mapping[str, MainSchemaTypesAll], filters: Optional[list[str]] = None
+        models: Mapping[str, MainSchemaTypesAll], filters: list[str] | None = None
     ) -> list[MainSchemaTypesAll]:
         if filters is None:
             filters = ["CoreNode"]

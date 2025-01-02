@@ -1,10 +1,14 @@
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
-from ..client import InfrahubClient
-from ..schema import MainSchemaTypesAPI
 from ..yaml import InfrahubFile, InfrahubFileKind
+
+if TYPE_CHECKING:
+    from ..client import InfrahubClient
+    from ..schema import MainSchemaTypesAPI
 
 
 class InfrahubObjectFileData(BaseModel):
@@ -21,9 +25,9 @@ class InfrahubObjectFileData(BaseModel):
         client: InfrahubClient,
         schema: MainSchemaTypesAPI,
         data: dict,
-        context: Optional[dict] = None,
-        branch: Optional[str] = None,
-        default_schema_kind: Optional[str] = None,
+        context: dict | None = None,
+        branch: str | None = None,
+        default_schema_kind: str | None = None,
     ) -> None:
         # First validate of all mandatory fields are present
         for element in schema.mandatory_attribute_names + schema.mandatory_relationship_names:
@@ -113,7 +117,7 @@ class InfrahubObjectFileData(BaseModel):
 
 
 class ObjectFile(InfrahubFile):
-    _spec: Optional[InfrahubObjectFileData] = None
+    _spec: InfrahubObjectFileData | None = None
 
     @property
     def spec(self) -> InfrahubObjectFileData:

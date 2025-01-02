@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from git import Repo
 
@@ -17,7 +17,7 @@ INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
 
 
 class InfrahubTransform:
-    name: Optional[str] = None
+    name: str | None = None
     query: str
     timeout: int = 10
 
@@ -26,7 +26,7 @@ class InfrahubTransform:
         branch: str = "",
         root_directory: str = "",
         server_url: str = "",
-        client: Optional[InfrahubClient] = None,
+        client: InfrahubClient | None = None,
     ):
         self.git: Repo
 
@@ -72,7 +72,7 @@ class InfrahubTransform:
 
         return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name)
 
-    async def run(self, data: Optional[dict] = None) -> Any:
+    async def run(self, data: dict | None = None) -> Any:
         """Execute the transformation after collecting the data from the GraphQL query.
 
         The result of the check is determined based on the presence or not of ERROR log messages.

@@ -171,3 +171,36 @@ jobs:
           codecov --flags python-filler-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ------------------------------------------ Integration Tests  ------------------------------------------
+  integration-tests:
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.files-changed.outputs.python == 'true'
+    needs: ["files-changed", "yaml-lint", "python-lint"]
+    runs-on:
+      group: "huge-runners"
+    timeout-minutes: 30
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Setup environment"
+        run: |
+          pipx install poetry
+          poetry config virtualenvs.prefer-active-python true
+          pip install invoke toml codecov
+      - name: "Install Package"
+        run: "poetry install --all-extras"
+      - name: "Integration Tests"
+        run: "poetry run pytest --cov infrahub_sdk tests/integration/"
+      - name: "Upload coverage to Codecov"
+        run: |
+          codecov --flags integration-tests
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

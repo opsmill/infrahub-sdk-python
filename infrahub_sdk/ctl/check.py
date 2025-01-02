@@ -1,23 +1,27 @@
+from __future__ import annotations
+
 import logging
 import sys
 from asyncio import run as aiorun
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Type
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.logging import RichHandler
 
-from .. import InfrahubClient
-from ..checks import InfrahubCheck
 from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.repository import get_repository_config
 from ..ctl.utils import catch_exception, execute_graphql_query
 from ..exceptions import ModuleImportError
-from ..schema.repository import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
+
+if TYPE_CHECKING:
+    from .. import InfrahubClient
+    from ..checks import InfrahubCheck
+    from ..schema.repository import InfrahubCheckDefinitionConfig, InfrahubRepositoryConfig
 
 app = typer.Typer()
 console = Console()
@@ -26,7 +30,7 @@ console = Console()
 @dataclass
 class CheckModule:
     name: str
-    check_class: Type[InfrahubCheck]
+    check_class: type[InfrahubCheck]
     definition: InfrahubCheckDefinitionConfig
 
 
@@ -46,8 +50,8 @@ def run(
     format_json: bool,
     list_available: bool,
     variables: dict[str, str],
-    name: Optional[str] = None,
-    branch: Optional[str] = None,
+    name: str | None = None,
+    branch: str | None = None,
 ) -> None:
     """Locate and execute all checks under the defined path."""
 
@@ -84,8 +88,8 @@ async def run_check(
     format_json: bool,
     path: str,
     repository_config: InfrahubRepositoryConfig,
-    branch: Optional[str] = None,
-    params: Optional[dict] = None,
+    branch: str | None = None,
+    params: dict | None = None,
 ) -> bool:
     module_name = check_module.name
     output = "stdout" if format_json else None
@@ -131,7 +135,7 @@ async def run_targeted_check(
     path: str,
     repository_config: InfrahubRepositoryConfig,
     variables: dict[str, str],
-    branch: Optional[str] = None,
+    branch: str | None = None,
 ) -> bool:
     filters = {}
     param_value = list(check_module.definition.parameters.values())
@@ -183,7 +187,7 @@ async def run_checks(
     path: str,
     variables: dict[str, str],
     repository_config: InfrahubRepositoryConfig,
-    branch: Optional[str] = None,
+    branch: str | None = None,
 ) -> None:
     log = logging.getLogger("infrahub")
 

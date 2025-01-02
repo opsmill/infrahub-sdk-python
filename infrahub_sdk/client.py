@@ -11,10 +11,8 @@ from typing import (
     Any,
     Callable,
     Literal,
-    Optional,
     TypedDict,
     TypeVar,
-    Union,
     overload,
 )
 from urllib.parse import urlencode
@@ -110,7 +108,7 @@ class BaseClient:
     def __init__(
         self,
         address: str = "",
-        config: Optional[Union[Config, dict[str, Any]]] = None,
+        config: Config | dict[str, Any] | None = None,
     ):
         self.client = None
         self.headers = {"content-type": "application/json"}
@@ -140,7 +138,7 @@ class BaseClient:
 
         self.update_group_context = self.config.update_group_context
         self.identifier = self.config.identifier
-        self.group_context: Union[InfrahubGroupContext, InfrahubGroupContextSync]
+        self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
 
     def _initialize(self) -> None:
@@ -149,7 +147,7 @@ class BaseClient:
     def _record(self, response: httpx.Response) -> None:
         self.config.custom_recorder.record(response)
 
-    def _echo(self, url: str, query: str, variables: Optional[dict] = None) -> None:
+    def _echo(self, url: str, query: str, variables: dict | None = None) -> None:
         if self.config.echo_graphql_queries:
             print(f"URL: {url}")
             print(f"QUERY:\n{query}")
@@ -158,10 +156,10 @@ class BaseClient:
 
     def start_tracking(
         self,
-        identifier: Optional[str] = None,
-        params: Optional[dict[str, Any]] = None,
+        identifier: str | None = None,
+        params: dict[str, Any] | None = None,
         delete_unused_nodes: bool = False,
-        group_type: Optional[str] = None,
+        group_type: str | None = None,
     ) -> Self:
         self.mode = InfrahubClientMode.TRACKING
         identifier = identifier or self.identifier or "python-sdk"
@@ -173,10 +171,10 @@ class BaseClient:
     def set_context_properties(
         self,
         identifier: str,
-        params: Optional[dict[str, str]] = None,
+        params: dict[str, str] | None = None,
         delete_unused_nodes: bool = True,
         reset: bool = True,
-        group_type: Optional[str] = None,
+        group_type: str | None = None,
     ) -> None:
         if reset:
             if isinstance(self, InfrahubClient):
@@ -189,8 +187,8 @@ class BaseClient:
 
     def _graphql_url(
         self,
-        branch_name: Optional[str] = None,
-        at: Optional[Union[str, Timestamp]] = None,
+        branch_name: str | None = None,
+        at: str | Timestamp | None = None,
     ) -> str:
         url = f"{self.config.address}/graphql"
         if branch_name:
@@ -207,10 +205,10 @@ class BaseClient:
     def _build_ip_address_allocation_query(
         self,
         resource_pool_id: str,
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        address_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        address_type: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> Mutation:
         input_data: dict[str, Any] = {"id": resource_pool_id}
 
@@ -233,11 +231,11 @@ class BaseClient:
     def _build_ip_prefix_allocation_query(
         self,
         resource_pool_id: str,
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        member_type: Optional[str] = None,
-        prefix_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        member_type: str | None = None,
+        prefix_type: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> Mutation:
         input_data: dict[str, Any] = {"id": resource_pool_id}
 
@@ -280,8 +278,8 @@ class InfrahubClient(BaseClient):
     async def create(
         self,
         kind: str,
-        data: Optional[dict] = ...,
-        branch: Optional[str] = ...,
+        data: dict | None = ...,
+        branch: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -289,19 +287,19 @@ class InfrahubClient(BaseClient):
     async def create(
         self,
         kind: type[SchemaType],
-        data: Optional[dict] = ...,
-        branch: Optional[str] = ...,
+        data: dict | None = ...,
+        branch: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
     async def create(
         self,
-        kind: Union[str, type[SchemaType]],
-        data: Optional[dict] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaType],
+        data: dict | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         **kwargs: Any,
-    ) -> Union[InfrahubNode, SchemaType]:
+    ) -> InfrahubNode | SchemaType:
         branch = branch or self.default_branch
 
         schema = await self.schema.get(kind=kind, branch=branch, timeout=timeout)
@@ -311,7 +309,7 @@ class InfrahubClient(BaseClient):
 
         return InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
 
-    async def delete(self, kind: Union[str, type[SchemaType]], id: str, branch: Optional[str] = None) -> None:
+    async def delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -323,34 +321,36 @@ class InfrahubClient(BaseClient):
         self,
         kind: type[SchemaType],
         raise_when_missing: Literal[False],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
-    ) -> Optional[SchemaType]: ...
+    ) -> SchemaType | None: ...
 
     @overload
     async def get(
         self,
         kind: type[SchemaType],
         raise_when_missing: Literal[True],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -359,16 +359,17 @@ class InfrahubClient(BaseClient):
         self,
         kind: type[SchemaType],
         raise_when_missing: bool = ...,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -377,34 +378,36 @@ class InfrahubClient(BaseClient):
         self,
         kind: str,
         raise_when_missing: Literal[False],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
-    ) -> Optional[InfrahubNode]: ...
+    ) -> InfrahubNode | None: ...
 
     @overload
     async def get(
         self,
         kind: str,
         raise_when_missing: Literal[True],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -413,35 +416,37 @@ class InfrahubClient(BaseClient):
         self,
         kind: str,
         raise_when_missing: bool = ...,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
     async def get(
         self,
-        kind: Union[str, type[SchemaType]],
+        kind: str | type[SchemaType],
         raise_when_missing: bool = True,
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        id: Optional[str] = None,
-        hfid: Optional[list[str]] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        id: str | None = None,
+        hfid: list[str] | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         populate_store: bool = False,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
         **kwargs: Any,
-    ) -> Union[InfrahubNode, SchemaType, None]:
+    ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -472,6 +477,7 @@ class InfrahubClient(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
             **filters,
         )
 
@@ -490,7 +496,7 @@ class InfrahubClient(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
 
@@ -525,48 +531,51 @@ class InfrahubClient(BaseClient):
     async def all(
         self,
         kind: type[SchemaType],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[SchemaType]: ...
 
     @overload
     async def all(
         self,
         kind: str,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
         self,
-        kind: Union[str, type[SchemaType]],
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaType],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         populate_store: bool = False,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        offset: int | None = None,
+        limit: int | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
-    ) -> Union[list[InfrahubNode], list[SchemaType]]:
+        property: bool = False,
+    ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
         Args:
@@ -597,23 +606,25 @@ class InfrahubClient(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
         )
 
     @overload
     async def filters(
         self,
         kind: type[SchemaType],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -621,36 +632,38 @@ class InfrahubClient(BaseClient):
     async def filters(
         self,
         kind: str,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
     async def filters(
         self,
-        kind: Union[str, type[SchemaType]],
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaType],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         populate_store: bool = False,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        offset: int | None = None,
+        limit: int | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
         **kwargs: Any,
-    ) -> Union[list[InfrahubNode], list[SchemaType]]:
+    ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
 
         Args:
@@ -698,6 +711,7 @@ class InfrahubClient(BaseClient):
                 fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
+                # property=property,
             )
             query = Query(query=query_data)
             response = await self.execute_graphql(
@@ -742,12 +756,12 @@ class InfrahubClient(BaseClient):
     async def execute_graphql(
         self,
         query: str,
-        variables: Optional[dict] = None,
-        branch_name: Optional[str] = None,
-        at: Optional[Union[str, Timestamp]] = None,
-        timeout: Optional[int] = None,
+        variables: dict | None = None,
+        branch_name: str | None = None,
+        at: str | Timestamp | None = None,
+        timeout: int | None = None,
         raise_for_error: bool = True,
-        tracker: Optional[str] = None,
+        tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
         If retry_on_failure is True, the query will retry until the server becomes reacheable.
@@ -769,7 +783,7 @@ class InfrahubClient(BaseClient):
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
-        payload: dict[str, Union[str, dict]] = {"query": query}
+        payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
 
@@ -820,7 +834,7 @@ class InfrahubClient(BaseClient):
 
     @handle_relogin
     async def _post(
-        self, url: str, payload: dict, headers: Optional[dict] = None, timeout: Optional[int] = None
+        self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None
     ) -> httpx.Response:
         """Execute a HTTP POST with HTTPX.
 
@@ -839,7 +853,7 @@ class InfrahubClient(BaseClient):
         )
 
     @handle_relogin
-    async def _get(self, url: str, headers: Optional[dict] = None, timeout: Optional[int] = None) -> httpx.Response:
+    async def _get(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
         """Execute a HTTP GET with HTTPX.
 
         Raises:
@@ -857,20 +871,20 @@ class InfrahubClient(BaseClient):
         )
 
     async def _request(
-        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: Optional[dict] = None
+        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
         response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
 
     async def _default_request_method(
-        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: Optional[dict] = None
+        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
         params: dict[str, Any] = {}
         if payload:
             params["json"] = payload
 
-        proxy_config: dict[str, Union[str, dict[str, httpx.HTTPTransport]]] = {}
+        proxy_config: dict[str, str | dict[str, httpx.HTTPTransport]] = {}
         if self.config.proxy:
             proxy_config["proxy"] = self.config.proxy
         elif self.config.proxy_mounts.is_set:
@@ -953,14 +967,14 @@ class InfrahubClient(BaseClient):
     async def query_gql_query(
         self,
         name: str,
-        variables: Optional[dict] = None,
+        variables: dict | None = None,
         update_group: bool = False,
-        subscribers: Optional[list[str]] = None,
-        params: Optional[dict] = None,
-        branch_name: Optional[str] = None,
-        at: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        subscribers: list[str] | None = None,
+        params: dict | None = None,
+        branch_name: str | None = None,
+        at: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> dict:
         url = f"{self.address}/api/query/{name}"
@@ -1015,8 +1029,8 @@ class InfrahubClient(BaseClient):
     async def get_diff_summary(
         self,
         branch: str,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
@@ -1045,13 +1059,13 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> SchemaType: ...
 
@@ -1060,28 +1074,28 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[SchemaType]: ...
+    ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
     ) -> SchemaType: ...
 
@@ -1090,13 +1104,13 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> CoreNode: ...
 
@@ -1105,44 +1119,44 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[CoreNode]: ...
+    ) -> CoreNode | None: ...
 
     @overload
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
-    ) -> Optional[CoreNode]: ...
+    ) -> CoreNode | None: ...
 
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Optional[type[SchemaType]] = None,  # pylint: disable=unused-argument
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        address_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        kind: type[SchemaType] | None = None,  # pylint: disable=unused-argument
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        address_type: str | None = None,
+        data: dict[str, Any] | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
-    ) -> Optional[Union[CoreNode, SchemaType]]:
+    ) -> CoreNode | SchemaType | None:
         """Allocate a new IP address by using the provided resource pool.
 
         Args:
@@ -1189,14 +1203,14 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> SchemaType: ...
 
@@ -1205,30 +1219,30 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[SchemaType]: ...
+    ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
         kind: type[SchemaType],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
     ) -> SchemaType: ...
 
@@ -1237,14 +1251,14 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> CoreNode: ...
 
@@ -1253,47 +1267,47 @@ class InfrahubClient(BaseClient):
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[CoreNode]: ...
+    ) -> CoreNode | None: ...
 
     @overload
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
-    ) -> Optional[CoreNode]: ...
+    ) -> CoreNode | None: ...
 
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Optional[type[SchemaType]] = None,  # pylint: disable=unused-argument
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        member_type: Optional[str] = None,
-        prefix_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        kind: type[SchemaType] | None = None,  # pylint: disable=unused-argument
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        member_type: str | None = None,
+        prefix_type: str | None = None,
+        data: dict[str, Any] | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
-    ) -> Optional[Union[CoreNode, SchemaType]]:
+    ) -> CoreNode | SchemaType | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
         Args:
@@ -1337,7 +1351,7 @@ class InfrahubClient(BaseClient):
         return InfrahubBatch(semaphore=self.concurrent_execution_limit, return_exceptions=return_exceptions)
 
     async def get_list_repositories(
-        self, branches: Optional[dict[str, BranchData]] = None, kind: str = "CoreGenericRepository"
+        self, branches: dict[str, BranchData] | None = None, kind: str = "CoreGenericRepository"
     ) -> dict[str, RepositoryData]:
         branches = branches or await self.branch.all()
 
@@ -1392,9 +1406,9 @@ class InfrahubClient(BaseClient):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
             await self.group_context.update_group()
@@ -1417,8 +1431,8 @@ class InfrahubClientSync(BaseClient):
     def create(
         self,
         kind: str,
-        data: Optional[dict] = ...,
-        branch: Optional[str] = ...,
+        data: dict | None = ...,
+        branch: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -1426,19 +1440,19 @@ class InfrahubClientSync(BaseClient):
     def create(
         self,
         kind: type[SchemaTypeSync],
-        data: Optional[dict] = ...,
-        branch: Optional[str] = ...,
+        data: dict | None = ...,
+        branch: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
     def create(
         self,
-        kind: Union[str, type[SchemaTypeSync]],
-        data: Optional[dict] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaTypeSync],
+        data: dict | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         **kwargs: Any,
-    ) -> Union[InfrahubNodeSync, SchemaTypeSync]:
+    ) -> InfrahubNodeSync | SchemaTypeSync:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch, timeout=timeout)
 
@@ -1447,7 +1461,7 @@ class InfrahubClientSync(BaseClient):
 
         return InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
 
-    def delete(self, kind: Union[str, type[SchemaTypeSync]], id: str, branch: Optional[str] = None) -> None:
+    def delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
@@ -1461,12 +1475,12 @@ class InfrahubClientSync(BaseClient):
     def execute_graphql(
         self,
         query: str,
-        variables: Optional[dict] = None,
-        branch_name: Optional[str] = None,
-        at: Optional[Union[str, Timestamp]] = None,
-        timeout: Optional[int] = None,
+        variables: dict | None = None,
+        branch_name: str | None = None,
+        at: str | Timestamp | None = None,
+        timeout: int | None = None,
         raise_for_error: bool = True,
-        tracker: Optional[str] = None,
+        tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
         If retry_on_failure is True, the query will retry until the server becomes reacheable.
@@ -1488,7 +1502,7 @@ class InfrahubClientSync(BaseClient):
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
-        payload: dict[str, Union[str, dict]] = {"query": query}
+        payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
 
@@ -1541,48 +1555,51 @@ class InfrahubClientSync(BaseClient):
     def all(
         self,
         kind: type[SchemaTypeSync],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
     def all(
         self,
         kind: str,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
         self,
-        kind: Union[str, type[SchemaTypeSync]],
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaTypeSync],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         populate_store: bool = False,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        offset: int | None = None,
+        limit: int | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
-    ) -> Union[list[InfrahubNodeSync], list[SchemaTypeSync]]:
+        property: bool = False,
+    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
         Args:
@@ -1613,6 +1630,7 @@ class InfrahubClientSync(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
         )
 
     def _process_nodes_and_relationships(
@@ -1621,7 +1639,7 @@ class InfrahubClientSync(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
 
@@ -1654,17 +1672,18 @@ class InfrahubClientSync(BaseClient):
     def filters(
         self,
         kind: type[SchemaTypeSync],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -1672,36 +1691,38 @@ class InfrahubClientSync(BaseClient):
     def filters(
         self,
         kind: str,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
         populate_store: bool = ...,
-        offset: Optional[int] = ...,
-        limit: Optional[int] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
     def filters(
         self,
-        kind: Union[str, type[SchemaTypeSync]],
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
+        kind: str | type[SchemaTypeSync],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
         populate_store: bool = False,
-        offset: Optional[int] = None,
-        limit: Optional[int] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        offset: int | None = None,
+        limit: int | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         partial_match: bool = False,
+        property: bool = False,
         **kwargs: Any,
-    ) -> Union[list[InfrahubNodeSync], list[SchemaTypeSync]]:
+    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
 
         Args:
@@ -1749,6 +1770,7 @@ class InfrahubClientSync(BaseClient):
                 fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
+                property=property,
             )
             query = Query(query=query_data)
             response = self.execute_graphql(
@@ -1791,34 +1813,36 @@ class InfrahubClientSync(BaseClient):
         self,
         kind: type[SchemaTypeSync],
         raise_when_missing: Literal[False],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
-    ) -> Optional[SchemaTypeSync]: ...
+    ) -> SchemaTypeSync | None: ...
 
     @overload
     def get(
         self,
         kind: type[SchemaTypeSync],
         raise_when_missing: Literal[True],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -1827,16 +1851,17 @@ class InfrahubClientSync(BaseClient):
         self,
         kind: type[SchemaTypeSync],
         raise_when_missing: bool = ...,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -1845,34 +1870,36 @@ class InfrahubClientSync(BaseClient):
         self,
         kind: str,
         raise_when_missing: Literal[False],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
-    ) -> Optional[InfrahubNodeSync]: ...
+    ) -> InfrahubNodeSync | None: ...
 
     @overload
     def get(
         self,
         kind: str,
         raise_when_missing: Literal[True],
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -1881,35 +1908,37 @@ class InfrahubClientSync(BaseClient):
         self,
         kind: str,
         raise_when_missing: bool = ...,
-        at: Optional[Timestamp] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        id: Optional[str] = ...,
-        hfid: Optional[list[str]] = ...,
-        include: Optional[list[str]] = ...,
-        exclude: Optional[list[str]] = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
         populate_store: bool = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
+        property: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
     def get(
         self,
-        kind: Union[str, type[SchemaTypeSync]],
+        kind: str | type[SchemaTypeSync],
         raise_when_missing: bool = True,
-        at: Optional[Timestamp] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        id: Optional[str] = None,
-        hfid: Optional[list[str]] = None,
-        include: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        id: str | None = None,
+        hfid: list[str] | None = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         populate_store: bool = False,
         fragment: bool = False,
         prefetch_relationships: bool = False,
+        property: bool = False,
         **kwargs: Any,
-    ) -> Union[InfrahubNodeSync, SchemaTypeSync, None]:
+    ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
@@ -1940,6 +1969,7 @@ class InfrahubClientSync(BaseClient):
             exclude=exclude,
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
+            property=property,
             **filters,
         )
 
@@ -1963,7 +1993,7 @@ class InfrahubClientSync(BaseClient):
         )
 
     def get_list_repositories(
-        self, branches: Optional[dict[str, BranchData]] = None, kind: str = "CoreGenericRepository"
+        self, branches: dict[str, BranchData] | None = None, kind: str = "CoreGenericRepository"
     ) -> dict[str, RepositoryData]:
         raise NotImplementedError(
             "This method is deprecated in the async client and won't be implemented in the sync client."
@@ -1972,14 +2002,14 @@ class InfrahubClientSync(BaseClient):
     def query_gql_query(
         self,
         name: str,
-        variables: Optional[dict] = None,
+        variables: dict | None = None,
         update_group: bool = False,
-        subscribers: Optional[list[str]] = None,
-        params: Optional[dict] = None,
-        branch_name: Optional[str] = None,
-        at: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        subscribers: list[str] | None = None,
+        params: dict | None = None,
+        branch_name: str | None = None,
+        at: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> dict:
         url = f"{self.address}/api/query/{name}"
@@ -2033,8 +2063,8 @@ class InfrahubClientSync(BaseClient):
     def get_diff_summary(
         self,
         branch: str,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
@@ -2063,13 +2093,13 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> SchemaTypeSync: ...
 
@@ -2078,28 +2108,28 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[SchemaTypeSync]: ...
+    ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
     ) -> SchemaTypeSync: ...
 
@@ -2108,13 +2138,13 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> CoreNodeSync: ...
 
@@ -2123,44 +2153,44 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[CoreNodeSync]: ...
+    ) -> CoreNodeSync | None: ...
 
     @overload
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        address_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        address_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
-    ) -> Optional[CoreNodeSync]: ...
+    ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Optional[type[SchemaTypeSync]] = None,  # pylint: disable=unused-argument
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        address_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        kind: type[SchemaTypeSync] | None = None,  # pylint: disable=unused-argument
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        address_type: str | None = None,
+        data: dict[str, Any] | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
-    ) -> Optional[Union[CoreNodeSync, SchemaTypeSync]]:
+    ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP address by using the provided resource pool.
 
         Args:
@@ -2203,14 +2233,14 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> SchemaTypeSync: ...
 
@@ -2219,30 +2249,30 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[SchemaTypeSync]: ...
+    ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
         kind: type[SchemaTypeSync],
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
     ) -> SchemaTypeSync: ...
 
@@ -2251,14 +2281,14 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[True] = True,
     ) -> CoreNodeSync: ...
 
@@ -2267,47 +2297,47 @@ class InfrahubClientSync(BaseClient):
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: Literal[False] = False,
-    ) -> Optional[CoreNodeSync]: ...
+    ) -> CoreNodeSync | None: ...
 
     @overload
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
         kind: Literal[None] = ...,
-        identifier: Optional[str] = ...,
-        prefix_length: Optional[int] = ...,
-        member_type: Optional[str] = ...,
-        prefix_type: Optional[str] = ...,
-        data: Optional[dict[str, Any]] = ...,
-        branch: Optional[str] = ...,
-        timeout: Optional[int] = ...,
-        tracker: Optional[str] = ...,
+        identifier: str | None = ...,
+        prefix_length: int | None = ...,
+        member_type: str | None = ...,
+        prefix_type: str | None = ...,
+        data: dict[str, Any] | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        tracker: str | None = ...,
         raise_for_error: bool = ...,
-    ) -> Optional[CoreNodeSync]: ...
+    ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Optional[type[SchemaTypeSync]] = None,  # pylint: disable=unused-argument
-        identifier: Optional[str] = None,
-        prefix_length: Optional[int] = None,
-        member_type: Optional[str] = None,
-        prefix_type: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
-        branch: Optional[str] = None,
-        timeout: Optional[int] = None,
-        tracker: Optional[str] = None,
+        kind: type[SchemaTypeSync] | None = None,  # pylint: disable=unused-argument
+        identifier: str | None = None,
+        prefix_length: int | None = None,
+        member_type: str | None = None,
+        prefix_type: str | None = None,
+        data: dict[str, Any] | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
         raise_for_error: bool = True,
-    ) -> Optional[Union[CoreNodeSync, SchemaTypeSync]]:
+    ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
         Args:
@@ -2355,7 +2385,7 @@ class InfrahubClientSync(BaseClient):
         )
 
     @handle_relogin_sync
-    def _get(self, url: str, headers: Optional[dict] = None, timeout: Optional[int] = None) -> httpx.Response:
+    def _get(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
         """Execute a HTTP GET with HTTPX.
 
         Raises:
@@ -2371,9 +2401,7 @@ class InfrahubClientSync(BaseClient):
         return self._request(url=url, method=HTTPMethod.GET, headers=headers, timeout=timeout or self.default_timeout)
 
     @handle_relogin_sync
-    def _post(
-        self, url: str, payload: dict, headers: Optional[dict] = None, timeout: Optional[int] = None
-    ) -> httpx.Response:
+    def _post(self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
         """Execute a HTTP POST with HTTPX.
 
         Raises:
@@ -2391,20 +2419,20 @@ class InfrahubClientSync(BaseClient):
         )
 
     def _request(
-        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: Optional[dict] = None
+        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
         response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
 
     def _default_request_method(
-        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: Optional[dict] = None
+        self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
         params: dict[str, Any] = {}
         if payload:
             params["json"] = payload
 
-        proxy_config: dict[str, Union[str, dict[str, httpx.HTTPTransport]]] = {}
+        proxy_config: dict[str, str | dict[str, httpx.HTTPTransport]] = {}
         if self.config.proxy:
             proxy_config["proxy"] = self.config.proxy
         elif self.config.proxy_mounts.is_set:
@@ -2489,9 +2517,9 @@ class InfrahubClientSync(BaseClient):
 
     def __exit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
             self.group_context.update_group()

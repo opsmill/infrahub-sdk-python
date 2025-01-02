@@ -1,10 +1,16 @@
+import sys
+
+import pytest
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli import app
 
 runner = CliRunner()
 
+requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
+
+@requires_python_310
 def test_main_app():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
