@@ -58,8 +58,6 @@ if TYPE_CHECKING:
     from types import TracebackType
 
 
-# pylint: disable=redefined-builtin  disable=too-many-lines
-
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
 SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
 
@@ -711,7 +709,7 @@ class InfrahubClient(BaseClient):
                 fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
-                # property=property,
+                property=property,
             )
             query = Query(query=query_data)
             response = await self.execute_graphql(
@@ -1147,7 +1145,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType] | None = None,  # pylint: disable=unused-argument
+        kind: type[SchemaType] | None = None,  # noqa: ARG002
         identifier: str | None = None,
         prefix_length: int | None = None,
         address_type: str | None = None,
@@ -1297,7 +1295,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType] | None = None,  # pylint: disable=unused-argument
+        kind: type[SchemaType] | None = None,  # noqa: ARG002
         identifier: str | None = None,
         prefix_length: int | None = None,
         member_type: str | None = None,
@@ -2181,7 +2179,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync] | None = None,  # pylint: disable=unused-argument
+        kind: type[SchemaTypeSync] | None = None,  # noqa: ARG002
         identifier: str | None = None,
         prefix_length: int | None = None,
         address_type: str | None = None,
@@ -2327,7 +2325,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync] | None = None,  # pylint: disable=unused-argument
+        kind: type[SchemaTypeSync] | None = None,  # noqa: ARG002
         identifier: str | None = None,
         prefix_length: int | None = None,
         member_type: str | None = None,

@@ -308,7 +308,7 @@ def transform(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to run the transformation"),
-    debug: bool = False,
+    debug: bool = False,  # noqa: ARG001
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available transforms"),
     out: str = typer.Option(None, help="Path to a file to save the result."),
