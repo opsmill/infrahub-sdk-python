@@ -992,9 +992,7 @@ class InfrahubNodeBase:
             data["@filters"]["limit"] = limit
 
         if include and exclude:
-            in_both, _, _ = compare_lists(include, exclude)
-            if in_both:
-                raise ValueError(f"{in_both} are part of both include and exclude")
+            raise ValueError("include and exclude are exclusive, they shouldn't be used together")
 
         if partial_match:
             data["@filters"]["partial_match"] = True
@@ -1244,7 +1242,7 @@ class InfrahubNode(InfrahubNodeBase):
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
-            if exclude and attr_name in exclude:
+            if (exclude and attr_name in exclude) or (include and attr_name not in include):
                 continue
 
             attr: Attribute = getattr(self, attr_name)
@@ -1262,7 +1260,7 @@ class InfrahubNode(InfrahubNodeBase):
                     data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
-            if exclude and rel_name in exclude:
+            if (exclude and rel_name in exclude) or (include and rel_name not in include):
                 continue
 
             rel_schema = self._schema.get_relationship(name=rel_name)
@@ -1749,7 +1747,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
-            if exclude and attr_name in exclude:
+            if (exclude and attr_name in exclude) or (include and attr_name not in include):
                 continue
 
             attr: Attribute = getattr(self, attr_name)
@@ -1767,7 +1765,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
-            if exclude and rel_name in exclude:
+            if (exclude and rel_name in exclude) or (include and rel_name not in include):
                 continue
 
             rel_schema = self._schema.get_relationship(name=rel_name)

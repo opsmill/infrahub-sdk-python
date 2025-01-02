@@ -991,10 +991,10 @@ async def test_query_data_generic_fragment(clients, mock_schema_query_02, client
 async def test_query_data_include_property(client, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
-        data = await node.generate_query_data(include=["tags"], property=True)
+        data = await node.generate_query_data(include=["name", "type", "tags"], property=True)
     else:
         node = InfrahubNodeSync(client=client, schema=location_schema)
-        data = node.generate_query_data(include=["tags"], property=True)
+        data = node.generate_query_data(include=["name", "type", "tags"], property=True)
 
     assert data == {
         "BuiltinLocation": {
@@ -1007,23 +1007,6 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
                     "hfid": None,
                     "display_label": None,
                     "name": {
-                        "is_default": None,
-                        "is_from_profile": None,
-                        "is_protected": None,
-                        "is_visible": None,
-                        "owner": {
-                            "__typename": None,
-                            "display_label": None,
-                            "id": None,
-                        },
-                        "source": {
-                            "__typename": None,
-                            "display_label": None,
-                            "id": None,
-                        },
-                        "value": None,
-                    },
-                    "description": {
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
@@ -1056,28 +1039,6 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
                             "id": None,
                         },
                         "value": None,
-                    },
-                    "primary_tag": {
-                        "properties": {
-                            "is_protected": None,
-                            "is_visible": None,
-                            "owner": {
-                                "__typename": None,
-                                "display_label": None,
-                                "id": None,
-                            },
-                            "source": {
-                                "__typename": None,
-                                "display_label": None,
-                                "id": None,
-                            },
-                        },
-                        "node": {
-                            "id": None,
-                            "hfid": None,
-                            "display_label": None,
-                            "__typename": None,
-                        },
                     },
                     "tags": {
                         "count": None,
@@ -1113,10 +1074,10 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
 async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type):
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
-        data = await node.generate_query_data(include=["tags"])
+        data = await node.generate_query_data(include=["name", "type", "tags"])
     else:
         node = InfrahubNodeSync(client=client, schema=location_schema)
-        data = node.generate_query_data(include=["tags"])
+        data = node.generate_query_data(include=["name", "type", "tags"])
 
     assert data == {
         "BuiltinLocation": {
@@ -1131,19 +1092,8 @@ async def test_query_data_include(client, location_schema: NodeSchemaAPI, client
                     "name": {
                         "value": None,
                     },
-                    "description": {
-                        "value": None,
-                    },
                     "type": {
                         "value": None,
-                    },
-                    "primary_tag": {
-                        "node": {
-                            "id": None,
-                            "hfid": None,
-                            "display_label": None,
-                            "__typename": None,
-                        },
                     },
                     "tags": {
                         "count": None,
@@ -1249,6 +1199,21 @@ async def test_query_data_exclude(client, location_schema: NodeSchemaAPI, client
             },
         },
     }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_data_include_exclude(client, location_schema: NodeSchemaAPI, client_type):
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema)
+
+        with pytest.raises(ValueError) as exc:
+            await node.generate_query_data(include=["name", "type"], exclude=["description"], property=True)
+        assert "include and exclude are exclusive" in str(exc.value)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema)
+        with pytest.raises(ValueError) as exc:
+            node.generate_query_data(include=["name", "type", "tags"], exclude=["description"], property=True)
+        assert "include and exclude are exclusive" in str(exc.value)
 
 
 @pytest.mark.parametrize("client_type", client_types)
