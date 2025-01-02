@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import ujson
-from rich.console import Console
 from rich.progress import Progress
 
-from ...client import InfrahubClient
 from ...queries import QUERY_RELATIONSHIPS
 from ...schema import MainSchemaTypesAPI, NodeSchemaAPI
 from ..constants import ILLEGAL_NAMESPACES
@@ -15,11 +15,14 @@ from ..exceptions import FileAlreadyExistsError, InvalidNamespaceError
 from .interface import ExporterInterface
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
+    from ...client import InfrahubClient
     from ...node import InfrahubNode
 
 
 class LineDelimitedJSONExporter(ExporterInterface):
-    def __init__(self, client: InfrahubClient, console: Optional[Console] = None):
+    def __init__(self, client: InfrahubClient, console: Console | None = None):
         self.client = client
         self.console = console
 
@@ -96,7 +99,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
 
     # FIXME: Split in smaller functions
     async def export(  # pylint: disable=too-many-branches
-        self, export_directory: Path, namespaces: list[str], branch: str, exclude: Optional[list[str]] = None
+        self, export_directory: Path, namespaces: list[str], branch: str, exclude: list[str] | None = None
     ) -> None:
         illegal_namespaces = set(ILLEGAL_NAMESPACES)
         node_file = export_directory / "nodes.json"

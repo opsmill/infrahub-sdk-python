@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -10,7 +12,9 @@ from ..ctl.repository import get_repository_config
 from ..ctl.utils import execute_graphql_query, parse_cli_vars
 from ..exceptions import ModuleImportError
 from ..node import InfrahubNode
-from ..schema.repository import InfrahubRepositoryConfig
+
+if TYPE_CHECKING:
+    from ..schema.repository import InfrahubRepositoryConfig
 
 
 async def run(
@@ -18,8 +22,8 @@ async def run(
     path: str,
     debug: bool,
     list_available: bool,
-    branch: Optional[str] = None,
-    variables: Optional[list[str]] = None,
+    branch: str | None = None,
+    variables: list[str] | None = None,
 ) -> None:  # pylint: disable=unused-argument
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 

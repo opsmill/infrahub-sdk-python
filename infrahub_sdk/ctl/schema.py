@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 import asyncio
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
 
-from .. import InfrahubClient
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
@@ -16,6 +17,9 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
+
+if TYPE_CHECKING:
+    from .. import InfrahubClient
 
 app = AsyncTyper()
 console = Console()
@@ -93,7 +97,7 @@ def valid_error_path(loc_path: list[Any]) -> bool:
     return len(loc_path) >= 6 and loc_path[0] == "body" and loc_path[1] == "schemas"
 
 
-def get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> Optional[dict]:
+def get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> dict | None:
     if schema_index < len(schemas_data) and node_index < len(schemas_data[schema_index].content["nodes"]):
         return schemas_data[schema_index].content["nodes"][node_index]
     return None

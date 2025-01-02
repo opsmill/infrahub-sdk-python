@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import ujson
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .types import HTTPMethod
 from .utils import generate_request_filename
+
+if TYPE_CHECKING:
+    from .types import HTTPMethod
 
 
 class JSONPlayback(BaseSettings):
@@ -21,7 +25,7 @@ class JSONPlayback(BaseSettings):
         method: HTTPMethod,
         headers: dict[str, Any],
         timeout: int,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> httpx.Response:
         return self._read_request(url=url, method=method, headers=headers, payload=payload, timeout=timeout)
 
@@ -31,7 +35,7 @@ class JSONPlayback(BaseSettings):
         method: HTTPMethod,
         headers: dict[str, Any],
         timeout: int,
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> httpx.Response:
         return self._read_request(url=url, method=method, headers=headers, payload=payload, timeout=timeout)
 
@@ -41,9 +45,9 @@ class JSONPlayback(BaseSettings):
         method: HTTPMethod,
         headers: dict[str, Any],
         timeout: int,  # pylint: disable=unused-argument
-        payload: Optional[dict] = None,
+        payload: dict | None = None,
     ) -> httpx.Response:
-        content: Optional[bytes] = None
+        content: bytes | None = None
         if payload:
             content = str(json.dumps(payload)).encode("UTF-8")
         request = httpx.Request(method=method.value, url=url, headers=headers, content=content)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 import yaml
@@ -53,7 +53,7 @@ ITEMS_MAPPING = {
 
 
 class InfrahubYamlFile(pytest.File):
-    def get_resource_config(self, group: InfrahubTestGroup) -> Optional[Any]:
+    def get_resource_config(self, group: InfrahubTestGroup) -> Any | None:
         """Retrieve the resource configuration to apply to all tests in a group."""
         resource_config_function = CONFIG_MAPPING.get(group.resource)
 

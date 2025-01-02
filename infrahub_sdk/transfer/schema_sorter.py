@@ -1,9 +1,13 @@
-from collections.abc import Sequence
-from typing import Optional
+from __future__ import annotations
 
-from ..schema import NodeSchema
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
 from ..topological_sort import DependencyCycleExistsError, topological_sort
 from .exceptions import SchemaImportError
+
+if TYPE_CHECKING:
+    from ..schema import NodeSchema
 
 
 class InfrahubSchemaTopologicalSorter:
@@ -11,7 +15,7 @@ class InfrahubSchemaTopologicalSorter:
         self,
         schemas: Sequence[NodeSchema],
         required_relationships_only: bool = True,
-        include: Optional[list[str]] = None,
+        include: list[str] | None = None,
     ) -> list[set[str]]:
         relationship_graph: dict[str, set[str]] = {}
         for node_schema in schemas:

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import traceback
 from collections.abc import Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, NoReturn, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar
 
 import pendulum
 import typer
@@ -26,9 +28,11 @@ from ..exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
 )
-from ..schema.repository import InfrahubRepositoryConfig
 from ..yaml import YamlFile
 from .client import initialize_client_sync
+
+if TYPE_CHECKING:
+    from ..schema.repository import InfrahubRepositoryConfig
 
 YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
 T = TypeVar("T")
@@ -71,13 +75,13 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
 
 
 def catch_exception(
-    console: Optional[Console] = None, exit_code: int = 1
-) -> Callable[[Callable[..., T]], Callable[..., Union[T, Coroutine[Any, Any, T]]]]:
+    console: Console | None = None, exit_code: int = 1
+) -> Callable[[Callable[..., T]], Callable[..., T | Coroutine[Any, Any, T]]]:
     """Decorator to handle exception for commands."""
     if not console:
         console = Console()
 
-    def decorator(func: Callable[..., T]) -> Callable[..., Union[T, Coroutine[Any, Any, T]]]:
+    def decorator(func: Callable[..., T]) -> Callable[..., T | Coroutine[Any, Any, T]]:
         if asyncio.iscoroutinefunction(func):
 
             @wraps(func)
@@ -105,7 +109,7 @@ def execute_graphql_query(
     query: str,
     variables_dict: dict[str, Any],
     repository_config: InfrahubRepositoryConfig,
-    branch: Optional[str] = None,
+    branch: str | None = None,
     debug: bool = False,
 ) -> dict:
     console = Console()
@@ -140,14 +144,14 @@ def print_graphql_errors(console: Console, errors: list) -> None:
             console.print(f"[red]{escape(str(error))}")
 
 
-def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
+def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:
     if not variables:
         return {}
 
     return {var.split("=")[0]: var.split("=")[1] for var in variables if "=" in var}
 
 
-def calculate_time_diff(value: str) -> Optional[str]:
+def calculate_time_diff(value: str) -> str | None:
     """Calculate the time in human format between a timedate in string format and now."""
     try:
         time_value = pendulum.parse(value)
@@ -161,7 +165,7 @@ def calculate_time_diff(value: str) -> Optional[str]:
     return time_value.diff_for_humans(other=pendulum.now(), absolute=True)
 
 
-def find_graphql_query(name: str, directory: Union[str, Path] = ".") -> str:
+def find_graphql_query(name: str, directory: str | Path = ".") -> str:
     if isinstance(directory, str):
         directory = Path(directory)
 
