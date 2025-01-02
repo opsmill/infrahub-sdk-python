@@ -174,15 +174,6 @@ jobs:
 
   # ------------------------------------------ Integration Tests  ------------------------------------------
   integration-tests:
-    strategy:
-      matrix:
-        python-version:
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          # Temporarily removed due to pendulum compatibility issues
-          # - "3.13"
     if: |
       always() && !cancelled() &&
       !contains(needs.*.result, 'failure') &&
@@ -195,10 +186,10 @@ jobs:
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
       - name: "Setup environment"
         run: |
           pipx install poetry
@@ -210,6 +201,6 @@ jobs:
         run: "poetry run pytest --cov infrahub_sdk tests/integration/"
       - name: "Upload coverage to Codecov"
         run: |
-          codecov --flags integration-tests-${{ matrix.python-version }}
+          codecov --flags integration-tests
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
