@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field
 from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
-
     from . import InfrahubClient
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"

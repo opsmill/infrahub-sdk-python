@@ -10,7 +10,6 @@ from git import Repo
 from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
-
     from . import InfrahubClient
 
 INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
