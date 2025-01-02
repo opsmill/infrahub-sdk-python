@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import shutil
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from git.repo import Repo
 
-from infrahub_sdk import InfrahubClient
 from infrahub_sdk.graphql import Mutation
 from infrahub_sdk.protocols import CoreGenericRepository
+
+if TYPE_CHECKING:
+    from infrahub_sdk import InfrahubClient
 
 
 # NOTE we shouldn't duplicate this, need to figure out a better solution
@@ -33,7 +37,7 @@ class GitRepo:
 
     type: GitRepoType = GitRepoType.INTEGRATED
 
-    _repo: Optional[Repo] = None
+    _repo: Repo | None = None
     initial_branch: str = "main"
     directories_to_ignore: list[str] = field(default_factory=list)
     remote_directory_name: str = "/remote"
@@ -65,7 +69,7 @@ class GitRepo:
 
         self.repo.git.checkout(self.initial_branch)
 
-    async def add_to_infrahub(self, client: InfrahubClient, branch: Optional[str] = None) -> dict:
+    async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
         input_data = {
             "data": {
                 "name": {"value": self.name},
@@ -84,7 +88,7 @@ class GitRepo:
         )
 
     async def wait_for_sync_to_complete(
-        self, client: InfrahubClient, branch: Optional[str] = None, interval: int = 5, retries: int = 6
+        self, client: InfrahubClient, branch: str | None = None, interval: int = 5, retries: int = 6
     ) -> bool:
         for _ in range(retries):
             repo = await client.get(

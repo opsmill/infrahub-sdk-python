@@ -1,5 +1,6 @@
 """Integration tests for infrahubctl commands."""
 
+import sys
 from unittest import mock
 
 import pytest
@@ -9,6 +10,8 @@ from infrahub_sdk.client import InfrahubClient
 from infrahub_sdk.ctl.cli_commands import app
 
 runner = CliRunner()
+
+requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
 
 @pytest.fixture
@@ -25,6 +28,7 @@ def mock_client() -> mock.Mock:
 class TestInfrahubctlRepository:
     """Groups the 'infrahubctl repository' test cases."""
 
+    @requires_python_310
     def test_repo_no_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -84,6 +88,7 @@ mutation {
             tracker="mutation-repository-create",
         )
 
+    @requires_python_310
     def test_repo_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -145,6 +150,7 @@ mutation {
             tracker="mutation-repository-create",
         )
 
+    @requires_python_310
     def test_repo_readonly_true(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -205,6 +211,7 @@ mutation {
             tracker="mutation-repository-create",
         )
 
+    @requires_python_310
     def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import urlencode
 
 from pydantic import BaseModel
@@ -17,11 +17,11 @@ if TYPE_CHECKING:
 class BranchData(BaseModel):
     id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     sync_with_git: bool
     is_default: bool
     has_schema_changes: bool
-    origin_branch: Optional[str] = None
+    origin_branch: str | None = None
     branched_from: str
 
 
@@ -50,11 +50,11 @@ class InfraHubBranchManagerBase:
     @classmethod
     def generate_diff_data_url(
         cls,
-        client: Union[InfrahubClient, InfrahubClientSync],
+        client: InfrahubClient | InfrahubClientSync,
         branch_name: str,
         branch_only: bool = True,
-        time_from: Optional[str] = None,
-        time_to: Optional[str] = None,
+        time_from: str | None = None,
+        time_to: str | None = None,
     ) -> str:
         """Generate the URL for the diff_data function."""
         url = f"{client.address}/api/diff/data"
@@ -80,7 +80,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: Literal[True] = True,
-        background_execution: Optional[bool] = False,
+        background_execution: bool | None = False,
     ) -> BranchData: ...
 
     @overload
@@ -90,7 +90,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: Literal[False] = False,
-        background_execution: Optional[bool] = False,
+        background_execution: bool | None = False,
     ) -> str: ...
 
     async def create(
@@ -99,8 +99,8 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: bool = True,
-        background_execution: Optional[bool] = False,
-    ) -> Union[BranchData, str]:
+        background_execution: bool | None = False,
+    ) -> BranchData | str:
         if background_execution is not None:
             warnings.warn(
                 "`background_execution` is deprecated, please use `wait_until_completion` instead.",
@@ -206,8 +206,8 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         self,
         branch_name: str,
         branch_only: bool = True,
-        time_from: Optional[str] = None,
-        time_to: Optional[str] = None,
+        time_from: str | None = None,
+        time_to: str | None = None,
     ) -> dict[Any, Any]:
         url = self.generate_diff_data_url(
             client=self.client,
@@ -251,7 +251,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: Literal[True] = True,
-        background_execution: Optional[bool] = False,
+        background_execution: bool | None = False,
     ) -> BranchData: ...
 
     @overload
@@ -261,7 +261,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: Literal[False] = False,
-        background_execution: Optional[bool] = False,
+        background_execution: bool | None = False,
     ) -> str: ...
 
     def create(
@@ -270,8 +270,8 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         sync_with_git: bool = True,
         description: str = "",
         wait_until_completion: bool = True,
-        background_execution: Optional[bool] = False,
-    ) -> Union[BranchData, str]:
+        background_execution: bool | None = False,
+    ) -> BranchData | str:
         if background_execution is not None:
             warnings.warn(
                 "`background_execution` is deprecated, please use `wait_until_completion` instead.",
@@ -313,8 +313,8 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         self,
         branch_name: str,
         branch_only: bool = True,
-        time_from: Optional[str] = None,
-        time_to: Optional[str] = None,
+        time_from: str | None = None,
+        time_to: str | None = None,
     ) -> dict[Any, Any]:
         url = self.generate_diff_data_url(
             client=self.client,

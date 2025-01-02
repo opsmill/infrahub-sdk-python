@@ -50,6 +50,7 @@ toml = { version = "^0.10", optional = true }
 typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
+eval-type-backport = { version = "^0.2.2", python = "~3.9" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -217,16 +218,15 @@ ignore = [
     "CPY",      # flake8-copyright
     "T201",     # use of `print`
     "ISC",      # flake8-implicit-str-concat
+    "COM812",   # missing-trailing-comma
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
     ##################################################################################################
-    "COM",      # flake8-commas
     "ARG",      # flake8-unused-arguments
     "PT",       # flake8-pytest-style
     "PGH",      # pygrep-hooks
     "ERA",      # eradicate commented-out code
-    "FA",       # flake8-future-annotations
     "SLF001",   # flake8-self
     "EM",       # flake8-errmsg
     "TRY",      # tryceratops
@@ -245,7 +245,7 @@ ignore = [
     # like this so that we can reactivate them one by one. Alternatively ignored after further       #
     # investigation if they are deemed to not make sense.                                            #
     ##################################################################################################
-    "B008",    #  Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+    "B008",    # Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
     "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "C408",    # Unnecessary `dict` call (rewrite as a literal)
     "FURB110", # Replace ternary `if` expression with `or` operator
@@ -282,10 +282,7 @@ ignore = [
     "SIM118",  # Use `key in dict` instead of `key in dict.keys)
     "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
     "TCH003",  # Move standard library import `collections.abc.Iterable` into a type-checking block
-    "UP006",   # Use `dict` instead of `Dict` for type annotation
-    "UP007",   # Use X | Y for type annotations
     "UP031",   # Use format specifiers instead of percent format
-    "UP035",   # `typing.Dict` is deprecated, use `dict` instead
 ]
 
 

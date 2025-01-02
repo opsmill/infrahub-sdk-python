@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
@@ -24,15 +26,15 @@ class InfrahubFileData(BaseModel):
     api_version: InfrahubFileApiVersion = Field(InfrahubFileApiVersion.V1, alias="apiVersion")
     kind: InfrahubFileKind
     spec: dict
-    metadata: Optional[dict] = Field(default_factory=dict)
+    metadata: dict | None = Field(default_factory=dict)
 
 
 class LocalFile(BaseModel):
-    identifier: Optional[str] = None
+    identifier: str | None = None
     location: Path
-    content: Optional[dict] = None
+    content: dict | None = None
     valid: bool = True
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class YamlFile(LocalFile):
@@ -77,7 +79,7 @@ class YamlFile(LocalFile):
 
 
 class InfrahubFile(YamlFile):
-    _data: Optional[InfrahubFileData] = None
+    _data: InfrahubFileData | None = None
 
     @property
     def data(self) -> InfrahubFileData:

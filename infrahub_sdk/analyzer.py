@@ -1,4 +1,6 @@
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from graphql import (
     DocumentNode,
@@ -19,23 +21,23 @@ class GraphQLQueryVariable(BaseModel):
     name: str
     type: str
     required: bool = False
-    default_value: Optional[Any] = None
+    default_value: Any | None = None
 
 
 class GraphQLOperation(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
     operation_type: OperationType
 
 
 class GraphQLQueryAnalyzer:
-    def __init__(self, query: str, schema: Optional[GraphQLSchema] = None):
+    def __init__(self, query: str, schema: GraphQLSchema | None = None):
         self.query: str = query
-        self.schema: Optional[GraphQLSchema] = schema
+        self.schema: GraphQLSchema | None = schema
         self.document: DocumentNode = parse(self.query)
-        self._fields: Optional[dict] = None
+        self._fields: dict | None = None
 
     @property
-    def is_valid(self) -> tuple[bool, Optional[list[GraphQLError]]]:
+    def is_valid(self) -> tuple[bool, list[GraphQLError] | None]:
         if self.schema is None:
             return False, [GraphQLError("Schema is not provided")]
 

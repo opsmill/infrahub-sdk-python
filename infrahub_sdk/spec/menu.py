@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .object import InfrahubObjectFileData
@@ -19,7 +19,7 @@ class InfrahubMenuFileData(InfrahubObjectFileData):
 
 
 class MenuFile(InfrahubFile):
-    _spec: Optional[InfrahubMenuFileData] = None
+    _spec: InfrahubMenuFileData | None = None
 
     @property
     def spec(self) -> InfrahubMenuFileData:

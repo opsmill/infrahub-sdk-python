@@ -22,6 +22,8 @@ FIXTURE_BASE_DIR = Path(
     Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
 )
 
+requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
+
 
 def read_fixture(file_name: str, fixture_subdir: str = ".") -> str:
     """Read the contents of a fixture."""
@@ -57,6 +59,7 @@ class TestInfrahubctlTransform:
     """Groups the 'infrahubctl transform' test cases."""
 
     @staticmethod
+    @requires_python_310
     def test_transform_not_exist_in_infrahub_yml(tags_transform_dir: str) -> None:
         """Case transform is not specified in the infrahub.yml file."""
         transform_name = "not_existing_transform"
@@ -66,7 +69,7 @@ class TestInfrahubctlTransform:
             assert output.exit_code == 1
 
     @staticmethod
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+    @requires_python_310
     def test_transform_python_file_not_defined(tags_transform_dir: str) -> None:
         """Case transform python file not defined."""
         # Remove transform file
@@ -81,7 +84,7 @@ class TestInfrahubctlTransform:
             assert output.exit_code == 1
 
     @staticmethod
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+    @requires_python_310
     def test_transform_python_class_not_defined(tags_transform_dir: str) -> None:
         """Case transform python class not defined."""
         # Rename transform inside of python file so the class name searched for no longer exists
@@ -101,7 +104,7 @@ class TestInfrahubctlTransform:
             assert output.exit_code == 1
 
     @staticmethod
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+    @requires_python_310
     def test_gql_query_not_defined(tags_transform_dir: str) -> None:
         """Case GraphQL Query is not defined"""
         # Remove GraphQL Query file
@@ -115,7 +118,7 @@ class TestInfrahubctlTransform:
             assert output.exit_code == 1
 
     @staticmethod
-    @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+    @requires_python_310
     def test_infrahubctl_transform_cmd_success(httpx_mock: HTTPXMock, tags_transform_dir: str) -> None:
         """Case infrahubctl transform command executes successfully"""
         httpx_mock.add_response(
