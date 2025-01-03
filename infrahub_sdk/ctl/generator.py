@@ -64,7 +64,6 @@ async def run(
             infrahub_node=InfrahubNode,
         )
         await generator._init_client.schema.all(branch=generator.branch_name)
-        await generator.process_nodes(data=data)
         await generator.run(identifier=generator_config.name, data=data)
 
     else:
@@ -101,7 +100,6 @@ async def run(
                 repository_config=repository_config,
             )
             await generator._init_client.schema.all(branch=generator.branch_name)
-            await generator.process_nodes(data=data)
             await generator.run(identifier=generator_config.name, data=data)
 
 
