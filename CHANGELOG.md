@@ -11,6 +11,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.4.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.4.0) - 2025-01-03
+
+### Changed
+
+- The inclusion of properties for Attribute and Relationships by default has been disabled when querying nodes from Infrahub.
+  it can be enabled by using the parameter `property` in `client.get|all|filters` method ([#191](https://github.com/opsmill/infrahub-sdk-python/issues/191))
+- Fix an issue with python-transform-unit-process failing to run ([#198](https://github.com/opsmill/infrahub-sdk-python/issues/198))
+- Add processing of nodes when no variable are passed into the command to run generators ([#176](https://github.com/opsmill/infrahub-sdk-python/issues/176))
+
 ## [1.3.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.3.0) - 2024-12-30
 
 ### Added
