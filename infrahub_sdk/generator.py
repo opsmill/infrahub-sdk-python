@@ -97,9 +97,7 @@ class InfrahubGenerator:
             update_group=True,
             subscribers=self.subscribers,
         )
-        unpacked = data.get("data") or data
-        await self.process_nodes(data=unpacked)
-        return data
+        return data.get("data") or data
 
     async def run(self, identifier: str, data: dict | None = None) -> None:
         """Execute the generator after collecting the data from the GraphQL query."""
@@ -107,6 +105,7 @@ class InfrahubGenerator:
         if not data:
             data = await self.collect_data()
         unpacked = data.get("data") or data
+        await self.process_nodes(data=unpacked)
 
         async with self._init_client.start_tracking(
             identifier=identifier, params=self.params, delete_unused_nodes=True, group_type="CoreGeneratorGroup"
