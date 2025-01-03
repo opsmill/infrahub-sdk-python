@@ -1,8 +1,8 @@
-from typing import Optional
+from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .node import InfrahubNode
+from .node import InfrahubNode  # noqa: TCH001
 
 
 class RepositoryBranchInfo(BaseModel):
@@ -18,7 +18,7 @@ class RepositoryData(BaseModel):
 
     branch_info: dict[str, RepositoryBranchInfo] = Field(default_factory=dict)
 
-    def get_staging_branch(self) -> Optional[str]:
+    def get_staging_branch(self) -> str | None:
         for branch, info in self.branch_info.items():  # pylint: disable=no-member
             if info.internal_status == "staging":
                 return branch

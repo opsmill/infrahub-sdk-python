@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import ujson
 from httpx import HTTPStatusError
@@ -36,15 +36,18 @@ class InfrahubPythonTransformItem(InfrahubItem):
         relative_path = (
             str(self.resource_config.file_path.parent) if self.resource_config.file_path.parent != Path() else None  # type: ignore[attr-defined]
         )
-        self.transform_instance = self.resource_config.load_class(  # type: ignore[attr-defined]
+        transform_class = self.resource_config.load_class(  # type: ignore[attr-defined]
             import_root=self.repository_base, relative_path=relative_path
         )
+        client = self.session.infrahub_client  # type: ignore[attr-defined]
+        # TODO: Look into seeing how a transform class may use the branch, but set as a empty string for the time being to keep current behaviour
+        self.transform_instance = transform_class(branch="", client=client)
 
     def run_transform(self, variables: dict[str, Any]) -> Any:
         self.instantiate_transform()
         return asyncio.run(self.transform_instance.run(data=variables))
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: Optional[str] = None) -> str:
+    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
                 response_content = ujson.dumps(excinfo.value.response.json(), indent=4)

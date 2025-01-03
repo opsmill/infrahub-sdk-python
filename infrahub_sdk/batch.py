@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 import asyncio
-from collections.abc import AsyncGenerator, Awaitable
+from collections.abc import AsyncGenerator, Awaitable, Generator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Callable, Generator, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
-from .node import InfrahubNode, InfrahubNodeSync
+if TYPE_CHECKING:
+    from .node import InfrahubNode, InfrahubNodeSync
 
 
 @dataclass
@@ -12,7 +15,7 @@ class BatchTask:
     task: Callable[[Any], Awaitable[Any]]
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
-    node: Optional[Any] = None
+    node: Any | None = None
 
 
 @dataclass
@@ -20,9 +23,9 @@ class BatchTaskSync:
     task: Callable[..., Any]
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
-    node: Optional[InfrahubNodeSync] = None
+    node: InfrahubNodeSync | None = None
 
-    def execute(self, return_exceptions: bool = False) -> tuple[Optional[InfrahubNodeSync], Any]:
+    def execute(self, return_exceptions: bool = False) -> tuple[InfrahubNodeSync | None, Any]:
         """Executes the stored task."""
         result = None
         try:
@@ -37,7 +40,7 @@ class BatchTaskSync:
 
 async def execute_batch_task_in_pool(
     task: BatchTask, semaphore: asyncio.Semaphore, return_exceptions: bool = False
-) -> tuple[Optional[InfrahubNode], Any]:
+) -> tuple[InfrahubNode | None, Any]:
     async with semaphore:
         try:
             result = await task.task(*task.args, **task.kwargs)
@@ -52,7 +55,7 @@ async def execute_batch_task_in_pool(
 class InfrahubBatch:
     def __init__(
         self,
-        semaphore: Optional[asyncio.Semaphore] = None,
+        semaphore: asyncio.Semaphore | None = None,
         max_concurrent_execution: int = 5,
         return_exceptions: bool = False,
     ):
@@ -64,7 +67,7 @@ class InfrahubBatch:
     def num_tasks(self) -> int:
         return len(self._tasks)
 
-    def add(self, *args: Any, task: Callable, node: Optional[Any] = None, **kwargs: Any) -> None:
+    def add(self, *args: Any, task: Callable, node: Any | None = None, **kwargs: Any) -> None:
         self._tasks.append(BatchTask(task=task, node=node, args=args, kwargs=kwargs))
 
     async def execute(self) -> AsyncGenerator:
@@ -96,10 +99,10 @@ class InfrahubBatchSync:
     def num_tasks(self) -> int:
         return len(self._tasks)
 
-    def add(self, *args: Any, task: Callable[..., Any], node: Optional[Any] = None, **kwargs: Any) -> None:
+    def add(self, *args: Any, task: Callable[..., Any], node: Any | None = None, **kwargs: Any) -> None:
         self._tasks.append(BatchTaskSync(task=task, node=node, args=args, kwargs=kwargs))
 
-    def execute(self) -> Generator[tuple[Optional[InfrahubNodeSync], Any], None, None]:
+    def execute(self) -> Generator[tuple[InfrahubNodeSync | None, Any], None, None]:
         with ThreadPoolExecutor(max_workers=self.max_concurrent_execution) as executor:
             futures = [executor.submit(task.execute, return_exceptions=self.return_exceptions) for task in self._tasks]
             for future in futures:

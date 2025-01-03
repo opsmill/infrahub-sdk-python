@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import importlib
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 import jinja2
 import typer
@@ -39,12 +41,14 @@ from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
 from ..jinja2 import identify_faulty_jinja_code
 from ..schema import MainSchemaTypesAll, SchemaRoot
-from ..schema.repository import InfrahubRepositoryConfig
 from ..utils import get_branch, write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
 from .importer import load
 from .parameters import CONFIG_PARAM
+
+if TYPE_CHECKING:
+    from ..schema.repository import InfrahubRepositoryConfig
 
 app = AsyncTyper(pretty_exceptions_show_locals=False)
 
@@ -65,13 +69,13 @@ console = Console()
 @catch_exception(console=console)
 def check(
     check_name: str = typer.Argument(default="", help="Name of the Python check"),
-    branch: Optional[str] = None,
+    branch: str | None = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     format_json: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Python checks"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -93,12 +97,12 @@ def check(
 @catch_exception(console=console)
 async def generator(
     generator_name: str = typer.Argument(default="", help="Name of the Generator"),
-    branch: Optional[str] = None,
+    branch: str | None = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Generators"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -127,7 +131,7 @@ async def run(
         envvar="INFRAHUBCTL_CONCURRENT_EXECUTION",
     ),
     timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUBCTL_TIMEOUT"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -250,7 +254,7 @@ def _run_transform(
 @catch_exception(console=console)
 def render(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to render the transform."),
@@ -300,11 +304,11 @@ def render(
 @catch_exception(console=console)
 def transform(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to run the transformation"),
-    debug: bool = False,
+    debug: bool = False,  # noqa: ARG001
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available transforms"),
     out: str = typer.Option(None, help="Path to a file to save the result."),

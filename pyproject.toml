@@ -1,11 +1,11 @@
 [project]
 name = "infrahub-sdk"
-version = "1.3.0"
+version = "1.4.0"
 requires-python = ">=3.9"
 
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.3.0"
+version = "1.4.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -50,6 +50,7 @@ toml = { version = "^0.10", optional = true }
 typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
+eval-type-backport = { version = "^0.2.2", python = "~3.9" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -115,6 +116,7 @@ no-docstring-rgx = "^(_|test_)"
 # Pylint and Black disagree about how to format multi-line arrays; Black wins.
 # Rules already covered by RUFF
 # - too-many-statements
+# - unused-argument
 disable = """,
     line-too-long,
     missing-module-docstring,
@@ -134,6 +136,7 @@ disable = """,
     import-self,
     wrong-import-order,
     multiple-statements,
+    unused-argument,
     """
 
 [tool.pylint.miscellaneous]
@@ -209,46 +212,41 @@ preview = true
 
 task-tags = ["FIXME", "TODO", "XXX"]
 
-select = [
-    "ANN",   # flake8-annotations
-    "ASYNC", # flake8-async
-    "B",     # flake8-bugbear
-    "C4",    # flake8-comprehensions
-    "C90",   # mccabe complexity
-    "DJ",    # flake8-django
-    "DTZ",   # flake8-datetimez
-    "E",     # pycodestyle errors
-    "EXE",   # flake8-executable
-    "F",     # pyflakes
-    "FURB",  # refurb
-    "I",     # isort-like checks
-    "ICN",   # flake8-import-conventions
-    "INP",   # flake8-no-pep420
-    "N",     # pep8-naming
-    "PERF",  # Perflint
-    "PIE",   # flake8-pie
-    "PL",    # pylint
-    "PTH",   # flake8-use-pathlib
-    "PYI",   # flake8-pyi
-    "Q",     # flake8-quotes
-    "RET",   # flake8-return
-    "RUF",   # Ruff specific rules
-    "S",     # flake8-bandit
-    "SIM",   # flake8-simplify
-    "TCH",   # flake8-type-checking
-    "T10",   # flake8-debugger
-    "UP",    # pyupgrade
-    "W",     # pycodestyle warnings
-    "YTT",   # flake8-2020
-]
+select = ["ALL"]
 
 ignore = [
+    "D",        # pydocstyle
+    "DOC",      # pydoclint
+    "CPY",      # flake8-copyright
+    "T201",     # use of `print`
+    "ISC",      # flake8-implicit-str-concat
+    "COM812",   # missing-trailing-comma
+
+    ##################################################################################################
+    # Rules below needs to be Investigated                                                           #
+    ##################################################################################################
+    "PT",       # flake8-pytest-style
+    "PGH",      # pygrep-hooks
+    "ERA",      # eradicate commented-out code
+    "SLF001",   # flake8-self
+    "EM",       # flake8-errmsg
+    "TRY",      # tryceratops
+    "TD",       # flake8-todos
+    "FIX",      # flake8-fixme
+    "TID",      # flake8-tidy-imports
+    "FBT",      # flake8-boolean-trap
+    "G",        # flake8-logging-format
+    "FLY",      # flynt
+    "RSE",      # flake8-raise
+    "BLE",      # flake8-blind-except (BLE)
+    "A",        # flake8-builtins
+
     ##################################################################################################
     # The ignored rules below should be removed once the code has been updated, they are included    #
     # like this so that we can reactivate them one by one. Alternatively ignored after further       #
     # investigation if they are deemed to not make sense.                                            #
     ##################################################################################################
-    "B008",    #  Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+    "B008",    # Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
     "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "C408",    # Unnecessary `dict` call (rewrite as a literal)
     "FURB110", # Replace ternary `if` expression with `or` operator
@@ -285,10 +283,7 @@ ignore = [
     "SIM118",  # Use `key in dict` instead of `key in dict.keys)
     "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
     "TCH003",  # Move standard library import `collections.abc.Iterable` into a type-checking block
-    "UP006",   # Use `dict` instead of `Dict` for type annotation
-    "UP007",   # Use X | Y for type annotations
     "UP031",   # Use format specifiers instead of percent format
-    "UP035",   # `typing.Dict` is deprecated, use `dict` instead
 ]
 
 
@@ -338,6 +333,8 @@ max-complexity = 17
     "S101",    # Use of assert detected
     "S105",    # Possible hardcoded password assigned to variable
     "S106",    # Possible hardcoded password assigned to argument
+    "ARG001",  # Unused function argument
+    "ARG002",  # Unused method argument
 
     ##################################################################################################
     # Review and change the below later                                                              #

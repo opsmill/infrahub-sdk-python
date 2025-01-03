@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -91,22 +91,22 @@ class RelationshipDeleteBehavior(str, Enum):
 class AttributeSchema(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    id: Optional[str] = None
+    id: str | None = None
     state: SchemaState = SchemaState.PRESENT
     name: str
     kind: AttributeKind
-    label: Optional[str] = None
-    description: Optional[str] = None
-    default_value: Optional[Any] = None
+    label: str | None = None
+    description: str | None = None
+    default_value: Any | None = None
     unique: bool = False
-    branch: Optional[BranchSupportType] = None
+    branch: BranchSupportType | None = None
     optional: bool = False
-    choices: Optional[list[dict[str, Any]]] = None
-    enum: Optional[list[Union[str, int]]] = None
-    max_length: Optional[int] = None
-    min_length: Optional[int] = None
-    regex: Optional[str] = None
-    order_weight: Optional[int] = None
+    choices: list[dict[str, Any]] | None = None
+    enum: list[str | int] | None = None
+    max_length: int | None = None
+    min_length: int | None = None
+    regex: str | None = None
+    order_weight: int | None = None
 
 
 class AttributeSchemaAPI(AttributeSchema):
@@ -120,22 +120,22 @@ class AttributeSchemaAPI(AttributeSchema):
 class RelationshipSchema(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    id: Optional[str] = None
+    id: str | None = None
     state: SchemaState = SchemaState.PRESENT
     name: str
     peer: str
     kind: RelationshipKind = RelationshipKind.GENERIC
-    label: Optional[str] = None
-    description: Optional[str] = None
-    identifier: Optional[str] = None
-    min_count: Optional[int] = None
-    max_count: Optional[int] = None
+    label: str | None = None
+    description: str | None = None
+    identifier: str | None = None
+    min_count: int | None = None
+    max_count: int | None = None
     direction: RelationshipDirection = RelationshipDirection.BIDIR
-    on_delete: Optional[RelationshipDeleteBehavior] = None
+    on_delete: RelationshipDeleteBehavior | None = None
     cardinality: str = "many"
-    branch: Optional[BranchSupportType] = None
+    branch: BranchSupportType | None = None
     optional: bool = True
-    order_weight: Optional[int] = None
+    order_weight: int | None = None
 
 
 class RelationshipSchemaAPI(RelationshipSchema):
@@ -143,7 +143,7 @@ class RelationshipSchemaAPI(RelationshipSchema):
 
     inherited: bool = False
     read_only: bool = False
-    hierarchical: Optional[str] = None
+    hierarchical: str | None = None
     allow_override: AllowOverrideType = AllowOverrideType.ANY
 
 
@@ -156,9 +156,7 @@ class BaseSchemaAttrRelAPI(BaseModel):
     attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
     relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
 
-    def get_field(
-        self, name: str, raise_on_error: bool = True
-    ) -> Union[AttributeSchemaAPI, RelationshipSchemaAPI, None]:
+    def get_field(self, name: str, raise_on_error: bool = True) -> AttributeSchemaAPI | RelationshipSchemaAPI | None:
         if attribute_field := self.get_attribute_or_none(name=name):
             return attribute_field
 
@@ -176,7 +174,7 @@ class BaseSchemaAttrRelAPI(BaseModel):
                 return item
         raise ValueError(f"Unable to find the attribute {name}")
 
-    def get_attribute_or_none(self, name: str) -> Optional[AttributeSchemaAPI]:
+    def get_attribute_or_none(self, name: str) -> AttributeSchemaAPI | None:
         for item in self.attributes:
             if item.name == name:
                 return item
@@ -188,15 +186,13 @@ class BaseSchemaAttrRelAPI(BaseModel):
                 return item
         raise ValueError(f"Unable to find the relationship {name}")
 
-    def get_relationship_or_none(self, name: str) -> Optional[RelationshipSchemaAPI]:
+    def get_relationship_or_none(self, name: str) -> RelationshipSchemaAPI | None:
         for item in self.relationships:
             if item.name == name:
                 return item
         return None
 
-    def get_relationship_by_identifier(
-        self, id: str, raise_on_error: bool = True
-    ) -> Union[RelationshipSchemaAPI, None]:
+    def get_relationship_by_identifier(self, id: str, raise_on_error: bool = True) -> RelationshipSchemaAPI | None:
         for item in self.relationships:
             if item.identifier == id:
                 return item
@@ -255,17 +251,17 @@ class BaseSchemaAttrRelAPI(BaseModel):
 class BaseSchema(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    id: Optional[str] = None
+    id: str | None = None
     state: SchemaState = SchemaState.PRESENT
     name: str
-    label: Optional[str] = None
+    label: str | None = None
     namespace: str
-    description: Optional[str] = None
-    include_in_menu: Optional[bool] = None
-    menu_placement: Optional[str] = None
-    icon: Optional[str] = None
-    uniqueness_constraints: Optional[list[list[str]]] = None
-    documentation: Optional[str] = None
+    description: str | None = None
+    include_in_menu: bool | None = None
+    menu_placement: str | None = None
+    icon: str | None = None
+    uniqueness_constraints: list[list[str]] | None = None
+    documentation: str | None = None
 
     @property
     def kind(self) -> str:
@@ -280,7 +276,7 @@ class GenericSchema(BaseSchema, BaseSchemaAttrRel):
 class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
     """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
 
-    hash: Optional[str] = None
+    hash: str | None = None
     used_by: list[str] = Field(default_factory=list)
 
 
@@ -288,12 +284,12 @@ class BaseNodeSchema(BaseSchema):
     model_config = ConfigDict(use_enum_values=True)
 
     inherit_from: list[str] = Field(default_factory=list)
-    branch: Optional[BranchSupportType] = None
-    default_filter: Optional[str] = None
-    human_friendly_id: Optional[list[str]] = None
-    generate_profile: Optional[bool] = None
-    parent: Optional[str] = None
-    children: Optional[str] = None
+    branch: BranchSupportType | None = None
+    default_filter: str | None = None
+    human_friendly_id: list[str] | None = None
+    generate_profile: bool | None = None
+    parent: str | None = None
+    children: str | None = None
 
 
 class NodeSchema(BaseNodeSchema, BaseSchemaAttrRel):
@@ -302,8 +298,8 @@ class NodeSchema(BaseNodeSchema, BaseSchemaAttrRel):
 
 
 class NodeSchemaAPI(BaseNodeSchema, BaseSchemaAttrRelAPI):
-    hash: Optional[str] = None
-    hierarchy: Optional[str] = None
+    hash: str | None = None
+    hierarchy: str | None = None
 
 
 class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
@@ -313,13 +309,13 @@ class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
 class NodeExtensionSchema(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    name: Optional[str] = None
+    name: str | None = None
     kind: str
-    description: Optional[str] = None
-    label: Optional[str] = None
+    description: str | None = None
+    label: str | None = None
     inherit_from: list[str] = Field(default_factory=list)
-    branch: Optional[BranchSupportType] = None
-    default_filter: Optional[str] = None
+    branch: BranchSupportType | None = None
+    default_filter: str | None = None
     attributes: list[AttributeSchema] = Field(default_factory=list)
     relationships: list[RelationshipSchema] = Field(default_factory=list)
 

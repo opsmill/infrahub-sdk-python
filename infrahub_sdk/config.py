@@ -1,4 +1,6 @@
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,13 +15,13 @@ from .utils import get_branch, is_valid_url
 
 class ProxyMountsConfig(BaseSettings):
     model_config = SettingsConfigDict(populate_by_name=True)
-    http: Optional[str] = Field(
+    http: str | None = Field(
         default=None,
         description="Proxy for HTTP requests",
         alias="http://",
         validation_alias="INFRAHUB_PROXY_MOUNTS_HTTP",
     )
-    https: Optional[str] = Field(
+    https: str | None = Field(
         default=None,
         description="Proxy for HTTPS requests",
         alias="https://",
@@ -34,12 +36,12 @@ class ProxyMountsConfig(BaseSettings):
 class ConfigBase(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="INFRAHUB_", validate_assignment=True)
     address: str = Field(default="http://localhost:8000", description="The URL to use when connecting to Infrahub.")
-    api_token: Optional[str] = Field(default=None, description="API token for authentication against Infrahub.")
+    api_token: str | None = Field(default=None, description="API token for authentication against Infrahub.")
     echo_graphql_queries: bool = Field(
         default=False, description="If set the GraphQL query and variables will be echoed to the screen"
     )
-    username: Optional[str] = Field(default=None, description="Username for accessing Infrahub", min_length=1)
-    password: Optional[str] = Field(default=None, description="Password for accessing Infrahub", min_length=1)
+    username: str | None = Field(default=None, description="Username for accessing Infrahub", min_length=1)
+    password: str | None = Field(default=None, description="Password for accessing Infrahub", min_length=1)
     default_branch: str = Field(
         default="main", description="Default branch to target if not specified for each request."
     )
@@ -47,7 +49,7 @@ class ConfigBase(BaseSettings):
         default=False,
         description="Indicates if the default Infrahub branch to target should come from the active branch in the local Git repository.",
     )
-    identifier: Optional[str] = Field(default=None, description="Tracker identifier")
+    identifier: str | None = Field(default=None, description="Tracker identifier")
     insert_tracker: bool = Field(default=False, description="Insert a tracker on queries to the server")
     max_concurrent_execution: int = Field(default=5, description="Max concurrent execution in batch mode")
     mode: InfrahubClientMode = Field(default=InfrahubClientMode.DEFAULT, description="Default mode for the client")
@@ -61,7 +63,7 @@ class ConfigBase(BaseSettings):
     transport: RequesterTransport = Field(
         default=RequesterTransport.HTTPX, description="Set an alternate transport using a predefined option"
     )
-    proxy: Optional[str] = Field(default=None, description="Proxy address")
+    proxy: str | None = Field(default=None, description="Proxy address")
     proxy_mounts: ProxyMountsConfig = Field(default=ProxyMountsConfig(), description="Proxy mounts configuration")
     update_group_context: bool = Field(default=False, description="Update GraphQL query groups")
     tls_insecure: bool = Field(
@@ -71,7 +73,7 @@ class ConfigBase(BaseSettings):
     Enabling this option will disable: CA verification, expiry date verification, hostname verification).
     Can be useful to test with self-signed certificates.""",
     )
-    tls_ca_file: Optional[str] = Field(default=None, description="File path to CA cert or bundle in PEM format")
+    tls_ca_file: str | None = Field(default=None, description="File path to CA cert or bundle in PEM format")
 
     @model_validator(mode="before")
     @classmethod
@@ -117,7 +119,7 @@ class ConfigBase(BaseSettings):
 
     @property
     def default_infrahub_branch(self) -> str:
-        branch: Optional[str] = None
+        branch: str | None = None
         if not self.default_branch_from_git:
             branch = self.default_branch
 
@@ -133,9 +135,9 @@ class Config(ConfigBase):
     custom_recorder: Recorder = Field(
         default_factory=NoRecorder.default, description="Provides a way to record responses from the Infrahub API"
     )
-    requester: Optional[AsyncRequester] = None
-    sync_requester: Optional[SyncRequester] = None
-    log: Optional[Any] = None
+    requester: AsyncRequester | None = None
+    sync_requester: SyncRequester | None = None
+    log: Any | None = None
 
     @property
     def logger(self) -> InfrahubLoggers:

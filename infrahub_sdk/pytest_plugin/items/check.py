@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import ujson
 from httpx import HTTPStatusError
@@ -37,15 +37,16 @@ class InfrahubCheckItem(InfrahubItem):
             str(self.resource_config.file_path.parent) if self.resource_config.file_path.parent != Path() else None  # type: ignore[attr-defined]
         )
 
-        self.check_instance = self.resource_config.load_class(  # type: ignore[attr-defined]
+        check_class = self.resource_config.load_class(  # type: ignore[attr-defined]
             import_root=self.repository_base, relative_path=relative_path
         )
+        self.check_instance = check_class()
 
     def run_check(self, variables: dict[str, Any]) -> Any:
         self.instantiate_check()
         return asyncio.run(self.check_instance.run(data=variables))
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: Optional[str] = None) -> str:
+    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
                 response_content = ujson.dumps(excinfo.value.response.json(), indent=4)

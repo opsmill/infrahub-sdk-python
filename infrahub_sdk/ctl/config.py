@@ -1,7 +1,8 @@
 """Config Class."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Union
 
 import toml
 import typer
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="INFRAHUB_", populate_by_name=True, extra="allow")
     server_address: str = Field(default="http://localhost:8000", validation_alias="infrahub_address")
-    api_token: Optional[str] = Field(default=None)
+    api_token: str | None = Field(default=None)
     default_branch: str = Field(default="main")
 
     @field_validator("server_address")
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
 
 class ConfiguredSettings:
     def __init__(self) -> None:
-        self._settings: Optional[Settings] = None
+        self._settings: Settings | None = None
 
     @property
     def active(self) -> Settings:
@@ -39,7 +40,7 @@ class ConfiguredSettings:
         print("Configuration not properly loaded")
         raise typer.Abort()
 
-    def load(self, config_file: Union[str, Path] = "infrahubctl.toml", config_data: Optional[dict] = None) -> None:
+    def load(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
         """Load configuration.
 
         Configuration is loaded from a config file in toml format that contains the settings,
@@ -65,9 +66,7 @@ class ConfiguredSettings:
 
         self._settings = Settings()
 
-    def load_and_exit(
-        self, config_file: Union[str, Path] = "infrahubctl.toml", config_data: Optional[dict] = None
-    ) -> None:
+    def load_and_exit(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
         """Calls load, but wraps it in a try except block.
 
         This is done to handle a ValidationErorr which is raised when settings are specified but invalid.

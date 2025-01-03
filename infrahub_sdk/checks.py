@@ -5,19 +5,16 @@ import importlib
 import os
 import warnings
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import ujson
 from git.repo import Repo
 from pydantic import BaseModel, Field
 
-from .exceptions import InfrahubCheckNotFoundError, UninitializedError
+from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from . import InfrahubClient
-    from .schema.repository import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
 
@@ -33,20 +30,20 @@ class InfrahubCheckInitializer(BaseModel):
 
 
 class InfrahubCheck:
-    name: Optional[str] = None
+    name: str | None = None
     query: str = ""
     timeout: int = 10
 
     def __init__(
         self,
-        branch: Optional[str] = None,
+        branch: str | None = None,
         root_directory: str = "",
-        output: Optional[str] = None,
-        initializer: Optional[InfrahubCheckInitializer] = None,
-        params: Optional[dict] = None,
-        client: Optional[InfrahubClient] = None,
+        output: str | None = None,
+        initializer: InfrahubCheckInitializer | None = None,
+        params: dict | None = None,
+        client: InfrahubClient | None = None,
     ):
-        self.git: Optional[Repo] = None
+        self.git: Repo | None = None
         self.initializer = initializer or InfrahubCheckInitializer()
 
         self.logs: list[dict[str, Any]] = []
@@ -82,7 +79,7 @@ class InfrahubCheck:
         self._client = value
 
     @classmethod
-    async def init(cls, client: Optional[InfrahubClient] = None, *args: Any, **kwargs: Any) -> InfrahubCheck:
+    async def init(cls, client: InfrahubClient | None = None, *args: Any, **kwargs: Any) -> InfrahubCheck:
         """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
         warnings.warn(
             "InfrahubCheck.init has been deprecated and will be removed in the version in Infrahub SDK 2.0.0",
@@ -101,7 +98,7 @@ class InfrahubCheck:
         return [log for log in self.logs if log["level"] == "ERROR"]
 
     def _write_log_entry(
-        self, message: str, level: str, object_id: Optional[str] = None, object_type: Optional[str] = None
+        self, message: str, level: str, object_id: str | None = None, object_type: str | None = None
     ) -> None:
         log_message = {"level": level, "message": message, "branch": self.branch_name}
         if object_id:
@@ -113,10 +110,10 @@ class InfrahubCheck:
         if self.output == "stdout":
             print(ujson.dumps(log_message))
 
-    def log_error(self, message: str, object_id: Optional[str] = None, object_type: Optional[str] = None) -> None:
+    def log_error(self, message: str, object_id: str | None = None, object_type: str | None = None) -> None:
         self._write_log_entry(message=message, level="ERROR", object_id=object_id, object_type=object_type)
 
-    def log_info(self, message: str, object_id: Optional[str] = None, object_type: Optional[str] = None) -> None:
+    def log_info(self, message: str, object_id: str | None = None, object_type: str | None = None) -> None:
         self._write_log_entry(message=message, level="INFO", object_id=object_id, object_type=object_type)
 
     @property
@@ -155,7 +152,7 @@ class InfrahubCheck:
 
         return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name, variables=self.params)
 
-    async def run(self, data: Optional[dict] = None) -> bool:
+    async def run(self, data: dict | None = None) -> bool:
         """Execute the check after collecting the data from the GraphQL query.
         The result of the check is determined based on the presence or not of ERROR log messages."""
 
@@ -176,27 +173,3 @@ class InfrahubCheck:
             self.log_info("Check succesfully completed")
 
         return self.passed
-
-
-def get_check_class_instance(
-    check_config: InfrahubCheckDefinitionConfig, search_path: Optional[Path] = None
-) -> InfrahubCheck:
-    if check_config.file_path.is_absolute() or search_path is None:
-        search_location = check_config.file_path
-    else:
-        search_location = search_path / check_config.file_path
-
-    try:
-        spec = importlib.util.spec_from_file_location(check_config.class_name, search_location)
-        module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
-
-        # Get the specified class from the module
-        check_class = getattr(module, check_config.class_name)
-
-        # Create an instance of the class
-        check_instance = check_class()
-    except (FileNotFoundError, AttributeError) as exc:
-        raise InfrahubCheckNotFoundError(name=check_config.name) from exc
-
-    return check_instance

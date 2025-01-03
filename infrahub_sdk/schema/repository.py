@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -30,7 +30,7 @@ class InfrahubRepositoryConfigElement(BaseModel):
 class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the artifact definition")
-    artifact_name: Optional[str] = Field(default=None, description="Name of the artifact created from this definition")
+    artifact_name: str | None = Field(default=None, description="Name of the artifact created from this definition")
     parameters: dict[str, Any] = Field(..., description="The input parameters required to render this artifact")
     content_type: str = Field(..., description="The content type of the rendered artifact")
     targets: str = Field(..., description="The group to target when creating artifacts")
@@ -42,7 +42,7 @@ class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
     name: str = Field(..., description="The name of the transform")
     query: str = Field(..., description="The name of the GraphQL Query")
     template_path: Path = Field(..., description="The path within the repository of the template file")
-    description: Optional[str] = Field(default=None, description="Description for this transform")
+    description: str | None = Field(default=None, description="Description for this transform")
 
     @property
     def template_path_value(self) -> str:
@@ -62,12 +62,12 @@ class InfrahubCheckDefinitionConfig(InfrahubRepositoryConfigElement):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="The input parameters required to run this check"
     )
-    targets: Optional[str] = Field(
+    targets: str | None = Field(
         default=None, description="The group to target when running this check, leave blank for global checks"
     )
     class_name: str = Field(default="Check", description="The name of the check class to run.")
 
-    def load_class(self, import_root: Optional[str] = None, relative_path: Optional[str] = None) -> type[InfrahubCheck]:
+    def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubCheck]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
 
         if self.class_name not in dir(module):
@@ -96,9 +96,7 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
         description="Decide if the generator should convert the result of the GraphQL query to SDK InfrahubNode objects.",
     )
 
-    def load_class(
-        self, import_root: Optional[str] = None, relative_path: Optional[str] = None
-    ) -> type[InfrahubGenerator]:
+    def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
 
         if self.class_name not in dir(module):
@@ -118,9 +116,7 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository with the transform code.")
     class_name: str = Field(default="Transform", description="The name of the transform class to run.")
 
-    def load_class(
-        self, import_root: Optional[str] = None, relative_path: Optional[str] = None
-    ) -> type[InfrahubTransform]:
+    def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubTransform]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
 
         if self.class_name not in dir(module):

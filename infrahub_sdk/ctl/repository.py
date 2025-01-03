@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
 
 import typer
 import yaml
@@ -67,7 +68,7 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: Optional[str] = None,
+    username: str | None = None,
     password: str = "",
     commit: str = "",
     read_only: bool = False,

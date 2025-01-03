@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     import ipaddress
@@ -19,13 +19,13 @@ class RelatedNodeSync(Protocol): ...
 @runtime_checkable
 class Attribute(Protocol):
     name: str
-    id: Optional[str]
-    is_default: Optional[bool]
-    is_from_profile: Optional[bool]
-    is_inherited: Optional[bool]
-    updated_at: Optional[str]
-    is_visible: Optional[bool]
-    is_protected: Optional[bool]
+    id: str | None
+    is_default: bool | None
+    is_from_profile: bool | None
+    is_inherited: bool | None
+    updated_at: str | None
+    is_visible: bool | None
+    is_protected: bool | None
 
 
 class String(Attribute):
@@ -33,7 +33,7 @@ class String(Attribute):
 
 
 class StringOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class DateTime(Attribute):
@@ -41,7 +41,7 @@ class DateTime(Attribute):
 
 
 class DateTimeOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class HashedPassword(Attribute):
@@ -57,7 +57,7 @@ class URL(Attribute):
 
 
 class URLOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class MacAddress(Attribute):
@@ -65,7 +65,7 @@ class MacAddress(Attribute):
 
 
 class MacAddressOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class Dropdown(Attribute):
@@ -73,7 +73,7 @@ class Dropdown(Attribute):
 
 
 class DropdownOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class Enum(Attribute):
@@ -81,7 +81,7 @@ class Enum(Attribute):
 
 
 class EnumOptional(Attribute):
-    value: Optional[str]
+    value: str | None
 
 
 class Integer(Attribute):
@@ -89,23 +89,23 @@ class Integer(Attribute):
 
 
 class IntegerOptional(Attribute):
-    value: Optional[int]
+    value: int | None
 
 
 class IPHost(Attribute):
-    value: Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address
 
 
 class IPHostOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Address, ipaddress.IPv6Address]]
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
 
 
 class IPNetwork(Attribute):
-    value: Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+    value: ipaddress.IPv4Network | ipaddress.IPv6Network
 
 
 class IPNetworkOptional(Attribute):
-    value: Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]
+    value: ipaddress.IPv4Network | ipaddress.IPv6Network | None
 
 
 class Boolean(Attribute):
@@ -113,7 +113,7 @@ class Boolean(Attribute):
 
 
 class BooleanOptional(Attribute):
-    value: Optional[bool]
+    value: bool | None
 
 
 class ListAttribute(Attribute):
@@ -121,7 +121,7 @@ class ListAttribute(Attribute):
 
 
 class ListAttributeOptional(Attribute):
-    value: Optional[list[Any]]
+    value: list[Any] | None
 
 
 class JSONAttribute(Attribute):
@@ -129,7 +129,7 @@ class JSONAttribute(Attribute):
 
 
 class JSONAttributeOptional(Attribute):
-    value: Optional[Any]
+    value: Any | None
 
 
 class AnyAttribute(Attribute):
@@ -137,22 +137,22 @@ class AnyAttribute(Attribute):
 
 
 class AnyAttributeOptional(Attribute):
-    value: Optional[float]
+    value: float | None
 
 
 @runtime_checkable
 class CoreNodeBase(Protocol):
     _schema: MainSchemaTypes
     id: str
-    display_label: Optional[str]
+    display_label: str | None
 
     @property
-    def hfid(self) -> Optional[list[str]]: ...
+    def hfid(self) -> list[str] | None: ...
 
     @property
-    def hfid_str(self) -> Optional[str]: ...
+    def hfid_str(self) -> str | None: ...
 
-    def get_human_friendly_id_as_string(self, include_kind: bool = False) -> Optional[str]: ...
+    def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
     def get_kind(self) -> str: ...
 
@@ -162,14 +162,14 @@ class CoreNodeBase(Protocol):
 
     def is_resource_pool(self) -> bool: ...
 
-    def get_raw_graphql_data(self) -> Optional[dict]: ...
+    def get_raw_graphql_data(self) -> dict | None: ...
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]: ...
 
 
 @runtime_checkable
 class CoreNode(CoreNodeBase, Protocol):
-    async def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None: ...
+    async def save(self, allow_upsert: bool = False, update_group_context: bool | None = None) -> None: ...
 
     async def delete(self) -> None: ...
 
@@ -184,7 +184,7 @@ class CoreNode(CoreNodeBase, Protocol):
 
 @runtime_checkable
 class CoreNodeSync(CoreNodeBase, Protocol):
-    def save(self, allow_upsert: bool = False, update_group_context: Optional[bool] = None) -> None: ...
+    def save(self, allow_upsert: bool = False, update_group_context: bool | None = None) -> None: ...
 
     def delete(self) -> None: ...
 

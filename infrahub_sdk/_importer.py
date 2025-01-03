@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from .exceptions import ModuleImportError
 
@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 module_mtime_cache: dict[str, float] = {}
 
 
-def import_module(
-    module_path: Path, import_root: Optional[str] = None, relative_path: Optional[str] = None
-) -> ModuleType:
+def import_module(module_path: Path, import_root: str | None = None, relative_path: str | None = None) -> ModuleType:
     """Imports a python module.
 
     Args:

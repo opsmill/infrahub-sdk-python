@@ -1,4 +1,6 @@
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from .. import InfrahubClient, InfrahubClientSync
 from ..config import Config
@@ -6,11 +8,11 @@ from ..ctl import config
 
 
 def initialize_client(
-    branch: Optional[str] = None,
-    identifier: Optional[str] = None,
-    timeout: Optional[int] = None,
-    max_concurrent_execution: Optional[int] = None,
-    retry_on_failure: Optional[bool] = None,
+    branch: str | None = None,
+    identifier: str | None = None,
+    timeout: int | None = None,
+    max_concurrent_execution: int | None = None,
+    retry_on_failure: bool | None = None,
 ) -> InfrahubClient:
     return InfrahubClient(
         config=_define_config(
@@ -24,11 +26,11 @@ def initialize_client(
 
 
 def initialize_client_sync(
-    branch: Optional[str] = None,
-    identifier: Optional[str] = None,
-    timeout: Optional[int] = None,
-    max_concurrent_execution: Optional[int] = None,
-    retry_on_failure: Optional[bool] = None,
+    branch: str | None = None,
+    identifier: str | None = None,
+    timeout: int | None = None,
+    max_concurrent_execution: int | None = None,
+    retry_on_failure: bool | None = None,
 ) -> InfrahubClientSync:
     return InfrahubClientSync(
         config=_define_config(
@@ -42,11 +44,11 @@ def initialize_client_sync(
 
 
 def _define_config(
-    branch: Optional[str] = None,
-    identifier: Optional[str] = None,
-    timeout: Optional[int] = None,
-    max_concurrent_execution: Optional[int] = None,
-    retry_on_failure: Optional[bool] = None,
+    branch: str | None = None,
+    identifier: str | None = None,
+    timeout: int | None = None,
+    max_concurrent_execution: int | None = None,
+    retry_on_failure: bool | None = None,
 ) -> Config:
     client_config: dict[str, Any] = {
         "address": config.SETTINGS.active.server_address,

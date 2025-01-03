@@ -1,24 +1,27 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pyarrow.json as pa_json
 import ujson
-from rich.console import Console
 from rich.progress import Progress
 
-from ...batch import InfrahubBatch
-from ...client import InfrahubClient
 from ...exceptions import GraphQLError
 from ...node import InfrahubNode, RelatedNode, RelationshipManager
-from ...transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 from ..exceptions import TransferFileNotFoundError
 from .interface import ImporterInterface
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
+    from ...batch import InfrahubBatch
+    from ...client import InfrahubClient
     from ...schema import NodeSchema, RelationshipSchema
+    from ...transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 
 
 class LineDelimitedJSONImporter(ImporterInterface):
@@ -27,7 +30,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         client: InfrahubClient,
         topological_sorter: InfrahubSchemaTopologicalSorter,
         continue_on_error: bool = False,
-        console: Optional[Console] = None,
+        console: Console | None = None,
     ):
         self.client = client
         self.topological_sorter = topological_sorter
