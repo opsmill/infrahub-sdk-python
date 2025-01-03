@@ -116,6 +116,7 @@ no-docstring-rgx = "^(_|test_)"
 # Pylint and Black disagree about how to format multi-line arrays; Black wins.
 # Rules already covered by RUFF
 # - too-many-statements
+# - unused-argument
 disable = """,
     line-too-long,
     missing-module-docstring,
@@ -135,6 +136,7 @@ disable = """,
     import-self,
     wrong-import-order,
     multiple-statements,
+    unused-argument,
     """
 
 [tool.pylint.miscellaneous]
@@ -223,7 +225,6 @@ ignore = [
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
     ##################################################################################################
-    "ARG",      # flake8-unused-arguments
     "PT",       # flake8-pytest-style
     "PGH",      # pygrep-hooks
     "ERA",      # eradicate commented-out code
@@ -332,6 +333,8 @@ max-complexity = 17
     "S101",    # Use of assert detected
     "S105",    # Possible hardcoded password assigned to variable
     "S106",    # Possible hardcoded password assigned to argument
+    "ARG001",  # Unused function argument
+    "ARG002",  # Unused method argument
 
     ##################################################################################################
     # Review and change the below later                                                              #

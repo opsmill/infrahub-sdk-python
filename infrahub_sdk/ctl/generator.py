@@ -19,12 +19,12 @@ if TYPE_CHECKING:
 
 async def run(
     generator_name: str,
-    path: str,
-    debug: bool,
+    path: str,  # noqa: ARG001
+    debug: bool,  # noqa: ARG001
     list_available: bool,
     branch: str | None = None,
     variables: list[str] | None = None,
-) -> None:  # pylint: disable=unused-argument
+) -> None:
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
     if list_available or not generator_name:
