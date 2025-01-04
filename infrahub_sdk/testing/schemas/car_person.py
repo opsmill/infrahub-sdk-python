@@ -1,16 +1,43 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING
+
 import pytest
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipKind, SchemaRoot
 from infrahub_sdk.schema.main import AttributeSchema as Attr
 from infrahub_sdk.schema.main import RelationshipSchema as Rel
+
+if TYPE_CHECKING:
+    from infrahub_sdk import InfrahubClient
+    from infrahub_sdk.node import InfrahubNode
 
 NAMESPACE = "Testing"
 
 TESTING_MANUFACTURER = f"{NAMESPACE}Manufacturer"
 TESTING_PERSON = f"{NAMESPACE}Person"
 TESTING_CAR = f"{NAMESPACE}Car"
+BUILTIN_TAG = "BuiltinTag"
+
+
+@dataclass
+class TestingPersonData:
+    name: str
+    kind: str = TESTING_PERSON
+
+
+@dataclass
+class TestingManufacturerData:
+    name: str
+    kind: str = TESTING_MANUFACTURER
+
+
+@dataclass
+class TestingCarData:
+    name: str
+    color: str | None = None
+    kind: str = TESTING_CAR
 
 
 class SchemaCarPerson:
@@ -63,6 +90,12 @@ class SchemaCarPerson:
                     cardinality="one",
                     identifier="car__manufacturer",
                 ),
+                Rel(
+                    name="tags",
+                    optional=True,
+                    peer=BUILTIN_TAG,
+                    cardinality="many",
+                ),
             ],
         )
 
@@ -106,6 +139,68 @@ class SchemaCarPerson:
         schema_manufacturer_base: NodeSchema,
     ) -> SchemaRoot:
         return SchemaRoot(version="1.0", nodes=[schema_car_base, schema_person_base, schema_manufacturer_base])
+
+    @pytest.fixture(scope="class")
+    async def person_joe_data(self) -> TestingPersonData:
+        return TestingPersonData(name="Joe Doe")
+
+    @pytest.fixture(scope="class")
+    async def person_jane_data(self) -> TestingPersonData:
+        return TestingPersonData(name="Jane Doe")
+
+    @pytest.fixture(scope="class")
+    async def manufacturer_vw_data(self) -> TestingManufacturerData:
+        return TestingManufacturerData(name="Volkswagen")
+
+    @pytest.fixture(scope="class")
+    async def manufacturer_renault_data(self) -> TestingManufacturerData:
+        return TestingManufacturerData(name="Renault")
+
+    @pytest.fixture(scope="class")
+    async def manufacturer_mercedes_data(self) -> TestingManufacturerData:
+        return TestingManufacturerData(name="Mercedes")
+
+    @pytest.fixture(scope="class")
+    async def car_golf_data(self) -> TestingCarData:
+        return TestingCarData(name="Golf", color="Black")
+
+    @pytest.fixture(scope="class")
+    async def person_joe(self, client: InfrahubClient, person_joe_data: TestingPersonData) -> InfrahubNode:
+        obj = await client.create(**asdict(person_joe_data))
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def manufacturer_mercedes(
+        self, client: InfrahubClient, manufacturer_mercedes_data: TestingManufacturerData
+    ) -> InfrahubNode:
+        obj = await client.create(**asdict(manufacturer_mercedes_data))
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def car_golf(
+        self,
+        client: InfrahubClient,
+        car_golf_data: TestingCarData,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+    ) -> InfrahubNode:
+        obj = await client.create(**asdict(car_golf_data), manufacturer=manufacturer_mercedes, owner=person_joe)
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def tag_blue(self, client: InfrahubClient) -> InfrahubNode:
+        obj = await client.create(kind=BUILTIN_TAG, name="Blue")
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def tag_red(self, client: InfrahubClient) -> InfrahubNode:
+        obj = await client.create(kind=BUILTIN_TAG, name="Red")
+        await obj.save()
+        return obj
 
     async def create_persons(self, client: InfrahubClient, branch: str) -> list[InfrahubNode]:
         john = await client.create(kind=TESTING_PERSON, name="John Doe", branch=branch)
