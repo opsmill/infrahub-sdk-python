@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     @pytest.fixture(scope="class")
     def infrahub_version(self) -> str:
-        return "1.0.10"
+        return "1.1.0"
 
     @pytest.fixture(scope="class")
     async def base_dataset(
