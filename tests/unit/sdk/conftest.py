@@ -379,6 +379,47 @@ async def location_data01():
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "display_label": "dfw1",
             "name": {
+                "value": "DFW",
+            },
+            "description": {
+                "value": None,
+            },
+            "type": {
+                "value": "SITE",
+            },
+            "primary_tag": {
+                "node": {
+                    "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+                    "display_label": "red",
+                    "__typename": "BuiltinTag",
+                },
+            },
+            "tags": {
+                "count": 1,
+                "edges": [
+                    {
+                        "node": {
+                            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                            "display_label": "blue",
+                            "__typename": "BuiltinTag",
+                        },
+                    }
+                ],
+            },
+        }
+    }
+
+    return data
+
+
+@pytest.fixture
+async def location_data01_property():
+    data = {
+        "node": {
+            "__typename": "BuiltinLocation",
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "display_label": "dfw1",
+            "name": {
                 "is_protected": True,
                 "is_visible": True,
                 "owner": None,
@@ -438,6 +479,47 @@ async def location_data01():
 
 @pytest.fixture
 async def location_data02():
+    data = {
+        "node": {
+            "__typename": "BuiltinLocation",
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "display_label": "dfw1",
+            "name": {
+                "value": "dfw1",
+            },
+            "description": {
+                "value": None,
+            },
+            "type": {
+                "value": "SITE",
+            },
+            "primary_tag": {
+                "node": {
+                    "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+                    "display_label": "red",
+                    "__typename": "BuiltinTag",
+                },
+            },
+            "tags": {
+                "count": 1,
+                "edges": [
+                    {
+                        "node": {
+                            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                            "display_label": "blue",
+                            "__typename": "BuiltinTag",
+                        },
+                    }
+                ],
+            },
+        }
+    }
+
+    return data
+
+
+@pytest.fixture
+async def location_data02_property():
     data = {
         "node": {
             "__typename": "BuiltinLocation",
@@ -515,6 +597,28 @@ async def location_data02():
     }
 
     return data
+
+
+@pytest.fixture
+async def rfile_userdata01():
+    return {
+        "name": {"value": "rfile01"},
+        "template_path": {"value": "mytemplate.j2"},
+        "query": {"id": "qqqqqqqq"},
+        "repository": {"id": "rrrrrrrr"},
+        "tags": [{"id": "t1t1t1t1"}, "t2t2t2t2"],
+    }
+
+
+@pytest.fixture
+async def rfile_userdata01_property():
+    return {
+        "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff"},
+        "template_path": {"value": "mytemplate.j2"},
+        "query": {"id": "qqqqqqqq", "source": "ffffffff", "owner": "ffffffff", "is_protected": True},
+        "repository": {"id": "rrrrrrrr", "source": "ffffffff", "owner": "ffffffff"},
+        "tags": [{"id": "t1t1t1t1"}, "t2t2t2t2"],
+    }
 
 
 @pytest.fixture

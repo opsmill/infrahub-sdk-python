@@ -31,6 +31,11 @@ sync_node_methods = [
 
 client_types = ["standard", "sync"]
 
+WITH_PROPERTY = "with_property"
+WITHOUT_PROPERTY = "without_property"
+property_tests = [WITHOUT_PROPERTY, WITH_PROPERTY]
+
+
 SAFE_GRAPHQL_VALUES = [
     pytest.param("", id="allow-empty"),
     pytest.param("user1", id="allow-normal"),
@@ -176,15 +181,20 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
     assert node.primary_tag.id == "pppppppp"
 
 
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_graphql(client, location_schema: NodeSchemaAPI, location_data01, client_type):
+async def test_init_node_data_graphql(
+    client, location_schema: NodeSchemaAPI, location_data01, location_data01_property, client_type, property_test
+):
+    location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
+
     if client_type == "standard":
-        node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+        node = InfrahubNode(client=client, schema=location_schema, data=location_data)
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data)
 
     assert node.name.value == "DFW"
-    assert node.name.is_protected is True
+    assert node.name.is_protected is True if property_test == WITH_PROPERTY else node.name.is_protected is None
     assert node.description.value is None
     assert node.type.value == "SITE"
 
@@ -1385,25 +1395,26 @@ async def test_create_input_data_with_relationships_03(clients, rfile_schema, cl
     }
 
 
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_relationships_03_for_update_include_unmodified(
-    clients, rfile_schema, client_type
+    clients,
+    rfile_schema,
+    rfile_userdata01,
+    rfile_userdata01_property,
+    client_type,
+    property_test,
 ):
-    data = {
-        "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff"},
-        "template_path": {"value": "mytemplate.j2"},
-        "query": {"id": "qqqqqqqq", "source": "ffffffff", "owner": "ffffffff", "is_protected": True},
-        "repository": {"id": "rrrrrrrr", "source": "ffffffff", "owner": "ffffffff"},
-        "tags": [{"id": "t1t1t1t1"}, "t2t2t2t2"],
-    }
+    rfile_userdata = rfile_userdata01 if property_test == WITHOUT_PROPERTY else rfile_userdata01_property
 
     if client_type == "standard":
-        node = InfrahubNode(client=clients.standard, schema=rfile_schema, data=data)
+        node = InfrahubNode(client=clients.standard, schema=rfile_schema, data=rfile_userdata)
     else:
-        node = InfrahubNodeSync(client=clients.sync, schema=rfile_schema, data=data)
+        node = InfrahubNodeSync(client=clients.sync, schema=rfile_schema, data=rfile_userdata)
 
     node.template_path.value = "my-changed-template.j2"
-    assert node._generate_input_data(exclude_unmodified=False)["data"] == {
+
+    expected_result_with_property = {
         "data": {
             "name": {
                 "is_protected": True,
@@ -1422,28 +1433,46 @@ async def test_create_input_data_with_relationships_03_for_update_include_unmodi
         }
     }
 
+    expected_result_without_property = {
+        "data": {
+            "name": {
+                "value": "rfile01",
+            },
+            "query": {
+                "id": "qqqqqqqq",
+            },
+            "tags": [{"id": "t1t1t1t1"}, {"id": "t2t2t2t2"}],
+            "template_path": {"value": "my-changed-template.j2"},
+            "repository": {"id": "rrrrrrrr"},
+        }
+    }
 
+    expected_result = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
+    assert node._generate_input_data(exclude_unmodified=False)["data"] == expected_result
+
+
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_relationships_03_for_update_exclude_unmodified(
     clients,
     rfile_schema,
+    rfile_userdata01,
+    rfile_userdata01_property,
     client_type,
+    property_test,
 ):
-    data = {
-        "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff"},
-        "template_path": {"value": "mytemplate.j2"},
-        "query": {"id": "qqqqqqqq", "source": "ffffffff", "owner": "ffffffff", "is_protected": True},
-        "repository": {"id": "rrrrrrrr", "source": "ffffffff", "owner": "ffffffff"},
-        "tags": [{"id": "t1t1t1t1"}, "t2t2t2t2"],
-    }
+    """NOTE: Need to fix this test, the issue is tracked in https://github.com/opsmill/infrahub-sdk-python/issues/214."""
+    rfile_userdata = rfile_userdata01 if property_test == WITHOUT_PROPERTY else rfile_userdata01_property
 
     if client_type == "standard":
-        node = InfrahubNode(client=clients.standard, schema=rfile_schema, data=data)
+        node = InfrahubNode(client=clients.standard, schema=rfile_schema, data=rfile_userdata)
     else:
-        node = InfrahubNodeSync(client=clients.sync, schema=rfile_schema, data=data)
+        node = InfrahubNodeSync(client=clients.sync, schema=rfile_schema, data=rfile_userdata)
 
     node.template_path.value = "my-changed-template.j2"
-    assert node._generate_input_data(exclude_unmodified=True)["data"] == {
+    expected_result_with_property = {
         "data": {
             "query": {
                 "id": "qqqqqqqq",
@@ -1455,6 +1484,18 @@ async def test_create_input_data_with_relationships_03_for_update_exclude_unmodi
             "repository": {"id": "rrrrrrrr", "_relation__owner": "ffffffff", "_relation__source": "ffffffff"},
         }
     }
+
+    expected_result_without_property = {
+        "data": {
+            "template_path": {"value": "my-changed-template.j2"},
+        }
+    }
+
+    expected_result = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
+
+    assert node._generate_input_data(exclude_unmodified=True)["data"] == expected_result
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -1485,24 +1526,29 @@ async def test_create_input_data_with_IPNetwork_attribute(client, ipnetwork_sche
     }
 
 
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data__with_relationships_01(
     client,
     location_schema,
     location_data01,
+    location_data01_property,
     tag_schema,
     tag_blue_data,
     tag_green_data,
     tag_red_data,
     client_type,
+    property_test,
 ):
+    location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
+
     if client_type == "standard":
-        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data)
         tag_green = InfrahubNode(client=client, schema=tag_schema, data=tag_green_data)
         tag_blue = InfrahubNode(client=client, schema=tag_schema, data=tag_blue_data)
         tag_red = InfrahubNode(client=client, schema=tag_schema, data=tag_red_data)
     else:
-        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data)
         tag_green = InfrahubNodeSync(client=client, schema=tag_schema, data=tag_green_data)
         tag_blue = InfrahubNodeSync(client=client, schema=tag_schema, data=tag_blue_data)
         tag_red = InfrahubNodeSync(client=client, schema=tag_schema, data=tag_red_data)
@@ -1511,7 +1557,16 @@ async def test_update_input_data__with_relationships_01(
     location.tags.extend([tag_green, tag_red])
     location.tags.remove(tag_blue)
 
-    assert location._generate_input_data()["data"] == {
+    expected_result_without_property = {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "DFW"},
+            "primary_tag": {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
+            "tags": [{"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"}, {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"}],
+            "type": {"value": "SITE"},
+        },
+    }
+    expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {"is_protected": True, "is_visible": True, "value": "DFW"},
@@ -1521,15 +1576,45 @@ async def test_update_input_data__with_relationships_01(
         },
     }
 
+    expected_data = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
+    assert location._generate_input_data()["data"] == expected_data
 
+
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
-async def test_update_input_data_with_relationships_02(client, location_schema, location_data02, client_type):
-    if client_type == "standard":
-        location = InfrahubNode(client=client, schema=location_schema, data=location_data02)
-    else:
-        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data02)
+async def test_update_input_data_with_relationships_02(
+    client, location_schema, location_data02, location_data02_property, client_type, property_test
+):
+    location_data = location_data02 if property_test == WITHOUT_PROPERTY else location_data02_property
 
-    assert location._generate_input_data()["data"] == {
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data)
+
+    expected_result_without_property = {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {
+                "value": "dfw1",
+            },
+            "primary_tag": {
+                "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+            },
+            "tags": [
+                {
+                    "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                },
+            ],
+            "type": {
+                "value": "SITE",
+            },
+        },
+    }
+
+    expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {
@@ -1561,22 +1646,86 @@ async def test_update_input_data_with_relationships_02(client, location_schema, 
         },
     }
 
+    expected_result = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
 
+    assert location._generate_input_data()["data"] == expected_result
+
+
+@pytest.mark.parametrize("property_test", property_tests)
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_input_data_with_relationships_02_exclude_unmodified(
+    client, location_schema, location_data02, location_data02_property, client_type, property_test
+):
+    """NOTE Need to fix this test, issue is tracked in https://github.com/opsmill/infrahub-sdk-python/issues/214."""
+    location_data = location_data02 if property_test == WITHOUT_PROPERTY else location_data02_property
+
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data)
+
+    expected_result_without_property = {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+        },
+    }
+
+    expected_result_with_property = {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "primary_tag": {
+                "_relation__is_protected": True,
+                "_relation__is_visible": True,
+                "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+            },
+        },
+    }
+
+    expected_result = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
+
+    assert location._generate_input_data(exclude_unmodified=True)["data"] == expected_result
+
+
+@pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data_empty_relationship(
-    client, location_schema, location_data01, tag_schema, tag_blue_data, client_type
+    client,
+    location_schema,
+    location_data01,
+    location_data01_property,
+    tag_schema,
+    tag_blue_data,
+    client_type,
+    property_test,
 ):
+    """TODO: investigate why name and type are being returned since they haven't been modified."""
+    location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
+
     if client_type == "standard":
-        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data)
         tag_blue = InfrahubNode(client=client, schema=tag_schema, data=tag_blue_data)
     else:
-        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data)
         tag_blue = InfrahubNode(client=client, schema=tag_schema, data=tag_blue_data)
 
     location.tags.remove(tag_blue)
     location.primary_tag = None
 
-    assert location._generate_input_data()["data"] == {
+    expected_result_without_property = {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "DFW"},
+            # "primary_tag": None,
+            "tags": [],
+            "type": {"value": "SITE"},
+        },
+    }
+    expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {"is_protected": True, "is_visible": True, "value": "DFW"},
@@ -1585,6 +1734,11 @@ async def test_update_input_data_empty_relationship(
             "type": {"is_protected": True, "is_visible": True, "value": "SITE"},
         },
     }
+
+    expected_data = (
+        expected_result_without_property if property_test == WITHOUT_PROPERTY else expected_result_with_property
+    )
+    assert location._generate_input_data()["data"] == expected_data
 
 
 @pytest.mark.parametrize("client_type", client_types)

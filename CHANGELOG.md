@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.4.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.3.0) - 2025-01-05
+
+### Fixed
+
+- Fixes an issue introduced in 1.4 that would prevent a node with relationship of cardinality one from being updated.
+
 ## [1.4.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.4.0) - 2025-01-03
 
 ### Changed

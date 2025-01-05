@@ -171,6 +171,12 @@ class SchemaCarPerson:
         return obj
 
     @pytest.fixture(scope="class")
+    async def person_jane(self, client: InfrahubClient, person_jane_data: TestingPersonData) -> InfrahubNode:
+        obj = await client.create(**asdict(person_jane_data))
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
     async def manufacturer_mercedes(
         self, client: InfrahubClient, manufacturer_mercedes_data: TestingManufacturerData
     ) -> InfrahubNode:
@@ -199,6 +205,12 @@ class SchemaCarPerson:
     @pytest.fixture(scope="class")
     async def tag_red(self, client: InfrahubClient) -> InfrahubNode:
         obj = await client.create(kind=BUILTIN_TAG, name="Red")
+        await obj.save()
+        return obj
+
+    @pytest.fixture(scope="class")
+    async def tag_green(self, client: InfrahubClient) -> InfrahubNode:
+        obj = await client.create(kind=BUILTIN_TAG, name="Green")
         await obj.save()
         return obj
 
