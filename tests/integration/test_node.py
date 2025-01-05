@@ -5,7 +5,7 @@ from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
-from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, SchemaCarPerson
+from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
 
 # pylint: disable=unused-argument
 
@@ -13,7 +13,7 @@ from infrahub_sdk.testing.schemas.car_person import TESTING_MANUFACTURER, Schema
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
     def infrahub_version(self) -> str:
-        return "1.0.10"
+        return "1.1.0"
 
     @pytest.fixture(scope="class")
     async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
@@ -29,56 +29,45 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     ):
         schema_manufacturer = NodeSchemaAPI(**schema_manufacturer_base.model_dump(exclude_unset=True))
         data = {
-            "name": {"value": "Fiat"},
-            "description": {"value": "An italian brand"},
+            "name": "Fiat",
+            "description": "An italian brand",
         }
         node = InfrahubNode(client=client, schema=schema_manufacturer, data=data)
         await node.save()
-
         assert node.id is not None
 
     async def test_node_delete(
         self,
-        default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
     ):
-        await self.create_manufacturers(client=client, branch=default_branch)
+        obj = await client.create(kind=TESTING_MANUFACTURER, name="Dacia")
+        await obj.save()
 
-        obj: InfrahubNode = client.store.get_by_hfid(key=f"{TESTING_MANUFACTURER}__Volkswagen")
+        await client.get(kind=TESTING_MANUFACTURER, id=obj.id)
+
         await obj.delete()
 
         with pytest.raises(NodeNotFoundError):
             await client.get(kind=TESTING_MANUFACTURER, id=obj.id)
 
-    # async def test_node_create_with_relationships(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_blue: Node,
-    #     tag_red: Node,
-    #     repo01: Node,
-    #     gqlquery01: Node,
-    # ):
-    #     data = {
-    #         "name": {"value": "rfile01"},
-    #         "template_path": {"value": "mytemplate.j2"},
-    #         "query": gqlquery01.id,
-    #         "repository": {"id": repo01.id},
-    #         "tags": [tag_blue.id, tag_red.id],
-    #     }
+    async def test_node_create_with_relationships(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes,
+        person_joe,
+    ):
+        node = await client.create(
+            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
+        )
+        await node.save()
+        assert node.id is not None
 
-    #     node = await client.create(kind="CoreTransformJinja2", data=data)
-    #     await node.save()
-
-    #     assert node.id is not None
-
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     assert nodedb.name.value == node.name.value  # type: ignore[attr-defined]
-    #     querydb = await nodedb.query.get_peer(db=db)
-    #     assert node.query.id == querydb.id  # type: ignore[attr-defined]
+        node_after = await client.get(kind=TESTING_CAR, id=node.id, prefetch_relationships=True)
+        assert node_after.name.value == node.name.value
+        assert node_after.manufacturer.peer.id == manufacturer_mercedes.id
 
     # async def test_node_update_payload_with_relationships(
     #     self,
@@ -144,59 +133,41 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     #     assert node.id is not None
 
     #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     assert nodedb.name.value == node.name.value  # type: ignore[attr-defined]
+    #     assert nodedb.name.value == node.name.value
     #     assert nodedb.name.is_protected is True
 
-    # async def test_node_update(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_blue: Node,
-    #     tag_red: Node,
-    #     repo99: Node,
-    # ):
-    #     node = await client.get(kind="CoreRepository", name__value="repo99")
-    #     assert node.id is not None
+    async def test_node_update(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes,
+        person_joe,
+        person_jane,
+        car_golf,
+        tag_blue,
+        tag_red,
+        tag_green,
+    ):
+        car_golf.color.value = "White"
+        await car_golf.tags.fetch()
+        car_golf.tags.add(tag_blue.id)
+        car_golf.tags.add(tag_red.id)
+        await car_golf.save()
 
-    #     node.name.value = "repo95"  # type: ignore[attr-defined]
-    #     node.tags.add(tag_blue.id)  # type: ignore[attr-defined]
-    #     node.tags.add(tag_red.id)  # type: ignore[attr-defined]
-    #     await node.save()
+        car2 = await client.get(kind=TESTING_CAR, id=car_golf.id)
+        assert car2.color.value == "White"
+        await car2.tags.fetch()
+        assert len(car2.tags.peers) == 2
 
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     assert nodedb.name.value == "repo95"
-    #     tags = await nodedb.tags.get(db=db)
-    #     assert len(tags) == 2
+        car2.owner = person_jane.id
+        car2.tags.add(tag_green.id)
+        car2.tags.remove(tag_red.id)
+        await car2.save()
 
-    # async def test_node_update_2(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_green: Node,
-    #     tag_red: Node,
-    #     tag_blue: Node,
-    #     gqlquery02: Node,
-    #     repo99: Node,
-    # ):
-    #     node = await client.get(kind="CoreGraphQLQuery", name__value="query02")
-    #     assert node.id is not None
-
-    #     node.name.value = "query021"  # type: ignore[attr-defined]
-    #     node.repository = repo99.id  # type: ignore[attr-defined]
-    #     node.tags.add(tag_green.id)  # type: ignore[attr-defined]
-    #     node.tags.remove(tag_red.id)  # type: ignore[attr-defined]
-    #     await node.save()
-
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     repodb = await nodedb.repository.get_peer(db=db)
-    #     assert repodb.id == repo99.id
-
-    #     tags = await nodedb.tags.get(db=db)
-    #     assert sorted([tag.peer_id for tag in tags]) == sorted([tag_green.id, tag_blue.id])
+        car3 = await client.get(kind=TESTING_CAR, id=car_golf.id)
+        await car3.tags.fetch()
+        assert sorted([tag.id for tag in car3.tags.peers]) == sorted([tag_green.id, tag_blue.id])
 
     # async def test_node_update_3_idempotency(
     #     self,
@@ -213,41 +184,26 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     #     node = await client.get(kind="CoreGraphQLQuery", name__value="query03")
     #     assert node.id is not None
 
-    #     updated_query = f"\n\n{node.query.value}"  # type: ignore[attr-defined]
-    #     node.name.value = "query031"  # type: ignore[attr-defined]
-    #     node.query.value = updated_query  # type: ignore[attr-defined]
+    #     updated_query = f"\n\n{node.query.value}"
+    #     node.name.value = "query031"
+    #     node.query.value = updated_query
     #     first_update = node._generate_input_data(exclude_unmodified=True)
     #     await node.save()
     #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
 
     #     node = await client.get(kind="CoreGraphQLQuery", name__value="query031")
 
-    #     node.name.value = "query031"  # type: ignore[attr-defined]
-    #     node.query.value = updated_query  # type: ignore[attr-defined]
+    #     node.name.value = "query031"
+    #     node.query.value = updated_query
 
     #     second_update = node._generate_input_data(exclude_unmodified=True)
 
-    #     assert nodedb.query.value == updated_query  # type: ignore[attr-defined]
+    #     assert nodedb.query.value == updated_query
     #     assert "query" in first_update["data"]["data"]
     #     assert "value" in first_update["data"]["data"]["query"]
     #     assert first_update["variables"]
     #     assert "query" not in second_update["data"]["data"]
     #     assert not second_update["variables"]
-
-    # async def test_convert_node(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     location_schema,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     location_cdg: Node,
-    # ):
-    #     data = await location_cdg.to_graphql(db=db)
-    #     node = InfrahubNode(client=client, schema=location_schema, data=data)
-
-    #     # pylint: disable=no-member
-    #     assert node.name.value == "cdg01"  # type: ignore[attr-defined]
 
     # async def test_relationship_manager_errors_without_fetch(self, client: InfrahubClient, load_builtin_schema):
     #     organization = await client.create("TestOrganization", name="organization-1")

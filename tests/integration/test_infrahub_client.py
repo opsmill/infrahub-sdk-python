@@ -1,186 +1,146 @@
-# from __future__ import annotations
-#
-# from typing import TYPE_CHECKING
-#
-# import pytest
-# from infrahub.core import registry
-# from infrahub.core.initialization import create_branch
-# from infrahub.core.node import Node
-# from infrahub.server import app
-#
-# from infrahub_sdk import Config, InfrahubClient
-# from infrahub_sdk.branch import BranchData
-# from infrahub_sdk.constants import InfrahubClientMode
-# from infrahub_sdk.exceptions import BranchNotFoundError
-# from infrahub_sdk.node import InfrahubNode
-# from infrahub_sdk.playback import JSONPlayback
-# from infrahub_sdk.recorder import JSONRecorder
-# from infrahub_sdk.schema import ProfileSchema
-#
-# from .conftest import InfrahubTestClient
-#
-# if TYPE_CHECKING:
-#     from pathlib import Path
-#
-#     from infrahub.database import InfrahubDatabase
-#
-#
-# # pylint: disable=unused-argument
-#
-#
-# class TestInfrahubClient:
-#     @pytest.fixture(scope="class")
-#     async def test_client(self) -> InfrahubTestClient:
-#         registry.delete_all()
-#
-#         return InfrahubTestClient(app)
-#
-#     @pytest.fixture
-#     def client(self, test_client: InfrahubTestClient) -> InfrahubClient:
-#         config = Config(username="admin", password="infrahub", requester=test_client.async_request)
-#         return InfrahubClient(config=config)
-#
-#     @pytest.fixture(scope="class")
-#     async def base_dataset(self, db: InfrahubDatabase, test_client: InfrahubTestClient, builtin_org_schema):
-#         config = Config(username="admin", password="infrahub", requester=test_client.async_request)
-#         client = InfrahubClient(config=config)
-#         response = await client.schema.load(schemas=[builtin_org_schema])
-#         assert not response.errors
-#
-#         await create_branch(branch_name="branch01", db=db)
-#
-#         query_string = """
-#         query {
-#             branch {
-#                 id
-#                 name
-#             }
-#         }
-#         """
-#         obj1 = await Node.init(schema="CoreGraphQLQuery", db=db)
-#         await obj1.new(db=db, name="test_query2", description="test query", query=query_string)
-#         await obj1.save(db=db)
-#
-#         obj2 = await Node.init(schema="CoreRepository", db=db)
-#         await obj2.new(
-#             db=db,
-#             name="repository1",
-#             description="test repository",
-#             location="git@github.com:mock/test.git",
-#         )
-#         await obj2.save(db=db)
-#
-#         obj3 = await Node.init(schema="CoreTransformJinja2", db=db)
-#         await obj3.new(
-#             db=db,
-#             name="rfile1",
-#             description="test rfile",
-#             template_path="mytemplate.j2",
-#             repository=obj2,
-#             query=obj1,
-#         )
-#         await obj3.save(db=db)
-#
-#         obj4 = await Node.init(schema="CoreTransformPython", db=db)
-#         await obj4.new(
-#             db=db,
-#             name="transform01",
-#             description="test transform01",
-#             file_path="mytransformation.py",
-#             class_name="Transform01",
-#             query=obj1,
-#             repository=obj2,
-#         )
-#         await obj4.save(db=db)
-#
-#     async def test_query_branches(self, client: InfrahubClient, init_db_base, base_dataset):
-#         branches = await client.branch.all()
-#         main = await client.branch.get(branch_name="main")
-#
-#         with pytest.raises(BranchNotFoundError):
-#             await client.branch.get(branch_name="not-found")
-#
-#         assert main.name == "main"
-#         assert "main" in branches
-#         assert "branch01" in branches
-#
-#     async def test_branch_delete(self, client: InfrahubClient, init_db_base, base_dataset, db):
-#         async_branch = "async-delete-branch"
-#         await create_branch(branch_name=async_branch, db=db)
-#         pre_delete = await client.branch.all()
-#         await client.branch.delete(async_branch)
-#         post_delete = await client.branch.all()
-#         assert async_branch in pre_delete.keys()
-#         assert async_branch not in post_delete.keys()
-#
-#     async def test_get_all(self, client: InfrahubClient, init_db_base, base_dataset):
-#         obj1 = await client.create(kind="BuiltinLocation", name="jfk1", description="new york", type="site")
-#         await obj1.save()
-#
-#         obj2 = await client.create(kind="BuiltinLocation", name="sfo1", description="san francisco", type="site")
-#         await obj2.save()
-#
-#         nodes = await client.all(kind="BuiltinLocation")
-#         assert len(nodes) == 2
-#         assert isinstance(nodes[0], InfrahubNode)
-#         assert sorted([node.name.value for node in nodes]) == ["jfk1", "sfo1"]  # type: ignore[attr-defined]
-#
-#     async def test_get_one(self, client: InfrahubClient, init_db_base, base_dataset):
-#         obj1 = await client.create(kind="BuiltinLocation", name="jfk2", description="new york", type="site")
-#         await obj1.save()
-#
-#         obj2 = await client.create(kind="BuiltinLocation", name="sfo2", description="san francisco", type="site")
-#         await obj2.save()
-#
-#         node1 = await client.get(kind="BuiltinLocation", id=obj1.id)
-#         assert isinstance(node1, InfrahubNode)
-#         assert node1.name.value == "jfk2"  # type: ignore[attr-defined]
-#
-#         node2 = await client.get(kind="BuiltinLocation", id="jfk2")
-#         assert isinstance(node2, InfrahubNode)
-#         assert node2.name.value == "jfk2"  # type: ignore[attr-defined]
-#
-#     async def test_filters_partial_match(self, client: InfrahubClient, init_db_base, base_dataset):
-#         nodes = await client.filters(kind="BuiltinLocation", name__value="jfk")
-#         assert not nodes
-#
-#         nodes = await client.filters(kind="BuiltinLocation", partial_match=True, name__value="jfk")
-#         assert len(nodes) == 2
-#         assert isinstance(nodes[0], InfrahubNode)
-#         assert sorted([node.name.value for node in nodes]) == ["jfk1", "jfk2"]  # type: ignore[attr-defined]
-#
-#     async def test_get_generic(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base):
-#         nodes = await client.all(kind="CoreNode")
-#         assert len(nodes)
-#
-#     async def test_get_generic_fragment(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base):
-#         nodes = await client.all(kind="CoreGenericAccount", fragment=True, exclude=["type"])
-#         assert len(nodes)
-#         assert nodes[0].typename == "CoreAccount"
-#         assert nodes[0].name.value is not None  # type: ignore[attr-defined]
-#
-#     async def test_get_generic_filter_source(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base):
-#         admin = await client.get(kind="CoreAccount", name__value="admin")
-#
-#         obj1 = await client.create(
-#             kind="BuiltinLocation", name={"value": "jfk3", "source": admin.id}, description="new york", type="site"
-#         )
-#         await obj1.save()
-#
-#         nodes = await client.filters(kind="CoreNode", any__source__id=admin.id)
-#         assert len(nodes) == 1
-#         assert nodes[0].typename == "BuiltinLocation"
-#         assert nodes[0].id == obj1.id
-#
-#     async def test_get_related_nodes(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base):
-#         nodes = await client.all(kind="CoreRepository")
-#         assert len(nodes) == 1
-#         repo = nodes[0]
-#
-#         assert repo.transformations.peers == []  # type: ignore[attr-defined]
-#         await repo.transformations.fetch()  # type: ignore[attr-defined]
-#         assert len(repo.transformations.peers) == 2  # type: ignore[attr-defined]
-#
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import pytest
+
+from infrahub_sdk.branch import BranchData
+from infrahub_sdk.exceptions import BranchNotFoundError
+from infrahub_sdk.node import InfrahubNode
+from infrahub_sdk.schema import ProfileSchemaAPI
+from infrahub_sdk.testing.docker import TestInfrahubDockerClient
+from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
+
+if TYPE_CHECKING:
+    from infrahub_sdk import InfrahubClient
+
+
+class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
+    @pytest.fixture(scope="class")
+    def infrahub_version(self) -> str:
+        return "1.1.0"
+
+    @pytest.fixture(scope="class")
+    async def base_dataset(
+        self,
+        client: InfrahubClient,
+        load_schema,
+        person_liam,
+        person_ethan,
+        person_sophia,
+        cat_luna,
+        cat_bella,
+        dog_daisy,
+        dog_rocky,
+    ):
+        await client.branch.create(branch_name="branch01")
+
+    async def test_query_branches(self, client: InfrahubClient, base_dataset):
+        branches = await client.branch.all()
+        main = await client.branch.get(branch_name="main")
+
+        with pytest.raises(BranchNotFoundError):
+            await client.branch.get(branch_name="not-found")
+
+        assert main.name == "main"
+        assert "main" in branches
+        assert "branch01" in branches
+
+    async def test_branch_delete(self, client: InfrahubClient, base_dataset):
+        async_branch = "async-delete-branch"
+        await client.branch.create(branch_name=async_branch)
+        pre_delete = await client.branch.all()
+        await client.branch.delete(async_branch)
+        post_delete = await client.branch.all()
+        assert async_branch in pre_delete.keys()
+        assert async_branch not in post_delete.keys()
+
+    async def test_get_all(self, client: InfrahubClient, base_dataset):
+        nodes = await client.all(kind=TESTING_CAT)
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], InfrahubNode)
+        assert sorted([node.name.value for node in nodes]) == ["Bella", "Luna"]
+
+    async def test_get_one(self, client: InfrahubClient, base_dataset, cat_luna, person_sophia):
+        node1 = await client.get(kind=TESTING_CAT, id=cat_luna.id)
+        assert isinstance(node1, InfrahubNode)
+        assert node1.name.value == "Luna"
+
+        node2 = await client.get(kind=TESTING_PERSON, id=person_sophia.id)
+        assert isinstance(node2, InfrahubNode)
+        assert node2.name.value == "Sophia Walker"
+
+    async def test_filters_partial_match(self, client: InfrahubClient, base_dataset):
+        nodes = await client.filters(kind=TESTING_PERSON, name__value="Walker")
+        assert not nodes
+
+        nodes = await client.filters(kind=TESTING_PERSON, partial_match=True, name__value="Walker")
+        assert len(nodes) == 2
+        assert isinstance(nodes[0], InfrahubNode)
+        assert sorted([node.name.value for node in nodes]) == ["Liam Walker", "Sophia Walker"]
+
+    async def test_get_generic(self, client: InfrahubClient, base_dataset):
+        nodes = await client.all(kind=TESTING_ANIMAL)
+        assert len(nodes) == 4
+
+    async def test_get_generic_fragment(self, client: InfrahubClient, base_dataset):
+        nodes = await client.all(kind=TESTING_ANIMAL, fragment=True)
+        assert len(nodes)
+        assert nodes[0].typename in [TESTING_DOG, TESTING_CAT]
+        assert nodes[0].breed.value is not None
+
+    async def test_get_related_nodes(self, client: InfrahubClient, base_dataset, person_ethan):
+        ethan = await client.get(kind=TESTING_PERSON, id=person_ethan.id)
+        assert ethan
+
+        assert ethan.animals.peers == []
+        await ethan.animals.fetch()
+        assert len(ethan.animals.peers) == 3
+
+    async def test_profile(self, client: InfrahubClient, base_dataset, person_liam):
+        profile_schema_kind = f"Profile{TESTING_DOG}"
+        profile_schema = await client.schema.get(kind=profile_schema_kind)
+        assert isinstance(profile_schema, ProfileSchemaAPI)
+
+        profile1 = await client.create(
+            kind=profile_schema_kind,
+            profile_name="profile1",
+            profile_priority=1000,
+            color="#111111",
+        )
+        await profile1.save()
+
+        obj = await client.create(
+            kind=TESTING_DOG, name="Sparky", breed="Border Collie", owner=person_liam, profiles=[profile1]
+        )
+        await obj.save()
+
+        obj1 = await client.get(kind=TESTING_DOG, id=obj.id)
+        assert obj1.color.value == "#111111"
+
+    async def test_create_branch(self, client: InfrahubClient, base_dataset):
+        branch = await client.branch.create(branch_name="new-branch-1")
+        assert isinstance(branch, BranchData)
+        assert branch.id is not None
+
+    async def test_create_branch_async(self, client: InfrahubClient, base_dataset):
+        task_id = await client.branch.create(branch_name="new-branch-2", wait_until_completion=False)
+        assert isinstance(task_id, str)
+
+    # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
+    #     admin = await client.get(kind="CoreAccount", name__value="admin")
+
+    #     obj1 = await client.create(
+    #         kind="BuiltinLocation", name={"value": "jfk3", "source": admin.id}, description="new york", type="site"
+    #     )
+    #     await obj1.save()
+
+    #     nodes = await client.filters(kind="CoreNode", any__source__id=admin.id)
+    #     assert len(nodes) == 1
+    #     assert nodes[0].typename == "BuiltinLocation"
+    #     assert nodes[0].id == obj1.id
+
+
 #     async def test_tracking_mode(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base, base_dataset):
 #         tag_names = ["BLUE", "RED", "YELLOW"]
 #         orgname = "Acme"
@@ -266,34 +226,8 @@
 #         assert nodes == recorded_nodes
 #         assert recorded_nodes[0].name.value == "repository1"
 #
-#     async def test_profile(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base, base_dataset):
-#         profile_schema_kind = "ProfileBuiltinStatus"
-#         profile_schema = await client.schema.get(kind=profile_schema_kind)
-#         assert isinstance(profile_schema, ProfileSchema)
-#
-#         profile1 = await client.create(
-#             kind=profile_schema_kind,
-#             profile_name="profile1",
-#             profile_priority=1000,
-#             description="description in profile",
-#         )
-#         await profile1.save()
-#
-#         obj = await client.create(kind="BuiltinStatus", name="planned", profiles=[profile1])
-#         await obj.save()
-#
-#         obj1 = await client.get(kind="BuiltinStatus", id=obj.id)
-#         assert obj1.description.value == "description in profile"
-#
-#     async def test_create_branch(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base, base_dataset):
-#         branch = await client.branch.create(branch_name="new-branch-1")
-#         assert isinstance(branch, BranchData)
-#         assert branch.id is not None
-#
-#     async def test_create_branch_async(self, client: InfrahubClient, db: InfrahubDatabase, init_db_base, base_dataset):
-#         task_id = await client.branch.create(branch_name="new-branch-2", wait_until_completion=False)
-#         assert isinstance(task_id, str)
-#
+
+
 #     # See issue #148.
 #     async def test_hierarchical(
 #         self, client: InfrahubClient, db: InfrahubDatabase, init_db_base, base_dataset, hierarchical_schema
