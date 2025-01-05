@@ -259,6 +259,8 @@ class BaseSchema(BaseModel):
     description: str | None = None
     include_in_menu: bool | None = None
     menu_placement: str | None = None
+    display_labels: list[str] | None = None
+    human_friendly_id: list[str] | None = None
     icon: str | None = None
     uniqueness_constraints: list[list[str]] | None = None
     documentation: str | None = None
@@ -286,7 +288,6 @@ class BaseNodeSchema(BaseSchema):
     inherit_from: list[str] = Field(default_factory=list)
     branch: BranchSupportType | None = None
     default_filter: str | None = None
-    human_friendly_id: list[str] | None = None
     generate_profile: bool | None = None
     parent: str | None = None
     children: str | None = None

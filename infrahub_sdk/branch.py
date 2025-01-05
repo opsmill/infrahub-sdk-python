@@ -40,6 +40,7 @@ BRANCH_DATA_FILTER = {"@filters": {"name": "$branch_name"}}
 
 
 MUTATION_QUERY_DATA = {"ok": None, "object": BRANCH_DATA}
+MUTATION_QUERY_TASK = {"ok": None, "task": {"id": None}}
 
 QUERY_ALL_BRANCHES_DATA = {"Branch": BRANCH_DATA}
 
@@ -119,13 +120,14 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
             },
         }
 
-        query = Mutation(mutation="BranchCreate", input_data=input_data, query=MUTATION_QUERY_DATA)
+        mutation_query = MUTATION_QUERY_TASK if background_execution else MUTATION_QUERY_DATA
+        query = Mutation(mutation="BranchCreate", input_data=input_data, query=mutation_query)
         response = await self.client.execute_graphql(query=query.render(), tracker="mutation-branch-create")
 
         # Make sure server version is recent enough to support background execution, as previously
         # using background_execution=True had no effect.
         if background_execution and "task" in response["BranchCreate"]:
-            return BranchData(**response["BranchCreate"]["task"]["id"])
+            return response["BranchCreate"]["task"]["id"]
         return BranchData(**response["BranchCreate"]["object"])
 
     async def delete(self, branch_name: str) -> bool:
