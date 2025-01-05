@@ -143,9 +143,11 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         initial_schema: None,
         manufacturer_mercedes,
         person_joe,
+        person_jane,
         car_golf,
         tag_blue,
         tag_red,
+        tag_green,
     ):
         car_golf.color.value = "White"
         await car_golf.tags.fetch()
@@ -153,38 +155,19 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         car_golf.tags.add(tag_red.id)
         await car_golf.save()
 
-        node_after = await client.get(kind=TESTING_CAR, id=car_golf.id)
-        assert node_after.color.value == "White"
-        await node_after.tags.fetch()
-        assert len(node_after.tags.peers) == 2
+        car2 = await client.get(kind=TESTING_CAR, id=car_golf.id)
+        assert car2.color.value == "White"
+        await car2.tags.fetch()
+        assert len(car2.tags.peers) == 2
 
-    # async def test_node_update_2(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_green: Node,
-    #     tag_red: Node,
-    #     tag_blue: Node,
-    #     gqlquery02: Node,
-    #     repo99: Node,
-    # ):
-    #     node = await client.get(kind="CoreGraphQLQuery", name__value="query02")
-    #     assert node.id is not None
+        car2.owner = person_jane.id
+        car2.tags.add(tag_green.id)
+        car2.tags.remove(tag_red.id)
+        await car2.save()
 
-    #     node.name.value = "query021"
-    #     node.repository = repo99.id
-    #     node.tags.add(tag_green.id)
-    #     node.tags.remove(tag_red.id)
-    #     await node.save()
-
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     repodb = await nodedb.repository.get_peer(db=db)
-    #     assert repodb.id == repo99.id
-
-    #     tags = await nodedb.tags.get(db=db)
-    #     assert sorted([tag.peer_id for tag in tags]) == sorted([tag_green.id, tag_blue.id])
+        car3 = await client.get(kind=TESTING_CAR, id=car_golf.id)
+        await car3.tags.fetch()
+        assert sorted([tag.id for tag in car3.tags.peers]) == sorted([tag_green.id, tag_blue.id])
 
     # async def test_node_update_3_idempotency(
     #     self,
@@ -221,21 +204,6 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     #     assert first_update["variables"]
     #     assert "query" not in second_update["data"]["data"]
     #     assert not second_update["variables"]
-
-    # async def test_convert_node(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     location_schema,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     location_cdg: Node,
-    # ):
-    #     data = await location_cdg.to_graphql(db=db)
-    #     node = InfrahubNode(client=client, schema=location_schema, data=data)
-
-    #     # pylint: disable=no-member
-    #     assert node.name.value == "cdg01"
 
     # async def test_relationship_manager_errors_without_fetch(self, client: InfrahubClient, load_builtin_schema):
     #     organization = await client.create("TestOrganization", name="organization-1")

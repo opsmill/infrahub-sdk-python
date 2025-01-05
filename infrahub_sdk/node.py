@@ -904,7 +904,7 @@ class InfrahubNodeBase:
                         variables.pop(variable_key)
 
         # TODO: I do not feel _great_ about this
-        if not data_item and data_item != []:
+        if not data_item and data_item != [] and item in data:
             data.pop(item)
 
     def _strip_unmodified(self, data: dict, variables: dict) -> tuple[dict, dict]:
