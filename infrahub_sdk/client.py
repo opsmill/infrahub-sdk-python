@@ -540,6 +540,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -557,6 +558,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -573,6 +575,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        batch: bool = False,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -588,6 +591,7 @@ class InfrahubClient(BaseClient):
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            batch (bool, optional): Whether to use batch processing for the query.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -605,6 +609,7 @@ class InfrahubClient(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
+            batch=batch,
         )
 
     @overload
@@ -623,6 +628,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -642,6 +648,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -660,6 +667,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
+        batch: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -677,6 +685,7 @@ class InfrahubClient(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
+            batch (bool, optional): Whether to use batch processing for the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -697,9 +706,7 @@ class InfrahubClient(BaseClient):
         has_remaining_items = True
         page_number = 1
 
-        while has_remaining_items:
-            page_offset = (page_number - 1) * self.pagination_size
-
+        async def process_page(page_offset: int):
             query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=offset or page_offset,
                 limit=limit or self.pagination_size,
@@ -727,14 +734,33 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
             )
-            nodes.extend(process_result["nodes"])
-            related_nodes.extend(process_result["related_nodes"])
 
-            remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
-            if remaining_items < 0 or offset is not None or limit is not None:
-                has_remaining_items = False
+            return response, process_result
 
-            page_number += 1
+        if batch:
+            batch_process = await self.create_batch()
+            resp = await self.execute_graphql(query=f"query {{ {schema.kind} {{ count }} }}")
+            count = resp[schema.kind].get("count", 0)
+            total_pages = (count + self.pagination_size - 1) // self.pagination_size
+            for page_number in range(1, total_pages + 1):
+                page_offset = (page_number - 1) * self.pagination_size
+                batch_process.add(task=process_page, node=node, page_offset=page_offset)
+
+            async for _, response in batch_process.execute():
+                nodes.extend(response[1]["nodes"])
+                related_nodes.extend(response[1]["related_nodes"])
+        else:
+            while has_remaining_items:
+                page_offset = (page_number - 1) * self.pagination_size
+                response, process_result = await process_page(page_offset)
+
+                nodes.extend(process_result["nodes"])
+                related_nodes.extend(process_result["related_nodes"])
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
+                if remaining_items < 0 or offset is not None or limit is not None:
+                    has_remaining_items = False
+
+                page_number += 1
 
         if populate_store:
             for node in nodes:
@@ -1564,6 +1590,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -1581,6 +1608,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -1597,6 +1625,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        batch: bool = False,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -1629,6 +1658,7 @@ class InfrahubClientSync(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
+            batch=batch,
         )
 
     def _process_nodes_and_relationships(
@@ -1682,6 +1712,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -1701,6 +1732,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
+        batch: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -1719,6 +1751,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
+        batch: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1736,6 +1769,7 @@ class InfrahubClientSync(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
+            batch (bool, optional): Whether to use batch processing for the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -1756,9 +1790,7 @@ class InfrahubClientSync(BaseClient):
         has_remaining_items = True
         page_number = 1
 
-        while has_remaining_items:
-            page_offset = (page_number - 1) * self.pagination_size
-
+        def process_page(page_offset: int):
             query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=offset or page_offset,
                 limit=limit or self.pagination_size,
@@ -1786,14 +1818,35 @@ class InfrahubClientSync(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
             )
-            nodes.extend(process_result["nodes"])
-            related_nodes.extend(process_result["related_nodes"])
+            return response, process_result
 
-            remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
-            if remaining_items < 0 or offset is not None or limit is not None:
-                has_remaining_items = False
+        if batch:
+            batch_process = self.create_batch()
 
-            page_number += 1
+            resp = self.execute_graphql(query=f"query {{ {schema.kind} {{ count }} }}")
+            count = resp[schema.kind].get("count", 0)
+            total_pages = (count + self.pagination_size - 1) // self.pagination_size
+            for page_number in range(1, total_pages + 1):
+                page_offset = (page_number - 1) * self.pagination_size
+                batch_process.add(task=process_page, node=node, page_offset=page_offset)
+
+            for _, response in batch_process.execute():
+                nodes.extend(response[1]["nodes"])
+                related_nodes.extend(response[1]["related_nodes"])
+
+        else:
+            while has_remaining_items:
+                page_offset = (page_number - 1) * self.pagination_size
+                response, process_result = process_page(page_offset)
+
+                nodes.extend(process_result["nodes"])
+                related_nodes.extend(process_result["related_nodes"])
+
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
+                if remaining_items < 0 or offset is not None or limit is not None:
+                    has_remaining_items = False
+
+                page_number += 1
 
         if populate_store:
             for node in nodes:
