@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import ujson
-from git.exc import InvalidGitRepositoryError
 
 from ..exceptions import InvalidResourceConfigError
 from ..models import InfrahubInputOutputTest
@@ -28,7 +27,6 @@ class InfrahubItem(pytest.Item):
         **kwargs: dict[str, Any],
     ):
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
-
         self.resource_name: str = resource_name
         self.resource_config: InfrahubRepositoryConfigElement = resource_config
         self.test: InfrahubTest = test
@@ -68,9 +66,6 @@ class InfrahubItem(pytest.Item):
         """Run the test logic."""
 
     def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
-        if isinstance(excinfo.value, InvalidGitRepositoryError):
-            return f"Invalid Git repository at {excinfo.value}"
-
         return str(excinfo.value)
 
     def reportinfo(self) -> tuple[Path | str, int | None, str]:

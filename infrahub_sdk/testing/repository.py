@@ -7,10 +7,9 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from git.repo import Repo
-
 from infrahub_sdk.graphql import Mutation
 from infrahub_sdk.protocols import CoreGenericRepository
+from infrahub_sdk.repository import GitRepoManager
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
@@ -37,14 +36,14 @@ class GitRepo:
 
     type: GitRepoType = GitRepoType.INTEGRATED
 
-    _repo: Repo | None = None
+    _repo: GitRepoManager | None = None
     initial_branch: str = "main"
     directories_to_ignore: list[str] = field(default_factory=list)
     remote_directory_name: str = "/remote"
     _branches: list[str] = field(default_factory=list)
 
     @property
-    def repo(self) -> Repo:
+    def repo(self) -> GitRepoManager:
         if self._repo:
             return self._repo
         raise ValueError("Repo hasn't been initialized yet")
@@ -62,12 +61,8 @@ class GitRepo:
             dst=self.dst_directory / self.name,
             ignore=shutil.ignore_patterns(".git"),
         )
-        self._repo = Repo.init(self.dst_directory / self.name, initial_branch=self.initial_branch)
-        for untracked in self.repo.untracked_files:
-            self.repo.index.add(untracked)
-        self.repo.index.commit("First commit")
 
-        self.repo.git.checkout(self.initial_branch)
+        self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)
 
     async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
         input_data = {

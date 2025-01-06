@@ -4,7 +4,7 @@ import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from git.repo import Repo
+from infrahub_sdk.repository import GitRepoManager
 
 from .exceptions import UninitializedError
 
@@ -30,7 +30,7 @@ class InfrahubGenerator:
     ) -> None:
         self.query = query
         self.branch = branch
-        self.git: Repo | None = None
+        self.git: GitRepoManager | None = None
         self.params = params or {}
         self.root_directory = root_directory or os.getcwd()
         self.generator_instance = generator_instance
@@ -81,7 +81,7 @@ class InfrahubGenerator:
             return self.branch
 
         if not self.git:
-            self.git = Repo(self.root_directory)
+            self.git = GitRepoManager(self.root_directory)
 
         self.branch = str(self.git.active_branch)
 

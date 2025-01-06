@@ -8,11 +8,11 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from git import Repo
 from pytest_httpx._httpx_mock import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
+from infrahub_sdk.repository import GitRepoManager
 from tests.helpers.utils import change_directory, strip_color
 
 runner = CliRunner()
@@ -41,8 +41,7 @@ def tags_transform_dir():
         fixture_path = Path(FIXTURE_BASE_DIR / "tags_transform")
         shutil.copytree(fixture_path, temp_dir, dirs_exist_ok=True)
         # Initialize fixture as git repo. This is necessary to run some infrahubctl commands.
-        with change_directory(temp_dir):
-            Repo.init(".", initial_branch="main")
+        GitRepoManager(temp_dir)
 
         yield temp_dir
 
@@ -129,5 +128,6 @@ class TestInfrahubctlTransform:
 
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", "tags_transform", "tag=red"])
+            print(output.stdout)
             assert strip_color(output.stdout) == read_fixture("case_success_output.txt", "transform_cmd")
             assert output.exit_code == 0

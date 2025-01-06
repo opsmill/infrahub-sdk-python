@@ -8,8 +8,9 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
 import ujson
-from git.repo import Repo
 from pydantic import BaseModel, Field
+
+from infrahub_sdk.repository import GitRepoManager
 
 from .exceptions import InfrahubCheckNotFoundError, UninitializedError
 
@@ -46,7 +47,7 @@ class InfrahubCheck:
         params: dict | None = None,
         client: InfrahubClient | None = None,
     ):
-        self.git: Repo | None = None
+        self.git: GitRepoManager | None = None
         self.initializer = initializer or InfrahubCheckInitializer()
 
         self.logs: list[dict[str, Any]] = []
@@ -140,10 +141,9 @@ class InfrahubCheck:
             return self.branch
 
         if not self.git:
-            self.git = Repo(self.root_directory)
+            self.git = GitRepoManager(self.root_directory)
 
         self.branch = str(self.git.active_branch)
-
         return self.branch
 
     @abstractmethod
