@@ -21,6 +21,10 @@ class GitRepoManager:
 
         if root_path.exists() and (root_path / ".git").is_dir():
             self.git = Repo(self.root_directory)  # Open existing repo
+            try:
+                self.active_branch  # noqa: B018
+            except KeyError:
+                raise ValueError("Git repository does not have an active branch.")
         else:
             self.git = Repo.init(self.root_directory, default_branch=self.branch.encode("utf-8"))
             self.create_initial_commit()
