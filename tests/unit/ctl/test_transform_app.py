@@ -128,6 +128,5 @@ class TestInfrahubctlTransform:
 
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", "tags_transform", "tag=red"])
-            print(output.stdout)
             assert strip_color(output.stdout) == read_fixture("case_success_output.txt", "transform_cmd")
             assert output.exit_code == 0
