@@ -12,13 +12,10 @@ from pydantic import BaseModel, Field
 
 from infrahub_sdk.repository import GitRepoManager
 
-from .exceptions import InfrahubCheckNotFoundError, UninitializedError
+from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from . import InfrahubClient
-    from .schema.repository import InfrahubCheckDefinitionConfig
 
 INFRAHUB_CHECK_VARIABLE_TO_IMPORT = "INFRAHUB_CHECKS"
 
@@ -176,27 +173,3 @@ class InfrahubCheck:
             self.log_info("Check succesfully completed")
 
         return self.passed
-
-
-def get_check_class_instance(
-    check_config: InfrahubCheckDefinitionConfig, search_path: Path | None = None
-) -> InfrahubCheck:
-    if check_config.file_path.is_absolute() or search_path is None:
-        search_location = check_config.file_path
-    else:
-        search_location = search_path / check_config.file_path
-
-    try:
-        spec = importlib.util.spec_from_file_location(check_config.class_name, search_location)
-        module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
-
-        # Get the specified class from the module
-        check_class = getattr(module, check_config.class_name)
-
-        # Create an instance of the class
-        check_instance = check_class()
-    except (FileNotFoundError, AttributeError) as exc:
-        raise InfrahubCheckNotFoundError(name=check_config.name) from exc
-
-    return check_instance

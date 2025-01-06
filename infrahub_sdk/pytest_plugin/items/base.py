@@ -65,7 +65,7 @@ class InfrahubItem(pytest.Item):
     def runtest(self) -> None:
         """Run the test logic."""
 
-    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
+    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:  # noqa: ARG002
         return str(excinfo.value)
 
     def reportinfo(self) -> tuple[Path | str, int | None, str]:

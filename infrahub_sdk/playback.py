@@ -44,7 +44,7 @@ class JSONPlayback(BaseSettings):
         url: str,
         method: HTTPMethod,
         headers: dict[str, Any],
-        timeout: int,  # pylint: disable=unused-argument
+        timeout: int,  # noqa: ARG002
         payload: dict | None = None,
     ) -> httpx.Response:
         content: bytes | None = None

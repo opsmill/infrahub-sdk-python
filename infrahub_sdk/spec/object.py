@@ -16,7 +16,7 @@ class InfrahubObjectFileData(BaseModel):
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
-    def enrich_node(cls, data: dict, context: dict) -> dict:
+    def enrich_node(cls, data: dict, context: dict) -> dict:  # noqa: ARG003
         return data
 
     @classmethod
