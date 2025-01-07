@@ -10,6 +10,13 @@ from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 async_client_methods = [method for method in dir(InfrahubClient) if not method.startswith("_")]
 sync_client_methods = [method for method in dir(InfrahubClientSync) if not method.startswith("_")]
 
+batch_client_types = [
+    ("standard", False),
+    ("standard", True),
+    ("sync", False),
+    ("sync", True),
+]
+
 client_types = ["standard", "sync"]
 
 
@@ -102,6 +109,26 @@ async def test_method_all_multiple_pages(
         assert len(clients.sync.store._store["CoreRepository"]) == 5
 
     assert len(repos) == 5
+
+
+@pytest.mark.parametrize("client_type, use_batch", batch_client_types)
+async def test_method_all_batching(
+    clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_batch
+):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        locations = await clients.standard.all(kind="BuiltinLocation", batch=use_batch)
+        assert not clients.standard.store._store["BuiltinLocation"]
+
+        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=True, batch=use_batch)
+        assert len(clients.standard.store._store["BuiltinLocation"]) == 30
+    else:
+        locations = clients.sync.all(kind="BuiltinLocation", batch=use_batch)
+        assert not clients.sync.store._store["BuiltinLocation"]
+
+        locations = clients.sync.all(kind="BuiltinLocation", populate_store=True, batch=use_batch)
+        assert len(clients.sync.store._store["BuiltinLocation"]) == 30
+
+    assert len(locations) == 30
 
 
 @pytest.mark.parametrize("client_type", client_types)

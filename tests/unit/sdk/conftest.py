@@ -2468,3 +2468,25 @@ async def mock_schema_query_ipam(httpx_mock: HTTPXMock) -> HTTPXMock:
 
     httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=ujson.loads(response_text))
     return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_location_batch_count(
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+) -> HTTPXMock:
+    response = {"data": {"BuiltinLocation": {"count": 30}}}
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_location_batch(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+    for i in range(1, 11):
+        filename = get_fixtures_dir() / "batch" / f"mock_query_location_page{i}.json"
+        response_text = filename.read_text(encoding="UTF-8")
+        httpx_mock.add_response(
+            method="POST",
+            json=ujson.loads(response_text),
+            match_headers={"X-Infrahub-Tracker": f"query-builtinlocation-page{i}"},
+        )
+    return httpx_mock

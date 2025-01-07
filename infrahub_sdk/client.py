@@ -691,25 +691,20 @@ class InfrahubClient(BaseClient):
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
         """
-        schema = await self.schema.get(kind=kind, branch=branch)
-
         branch = branch or self.default_branch
+        schema = await self.schema.get(kind=kind, branch=branch)
         if at:
             at = Timestamp(at)
 
         node = InfrahubNode(client=self, schema=schema, branch=branch)
         filters = kwargs
+        pagination_size = self.pagination_size
 
-        nodes: list[InfrahubNode] = []
-        related_nodes: list[InfrahubNode] = []
-
-        has_remaining_items = True
-        page_number = 1
-
-        async def process_page(page_offset: int):
+        async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
+            """Process a single page of results."""
             query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=offset or page_offset,
-                limit=limit or self.pagination_size,
+                limit=limit or pagination_size,
                 filters=filters,
                 include=include,
                 exclude=exclude,
@@ -734,33 +729,49 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
             )
-
             return response, process_result
 
-        if batch:
+        async def process_batch(schema_kind: str) -> tuple[list[InfrahubNode], list[InfrahubNode]]:
+            """Process queries in batch mode."""
+            nodes = []
+            related_nodes = []
             batch_process = await self.create_batch()
-            resp = await self.execute_graphql(query=f"query {{ {schema.kind} {{ count }} }}")
-            count = resp[schema.kind].get("count", 0)
-            total_pages = (count + self.pagination_size - 1) // self.pagination_size
+            resp = await self.execute_graphql(query=f"query {{ {schema_kind} {{ count }} }}")
+            count = resp[schema_kind].get("count", 0)
+            total_pages = (count + pagination_size - 1) // pagination_size
+
             for page_number in range(1, total_pages + 1):
-                page_offset = (page_number - 1) * self.pagination_size
-                batch_process.add(task=process_page, node=node, page_offset=page_offset)
+                page_offset = (page_number - 1) * pagination_size
+                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
 
             async for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
                 related_nodes.extend(response[1]["related_nodes"])
-        else:
+
+            return nodes, related_nodes
+
+        async def process_non_batch() -> tuple[list[InfrahubNode], list[InfrahubNode]]:
+            """Process queries without batch mode."""
+            nodes = []
+            related_nodes = []
+            has_remaining_items = True
+            page_number = 1
+
             while has_remaining_items:
-                page_offset = (page_number - 1) * self.pagination_size
-                response, process_result = await process_page(page_offset)
+                page_offset = (page_number - 1) * pagination_size
+                response, process_result = await process_page(page_offset, page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
-                remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + pagination_size)
                 if remaining_items < 0 or offset is not None or limit is not None:
                     has_remaining_items = False
-
                 page_number += 1
+
+            return nodes, related_nodes
+
+        # Select batch or non-batch processing
+        nodes, related_nodes = await (process_batch(schema.kind) if batch else process_non_batch())
 
         if populate_store:
             for node in nodes:
@@ -770,7 +781,6 @@ class InfrahubClient(BaseClient):
             for node in related_nodes:
                 if node.id:
                     self.store.set(key=node.id, node=node)
-
         return nodes
 
     def clone(self) -> InfrahubClient:
@@ -1775,25 +1785,19 @@ class InfrahubClientSync(BaseClient):
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
         """
-        schema = self.schema.get(kind=kind, branch=branch)
-
         branch = branch or self.default_branch
+        schema = self.schema.get(kind=kind, branch=branch)
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         if at:
             at = Timestamp(at)
-
-        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         filters = kwargs
+        pagination_size = self.pagination_size
 
-        nodes: list[InfrahubNodeSync] = []
-        related_nodes: list[InfrahubNodeSync] = []
-
-        has_remaining_items = True
-        page_number = 1
-
-        def process_page(page_offset: int):
+        def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
+            """Process a single page of results."""
             query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=offset or page_offset,
-                limit=limit or self.pagination_size,
+                limit=limit or pagination_size,
                 filters=filters,
                 include=include,
                 exclude=exclude,
@@ -1820,33 +1824,49 @@ class InfrahubClientSync(BaseClient):
             )
             return response, process_result
 
-        if batch:
+        def process_batch() -> tuple[list[InfrahubNodeSync], list[InfrahubNodeSync]]:
+            """Process queries in batch mode."""
+            nodes = []
+            related_nodes = []
             batch_process = self.create_batch()
 
             resp = self.execute_graphql(query=f"query {{ {schema.kind} {{ count }} }}")
             count = resp[schema.kind].get("count", 0)
-            total_pages = (count + self.pagination_size - 1) // self.pagination_size
+            total_pages = (count + pagination_size - 1) // pagination_size
+
             for page_number in range(1, total_pages + 1):
-                page_offset = (page_number - 1) * self.pagination_size
-                batch_process.add(task=process_page, node=node, page_offset=page_offset)
+                page_offset = (page_number - 1) * pagination_size
+                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
 
             for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
                 related_nodes.extend(response[1]["related_nodes"])
 
-        else:
+            return nodes, related_nodes
+
+        def process_non_batch() -> tuple[list[InfrahubNodeSync], list[InfrahubNodeSync]]:
+            """Process queries without batch mode."""
+            nodes = []
+            related_nodes = []
+            has_remaining_items = True
+            page_number = 1
+
             while has_remaining_items:
-                page_offset = (page_number - 1) * self.pagination_size
-                response, process_result = process_page(page_offset)
+                page_offset = (page_number - 1) * pagination_size
+                response, process_result = process_page(page_offset, page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
 
-                remaining_items = response[schema.kind].get("count", 0) - (page_offset + self.pagination_size)
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + pagination_size)
                 if remaining_items < 0 or offset is not None or limit is not None:
                     has_remaining_items = False
-
                 page_number += 1
+
+            return nodes, related_nodes
+
+        # Select batch or non-batch processing
+        nodes, related_nodes = process_batch() if batch else process_non_batch()
 
         if populate_store:
             for node in nodes:
@@ -1856,7 +1876,6 @@ class InfrahubClientSync(BaseClient):
             for node in related_nodes:
                 if node.id:
                     self.store.set(key=node.id, node=node)
-
         return nodes
 
     @overload
