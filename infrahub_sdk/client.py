@@ -559,7 +559,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -577,7 +577,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -594,7 +594,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
-        batch: bool = False,
+        parallel: bool = False,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -610,7 +610,7 @@ class InfrahubClient(BaseClient):
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
-            batch (bool, optional): Whether to use batch processing for the query.
+            parallel (bool, optional): Whether to use parallel processing for the query.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -628,7 +628,7 @@ class InfrahubClient(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
-            batch=batch,
+            parallel=parallel,
         )
 
     @overload
@@ -647,7 +647,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -667,7 +667,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -686,7 +686,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
-        batch: bool = False,
+        parallel: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -704,7 +704,7 @@ class InfrahubClient(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
-            batch (bool, optional): Whether to use batch processing for the query.
+            parallel (bool, optional): Whether to use parallel processing for the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -750,13 +750,12 @@ class InfrahubClient(BaseClient):
             )
             return response, process_result
 
-        async def process_batch(schema_kind: str) -> tuple[list[InfrahubNode], list[InfrahubNode]]:
-            """Process queries in batch mode."""
+        async def process_batch() -> tuple[list[InfrahubNode], list[InfrahubNode]]:
+            """Process queries in parallel mode."""
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            resp = await self.execute_graphql(query=f"query {{ {schema_kind} {{ count }} }}")
-            count = resp[schema_kind].get("count", 0)
+            count = await self.count(kind=schema.kind)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -770,7 +769,7 @@ class InfrahubClient(BaseClient):
             return nodes, related_nodes
 
         async def process_non_batch() -> tuple[list[InfrahubNode], list[InfrahubNode]]:
-            """Process queries without batch mode."""
+            """Process queries without parallel mode."""
             nodes = []
             related_nodes = []
             has_remaining_items = True
@@ -789,8 +788,8 @@ class InfrahubClient(BaseClient):
 
             return nodes, related_nodes
 
-        # Select batch or non-batch processing
-        nodes, related_nodes = await (process_batch(schema.kind) if batch else process_non_batch())
+        # Select parallel or non-parallel processing
+        nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
         if populate_store:
             for node in nodes:
@@ -1638,7 +1637,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -1656,7 +1655,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -1673,7 +1672,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
-        batch: bool = False,
+        parallel: bool = False,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -1689,6 +1688,7 @@ class InfrahubClientSync(BaseClient):
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            parallel (bool, optional): Whether to use parallel processing for the query.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
@@ -1706,7 +1706,7 @@ class InfrahubClientSync(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
-            batch=batch,
+            parallel=parallel,
         )
 
     def _process_nodes_and_relationships(
@@ -1760,7 +1760,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -1780,7 +1780,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         partial_match: bool = ...,
         property: bool = ...,
-        batch: bool = ...,
+        parallel: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -1799,7 +1799,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
-        batch: bool = False,
+        parallel: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1817,7 +1817,7 @@ class InfrahubClientSync(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
-            batch (bool, optional): Whether to use batch processing for the query.
+            parallel (bool, optional): Whether to use parallel processing for the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -1863,13 +1863,12 @@ class InfrahubClientSync(BaseClient):
             return response, process_result
 
         def process_batch() -> tuple[list[InfrahubNodeSync], list[InfrahubNodeSync]]:
-            """Process queries in batch mode."""
+            """Process queries in parallel mode."""
             nodes = []
             related_nodes = []
             batch_process = self.create_batch()
 
-            resp = self.execute_graphql(query=f"query {{ {schema.kind} {{ count }} }}")
-            count = resp[schema.kind].get("count", 0)
+            count = self.count(kind=schema.kind)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1883,7 +1882,7 @@ class InfrahubClientSync(BaseClient):
             return nodes, related_nodes
 
         def process_non_batch() -> tuple[list[InfrahubNodeSync], list[InfrahubNodeSync]]:
-            """Process queries without batch mode."""
+            """Process queries without parallel mode."""
             nodes = []
             related_nodes = []
             has_remaining_items = True
@@ -1903,8 +1902,8 @@ class InfrahubClientSync(BaseClient):
 
             return nodes, related_nodes
 
-        # Select batch or non-batch processing
-        nodes, related_nodes = process_batch() if batch else process_non_batch()
+        # Select parallel or non-parallel processing
+        nodes, related_nodes = process_batch() if parallel else process_non_batch()
 
         if populate_store:
             for node in nodes:

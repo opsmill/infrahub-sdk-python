@@ -121,21 +121,21 @@ async def test_method_all_multiple_pages(
     assert len(repos) == 5
 
 
-@pytest.mark.parametrize("client_type, use_batch", batch_client_types)
+@pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
 async def test_method_all_batching(
-    clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_batch
+    clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_parallel
 ):  # pylint: disable=unused-argument
     if client_type == "standard":
-        locations = await clients.standard.all(kind="BuiltinLocation", batch=use_batch)
+        locations = await clients.standard.all(kind="BuiltinLocation", parallel=use_parallel)
         assert not clients.standard.store._store["BuiltinLocation"]
 
-        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=True, batch=use_batch)
+        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
         assert len(clients.standard.store._store["BuiltinLocation"]) == 30
     else:
-        locations = clients.sync.all(kind="BuiltinLocation", batch=use_batch)
+        locations = clients.sync.all(kind="BuiltinLocation", parallel=use_parallel)
         assert not clients.sync.store._store["BuiltinLocation"]
 
-        locations = clients.sync.all(kind="BuiltinLocation", populate_store=True, batch=use_batch)
+        locations = clients.sync.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
         assert len(clients.sync.store._store["BuiltinLocation"]) == 30
 
     assert len(locations) == 30
