@@ -1681,6 +1681,12 @@ async def mock_query_corenode_page1_1(httpx_mock: HTTPXMock, client: InfrahubCli
 
 
 @pytest.fixture
+async def mock_query_repository_count(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+    httpx_mock.add_response(method="POST", json={"data": {"CoreRepository": {"count": 5}}})
+    return httpx_mock
+
+
+@pytest.fixture
 async def mock_query_repository_page1_empty(
     httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
 ) -> HTTPXMock:
