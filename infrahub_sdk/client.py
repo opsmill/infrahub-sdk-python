@@ -525,6 +525,25 @@ class InfrahubClient(BaseClient):
 
         return ProcessRelationsNode(nodes=nodes, related_nodes=related_nodes)
 
+    async def count(
+        self,
+        kind: str | type[SchemaType],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+    ) -> int:
+        """Return the number of nodes of a given kind."""
+        schema = await self.schema.get(kind=kind, branch=branch)
+
+        branch = branch or self.default_branch
+        if at:
+            at = Timestamp(at)
+
+        response = await self.execute_graphql(
+            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+        )
+        return int(response.get(schema.kind, {}).get("count", 0))
+
     @overload
     async def all(
         self,
@@ -1548,6 +1567,25 @@ class InfrahubClientSync(BaseClient):
         return response["data"]
 
         # TODO add a special method to execute mutation that will check if the method returned OK
+
+    def count(
+        self,
+        kind: str | type[SchemaType],
+        at: Timestamp | None = None,
+        branch: str | None = None,
+        timeout: int | None = None,
+    ) -> int:
+        """Return the number of nodes of a given kind."""
+        schema = self.schema.get(kind=kind, branch=branch)
+
+        branch = branch or self.default_branch
+        if at:
+            at = Timestamp(at)
+
+        response = self.execute_graphql(
+            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+        )
+        return int(response.get(schema.kind, {}).get("count", 0))
 
     @overload
     def all(
