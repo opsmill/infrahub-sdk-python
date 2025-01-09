@@ -20,7 +20,6 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 - Add the ability to batch API queries for `all` and `filter` functions. ([#159](https://github.com/opsmill/infrahub-sdk-python/issues/159))
 - `client.all` and `client.filters` now support `order` parameter allowing to disable order of retrieve nodes in order to enhance performances
 
-
 ## [1.4.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.3.0) - 2025-01-05
 
 ### Fixed
