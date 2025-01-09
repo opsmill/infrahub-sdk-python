@@ -73,6 +73,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_filters_partial_match(self, client: InfrahubClient, base_dataset):
         nodes = await client.filters(kind=TESTING_PERSON, name__value="Walker")
         assert not nodes
+        print("a")
 
         nodes = await client.filters(kind=TESTING_PERSON, partial_match=True, name__value="Walker")
         assert len(nodes) == 2
