@@ -55,7 +55,7 @@ def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir):
 
     monkeypatch.setattr(Repo, "init", mock_init)
 
-    with pytest.raises(ValueError, match="Failed to initialize or open a repository."):
+    with pytest.raises(ValueError, match=r"Failed to initialize or open a repository\."):
         GitRepoManager(temp_dir)
 
 
