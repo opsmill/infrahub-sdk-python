@@ -4,6 +4,8 @@ import enum
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Protocol, Union, runtime_checkable
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     import httpx
 
@@ -64,3 +66,7 @@ class InfrahubLogger(Protocol):
 
 
 InfrahubLoggers = Union[InfrahubLogger, Logger]
+
+
+class Order(BaseModel):
+    disable: bool | None = None

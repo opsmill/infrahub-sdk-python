@@ -59,7 +59,22 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         nodes = await client.all(kind=TESTING_CAT)
         assert len(nodes) == 2
         assert isinstance(nodes[0], InfrahubNode)
-        assert sorted([node.name.value for node in nodes]) == ["Bella", "Luna"]
+        assert [node.name.value for node in nodes] == ["Bella", "Luna"]
+
+    # TODO enable these tests for infrahub version containing this commit
+    #  https://github.com/opsmill/infrahub/commit/5a4d6860196b5bfb51fb8a124f33125f4a0b6753
+    #  when we support testing against multiple infrahub versions.
+    # async def test_get_all_no_order(self, client: InfrahubClient, base_dataset):
+    #     nodes = await client.all(kind=TESTING_CAT, order=Order(disable=True))
+    #     assert len(nodes) == 2
+    #     assert isinstance(nodes[0], InfrahubNode)
+    #     assert {node.name.value for node in nodes} == {"Bella", "Luna"}
+    #
+    # async def test_get_filters_no_order(self, client: InfrahubClient, base_dataset):
+    #     nodes = await client.filters(kind=TESTING_CAT, order=Order(disable=True))
+    #     assert len(nodes) == 2
+    #     assert isinstance(nodes[0], InfrahubNode)
+    #     assert {node.name.value for node in nodes} == {"Bella", "Luna"}
 
     async def test_get_one(self, client: InfrahubClient, base_dataset, cat_luna, person_sophia):
         node1 = await client.get(kind=TESTING_CAT, id=cat_luna.id)
