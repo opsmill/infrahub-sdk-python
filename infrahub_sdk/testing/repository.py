@@ -72,6 +72,7 @@ class GitRepo:
         )
         print(files)
         files_to_add = [str(Path(self._repo.git.path) / t) for t in files]
+        print(files_to_add)
         if files_to_add:
             porcelain.add(repo=self._repo.git.path, paths=files_to_add)
             porcelain.commit(repo=self._repo.git.path, message="First commit")
