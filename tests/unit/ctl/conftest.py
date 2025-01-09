@@ -1,6 +1,8 @@
 import pytest
 from pytest_httpx import HTTPXMock
 
+from tests.unit.sdk.conftest import mock_query_infrahub_user, mock_query_infrahub_version  # noqa: F401
+
 
 @pytest.fixture
 async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:

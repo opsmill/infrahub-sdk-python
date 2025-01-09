@@ -1,0 +1,69 @@
+{
+    "data": {
+        "BuiltinLocation": {
+            "count": 30,
+            "edges": [
+                {
+                    "node": {
+                        "id": "18187157-3a50-bba7-35bb-c5160d2b7e1e",
+                        "hfid": [
+                            "Location 22"
+                        ],
+                        "display_label": "Location 22",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 22"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-3bf9-45c8-35b3-c51040fb8222",
+                        "hfid": [
+                            "Location 23"
+                        ],
+                        "display_label": "Location 23",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 23"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-3dd8-7ab3-35b8-c51e08ca546d",
+                        "hfid": [
+                            "Location 24"
+                        ],
+                        "display_label": "Location 24",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 24"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

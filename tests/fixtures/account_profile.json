@@ -1,0 +1,79 @@
+{
+    "data": {
+        "AccountProfile": {
+            "id": "1816ebcd-cea7-3bf7-3fc9-c51282f03fe7",
+            "display_label": "Admin",
+            "account_type": {
+                "value": "User",
+                "__typename": "TextAttribute",
+                "updated_at": "2025-01-02T16:06:15.565985+00:00"
+            },
+            "status": {
+                "label": "Active",
+                "value": "active",
+                "updated_at": "2025-01-02T16:06:15.565985+00:00",
+                "__typename": "Dropdown"
+            },
+            "description": {
+                "value": null,
+                "updated_at": "2025-01-02T16:06:15.565985+00:00",
+                "__typename": "TextAttribute"
+            },
+            "label": {
+                "value": "Admin",
+                "updated_at": "2025-01-02T16:06:15.565985+00:00",
+                "__typename": "TextAttribute"
+            },
+            "member_of_groups": {
+                "count": 1,
+                "edges": [
+                    {
+                        "node": {
+                            "display_label": "Super Administrators",
+                            "group_type": {
+                                "value": "default"
+                            },
+                            "id": "1816ebce-1cbe-2e96-3fc3-c5124c324bac",
+                            "roles": {
+                                "count": 1,
+                                "edges": [
+                                    {
+                                        "node": {
+                                            "permissions": {
+                                                "count": 2,
+                                                "edges": [
+                                                    {
+                                                        "node": {
+                                                            "display_label": "super_admin 6",
+                                                            "identifier": {
+                                                                "value": "global:super_admin:allow_all"
+                                                            }
+                                                        }
+                                                    },
+                                                    {
+                                                        "node": {
+                                                            "display_label": "* * any 6",
+                                                            "identifier": {
+                                                                "value": "object:*:*:any:allow_all"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            "__typename": "CoreAccount",
+            "name": {
+                "value": "admin",
+                "updated_at": "2025-01-02T16:06:15.565985+00:00",
+                "__typename": "TextAttribute"
+            }
+        }
+    }
+}

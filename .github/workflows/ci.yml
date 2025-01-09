@@ -142,7 +142,7 @@ jobs:
       - name: "Setup environment"
         run: |
           pipx install poetry==1.8.5
-          poetry config virtualenvs.prefer-active-python true
+          poetry config virtualenvs.create true --local
           pip install invoke toml codecov
       - name: "Install Package"
         run: "poetry install --all-extras"
@@ -193,7 +193,7 @@ jobs:
       - name: "Setup environment"
         run: |
           pipx install poetry==1.8.5
-          poetry config virtualenvs.prefer-active-python true
+          poetry config virtualenvs.create true --local
           pip install invoke toml codecov
       - name: "Install Package"
         run: "poetry install --all-extras"

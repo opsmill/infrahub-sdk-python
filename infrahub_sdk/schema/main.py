@@ -264,6 +264,7 @@ class BaseSchema(BaseModel):
     icon: str | None = None
     uniqueness_constraints: list[list[str]] | None = None
     documentation: str | None = None
+    order_by: list[str] | None = None
 
     @property
     def kind(self) -> str:

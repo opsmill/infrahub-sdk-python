@@ -81,6 +81,7 @@ class SchemaAnimal:
             include_in_menu=True,
             inherit_from=[TESTING_ANIMAL],
             display_labels=["name__value", "breed__value", "color__value"],
+            order_by=["name__value"],
             attributes=[
                 Attr(name="breed", kind=AttributeKind.TEXT, optional=False),
                 Attr(name="color", kind=AttributeKind.COLOR, default_value="#555555", optional=True),
