@@ -17,9 +17,11 @@ class TestInfrahubRepository(TestInfrahubDockerClient):
     def infrahub_version(self) -> str:
         return "1.1.0"
 
-    async def test_add_repository(self, client: InfrahubClient, remote_repos_dir):
+    async def test_add_repository(self, client: InfrahubClient, remote_repos_dir, infrahub_compose):
         src_directory = get_fixtures_dir() / "integration/mock_repo"
         repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=remote_repos_dir)
+        print(infrahub_compose.services)
+        print(infrahub_compose.exec_in_container(["ls", "/remote"], "task-worker"))
         commit = repo._repo.git[repo._repo.git.head()]
         assert len(list(repo._repo.git.get_walker())) == 1
         assert commit.message.decode("utf-8") == "First commit"
