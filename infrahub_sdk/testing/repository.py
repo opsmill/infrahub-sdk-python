@@ -7,6 +7,8 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from dulwich import porcelain
+
 from infrahub_sdk.graphql import Mutation
 from infrahub_sdk.protocols import CoreGenericRepository
 from infrahub_sdk.repository import GitRepoManager
@@ -63,6 +65,15 @@ class GitRepo:
         )
 
         self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)
+
+        files = list(
+            porcelain.get_untracked_paths(self._repo.git.path, self._repo.git.path, self._repo.git.open_index())
+        )
+        files_to_add = [str(Path(self._repo.git.path) / t) for t in files]
+        if files_to_add:
+            porcelain.add(repo=self._repo.git.path, paths=files_to_add)
+            porcelain.commit(repo=self._repo.git.path, message="First commit")
+            porcelain.checkout_branch(self._repo.git, self.initial_branch.encode("utf-8"))
 
     async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
         input_data = {

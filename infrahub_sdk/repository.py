@@ -22,17 +22,10 @@ class GitRepoManager:
         else:
             repo = Repo.init(self.root_directory, default_branch=self.branch.encode("utf-8"))
 
-            self.create_initial_commit()
-
         if not repo:
             raise ValueError("Failed to initialize or open a repository.")
 
         return repo
-
-    def create_initial_commit(self) -> None:
-        committer = b"Initial Commit <no-reply@example.com>"
-        commit_msg = b"Initial commit"
-        porcelain.commit(self.root_directory, message=commit_msg, author=committer)
 
     @property
     def active_branch(self) -> str | None:
