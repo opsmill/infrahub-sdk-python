@@ -18,8 +18,8 @@ class TestInfrahubRepository(TestInfrahubDockerClient):
         return "1.1.0"
 
     async def test_add_repository(self, client: InfrahubClient, remote_repos_dir):
-        src_directory = get_fixtures_dir() / "integration/repo"
-        repo = GitRepo(name="test", src_directory=src_directory, dst_directory=remote_repos_dir)
+        src_directory = get_fixtures_dir() / "integration/mock_repo"
+        repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=remote_repos_dir)
         commit = repo._repo.git[repo._repo.git.head()]
         response = await repo.add_to_infrahub(client=client)
         repos = await client.all(kind=repo.type)

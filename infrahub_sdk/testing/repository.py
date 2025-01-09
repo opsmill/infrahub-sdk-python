@@ -58,17 +58,19 @@ class GitRepo:
         return str(self.src_directory / self.name)
 
     def init(self) -> None:
-        shutil.copytree(
+        dest = shutil.copytree(
             src=self.src_directory,
             dst=self.dst_directory / self.name,
             ignore=shutil.ignore_patterns(".git"),
         )
+        print(dest)
 
         self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)
 
         files = list(
             porcelain.get_untracked_paths(self._repo.git.path, self._repo.git.path, self._repo.git.open_index())
         )
+        print(files)
         files_to_add = [str(Path(self._repo.git.path) / t) for t in files]
         if files_to_add:
             porcelain.add(repo=self._repo.git.path, paths=files_to_add)

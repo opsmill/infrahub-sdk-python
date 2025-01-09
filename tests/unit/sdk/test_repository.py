@@ -60,8 +60,8 @@ def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir):
 
 
 def test_gitrepo_init(temp_dir):
-    src_directory = get_fixtures_dir() / "integration/repo"
-    repo = GitRepo(name="test", src_directory=src_directory, dst_directory=Path(temp_dir))
+    src_directory = get_fixtures_dir() / "integration/mock_repo"
+    repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=Path(temp_dir))
     assert len(list(repo._repo.git.get_walker())) == 1
     commit = repo._repo.git[repo._repo.git.head()]
     assert commit.message.decode("utf-8") == "First commit"
