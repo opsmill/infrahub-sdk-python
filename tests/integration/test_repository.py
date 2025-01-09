@@ -21,10 +21,9 @@ class TestInfrahubRepository(TestInfrahubDockerClient):
         src_directory = get_fixtures_dir() / "integration/mock_repo"
         repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=remote_repos_dir)
         commit = repo._repo.git[repo._repo.git.head()]
-        response = await repo.add_to_infrahub(client=client)
-        repos = await client.all(kind=repo.type)
-
         assert len(list(repo._repo.git.get_walker())) == 1
         assert commit.message.decode("utf-8") == "First commit"
+        response = await repo.add_to_infrahub(client=client)
+        repos = await client.all(kind=repo.type)
         assert response.get(f"{repo.type.value}Create", {}).get("ok")
         assert len(repos) == 1
