@@ -51,7 +51,7 @@ from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .timestamp import Timestamp
-from .types import AsyncRequester, HTTPMethod, SyncRequester
+from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
 if TYPE_CHECKING:
@@ -576,6 +576,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -594,6 +595,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -611,6 +613,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         parallel: bool = False,
+        order: Order | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -627,6 +630,7 @@ class InfrahubClient(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
+            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -645,6 +649,7 @@ class InfrahubClient(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             parallel=parallel,
+            order=order,
         )
 
     @overload
@@ -664,6 +669,7 @@ class InfrahubClient(BaseClient):
         partial_match: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -684,6 +690,7 @@ class InfrahubClient(BaseClient):
         partial_match: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -703,6 +710,7 @@ class InfrahubClient(BaseClient):
         partial_match: bool = False,
         property: bool = False,
         parallel: bool = False,
+        order: Order | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -721,6 +729,7 @@ class InfrahubClient(BaseClient):
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
+            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -747,6 +756,7 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
                 property=property,
+                order=order,
             )
             query = Query(query=query_data)
             response = await self.execute_graphql(
@@ -1670,6 +1680,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -1688,6 +1699,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -1705,6 +1717,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         parallel: bool = False,
+        order: Order | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -1721,6 +1734,7 @@ class InfrahubClientSync(BaseClient):
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
+            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
@@ -1739,6 +1753,7 @@ class InfrahubClientSync(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             parallel=parallel,
+            order=order,
         )
 
     def _process_nodes_and_relationships(
@@ -1793,6 +1808,7 @@ class InfrahubClientSync(BaseClient):
         partial_match: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -1813,6 +1829,7 @@ class InfrahubClientSync(BaseClient):
         partial_match: bool = ...,
         property: bool = ...,
         parallel: bool = ...,
+        order: Order | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -1832,6 +1849,7 @@ class InfrahubClientSync(BaseClient):
         partial_match: bool = False,
         property: bool = False,
         parallel: bool = False,
+        order: Order | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1850,6 +1868,7 @@ class InfrahubClientSync(BaseClient):
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
+            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -1875,6 +1894,7 @@ class InfrahubClientSync(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
                 property=property,
+                order=order,
             )
             query = Query(query=query_data)
             response = self.execute_graphql(

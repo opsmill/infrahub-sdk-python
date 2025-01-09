@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
     from .client import InfrahubClient, InfrahubClientSync
     from .schema import AttributeSchemaAPI, MainSchemaTypesAPI, RelationshipSchemaAPI
+    from .types import Order
 
 # pylint: disable=too-many-lines
 
@@ -977,6 +978,7 @@ class InfrahubNodeBase:
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         partial_match: bool = False,
+        order: Order | None = None,
     ) -> dict[str, Any | dict]:
         data: dict[str, Any] = {
             "count": None,
@@ -984,6 +986,9 @@ class InfrahubNodeBase:
         }
 
         data["@filters"] = filters or {}
+
+        if order:
+            data["@filters"]["order"] = order
 
         if offset:
             data["@filters"]["offset"] = offset
@@ -1176,9 +1181,16 @@ class InfrahubNode(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
+        order: Order | None = None,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
-            filters=filters, offset=offset, limit=limit, include=include, exclude=exclude, partial_match=partial_match
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            include=include,
+            exclude=exclude,
+            partial_match=partial_match,
+            order=order,
         )
         data["edges"]["node"].update(
             await self.generate_query_data_node(
@@ -1682,9 +1694,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
+        order: Order | None = None,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
-            filters=filters, offset=offset, limit=limit, include=include, exclude=exclude, partial_match=partial_match
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            include=include,
+            exclude=exclude,
+            partial_match=partial_match,
+            order=order,
         )
         data["edges"]["node"].update(
             self.generate_query_data_node(

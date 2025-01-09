@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel
+
 VARIABLE_TYPE_MAPPING = ((str, "String!"), (int, "Int!"), (float, "Float!"), (bool, "Boolean!"))
 
 
@@ -15,6 +17,9 @@ def convert_to_graphql_as_string(value: str | bool | list) -> str:
     if isinstance(value, list):
         values_as_string = [convert_to_graphql_as_string(item) for item in value]
         return "[" + ", ".join(values_as_string) + "]"
+    if isinstance(value, BaseModel):
+        data = value.model_dump()
+        return "{ " + ", ".join(f"{key}: {convert_to_graphql_as_string(val)}" for key, val in data.items()) + " }"
 
     return str(value)
 
