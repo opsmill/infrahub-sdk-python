@@ -1,0 +1,69 @@
+{
+    "data": {
+        "BuiltinLocation": {
+            "count": 30,
+            "edges": [
+                {
+                    "node": {
+                        "id": "18187157-094d-aaa9-35bd-c51e4fb264dd",
+                        "hfid": [
+                            "Location 7"
+                        ],
+                        "display_label": "Location 7",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 7"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-0af4-719e-35b8-c5187f3c7e7d",
+                        "hfid": [
+                            "Location 8"
+                        ],
+                        "display_label": "Location 8",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 8"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-0cb4-98fe-35b7-c5129da82bf7",
+                        "hfid": [
+                            "Location 9"
+                        ],
+                        "display_label": "Location 9",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 9"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}
