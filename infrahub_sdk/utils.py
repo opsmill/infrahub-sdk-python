@@ -336,3 +336,20 @@ def write_to_file(path: Path, value: Any) -> bool:
     written = path.write_text(to_write)
 
     return written is not None
+
+
+def get_user_permissions(data: list[dict]) -> dict:
+    groups = {}
+    for group in data:
+        group_name = group["node"]["display_label"]
+        permissions = []
+
+        roles = group["node"].get("roles", {}).get("edges", [])
+        for role in roles:
+            role_permissions = role["node"].get("permissions", {}).get("edges", [])
+            for permission in role_permissions:
+                permissions.append(permission["node"]["identifier"]["value"])
+
+        groups[group_name] = permissions
+
+    return groups

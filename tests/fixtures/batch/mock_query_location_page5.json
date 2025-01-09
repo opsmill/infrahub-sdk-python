@@ -1,0 +1,69 @@
+{
+    "data": {
+        "BuiltinLocation": {
+            "count": 30,
+            "edges": [
+                {
+                    "node": {
+                        "id": "18187157-3f82-8f33-35ba-c51ede0ca510",
+                        "hfid": [
+                            "Location 25"
+                        ],
+                        "display_label": "Location 25",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 25"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-4121-02f8-35b2-c51ae4077d24",
+                        "hfid": [
+                            "Location 26"
+                        ],
+                        "display_label": "Location 26",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 26"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                },
+                {
+                    "node": {
+                        "id": "18187157-42a9-d237-35be-c5113cfc0566",
+                        "hfid": [
+                            "Location 27"
+                        ],
+                        "display_label": "Location 27",
+                        "__typename": "BuiltinLocation",
+                        "name": {
+                            "value": "Location 27"
+                        },
+                        "description": {
+                            "value": null
+                        },
+                        "tags": {
+                            "count": 0,
+                            "edges": []
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -10,6 +10,13 @@ from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 async_client_methods = [method for method in dir(InfrahubClient) if not method.startswith("_")]
 sync_client_methods = [method for method in dir(InfrahubClientSync) if not method.startswith("_")]
 
+batch_client_types = [
+    ("standard", False),
+    ("standard", True),
+    ("sync", False),
+    ("sync", True),
+]
+
 client_types = ["standard", "sync"]
 
 
@@ -67,6 +74,48 @@ async def test_get_repositories(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_count(clients, mock_query_repository_count, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        count = await clients.standard.count(kind="CoreRepository")
+    else:
+        count = clients.sync.count(kind="CoreRepository")
+
+    assert count == 5
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_version(clients, mock_query_infrahub_version, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        version = await clients.standard.get_version()
+    else:
+        version = clients.sync.get_version()
+
+    assert version == "1.1.0"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_user(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        user = await clients.standard.get_user()
+    else:
+        user = clients.sync.get_user()
+
+    assert isinstance(user, dict)
+    assert user["AccountProfile"]["display_label"] == "Admin"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        groups = await clients.standard.get_user_permissions()
+    else:
+        groups = clients.sync.get_user_permissions()
+
+    assert isinstance(groups, dict)
+    assert groups["Super Administrators"] == ["global:super_admin:allow_all", "object:*:*:any:allow_all"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):  # pylint: disable=unused-argument
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", limit=3)
@@ -102,6 +151,26 @@ async def test_method_all_multiple_pages(
         assert len(clients.sync.store._store["CoreRepository"]) == 5
 
     assert len(repos) == 5
+
+
+@pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
+async def test_method_all_batching(
+    clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_parallel
+):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        locations = await clients.standard.all(kind="BuiltinLocation", parallel=use_parallel)
+        assert not clients.standard.store._store["BuiltinLocation"]
+
+        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
+        assert len(clients.standard.store._store["BuiltinLocation"]) == 30
+    else:
+        locations = clients.sync.all(kind="BuiltinLocation", parallel=use_parallel)
+        assert not clients.sync.store._store["BuiltinLocation"]
+
+        locations = clients.sync.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
+        assert len(clients.sync.store._store["BuiltinLocation"]) == 30
+
+    assert len(locations) == 30
 
 
 @pytest.mark.parametrize("client_type", client_types)

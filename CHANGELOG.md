@@ -11,6 +11,15 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.5.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.5.0) - 2025-01-09
+
+### Added
+
+- Adds `infrahubctl info` command to display information of the connectivity status of the SDK. ([#109](https://github.com/opsmill/infrahub-sdk-python/issues/109))
+- Add `count` method to both sync and async clients to retrieve the number of objects of a given kind ([#158](https://github.com/opsmill/infrahub-sdk-python/issues/158))
+- Add the ability to batch API queries for `all` and `filter` functions. ([#159](https://github.com/opsmill/infrahub-sdk-python/issues/159))
+- `client.all` and `client.filters` now support `order` parameter allowing to disable order of retrieve nodes in order to enhance performances
+
 ## [1.4.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.3.0) - 2025-01-05
 
 ### Fixed

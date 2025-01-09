@@ -1681,6 +1681,12 @@ async def mock_query_corenode_page1_1(httpx_mock: HTTPXMock, client: InfrahubCli
 
 
 @pytest.fixture
+async def mock_query_repository_count(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+    httpx_mock.add_response(method="POST", json={"data": {"CoreRepository": {"count": 5}}})
+    return httpx_mock
+
+
+@pytest.fixture
 async def mock_query_repository_page1_empty(
     httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
 ) -> HTTPXMock:
@@ -2136,6 +2142,19 @@ async def mock_query_mutation_location_create_failed(httpx_mock: HTTPXMock) -> H
 
 
 @pytest.fixture
+async def mock_query_infrahub_version(httpx_mock: HTTPXMock) -> HTTPXMock:
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.1.0"}}})
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
+    response_text = (get_fixtures_dir() / "account_profile.json").read_text(encoding="UTF-8")
+    httpx_mock.add_response(method="POST", json=ujson.loads(response_text))
+    return httpx_mock
+
+
+@pytest.fixture
 def query_01() -> str:
     """Simple query with one document"""
     query = """
@@ -2467,4 +2486,26 @@ async def mock_schema_query_ipam(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "schema_ipam.json").read_text(encoding="UTF-8")
 
     httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=ujson.loads(response_text))
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_location_batch_count(
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+) -> HTTPXMock:
+    response = {"data": {"BuiltinLocation": {"count": 30}}}
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_location_batch(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+    for i in range(1, 11):
+        filename = get_fixtures_dir() / "batch" / f"mock_query_location_page{i}.json"
+        response_text = filename.read_text(encoding="UTF-8")
+        httpx_mock.add_response(
+            method="POST",
+            json=ujson.loads(response_text),
+            match_headers={"X-Infrahub-Tracker": f"query-builtinlocation-page{i}"},
+        )
     return httpx_mock
