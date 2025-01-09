@@ -1,11 +1,11 @@
 [project]
 name = "infrahub-sdk"
-version = "1.4.1"
+version = "1.5.0"
 requires-python = ">=3.9"
 
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.4.1"
+version = "1.5.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -164,33 +164,19 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
-disable_error_code = [
-    "call-overload"
-]
+disable_error_code = ["call-overload"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.generator"
-disable_error_code = [
-    "attr-defined",
-]
+disable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.schema"
-disable_error_code = [
-    "arg-type",
-    "attr-defined",
-    "misc",
-    "union-attr",
-]
+disable_error_code = ["arg-type", "attr-defined", "misc", "union-attr"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
-disable_error_code = [
-    "arg-type",
-    "attr-defined",
-    "return-value",
-    "union-attr",
-]
+disable_error_code = ["arg-type", "attr-defined", "return-value", "union-attr"]
 
 [tool.ruff]
 line-length = 120
@@ -215,31 +201,31 @@ task-tags = ["FIXME", "TODO", "XXX"]
 select = ["ALL"]
 
 ignore = [
-    "D",        # pydocstyle
-    "DOC",      # pydoclint
-    "CPY",      # flake8-copyright
-    "T201",     # use of `print`
-    "ISC",      # flake8-implicit-str-concat
-    "COM812",   # missing-trailing-comma
+    "D",      # pydocstyle
+    "DOC",    # pydoclint
+    "CPY",    # flake8-copyright
+    "T201",   # use of `print`
+    "ISC",    # flake8-implicit-str-concat
+    "COM812", # missing-trailing-comma
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
     ##################################################################################################
-    "PT",       # flake8-pytest-style
-    "PGH",      # pygrep-hooks
-    "ERA",      # eradicate commented-out code
-    "SLF001",   # flake8-self
-    "EM",       # flake8-errmsg
-    "TRY",      # tryceratops
-    "TD",       # flake8-todos
-    "FIX",      # flake8-fixme
-    "TID",      # flake8-tidy-imports
-    "FBT",      # flake8-boolean-trap
-    "G",        # flake8-logging-format
-    "FLY",      # flynt
-    "RSE",      # flake8-raise
-    "BLE",      # flake8-blind-except (BLE)
-    "A",        # flake8-builtins
+    "PT",     # flake8-pytest-style
+    "PGH",    # pygrep-hooks
+    "ERA",    # eradicate commented-out code
+    "SLF001", # flake8-self
+    "EM",     # flake8-errmsg
+    "TRY",    # tryceratops
+    "TD",     # flake8-todos
+    "FIX",    # flake8-fixme
+    "TID",    # flake8-tidy-imports
+    "FBT",    # flake8-boolean-trap
+    "G",      # flake8-logging-format
+    "FLY",    # flynt
+    "RSE",    # flake8-raise
+    "BLE",    # flake8-blind-except (BLE)
+    "A",      # flake8-builtins
 
     ##################################################################################################
     # The ignored rules below should be removed once the code has been updated, they are included    #
@@ -313,21 +299,21 @@ max-complexity = 17
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "ANN201",  # ANN201 Missing return type annotation for public function
-    "ANN202",  # Missing return type annotation for private function
-    "ANN204",  # Missing return type annotation for special method
-    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
+    "ANN201", # ANN201 Missing return type annotation for public function
+    "ANN202", # Missing return type annotation for private function
+    "ANN204", # Missing return type annotation for special method
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
 ]
 
 "infrahub_sdk/client.py" = [
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "PLR0904",  # Too many public methods
+    "PLR0904", # Too many public methods
 ]
 
 "infrahub_sdk/pytest_plugin/models.py" = [
-    "S105",  # 'PASS' is not a password but a state
+    "S105", # 'PASS' is not a password but a state
 ]
 
 
@@ -342,10 +328,10 @@ max-complexity = 17
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "ANN001",  # Missing type annotation for function argument
-    "ANN201",  # ANN201 Missing return type annotation for public function
-    "ANN202",  # Missing return type annotation for private function
-    "ANN204",  # Missing return type annotation for special method
+    "ANN001", # Missing type annotation for function argument
+    "ANN201", # ANN201 Missing return type annotation for public function
+    "ANN202", # Missing return type annotation for private function
+    "ANN204", # Missing return type annotation for special method
 ]
 
 "tests/unit/sdk/test_client.py" = [
