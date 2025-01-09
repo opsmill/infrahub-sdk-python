@@ -46,13 +46,13 @@ from .node import (
 )
 from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
-from .queries import get_commit_update_mutation
+from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .timestamp import Timestamp
 from .types import AsyncRequester, HTTPMethod, SyncRequester
-from .utils import decode_json, is_valid_uuid
+from .utils import decode_json, get_user_permissions, is_valid_uuid
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -271,6 +271,22 @@ class InfrahubClient(BaseClient):
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
+
+    async def get_version(self) -> str:
+        """Return the Infrahub version."""
+        response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
+        version = response.get("InfrahubInfo", {}).get("version", "")
+        return version
+
+    async def get_user(self) -> dict:
+        """Return user information"""
+        user_info = await self.execute_graphql(query=QUERY_USER)
+        return user_info
+
+    async def get_user_permissions(self) -> dict:
+        """Return user permissions"""
+        user_info = await self.get_user()
+        return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
     @overload
     async def create(
@@ -1478,6 +1494,22 @@ class InfrahubClientSync(BaseClient):
         self.store = NodeStoreSync()
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
+
+    def get_version(self) -> str:
+        """Return the Infrahub version."""
+        response = self.execute_graphql(query="query { InfrahubInfo { version }}")
+        version = response.get("InfrahubInfo", {}).get("version", "")
+        return version
+
+    def get_user(self) -> dict:
+        """Return user information"""
+        user_info = self.execute_graphql(query=QUERY_USER)
+        return user_info
+
+    def get_user_permissions(self) -> dict:
+        """Return user permissions"""
+        user_info = self.get_user()
+        return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
     @overload
     def create(

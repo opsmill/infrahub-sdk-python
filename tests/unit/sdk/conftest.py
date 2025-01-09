@@ -2142,6 +2142,19 @@ async def mock_query_mutation_location_create_failed(httpx_mock: HTTPXMock) -> H
 
 
 @pytest.fixture
+async def mock_query_infrahub_version(httpx_mock: HTTPXMock) -> HTTPXMock:
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.1.0"}}})
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
+    response_text = (get_fixtures_dir() / "account_profile.json").read_text(encoding="UTF-8")
+    httpx_mock.add_response(method="POST", json=ujson.loads(response_text))
+    return httpx_mock
+
+
+@pytest.fixture
 def query_01() -> str:
     """Simple query with one document"""
     query = """

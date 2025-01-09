@@ -42,3 +42,72 @@ query {
   }
 }
 """
+
+QUERY_USER = """
+query GET_PROFILE_DETAILS {
+  AccountProfile {
+    id
+    display_label
+    account_type {
+      value
+      __typename
+      updated_at
+    }
+    status {
+      label
+      value
+      updated_at
+      __typename
+    }
+    description {
+      value
+      updated_at
+      __typename
+    }
+    label {
+      value
+      updated_at
+      __typename
+    }
+    member_of_groups {
+      count
+      edges {
+        node {
+          display_label
+          group_type {
+            value
+          }
+          ... on CoreAccountGroup {
+            id
+            roles {
+              count
+              edges {
+                node {
+                  permissions {
+                    count
+                    edges {
+                      node {
+                        display_label
+                        identifier {
+                          value
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            display_label
+          }
+        }
+      }
+    }
+    __typename
+    name {
+      value
+      updated_at
+      __typename
+    }
+  }
+}
+"""

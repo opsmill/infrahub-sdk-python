@@ -4,6 +4,7 @@ import asyncio
 import functools
 import importlib
 import logging
+import platform
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -12,7 +13,11 @@ import jinja2
 import typer
 import ujson
 from rich.console import Console
+from rich.layout import Layout
 from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.pretty import Pretty
+from rich.table import Table
 from rich.traceback import Traceback
 
 from .. import __version__ as sdk_version
@@ -392,11 +397,106 @@ def protocols(
 
 @app.command(name="version")
 @catch_exception(console=console)
-def version(_: str = CONFIG_PARAM) -> None:
-    """Display the version of Infrahub and the version of the Python SDK in use."""
+def version() -> None:
+    """Display the version of Python and the version of the Python SDK in use."""
 
-    client = initialize_client_sync()
-    response = client.execute_graphql(query="query { InfrahubInfo { version }}")
+    console.print(f"Python: {platform.python_version()}\nPython SDK: v{sdk_version}")
 
-    infrahub_version = response["InfrahubInfo"]["version"]
-    console.print(f"Infrahub: v{infrahub_version}\nPython SDK: v{sdk_version}")
+
+@app.command(name="info")
+@catch_exception(console=console)
+def info(detail: bool = typer.Option(False, help="Display detailed information."), _: str = CONFIG_PARAM) -> None:  # noqa: PLR0915
+    """Display the status of the Python SDK."""
+
+    info: dict[str, Any] = {
+        "error": None,
+        "status": ":x:",
+        "infrahub_version": "N/A",
+        "user_info": {},
+        "groups": {},
+    }
+    try:
+        client = initialize_client_sync()
+        info["infrahub_version"] = client.get_version()
+        info["user_info"] = client.get_user()
+        info["status"] = ":white_heavy_check_mark:"
+        info["groups"] = client.get_user_permissions()
+    except Exception as e:
+        info["error"] = f"{e!s} ({e.__class__.__name__})"
+
+    if detail:
+        layout = Layout()
+
+        # Layout structure
+        new_console = Console(height=45)
+        layout = Layout()
+        layout.split_column(
+            Layout(name="body", ratio=1),
+        )
+        layout["body"].split_row(
+            Layout(name="left"),
+            Layout(name="right"),
+        )
+
+        layout["left"].split_column(
+            Layout(name="connection_status", size=7),
+            Layout(name="client_info", ratio=1),
+        )
+
+        layout["right"].split_column(
+            Layout(name="version_info", size=7),
+            Layout(name="infrahub_info", ratio=1),
+        )
+
+        # Connection status panel
+        connection_status = Table(show_header=False, box=None)
+        connection_status.add_row("Server Address:", client.config.address)
+        connection_status.add_row("Status:", info["status"])
+        if info["error"]:
+            connection_status.add_row("Error Reason:", info["error"])
+        layout["connection_status"].update(Panel(connection_status, title="Connection Status"))
+
+        # Version information panel
+        version_info = Table(show_header=False, box=None)
+        version_info.add_row("Python Version:", platform.python_version())
+        version_info.add_row("Infrahub Version", info["infrahub_version"])
+        version_info.add_row("Infrahub SDK:", sdk_version)
+        layout["version_info"].update(Panel(version_info, title="Version Information"))
+
+        # SDK client configuration panel
+        pretty_model = Pretty(client.config.model_dump(), expand_all=True)
+        layout["client_info"].update(Panel(pretty_model, title="Client Info"))
+
+        # Infrahub information planel
+        infrahub_info = Table(show_header=False, box=None)
+        if info["user_info"]:
+            infrahub_info.add_row("User:", info["user_info"]["AccountProfile"]["display_label"])
+            infrahub_info.add_row("Description:", info["user_info"]["AccountProfile"]["description"]["value"])
+            infrahub_info.add_row("Status:", info["user_info"]["AccountProfile"]["status"]["label"])
+            infrahub_info.add_row(
+                "Number of Groups:", str(info["user_info"]["AccountProfile"]["member_of_groups"]["count"])
+            )
+
+            if groups := info["groups"]:
+                infrahub_info.add_row("Groups:", "")
+                for group, roles in groups.items():
+                    infrahub_info.add_row("", group, ", ".join(roles))
+
+        layout["infrahub_info"].update(Panel(infrahub_info, title="Infrahub Info"))
+
+        new_console.print(layout)
+    else:
+        # Simple output
+        table = Table(show_header=False, box=None)
+        table.add_row("Address:", client.config.address)
+        table.add_row("Connection Status:", info["status"])
+        if info["error"]:
+            table.add_row("Connection Error:", info["error"])
+
+        table.add_row("Python Version:", platform.python_version())
+        table.add_row("SDK Version:", sdk_version)
+        table.add_row("Infrahub Version:", info["infrahub_version"])
+        if account := info["user_info"].get("AccountProfile"):
+            table.add_row("User:", account["display_label"])
+
+        console.print(table)

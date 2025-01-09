@@ -84,6 +84,38 @@ async def test_method_count(clients, mock_query_repository_count, client_type): 
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_version(clients, mock_query_infrahub_version, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        version = await clients.standard.get_version()
+    else:
+        version = clients.sync.get_version()
+
+    assert version == "1.1.0"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_user(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        user = await clients.standard.get_user()
+    else:
+        user = clients.sync.get_user()
+
+    assert isinstance(user, dict)
+    assert user["AccountProfile"]["display_label"] == "Admin"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        groups = await clients.standard.get_user_permissions()
+    else:
+        groups = clients.sync.get_user_permissions()
+
+    assert isinstance(groups, dict)
+    assert groups["Super Administrators"] == ["global:super_admin:allow_all", "object:*:*:any:allow_all"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):  # pylint: disable=unused-argument
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", limit=3)
