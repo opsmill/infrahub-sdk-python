@@ -58,12 +58,11 @@ class GitRepo:
         return str(self.src_directory / self.name)
 
     def init(self) -> None:
-        dest = shutil.copytree(
+        shutil.copytree(
             src=self.src_directory,
             dst=self.dst_directory / self.name,
             ignore=shutil.ignore_patterns(".git"),
         )
-        print(dest)
 
         self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)
 
