@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import shutil
-import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -60,18 +59,17 @@ class GitRepo:
 
     def init(self) -> None:
         self.dst_directory.mkdir(parents=True, exist_ok=True)
-        os.chmod(self.dst_directory, 0o777)
-        
+
         dest_path = self.dst_directory / self.name
         if dest_path.exists():
             shutil.rmtree(dest_path)
-            
+
         dest = shutil.copytree(
             src=self.src_directory,
             dst=dest_path,
             ignore=shutil.ignore_patterns(".git", *self.directories_to_ignore),
         )
-        
+        dest_path.chmod(0o755)
         print(dest)
 
         self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)

@@ -190,6 +190,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: "Setup git credentials"
+        run: "git config --global user.name 'Infrahub' && \
+              git config --global user.email 'infrahub@opsmill.com' && \
+              git config --global --add safe.directory '*' && \
+              git config --global credential.usehttppath true && \
+              git config --global credential.helper /usr/local/bin/infrahub-git-credential"
       - name: "Setup environment"
         run: |
           pipx install poetry==1.8.5
