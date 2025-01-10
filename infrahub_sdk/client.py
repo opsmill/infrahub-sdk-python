@@ -547,8 +547,10 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
+        filters = kwargs
         schema = await self.schema.get(kind=kind, branch=branch)
 
         branch = branch or self.default_branch
@@ -556,7 +558,10 @@ class InfrahubClient(BaseClient):
             at = Timestamp(at)
 
         response = await self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            branch_name=branch,
+            at=at,
+            timeout=timeout,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -1651,8 +1656,10 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
+        filters = kwargs
         schema = self.schema.get(kind=kind, branch=branch)
 
         branch = branch or self.default_branch
@@ -1660,7 +1667,10 @@ class InfrahubClientSync(BaseClient):
             at = Timestamp(at)
 
         response = self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            branch_name=branch,
+            at=at,
+            timeout=timeout,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
