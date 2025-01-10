@@ -1074,7 +1074,7 @@ class InfrahubNode(InfrahubNodeBase):
         timeout: int | None = None,
     ) -> Self:
         if not schema:
-            node_kind = data.get("__typename", None) or data.get("node", {}).get("__typename", None)
+            node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
             schema = await client.schema.get(kind=node_kind, branch=branch, timeout=timeout)
@@ -1594,7 +1594,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         timeout: int | None = None,
     ) -> Self:
         if not schema:
-            node_kind = data.get("__typename", None) or data.get("node", {}).get("__typename", None)
+            node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
             schema = client.schema.get(kind=node_kind, branch=branch, timeout=timeout)

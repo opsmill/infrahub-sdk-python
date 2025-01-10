@@ -91,7 +91,7 @@ class GraphQLQueryAnalyzer:
                     else:
                         data["default_value"] = variable.default_value.value
 
-                if not data.get("default_value", None) and non_null:
+                if not data.get("default_value") and non_null:
                     data["required"] = True
 
                 response.append(GraphQLQueryVariable(**data))
