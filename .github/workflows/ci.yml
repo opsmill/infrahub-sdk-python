@@ -203,6 +203,10 @@ jobs:
           pip install invoke toml codecov
       - name: "Install Package"
         run: "poetry install --all-extras"
+      - name: "Set environment variables"
+        run: |
+          RUNNER_NUM=$(hostname | grep -o '[0-9][0-9]' | sed 's/^0*//')
+          echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/ghrunner_${RUNNER_NUM}/_temp" >> $GITHUB_ENV
       - name: "Integration Tests"
         run: "poetry run pytest --cov infrahub_sdk tests/integration/"
       - name: "Upload coverage to Codecov"
