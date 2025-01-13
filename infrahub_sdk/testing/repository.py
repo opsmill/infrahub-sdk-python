@@ -59,8 +59,8 @@ class GitRepo:
 
     def init(self) -> None:
         self.dst_directory.mkdir(parents=True, exist_ok=True)
-
         dest_path = self.dst_directory / self.name
+
         if dest_path.exists():
             shutil.rmtree(dest_path)
 
@@ -69,27 +69,32 @@ class GitRepo:
             dst=dest_path,
             ignore=shutil.ignore_patterns(".git", *self.directories_to_ignore),
         )
-        dest_path.chmod(0o755)
-        print(dest)
+        print(f"Files copied to {dest}")
 
-        self._repo = GitRepoManager(str(Path(self.dst_directory / self.name)), branch=self.initial_branch)
+        porcelain.init(str(dest_path))
+        self._repo = GitRepoManager(str(dest_path), branch=self.initial_branch)
 
         files = list(
             porcelain.get_untracked_paths(self._repo.git.path, self._repo.git.path, self._repo.git.open_index())
         )
-        print(files)
         files_to_add = [str(Path(self._repo.git.path) / t) for t in files]
-        print(files_to_add)
+        print(f"Files to add: {files_to_add}")
+
         if files_to_add:
             porcelain.add(repo=self._repo.git.path, paths=files_to_add)
             porcelain.commit(repo=self._repo.git.path, message="First commit")
             porcelain.checkout_branch(self._repo.git, self.initial_branch.encode("utf-8"))
 
+        print(f"Repository accessible in container at: {self.remote_directory_name}/{self.name}")
+
     async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
+        container_path = f"{self.remote_directory_name}/{self.name}"
+        print(f"Using container path: {container_path}")
+
         input_data = {
             "data": {
                 "name": {"value": self.name},
-                "location": {"value": f"{self.remote_directory_name}/{self.name}"},
+                "location": {"value": container_path},
             },
         }
 
