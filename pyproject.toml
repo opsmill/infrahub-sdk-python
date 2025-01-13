@@ -37,7 +37,6 @@ pendulum = [
     { version = ">=2", python = ">=3.9,<3.12" },
     { version = ">=3", python = ">=3.12" },
 ]
-gitpython = "^3"
 ujson = "^5"
 Jinja2 = { version = "^3", optional = true }
 numpy = [
@@ -51,6 +50,7 @@ typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
 eval-type-backport = { version = "^0.2.2", python = "~3.9" }
+dulwich = "^0.21.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
