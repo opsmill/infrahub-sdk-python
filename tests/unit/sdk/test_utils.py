@@ -87,8 +87,11 @@ def test_deep_merge_dict():
     a = {"keyA": 1}
     b = {"keyB": {"sub1": 10}}
     c = {"keyB": {"sub2": 20}}
+    d = {"keyA": [10, 20]}
+    e = {"keyA": [20, 30]}
     assert deep_merge_dict(a, b) == {"keyA": 1, "keyB": {"sub1": 10}}
     assert deep_merge_dict(c, b) == {"keyB": {"sub1": 10, "sub2": 20}}
+    assert deep_merge_dict(d, e) == {"keyA": [10, 20, 30]}
 
 
 def test_str_to_bool():
