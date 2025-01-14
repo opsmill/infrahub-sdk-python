@@ -1186,7 +1186,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1201,7 +1201,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1216,7 +1216,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1333,7 +1333,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -1349,7 +1349,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -1365,7 +1365,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -2306,7 +2306,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2321,7 +2321,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2336,7 +2336,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2449,7 +2449,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -2465,7 +2465,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -2481,7 +2481,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
