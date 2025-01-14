@@ -254,7 +254,6 @@ ignore = [
     "PLW1641", # Object does not implement `__hash__` method
     "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
-    "PYI061",  # [*] `Literal[None]` can be replaced with `None`
     "RET504",  # Unnecessary assignment to `data` before `return` statement
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
     "RUF015",  # Prefer `next(iter(input_data["variables"].keys()))` over single element slice
