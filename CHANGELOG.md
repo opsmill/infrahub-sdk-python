@@ -11,6 +11,10 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.6.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.6.1) - 2025-01-16
+
+Fixes release of v1.6.0
+
 ## [1.6.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.6.0) - 2025-01-16
 
 ### Added
