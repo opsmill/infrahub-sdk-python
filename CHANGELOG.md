@@ -19,11 +19,11 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ### Changed
 
-- Added possibility to use filters for the SDK client's count method ([#count-method-filters](https://github.com/opsmill/infrahub-sdk-python/issues/count-method-filters))
+- Added possibility to use filters for the SDK client's count method
 
 ### Fixed
 
-- fixes issue where using `parallel` query execution could lead to excessive and unneeded GraphQL queries ([#query-parallel](https://github.com/opsmill/infrahub-sdk-python/issues/query-parallel))
+- fixes issue where using `parallel` query execution could lead to excessive and unneeded GraphQL queries
 
 ## [1.5.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.5.0) - 2025-01-09
 
