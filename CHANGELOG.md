@@ -23,7 +23,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ### Fixed
 
-- fixes issue where using `parallel` query execution could lead to excessive and unneeded GraphQL queries
+- Fixes issue where using `parallel` query execution could lead to excessive and unneeded GraphQL queries
 
 ## [1.5.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.5.0) - 2025-01-09
 
