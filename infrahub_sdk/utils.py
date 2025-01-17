@@ -9,12 +9,13 @@ from uuid import UUID, uuid4
 
 import httpx
 import ujson
-from git.repo import Repo
 from graphql import (
     FieldNode,
     InlineFragmentNode,
     SelectionSetNode,
 )
+
+from infrahub_sdk.repository import GitRepoManager
 
 from .exceptions import JsonDecodeError
 
@@ -135,8 +136,12 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
         if key in dicta:
             if isinstance(dicta[key], dict) and isinstance(dictb[key], dict):
                 deep_merge_dict(dicta[key], dictb[key], path + [str(key)])
+            elif isinstance(dicta[key], list) and isinstance(dictb[key], list):
+                # Merge lists
+                # Cannot use compare_list because list of dicts won't work (dict not hashable)
+                dicta[key] = [i for i in dicta[key] if i not in dictb[key]] + dictb[key]
             elif dicta[key] == dictb[key]:
-                pass
+                continue
             else:
                 raise ValueError("Conflict at %s" % ".".join(path + [str(key)]))
         else:
@@ -246,7 +251,7 @@ def get_branch(branch: str | None = None, directory: str | Path = ".") -> str:
     if branch:
         return branch
 
-    repo = Repo(directory)
+    repo = GitRepoManager(directory)
     return str(repo.active_branch)
 
 

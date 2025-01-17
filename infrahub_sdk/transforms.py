@@ -5,7 +5,7 @@ import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from git import Repo
+from infrahub_sdk.repository import GitRepoManager
 
 from .exceptions import UninitializedError
 
@@ -27,7 +27,7 @@ class InfrahubTransform:
         server_url: str = "",
         client: InfrahubClient | None = None,
     ):
-        self.git: Repo
+        self.git: GitRepoManager
 
         self.branch = branch
         self.server_url = server_url or os.environ.get("INFRAHUB_URL", "http://127.0.0.1:8000")
@@ -56,7 +56,7 @@ class InfrahubTransform:
             return self.branch
 
         if not hasattr(self, "git") or not self.git:
-            self.git = Repo(self.root_directory)
+            self.git = GitRepoManager(self.root_directory)
 
         self.branch = str(self.git.active_branch)
 

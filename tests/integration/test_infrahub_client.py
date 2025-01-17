@@ -142,6 +142,14 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         task_id = await client.branch.create(branch_name="new-branch-2", wait_until_completion=False)
         assert isinstance(task_id, str)
 
+    async def test_count(self, client: InfrahubClient, base_dataset):
+        count = await client.count(kind=TESTING_PERSON)
+        assert count == 3
+
+    async def test_count_with_filter(self, client: InfrahubClient, base_dataset):
+        count = await client.count(kind=TESTING_PERSON, name__values=["Liam Walker", "Ethan Carter"])
+        assert count == 2
+
     # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
     #     admin = await client.get(kind="CoreAccount", name__value="admin")
 

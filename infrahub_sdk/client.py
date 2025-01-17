@@ -547,8 +547,10 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
+        filters = kwargs
         schema = await self.schema.get(kind=kind, branch=branch)
 
         branch = branch or self.default_branch
@@ -556,7 +558,10 @@ class InfrahubClient(BaseClient):
             at = Timestamp(at)
 
         response = await self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            branch_name=branch,
+            at=at,
+            timeout=timeout,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -781,7 +786,7 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind)
+            count = await self.count(kind=schema.kind, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1181,7 +1186,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1196,7 +1201,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1211,7 +1216,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -1328,7 +1333,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -1344,7 +1349,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -1360,7 +1365,7 @@ class InfrahubClient(BaseClient):
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -1651,8 +1656,10 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
+        filters = kwargs
         schema = self.schema.get(kind=kind, branch=branch)
 
         branch = branch or self.default_branch
@@ -1660,7 +1667,10 @@ class InfrahubClientSync(BaseClient):
             at = Timestamp(at)
 
         response = self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None}}).render(), branch_name=branch, at=at, timeout=timeout
+            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            branch_name=branch,
+            at=at,
+            timeout=timeout,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -1920,7 +1930,7 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind)
+            count = self.count(kind=schema.kind, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -2296,7 +2306,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2311,7 +2321,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2326,7 +2336,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         address_type: str | None = ...,
@@ -2439,7 +2449,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -2455,7 +2465,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,
@@ -2471,7 +2481,7 @@ class InfrahubClientSync(BaseClient):
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: Literal[None] = ...,
+        kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
         member_type: str | None = ...,

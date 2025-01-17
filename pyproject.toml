@@ -5,7 +5,7 @@ requires-python = ">=3.9"
 
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.5.0"
+version = "1.6.1"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -37,7 +37,6 @@ pendulum = [
     { version = ">=2", python = ">=3.9,<3.12" },
     { version = ">=3", python = ">=3.12" },
 ]
-gitpython = "^3"
 ujson = "^5"
 Jinja2 = { version = "^3", optional = true }
 numpy = [
@@ -51,6 +50,7 @@ typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
 eval-type-backport = { version = "^0.2.2", python = "~3.9" }
+dulwich = "^0.21.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -254,12 +254,10 @@ ignore = [
     "PLW1641", # Object does not implement `__hash__` method
     "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
-    "PYI061",  # [*] `Literal[None]` can be replaced with `None`
     "RET504",  # Unnecessary assignment to `data` before `return` statement
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
     "RUF015",  # Prefer `next(iter(input_data["variables"].keys()))` over single element slice
     "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
-    "RUF056",  # [*] Avoid providing a falsy fallback to `dict.get()` in boolean test positions. The default fallback `None` is already falsy.
     "S108",    # Probable insecure usage of temporary file or directory
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "S701",    # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True`
@@ -270,7 +268,6 @@ ignore = [
     "SIM114",  # Combine `if` branches using logical `or` operator
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SIM118",  # Use `key in dict` instead of `key in dict.keys)
-    "SIM910",  # Use `data.get(key)` instead of `data.get(key, None)`
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
 ]

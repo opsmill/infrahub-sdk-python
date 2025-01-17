@@ -84,6 +84,16 @@ async def test_method_count(clients, mock_query_repository_count, client_type): 
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_count_with_filter(clients, mock_query_repository_count, client_type):  # pylint: disable=unused-argument
+    if client_type == "standard":
+        count = await clients.standard.count(kind="CoreRepository", name__value="test")
+    else:
+        count = clients.sync.count(kind="CoreRepository", name__value="test")
+
+    assert count == 5
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_version(clients, mock_query_infrahub_version, client_type):  # pylint: disable=unused-argument
     if client_type == "standard":
         version = await clients.standard.get_version()
