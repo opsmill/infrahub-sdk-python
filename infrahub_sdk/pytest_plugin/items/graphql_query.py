@@ -40,7 +40,7 @@ class InfrahubGraphQLQueryItem(InfrahubItem):
             )
 
         if isinstance(excinfo.value, OutputMatchError):
-            return "\n".join([excinfo.value.message, excinfo.value.differences])
+            return f"{excinfo.value.message}\n{excinfo.value.differences}"
 
         return super().repr_failure(excinfo, style=style)
 
