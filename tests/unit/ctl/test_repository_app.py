@@ -11,9 +11,7 @@ from infrahub_sdk.ctl.cli_commands import app
 
 runner = CliRunner()
 
-requires_python_310 = pytest.mark.skipif(
-    sys.version_info < (3, 10), reason="Requires Python 3.10 or higher"
-)
+requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
 
 @pytest.fixture
@@ -262,9 +260,7 @@ mutation {
         )
 
     @requires_python_310
-    def test_repo_description_commit_branch(
-        self, mock_init_client, mock_client
-    ) -> None:
+    def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"

@@ -34,9 +34,7 @@ def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
     try:
         data = InfrahubRepositoryConfig(**config_file_data)
     except ValidationError as exc:
-        console.print(
-            f"[red]Repository config file not valid, found {len(exc.errors())} error(s)"
-        )
+        console.print(f"[red]Repository config file not valid, found {len(exc.errors())} error(s)")
         for error in exc.errors():
             loc_str = [str(item) for item in error["loc"]]
             console.print(f"  {'/'.join(loc_str)} | {error['msg']} ({error['type']})")
@@ -104,13 +102,9 @@ async def add(
         input_data["data"]["credential"] = {"id": credential.id}
 
     query = Mutation(
-        mutation="CoreReadOnlyRepositoryCreate"
-        if read_only
-        else "CoreRepositoryCreate",
+        mutation="CoreReadOnlyRepositoryCreate" if read_only else "CoreRepositoryCreate",
         input_data=input_data,
         query={"ok": None},
     )
 
-    await client.execute_graphql(
-        query=query.render(), branch_name=branch, tracker="mutation-repository-create"
-    )
+    await client.execute_graphql(query=query.render(), branch_name=branch, tracker="mutation-repository-create")
