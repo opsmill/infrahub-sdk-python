@@ -519,14 +519,11 @@ class RelationshipManager(RelationshipManagerBase):
 
     async def fetch(self) -> None:
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+                include=[self.schema.name]
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
@@ -614,14 +611,11 @@ class RelationshipManagerSync(RelationshipManagerBase):
 
     def fetch(self) -> None:
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
                 include=[self.schema.name],
-                exclude=exclude,
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
