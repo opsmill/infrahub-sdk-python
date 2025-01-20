@@ -116,6 +116,9 @@ jobs:
 
 
   unit-tests:
+    env:
+      # workaround for Rich table column width
+      COLUMNS: 140
     strategy:
       matrix:
         python-version:
