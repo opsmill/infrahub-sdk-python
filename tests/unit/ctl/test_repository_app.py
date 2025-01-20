@@ -8,6 +8,8 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.client import InfrahubClient
 from infrahub_sdk.ctl.cli_commands import app
+from tests.helpers.fixtures import read_fixture
+from tests.helpers.utils import strip_color
 
 runner = CliRunner()
 
@@ -24,11 +26,11 @@ def mock_client() -> mock.Mock:
 # ---------------------------------------------------------
 # infrahubctl  repository command tests
 # ---------------------------------------------------------
-@mock.patch("infrahub_sdk.ctl.repository.initialize_client")
 class TestInfrahubctlRepository:
     """Groups the 'infrahubctl repository' test cases."""
 
     @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_no_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -89,6 +91,7 @@ mutation {
         )
 
     @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -151,6 +154,7 @@ mutation {
         )
 
     @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_readonly_true(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -212,6 +216,7 @@ mutation {
         )
 
     @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -278,3 +283,8 @@ mutation {
             branch_name="develop",
             tracker="mutation-repository-create",
         )
+
+    def test_repo_list(self, mock_repositories_list) -> None:
+        result = runner.invoke(app, ["repository", "list", "--branch", "main"])
+        assert result.exit_code == 0
+        assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")

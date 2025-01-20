@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
 from infrahub_sdk.repository import GitRepoManager
+from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory, strip_color
 
 runner = CliRunner()
@@ -23,14 +24,6 @@ FIXTURE_BASE_DIR = Path(
 )
 
 requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
-
-
-def read_fixture(file_name: str, fixture_subdir: str = ".") -> str:
-    """Read the contents of a fixture."""
-    with Path(FIXTURE_BASE_DIR / fixture_subdir / file_name).open("r", encoding="utf-8") as fhd:
-        fixture_contents = fhd.read()
-
-    return fixture_contents
 
 
 @pytest.fixture
@@ -123,10 +116,12 @@ class TestInfrahubctlTransform:
         httpx_mock.add_response(
             method="POST",
             url="http://mock/graphql/main",
-            json=json.loads(read_fixture("case_success_api_return.json", "transform_cmd")),
+            json=json.loads(read_fixture("case_success_api_return.json", "integration/test_infrahubctl/transform_cmd")),
         )
 
         with change_directory(tags_transform_dir):
             output = runner.invoke(app, ["transform", "tags_transform", "tag=red"])
-            assert strip_color(output.stdout) == read_fixture("case_success_output.txt", "transform_cmd")
+            assert strip_color(output.stdout) == read_fixture(
+                "case_success_output.txt", "integration/test_infrahubctl/transform_cmd"
+            )
             assert output.exit_code == 0
