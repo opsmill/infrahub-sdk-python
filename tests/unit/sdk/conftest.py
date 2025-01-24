@@ -18,8 +18,6 @@ from infrahub_sdk.utils import get_fixtures_dir
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
-# pylint: disable=redefined-outer-name,unused-argument
-
 
 @dataclass
 class BothClients:

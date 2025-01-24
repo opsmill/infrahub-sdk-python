@@ -5,8 +5,6 @@ from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.object_store import ObjectStore, ObjectStoreSync
 
-# pylint: disable=redefined-outer-name,unused-argument
-
 async_methods = [method for method in dir(ObjectStore) if not method.startswith("_")]
 sync_methods = [method for method in dir(ObjectStoreSync) if not method.startswith("_")]
 

@@ -61,9 +61,6 @@ __all__ = [
 ]
 
 
-# pylint: disable=redefined-builtin
-
-
 class DropdownMutationOptionalArgs(TypedDict):
     color: str | None
     description: str | None

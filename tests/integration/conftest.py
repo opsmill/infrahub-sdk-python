@@ -28,7 +28,6 @@ TEST_IN_DOCKER = str_to_bool(os.environ.get("INFRAHUB_TEST_IN_DOCKER", "false"))
 #     os.environ["PYTEST_RUNNING"] = "true"
 
 
-# # pylint: disable=redefined-outer-name
 # class InfrahubTestClient(TestClient):
 #     def _request(
 #         self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: Optional[dict] = None

@@ -31,7 +31,7 @@ def test_validate_method_signature(method):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_branches(clients, mock_branches_list_query, client_type):  # pylint: disable=unused-argument
+async def test_get_branches(clients, mock_branches_list_query, client_type):
     if client_type == "standard":
         branches = await clients.standard.branch.all()
     else:
