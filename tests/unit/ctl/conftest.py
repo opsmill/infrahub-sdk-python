@@ -106,3 +106,43 @@ async def mock_repositories_query(httpx_mock: HTTPXMock) -> HTTPXMock:
     httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response1)
     httpx_mock.add_response(method="POST", url="http://mock/graphql/cr1234", json=response2)
     return httpx_mock
+
+
+@pytest.fixture
+def mock_repositories_list(httpx_mock: HTTPXMock) -> HTTPXMock:
+    response = {
+        "data": {
+            "CoreGenericRepository": {
+                "edges": [
+                    {
+                        "node": {
+                            "__typename": "CoreReadOnlyRepository",
+                            "name": {"value": "Demo Edge Repo"},
+                            "operational_status": {"value": "unknown"},
+                            "sync_status": {"value": "in-sync"},
+                            "internal_status": {"value": "active"},
+                            "ref": {"value": "5bffc938ba0d00dd111cb19331cdef6aab3729c2"},
+                        }
+                    },
+                    {
+                        "node": {
+                            "__typename": "CoreRepository",
+                            "name": {"value": "My Own Repo"},
+                            "operational_status": {"value": "in-sync"},
+                            "sync_status": {"value": "in-sync"},
+                            "internal_status": {"value": "active"},
+                        }
+                    },
+                ]
+            }
+        }
+    }
+
+    httpx_mock.add_response(
+        method="POST",
+        status_code=200,
+        url="http://mock/graphql/main",
+        json=response,
+        match_headers={"X-Infrahub-Tracker": "query-repository-list"},
+    )
+    return httpx_mock

@@ -5,7 +5,7 @@ requires-python = ">=3.9"
 
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.6.1"
+version = "1.7.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -222,7 +222,6 @@ ignore = [
     "TID",    # flake8-tidy-imports
     "FBT",    # flake8-boolean-trap
     "G",      # flake8-logging-format
-    "FLY",    # flynt
     "RSE",    # flake8-raise
     "BLE",    # flake8-blind-except (BLE)
     "A",      # flake8-builtins
@@ -345,6 +344,7 @@ underlines = ["", "", ""]
 title_format = "## [{version}](https://github.com/opsmill/infrahub-sdk-python/tree/v{version}) - {project_date}"
 issue_format = "[#{issue}](https://github.com/opsmill/infrahub-sdk-python/issues/{issue})"
 orphan_prefix = "+"
+template = "changelog/towncrier.md.template"
 
 [[tool.towncrier.type]]
 directory = "security"
@@ -374,6 +374,11 @@ showcontent = true
 [[tool.towncrier.type]]
 directory = "fixed"
 name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "housekeeping"
+name = "Housekeeping"
 showcontent = true
 
 [build-system]
