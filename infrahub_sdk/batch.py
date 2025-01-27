@@ -30,7 +30,7 @@ class BatchTaskSync:
         result = None
         try:
             result = self.task(*self.args, **self.kwargs)
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        except Exception as exc:
             if return_exceptions:
                 return self.node, exc
             raise exc
@@ -44,7 +44,7 @@ async def execute_batch_task_in_pool(
     async with semaphore:
         try:
             result = await task.task(*task.args, **task.kwargs)
-        except Exception as exc:  # pylint: disable=broad-exception-caught
+        except Exception as exc:
             if return_exceptions:
                 return (task.node, exc)
             raise exc

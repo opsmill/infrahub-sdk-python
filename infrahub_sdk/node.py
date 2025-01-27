@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from .schema import AttributeSchemaAPI, MainSchemaTypesAPI, RelationshipSchemaAPI
     from .types import Order
 
-# pylint: disable=too-many-lines
 
 PROPERTIES_FLAG = ["is_visible", "is_protected"]
 PROPERTIES_OBJECT = ["source", "owner"]
@@ -801,7 +800,7 @@ class InfrahubNodeBase:
         Returns:
             dict[str, Dict]: Representation of an input data in dict format
         """
-        # pylint: disable=too-many-branches
+
         data = {}
         variables = {}
 
@@ -1251,7 +1250,6 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
         """
-        # pylint: disable=too-many-branches
 
         data: dict[str, Any] = {}
 
@@ -1763,7 +1761,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
         """
-        # pylint: disable=too-many-branches
 
         data: dict[str, Any] = {}
 

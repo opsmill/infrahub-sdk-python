@@ -19,7 +19,6 @@ from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
 
-# pylint: disable=no-member,too-many-lines
 # type: ignore[attr-defined]
 
 async_node_methods = [
@@ -751,7 +750,7 @@ async def test_query_data_node_with_prefetch_relationships(clients, mock_schema_
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_property(clients, mock_schema_query_02, client_type):  # pylint: disable=unused-argument
+async def test_query_data_generic_property(clients, mock_schema_query_02, client_type):
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -780,7 +779,7 @@ async def test_query_data_generic_property(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_fragment_property(clients, mock_schema_query_02, client_type):  # pylint: disable=unused-argument
+async def test_query_data_generic_fragment_property(clients, mock_schema_query_02, client_type):
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -926,7 +925,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_fragment(clients, mock_schema_query_02, client_type):  # pylint: disable=unused-argument
+async def test_query_data_generic_fragment(clients, mock_schema_query_02, client_type):
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -1795,7 +1794,7 @@ async def test_node_fetch_relationship(
     tag_red_data,
     tag_blue_data,
     client_type,
-):  # pylint: disable=unused-argument
+):
     response1 = {
         "data": {
             "BuiltinTag": {

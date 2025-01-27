@@ -29,7 +29,6 @@ if TYPE_CHECKING:
         StringOptional,
     )
 
-# pylint: disable=too-many-ancestors
 
 # ---------------------------------------------
 # ASYNC

@@ -54,7 +54,7 @@ async def test_batch_return_exception(
     mock_schema_query_01,
     clients: BothClients,
     client_type: str,
-):  # pylint: disable=unused-argument
+):
     if client_type == "standard":
         batch = await clients.standard.create_batch(return_exceptions=True)
         locations = ["JFK1", "JFK1"]
@@ -100,7 +100,7 @@ async def test_batch_exception(
     mock_schema_query_01,
     clients: BothClients,
     client_type: str,
-):  # pylint: disable=unused-argument
+):
     if client_type == "standard":
         batch = await clients.standard.create_batch(return_exceptions=False)
         locations = ["JFK1", "JFK1"]

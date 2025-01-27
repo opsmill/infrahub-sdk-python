@@ -59,7 +59,6 @@ pytest-clarity = "^1.0.1"
 pytest-cov = "^4.0.0"
 pytest-httpx = ">=0.30"
 yamllint = "*"
-pylint = "*"
 mypy = "*"
 ipython = "*"
 requests = "*"
@@ -100,53 +99,6 @@ branch = true
 
 [tool.coverage.report]
 exclude_lines = ["if TYPE_CHECKING:", "raise NotImplementedError()"]
-
-[tool.pylint.general]
-extension-pkg-whitelist = ["pydantic", "ujson"]
-
-[tool.pylint.format]
-disable = "logging-fstring-interpolation"
-
-[tool.pylint.basic]
-# No docstrings required for private methods (Pylint default), or for test_ functions.
-no-docstring-rgx = "^(_|test_)"
-
-[tool.pylint.messages_control]
-# Line length is enforced by Black, so pylint doesn't need to check it.
-# Pylint and Black disagree about how to format multi-line arrays; Black wins.
-# Rules already covered by RUFF
-# - too-many-statements
-# - unused-argument
-disable = """,
-    line-too-long,
-    missing-module-docstring,
-    missing-function-docstring,
-    missing-class-docstring,
-    consider-using-from-import,
-    invalid-name,
-    too-many-arguments,
-    too-many-locals,
-    keyword-arg-before-vararg,
-    too-few-public-methods,
-    too-many-instance-attributes,
-    too-many-statements,
-    fixme,
-    consider-using-f-string,
-    protected-access,
-    import-self,
-    wrong-import-order,
-    multiple-statements,
-    unused-argument,
-    """
-
-[tool.pylint.miscellaneous]
-notes = """,
-    FIXME,
-    XXX,
-    """
-
-[tool.pylint.similarities]
-min-similarity-lines = 20
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

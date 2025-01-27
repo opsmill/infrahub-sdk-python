@@ -2,8 +2,6 @@ import pytest
 
 from infrahub_sdk.graphql import Mutation, Query, render_input_block, render_query_block
 
-# pylint: disable=redefined-outer-name
-
 
 @pytest.fixture
 def query_data_no_filter():
