@@ -88,7 +88,7 @@ def catch_exception(
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 try:
                     return await func(*args, **kwargs)
-                except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
+                except (Error, Exception) as exc:
                     return handle_exception(exc=exc, console=console, exit_code=exit_code)
 
             return async_wrapper
@@ -97,7 +97,7 @@ def catch_exception(
         def wrapper(*args: Any, **kwargs: Any) -> T:
             try:
                 return func(*args, **kwargs)
-            except (Error, Exception) as exc:  # pylint: disable=broad-exception-caught
+            except (Error, Exception) as exc:
                 return handle_exception(exc=exc, console=console, exit_code=exit_code)
 
         return wrapper

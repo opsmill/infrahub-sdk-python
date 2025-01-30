@@ -121,7 +121,7 @@ async def run_check(
     except QueryNotFoundError as exc:
         log.warning(f"{module_name}::{check}: unable to find query ({exc!s})")
         passed = False
-    except Exception as exc:  # pylint: disable=broad-exception-caught
+    except Exception as exc:
         log.warning(f"{module_name}::{check}: An error occurred during execution ({exc})")
         passed = False
 

@@ -7,8 +7,6 @@ from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
 
-# pylint: disable=unused-argument
-
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")

@@ -151,8 +151,6 @@ jobs:
         run: "poetry install --all-extras"
       - name: "Mypy Tests"
         run: "poetry run mypy --show-error-codes infrahub_sdk/"
-      # - name: "Pylint Tests"
-      #   run: "poetry run pylint infrahub_sdk/"
       - name: "Unit Tests"
         run: "poetry run pytest --cov infrahub_sdk tests/unit/"
       - name: "Upload coverage to Codecov"

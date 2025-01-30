@@ -46,7 +46,7 @@ async def test_validate_method_signature(method):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_fetch_schema(mock_schema_query_01, client_type):  # pylint: disable=unused-argument
+async def test_fetch_schema(mock_schema_query_01, client_type):
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
         nodes = await client.schema.fetch(branch="main")

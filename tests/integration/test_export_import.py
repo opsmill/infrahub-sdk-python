@@ -18,7 +18,7 @@
 # MANUFACTURER_KIND = "TestingManufacturer"
 # TAG_KIND = "TestingTag"
 #
-# # pylint: disable=unused-argument
+#
 #
 #
 # class TestSchemaExportImportBase(TestInfrahubApp):

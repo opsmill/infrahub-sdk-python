@@ -58,7 +58,7 @@ def test_init_with_invalid_address():
 
 async def test_get_repositories(
     client: InfrahubClient, mock_branches_list_query, mock_schema_query_02, mock_repositories_query
-):  # pylint: disable=unused-argument
+):
     repos = await client.get_list_repositories()
 
     assert len(repos) == 2
@@ -74,7 +74,7 @@ async def test_get_repositories(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_count(clients, mock_query_repository_count, client_type):  # pylint: disable=unused-argument
+async def test_method_count(clients, mock_query_repository_count, client_type):
     if client_type == "standard":
         count = await clients.standard.count(kind="CoreRepository")
     else:
@@ -84,7 +84,7 @@ async def test_method_count(clients, mock_query_repository_count, client_type): 
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_count_with_filter(clients, mock_query_repository_count, client_type):  # pylint: disable=unused-argument
+async def test_method_count_with_filter(clients, mock_query_repository_count, client_type):
     if client_type == "standard":
         count = await clients.standard.count(kind="CoreRepository", name__value="test")
     else:
@@ -94,7 +94,7 @@ async def test_method_count_with_filter(clients, mock_query_repository_count, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_version(clients, mock_query_infrahub_version, client_type):  # pylint: disable=unused-argument
+async def test_method_get_version(clients, mock_query_infrahub_version, client_type):
     if client_type == "standard":
         version = await clients.standard.get_version()
     else:
@@ -104,7 +104,7 @@ async def test_method_get_version(clients, mock_query_infrahub_version, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_user(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+async def test_method_get_user(clients, mock_query_infrahub_user, client_type):
     if client_type == "standard":
         user = await clients.standard.get_user()
     else:
@@ -115,7 +115,7 @@ async def test_method_get_user(clients, mock_query_infrahub_user, client_type): 
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type):  # pylint: disable=unused-argument
+async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type):
     if client_type == "standard":
         groups = await clients.standard.get_user_permissions()
     else:
@@ -126,7 +126,7 @@ async def test_method_get_user_permissions(clients, mock_query_infrahub_user, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):  # pylint: disable=unused-argument
+async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", limit=3)
         assert not clients.standard.store._store["CoreRepository"]
@@ -146,7 +146,7 @@ async def test_method_all_with_limit(clients, mock_query_repository_page1_2, cli
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_multiple_pages(
     clients, mock_query_repository_page1_2, mock_query_repository_page2_2, client_type
-):  # pylint: disable=unused-argument
+):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository")
         assert not clients.standard.store._store["CoreRepository"]
@@ -166,7 +166,7 @@ async def test_method_all_multiple_pages(
 @pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
 async def test_method_all_batching(
     clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_parallel
-):  # pylint: disable=unused-argument
+):
     if client_type == "standard":
         locations = await clients.standard.all(kind="BuiltinLocation", parallel=use_parallel)
         assert not clients.standard.store._store["BuiltinLocation"]
@@ -184,7 +184,7 @@ async def test_method_all_batching(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type):  # pylint: disable=unused-argument
+async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository")
         assert not clients.standard.store._store["CoreRepository"]
@@ -202,7 +202,7 @@ async def test_method_all_single_page(clients, mock_query_repository_page1_1, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_type):  # pylint: disable=unused-argument
+async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_type):
     if client_type == "standard":
         nodes = await clients.standard.all(kind="CoreNode")
     else:
@@ -214,7 +214,7 @@ async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):  # pylint: disable=unused-argument
+async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
     response = {
         "data": {
             "CoreRepository": {
@@ -259,7 +259,7 @@ async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_quer
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):  # pylint: disable=unused-argument
+async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
     response = {
         "data": {
             "CoreRepository": {
@@ -305,7 +305,7 @@ async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_qu
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):  # pylint: disable=unused-argument
+async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
     response = {
         "data": {
             "CoreRepository": {
@@ -350,7 +350,7 @@ async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):  # pylint: disable=unused-argument
+async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
     response = {
         "data": {
             "CoreRepository": {
@@ -385,7 +385,7 @@ async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_qu
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):  # pylint: disable=unused-argument
+async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):
     with pytest.raises(NodeNotFoundError):
         if client_type == "standard":
             await clients.standard.get(kind="CoreRepository", name__value="infrahub-demo-core")
@@ -396,7 +396,7 @@ async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_r
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_not_found_none(
     httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type
-):  # pylint: disable=unused-argument
+):
     if client_type == "standard":
         response = await clients.standard.get(
             kind="CoreRepository", name__value="infrahub-demo-core", raise_when_missing=False
@@ -414,7 +414,7 @@ async def test_method_get_found_many(
     mock_schema_query_01,
     mock_query_repository_page1_1,
     client_type,
-):  # pylint: disable=unused-argument
+):
     with pytest.raises(IndexError):
         if client_type == "standard":
             await clients.standard.get(kind="CoreRepository", id="bfae43e8-5ebb-456c-a946-bf64e930710a")
@@ -423,7 +423,7 @@ async def test_method_get_found_many(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_1, client_type):  # pylint: disable=unused-argument
+async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_1, client_type):
     if client_type == "standard":
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -469,7 +469,7 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters_empty(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):  # pylint: disable=unused-argument
+async def test_method_filters_empty(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):
     if client_type == "standard":
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -710,7 +710,7 @@ VARIABLES:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):  # pylint: disable=unused-argument
+async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinTag": {"edges": []}}},
