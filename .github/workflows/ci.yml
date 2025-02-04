@@ -150,12 +150,12 @@ jobs:
       - name: "Install Package"
         run: "uv pip install --all-extras -r pyproject.toml"
       - name: "Mypy Tests"
-        run: "uv venv run mypy --show-error-codes infrahub_sdk/"
+        run: "uv run mypy --show-error-codes infrahub_sdk/"
       - name: "Unit Tests"
-        run: "uv venv run pytest --cov infrahub_sdk tests/unit/"
+        run: "uv run pytest --cov infrahub_sdk tests/unit/"
       - name: "Upload coverage to Codecov"
         run: |
-          uv venv run codecov --flags python-${{ matrix.python-version }}
+          uv run codecov --flags python-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -165,10 +165,10 @@ jobs:
       - name: "Report coverage for pytest-plugin"
         if: matrix.python-version == '3.12'
         run: |
-          uv venv run coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
-          uv venv run coverage report -m
-          uv venv run coverage xml
-          uv venv run codecov --flags python-filler-${{ matrix.python-version }}
+          uv run coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
+          uv run coverage report -m
+          uv run coverage xml
+          uv run codecov --flags python-filler-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -202,9 +202,9 @@ jobs:
       - name: "Install Package"
         run: "uv pip install --all-extras -r pyproject.toml"
       - name: "Integration Tests"
-        run: "uv venv run pytest --cov infrahub_sdk tests/integration/"
+        run: "uv run pytest --cov infrahub_sdk tests/integration/"
       - name: "Upload coverage to Codecov"
         run: |
-          uv venv run codecov --flags integration-tests
+          uv run codecov --flags integration-tests
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
