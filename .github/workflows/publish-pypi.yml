@@ -55,7 +55,7 @@ jobs:
           key: "venv-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}"
 
       - name: "Install Dependencies"
-        run: "uv pip install --all-extras ."
+        run: "uv pip install --all-extras -r pyproject.toml"
         if: steps.cached-uv-dependencies.outputs.cache-hit != 'true'
 
       - name: "Add PyPI secret"

@@ -148,7 +148,7 @@ jobs:
           uv venv
           uv pip install invoke toml codecov
       - name: "Install Package"
-        run: "uv pip install --all-extras ."
+        run: "uv pip install --all-extras -r pyproject.toml"
       - name: "Mypy Tests"
         run: "uv venv run mypy --show-error-codes infrahub_sdk/"
       - name: "Unit Tests"
@@ -200,7 +200,7 @@ jobs:
           uv venv
           uv pip install invoke toml codecov
       - name: "Install Package"
-        run: "uv pip install --all-extras ."
+        run: "uv pip install --all-extras -r pyproject.toml"
       - name: "Integration Tests"
         run: "uv venv run pytest --cov infrahub_sdk tests/integration/"
       - name: "Upload coverage to Codecov"
