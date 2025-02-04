@@ -39,7 +39,7 @@ jobs:
       helm: ${{ steps.changes.outputs.helm_all }}
       python: ${{ steps.changes.outputs.python_all }}
       yaml: ${{ steps.changes.outputs.yaml_all }}
-      poetry_files: ${{ steps.changes.outputs.poetry_files }}
+      uv_files: ${{ steps.changes.outputs.uv_files }}
       github_workflows: ${{ steps.changes.outputs.github_workflows }}
     steps:
       - name: "Check out repository code"
@@ -138,24 +138,24 @@ jobs:
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: "actions/setup-python@v5"
         with:
           python-version: ${{ matrix.python-version }}
       - name: "Setup environment"
         run: |
-          pipx install poetry==1.8.5
-          poetry config virtualenvs.create true --local
-          pip install invoke toml codecov
+          pipx install uv
+          uv venv
+          uv pip install invoke toml codecov
       - name: "Install Package"
-        run: "poetry install --all-extras"
+        run: "uv pip install --all-extras ."
       - name: "Mypy Tests"
-        run: "poetry run mypy --show-error-codes infrahub_sdk/"
+        run: "uv venv run mypy --show-error-codes infrahub_sdk/"
       - name: "Unit Tests"
-        run: "poetry run pytest --cov infrahub_sdk tests/unit/"
+        run: "uv venv run pytest --cov infrahub_sdk tests/unit/"
       - name: "Upload coverage to Codecov"
         run: |
-          codecov --flags python-${{ matrix.python-version }}
+          uv venv run codecov --flags python-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -165,11 +165,10 @@ jobs:
       - name: "Report coverage for pytest-plugin"
         if: matrix.python-version == '3.12'
         run: |
-          source $(poetry env info --path)/bin/activate
-          coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
-          coverage report -m
-          coverage xml
-          codecov --flags python-filler-${{ matrix.python-version }}
+          uv venv run coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
+          uv venv run coverage report -m
+          uv venv run coverage xml
+          uv venv run codecov --flags python-filler-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -197,15 +196,15 @@ jobs:
           echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
       - name: "Setup environment"
         run: |
-          pipx install poetry==1.8.5
-          poetry config virtualenvs.create true --local
-          pip install invoke toml codecov
+          pipx install uv
+          uv venv
+          uv pip install invoke toml codecov
       - name: "Install Package"
-        run: "poetry install --all-extras"
+        run: "uv pip install --all-extras ."
       - name: "Integration Tests"
-        run: "poetry run pytest --cov infrahub_sdk tests/integration/"
+        run: "uv venv run pytest --cov infrahub_sdk tests/integration/"
       - name: "Upload coverage to Codecov"
         run: |
-          codecov --flags integration-tests
+          uv venv run codecov --flags integration-tests
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
