@@ -41,11 +41,10 @@ jobs:
       - name: "Check prerelease type"
         id: release
         run: |
-          echo is_prerelease=$(uv venv run python -c "from packaging.version import Version; print(int(Version('$(uv venv run python -c \"import pkg_resources; print(pkg_resources.get_distribution('infrahub-sdk').version)\")').is_prerelease))")") >> "$GITHUB_OUTPUT"
-          echo is_devrelease=$(uv venv run python -c "from packaging.version import Version; print(int(Version('$(uv venv run python -c \"import pkg_resources; print(pkg_resources.get_distribution('infrahub-sdk').version)\")').is_devrelease))")") >> "$GITHUB_OUTPUT"
-          echo "version=$(uv venv run python -c \"import pkg_resources; print(pkg_resources.get_distribution('infrahub-sdk').version)\")" >> "$GITHUB_OUTPUT"
-          echo major_minor_version=$(uv venv run python -c "from packaging.version import Version; print(f\"{Version('$(uv venv run python -c \"import pkg_resources; print(pkg_resources.get_distribution('infrahub-sdk').version)\")').major}.{Version('$(uv venv run python -c \"import pkg_resources; print(pkg_resources.get_distribution('infrahub-sdk').version)\")').minor}\")") >> "$GITHUB_OUTPUT"
-          echo latest_tag=$(curl -L \
+          echo is_prerelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$(uv run .github/get-version.py)').is_prerelease))") >> "$GITHUB_OUTPUT"
+          echo is_devrelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$(uv run .github/get-version.py)').is_devrelease))") >> "$GITHUB_OUTPUT"
+          echo "version=$(uv run .github/get-version.py)" >> "$GITHUB_OUTPUT"
+          echo major_minor_version=$(uv run python -c "from packaging.version import Version; print(f\"{Version('$(uv run .github/get-version.py)').major}.{Version('$(uv run .github/get-version.py)').minor}\")") >> "$GITHUB_OUTPUT"          echo latest_tag=$(curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ github.token }}" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
