@@ -1,3 +1,3 @@
 import importlib.metadata
 
-print(importlib.metadata.version('infrahub-sdk'))
+print(importlib.metadata.version("infrahub-sdk"))
