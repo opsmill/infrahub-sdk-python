@@ -58,9 +58,6 @@ jobs:
         run: "uv pip install --all-extras -r pyproject.toml"
         if: steps.cached-uv-dependencies.outputs.cache-hit != 'true'
 
-      - name: "Add PyPI secret"
-        run: "uv pip config set pypi-token.pypi ${{ secrets.PYPI_TOKEN }}"
-
       - name: "Build package"
         run: "uv build"
 
@@ -69,4 +66,4 @@ jobs:
 
       - name: "Publish to PyPI"
         if: ${{ inputs.publish }}
-        run: "uv publish"
+        run: "uv publish --token ${{ secrets.PYPI_TOKEN }}"
