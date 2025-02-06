@@ -25,7 +25,7 @@ def load(
     ),
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch from which to export"),
+    branch: str = typer.Option("main", help="Branch from which to export"),  # TODO: Replace main by None
     concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",

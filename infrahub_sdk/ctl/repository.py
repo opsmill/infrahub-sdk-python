@@ -74,7 +74,7 @@ async def add(
     commit: str = "",
     read_only: bool = False,
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to add the repository."),
+    branch: str = typer.Option("main", help="Branch on which to add the repository."),  # TODO: Replace main by None
     _: str = CONFIG_PARAM,
 ) -> None:
     """Add a new repository."""
