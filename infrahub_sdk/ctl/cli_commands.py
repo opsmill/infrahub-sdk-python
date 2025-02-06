@@ -383,6 +383,7 @@ def protocols(
 
     else:
         client = initialize_client_sync()
+        branch = branch or client.default_branch
         schema.update(client.schema.fetch(branch=branch))
 
     code_generator = CodeGenerator(schema=schema)
