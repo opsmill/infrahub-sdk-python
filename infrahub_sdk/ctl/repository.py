@@ -71,7 +71,7 @@ async def add(
     description: str = "",
     username: str | None = None,
     password: str = "",
-    commit: str = "",
+    ref: str = "",
     read_only: bool = False,
     debug: bool = False,
     branch: str = typer.Option("main", help="Branch on which to add the repository."),  # TODO: Replace main by None
@@ -86,15 +86,24 @@ async def add(
             "name": {"value": name},
             "location": {"value": location},
             "description": {"value": description},
-            "commit": {"value": commit},
         },
     }
+    if read_only:
+        input_data["data"]["ref"] = {"value": ref}
+    else:
+        input_data["data"]["default_branch"] = {"value": ref}
 
     client = initialize_client()
 
-    credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)
-    await credential.save(allow_upsert=True)
-    input_data["data"]["credential"] = {"id": credential.id}
+    if username or password:
+        credential = await client.create(
+            kind="CorePasswordCredential",
+            name=name,
+            username=username,
+            password=password,
+        )
+        await credential.save(allow_upsert=True)
+        input_data["data"]["credential"] = {"id": credential.id}
 
     query = Mutation(
         mutation="CoreReadOnlyRepositoryCreate" if read_only else "CoreRepositoryCreate",

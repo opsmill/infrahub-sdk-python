@@ -31,6 +31,55 @@ class TestInfrahubctlRepository:
 
     @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
+    def test_repo_no_username_or_password(self, mock_init_client, mock_client) -> None:
+        """Case allow no username to be passed in and set it as None rather than blank string that fails."""
+        mock_cred = mock.AsyncMock()
+        mock_cred.id = "1234"
+        mock_client.create.return_value = mock_cred
+
+        mock_init_client.return_value = mock_client
+        output = runner.invoke(
+            app,
+            [
+                "repository",
+                "add",
+                "Gitlab",
+                "https://gitlab.com/opsmill/example-repo.git",
+            ],
+        )
+        assert output.exit_code == 0
+        mock_client.create.assert_not_called()
+        mock_cred.save.assert_not_called()
+        mock_client.execute_graphql.assert_called_once()
+        mock_client.execute_graphql.assert_called_with(
+            query="""
+mutation {
+    CoreRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
+            }
+            location: {
+                value: "https://gitlab.com/opsmill/example-repo.git"
+            }
+            description: {
+                value: ""
+            }
+            default_branch: {
+                value: ""
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
+            branch_name="main",
+            tracker="mutation-repository-create",
+        )
+
+    @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_no_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
@@ -74,7 +123,7 @@ mutation {
             description: {
                 value: ""
             }
-            commit: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -137,7 +186,7 @@ mutation {
             description: {
                 value: ""
             }
-            commit: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -168,7 +217,7 @@ mutation {
                 "repository",
                 "add",
                 "Gitlab",
-                "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git",
+                "https://gitlab.com/opsmill/example-repo.git",
                 "--password",
                 "mySup3rSecureP@ssw0rd",
                 "--read-only",
@@ -194,12 +243,12 @@ mutation {
                 value: "Gitlab"
             }
             location: {
-                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+                value: "https://gitlab.com/opsmill/example-repo.git"
             }
             description: {
                 value: ""
             }
-            commit: {
+            ref: {
                 value: ""
             }
             credential: {
@@ -230,15 +279,15 @@ mutation {
                 "repository",
                 "add",
                 "Gitlab",
-                "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git",
+                "https://gitlab.com/opsmill/example-repo.git",
                 "--password",
                 "mySup3rSecureP@ssw0rd",
                 "--username",
                 "opsmill",
                 "--description",
                 "This is a test description",
-                "--commit",
-                "myHashCommit",
+                "--ref",
+                "my-custom-branch",
                 "--branch",
                 "develop",
             ],
@@ -263,13 +312,13 @@ mutation {
                 value: "Gitlab"
             }
             location: {
-                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+                value: "https://gitlab.com/opsmill/example-repo.git"
             }
             description: {
                 value: "This is a test description"
             }
-            commit: {
-                value: "myHashCommit"
+            default_branch: {
+                value: "my-custom-branch"
             }
             credential: {
                 id: "1234"
