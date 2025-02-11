@@ -113,7 +113,7 @@ class ConfigBase(BaseSettings):
 
     @model_validator(mode="after")
     def validate_proxy_config(self) -> Self:
-        if self.proxy and self.proxy_mounts.is_set:  # pylint: disable=no-member
+        if self.proxy and self.proxy_mounts.is_set:
             raise ValueError("'proxy' and 'proxy_mounts' are mutually exclusive")
         return self
 

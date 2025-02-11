@@ -20,7 +20,7 @@ class RepositoryData(BaseModel):
     branch_info: dict[str, RepositoryBranchInfo] = Field(default_factory=dict)
 
     def get_staging_branch(self) -> str | None:
-        for branch, info in self.branch_info.items():  # pylint: disable=no-member
+        for branch, info in self.branch_info.items():
             if info.internal_status == "staging":
                 return branch
         return None

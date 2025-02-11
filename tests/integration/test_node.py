@@ -7,14 +7,8 @@ from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
 
-# pylint: disable=unused-argument
-
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
-    @pytest.fixture(scope="class")
-    def infrahub_version(self) -> str:
-        return "1.1.0"
-
     @pytest.fixture(scope="class")
     async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
         await client.schema.wait_until_converged(branch=default_branch)

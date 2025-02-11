@@ -129,13 +129,13 @@ async def run(
     method: str = "run",
     debug: bool = False,
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch on which to run the script."),
-    concurrent: int = typer.Option(
-        4,
+    branch: str = typer.Option("main", help="Branch on which to run the script."),  # TODO: Replace main by None
+    concurrent: int | None = typer.Option(
+        None,
         help="Maximum number of requests to execute at the same time.",
-        envvar="INFRAHUBCTL_CONCURRENT_EXECUTION",
+        envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
-    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUBCTL_TIMEOUT"),
+    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
     variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
@@ -383,6 +383,7 @@ def protocols(
 
     else:
         client = initialize_client_sync()
+        branch = branch or client.default_branch
         schema.update(client.schema.fetch(branch=branch))
 
     code_generator = CodeGenerator(schema=schema)

@@ -11,6 +11,18 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.7.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.1) - 2025-01-30
+
+### Removed
+
+- All mention of pylint have been removed from the project. ([#206](https://github.com/opsmill/infrahub-sdk-python/issues/206))
+
+## [1.7.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.0) - 2025-01-23
+
+### Added
+
+- adds `infrahubctl repository list` command
+
 ## [1.6.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.6.1) - 2025-01-16
 
 Fixes release of v1.6.0

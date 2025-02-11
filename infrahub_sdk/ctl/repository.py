@@ -6,13 +6,14 @@ import typer
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
+from rich.table import Table
 
 from infrahub_sdk.ctl.client import initialize_client
 
 from ..async_typer import AsyncTyper
 from ..ctl.exceptions import FileNotValidError
 from ..ctl.utils import init_logging
-from ..graphql import Mutation
+from ..graphql import Mutation, Query
 from ..schema.repository import InfrahubRepositoryConfig
 from ._file import read_file
 from .parameters import CONFIG_PARAM
@@ -73,7 +74,7 @@ async def add(
     ref: str = "",
     read_only: bool = False,
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to add the repository."),
+    branch: str = typer.Option("main", help="Branch on which to add the repository."),  # TODO: Replace main by None
     _: str = CONFIG_PARAM,
 ) -> None:
     """Add a new repository."""
@@ -111,3 +112,57 @@ async def add(
     )
 
     await client.execute_graphql(query=query.render(), branch_name=branch, tracker="mutation-repository-create")
+
+
+@app.command()
+async def list(
+    branch: str | None = None,
+    debug: bool = False,
+    _: str = CONFIG_PARAM,
+) -> None:
+    init_logging(debug=debug)
+
+    client = initialize_client(branch=branch)
+
+    repo_status_query = {
+        "CoreGenericRepository": {
+            "edges": {
+                "node": {
+                    "__typename": None,
+                    "name": {"value": None},
+                    "operational_status": {"value": None},
+                    "sync_status": {"value": None},
+                    "internal_status": {"value": None},
+                    "... on CoreReadOnlyRepository": {
+                        "ref": {"value": None},
+                    },
+                }
+            }
+        },
+    }
+
+    query = Query(name="GetRepositoryStatus", query=repo_status_query)
+    resp = await client.execute_graphql(query=query.render(), branch_name=branch, tracker="query-repository-list")
+
+    table = Table(title="List of all Repositories")
+
+    table.add_column("Name", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Type")
+    table.add_column("Operational status")
+    table.add_column("Sync status")
+    table.add_column("Internal status")
+    table.add_column("Ref")
+
+    for repository_node in resp["CoreGenericRepository"]["edges"]:
+        repository = repository_node["node"]
+
+        table.add_row(
+            repository["name"]["value"],
+            repository["__typename"],
+            repository["operational_status"]["value"],
+            repository["sync_status"]["value"],
+            repository["internal_status"]["value"],
+            repository["ref"]["value"] if "ref" in repository else "",
+        )
+
+    console.print(table)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from asyncio import run as aiorun
 from pathlib import Path
 
@@ -23,13 +25,13 @@ def load(
     ),
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch from which to export"),
-    concurrent: int = typer.Option(
-        4,
+    branch: str = typer.Option("main", help="Branch from which to export"),  # TODO: Replace main by None
+    concurrent: int | None = typer.Option(
+        None,
         help="Maximum number of requests to execute at the same time.",
-        envvar="INFRAHUBCTL_CONCURRENT_EXECUTION",
+        envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
-    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUBCTL_TIMEOUT"),
+    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
 ) -> None:
     """Import nodes and their relationships into the database."""
     console = Console()

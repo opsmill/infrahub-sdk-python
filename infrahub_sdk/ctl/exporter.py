@@ -22,13 +22,13 @@ def dump(
     directory: Path = typer.Option(directory_name_with_timestamp, help="Directory path to store export"),
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch from which to export"),
+    branch: str = typer.Option("main", help="Branch from which to export"),  # TODO: Replace main by None
     concurrent: int = typer.Option(
         4,
         help="Maximum number of requests to execute at the same time.",
-        envvar="INFRAHUBCTL_CONCURRENT_EXECUTION",
+        envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
-    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUBCTL_TIMEOUT"),
+    timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
     exclude: list[str] = typer.Option(
         ["CoreAccount"],
         help="Prevent node kind(s) from being exported, CoreAccount is excluded by default",

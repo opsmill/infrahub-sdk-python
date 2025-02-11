@@ -24,7 +24,7 @@
 #     from infrahub.database import InfrahubDatabase
 #
 #
-# # pylint: disable=unused-argument
+#
 #
 #
 # class TestInfrahubClientSync:

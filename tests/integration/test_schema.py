@@ -7,7 +7,7 @@
 #
 # from .conftest import InfrahubTestClient
 #
-# # pylint: disable=unused-argument
+#
 #
 #
 # class TestInfrahubSchema:
