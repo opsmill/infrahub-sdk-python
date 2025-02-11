@@ -85,9 +85,12 @@ async def add(
             "name": {"value": name},
             "location": {"value": location},
             "description": {"value": description},
-            "ref": {"value": ref},
         },
     }
+    if read_only:
+        input_data["data"]["ref"] = {"value": ref}
+    else:
+        input_data["data"]["default_branch"] = {"value": ref}
 
     client = initialize_client()
 

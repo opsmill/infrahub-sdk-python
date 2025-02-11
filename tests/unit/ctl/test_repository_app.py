@@ -63,7 +63,7 @@ mutation {
             description: {
                 value: ""
             }
-            ref: {
+            default_branch: {
                 value: ""
             }
         }
@@ -120,7 +120,7 @@ mutation {
             description: {
                 value: ""
             }
-            ref: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -182,7 +182,7 @@ mutation {
             description: {
                 value: ""
             }
-            ref: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -311,7 +311,7 @@ mutation {
             description: {
                 value: "This is a test description"
             }
-            ref: {
+            default_branch: {
                 value: "my-custom-branch"
             }
             credential: {
