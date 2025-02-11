@@ -129,7 +129,7 @@ async def run(
     method: str = "run",
     debug: bool = False,
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch on which to run the script."),
+    branch: str = typer.Option("main", help="Branch on which to run the script."),  # TODO: Replace main by None
     concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
@@ -383,6 +383,7 @@ def protocols(
 
     else:
         client = initialize_client_sync()
+        branch = branch or client.default_branch
         schema.update(client.schema.fetch(branch=branch))
 
     code_generator = CodeGenerator(schema=schema)

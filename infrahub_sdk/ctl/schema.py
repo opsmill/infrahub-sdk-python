@@ -108,7 +108,7 @@ def get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> di
 async def load(
     schemas: list[Path],
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to load the schema."),
+    branch: str = typer.Option("main", help="Branch on which to load the schema."),  # TODO: Replace main by None
     wait: int = typer.Option(0, help="Time in seconds to wait until the schema has converged across all workers"),
     _: str = CONFIG_PARAM,
 ) -> None:
@@ -159,7 +159,7 @@ async def load(
 async def check(
     schemas: list[Path],
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to check the schema."),
+    branch: str = typer.Option("main", help="Branch on which to check the schema."),  # TODO: Replace main by None
     _: str = CONFIG_PARAM,
 ) -> None:
     """Check if schema files are valid and what would be the impact of loading them with Infrahub."""
