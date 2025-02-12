@@ -74,7 +74,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -135,7 +134,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -198,7 +196,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -260,7 +257,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -329,7 +325,6 @@ mutation {
     }
 }
 """,
-            branch_name="develop",
             tracker="mutation-repository-create",
         )
 
