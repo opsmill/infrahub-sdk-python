@@ -69,7 +69,7 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: str = "",
+    username: str | None = None,
     password: str = "",
     ref: str = "",
     read_only: bool = False,
