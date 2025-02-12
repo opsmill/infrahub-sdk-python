@@ -22,7 +22,7 @@ def dump(
     directory: Path = typer.Option(directory_name_with_timestamp, help="Directory path to store export"),
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch from which to export"),  # TODO: Replace main by None
+    branch: str = typer.Option(None, help="Branch from which to export"),
     concurrent: int = typer.Option(
         4,
         help="Maximum number of requests to execute at the same time.",
