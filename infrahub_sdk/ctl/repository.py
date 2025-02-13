@@ -115,6 +115,7 @@ async def add(
 
 @app.command()
 async def list(
+    branch: str = typer.Option(None, help="Branch on which to check the schema."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
@@ -140,7 +141,7 @@ async def list(
     }
 
     query = Query(name="GetRepositoryStatus", query=repo_status_query)
-    resp = await client.execute_graphql(query=query.render(), tracker="query-repository-list")
+    resp = await client.execute_graphql(query=query.render(), branch_name=branch, tracker="query-repository-list")
 
     table = Table(title="List of all Repositories")
 
