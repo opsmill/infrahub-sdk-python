@@ -34,6 +34,7 @@ from .main import (
     RelationshipSchemaAPI,
     SchemaRoot,
     SchemaRootAPI,
+    TemplateSchemaAPI,
 )
 
 if TYPE_CHECKING:
@@ -58,6 +59,7 @@ __all__ = [
     "RelationshipSchemaAPI",
     "SchemaRoot",
     "SchemaRootAPI",
+    "TemplateSchemaAPI",
 ]
 
 
@@ -78,8 +80,10 @@ class EnumMutation(str, Enum):
 
 
 MainSchemaTypes: TypeAlias = Union[NodeSchema, GenericSchema]
-MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI]
-MainSchemaTypesAll: TypeAlias = Union[NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI]
+MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI]
+MainSchemaTypesAll: TypeAlias = Union[
+    NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI
+]
 
 
 class InfrahubSchemaBase:
@@ -417,6 +421,10 @@ class InfrahubSchema(InfrahubSchemaBase):
             profile = ProfileSchemaAPI(**profile_schema)
             nodes[profile.kind] = profile
 
+        for template_schema in data.get("templates", []):
+            template = TemplateSchemaAPI(**template_schema)
+            nodes[template.kind] = template
+
         return nodes
 
 
@@ -620,6 +628,10 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         for profile_schema in data.get("profiles", []):
             profile = ProfileSchemaAPI(**profile_schema)
             nodes[profile.kind] = profile
+
+        for template_schema in data.get("templates", []):
+            template = TemplateSchemaAPI(**template_schema)
+            nodes[template.kind] = template
 
         return nodes
 

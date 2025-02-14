@@ -31,6 +31,7 @@ class RelationshipKind(str, Enum):
     GROUP = "Group"
     HIERARCHY = "Hierarchy"
     PROFILE = "Profile"
+    TEMPLATE = "Template"
 
 
 class RelationshipDirection(str, Enum):
@@ -290,6 +291,7 @@ class BaseNodeSchema(BaseSchema):
     branch: BranchSupportType | None = None
     default_filter: str | None = None
     generate_profile: bool | None = None
+    generate_template: bool | None = None
     parent: str | None = None
     children: str | None = None
 
@@ -305,6 +307,10 @@ class NodeSchemaAPI(BaseNodeSchema, BaseSchemaAttrRelAPI):
 
 
 class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
+    inherit_from: list[str] = Field(default_factory=list)
+
+
+class TemplateSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
     inherit_from: list[str] = Field(default_factory=list)
 
 
@@ -341,3 +347,4 @@ class SchemaRootAPI(BaseModel):
     generics: list[GenericSchemaAPI] = Field(default_factory=list)
     nodes: list[NodeSchemaAPI] = Field(default_factory=list)
     profiles: list[ProfileSchemaAPI] = Field(default_factory=list)
+    templates: list[TemplateSchemaAPI] = Field(default_factory=list)
