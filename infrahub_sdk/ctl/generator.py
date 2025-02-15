@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ from rich.console import Console
 from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.repository import get_repository_config
-from ..ctl.utils import execute_graphql_query, parse_cli_vars
+from ..ctl.utils import execute_graphql_query, init_logging, parse_cli_vars
 from ..exceptions import ModuleImportError
 from ..node import InfrahubNode
 
@@ -25,6 +26,7 @@ async def run(
     branch: str | None = None,
     variables: list[str] | None = None,
 ) -> None:
+    init_logging(debug=debug)
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
     if list_available or not generator_name:
@@ -34,7 +36,6 @@ async def run(
     generator_config = repository_config.get_generator_definition(name=generator_name)
 
     console = Console()
-
     relative_path = str(generator_config.file_path.parent) if generator_config.file_path.parent != Path() else None
 
     try:
