@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 async def run(
     generator_name: str,
     path: str,  # noqa: ARG001
-    debug: bool,  # noqa: ARG001
+    debug: bool,
     list_available: bool,
     branch: str | None = None,
     variables: list[str] | None = None,
