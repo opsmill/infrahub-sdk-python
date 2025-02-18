@@ -115,7 +115,7 @@ async def add(
 
 @app.command()
 async def list(
-    branch: str = typer.Option(None, help="Branch on which to check the schema."),
+    branch: str = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
