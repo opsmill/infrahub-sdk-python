@@ -1,9 +1,12 @@
 """Integration tests for infrahubctl commands."""
 
 import sys
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
+import yaml
 from typer.testing import CliRunner
 
 from infrahub_sdk.client import InfrahubClient
@@ -288,3 +291,31 @@ mutation {
         result = runner.invoke(app, ["repository", "list", "--branch", "main"])
         assert result.exit_code == 0
         assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")
+
+    def test_repo_init(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dst, tempfile.NamedTemporaryFile(
+            mode="w", suffix=".yml", delete=False, encoding="utf-8"
+        ) as temp_yaml:
+            dst = Path(temp_dst)
+            yaml_path = Path(temp_yaml.name)
+
+            answers = {
+                "generators": True,
+                "menus": True,
+                "project_name": "test",
+                "queries": True,
+                "scripts": True,
+                "tests": True,
+                "transforms": True,
+            }
+
+            yaml.safe_dump(answers, temp_yaml)
+            temp_yaml.close()
+            runner.invoke(app, ["repository", "init", str(dst), "--data", str(yaml_path)])
+
+            coppied_answers = yaml.safe_load((dst / ".copier-answers.yml").read_text())
+            coppied_answers.pop("_src_path")
+
+            assert coppied_answers == answers
+            assert (dst / "generators").is_dir()
+            assert (dst / "pyproject.toml").is_file()
