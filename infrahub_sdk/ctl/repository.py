@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
-from copier import run_copy
-import typer
 import asyncio
+from pathlib import Path
+
+import typer
 import yaml
+from copier import run_copy
 from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
@@ -163,9 +164,19 @@ async def list(
 @app.command()
 async def init(
     dst: Path,
+    data: Path | None = None,
     _: str = CONFIG_PARAM,
 ) -> None:
     """Initialize a new Infrahub repository."""
     example_repo = Path(__file__).parent / "example_repo"
-    await asyncio.to_thread(run_copy, str(example_repo), str(dst))
-    
+    config_data = None
+    if data:
+        try:
+            with Path.open(data, encoding="utf-8") as f:
+                config_data = yaml.safe_load(f)  # Load YAML contents
+            typer.echo(f"Loaded config: {config_data}")  # Print for debugging
+        except Exception as e:
+            typer.echo(f"Error loading YAML file: {e}", err=True)
+            raise typer.Exit(code=1)
+
+    await asyncio.to_thread(run_copy, str(example_repo), str(dst), data=config_data)
