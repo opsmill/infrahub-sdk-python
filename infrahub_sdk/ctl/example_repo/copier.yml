@@ -1,0 +1,27 @@
+project_name:
+    type: str
+    help: What is your project name?
+generators:
+  type: bool
+  help: Would you like to use generators?
+  default: no
+transforms:
+  type: bool
+  help: Would you like to use transforms?
+  default: no
+scripts:
+  type: bool
+  help: Would you like to have local scripts?
+  default: no
+queries:
+  type: bool
+  help: Would you like to store queries?
+  default: no
+menus:
+  type: bool
+  help: Would you like to store menus?
+  default: no
+tests:
+  type: bool
+  help: Would you like to have testing?
+  default: no

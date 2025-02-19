@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "Infrahub Repository"
+authors = []
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.6"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

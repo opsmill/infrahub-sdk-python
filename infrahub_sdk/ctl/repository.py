@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-
+from copier import run_copy
 import typer
+import asyncio
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
@@ -157,3 +158,14 @@ async def list(
         )
 
     console.print(table)
+
+
+@app.command()
+async def init(
+    dst: Path,
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Initialize a new Infrahub repository."""
+    example_repo = Path(__file__).parent / "example_repo"
+    await asyncio.to_thread(run_copy, str(example_repo), str(dst))
+    
