@@ -17,7 +17,7 @@ from graphql import (
 
 from infrahub_sdk.repository import GitRepoManager
 
-from .exceptions import JsonDecodeError
+from .exceptions import FileNotValidError, JsonDecodeError
 
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo
@@ -340,6 +340,16 @@ def write_to_file(path: Path, value: Any) -> bool:
     written = path.write_text(to_write)
 
     return written is not None
+
+
+def read_file(file_name: Path) -> str:
+    if not file_name.is_file():
+        raise FileNotValidError(name=str(file_name), message=f"{file_name} is not a valid file")
+    try:
+        with Path.open(file_name, encoding="utf-8") as fobj:
+            return fobj.read()
+    except UnicodeDecodeError as exc:
+        raise FileNotValidError(name=str(file_name), message=f"Unable to read {file_name} with utf-8 encoding") from exc
 
 
 def get_user_permissions(data: list[dict]) -> dict:

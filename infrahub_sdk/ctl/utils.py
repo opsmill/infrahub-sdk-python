@@ -17,10 +17,10 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from ..ctl.exceptions import FileNotValidError, QueryNotFoundError
 from ..exceptions import (
     AuthenticationError,
     Error,
+    FileNotValidError,
     GraphQLError,
     NodeNotFoundError,
     ResourceNotDefinedError,
@@ -30,6 +30,7 @@ from ..exceptions import (
 )
 from ..yaml import YamlFile
 from .client import initialize_client_sync
+from .exceptions import QueryNotFoundError
 
 if TYPE_CHECKING:
     from ..schema.repository import InfrahubRepositoryConfig
