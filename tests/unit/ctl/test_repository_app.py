@@ -1,6 +1,5 @@
 """Integration tests for infrahubctl commands."""
 
-import sys
 from unittest import mock
 
 import pytest
@@ -12,8 +11,6 @@ from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import strip_color
 
 runner = CliRunner()
-
-requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
 
 @pytest.fixture
@@ -29,7 +26,6 @@ def mock_client() -> mock.Mock:
 class TestInfrahubctlRepository:
     """Groups the 'infrahubctl repository' test cases."""
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_no_username_or_password(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -77,7 +73,6 @@ mutation {
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_no_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -137,7 +132,6 @@ mutation {
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -199,7 +193,6 @@ mutation {
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_readonly_true(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -260,7 +253,6 @@ mutation {
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""

@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 from typer.testing import CliRunner
 
@@ -9,10 +7,7 @@ from tests.helpers.cli import remove_ansi_color
 
 runner = CliRunner()
 
-requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
-
-@requires_python_310
 def test_validate_schema_valid():
     fixture_file = get_fixtures_dir() / "models" / "valid_model_01.json"
 
@@ -21,7 +16,6 @@ def test_validate_schema_valid():
     assert "Schema is valid" in result.stdout
 
 
-@requires_python_310
 def test_validate_schema_empty():
     fixture_file = get_fixtures_dir() / "models" / "empty.json"
 
@@ -30,7 +24,6 @@ def test_validate_schema_empty():
     assert "Empty YAML/JSON file" in remove_ansi_color(result.stdout)
 
 
-@requires_python_310
 def test_validate_schema_non_valid():
     fixture_file = get_fixtures_dir() / "models" / "non_valid_model_01.json"
 

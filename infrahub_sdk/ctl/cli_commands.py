@@ -7,7 +7,7 @@ import logging
 import platform
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import jinja2
 import typer
@@ -74,13 +74,13 @@ console = Console()
 @catch_exception(console=console)
 def check(
     check_name: str = typer.Argument(default="", help="Name of the Python check"),
-    branch: str | None = None,
+    branch: Optional[str] = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     format_json: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Python checks"),
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -102,12 +102,12 @@ def check(
 @catch_exception(console=console)
 async def generator(
     generator_name: str = typer.Argument(default="", help="Name of the Generator"),
-    branch: str | None = None,
+    branch: Optional[str] = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Generators"),
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -130,13 +130,13 @@ async def run(
     debug: bool = False,
     _: str = CONFIG_PARAM,
     branch: str = typer.Option(None, help="Branch on which to run the script."),
-    concurrent: int | None = typer.Option(
+    concurrent: Optional[int] = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
         envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
     timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -259,7 +259,7 @@ def _run_transform(
 @catch_exception(console=console)
 def render(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to render the transform."),
@@ -309,7 +309,7 @@ def render(
 @catch_exception(console=console)
 def transform(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to run the transformation"),
