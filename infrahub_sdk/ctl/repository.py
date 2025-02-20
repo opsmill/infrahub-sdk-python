@@ -8,15 +8,14 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from infrahub_sdk.ctl.client import initialize_client
-
 from ..async_typer import AsyncTyper
-from ..ctl.exceptions import FileNotValidError
-from ..ctl.utils import init_logging
+from ..exceptions import FileNotValidError
 from ..graphql import Mutation, Query
 from ..schema.repository import InfrahubRepositoryConfig
-from ._file import read_file
+from ..utils import read_file
+from .client import initialize_client
 from .parameters import CONFIG_PARAM
+from .utils import init_logging
 
 app = AsyncTyper()
 console = Console()
