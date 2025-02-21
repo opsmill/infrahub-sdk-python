@@ -73,7 +73,6 @@ async def add(
     ref: str = "",
     read_only: bool = False,
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to add the repository."),  # TODO: Replace main by None
     _: str = CONFIG_PARAM,
 ) -> None:
     """Add a new repository."""
@@ -110,18 +109,18 @@ async def add(
         query={"ok": None},
     )
 
-    await client.execute_graphql(query=query.render(), branch_name=branch, tracker="mutation-repository-create")
+    await client.execute_graphql(query=query.render(), tracker="mutation-repository-create")
 
 
 @app.command()
 async def list(
-    branch: str | None = None,
+    branch: str = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
     init_logging(debug=debug)
 
-    client = initialize_client(branch=branch)
+    client = initialize_client()
 
     repo_status_query = {
         "CoreGenericRepository": {

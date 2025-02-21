@@ -27,7 +27,7 @@ def callback() -> None:
 async def load(
     paths: list[Path],
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to load the objects."),  # TODO: Replace main by None
+    branch: str = typer.Option(None, help="Branch on which to load the objects."),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple objects files into Infrahub."""

@@ -74,7 +74,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -135,7 +134,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -198,7 +196,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -260,7 +257,6 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
@@ -288,8 +284,6 @@ mutation {
                 "This is a test description",
                 "--ref",
                 "my-custom-branch",
-                "--branch",
-                "develop",
             ],
         )
         assert output.exit_code == 0
@@ -329,11 +323,10 @@ mutation {
     }
 }
 """,
-            branch_name="develop",
             tracker="mutation-repository-create",
         )
 
     def test_repo_list(self, mock_repositories_list) -> None:
-        result = runner.invoke(app, ["repository", "list", "--branch", "main"])
+        result = runner.invoke(app, ["repository", "list"])
         assert result.exit_code == 0
         assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")

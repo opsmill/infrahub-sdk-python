@@ -129,7 +129,7 @@ async def run(
     method: str = "run",
     debug: bool = False,
     _: str = CONFIG_PARAM,
-    branch: str = typer.Option("main", help="Branch on which to run the script."),  # TODO: Replace main by None
+    branch: str = typer.Option(None, help="Branch on which to run the script."),
     concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
