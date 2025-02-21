@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 import typer
 import ujson
@@ -57,7 +58,7 @@ async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 def validate_graphql(
     query: str,
-    variables: list[str] | None = typer.Argument(
+    variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     debug: bool = typer.Option(False, help="Display more troubleshooting information."),

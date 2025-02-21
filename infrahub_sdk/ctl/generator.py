@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import typer
 from rich.console import Console
@@ -23,7 +23,7 @@ async def run(
     debug: bool,
     list_available: bool,
     branch: str | None = None,
-    variables: list[str] | None = None,
+    variables: Optional[list[str]] = None,
 ) -> None:
     init_logging(debug=debug)
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))

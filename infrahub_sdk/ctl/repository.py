@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 import yaml
@@ -68,7 +69,7 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: str | None = None,
+    username: Optional[str] = None,
     password: str = "",
     ref: str = "",
     read_only: bool = False,
@@ -114,7 +115,7 @@ async def add(
 
 @app.command()
 async def list(
-    branch: str = typer.Option(None, help="Branch on which to list repositories."),
+    branch: Optional[str] = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
