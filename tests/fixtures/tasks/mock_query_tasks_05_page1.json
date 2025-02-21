@@ -1,0 +1,63 @@
+{
+    "data": {
+      "InfrahubTask": {
+        "count": 1,
+        "edges": [
+          {
+            "node": {
+              "created_at": "2025-01-18T22:12:20.228112Z",
+              "id": "32116fcd-9071-43a7-9f14-777901020b5b",
+              "branch": "main",
+              "title": "Import Python file",
+              "updated_at": "2025-01-18T22:12:22.044921Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "import-python-files",
+              "related_nodes": [
+                {
+                  "id": "1808d478-e51e-7504-d0ef-c513f1cd69a5",
+                  "kind": "CoreReadOnlyRepository"
+                },
+                {
+                  "id": "1808d478-e51e-7504-aaaa-c513f1cd69a5",
+                  "kind": "TestMyKind"
+                }
+              ],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 1 check definitions in the repository",
+                      "timestamp": "2025-01-18T22:12:20.371699Z"
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 3 Python transforms in the repository",
+                      "timestamp": "2025-01-18T22:12:20.603709Z"
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 4 generator definitions in the repository",
+                      "timestamp": "2025-01-18T22:12:21.259186Z"
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Processing generator update_upstream_interfaces_description (generators/upstream_interfaces.py)",
+                      "timestamp": "2025-01-18T22:12:21.259692Z"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
