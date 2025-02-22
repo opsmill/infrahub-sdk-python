@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -27,6 +28,7 @@ class InfrahubGenerator:
         generator_instance: str = "",
         params: dict | None = None,
         convert_query_response: bool = False,
+        logger: logging.Logger | None = None,
     ) -> None:
         self.query = query
         self.branch = branch
@@ -41,6 +43,7 @@ class InfrahubGenerator:
         self._related_nodes: list[InfrahubNode] = []
         self.infrahub_node = infrahub_node
         self.convert_query_response = convert_query_response
+        self.logger = logger if logger else logging.getLogger("infrahub.tasks")
 
     @property
     def store(self) -> NodeStore:

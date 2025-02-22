@@ -8,9 +8,8 @@ import yaml
 from pydantic import BaseModel, Field
 from typing_extensions import Self
 
-from .ctl._file import read_file
-from .ctl.exceptions import FileNotValidError
-from .utils import find_files
+from .exceptions import FileNotValidError
+from .utils import find_files, read_file
 
 
 class InfrahubFileApiVersion(str, Enum):

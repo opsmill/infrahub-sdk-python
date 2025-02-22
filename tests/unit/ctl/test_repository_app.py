@@ -1,6 +1,5 @@
 """Integration tests for infrahubctl commands."""
 
-import sys
 from unittest import mock
 
 import pytest
@@ -12,8 +11,6 @@ from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import strip_color
 
 runner = CliRunner()
-
-requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
 
 @pytest.fixture
@@ -29,7 +26,53 @@ def mock_client() -> mock.Mock:
 class TestInfrahubctlRepository:
     """Groups the 'infrahubctl repository' test cases."""
 
-    @requires_python_310
+    @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
+    def test_repo_no_username_or_password(self, mock_init_client, mock_client) -> None:
+        """Case allow no username to be passed in and set it as None rather than blank string that fails."""
+        mock_cred = mock.AsyncMock()
+        mock_cred.id = "1234"
+        mock_client.create.return_value = mock_cred
+
+        mock_init_client.return_value = mock_client
+        output = runner.invoke(
+            app,
+            [
+                "repository",
+                "add",
+                "Gitlab",
+                "https://gitlab.com/opsmill/example-repo.git",
+            ],
+        )
+        assert output.exit_code == 0
+        mock_client.create.assert_not_called()
+        mock_cred.save.assert_not_called()
+        mock_client.execute_graphql.assert_called_once()
+        mock_client.execute_graphql.assert_called_with(
+            query="""
+mutation {
+    CoreRepositoryCreate(
+        data: {
+            name: {
+                value: "Gitlab"
+            }
+            location: {
+                value: "https://gitlab.com/opsmill/example-repo.git"
+            }
+            description: {
+                value: ""
+            }
+            default_branch: {
+                value: ""
+            }
+        }
+    ){
+        ok
+    }
+}
+""",
+            tracker="mutation-repository-create",
+        )
+
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_no_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -74,7 +117,7 @@ mutation {
             description: {
                 value: ""
             }
-            commit: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -86,11 +129,9 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_username(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -137,7 +178,7 @@ mutation {
             description: {
                 value: ""
             }
-            commit: {
+            default_branch: {
                 value: ""
             }
             credential: {
@@ -149,11 +190,9 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_readonly_true(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -168,7 +207,7 @@ mutation {
                 "repository",
                 "add",
                 "Gitlab",
-                "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git",
+                "https://gitlab.com/opsmill/example-repo.git",
                 "--password",
                 "mySup3rSecureP@ssw0rd",
                 "--read-only",
@@ -194,12 +233,12 @@ mutation {
                 value: "Gitlab"
             }
             location: {
-                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+                value: "https://gitlab.com/opsmill/example-repo.git"
             }
             description: {
                 value: ""
             }
-            commit: {
+            ref: {
                 value: ""
             }
             credential: {
@@ -211,11 +250,9 @@ mutation {
     }
 }
 """,
-            branch_name="main",
             tracker="mutation-repository-create",
         )
 
-    @requires_python_310
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
     def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
@@ -230,17 +267,15 @@ mutation {
                 "repository",
                 "add",
                 "Gitlab",
-                "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git",
+                "https://gitlab.com/opsmill/example-repo.git",
                 "--password",
                 "mySup3rSecureP@ssw0rd",
                 "--username",
                 "opsmill",
                 "--description",
                 "This is a test description",
-                "--commit",
-                "myHashCommit",
-                "--branch",
-                "develop",
+                "--ref",
+                "my-custom-branch",
             ],
         )
         assert output.exit_code == 0
@@ -263,13 +298,13 @@ mutation {
                 value: "Gitlab"
             }
             location: {
-                value: "https://gitlab.com/FragmentedPacket/nautobot-plugin-ansible-filters.git"
+                value: "https://gitlab.com/opsmill/example-repo.git"
             }
             description: {
                 value: "This is a test description"
             }
-            commit: {
-                value: "myHashCommit"
+            default_branch: {
+                value: "my-custom-branch"
             }
             credential: {
                 id: "1234"
@@ -280,11 +315,10 @@ mutation {
     }
 }
 """,
-            branch_name="develop",
             tracker="mutation-repository-create",
         )
 
     def test_repo_list(self, mock_repositories_list) -> None:
-        result = runner.invoke(app, ["repository", "list", "--branch", "main"])
+        result = runner.invoke(app, ["repository", "list"])
         assert result.exit_code == 0
         assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")
