@@ -27,7 +27,7 @@ def callback() -> None:
 async def load(
     menus: list[Path],
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to load the menu."),
+    branch: str = typer.Option(None, help="Branch on which to load the menu."),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple menu files into Infrahub."""

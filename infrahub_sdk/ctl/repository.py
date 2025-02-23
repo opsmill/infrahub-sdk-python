@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 import yaml
@@ -8,15 +9,14 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from infrahub_sdk.ctl.client import initialize_client
-
 from ..async_typer import AsyncTyper
-from ..ctl.exceptions import FileNotValidError
-from ..ctl.utils import init_logging
+from ..exceptions import FileNotValidError
 from ..graphql import Mutation, Query
 from ..schema.repository import InfrahubRepositoryConfig
-from ._file import read_file
+from ..utils import read_file
+from .client import initialize_client
 from .parameters import CONFIG_PARAM
+from .utils import init_logging
 
 app = AsyncTyper()
 console = Console()
@@ -69,12 +69,11 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: str | None = None,
+    username: Optional[str] = None,
     password: str = "",
-    commit: str = "",
+    ref: str = "",
     read_only: bool = False,
     debug: bool = False,
-    branch: str = typer.Option("main", help="Branch on which to add the repository."),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Add a new repository."""
@@ -86,15 +85,24 @@ async def add(
             "name": {"value": name},
             "location": {"value": location},
             "description": {"value": description},
-            "commit": {"value": commit},
         },
     }
+    if read_only:
+        input_data["data"]["ref"] = {"value": ref}
+    else:
+        input_data["data"]["default_branch"] = {"value": ref}
 
     client = initialize_client()
 
-    credential = await client.create(kind="CorePasswordCredential", name=name, username=username, password=password)
-    await credential.save(allow_upsert=True)
-    input_data["data"]["credential"] = {"id": credential.id}
+    if username or password:
+        credential = await client.create(
+            kind="CorePasswordCredential",
+            name=name,
+            username=username,
+            password=password,
+        )
+        await credential.save(allow_upsert=True)
+        input_data["data"]["credential"] = {"id": credential.id}
 
     query = Mutation(
         mutation="CoreReadOnlyRepositoryCreate" if read_only else "CoreRepositoryCreate",
@@ -102,18 +110,18 @@ async def add(
         query={"ok": None},
     )
 
-    await client.execute_graphql(query=query.render(), branch_name=branch, tracker="mutation-repository-create")
+    await client.execute_graphql(query=query.render(), tracker="mutation-repository-create")
 
 
 @app.command()
 async def list(
-    branch: str | None = None,
+    branch: Optional[str] = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
     init_logging(debug=debug)
 
-    client = initialize_client(branch=branch)
+    client = initialize_client()
 
     repo_status_query = {
         "CoreGenericRepository": {

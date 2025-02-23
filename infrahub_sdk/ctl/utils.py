@@ -6,7 +6,7 @@ import traceback
 from collections.abc import Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, TypeVar
 
 import pendulum
 import typer
@@ -17,10 +17,10 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from ..ctl.exceptions import FileNotValidError, QueryNotFoundError
 from ..exceptions import (
     AuthenticationError,
     Error,
+    FileNotValidError,
     GraphQLError,
     NodeNotFoundError,
     ResourceNotDefinedError,
@@ -30,6 +30,7 @@ from ..exceptions import (
 )
 from ..yaml import YamlFile
 from .client import initialize_client_sync
+from .exceptions import QueryNotFoundError
 
 if TYPE_CHECKING:
     from ..schema.repository import InfrahubRepositoryConfig
@@ -144,7 +145,7 @@ def print_graphql_errors(console: Console, errors: list) -> None:
             console.print(f"[red]{escape(str(error))}")
 
 
-def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:
+def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
     if not variables:
         return {}
 

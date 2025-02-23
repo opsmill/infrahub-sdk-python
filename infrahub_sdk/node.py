@@ -1118,14 +1118,14 @@ class InfrahubNode(InfrahubNodeBase):
     async def artifact_generate(self, name: str) -> None:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        artifact = await self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         await artifact.definition.fetch()  # type: ignore[attr-defined]
         await artifact.definition.peer.generate([artifact.id])  # type: ignore[attr-defined]
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        artifact = await self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         content = await self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 

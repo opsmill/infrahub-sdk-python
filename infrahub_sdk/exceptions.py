@@ -131,3 +131,9 @@ class UninitializedError(Error):
 
 class InvalidResponseError(Error):
     """Raised when an object requires an initialization step before use"""
+
+
+class FileNotValidError(Error):
+    def __init__(self, name: str, message: str = ""):
+        self.message = message or f"Cannot parse '{name}' content."
+        super().__init__(self.message)
