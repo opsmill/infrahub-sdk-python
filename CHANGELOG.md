@@ -11,6 +11,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.8.0rc0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0rc0) - 2025-02-23
+
+### Changed
+
+- Changes InfrahubNode `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
+
+### Fixed
+
+- `protocols` CTL command properly gets default branch setting from environment variable. ([#104](https://github.com/opsmill/infrahub-sdk-python/issues/104))
+- Fix typing for Python 3.9 and remove support for Python 3.13. ([#251](https://github.com/opsmill/infrahub-sdk-python/issues/251))
+- Remove default value "main" for branch parameter from all Infrahub CTL commands. ([#264](https://github.com/opsmill/infrahub-sdk-python/issues/264))
+
+### Housekeeping
+
+- Move the function `read_file` from the ctl module to the SDK.
+
 ## [1.7.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.1) - 2025-01-30
 
 ### Removed
