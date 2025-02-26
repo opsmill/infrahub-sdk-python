@@ -5,9 +5,10 @@ from rich.console import Console
 from rich.table import Table
 
 from ..async_typer import AsyncTyper
-from ..ctl.client import initialize_client
-from ..ctl.utils import calculate_time_diff, catch_exception
+from ..utils import calculate_time_diff
+from .client import initialize_client
 from .parameters import CONFIG_PARAM
+from .utils import catch_exception
 
 app = AsyncTyper()
 console = Console()

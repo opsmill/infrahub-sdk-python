@@ -1,0 +1,1 @@
+Fixed support for Python 3.13, it's no longer required to have Rust installed on the system
