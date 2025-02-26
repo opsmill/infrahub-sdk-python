@@ -137,3 +137,9 @@ class FileNotValidError(Error):
     def __init__(self, name: str, message: str = ""):
         self.message = message or f"Cannot parse '{name}' content."
         super().__init__(self.message)
+
+
+class TimestampFormatError(Error):
+    def __init__(self, message: str | None = None):
+        self.message = message or "Invalid timestamp format"
+        super().__init__(self.message)
