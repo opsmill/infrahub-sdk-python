@@ -11,7 +11,11 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
-## [1.8.0rc0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0rc0) - 2025-02-23
+## [1.8.0b1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0b1) - 2025-02-28
+
+### Deprecated
+
+- Timestamp: Direct access to `obj` and `add_delta` have been deprecated and will be removed in a future version. ([#255](https://github.com/opsmill/infrahub-sdk-python/issues/255))
 
 ### Changed
 
@@ -20,8 +24,10 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 ### Fixed
 
 - `protocols` CTL command properly gets default branch setting from environment variable. ([#104](https://github.com/opsmill/infrahub-sdk-python/issues/104))
-- Fix typing for Python 3.9 and remove support for Python 3.13. ([#251](https://github.com/opsmill/infrahub-sdk-python/issues/251))
+- Fix typing for Python 3.9 ([#251](https://github.com/opsmill/infrahub-sdk-python/issues/251))
+- Refactor Timestamp to use `whenever` instead of `pendulum` and extend Timestamp with add(), subtract(), and to_datetime(). ([#255](https://github.com/opsmill/infrahub-sdk-python/issues/255))
 - Remove default value "main" for branch parameter from all Infrahub CTL commands. ([#264](https://github.com/opsmill/infrahub-sdk-python/issues/264))
+- Fixed support for Python 3.13, it's no longer required to have Rust installed on the system.
 
 ### Housekeeping
 
