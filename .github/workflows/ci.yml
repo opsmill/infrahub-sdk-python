@@ -24,7 +24,7 @@ env:
   INFRAHUB_IMAGE_VER: "local"
   PYTEST_XDIST_WORKER_COUNT: 4
   INFRAHUB_TEST_IN_DOCKER: 1
-  VALE_VERSION: "3.0.7"
+  VALE_VERSION: "3.7.1"
   GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
   METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT }}
 
@@ -36,6 +36,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       documentation: ${{ steps.changes.outputs.documentation_all }}
+      documentation_generated: ${{ steps.changes.outputs.documentation_generated_all }}
       helm: ${{ steps.changes.outputs.helm_all }}
       python: ${{ steps.changes.outputs.python_all }}
       yaml: ${{ steps.changes.outputs.yaml_all }}
@@ -114,6 +115,91 @@ jobs:
         env:
           SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004 --exclude=SC2129
 
+
+  documentation:
+    defaults:
+      run:
+        working-directory: ./docs
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.files-changed.outputs.documentation == 'true'
+    needs: ["files-changed", "yaml-lint", "python-lint"]
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - name: Install NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+      - name: "Install dependencies"
+        run: npm install
+      - name: "Setup Python environment"
+        run: "pip install invoke toml"
+      - name: "Build docs website"
+        run: "invoke docs"
+
+  validate-generated-documentation:
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.files-changed.outputs.python == 'true') || (needs.files-changed.outputs.documentation_generated == 'true')
+    needs: ["files-changed", "yaml-lint", "python-lint"]
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Setup Python environment"
+        run: |
+          pipx install poetry==1.8.5
+          poetry config virtualenvs.create true --local
+          poetry env use 3.12
+      - name: "Install dependencies"
+        run: "poetry install --no-interaction --no-ansi --extras ctl"
+      - name: "Setup environment"
+        run: "pip install invoke toml"
+      - name: "Validate generated documentation"
+        run: "poetry run invoke docs-validate"
+
+  validate-documentation-style:
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    needs: ["files-changed", "yaml-lint", "python-lint"]
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+
+      # The official GitHub Action for Vale doesn't work, installing manually instead:
+      # https://github.com/errata-ai/vale-action/issues/103
+      - name: Download Vale
+        run: |
+          curl -sL "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz" -o vale.tar.gz
+          tar -xzf vale.tar.gz
+        env:
+          VALE_VERSION: ${{ env.VALE_VERSION }}
+      - name: "Validate documentation style"
+        run: ./vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \) )
 
   unit-tests:
     env:
