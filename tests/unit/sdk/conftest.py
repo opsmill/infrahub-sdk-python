@@ -2507,3 +2507,77 @@ async def mock_query_location_batch(httpx_mock: HTTPXMock, client: InfrahubClien
             match_headers={"X-Infrahub-Tracker": f"query-builtinlocation-page{i}"},
         )
     return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_01(httpx_mock: HTTPXMock) -> HTTPXMock:
+    for i in [1, 2]:
+        filename = get_fixtures_dir() / "tasks" / f"mock_query_tasks_01_page{i}.json"
+        response_text = filename.read_text(encoding="UTF-8")
+        httpx_mock.add_response(
+            method="POST",
+            json=ujson.loads(response_text),
+            match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
+        )
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_02_main(httpx_mock: HTTPXMock) -> HTTPXMock:
+    filename = get_fixtures_dir() / "tasks" / "mock_query_tasks_02_page1.json"
+    response_text = filename.read_text(encoding="UTF-8")
+    httpx_mock.add_response(
+        method="POST",
+        json=ujson.loads(response_text),
+        match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+    )
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_empty(httpx_mock: HTTPXMock) -> HTTPXMock:
+    filename = get_fixtures_dir() / "tasks" / "mock_query_tasks_empty.json"
+    response_text = filename.read_text(encoding="UTF-8")
+    httpx_mock.add_response(
+        method="POST",
+        json=ujson.loads(response_text),
+        match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+    )
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_03(httpx_mock: HTTPXMock) -> HTTPXMock:
+    filename = get_fixtures_dir() / "tasks" / "mock_query_tasks_03_page1.json"
+    response_text = filename.read_text(encoding="UTF-8")
+    httpx_mock.add_response(
+        method="POST",
+        json=ujson.loads(response_text),
+        match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+    )
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_04_full(httpx_mock: HTTPXMock) -> HTTPXMock:
+    for i in [1, 2, 3]:
+        filename = get_fixtures_dir() / "tasks" / f"mock_query_tasks_04_page{i}.json"
+        response_text = filename.read_text(encoding="UTF-8")
+        httpx_mock.add_response(
+            method="POST",
+            json=ujson.loads(response_text),
+            match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
+        )
+    return httpx_mock
+
+
+@pytest.fixture
+async def mock_query_tasks_05(httpx_mock: HTTPXMock) -> HTTPXMock:
+    filename = get_fixtures_dir() / "tasks" / "mock_query_tasks_05_page1.json"
+    response_text = filename.read_text(encoding="UTF-8")
+    httpx_mock.add_response(
+        method="POST",
+        json=ujson.loads(response_text),
+        match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+    )
+    return httpx_mock

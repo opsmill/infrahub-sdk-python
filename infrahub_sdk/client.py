@@ -50,6 +50,7 @@ from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
+from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
 from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
@@ -268,6 +269,7 @@ class InfrahubClient(BaseClient):
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
         self.store = NodeStore()
+        self.task = InfrahubTaskManager(self)
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
@@ -1500,6 +1502,11 @@ class InfrahubClient(BaseClient):
 
 
 class InfrahubClientSync(BaseClient):
+    schema: InfrahubSchemaSync
+    branch: InfrahubBranchManagerSync
+    object_store: ObjectStoreSync
+    store: NodeStoreSync
+    task: InfrahubTaskManagerSync
     group_context: InfrahubGroupContextSync
 
     def _initialize(self) -> None:
@@ -1507,6 +1514,7 @@ class InfrahubClientSync(BaseClient):
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
         self.store = NodeStoreSync()
+        self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
 
