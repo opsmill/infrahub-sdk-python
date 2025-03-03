@@ -1618,7 +1618,8 @@ class InfrahubClientSync(BaseClient):
 
         retry = True
         resp = None
-        while retry:
+        start_time = time.time()
+        while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
@@ -1642,6 +1643,8 @@ class InfrahubClientSync(BaseClient):
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
+                if exc.response.status_code == 404:
+                    raise URLNotFoundError(url=url)
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
