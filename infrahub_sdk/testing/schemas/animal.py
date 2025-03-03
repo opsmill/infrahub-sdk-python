@@ -80,6 +80,7 @@ class SchemaAnimal:
             namespace=NAMESPACE,
             include_in_menu=True,
             inherit_from=[TESTING_ANIMAL],
+            human_friendly_id=["owner__name__value", "name__value", "color__value"],
             display_labels=["name__value", "breed__value", "color__value"],
             order_by=["name__value"],
             attributes=[
@@ -107,6 +108,14 @@ class SchemaAnimal:
                     peer=TESTING_ANIMAL,
                     identifier="person__animal",
                     cardinality="many",
+                    direction=RelationshipDirection.INBOUND,
+                    max_count=10,
+                ),
+                Rel(
+                    name="favorite_animal",
+                    peer=TESTING_ANIMAL,
+                    identifier="favorite_animal",
+                    cardinality="one",
                     direction=RelationshipDirection.INBOUND,
                 ),
                 Rel(
