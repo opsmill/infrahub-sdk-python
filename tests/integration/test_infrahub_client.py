@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk.branch import BranchData
-from infrahub_sdk.exceptions import BranchNotFoundError
+from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import ProfileSchemaAPI
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
@@ -145,6 +145,10 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_count_with_filter(self, client: InfrahubClient, base_dataset):
         count = await client.count(kind=TESTING_PERSON, name__values=["Liam Walker", "Ethan Carter"])
         assert count == 2
+
+    async def test_query_unexisting_branch(self, client: InfrahubClient):
+        with pytest.raises(URLNotFoundError, match=r"/graphql/unexisting` not found."):
+            await client.execute_graphql(query="unused", branch_name="unexisting")
 
     async def test_create_generic_rel_with_hfid(
         self, client: InfrahubClient, base_dataset, cat_luna, person_sophia, schema_animal, schema_cat
