@@ -187,6 +187,7 @@ class RelatedNodeBase:
             if node_data:
                 self._id = node_data.get("id", None)
                 self._hfid = node_data.get("hfid", None)
+                self._kind = node_data.get("kind", None)
                 self._display_label = node_data.get("display_label", None)
                 self._typename = node_data.get("__typename", None)
 
@@ -255,6 +256,8 @@ class RelatedNodeBase:
             data["id"] = self.id
         elif self.hfid is not None:
             data["hfid"] = self.hfid
+            if self._kind is not None:
+                data["kind"] = self._kind
 
         for prop_name in self._properties:
             if getattr(self, prop_name) is not None:
