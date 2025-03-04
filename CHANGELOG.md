@@ -11,7 +11,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
-## [1.8.0b1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0b1) - 2025-02-28
+## [1.8.0b2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0b2) - 2025-03-04
 
 ### Deprecated
 
@@ -19,7 +19,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ### Changed
 
-- Changes InfrahubNode `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
+- Changes InfrahubNode/InfrahubNodeSync `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
 
 ### Fixed
 
