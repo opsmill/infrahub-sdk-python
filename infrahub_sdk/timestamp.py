@@ -5,7 +5,7 @@ import warnings
 from datetime import datetime, timezone
 from typing import Literal
 
-from whenever import Date, Instant, LocalDateTime, Time, ZonedDateTime
+from whenever import Date, Instant, LocalDateTime, OffsetDateTime, Time, ZonedDateTime
 
 from .exceptions import TimestampFormatError
 
@@ -57,6 +57,12 @@ class Timestamp:
         try:
             local_date_time = LocalDateTime.parse_common_iso(value)
             return local_date_time.assume_utc().to_tz("UTC")
+        except ValueError:
+            pass
+
+        try:
+            offset_date_time = OffsetDateTime.parse_common_iso(value)
+            return offset_date_time.to_tz("UTC")
         except ValueError:
             pass
 
