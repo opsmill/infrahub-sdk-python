@@ -37,7 +37,7 @@ def test_parse_string():
     assert Timestamp._parse_string("10s")
     assert Timestamp._parse_string("2025-01-02")
     assert Timestamp._parse_string("2024-06-04T03:13:03.386270")
-
+    assert Timestamp._parse_string("2025-03-05T18:01:52+01:00")
     with pytest.raises(TimestampFormatError):
         Timestamp._parse_string("notvalid")
 
