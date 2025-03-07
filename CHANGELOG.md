@@ -13,8 +13,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 ## [1.7.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.2) - 2025-03-07
 
+### Added
+
+- Added logger to `InfrahubGenerator` class to allow users use built-in logging (`self.logger`) to show logging within Infrahub CI pipeline.
+
 ### Changed
 
+- Aligned the environment variables used by `infrahubctl` with the environment variables used by the SDK.
+- Allowed the `infrahubctl transform` command to return a regular string that does not get converted to a JSON string.
 - Changed InfrahubNode/InfrahubNodeSync `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
 
 ### Fixed
