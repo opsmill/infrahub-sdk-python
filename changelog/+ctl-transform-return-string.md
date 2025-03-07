@@ -1,1 +1,0 @@
-Allows the `infrahubctl transform` to return a regular string that does not get converted to a JSON string.
