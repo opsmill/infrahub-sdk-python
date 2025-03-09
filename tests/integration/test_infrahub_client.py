@@ -8,6 +8,7 @@ from infrahub_sdk.branch import BranchData
 from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import ProfileSchemaAPI
+from infrahub_sdk.task.models import Task, TaskFilter, TaskState
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
 
@@ -30,6 +31,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         dog_rocky,
     ):
         await client.branch.create(branch_name="branch01")
+
+    @pytest.fixture
+    async def set_pagination_size3(self, client: InfrahubClient):
+        original_pagination_size = client.pagination_size
+        client.pagination_size = 3
+        yield
+        client.pagination_size = original_pagination_size
 
     async def test_query_branches(self, client: InfrahubClient, base_dataset):
         branches = await client.branch.all()
@@ -161,6 +169,41 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         await person_sophia.save()
         person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
         assert person_sophia.favorite_animal.id == cat_luna.id
+
+    async def test_task_query(self, client: InfrahubClient, base_dataset, set_pagination_size3):
+        nbr_tasks = await client.task.count()
+        assert nbr_tasks
+
+        tasks = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]))
+        assert tasks
+        task_ids = [task.id for task in tasks]
+
+        # Query Tasks using Parallel mode
+        tasks_parallel = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]), parallel=True)
+        assert tasks_parallel
+        assert len(tasks_parallel) == len(tasks)
+
+        # Query Tasks by ID
+        tasks_parallel_filtered = await client.task.filter(filter=TaskFilter(ids=task_ids[:2]), parallel=True)
+        assert tasks_parallel_filtered
+        assert len(tasks_parallel_filtered) == 2
+
+        # Query individual Task
+        task = await client.task.get(id=tasks[0].id)
+        assert task
+        assert isinstance(task, Task)
+        assert task.logs == []
+
+        # Wait for Task completion
+        task = await client.task.wait_for_completion(id=tasks[0].id)
+        assert task
+        assert isinstance(task, Task)
+
+        # Query Task with logs
+        task = await client.task.get(id=tasks[0].id, include_logs=True)
+        assert task
+        assert isinstance(task, Task)
+        assert task.logs
 
     # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
     #     admin = await client.get(kind="CoreAccount", name__value="admin")
