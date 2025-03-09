@@ -121,6 +121,12 @@ class AuthenticationError(Error):
         super().__init__(self.message)
 
 
+class URLNotFoundError(Error):
+    def __init__(self, url: str):
+        self.message = f"`{url}` not found."
+        super().__init__(self.message)
+
+
 class FeatureNotSupportedError(Error):
     """Raised when trying to use a method on a node that doesn't support it."""
 

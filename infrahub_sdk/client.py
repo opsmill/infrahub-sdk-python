@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import time
 from collections.abc import Coroutine, MutableMapping
 from functools import wraps
 from time import sleep
@@ -38,6 +39,7 @@ from .exceptions import (
     NodeNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
+    URLNotFoundError,
 )
 from .graphql import Mutation, Query
 from .node import (
@@ -880,7 +882,8 @@ class InfrahubClient(BaseClient):
 
         retry = True
         resp = None
-        while retry:
+        start_time = time.time()
+        while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
@@ -904,6 +907,8 @@ class InfrahubClient(BaseClient):
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
+                if exc.response.status_code == 404:
+                    raise URLNotFoundError(url=url)
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
@@ -1621,7 +1626,8 @@ class InfrahubClientSync(BaseClient):
 
         retry = True
         resp = None
-        while retry:
+        start_time = time.time()
+        while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
@@ -1645,6 +1651,8 @@ class InfrahubClientSync(BaseClient):
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
+                if exc.response.status_code == 404:
+                    raise URLNotFoundError(url=url)
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")

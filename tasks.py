@@ -181,6 +181,6 @@ def generate_infrahubctl(context: Context) -> None:
 
 
 @task(name="generate-sdk")
-def generate_python_sdk(context: Context) -> None:
+def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
     """Generate documentation for the Python SDK."""
-    _generate_infrahub_sdk_configuration_documentation(context=context)
+    _generate_infrahub_sdk_configuration_documentation()

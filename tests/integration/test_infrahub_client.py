@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk.branch import BranchData
-from infrahub_sdk.exceptions import BranchNotFoundError
+from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import ProfileSchemaAPI
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
@@ -145,6 +145,22 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_count_with_filter(self, client: InfrahubClient, base_dataset):
         count = await client.count(kind=TESTING_PERSON, name__values=["Liam Walker", "Ethan Carter"])
         assert count == 2
+
+    async def test_query_unexisting_branch(self, client: InfrahubClient):
+        with pytest.raises(URLNotFoundError, match=r"/graphql/unexisting` not found."):
+            await client.execute_graphql(query="unused", branch_name="unexisting")
+
+    async def test_create_generic_rel_with_hfid(
+        self, client: InfrahubClient, base_dataset, cat_luna, person_sophia, schema_animal, schema_cat
+    ):
+        # See https://github.com/opsmill/infrahub-sdk-python/issues/277
+        assert (
+            schema_animal.human_friendly_id != schema_cat.human_friendly_id
+        ), "Inherited node schema should have a different hfid than generic one for this test to be relevant"
+        person_sophia.favorite_animal = {"hfid": cat_luna.hfid, "kind": TESTING_CAT}
+        await person_sophia.save()
+        person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
+        assert person_sophia.favorite_animal.id == cat_luna.id
 
     # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
     #     admin = await client.get(kind="CoreAccount", name__value="admin")

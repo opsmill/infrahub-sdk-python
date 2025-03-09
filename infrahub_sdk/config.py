@@ -56,6 +56,9 @@ class ConfigBase(BaseSettings):
     pagination_size: int = Field(default=50, description="Page size for queries to the server")
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
     retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
+    max_retry_duration: int = Field(
+        default=300, description="Maximum duration until we stop attempting to retry if enabled."
+    )
     schema_converge_timeout: int = Field(
         default=60, description="Number of seconds to wait for schema to have converged"
     )
