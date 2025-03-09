@@ -8,7 +8,7 @@ from infrahub_sdk.branch import BranchData
 from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import ProfileSchemaAPI
-from infrahub_sdk.task.models import Task, TaskFilter, TaskState
+from infrahub_sdk.task.models import Task, TaskFilter, TaskLog, TaskState
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
 
@@ -199,11 +199,14 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert task
         assert isinstance(task, Task)
 
-        # Query Task with logs
-        task = await client.task.get(id=tasks[0].id, include_logs=True)
-        assert task
-        assert isinstance(task, Task)
-        assert task.logs
+        # Query Tasks with logs
+        tasks = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]), include_logs=True)
+        all_logs = [log for task in tasks for log in task.logs]
+        assert all_logs
+        assert isinstance(all_logs[0], TaskLog)
+        assert all_logs[0].message
+        assert all_logs[0].timestamp
+        assert all_logs[0].severity
 
     # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
     #     admin = await client.get(kind="CoreAccount", name__value="admin")
