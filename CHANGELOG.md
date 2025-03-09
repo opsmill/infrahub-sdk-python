@@ -3,13 +3,35 @@
 This is the changelog for the Infrahub SDK.
 All notable changes to this project will be documented in this file.
 
-Issue tracking is located in [Github](https://github.com/opsmill/infrahub/issues).
+Issue tracking is located in [GitHub](https://github.com/opsmill/infrahub/issues).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the changes for the upcoming release can be found in <https://github.com/opsmill/infrahub/tree/develop/infrahub/python_sdk/changelog/>.
 
 <!-- towncrier release notes start -->
+
+## [1.7.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.2) - 2025-03-07
+
+### Added
+
+- Added logger to `InfrahubGenerator` class to allow users use built-in logging (`self.logger`) to show logging within Infrahub CI pipeline.
+
+### Changed
+
+- Aligned the environment variables used by `infrahubctl` with the environment variables used by the SDK.
+- Allowed the `infrahubctl transform` command to return a regular string that does not get converted to a JSON string.
+- Changed InfrahubNode/InfrahubNodeSync `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
+
+### Fixed
+
+- `protocols` CTL command properly gets default branch setting from environment variable. ([#104](https://github.com/opsmill/infrahub-sdk-python/issues/104))
+- Fixed typing for Python 3.9 and removed support for Python 3.13. ([#251](https://github.com/opsmill/infrahub-sdk-python/issues/251))
+- Removed default value "main" for branch parameter from all Infrahub CTL commands. ([#264](https://github.com/opsmill/infrahub-sdk-python/issues/264))
+
+### Housekeeping
+
+- Moved the function `read_file` from the ctl module to the SDK.
 
 ## [1.7.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.1) - 2025-01-30
 

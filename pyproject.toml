@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.7.1"
+version = "1.7.3a0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -282,6 +282,9 @@ max-complexity = 17
 
 "tests/unit/sdk/test_client.py" = [
     "W293", # Blank line contains whitespace (used within output check)
+]
+"tasks.py" = [
+    "PLC0415", # `import` should be at the top-level of a file
 ]
 
 [tool.towncrier]

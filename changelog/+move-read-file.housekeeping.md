@@ -1,1 +1,0 @@
-Move the function `read_file` from the ctl module to the SDK.
