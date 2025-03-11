@@ -11,6 +11,7 @@ from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
     from .client import InfrahubClient
+    from .context import RequestContext
     from .node import InfrahubNode
     from .store import NodeStore
 
@@ -29,6 +30,7 @@ class InfrahubGenerator:
         params: dict | None = None,
         convert_query_response: bool = False,
         logger: logging.Logger | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         self.query = query
         self.branch = branch
@@ -44,6 +46,7 @@ class InfrahubGenerator:
         self.infrahub_node = infrahub_node
         self.convert_query_response = convert_query_response
         self.logger = logger if logger else logging.getLogger("infrahub.tasks")
+        self.request_context = request_context
 
     @property
     def store(self) -> NodeStore:

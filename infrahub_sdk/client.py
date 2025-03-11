@@ -60,6 +60,8 @@ from .utils import decode_json, get_user_permissions, is_valid_uuid
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from .context import RequestContext
+
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
 SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
@@ -141,6 +143,7 @@ class BaseClient:
         self.identifier = self.config.identifier
         self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
+        self._request_context: RequestContext | None = None
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client"""
@@ -154,6 +157,14 @@ class BaseClient:
             print(f"QUERY:\n{query}")
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
+
+    @property
+    def request_context(self) -> RequestContext | None:
+        return self._request_context
+
+    @request_context.setter
+    def request_context(self, request_context: RequestContext) -> None:
+        self._request_context = request_context
 
     def start_tracking(
         self,
