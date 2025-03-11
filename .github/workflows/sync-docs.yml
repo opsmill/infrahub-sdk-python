@@ -8,7 +8,8 @@ on:
       - stable
     paths:
       - 'docs/docs/**'
-      - 'docs/sidebars.ts'
+      - 'docs/sidebars-infrahubctl.ts'
+      - 'docs/sidebars-python-sdk.ts'
   pull_request:
     branches:
       - stable
