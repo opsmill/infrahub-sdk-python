@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
@@ -7,19 +8,30 @@ from pydantic import BaseModel
 VARIABLE_TYPE_MAPPING = ((str, "String!"), (int, "Int!"), (float, "Float!"), (bool, "Boolean!"))
 
 
-def convert_to_graphql_as_string(value: str | bool | list) -> str:
+def convert_to_graphql_as_string(value: str | bool | list | BaseModel | Enum | Any, convert_enum: bool = False) -> str:  # noqa: PLR0911
     if isinstance(value, str) and value.startswith("$"):
         return value
+    if isinstance(value, Enum):
+        if convert_enum:
+            return convert_to_graphql_as_string(value=value.value, convert_enum=True)
+        return value.name
     if isinstance(value, str):
         return f'"{value}"'
     if isinstance(value, bool):
         return repr(value).lower()
     if isinstance(value, list):
-        values_as_string = [convert_to_graphql_as_string(item) for item in value]
+        values_as_string = [convert_to_graphql_as_string(value=item, convert_enum=convert_enum) for item in value]
         return "[" + ", ".join(values_as_string) + "]"
     if isinstance(value, BaseModel):
         data = value.model_dump()
-        return "{ " + ", ".join(f"{key}: {convert_to_graphql_as_string(val)}" for key, val in data.items()) + " }"
+        return (
+            "{ "
+            + ", ".join(
+                f"{key}: {convert_to_graphql_as_string(value=val, convert_enum=convert_enum)}"
+                for key, val in data.items()
+            )
+            + " }"
+        )
 
     return str(value)
 
@@ -38,7 +50,7 @@ def render_variables_to_string(data: dict[str, type[str | int | float | bool]]) 
     return ", ".join([f"{key}: {value}" for key, value in vars_dict.items()])
 
 
-def render_query_block(data: dict, offset: int = 4, indentation: int = 4) -> list[str]:
+def render_query_block(data: dict, offset: int = 4, indentation: int = 4, convert_enum: bool = False) -> list[str]:
     FILTERS_KEY = "@filters"
     ALIAS_KEY = "@alias"
     KEYWORDS_TO_SKIP = [FILTERS_KEY, ALIAS_KEY]
@@ -60,25 +72,36 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4) -> lis
 
             if value.get(FILTERS_KEY):
                 filters_str = ", ".join(
-                    [f"{key2}: {convert_to_graphql_as_string(value2)}" for key2, value2 in value[FILTERS_KEY].items()]
+                    [
+                        f"{key2}: {convert_to_graphql_as_string(value=value2, convert_enum=convert_enum)}"
+                        for key2, value2 in value[FILTERS_KEY].items()
+                    ]
                 )
                 lines.append(f"{offset_str}{key_str}({filters_str}) " + "{")
             else:
                 lines.append(f"{offset_str}{key_str} " + "{")
 
-            lines.extend(render_query_block(data=value, offset=offset + indentation, indentation=indentation))
+            lines.extend(
+                render_query_block(
+                    data=value, offset=offset + indentation, indentation=indentation, convert_enum=convert_enum
+                )
+            )
             lines.append(offset_str + "}")
 
     return lines
 
 
-def render_input_block(data: dict, offset: int = 4, indentation: int = 4) -> list[str]:
+def render_input_block(data: dict, offset: int = 4, indentation: int = 4, convert_enum: bool = False) -> list[str]:
     offset_str = " " * offset
     lines = []
     for key, value in data.items():
         if isinstance(value, dict):
             lines.append(f"{offset_str}{key}: " + "{")
-            lines.extend(render_input_block(data=value, offset=offset + indentation, indentation=indentation))
+            lines.extend(
+                render_input_block(
+                    data=value, offset=offset + indentation, indentation=indentation, convert_enum=convert_enum
+                )
+            )
             lines.append(offset_str + "}")
         elif isinstance(value, list):
             lines.append(f"{offset_str}{key}: " + "[")
@@ -90,14 +113,17 @@ def render_input_block(data: dict, offset: int = 4, indentation: int = 4) -> lis
                             data=item,
                             offset=offset + indentation + indentation,
                             indentation=indentation,
+                            convert_enum=convert_enum,
                         )
                     )
                     lines.append(f"{offset_str}{' ' * indentation}" + "},")
                 else:
-                    lines.append(f"{offset_str}{' ' * indentation}{convert_to_graphql_as_string(item)},")
+                    lines.append(
+                        f"{offset_str}{' ' * indentation}{convert_to_graphql_as_string(value=item, convert_enum=convert_enum)},"
+                    )
             lines.append(offset_str + "]")
         else:
-            lines.append(f"{offset_str}{key}: {convert_to_graphql_as_string(value)}")
+            lines.append(f"{offset_str}{key}: {convert_to_graphql_as_string(value=value, convert_enum=convert_enum)}")
     return lines
 
 
@@ -127,9 +153,13 @@ class BaseGraphQLQuery:
 class Query(BaseGraphQLQuery):
     query_type = "query"
 
-    def render(self) -> str:
+    def render(self, convert_enum: bool = False) -> str:
         lines = [self.render_first_line()]
-        lines.extend(render_query_block(data=self.query, indentation=self.indentation, offset=self.indentation))
+        lines.extend(
+            render_query_block(
+                data=self.query, indentation=self.indentation, offset=self.indentation, convert_enum=convert_enum
+            )
+        )
         lines.append("}")
 
         return "\n" + "\n".join(lines) + "\n"
@@ -143,7 +173,7 @@ class Mutation(BaseGraphQLQuery):
         self.mutation = mutation
         super().__init__(*args, **kwargs)
 
-    def render(self) -> str:
+    def render(self, convert_enum: bool = False) -> str:
         lines = [self.render_first_line()]
         lines.append(" " * self.indentation + f"{self.mutation}(")
         lines.extend(
@@ -151,6 +181,7 @@ class Mutation(BaseGraphQLQuery):
                 data=self.input_data,
                 indentation=self.indentation,
                 offset=self.indentation * 2,
+                convert_enum=convert_enum,
             )
         )
         lines.append(" " * self.indentation + "){")
@@ -159,6 +190,7 @@ class Mutation(BaseGraphQLQuery):
                 data=self.query,
                 indentation=self.indentation,
                 offset=self.indentation * 2,
+                convert_enum=convert_enum,
             )
         )
         lines.append(" " * self.indentation + "}")

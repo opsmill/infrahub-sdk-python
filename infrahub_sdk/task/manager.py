@@ -14,8 +14,9 @@ if TYPE_CHECKING:
 
 
 class InfraHubTaskManagerBase:
+    @classmethod
     def _generate_query(
-        self,
+        cls,
         filters: TaskFilter | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
@@ -69,7 +70,8 @@ class InfraHubTaskManagerBase:
 
         return Query(query=query)
 
-    def _generate_count_query(self, filters: TaskFilter | None = None) -> Query:
+    @classmethod
+    def _generate_count_query(cls, filters: TaskFilter | None = None) -> Query:
         query: dict[str, Any] = {
             "InfrahubTask": {
                 "count": None,
@@ -98,7 +100,9 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         """
 
         query = self._generate_count_query(filters=filters)
-        response = await self.client.execute_graphql(query=query.render(), tracker="query-tasks-count")
+        response = await self.client.execute_graphql(
+            query=query.render(convert_enum=False), tracker="query-tasks-count"
+        )
         return int(response["InfrahubTask"]["count"])
 
     async def all(
@@ -236,7 +240,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         """
 
         response = await client.execute_graphql(
-            query=query.render(),
+            query=query.render(convert_enum=False),
             tracker=f"query-tasks-page{page_number}",
             timeout=timeout,
         )
@@ -298,6 +302,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 limit=self.client.pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                count=True,
             )
             new_tasks, count = await self.process_page(
                 client=self.client, query=query, page_number=page_number, timeout=timeout
@@ -330,7 +335,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         """
 
         query = self._generate_count_query(filters=filters)
-        response = self.client.execute_graphql(query=query.render(), tracker="query-tasks-count")
+        response = self.client.execute_graphql(query=query.render(convert_enum=False), tracker="query-tasks-count")
         return int(response["InfrahubTask"]["count"])
 
     def all(
@@ -468,7 +473,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         """
 
         response = client.execute_graphql(
-            query=query.render(),
+            query=query.render(convert_enum=False),
             tracker=f"query-tasks-page{page_number}",
             timeout=timeout,
         )
@@ -530,6 +535,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 limit=self.client.pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                count=True,
             )
             new_tasks, count = self.process_page(
                 client=self.client, query=query, page_number=page_number, timeout=timeout

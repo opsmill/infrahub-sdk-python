@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import pytest
 
 from infrahub_sdk.task.exceptions import TaskNotFoundError, TooManyTasksError
+from infrahub_sdk.task.manager import InfraHubTaskManagerBase
 from infrahub_sdk.task.models import Task, TaskFilter, TaskState
 
 client_types = ["standard", "sync"]
@@ -28,6 +29,36 @@ async def test_method_all_full(clients, mock_query_tasks_01, client_type):
 
     assert len(tasks) == 5
     assert isinstance(tasks[0], Task)
+
+
+async def test_generate_count_query():
+    query = InfraHubTaskManagerBase._generate_count_query()
+    assert query
+    assert (
+        query.render()
+        == """
+query {
+    InfrahubTask {
+        count
+    }
+}
+"""
+    )
+
+    query2 = InfraHubTaskManagerBase._generate_count_query(
+        filters=TaskFilter(ids=["azerty", "qwerty"], state=[TaskState.COMPLETED])
+    )
+    assert query2
+    assert (
+        query2.render()
+        == """
+query {
+    InfrahubTask(ids: ["azerty", "qwerty"], state: [COMPLETED]) {
+        count
+    }
+}
+"""
+    )
 
 
 @pytest.mark.parametrize("client_type", client_types)
