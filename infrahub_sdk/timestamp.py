@@ -88,9 +88,11 @@ class Timestamp:
         return f"Timestamp: {self.to_string()}"
 
     def to_string(self, with_z: bool = True) -> str:
-        if with_z:
-            return self._obj.instant().format_common_iso()
-        return self.to_datetime().isoformat()
+        time_str = self.to_datetime().isoformat(timespec="microseconds")
+        if with_z and time_str.endswith("+00:00"):
+            time_str = time_str[:-6]
+            time_str += "Z"
+        return time_str
 
     def to_timestamp(self) -> int:
         return self._obj.timestamp()

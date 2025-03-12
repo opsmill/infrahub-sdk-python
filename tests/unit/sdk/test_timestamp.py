@@ -65,7 +65,7 @@ def test_parse_string():
 )
 def test_to_datetime(input_str, expected_datetime):
     assert isinstance(Timestamp(input_str).to_datetime(), datetime)
-    assert str(Timestamp(input_str).to_datetime()) == str(expected_datetime)
+    assert Timestamp(input_str).to_datetime() == expected_datetime
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_to_datetime(input_str, expected_datetime):
     [
         pytest.param(
             "2022-01-01T10:01:01.123000Z",
-            "2022-01-01T10:01:01.123Z",
+            "2022-01-01T10:01:01.123000Z",
             "2022-01-01T10:01:01.123000+00:00",
             id="milliseconds",
         ),
@@ -94,13 +94,13 @@ def test_to_string_default(input_str, expected_str, expected_str_no_z):
 def test_add():
     t1 = Timestamp("2022-01-01T10:01:01.123Z")
     t2 = t1.add(hours=1)
-    assert t2.to_string() == "2022-01-01T11:01:01.123Z"
+    assert t2.to_string() == "2022-01-01T11:01:01.123000Z"
 
 
 def test_subtract():
     t1 = Timestamp("2022-01-01T10:05:01.123Z")
     t2 = t1.subtract(hours=1)
-    assert t2.to_string() == "2022-01-01T09:05:01.123Z"
+    assert t2.to_string() == "2022-01-01T09:05:01.123000Z"
 
 
 def test_compare():
@@ -117,6 +117,15 @@ def test_compare():
     assert t11 <= t12
     assert t11 >= t12
     assert t11 == t12
+
+
+def test_serialize():
+    time_no_z = "2022-01-01T11:00:00.000000+00:00"
+    time = "2022-01-01T11:00:00.000000Z"
+    timestamp = Timestamp(time)
+
+    assert timestamp.to_string(with_z=False) == time_no_z
+    assert timestamp.to_string() == time
 
 
 @pytest.mark.parametrize("invalid_str", ["blurple", "1122334455667788", "2023-45-99"])
