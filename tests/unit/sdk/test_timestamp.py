@@ -12,11 +12,11 @@ UTC = timezone.utc  # Required for older versions of Python
 def test_init_empty():
     t1 = Timestamp()
     assert isinstance(t1, Timestamp)
-    assert t1.to_string() == t1._obj.instant().format_common_iso()
+    assert t1.to_datetime() == t1._obj.py_datetime()
 
     t2 = Timestamp(None)
     assert isinstance(t2, Timestamp)
-    assert t2.to_string() == t2._obj.instant().format_common_iso()
+    assert t2.to_datetime() == t2._obj.py_datetime()
 
 
 def test_init_timestamp():
@@ -24,7 +24,7 @@ def test_init_timestamp():
     t2 = Timestamp(t1)
     assert t1.to_string() == t2.to_string()
     assert isinstance(t2, Timestamp)
-    assert t2.to_string() == t2._obj.instant().format_common_iso()
+    assert t2.to_datetime() == t2._obj.py_datetime()
 
 
 def test_parse_string():
