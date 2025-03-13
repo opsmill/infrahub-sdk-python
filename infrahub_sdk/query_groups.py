@@ -19,7 +19,6 @@ class InfrahubGroupContextBase:
         self.related_node_ids: list[str] = []
         self.related_group_ids: list[str] = []
         self.unused_member_ids: list[str] | None = None
-        self.unused_child_ids: list[str] | None = None
         self.previous_members: list[RelatedNodeBase] | None = None
         self.previous_children: list[RelatedNodeBase] | None = None
         self.identifier: str | None = None
@@ -88,7 +87,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
     async def get_group(self, store_peers: bool = False) -> InfrahubNode | None:
         group_name = self._generate_group_name()
         try:
-            group = await self.client.get(kind=self.group_type, name__value=group_name, include=["members", "children"])
+            group = await self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
         except NodeNotFoundError:
             return None
 
@@ -96,7 +95,6 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             return group
 
         self.previous_members = group.members.peers  # type: ignore[attr-defined]
-        self.previous_children = group.children.peers  # type: ignore[attr-defined]
         return group
 
     async def delete_unused(self) -> None:
@@ -104,11 +102,6 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             for member in self.previous_members:
                 if member.id in self.unused_member_ids and member.typename:
                     await self.client.delete(kind=member.typename, id=member.id)
-
-        if self.previous_children and self.unused_child_ids:
-            for child in self.previous_children:
-                if child.id in self.unused_child_ids and child.typename:
-                    await self.client.delete(kind=child.typename, id=child.id)
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """
@@ -140,15 +133,9 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         """
         Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
         """
-        children: list[str] = []
-        members: list[str] = []
+        members: list[str] = self.related_group_ids + self.related_node_ids
 
-        if self.related_group_ids:
-            children = self.related_group_ids
-        if self.related_node_ids:
-            members = self.related_node_ids
-
-        if not children and not members:
+        if not members:
             return
 
         group_name = self._generate_group_name()
@@ -164,7 +151,6 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             name=group_name,
             description=description,
             members=members,
-            children=children,
         )
         await group.save(allow_upsert=True, update_group_context=False)
 
@@ -173,7 +159,6 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
 
         # Calculate how many nodes should be deleted
         self.unused_member_ids = set(existing_group.members.peer_ids) - set(members)  # type: ignore
-        self.unused_child_ids = set(existing_group.children.peer_ids) - set(children)  # type: ignore
 
         if not self.delete_unused_nodes:
             return
@@ -194,7 +179,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
     def get_group(self, store_peers: bool = False) -> InfrahubNodeSync | None:
         group_name = self._generate_group_name()
         try:
-            group = self.client.get(kind=self.group_type, name__value=group_name, include=["members", "children"])
+            group = self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
         except NodeNotFoundError:
             return None
 
@@ -202,7 +187,6 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             return group
 
         self.previous_members = group.members.peers  # type: ignore[attr-defined]
-        self.previous_children = group.children.peers  # type: ignore[attr-defined]
         return group
 
     def delete_unused(self) -> None:
@@ -210,11 +194,6 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             for member in self.previous_members:
                 if member.id in self.unused_member_ids and member.typename:
                     self.client.delete(kind=member.typename, id=member.id)
-
-        if self.previous_children and self.unused_child_ids:
-            for child in self.previous_children:
-                if child.id in self.unused_child_ids and child.typename:
-                    self.client.delete(kind=child.typename, id=child.id)
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """
@@ -246,15 +225,9 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         """
         Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
         """
-        children: list[str] = []
-        members: list[str] = []
+        members: list[str] = self.related_node_ids + self.related_group_ids
 
-        if self.related_group_ids:
-            children = self.related_group_ids
-        if self.related_node_ids:
-            members = self.related_node_ids
-
-        if not children and not members:
+        if not members:
             return
 
         group_name = self._generate_group_name()
@@ -270,7 +243,6 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             name=group_name,
             description=description,
             members=members,
-            children=children,
         )
         group.save(allow_upsert=True, update_group_context=False)
 
@@ -279,7 +251,6 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
 
         # Calculate how many nodes should be deleted
         self.unused_member_ids = set(existing_group.members.peer_ids) - set(members)  # type: ignore
-        self.unused_child_ids = set(existing_group.children.peer_ids) - set(children)  # type: ignore
 
         if not self.delete_unused_nodes:
             return
