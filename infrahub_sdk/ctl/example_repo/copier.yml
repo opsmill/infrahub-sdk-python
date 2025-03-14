@@ -26,3 +26,7 @@ tests:
   type: bool
   help: Would you like to have testing?
   default: false
+package_mode:
+  type: bool
+  help: Would you like to have a python library initialized?
+  default: false

@@ -307,12 +307,12 @@ mutation {
                 "scripts": True,
                 "tests": True,
                 "transforms": True,
+                "package_mode": False,
             }
 
             yaml.safe_dump(answers, temp_yaml)
             temp_yaml.close()
             runner.invoke(app, ["repository", "init", str(dst), "--data", str(yaml_path)])
-
             coppied_answers = yaml.safe_load((dst / ".copier-answers.yml").read_text())
             coppied_answers.pop("_src_path")
 
