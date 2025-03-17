@@ -318,4 +318,6 @@ mutation {
 
             assert coppied_answers == answers
             assert (dst / "generators").is_dir()
+            assert (dst / "queries").is_dir()
+            assert (dst / "scripts").is_dir()
             assert (dst / "pyproject.toml").is_file()
