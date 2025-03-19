@@ -344,7 +344,7 @@ class SchemaRoot(BaseModel):
     node_extensions: list[NodeExtensionSchema] = Field(default_factory=list)
 
     def to_schema_dict(self) -> dict[str, Any]:
-        return self.model_dump(exclude_unset=True, exclude_defaults=True)
+        return self.model_dump(exclude_defaults=True, mode="json")
 
 
 class SchemaRootAPI(BaseModel):

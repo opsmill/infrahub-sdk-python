@@ -23,6 +23,7 @@ from ..exceptions import (
 from ..graphql import Mutation
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
+    AttributeKind,
     AttributeSchema,
     AttributeSchemaAPI,
     BranchSchema,
@@ -40,6 +41,7 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
+from .pydantic_utils import InfrahubAttributeParam, InfrahubRelationshipParam, from_pydantic
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -49,11 +51,14 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "AttributeKind",
     "AttributeSchema",
     "AttributeSchemaAPI",
     "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
+    "InfrahubAttributeParam",
+    "InfrahubRelationshipParam",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",
@@ -64,6 +69,7 @@ __all__ = [
     "SchemaRoot",
     "SchemaRootAPI",
     "TemplateSchemaAPI",
+    "from_pydantic",
 ]
 
 
