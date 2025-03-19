@@ -162,9 +162,9 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         self, client: InfrahubClient, base_dataset, cat_luna, person_sophia, schema_animal, schema_cat
     ):
         # See https://github.com/opsmill/infrahub-sdk-python/issues/277
-        assert (
-            schema_animal.human_friendly_id != schema_cat.human_friendly_id
-        ), "Inherited node schema should have a different hfid than generic one for this test to be relevant"
+        assert schema_animal.human_friendly_id != schema_cat.human_friendly_id, (
+            "Inherited node schema should have a different hfid than generic one for this test to be relevant"
+        )
         person_sophia.favorite_animal = {"hfid": cat_luna.hfid, "kind": TESTING_CAT}
         await person_sophia.save()
         person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
