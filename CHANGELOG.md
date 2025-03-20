@@ -11,15 +11,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
-## [1.8.0b2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0b2) - 2025-03-04
+## [1.8.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0) - 2025-03-19
 
 ### Deprecated
 
 - Timestamp: Direct access to `obj` and `add_delta` have been deprecated and will be removed in a future version. ([#255](https://github.com/opsmill/infrahub-sdk-python/issues/255))
 
-### Changed
+### Added
 
-- Changes InfrahubNode/InfrahubNodeSync `artifact_fetch` and `artifact_generate` methods to use the name of the artifact instead of the name of the artifact definition.
+- Added support for Enum in GraphQL query and mutation. ([#18](https://github.com/opsmill/infrahub-sdk-python/issues/18))
+
+### Fixed
+
+- Refactored Timestamp to use `whenever` instead of `pendulum` and extend Timestamp with `add()`, `subtract()`, and `to_datetime()`. ([#255](https://github.com/opsmill/infrahub-sdk-python/issues/255))
+- Fixed support for Python 3.13 as it's no longer required to have Rust installed on the system.
 
 ## [1.7.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.7.2) - 2025-03-07
 
