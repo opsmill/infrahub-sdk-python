@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import MutableMapping
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Union
 
@@ -348,3 +349,10 @@ class SchemaRootAPI(BaseModel):
     nodes: list[NodeSchemaAPI] = Field(default_factory=list)
     profiles: list[ProfileSchemaAPI] = Field(default_factory=list)
     templates: list[TemplateSchemaAPI] = Field(default_factory=list)
+
+
+class BranchSchema(BaseModel):
+    hash: str = Field(...)
+    nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = Field(
+        default_factory=dict
+    )
