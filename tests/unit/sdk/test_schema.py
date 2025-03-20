@@ -65,6 +65,33 @@ async def test_fetch_schema(mock_schema_query_01, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_fetch_schema_conditional_refresh(mock_schema_query_01: HTTPXMock, client_type: str) -> None:
+    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash"""
+    if client_type == "standard":
+        client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
+        nodes = await client.schema.all(branch="main")
+        schema_hash = client.schema.cache["main"].hash
+        assert schema_hash
+        nodes = await client.schema.all(branch="main", refresh=True, schema_hash=schema_hash)
+    else:
+        client = InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True))
+        nodes = client.schema.all(branch="main")
+        schema_hash = client.schema.cache["main"].hash
+        assert schema_hash
+        nodes = client.schema.all(branch="main", refresh=True, schema_hash=schema_hash)
+
+    assert len(nodes) == 4
+    assert sorted(nodes.keys()) == [
+        "BuiltinLocation",
+        "BuiltinTag",
+        "CoreGraphQLQuery",
+        "CoreRepository",
+    ]
+    assert isinstance(nodes["BuiltinTag"], NodeSchemaAPI)
+    assert len(mock_schema_query_01.get_requests()) == 1
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_schema_data_validation(rfile_schema, client_type):
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
