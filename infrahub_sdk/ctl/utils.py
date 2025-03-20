@@ -8,11 +8,9 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, TypeVar
 
-import pendulum
 import typer
 from click.exceptions import Exit
 from httpx import HTTPError
-from pendulum.datetime import DateTime
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
@@ -150,20 +148,6 @@ def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
         return {}
 
     return {var.split("=")[0]: var.split("=")[1] for var in variables if "=" in var}
-
-
-def calculate_time_diff(value: str) -> str | None:
-    """Calculate the time in human format between a timedate in string format and now."""
-    try:
-        time_value = pendulum.parse(value)
-    except pendulum.parsing.exceptions.ParserError:
-        return None
-
-    if not isinstance(time_value, DateTime):
-        return None
-
-    pendulum.set_locale("en")
-    return time_value.diff_for_humans(other=pendulum.now(), absolute=True)
 
 
 def find_graphql_query(name: str, directory: str | Path = ".") -> str:

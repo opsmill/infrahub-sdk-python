@@ -7,8 +7,14 @@ from infrahub_sdk import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
-async_client_methods = [method for method in dir(InfrahubClient) if not method.startswith("_")]
-sync_client_methods = [method for method in dir(InfrahubClientSync) if not method.startswith("_")]
+excluded_methods = ["request_context"]
+
+async_client_methods = [
+    method for method in dir(InfrahubClient) if not method.startswith("_") and method not in excluded_methods
+]
+sync_client_methods = [
+    method for method in dir(InfrahubClientSync) if not method.startswith("_") and method not in excluded_methods
+]
 
 batch_client_types = [
     ("standard", False),

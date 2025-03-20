@@ -17,10 +17,12 @@ from graphql import (
 
 from infrahub_sdk.repository import GitRepoManager
 
-from .exceptions import FileNotValidError, JsonDecodeError
+from .exceptions import FileNotValidError, JsonDecodeError, TimestampFormatError
+from .timestamp import Timestamp
 
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo
+    from whenever import TimeDelta
 
 
 def base36encode(number: int) -> str:
@@ -367,3 +369,29 @@ def get_user_permissions(data: list[dict]) -> dict:
         groups[group_name] = permissions
 
     return groups
+
+
+def calculate_time_diff(value: str) -> str | None:
+    """Calculate the time in human format between a timedate in string format and now."""
+    try:
+        time_value = Timestamp(value)
+    except TimestampFormatError:
+        return None
+
+    delta: TimeDelta = Timestamp().get_obj().difference(time_value.get_obj())
+    (hrs, mins, secs, nanos) = delta.in_hrs_mins_secs_nanos()
+
+    if nanos and nanos > 500_000_000:
+        secs += 1
+
+    if hrs and hrs < 24 and mins:
+        return f"{hrs}h {mins}m and {secs}s ago"
+    if hrs and hrs > 24:
+        remaining_hrs = hrs % 24
+        days = int((hrs - remaining_hrs) / 24)
+        return f"{days}d and {remaining_hrs}h ago"
+    if hrs == 0 and mins and secs:
+        return f"{mins}m and {secs}s ago"
+    if hrs == 0 and mins == 0 and secs:
+        return f"{secs}s ago"
+    return "now"

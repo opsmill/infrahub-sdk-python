@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         StringOptional,
     )
 
+# pylint: disable=too-many-ancestors
 
 # ---------------------------------------------
 # ASYNC
@@ -72,7 +73,7 @@ class CoreArtifactTarget(CoreNode):
 
 
 class CoreBasePermission(CoreNode):
-    decision: Enum
+    description: StringOptional
     identifier: StringOptional
     roles: RelationshipManager
 
@@ -107,7 +108,6 @@ class CoreGenericAccount(CoreNode):
     label: StringOptional
     description: StringOptional
     account_type: Enum
-    role: Enum
     status: Dropdown
     tokens: RelationshipManager
 
@@ -152,6 +152,10 @@ class CoreMenu(CoreNode):
     section: Enum
     parent: RelatedNode
     children: RelationshipManager
+
+
+class CoreObjectTemplate(CoreNode):
+    template_name: String
 
 
 class CoreProfile(CoreNode):
@@ -199,6 +203,8 @@ class CoreValidator(CoreNode):
 
 class CoreWebhook(CoreNode):
     name: String
+    event_type: Enum
+    branch_scope: Dropdown
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
@@ -221,7 +227,7 @@ class CoreAccount(LineageOwner, LineageSource, CoreGenericAccount):
     pass
 
 
-class CoreAccountGroup(CoreGroup):
+class CoreAccountGroup(LineageOwner, LineageSource, CoreGroup):
     roles: RelationshipManager
 
 
@@ -349,8 +355,8 @@ class CoreGeneratorValidator(CoreValidator):
 
 
 class CoreGlobalPermission(CoreBasePermission):
-    name: String
     action: Dropdown
+    decision: Enum
 
 
 class CoreGraphQLQuery(CoreNode):
@@ -401,6 +407,7 @@ class CoreObjectPermission(CoreBasePermission):
     namespace: String
     name: String
     action: Enum
+    decision: Enum
 
 
 class CoreObjectThread(CoreThread):
@@ -537,7 +544,7 @@ class CoreArtifactTargetSync(CoreNodeSync):
 
 
 class CoreBasePermissionSync(CoreNodeSync):
-    decision: Enum
+    description: StringOptional
     identifier: StringOptional
     roles: RelationshipManagerSync
 
@@ -572,7 +579,6 @@ class CoreGenericAccountSync(CoreNodeSync):
     label: StringOptional
     description: StringOptional
     account_type: Enum
-    role: Enum
     status: Dropdown
     tokens: RelationshipManagerSync
 
@@ -617,6 +623,10 @@ class CoreMenuSync(CoreNodeSync):
     section: Enum
     parent: RelatedNodeSync
     children: RelationshipManagerSync
+
+
+class CoreObjectTemplateSync(CoreNodeSync):
+    template_name: String
 
 
 class CoreProfileSync(CoreNodeSync):
@@ -664,6 +674,8 @@ class CoreValidatorSync(CoreNodeSync):
 
 class CoreWebhookSync(CoreNodeSync):
     name: String
+    event_type: Enum
+    branch_scope: Dropdown
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
@@ -686,7 +698,7 @@ class CoreAccountSync(LineageOwnerSync, LineageSourceSync, CoreGenericAccountSyn
     pass
 
 
-class CoreAccountGroupSync(CoreGroupSync):
+class CoreAccountGroupSync(LineageOwnerSync, LineageSourceSync, CoreGroupSync):
     roles: RelationshipManagerSync
 
 
@@ -814,8 +826,8 @@ class CoreGeneratorValidatorSync(CoreValidatorSync):
 
 
 class CoreGlobalPermissionSync(CoreBasePermissionSync):
-    name: String
     action: Dropdown
+    decision: Enum
 
 
 class CoreGraphQLQuerySync(CoreNodeSync):
@@ -866,6 +878,7 @@ class CoreObjectPermissionSync(CoreBasePermissionSync):
     namespace: String
     name: String
     action: Enum
+    decision: Enum
 
 
 class CoreObjectThreadSync(CoreThreadSync):

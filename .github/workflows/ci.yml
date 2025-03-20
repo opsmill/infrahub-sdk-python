@@ -76,7 +76,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v4"
       - name: "Setup environment"
-        run: "pip install ruff==0.8.6"
+        run: "pip install ruff==0.11.0"
       - name: "Linting: ruff check"
         run: "ruff check ."
       - name: "Linting: ruff format"
@@ -212,6 +212,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
     if: |
       always() && !cancelled() &&
       !contains(needs.*.result, 'failure') &&
@@ -299,77 +300,79 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  integration-tests-local-infrahub:
-    if: |
-      always() && !cancelled() &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled') &&
-      needs.files-changed.outputs.python == 'true' &&
-      (github.base_ref == 'stable' || github.base_ref == 'develop')
-    needs: ["files-changed", "yaml-lint", "python-lint"]
-    runs-on:
-      group: "huge-runners"
-    timeout-minutes: 30
-    steps:
-      - name: "Check out repository code"
-        uses: "actions/checkout@v4"
+  # NOTE: Disabling this test for now because it's expected that we can't start the latest version of infrahub
+  # with the current shipping version of infrahub-testcontainers
+  # integration-tests-local-infrahub:
+  #   if: |
+  #     always() && !cancelled() &&
+  #     !contains(needs.*.result, 'failure') &&
+  #     !contains(needs.*.result, 'cancelled') &&
+  #     needs.files-changed.outputs.python == 'true' &&
+  #     (github.base_ref == 'stable' || github.base_ref == 'develop')
+  #   needs: ["files-changed", "yaml-lint", "python-lint"]
+  #   runs-on:
+  #     group: "huge-runners"
+  #   timeout-minutes: 30
+  #   steps:
+  #     - name: "Check out repository code"
+  #       uses: "actions/checkout@v4"
 
-      - name: "Extract target branch name"
-        id: extract_branch
-        run: echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
+  #     - name: "Extract target branch name"
+  #       id: extract_branch
+  #       run: echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
 
-      - name: "Checkout infrahub repository"
-        uses: "actions/checkout@v4"
-        with:
-          repository: "opsmill/infrahub"
-          path: "infrahub-server"
-          ref: ${{ github.base_ref }}
-          submodules: true
+  #     - name: "Checkout infrahub repository"
+  #       uses: "actions/checkout@v4"
+  #       with:
+  #         repository: "opsmill/infrahub"
+  #         path: "infrahub-server"
+  #         ref: ${{ github.base_ref }}
+  #         submodules: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
 
-      - name: "Setup git credentials prior dev.build"
-        run: |
-          cd infrahub-server
-          git config --global user.name 'Infrahub'
-          git config --global user.email 'infrahub@opsmill.com'
-          git config --global --add safe.directory '*'
-          git config --global credential.usehttppath true
-          git config --global credential.helper /usr/local/bin/infrahub-git-credential
+  #     - name: "Setup git credentials prior dev.build"
+  #       run: |
+  #         cd infrahub-server
+  #         git config --global user.name 'Infrahub'
+  #         git config --global user.email 'infrahub@opsmill.com'
+  #         git config --global --add safe.directory '*'
+  #         git config --global credential.usehttppath true
+  #         git config --global credential.helper /usr/local/bin/infrahub-git-credential
 
-      - name: "Set environment variables prior dev.build"
-        run: |
-          echo "INFRAHUB_BUILD_NAME=infrahub-${{ runner.name }}" >> $GITHUB_ENV
-          RUNNER_NAME=$(echo "${{ runner.name }}" | grep -o 'ghrunner[0-9]\+' | sed 's/ghrunner\([0-9]\+\)/ghrunner_\1/')
-          echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
-          echo "INFRAHUB_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }}" >> $GITHUB_ENV
-          echo "INFRAHUB_TESTING_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }}" >> $GITHUB_ENV
-          echo "INFRAHUB_TESTING_DOCKER_IMAGE=opsmill/infrahub" >> $GITHUB_ENV
+  #     - name: "Set environment variables prior dev.build"
+  #       run: |
+  #         echo "INFRAHUB_BUILD_NAME=infrahub-${{ runner.name }}" >> $GITHUB_ENV
+  #         RUNNER_NAME=$(echo "${{ runner.name }}" | grep -o 'ghrunner[0-9]\+' | sed 's/ghrunner\([0-9]\+\)/ghrunner_\1/')
+  #         echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
+  #         echo "INFRAHUB_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }}" >> $GITHUB_ENV
+  #         echo "INFRAHUB_TESTING_IMAGE_VER=local-${{ runner.name }}-${{ github.sha }}" >> $GITHUB_ENV
+  #         echo "INFRAHUB_TESTING_DOCKER_IMAGE=opsmill/infrahub" >> $GITHUB_ENV
 
-      - name: "Build container"
-        run: |
-          cd infrahub-server
-          inv dev.build
+  #     - name: "Build container"
+  #       run: |
+  #         cd infrahub-server
+  #         inv dev.build
 
-      - name: "Setup environment"
-        run: |
-          pipx install poetry==1.8.5
-          poetry config virtualenvs.create true --local
-          pip install invoke toml codecov
+  #     - name: "Setup environment"
+  #       run: |
+  #         pipx install poetry==1.8.5
+  #         poetry config virtualenvs.create true --local
+  #         pip install invoke toml codecov
 
-      - name: "Install Package"
-        run: "poetry install --all-extras"
+  #     - name: "Install Package"
+  #       run: "poetry install --all-extras"
 
-      - name: "Integration Tests"
-        run: |
-          echo "Running tests for version: $INFRAHUB_TESTING_IMAGE_VER"
-          poetry run pytest --cov infrahub_sdk tests/integration/
+  #     - name: "Integration Tests"
+  #       run: |
+  #         echo "Running tests for version: $INFRAHUB_TESTING_IMAGE_VER"
+  #         poetry run pytest --cov infrahub_sdk tests/integration/
 
-      - name: "Upload coverage to Codecov"
-        run: |
-          codecov --flags integration-tests
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  #     - name: "Upload coverage to Codecov"
+  #       run: |
+  #         codecov --flags integration-tests
+  #       env:
+  #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
