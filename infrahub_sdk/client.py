@@ -52,12 +52,15 @@ from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
+from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
 from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
 if TYPE_CHECKING:
     from types import TracebackType
+
+    from .context import RequestContext
 
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
@@ -140,6 +143,7 @@ class BaseClient:
         self.identifier = self.config.identifier
         self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
+        self._request_context: RequestContext | None = None
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client"""
@@ -153,6 +157,14 @@ class BaseClient:
             print(f"QUERY:\n{query}")
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
+
+    @property
+    def request_context(self) -> RequestContext | None:
+        return self._request_context
+
+    @request_context.setter
+    def request_context(self, request_context: RequestContext) -> None:
+        self._request_context = request_context
 
     def start_tracking(
         self,
@@ -270,6 +282,7 @@ class InfrahubClient(BaseClient):
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
         self.store = NodeStore()
+        self.task = InfrahubTaskManager(self)
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
@@ -1505,6 +1518,11 @@ class InfrahubClient(BaseClient):
 
 
 class InfrahubClientSync(BaseClient):
+    schema: InfrahubSchemaSync
+    branch: InfrahubBranchManagerSync
+    object_store: ObjectStoreSync
+    store: NodeStoreSync
+    task: InfrahubTaskManagerSync
     group_context: InfrahubGroupContextSync
 
     def _initialize(self) -> None:
@@ -1512,6 +1530,7 @@ class InfrahubClientSync(BaseClient):
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
         self.store = NodeStoreSync()
+        self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
 

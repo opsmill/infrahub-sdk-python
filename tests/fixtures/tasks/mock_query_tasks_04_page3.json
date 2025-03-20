@@ -1,0 +1,157 @@
+{
+    "data": {
+      "InfrahubTask": {
+        "count": 8,
+        "edges": [
+          {
+            "node": {
+              "created_at": "2025-01-18T22:12:19.512289Z",
+              "id": "40ff9289-18d1-4eba-9ff8-3c7eb744364e",
+              "branch": "main",
+              "title": "Import objects",
+              "updated_at": "2025-01-18T22:12:22.999826Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "import-object-from-file",
+              "related_nodes": [
+                {
+                  "id": "1808d478-e51e-7504-d0ef-c513f1cd69a5",
+                  "kind": "CoreReadOnlyRepository"
+                }
+              ],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Successfully parsed .infrahub.yml",
+                      "timestamp": "2025-01-18T22:12:19.899046Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Created subflow run 'impressive-termite' for flow 'import-python-files'",
+                      "timestamp": "2025-01-18T22:12:20.256939Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 2 Jinja2 transforms in the repository",
+                      "timestamp": "2025-01-18T22:12:22.203059Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "New version of the Jinja2 Transform 'clab_topology' found, updating",
+                      "timestamp": "2025-01-18T22:12:22.391083Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "New version of the Jinja2 Transform 'device_startup' found, updating",
+                      "timestamp": "2025-01-18T22:12:22.508961Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 2 artifact definitions in the repository",
+                      "timestamp": "2025-01-18T22:12:22.829151Z",
+                      "id": null
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "node": {
+              "created_at": "2025-01-18T22:12:16.755287Z",
+              "id": "4a7e52c0-c5b3-4e22-b401-62044ebb5e1f",
+              "branch": "main",
+              "title": "Import Python file",
+              "updated_at": "2025-01-18T22:12:18.437961Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "import-python-files",
+              "related_nodes": [
+                {
+                  "id": "1808d478-e51e-7504-d0ef-c513f1cd69a5",
+                  "kind": "CoreReadOnlyRepository"
+                }
+              ],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 1 check definitions in the repository",
+                      "timestamp": "2025-01-18T22:12:16.902608Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 3 Python transforms in the repository",
+                      "timestamp": "2025-01-18T22:12:17.155336Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Found 4 generator definitions in the repository",
+                      "timestamp": "2025-01-18T22:12:17.581382Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Processing generator update_upstream_interfaces_description (generators/upstream_interfaces.py)",
+                      "timestamp": "2025-01-18T22:12:17.581995Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Processing generator create_circuit_endpoints (generators/circuit_endpoints.py)",
+                      "timestamp": "2025-01-18T22:12:17.583801Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Processing generator drained_circuit_bgp_sessions (generators/drained_circuit_bgp_sessions.py)",
+                      "timestamp": "2025-01-18T22:12:17.585317Z",
+                      "id": null
+                    }
+                  },
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Processing generator backbone_service (generators/backbone_service.py)",
+                      "timestamp": "2025-01-18T22:12:17.586920Z",
+                      "id": null
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }

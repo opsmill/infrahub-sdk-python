@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .client import InfrahubClient, InfrahubClientSync
+    from .context import RequestContext
     from .schema import AttributeSchemaAPI, MainSchemaTypesAPI, RelationshipSchemaAPI
     from .types import Order
 
@@ -769,6 +770,16 @@ class InfrahubNodeBase:
                 Attribute(name=attr_name, schema=attr_schema, data=attr_data),
             )
 
+    def _get_request_context(self, request_context: RequestContext | None = None) -> dict[str, Any] | None:
+        if request_context:
+            return request_context.model_dump(exclude_none=True)
+
+        client: InfrahubClient | InfrahubClientSync | None = getattr(self, "_client", None)
+        if not client or not client.request_context:
+            return None
+
+        return client.request_context.model_dump(exclude_none=True)
+
     def _init_relationships(self, data: dict | None = None) -> None:
         pass
 
@@ -797,7 +808,12 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(self, exclude_unmodified: bool = False, exclude_hfid: bool = False) -> dict[str, dict]:  # noqa: C901
+    def _generate_input_data(  # noqa: C901
+        self,
+        exclude_unmodified: bool = False,
+        exclude_hfid: bool = False,
+        request_context: RequestContext | None = None,
+    ) -> dict[str, dict]:
         """Generate a dictionary that represent the input data required by a mutation.
 
         Returns:
@@ -875,7 +891,15 @@ class InfrahubNodeBase:
         elif self.hfid is not None and not exclude_hfid:
             data["hfid"] = self.hfid
 
-        return {"data": {"data": data}, "variables": variables, "mutation_variables": mutation_variables}
+        mutation_payload = {"data": data}
+        if context_data := self._get_request_context(request_context=request_context):
+            mutation_payload["context"] = context_data
+
+        return {
+            "data": mutation_payload,
+            "variables": variables,
+            "mutation_variables": mutation_variables,
+        }
 
     @staticmethod
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
@@ -1132,8 +1156,11 @@ class InfrahubNode(InfrahubNodeBase):
         content = await self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    async def delete(self, timeout: int | None = None) -> None:
+    async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
+        if context_data := self._get_request_context(request_context=request_context):
+            input_data["context"] = context_data
+
         mutation_query = {"ok": None}
         query = Mutation(
             mutation=f"{self._schema.kind}Delete",
@@ -1148,12 +1175,16 @@ class InfrahubNode(InfrahubNodeBase):
         )
 
     async def save(
-        self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         if self._existing is False or allow_upsert is True:
-            await self.create(allow_upsert=allow_upsert, timeout=timeout)
+            await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
-            await self.update(timeout=timeout)
+            await self.update(timeout=timeout, request_context=request_context)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1382,15 +1413,17 @@ class InfrahubNode(InfrahubNodeBase):
             await related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    async def create(self, allow_upsert: bool = False, timeout: int | None = None) -> None:
+    async def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=False)
+            input_data = self._generate_input_data(exclude_hfid=False, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
-            input_data = self._generate_input_data(exclude_hfid=True)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
         query = Mutation(
@@ -1408,8 +1441,10 @@ class InfrahubNode(InfrahubNodeBase):
         )
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    async def update(self, do_full_update: bool = False, timeout: int | None = None) -> None:
-        input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
+    async def update(
+        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
+        input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
 
@@ -1648,8 +1683,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
         content = self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    def delete(self, timeout: int | None = None) -> None:
+    def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
+        if context_data := self._get_request_context(request_context=request_context):
+            input_data["context"] = context_data
+
         mutation_query = {"ok": None}
         query = Mutation(
             mutation=f"{self._schema.kind}Delete",
@@ -1664,12 +1702,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
     def save(
-        self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         if self._existing is False or allow_upsert is True:
-            self.create(allow_upsert=allow_upsert, timeout=timeout)
+            self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
-            self.update(timeout=timeout)
+            self.update(timeout=timeout, request_context=request_context)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1893,15 +1935,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    def create(self, allow_upsert: bool = False, timeout: int | None = None) -> None:
+    def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=False)
+            input_data = self._generate_input_data(exclude_hfid=False, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
-            input_data = self._generate_input_data(exclude_hfid=True)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
         query = Mutation(
@@ -1920,8 +1964,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
         self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    def update(self, do_full_update: bool = False, timeout: int | None = None) -> None:
-        input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
+    def update(
+        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
+        input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
 
