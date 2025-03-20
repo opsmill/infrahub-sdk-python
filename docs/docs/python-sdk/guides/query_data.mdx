@@ -19,26 +19,7 @@ The `get` and `filters` query methods allow you to use filters. Filters specify 
 
 ### Discovering available filters
 
-The easiest way to discover the available filters for a kind of node is by querying the schema.
-
-<Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-
-  ```python
-  tag_schema = await client.schema.get("BuiltinTag")
-  print(tag_schema.filters)
-  ```
-
-  </TabItem>
-  <TabItem value="Sync">
-
-  ```python
-  tag_schema = client.schema.get("BuiltinTag")
-  print(tag_schema.filters)
-  ```
-
-  </TabItem>
-</Tabs>
+The easiest way to discover the available filters for a kind of node is by opening the GraphQLi Explorer in the GraphQL sandbox. Under each GraphQL query you will find the available filters.
 
 ### Attribute filters
 
