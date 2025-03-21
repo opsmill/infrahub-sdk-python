@@ -11,6 +11,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.9.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.0) - 2025-03-21
+
+### Added
+
+- Add 'schema_hash' parameter to client.schema.all to only optionally refresh the schema if the provided hash differs from what the client has already cached. ([#152](https://github.com/opsmill/infrahub-sdk-python/issues/152))
+
+### Changed
+
+- CoreStandardGroups created or updated by a generator in Infrahub are now stored as a member of the CoreGeneratorGroup. Previously they were being stored as children of the CoreGeneratorGroup.
+
+### Fixed
+
+- The SDK client query methods (get, filters, all) default behaviour has changed. The query methods will store the retrieved nodes in the internal store by default, where previously this behaviour had to be enabled explicitly using the `populate_store` argument. ([#15](https://github.com/opsmill/infrahub-sdk-python/issues/15))
+
 ## [1.8.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.8.0) - 2025-03-19
 
 ### Deprecated
