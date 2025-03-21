@@ -416,7 +416,8 @@ You can exclude attributes and relationships that are retrieved with a query by 
 
 ### Fetching relationships manually
 
-The `fetch` method can be used to retrieve relationships that are not retrieved as part of a query. The `fetch` method will initialized the relationship, if was not yet initialized and retrieve the related nodes.
+The `fetch` method can be used to retrieve relationships, initialize them; and retrieving the related nodes manually.
+The `fetch` method can also be used on relationship that were previously initialized.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -446,8 +447,6 @@ The `fetch` method can be used to retrieve relationships that are not retrieved 
 
   </TabItem>
 </Tabs>
-
-The `fetch` method can also be used to `fetch` the related nodes of a relationship that was already initialized or retrieved as part of the query.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
