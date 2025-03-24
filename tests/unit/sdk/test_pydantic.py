@@ -3,22 +3,33 @@ from __future__ import annotations
 from typing import Annotated, Optional
 
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from infrahub_sdk.schema.main import AttributeKind, AttributeSchema, RelationshipSchema
-from infrahub_sdk.schema.pydantic_utils import (
-    InfrahubAttributeParam as AttrParam,
+from infrahub_sdk.schema.main import (
+    AttributeKind,
+    AttributeSchema,
+    GenericSchema,
+    NodeSchema,
+    RelationshipSchema,
+    SchemaState,
 )
 from infrahub_sdk.schema.pydantic_utils import (
+    GenericModel,
+    NodeModel,
     analyze_field,
     field_to_attribute,
     field_to_relationship,
     from_pydantic,
     get_attribute_kind,
+    get_kind,
+    model_to_node,
+)
+from infrahub_sdk.schema.pydantic_utils import (
+    InfrahubAttributeParam as AttrParam,
 )
 
 
-class MyModel(BaseModel):
+class MyAllInOneModel(BaseModel):
     name: str
     age: int
     is_active: bool
@@ -27,22 +38,48 @@ class MyModel(BaseModel):
     old_opt_age: Optional[int] = None  # noqa: UP007
 
 
-class Tag(BaseModel):
+class AcmeTag(BaseModel):
     name: str = Field(default="test_tag", description="The name of the tag")
     description: Annotated[str | None, AttrParam(kind=AttributeKind.TEXTAREA)] = None
     label: Annotated[str, AttrParam(unique=True), Field(description="The label of the tag")]
 
 
-class Car(BaseModel):
+class AcmeCar(BaseModel):
     name: str
-    tags: list[Tag]
-    owner: Person
-    secondary_owner: Person | None = None
+    tags: list[AcmeTag]
+    owner: AcmePerson
+    secondary_owner: AcmePerson | None = None
 
 
-class Person(BaseModel):
+class AcmePerson(BaseModel):
     name: str
-    cars: list[Car] | None = None
+    cars: list[AcmeCar] | None = None
+
+
+# --------------------------------
+
+
+class Book(NodeModel):
+    model_config = ConfigDict(node_schema=NodeSchema(name="Book", namespace="Library", display_labels=["name__value"]))
+    title: str
+    isbn: Annotated[str, AttrParam(unique=True)]
+    created_at: str
+    author: LibraryAuthor
+
+
+class AbstractPerson(GenericModel):
+    model_config = ConfigDict(generic_schema=GenericSchema(name="AbstractPerson", namespace="Library"))
+    firstname: str = Field(..., description="The first name of the person", pattern=r"^[a-zA-Z]+$")
+    lastname: str
+
+
+class LibraryAuthor(AbstractPerson):
+    books: list[Book]
+
+
+class LibraryReader(AbstractPerson):
+    favorite_books: list[Book]
+    favorite_authors: list[LibraryAuthor]
 
 
 @pytest.mark.parametrize(
@@ -57,7 +94,7 @@ class Person(BaseModel):
     ],
 )
 def test_get_field_kind(field_name, expected_kind):
-    assert get_attribute_kind(MyModel.model_fields[field_name]) == expected_kind
+    assert get_attribute_kind(MyAllInOneModel.model_fields[field_name]) == expected_kind
 
 
 @pytest.mark.parametrize(
@@ -65,7 +102,7 @@ def test_get_field_kind(field_name, expected_kind):
     [
         (
             "name",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": None,
                 "is_attribute": True,
@@ -78,7 +115,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "age",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": None,
                 "is_attribute": True,
@@ -91,7 +128,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "is_active",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": None,
                 "is_attribute": True,
@@ -104,7 +141,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "opt_age",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": None,
                 "is_attribute": True,
@@ -117,7 +154,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "default_name",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": "some_default",
                 "is_attribute": True,
@@ -130,7 +167,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "old_opt_age",
-            MyModel,
+            MyAllInOneModel,
             {
                 "default": None,
                 "is_attribute": True,
@@ -143,7 +180,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "description",
-            Tag,
+            AcmeTag,
             {
                 "default": None,
                 "is_attribute": True,
@@ -156,7 +193,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "name",
-            Tag,
+            AcmeTag,
             {
                 "default": "test_tag",
                 "is_attribute": True,
@@ -169,7 +206,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "label",
-            Tag,
+            AcmeTag,
             {
                 "default": None,
                 "is_attribute": True,
@@ -182,7 +219,7 @@ def test_get_field_kind(field_name, expected_kind):
         ),
         (
             "owner",
-            Car,
+            AcmeCar,
             {
                 "default": None,
                 "is_attribute": False,
@@ -190,12 +227,12 @@ def test_get_field_kind(field_name, expected_kind):
                 "is_relationship": True,
                 "name": "owner",
                 "optional": False,
-                "primary_type": Person,
+                "primary_type": AcmePerson,
             },
         ),
         (
             "tags",
-            Car,
+            AcmeCar,
             {
                 "default": None,
                 "is_attribute": False,
@@ -203,12 +240,12 @@ def test_get_field_kind(field_name, expected_kind):
                 "is_relationship": True,
                 "name": "tags",
                 "optional": False,
-                "primary_type": Tag,
+                "primary_type": AcmeTag,
             },
         ),
         (
             "secondary_owner",
-            Car,
+            AcmeCar,
             {
                 "default": None,
                 "is_attribute": False,
@@ -216,7 +253,7 @@ def test_get_field_kind(field_name, expected_kind):
                 "is_relationship": True,
                 "name": "secondary_owner",
                 "optional": True,
-                "primary_type": Person,
+                "primary_type": AcmePerson,
             },
         ),
     ],
@@ -230,7 +267,7 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
     [
         (
             "name",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="name",
                 kind=AttributeKind.TEXT,
@@ -239,7 +276,7 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "age",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="age",
                 kind=AttributeKind.NUMBER,
@@ -248,7 +285,7 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "is_active",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="is_active",
                 kind=AttributeKind.BOOLEAN,
@@ -257,7 +294,7 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "opt_age",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="opt_age",
                 kind=AttributeKind.NUMBER,
@@ -266,17 +303,17 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "default_name",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="default_name",
                 kind=AttributeKind.TEXT,
                 optional=True,
-                default="some_default",
+                default_value="some_default",
             ),
         ),
         (
             "old_opt_age",
-            MyModel,
+            MyAllInOneModel,
             AttributeSchema(
                 name="old_opt_age",
                 kind=AttributeKind.NUMBER,
@@ -285,7 +322,7 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "description",
-            Tag,
+            AcmeTag,
             AttributeSchema(
                 name="description",
                 kind=AttributeKind.TEXTAREA,
@@ -294,23 +331,35 @@ def test_analyze_field(field_name: str, model: BaseModel, expected: dict):
         ),
         (
             "name",
-            Tag,
+            AcmeTag,
             AttributeSchema(
                 name="name",
                 description="The name of the tag",
                 kind=AttributeKind.TEXT,
                 optional=True,
+                default_value="test_tag",
             ),
         ),
         (
             "label",
-            Tag,
+            AcmeTag,
             AttributeSchema(
                 name="label",
                 description="The label of the tag",
                 kind=AttributeKind.TEXT,
                 optional=False,
                 unique=True,
+            ),
+        ),
+        (
+            "firstname",
+            AbstractPerson,
+            AttributeSchema(
+                name="firstname",
+                description="The first name of the person",
+                kind=AttributeKind.TEXT,
+                optional=False,
+                regex=r"^[a-zA-Z]+$",
             ),
         ),
     ],
@@ -326,30 +375,30 @@ def test_field_to_attribute(field_name: str, model: BaseModel, expected: Attribu
     [
         (
             "owner",
-            Car,
+            AcmeCar,
             RelationshipSchema(
                 name="owner",
-                peer="TestingPerson",
+                peer="AcmePerson",
                 cardinality="one",
                 optional=False,
             ),
         ),
         (
             "tags",
-            Car,
+            AcmeCar,
             RelationshipSchema(
                 name="tags",
-                peer="TestingTag",
+                peer="AcmeTag",
                 cardinality="many",
                 optional=False,
             ),
         ),
         (
             "secondary_owner",
-            Car,
+            AcmeCar,
             RelationshipSchema(
                 name="secondary_owner",
-                peer="TestingPerson",
+                peer="AcmePerson",
                 cardinality="one",
                 optional=True,
             ),
@@ -362,6 +411,152 @@ def test_field_to_relationship(field_name: str, model: BaseModel, expected: Rela
     assert field_to_relationship(field_name, field_info, field) == expected
 
 
+@pytest.mark.parametrize(
+    "model, expected",
+    [
+        (MyAllInOneModel, "MyAllInOneModel"),
+        (Book, "LibraryBook"),
+        (LibraryAuthor, "LibraryAuthor"),
+        (LibraryReader, "LibraryReader"),
+        (AbstractPerson, "LibraryAbstractPerson"),
+        (AcmeTag, "AcmeTag"),
+        (AcmeCar, "AcmeCar"),
+        (AcmePerson, "AcmePerson"),
+    ],
+)
+def test_get_kind(model: BaseModel, expected: str):
+    assert get_kind(model) == expected
+
+
+@pytest.mark.parametrize(
+    "model, expected",
+    [
+        (
+            MyAllInOneModel,
+            NodeSchema(
+                name="AllInOneModel",
+                namespace="My",
+                state=SchemaState.PRESENT,
+                attributes=[
+                    AttributeSchema(name="name", kind=AttributeKind.TEXT, optional=False),
+                    AttributeSchema(name="age", kind=AttributeKind.NUMBER, optional=False),
+                    AttributeSchema(name="is_active", kind=AttributeKind.BOOLEAN, optional=False),
+                    AttributeSchema(name="opt_age", kind=AttributeKind.NUMBER, optional=True),
+                    AttributeSchema(
+                        name="default_name", kind=AttributeKind.TEXT, optional=True, default_value="some_default"
+                    ),
+                    AttributeSchema(name="old_opt_age", kind=AttributeKind.NUMBER, optional=True),
+                ],
+            ),
+        ),
+        (
+            Book,
+            NodeSchema(
+                name="Book",
+                namespace="Library",
+                display_labels=["name__value"],
+                state=SchemaState.PRESENT,
+                attributes=[
+                    AttributeSchema(name="title", kind=AttributeKind.TEXT, optional=False),
+                    AttributeSchema(name="isbn", kind=AttributeKind.TEXT, optional=False, unique=True),
+                    AttributeSchema(name="created_at", kind=AttributeKind.TEXT, optional=False),
+                ],
+                relationships=[
+                    RelationshipSchema(
+                        name="author",
+                        peer="LibraryAuthor",
+                        cardinality="one",
+                        optional=False,
+                        relationships=[
+                            RelationshipSchema(name="books", peer="LibraryBook", cardinality="many", optional=False),
+                        ],
+                    ),
+                ],
+            ),
+        ),
+        (
+            LibraryAuthor,
+            NodeSchema(
+                name="Author",
+                namespace="Library",
+                inherit_from=["LibraryAbstractPerson"],
+                state=SchemaState.PRESENT,
+                relationships=[
+                    RelationshipSchema(name="books", peer="LibraryBook", cardinality="many", optional=False),
+                ],
+            ),
+        ),
+        (
+            LibraryReader,
+            NodeSchema(
+                name="Reader",
+                namespace="Library",
+                inherit_from=["LibraryAbstractPerson"],
+                state=SchemaState.PRESENT,
+                relationships=[
+                    RelationshipSchema(name="favorite_books", peer="LibraryBook", cardinality="many", optional=False),
+                    RelationshipSchema(
+                        name="favorite_authors", peer="LibraryAuthor", cardinality="many", optional=False
+                    ),
+                ],
+            ),
+        ),
+        (
+            AbstractPerson,
+            GenericSchema(
+                name="AbstractPerson",
+                namespace="Library",
+                state=SchemaState.PRESENT,
+                attributes=[
+                    AttributeSchema(
+                        name="firstname",
+                        kind=AttributeKind.TEXT,
+                        optional=False,
+                        description="The first name of the person",
+                        regex=r"^[a-zA-Z]+$",
+                    ),
+                    AttributeSchema(name="lastname", kind=AttributeKind.TEXT, optional=False),
+                ],
+            ),
+        ),
+        (
+            AcmeTag,
+            NodeSchema(
+                name="Tag",
+                namespace="Acme",
+                state=SchemaState.PRESENT,
+                attributes=[
+                    AttributeSchema(
+                        name="name",
+                        kind=AttributeKind.TEXT,
+                        default_value="test_tag",
+                        optional=True,
+                        description="The name of the tag",
+                    ),
+                    AttributeSchema(name="description", kind=AttributeKind.TEXTAREA, optional=True),
+                    AttributeSchema(
+                        name="label",
+                        kind=AttributeKind.TEXT,
+                        optional=False,
+                        unique=True,
+                        description="The label of the tag",
+                    ),
+                ],
+            ),
+        ),
+    ],
+)
+def test_model_to_node(model: BaseModel, expected: NodeSchema):
+    node = model_to_node(model)
+    assert node == expected
+
+
 def test_related_models():
-    schemas = from_pydantic(models=[Person, Car, Tag])
+    schemas = from_pydantic(models=[AcmePerson, AcmeCar, AcmeTag])
     assert len(schemas.nodes) == 3
+
+
+def test_library_models():
+    schemas = from_pydantic(models=[Book, AbstractPerson, LibraryAuthor, LibraryReader])
+    assert len(schemas.nodes) == 3
+    assert len(schemas.generics) == 1

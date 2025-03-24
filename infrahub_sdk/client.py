@@ -50,7 +50,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
-from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
+from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI, SchemaModel
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from .context import RequestContext
 
 
+SchemaModelType = TypeVar("SchemaModelType", bound=SchemaModel)
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
 SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
 
@@ -420,6 +421,63 @@ class InfrahubClient(BaseClient):
     @overload
     async def get(
         self,
+        kind: type[SchemaModelType],
+        raise_when_missing: Literal[False],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType | None: ...
+
+    @overload
+    async def get(
+        self,
+        kind: type[SchemaModelType],
+        raise_when_missing: Literal[True],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType: ...
+
+    @overload
+    async def get(
+        self,
+        kind: type[SchemaModelType],
+        raise_when_missing: bool = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType: ...
+
+    @overload
+    async def get(
+        self,
         kind: str,
         raise_when_missing: Literal[False],
         at: Timestamp | None = ...,
@@ -476,7 +534,7 @@ class InfrahubClient(BaseClient):
 
     async def get(
         self,
-        kind: str | type[SchemaType],
+        kind: type[SchemaType | SchemaModelType] | str,
         raise_when_missing: bool = True,
         at: Timestamp | None = None,
         branch: str | None = None,
@@ -490,7 +548,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         **kwargs: Any,
-    ) -> InfrahubNode | SchemaType | None:
+    ) -> InfrahubNode | SchemaType | SchemaModelType | None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -573,7 +631,7 @@ class InfrahubClient(BaseClient):
 
     async def count(
         self,
-        kind: str | type[SchemaType],
+        kind: type[SchemaType | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -626,6 +684,25 @@ class InfrahubClient(BaseClient):
     @overload
     async def all(
         self,
+        kind: type[SchemaModelType],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        populate_store: bool = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        parallel: bool = ...,
+        order: Order | None = ...,
+    ) -> list[SchemaModelType]: ...
+
+    @overload
+    async def all(
+        self,
         kind: str,
         at: Timestamp | None = ...,
         branch: str | None = ...,
@@ -644,7 +721,7 @@ class InfrahubClient(BaseClient):
 
     async def all(
         self,
-        kind: str | type[SchemaType],
+        kind: type[SchemaType | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -658,7 +735,7 @@ class InfrahubClient(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
-    ) -> list[InfrahubNode] | list[SchemaType]:
+    ) -> list[InfrahubNode] | list[SchemaType] | list[SchemaModelType]:
         """Retrieve all nodes of a given kind
 
         Args:
@@ -720,6 +797,27 @@ class InfrahubClient(BaseClient):
     @overload
     async def filters(
         self,
+        kind: type[SchemaModelType],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        populate_store: bool = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        partial_match: bool = ...,
+        property: bool = ...,
+        parallel: bool = ...,
+        order: Order | None = ...,
+        **kwargs: Any,
+    ) -> list[SchemaModelType]: ...
+
+    @overload
+    async def filters(
+        self,
         kind: str,
         at: Timestamp | None = ...,
         branch: str | None = ...,
@@ -740,7 +838,7 @@ class InfrahubClient(BaseClient):
 
     async def filters(
         self,
-        kind: str | type[SchemaType],
+        kind: type[SchemaType | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -756,7 +854,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         **kwargs: Any,
-    ) -> list[InfrahubNode] | list[SchemaType]:
+    ) -> list[InfrahubNode] | list[SchemaType] | list[SchemaModelType]:
         """Retrieve nodes of a given kind based on provided filters.
 
         Args:
@@ -780,6 +878,7 @@ class InfrahubClient(BaseClient):
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
         """
         branch = branch or self.default_branch
+
         schema = await self.schema.get(kind=kind, branch=branch)
         if at:
             at = Timestamp(at)
@@ -867,7 +966,11 @@ class InfrahubClient(BaseClient):
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(key=node.id, node=node)
+
+        if isinstance(kind, type) and issubclass(kind, SchemaModel):
+            return [kind.from_node(node) for node in nodes]  # type: ignore[return-value]
+
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -1702,7 +1805,7 @@ class InfrahubClientSync(BaseClient):
 
     def count(
         self,
-        kind: str | type[SchemaType],
+        kind: type[SchemaType | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -1755,6 +1858,25 @@ class InfrahubClientSync(BaseClient):
     @overload
     def all(
         self,
+        kind: type[SchemaModelType],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        populate_store: bool = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        parallel: bool = ...,
+        order: Order | None = ...,
+    ) -> list[SchemaModelType]: ...
+
+    @overload
+    def all(
+        self,
         kind: str,
         at: Timestamp | None = ...,
         branch: str | None = ...,
@@ -1773,7 +1895,7 @@ class InfrahubClientSync(BaseClient):
 
     def all(
         self,
-        kind: str | type[SchemaTypeSync],
+        kind: type[SchemaTypeSync | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -1787,7 +1909,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
-    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
+    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync] | list[SchemaModelType]:
         """Retrieve all nodes of a given kind
 
         Args:
@@ -1884,6 +2006,27 @@ class InfrahubClientSync(BaseClient):
     @overload
     def filters(
         self,
+        kind: type[SchemaModelType],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        populate_store: bool = ...,
+        offset: int | None = ...,
+        limit: int | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        partial_match: bool = ...,
+        property: bool = ...,
+        parallel: bool = ...,
+        order: Order | None = ...,
+        **kwargs: Any,
+    ) -> list[SchemaModelType]: ...
+
+    @overload
+    def filters(
+        self,
         kind: str,
         at: Timestamp | None = ...,
         branch: str | None = ...,
@@ -1904,7 +2047,7 @@ class InfrahubClientSync(BaseClient):
 
     def filters(
         self,
-        kind: str | type[SchemaTypeSync],
+        kind: type[SchemaTypeSync | SchemaModelType] | str,
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
@@ -1920,7 +2063,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         **kwargs: Any,
-    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
+    ) -> list[InfrahubNodeSync] | list[SchemaTypeSync] | list[SchemaModelType]:
         """Retrieve nodes of a given kind based on provided filters.
 
         Args:
@@ -2033,7 +2176,11 @@ class InfrahubClientSync(BaseClient):
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(key=node.id, node=node)
+
+        if isinstance(kind, type) and issubclass(kind, SchemaModel):
+            return [kind.from_node(node) for node in nodes]  # type: ignore[return-value]
+
         return nodes
 
     @overload
@@ -2096,6 +2243,63 @@ class InfrahubClientSync(BaseClient):
     @overload
     def get(
         self,
+        kind: type[SchemaModelType],
+        raise_when_missing: Literal[False],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType | None: ...
+
+    @overload
+    def get(
+        self,
+        kind: type[SchemaModelType],
+        raise_when_missing: Literal[True],
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType: ...
+
+    @overload
+    def get(
+        self,
+        kind: type[SchemaModelType],
+        raise_when_missing: bool = ...,
+        at: Timestamp | None = ...,
+        branch: str | None = ...,
+        timeout: int | None = ...,
+        id: str | None = ...,
+        hfid: list[str] | None = ...,
+        include: list[str] | None = ...,
+        exclude: list[str] | None = ...,
+        populate_store: bool = ...,
+        fragment: bool = ...,
+        prefetch_relationships: bool = ...,
+        property: bool = ...,
+        **kwargs: Any,
+    ) -> SchemaModelType: ...
+
+    @overload
+    def get(
+        self,
         kind: str,
         raise_when_missing: Literal[False],
         at: Timestamp | None = ...,
@@ -2152,7 +2356,7 @@ class InfrahubClientSync(BaseClient):
 
     def get(
         self,
-        kind: str | type[SchemaTypeSync],
+        kind: type[SchemaTypeSync | SchemaModelType] | str,
         raise_when_missing: bool = True,
         at: Timestamp | None = None,
         branch: str | None = None,
@@ -2166,7 +2370,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         **kwargs: Any,
-    ) -> InfrahubNodeSync | SchemaTypeSync | None:
+    ) -> InfrahubNodeSync | SchemaTypeSync | SchemaModelType | None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
