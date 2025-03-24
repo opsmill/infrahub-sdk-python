@@ -1,23 +1,35 @@
 from __future__ import annotations
 
-from asyncio import run as aiorun
-
-from infrahub_sdk.async_typer import AsyncTyper
-
 from typing import Annotated
 
-from pydantic import BaseModel, Field, ConfigDict
-from infrahub_sdk import InfrahubClient
+from pydantic import ConfigDict, Field
 from rich import print as rprint
-from infrahub_sdk.schema import InfrahubAttributeParam as AttrParam,  InfrahubRelationshipParam as RelParam, AttributeKind, from_pydantic, NodeSchema, NodeModel, GenericSchema, GenericModel, RelationshipKind
 
+from infrahub_sdk import InfrahubClient
+from infrahub_sdk.async_typer import AsyncTyper
+from infrahub_sdk.schema import (
+    GenericModel,
+    GenericSchema,
+    NodeModel,
+    NodeSchema,
+    RelationshipKind,
+    from_pydantic,
+)
+from infrahub_sdk.schema import (
+    InfrahubAttributeParam as AttrParam,
+)
+from infrahub_sdk.schema import (
+    InfrahubRelationshipParam as RelParam,
+)
 
 app = AsyncTyper()
 
 
 class Site(NodeModel):
     model_config = ConfigDict(
-        node_schema=NodeSchema(name="Site", namespace="Infra", human_friendly_id=["name__value"],  display_labels=["name__value"])
+        node_schema=NodeSchema(
+            name="Site", namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"]
+        )
     )
 
     name: Annotated[str, AttrParam(unique=True)] = Field(description="The name of the site")
@@ -25,7 +37,9 @@ class Site(NodeModel):
 
 class Vlan(NodeModel):
     model_config = ConfigDict(
-        node_schema=NodeSchema(name="Vlan", namespace="Infra", human_friendly_id=["vlan_id__value"],  display_labels=["vlan_id__value"])
+        node_schema=NodeSchema(
+            name="Vlan", namespace="Infra", human_friendly_id=["vlan_id__value"], display_labels=["vlan_id__value"]
+        )
     )
 
     name: str
@@ -35,39 +49,45 @@ class Vlan(NodeModel):
 
 class Device(NodeModel):
     model_config = ConfigDict(
-        node_schema=NodeSchema(name="Device", namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"])
+        node_schema=NodeSchema(
+            name="Device", namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"]
+        )
     )
 
     name: Annotated[str, AttrParam(unique=True)] = Field(description="The name of the car")
     site: Annotated[Site, RelParam(kind=RelationshipKind.ATTRIBUTE, identifier="device__site")]
-    interfaces: Annotated[list[Interface], RelParam(kind=RelationshipKind.COMPONENT, identifier="device__interfaces")] = Field(default_factory=list)
+    interfaces: Annotated[
+        list[Interface], RelParam(kind=RelationshipKind.COMPONENT, identifier="device__interfaces")
+    ] = Field(default_factory=list)
 
 
 class Interface(GenericModel):
     model_config = ConfigDict(
-        generic_schema=GenericSchema(name="Interface", namespace="Infra", human_friendly_id=["device__name__value", "name__value"], display_labels=["name__value"])
+        generic_schema=GenericSchema(
+            name="Interface",
+            namespace="Infra",
+            human_friendly_id=["device__name__value", "name__value"],
+            display_labels=["name__value"],
+        )
     )
 
     device: Annotated[Device, RelParam(kind=RelationshipKind.PARENT, identifier="device__interfaces")]
     name: str
     description: str | None = None
 
+
 class L2Interface(Interface):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(name="L2Interface", namespace="Infra")
-    )
-    
+    model_config = ConfigDict(node_schema=NodeSchema(name="L2Interface", namespace="Infra"))
+
     vlans: list[Vlan] = Field(default_factory=list)
 
+
 class LoopbackInterface(Interface):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(name="LoopbackInterface", namespace="Infra")
-    )
-    
+    model_config = ConfigDict(node_schema=NodeSchema(name="LoopbackInterface", namespace="Infra"))
 
 
 @app.command()
-async def load_schema():
+async def load_schema() -> None:
     client = InfrahubClient()
     schema = from_pydantic(models=[Site, Device, Interface, L2Interface, LoopbackInterface, Vlan])
     rprint(schema.to_schema_dict())
@@ -76,7 +96,7 @@ async def load_schema():
 
 
 @app.command()
-async def load_data():
+async def load_data() -> None:
     client = InfrahubClient()
 
     atl = await client.create("InfraSite", name="ATL")
@@ -100,14 +120,15 @@ async def load_data():
 
 
 @app.command()
-async def query_data():
+async def query_data() -> None:
     client = InfrahubClient()
     sites = await client.all(kind=Site)
+    rprint(sites)
 
-    breakpoint()
     devices = await client.all(kind=Device)
     for device in devices:
         rprint(device)
+
 
 if __name__ == "__main__":
     app()

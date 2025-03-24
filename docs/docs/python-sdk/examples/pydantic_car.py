@@ -1,20 +1,32 @@
 from __future__ import annotations
 
 from asyncio import run as aiorun
-
 from typing import Annotated
 
-from pydantic import BaseModel, Field, ConfigDict
-from infrahub_sdk import InfrahubClient
+from pydantic import ConfigDict, Field
 from rich import print as rprint
-from infrahub_sdk.schema import InfrahubAttributeParam as AttrParam,  InfrahubRelationshipParam as RelParam, AttributeKind, from_pydantic, NodeSchema, NodeModel, GenericModel
+
+from infrahub_sdk import InfrahubClient
+from infrahub_sdk.schema import (
+    AttributeKind,
+    GenericModel,
+    NodeModel,
+    NodeSchema,
+    from_pydantic,
+)
+from infrahub_sdk.schema import (
+    InfrahubAttributeParam as AttrParam,
+)
+from infrahub_sdk.schema import (
+    InfrahubRelationshipParam as RelParam,
+)
 
 
 class Tag(NodeModel):
     model_config = ConfigDict(
         node_schema=NodeSchema(name="Tag", namespace="Test", human_readable_fields=["name__value"])
     )
-    
+
     name: Annotated[str, AttrParam(unique=True), Field(description="The name of the tag")]
     label: str | None = Field(description="The label of the tag")
     description: Annotated[str | None, AttrParam(kind=AttributeKind.TEXTAREA)] = None
@@ -30,11 +42,12 @@ class TestCar(NodeModel):
 class TestPerson(GenericModel):
     name: str
 
+
 class TestCarOwner(NodeModel, TestPerson):
     cars: Annotated[list[TestCar] | None, RelParam(identifier="car__person")] = None
 
 
-async def main():
+async def main() -> None:
     client = InfrahubClient()
     schema = from_pydantic(models=[TestPerson, TestCar, Tag, TestPerson, TestCarOwner])
     rprint(schema.to_schema_dict())
