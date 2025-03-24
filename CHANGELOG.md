@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.9.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.1) - 2025-03-21
+
+### Fixed
+
+- Fixed an issue where the process_nodes method in the generators used the old format of the schema hash, so node population didn't work
+
 ## [1.9.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.0) - 2025-03-21
 
 ### Added
