@@ -46,29 +46,29 @@ class NodeStoreBase:
 
     def _get(self, key: str, kind: str | type[SchemaType] | None = None, raise_when_missing: bool = True):  # type: ignore[no-untyped-def]
         kind_name = get_schema_name(schema=kind)
-        if kind_name and kind_name not in self._store and key not in self._store[kind_name]:  # type: ignore[attr-defined]
+        if kind_name:
+            if kind_name in self._store and key in self._store[kind_name]:  # type: ignore[attr-defined]
+                return self._store[kind_name][key]  # type: ignore[attr-defined]
+            else:
+                if not raise_when_missing:
+                    return None
+                raise NodeNotFoundError(
+                    node_type=kind_name,
+                    identifier={"key": [key]},
+                    message="Unable to find the node in the Store for the specified kind",
+                )
+        else:
+            # If no kind is provided, search all kinds.
+            for item in self._store.values():  # type: ignore[attr-defined]
+                if key in item:
+                    return item[key]
             if not raise_when_missing:
                 return None
             raise NodeNotFoundError(
-                node_type=kind_name,
+                node_type="n/a",
                 identifier={"key": [key]},
-                message="Unable to find the node in the Store",
+                message=f"Unable to find the node {key!r} in the store",
             )
-
-        if kind_name and kind_name in self._store and key in self._store[kind_name]:  # type: ignore[attr-defined]
-            return self._store[kind_name][key]  # type: ignore[attr-defined]
-
-        for item in self._store.values():  # type: ignore[attr-defined]
-            if key in item:
-                return item[key]
-
-        if not raise_when_missing:
-            return None
-        raise NodeNotFoundError(
-            node_type="n/a",
-            identifier={"key": [key]},
-            message=f"Unable to find the node {key!r} in the store",
-        )
 
     def _get_by_hfid(self, key: str, raise_when_missing: bool = True):  # type: ignore[no-untyped-def]
         try:
