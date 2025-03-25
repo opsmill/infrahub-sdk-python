@@ -54,7 +54,7 @@ class NodeStoreBase:
             raise NodeNotFoundError(
                 node_type=kind_name,
                 identifier={"key": [key]},
-                message="Unable to find the node in the Store for the specified kind",
+                message=f"Unable to find the node {key!r} in the Store for the specified kind",
             )
         for item in self._store.values():  # type: ignore[attr-defined]
             if key in item:
@@ -64,7 +64,7 @@ class NodeStoreBase:
         raise NodeNotFoundError(
             node_type="n/a",
             identifier={"key": [key]},
-            message=f"Unable to find the node {key!r} in the store",
+            message=f"Unable to find the node {key!r} in the Store",
         )
 
     def _get_by_hfid(self, key: str, raise_when_missing: bool = True):  # type: ignore[no-untyped-def]
