@@ -1,0 +1,153 @@
+---
+title: Python SDK Templating
+---
+Filters can be used when defining [computed attributes](https://docs.infrahub.app/guides/computed-attributes) or [Jinja2 Transforms](https://docs.infrahub.app/guides/jinja2-transform) within Infrahub.
+
+## Builtin Jinja2 filters
+
+The following filters are those that are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub. The trusted column indicates if the filter is allowed for use with Infrahub's computed attributes when the server is configured in strict mode.
+
+<!-- vale off -->
+| Name | Trusted |
+|----------|----------|
+| abs | ✅ |
+| attr | ❌ |
+| batch | ❌ |
+| capitalize | ✅ |
+| center | ✅ |
+| count | ✅ |
+| d | ✅ |
+| default | ✅ |
+| dictsort | ❌ |
+| e | ✅ |
+| escape | ✅ |
+| filesizeformat | ✅ |
+| first | ✅ |
+| float | ✅ |
+| forceescape | ✅ |
+| format | ✅ |
+| groupby | ❌ |
+| indent | ✅ |
+| int | ✅ |
+| items | ❌ |
+| join | ✅ |
+| last | ✅ |
+| length | ✅ |
+| list | ✅ |
+| lower | ✅ |
+| map | ❌ |
+| max | ✅ |
+| min | ✅ |
+| pprint | ❌ |
+| random | ❌ |
+| reject | ❌ |
+| rejectattr | ❌ |
+| replace | ✅ |
+| reverse | ✅ |
+| round | ✅ |
+| safe | ❌ |
+| select | ❌ |
+| selectattr | ❌ |
+| slice | ✅ |
+| sort | ❌ |
+| string | ✅ |
+| striptags | ✅ |
+| sum | ✅ |
+| title | ✅ |
+| tojson | ❌ |
+| trim | ✅ |
+| truncate | ✅ |
+| unique | ❌ |
+| upper | ✅ |
+| urlencode | ✅ |
+| urlize | ❌ |
+| wordcount | ✅ |
+| wordwrap | ✅ |
+| xmlattr | ❌ |
+<!-- vale on -->
+
+## Netutils filters
+
+The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netutils</a> are included within Infrahub.
+<!-- vale off -->
+| Name | Trusted |
+|----------|----------|
+| abbreviated_interface_name | ✅ |
+| abbreviated_interface_name_list | ✅ |
+| asn_to_int | ✅ |
+| bits_to_name | ✅ |
+| bytes_to_name | ✅ |
+| canonical_interface_name | ✅ |
+| canonical_interface_name_list | ✅ |
+| cidr_to_netmask | ✅ |
+| cidr_to_netmaskv6 | ✅ |
+| clean_config | ✅ |
+| compare_version_loose | ✅ |
+| compare_version_strict | ✅ |
+| config_compliance | ✅ |
+| config_section_not_parsed | ✅ |
+| delimiter_change | ✅ |
+| diff_network_config | ✅ |
+| feature_compliance | ✅ |
+| find_unordered_cfg_lines | ✅ |
+| fqdn_to_ip | ❌ |
+| get_all_host | ❌ |
+| get_broadcast_address | ✅ |
+| get_first_usable | ✅ |
+| get_ips_sorted | ✅ |
+| get_nist_urls | ✅ |
+| get_nist_vendor_platform_urls | ✅ |
+| get_oui | ✅ |
+| get_peer_ip | ✅ |
+| get_range_ips | ✅ |
+| get_upgrade_path | ✅ |
+| get_usable_range | ✅ |
+| hash_data | ✅ |
+| int_to_asdot | ✅ |
+| interface_range_compress | ✅ |
+| interface_range_expansion | ✅ |
+| ip_addition | ✅ |
+| ip_subtract | ✅ |
+| ip_to_bin | ✅ |
+| ip_to_hex | ✅ |
+| ipaddress_address | ✅ |
+| ipaddress_interface | ✅ |
+| ipaddress_network | ✅ |
+| is_classful | ✅ |
+| is_fqdn_resolvable | ❌ |
+| is_ip | ✅ |
+| is_ip_range | ✅ |
+| is_ip_within | ✅ |
+| is_netmask | ✅ |
+| is_network | ✅ |
+| is_reversible_wildcardmask | ✅ |
+| is_valid_mac | ✅ |
+| longest_prefix_match | ✅ |
+| mac_normalize | ✅ |
+| mac_to_format | ✅ |
+| mac_to_int | ✅ |
+| mac_type | ✅ |
+| name_to_bits | ✅ |
+| name_to_bytes | ✅ |
+| name_to_name | ✅ |
+| netmask_to_cidr | ✅ |
+| netmask_to_wildcardmask | ✅ |
+| normalise_delimiter_caret_c | ✅ |
+| paloalto_panos_brace_to_set | ✅ |
+| paloalto_panos_clean_newlines | ✅ |
+| regex_findall | ❌ |
+| regex_match | ❌ |
+| regex_search | ❌ |
+| regex_split | ❌ |
+| regex_sub | ❌ |
+| sanitize_config | ✅ |
+| section_config | ✅ |
+| sort_interface_list | ✅ |
+| split_interface | ✅ |
+| uptime_seconds_to_string | ✅ |
+| uptime_string_to_seconds | ✅ |
+| version_metadata | ✅ |
+| vlanconfig_to_list | ✅ |
+| vlanlist_to_config | ✅ |
+| wildcardmask_to_netmask | ✅ |
+<!-- vale on -->

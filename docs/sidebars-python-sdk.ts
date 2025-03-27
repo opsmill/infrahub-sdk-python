@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
           label: 'Reference',
           items: [
             'reference/config',
+            'reference/templating',
           ],
         },
       ],

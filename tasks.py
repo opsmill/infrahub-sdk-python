@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ def _generate(context: Context) -> None:
     """Generate documentation output from code."""
     _generate_infrahubctl_documentation(context=context)
     _generate_infrahub_sdk_configuration_documentation()
+    _generate_infrahub_sdk_template_documentation()
 
 
 def _generate_infrahubctl_documentation(context: Context) -> None:
@@ -85,6 +87,24 @@ def _generate_infrahub_sdk_configuration_documentation() -> None:
     template = environment.from_string(template_text)
     rendered_file = template.render(properties=properties)
 
+    output_file.write_text(rendered_file, encoding="utf-8")
+    print(f"Docs saved to: {output_file}")
+
+
+def _generate_infrahub_sdk_template_documentation() -> None:
+    """Generate documentation for the Infrahub SDK template reference."""
+    from infrahub_sdk.template import Jinja2Template
+    from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
+
+    output_file = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"
+    jinja2_template = Jinja2Template(
+        template=Path("sdk_template_reference.j2"),
+        template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+    )
+
+    rendered_file = asyncio.run(
+        jinja2_template.render(variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS})
+    )
     output_file.write_text(rendered_file, encoding="utf-8")
     print(f"Docs saved to: {output_file}")
 
@@ -170,7 +190,7 @@ def docs_build(context: Context) -> None:
     with context.cd(DOCUMENTATION_DIRECTORY):
         output = context.run(exec_cmd)
 
-    if output.exited != 0:
+    if output and output.exited != 0:
         sys.exit(-1)
 
 
@@ -184,3 +204,4 @@ def generate_infrahubctl(context: Context) -> None:
 def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
+    _generate_infrahub_sdk_template_documentation()
