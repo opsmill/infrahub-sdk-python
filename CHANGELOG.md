@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.9.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.2) - 2025-03-26
+
+### Changed
+
+- Remove hfid in upsert payload, to improve node upsert performances
+
 ## [1.9.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.1) - 2025-03-21
 
 ### Fixed
