@@ -35,7 +35,7 @@ class MyAllInOneModel(BaseModel):
     is_active: bool
     opt_age: int | None = None
     default_name: str = "some_default"
-    old_opt_age: Optional[int] = None  # noqa: UP007
+    old_opt_age: Optional[int] = None
 
 
 class AcmeTag(BaseModel):
