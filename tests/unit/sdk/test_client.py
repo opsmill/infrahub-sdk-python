@@ -135,16 +135,16 @@ async def test_method_get_user_permissions(clients, mock_query_infrahub_user, cl
 async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False, limit=3)
-        assert not clients.standard.store._store["CoreRepository"]
+        assert clients.standard.store.count() == 0
 
         repos = await clients.standard.all(kind="CoreRepository", limit=3)
-        assert len(clients.standard.store._store["CoreRepository"]) == 3
+        assert clients.standard.store.count() == 3
     else:
         repos = clients.sync.all(kind="CoreRepository", populate_store=False, limit=3)
-        assert not clients.sync.store._store["CoreRepository"]
+        assert clients.sync.store.count() == 0
 
         repos = clients.sync.all(kind="CoreRepository", limit=3)
-        assert len(clients.sync.store._store["CoreRepository"]) == 3
+        assert clients.sync.store.count() == 3
     assert len(repos) == 3
 
 
@@ -154,16 +154,16 @@ async def test_method_all_multiple_pages(
 ):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
-        assert not clients.standard.store._store["CoreRepository"]
+        assert clients.standard.store.count() == 0
 
         repos = await clients.standard.all(kind="CoreRepository")
-        assert len(clients.standard.store._store["CoreRepository"]) == 5
+        assert clients.standard.store.count() == 5
     else:
         repos = clients.sync.all(kind="CoreRepository", populate_store=False)
-        assert not clients.sync.store._store["CoreRepository"]
+        assert clients.sync.store.count() == 0
 
         repos = clients.sync.all(kind="CoreRepository")
-        assert len(clients.sync.store._store["CoreRepository"]) == 5
+        assert clients.sync.store.count() == 5
 
     assert len(repos) == 5
 
@@ -174,16 +174,16 @@ async def test_method_all_batching(
 ):
     if client_type == "standard":
         locations = await clients.standard.all(kind="BuiltinLocation", populate_store=False, parallel=use_parallel)
-        assert not clients.standard.store._store["BuiltinLocation"]
+        assert clients.standard.store.count() == 0
 
         locations = await clients.standard.all(kind="BuiltinLocation", parallel=use_parallel)
-        assert len(clients.standard.store._store["BuiltinLocation"]) == 30
+        assert clients.standard.store.count() == 30
     else:
         locations = clients.sync.all(kind="BuiltinLocation", populate_store=False, parallel=use_parallel)
-        assert not clients.sync.store._store["BuiltinLocation"]
+        assert clients.sync.store.count() == 0
 
         locations = clients.sync.all(kind="BuiltinLocation", parallel=use_parallel)
-        assert len(clients.sync.store._store["BuiltinLocation"]) == 30
+        assert clients.sync.store.count() == 30
 
     assert len(locations) == 30
 
@@ -192,16 +192,16 @@ async def test_method_all_batching(
 async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type):
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
-        assert not clients.standard.store._store["CoreRepository"]
+        assert clients.standard.store.count() == 0
 
         repos = await clients.standard.all(kind="CoreRepository")
-        assert len(clients.standard.store._store["CoreRepository"]) == 2
+        assert clients.standard.store.count() == 2
     else:
         repos = clients.sync.all(kind="CoreRepository", populate_store=False)
-        assert not clients.sync.store._store["CoreRepository"]
+        assert clients.sync.store.count() == 0
 
         repos = clients.sync.all(kind="CoreRepository")
-        assert len(clients.sync.store._store["CoreRepository"]) == 2
+        assert clients.sync.store.count() == 2
 
     assert len(repos) == 2
 
@@ -443,7 +443,7 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
             populate_store=False,
         )
         assert len(repos) == 2
-        assert not clients.standard.store._store["CoreRepository"]
+        assert clients.standard.store.count() == 0
 
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -452,7 +452,7 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
         )
-        assert len(clients.standard.store._store["CoreRepository"]) == 2
+        assert clients.standard.store.count() == 2
         assert len(repos) == 2
     else:
         repos = clients.sync.filters(
@@ -464,7 +464,7 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
             populate_store=False,
         )
         assert len(repos) == 2
-        assert not clients.sync.store._store["CoreRepository"]
+        assert clients.sync.store.count() == 0
 
         repos = clients.sync.filters(
             kind="CoreRepository",
@@ -473,7 +473,7 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
         )
-        assert len(clients.sync.store._store["CoreRepository"]) == 2
+        assert clients.sync.store.count() == 2
         assert len(repos) == 2
 
 

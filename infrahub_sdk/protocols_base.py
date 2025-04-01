@@ -144,7 +144,8 @@ class AnyAttributeOptional(Attribute):
 @runtime_checkable
 class CoreNodeBase(Protocol):
     _schema: MainSchemaTypes
-    id: str
+    _internal_id: str
+    id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None
 
     @property
@@ -153,9 +154,15 @@ class CoreNodeBase(Protocol):
     @property
     def hfid_str(self) -> str | None: ...
 
+    def get_human_friendly_id(self) -> list[str] | None: ...
+
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
     def get_kind(self) -> str: ...
+
+    def get_all_kinds(self) -> list[str]: ...
+
+    def get_branch(self) -> str: ...
 
     def is_ip_prefix(self) -> bool: ...
 

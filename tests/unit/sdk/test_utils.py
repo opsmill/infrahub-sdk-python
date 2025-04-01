@@ -18,12 +18,19 @@ from infrahub_sdk.utils import (
     dict_hash,
     duplicates,
     extract_fields,
+    generate_short_id,
     get_flat_value,
     is_valid_url,
     is_valid_uuid,
     str_to_bool,
     write_to_file,
 )
+
+
+def test_generate_short_id():
+    assert len(generate_short_id()) == 22
+    assert isinstance(generate_short_id(), str)
+    assert generate_short_id() != generate_short_id()
 
 
 def test_is_valid_uuid():
