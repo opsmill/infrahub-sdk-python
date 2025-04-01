@@ -281,7 +281,7 @@ class InfrahubClient(BaseClient):
         self.schema = InfrahubSchema(self)
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
-        self.store = NodeStore()
+        self.store = NodeStore(default_branch=self.default_branch)
         self.task = InfrahubTaskManager(self)
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
@@ -840,11 +840,11 @@ class InfrahubClient(BaseClient):
         if populate_store:
             for node in nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
         return nodes
 
     def clone(self) -> InfrahubClient:
@@ -1529,7 +1529,7 @@ class InfrahubClientSync(BaseClient):
         self.schema = InfrahubSchemaSync(self)
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
-        self.store = NodeStoreSync()
+        self.store = NodeStoreSync(default_branch=self.default_branch)
         self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
@@ -1997,11 +1997,11 @@ class InfrahubClientSync(BaseClient):
         if populate_store:
             for node in nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
         return nodes
 
     @overload

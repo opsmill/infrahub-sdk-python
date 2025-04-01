@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import uuid
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +25,11 @@ from .timestamp import Timestamp
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo
     from whenever import TimeDelta
+
+
+def generate_short_id() -> str:
+    """Generate a short unique ID"""
+    return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii").lower()
 
 
 def base36encode(number: int) -> str:
