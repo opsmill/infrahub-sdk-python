@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-import jinja2
 import typer
 import ujson
 from rich.console import Console
@@ -18,7 +17,6 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.pretty import Pretty
 from rich.table import Table
-from rich.traceback import Traceback
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
@@ -31,7 +29,7 @@ from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.generator import run as run_generator
 from ..ctl.menu import app as menu_app
 from ..ctl.object import app as object_app
-from ..ctl.render import list_jinja2_transforms
+from ..ctl.render import list_jinja2_transforms, print_template_errors
 from ..ctl.repository import app as repository_app
 from ..ctl.repository import get_repository_config
 from ..ctl.schema import app as schema_app
@@ -44,8 +42,9 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
-from ..jinja2 import identify_faulty_jinja_code
 from ..schema import MainSchemaTypesAll, SchemaRoot
+from ..template import Jinja2Template
+from ..template.exceptions import JinjaTemplateError
 from ..utils import get_branch, write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
@@ -168,43 +167,28 @@ async def run(
         raise typer.Abort(f"Unable to Load the method {method} in the Python script at {script}")
 
     client = initialize_client(
-        branch=branch, timeout=timeout, max_concurrent_execution=concurrent, identifier=module_name
+        branch=branch,
+        timeout=timeout,
+        max_concurrent_execution=concurrent,
+        identifier=module_name,
     )
     func = getattr(module, method)
     await func(client=client, log=log, branch=branch, **variables_dict)
 
 
-def render_jinja2_template(template_path: Path, variables: dict[str, str], data: dict[str, Any]) -> str:
-    if not template_path.is_file():
-        console.print(f"[red]Unable to locate the template at {template_path}")
-        raise typer.Exit(1)
-
-    templateLoader = jinja2.FileSystemLoader(searchpath=".")
-    templateEnv = jinja2.Environment(loader=templateLoader, trim_blocks=True, lstrip_blocks=True)
-    template = templateEnv.get_template(str(template_path))
-
+async def render_jinja2_template(template_path: Path, variables: dict[str, Any], data: dict[str, Any]) -> str:
+    variables["data"] = data
+    jinja_template = Jinja2Template(template=Path(template_path), template_directory=Path())
     try:
-        rendered_tpl = template.render(**variables, data=data)  # type: ignore[arg-type]
-    except jinja2.TemplateSyntaxError as exc:
-        console.print("[red]Syntax Error detected on the template")
-        console.print(f"[yellow]  {exc}")
-        raise typer.Exit(1) from exc
-
-    except jinja2.UndefinedError as exc:
-        console.print("[red]An error occurred while rendering the jinja template")
-        traceback = Traceback(show_locals=False)
-        errors = identify_faulty_jinja_code(traceback=traceback)
-        for frame, syntax in errors:
-            console.print(f"[yellow]{frame.filename} on line {frame.lineno}\n")
-            console.print(syntax)
-        console.print("")
-        console.print(traceback.trace.stacks[0].exc_value)
+        rendered_tpl = await jinja_template.render(variables=variables)
+    except JinjaTemplateError as exc:
+        print_template_errors(error=exc, console=console)
         raise typer.Exit(1) from exc
 
     return rendered_tpl
 
 
-def _run_transform(
+async def _run_transform(
     query_name: str,
     variables: dict[str, Any],
     transform_func: Callable,
@@ -227,7 +211,11 @@ def _run_transform(
 
     try:
         response = execute_graphql_query(
-            query=query_name, variables_dict=variables, branch=branch, debug=debug, repository_config=repository_config
+            query=query_name,
+            variables_dict=variables,
+            branch=branch,
+            debug=debug,
+            repository_config=repository_config,
         )
 
         # TODO: response is a dict and can't be printed to the console in this way.
@@ -249,7 +237,7 @@ def _run_transform(
         raise typer.Abort()
 
     if asyncio.iscoroutinefunction(transform_func):
-        output = asyncio.run(transform_func(response))
+        output = await transform_func(response)
     else:
         output = transform_func(response)
     return output
@@ -257,7 +245,7 @@ def _run_transform(
 
 @app.command(name="render")
 @catch_exception(console=console)
-def render(
+async def render(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
     variables: Optional[list[str]] = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
@@ -289,7 +277,7 @@ def render(
     transform_func = functools.partial(render_jinja2_template, transform_config.template_path, variables_dict)
 
     # Query GQL and run the transform
-    result = _run_transform(
+    result = await _run_transform(
         query_name=transform_config.query,
         variables=variables_dict,
         transform_func=transform_func,
@@ -410,7 +398,10 @@ def version() -> None:
 
 @app.command(name="info")
 @catch_exception(console=console)
-def info(detail: bool = typer.Option(False, help="Display detailed information."), _: str = CONFIG_PARAM) -> None:  # noqa: PLR0915
+def info(  # noqa: PLR0915
+    detail: bool = typer.Option(False, help="Display detailed information."),
+    _: str = CONFIG_PARAM,
+) -> None:
     """Display the status of the Python SDK."""
 
     info: dict[str, Any] = {
@@ -476,10 +467,14 @@ def info(detail: bool = typer.Option(False, help="Display detailed information."
         infrahub_info = Table(show_header=False, box=None)
         if info["user_info"]:
             infrahub_info.add_row("User:", info["user_info"]["AccountProfile"]["display_label"])
-            infrahub_info.add_row("Description:", info["user_info"]["AccountProfile"]["description"]["value"])
+            infrahub_info.add_row(
+                "Description:",
+                info["user_info"]["AccountProfile"]["description"]["value"],
+            )
             infrahub_info.add_row("Status:", info["user_info"]["AccountProfile"]["status"]["label"])
             infrahub_info.add_row(
-                "Number of Groups:", str(info["user_info"]["AccountProfile"]["member_of_groups"]["count"])
+                "Number of Groups:",
+                str(info["user_info"]["AccountProfile"]["member_of_groups"]["count"]),
             )
 
             if groups := info["groups"]:

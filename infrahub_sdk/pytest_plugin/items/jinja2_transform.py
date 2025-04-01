@@ -1,51 +1,47 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jinja2
 import ujson
 from httpx import HTTPStatusError
-from rich.console import Console
-from rich.traceback import Traceback
 
-from ...jinja2 import identify_faulty_jinja_code
-from ..exceptions import Jinja2TransformError, Jinja2TransformUndefinedError, OutputMatchError
+from ...template import Jinja2Template
+from ...template.exceptions import JinjaTemplateError
+from ..exceptions import OutputMatchError
 from ..models import InfrahubInputOutputTest, InfrahubTestExpectedResult
 from .base import InfrahubItem
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from pytest import ExceptionInfo
 
 
 class InfrahubJinja2Item(InfrahubItem):
+    def _get_jinja2(self) -> Jinja2Template:
+        return Jinja2Template(
+            template=Path(self.resource_config.template_path),  # type: ignore[attr-defined]
+            template_directory=Path(self.session.infrahub_config_path.parent),  # type: ignore[attr-defined]
+        )
+
     def get_jinja2_environment(self) -> jinja2.Environment:
-        loader = jinja2.FileSystemLoader(self.session.infrahub_config_path.parent)  # type: ignore[attr-defined]
-        return jinja2.Environment(loader=loader, trim_blocks=True, lstrip_blocks=True)
+        jinja2_template = self._get_jinja2()
+        return jinja2_template.get_environment()
 
     def get_jinja2_template(self) -> jinja2.Template:
-        return self.get_jinja2_environment().get_template(str(self.resource_config.template_path))  # type: ignore[attr-defined]
+        jinja2_template = self._get_jinja2()
+        return jinja2_template.get_template()
 
     def render_jinja2_template(self, variables: dict[str, Any]) -> str | None:
+        jinja2_template = self._get_jinja2()
+
         try:
-            return self.get_jinja2_template().render(**variables)
-        except jinja2.UndefinedError as exc:
-            traceback = Traceback(show_locals=False)
-            errors = identify_faulty_jinja_code(traceback=traceback)
-            console = Console()
-            with console.capture() as capture:
-                console.print(f"An error occurred while rendering Jinja2 transform:{self.name!r}\n", soft_wrap=True)
-                console.print(f"{exc.message}\n", soft_wrap=True)
-                for frame, syntax in errors:
-                    console.print(f"{frame.filename} on line {frame.lineno}\n", soft_wrap=True)
-                    console.print(syntax, soft_wrap=True)
-            str_output = capture.get()
+            return asyncio.run(jinja2_template.render(variables=variables))
+        except JinjaTemplateError as exc:
             if self.test.expect == InfrahubTestExpectedResult.PASS:
-                raise Jinja2TransformUndefinedError(
-                    name=self.name, message=str_output, rtb=traceback, errors=errors
-                ) from exc
+                raise exc
             return None
 
     def get_result_differences(self, computed: Any) -> str | None:
@@ -99,8 +95,8 @@ class InfrahubJinja2TransformUnitRenderItem(InfrahubJinja2Item):
             raise OutputMatchError(name=self.name, differences=differences)
 
     def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
-        if isinstance(excinfo.value, (Jinja2TransformUndefinedError, Jinja2TransformError)):
-            return excinfo.value.message
+        if isinstance(excinfo.value, (JinjaTemplateError)):
+            return str(excinfo.value.message)
 
         return super().repr_failure(excinfo, style=style)
 

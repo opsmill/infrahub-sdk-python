@@ -1,0 +1,18 @@
+---
+jinja2_transforms:
+  - name: tag_format_missing
+    query: "tags_query"
+    template_path: "tag_format.file-is-missing"
+  - name: undefined_variables
+    query: "tags_query"
+    template_path: "templates/undefined.j2"
+  - name: syntax_error
+    query: "tags_query"
+    template_path: "templates/syntax-error.html"
+  - name: missing_filter
+    query: "tags_query"
+    template_path: "templates/wrong-filter.j2"
+
+queries:
+  - name: tags_query
+    file_path: tags_query.gql
