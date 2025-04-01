@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.9.2"
+version = "1.10.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -43,6 +43,7 @@ pyyaml = { version = "^6", optional = true }
 eval-type-backport = { version = "^0.2.2", python = "~3.9" }
 dulwich = "^0.21.4"
 whenever = "0.7.2"
+netutils = "^1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"

@@ -137,7 +137,7 @@ class InfrahubGenerator:
 
         for node in self._nodes + self._related_nodes:
             if node.id:
-                self._init_client.store.set(key=node.id, node=node)
+                self._init_client.store.set(node=node)
 
     @abstractmethod
     async def generate(self, data: dict) -> None:

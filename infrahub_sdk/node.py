@@ -15,7 +15,7 @@ from .exceptions import (
 )
 from .graphql import Mutation, Query
 from .schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
-from .utils import compare_lists, get_flat_value
+from .utils import compare_lists, generate_short_id, get_flat_value
 from .uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -42,6 +42,20 @@ ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
 ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling generate is only supported for CoreArtifactDefinition nodes"
 )
+
+HFID_STR_SEPARATOR = "__"
+
+
+def parse_human_friendly_id(hfid: str | list[str]) -> tuple[str | None, list[str]]:
+    """Parse a human friendly ID into a kind and an identifier."""
+    if isinstance(hfid, str):
+        hfid_parts = hfid.split(HFID_STR_SEPARATOR)
+        if len(hfid_parts) == 1:
+            return None, hfid_parts
+        return hfid_parts[0], hfid_parts[1:]
+    if isinstance(hfid, list):
+        return None, hfid
+    raise ValueError(f"Invalid human friendly ID: {hfid}")
 
 
 class Attribute:
@@ -340,10 +354,10 @@ class RelatedNode(RelatedNodeBase):
             return self._peer  # type: ignore[return-value]
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename)  # type: ignore[return-value]
+            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
 
         if self.hfid_str:
-            return self._client.store.get_by_hfid(key=self.hfid_str)  # type: ignore[return-value]
+            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -387,10 +401,10 @@ class RelatedNodeSync(RelatedNodeBase):
             return self._peer  # type: ignore[return-value]
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename)  # type: ignore[return-value]
+            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
 
         if self.hfid_str:
-            return self._client.store.get_by_hfid(key=self.hfid_str)  # type: ignore[return-value]
+            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -678,6 +692,11 @@ class InfrahubNodeBase:
         self._branch = branch
         self._existing: bool = True
 
+        # Generate a unique ID only to be used inside the SDK
+        # The format if this ID is purposely different from the ID used by the API
+        # This is done to avoid confusion and potential conflicts between the IDs
+        self._internal_id = generate_short_id()
+
         self.id = data.get("id", None) if isinstance(data, dict) else None
         self.display_label: str | None = data.get("display_label", None) if isinstance(data, dict) else None
         self.typename: str | None = data.get("__typename", schema.kind) if isinstance(data, dict) else schema.kind
@@ -693,6 +712,9 @@ class InfrahubNodeBase:
 
         self._init_attributes(data)
         self._init_relationships(data)
+
+    def get_branch(self) -> str:
+        return self._branch
 
     def get_path_value(self, path: str) -> Any:
         path_parts = path.split("__")
@@ -793,6 +815,11 @@ class InfrahubNodeBase:
 
     def get_kind(self) -> str:
         return self._schema.kind
+
+    def get_all_kinds(self) -> list[str]:
+        if hasattr(self._schema, "inherit_from"):
+            return [self._schema.kind] + self._schema.inherit_from
+        return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
         builtin_ipprefix_kind = "BuiltinIPPrefix"
@@ -1201,7 +1228,7 @@ class InfrahubNode(InfrahubNodeBase):
         else:
             await self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
 
-        self._client.store.set(key=self.id, node=self)
+        self._client.store.set(node=self)
 
     async def generate_query_data(
         self,
@@ -1726,7 +1753,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         else:
             self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
 
-        self._client.store.set(key=self.id, node=self)
+        self._client.store.set(node=self)
 
     def generate_query_data(
         self,

@@ -13,6 +13,7 @@ from infrahub_sdk.node import (
     InfrahubNodeSync,
     RelatedNodeBase,
     RelationshipManagerBase,
+    parse_human_friendly_id,
 )
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
@@ -98,6 +99,13 @@ async def test_validate_method_signature(
     assert replace_async_return_annotation(async_sig.return_annotation) == replace_async_return_annotation(
         sync_sig.return_annotation
     )
+
+
+@pytest.mark.parametrize("hfid,expected_kind,expected_hfid", [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])])
+def test_parse_human_friendly_id(hfid: str, expected_kind: str, expected_hfid: list[str]):
+    kind, hfid = parse_human_friendly_id(hfid)
+    assert kind == expected_kind
+    assert hfid == expected_hfid
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -1759,8 +1767,8 @@ async def test_node_get_relationship_from_store(
         tag_red = InfrahubNodeSync(client=client, schema=tag_schema, data=tag_red_data)
         tag_blue = InfrahubNodeSync(client=client, schema=tag_schema, data=tag_blue_data)
 
-    client.store.set(key=tag_red.id, node=tag_red)
-    client.store.set(key=tag_blue.id, node=tag_blue)
+    client.store.set(node=tag_red)
+    client.store.set(node=tag_blue)
 
     assert node.primary_tag.peer == tag_red
     assert node.primary_tag.get() == tag_red
@@ -2204,3 +2212,17 @@ async def test_get_pool_resources_utilization(
         utilizations = ip_pool.get_pool_resources_utilization()
         assert len(utilizations) == 1
         assert utilizations[0]["utilization"] == 93.75
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_from_graphql(clients, mock_schema_query_01, location_data01, client_type):
+    if client_type == "standard":
+        schema = await clients.standard.schema.get(kind="BuiltinLocation", branch="main")
+        node = await InfrahubNode.from_graphql(
+            client=clients.standard, schema=schema, branch="main", data=location_data01
+        )
+    else:
+        schema = clients.sync.schema.get(kind="BuiltinLocation", branch="main")
+        node = InfrahubNodeSync.from_graphql(client=clients.sync, schema=schema, branch="main", data=location_data01)
+
+    assert node.id == "llllllll-llll-llll-llll-llllllllllll"

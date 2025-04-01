@@ -69,12 +69,12 @@ class ModuleImportError(Error):
 class NodeNotFoundError(Error):
     def __init__(
         self,
-        node_type: str,
         identifier: Mapping[str, list[str]],
         message: str = "Unable to find the node in the database.",
         branch_name: str | None = None,
+        node_type: str | None = None,
     ):
-        self.node_type = node_type
+        self.node_type = node_type or "unknown"
         self.identifier = identifier
         self.branch_name = branch_name
 
@@ -86,6 +86,10 @@ class NodeNotFoundError(Error):
         {self.message}
         {self.branch_name} | {self.node_type} | {self.identifier}
         """
+
+
+class NodeInvalidError(NodeNotFoundError):
+    pass
 
 
 class ResourceNotDefinedError(Error):
