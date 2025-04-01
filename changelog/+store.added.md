@@ -1,1 +1,0 @@
-The object store has been refactored to support more use cases in the future and it now properly support branches.

@@ -1,1 +1,0 @@
-Using a Store without specifying a default branch is now deprecated and will be removed in a future version.
