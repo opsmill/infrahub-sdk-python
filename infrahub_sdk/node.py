@@ -1445,10 +1445,8 @@ class InfrahubNode(InfrahubNodeBase):
     ) -> None:
         mutation_query = self._generate_mutation_query()
 
-        # Upserting means we may want to create, meaning payload contains all mandatory fields required for a creation,
-        # so hfid is just redondant information. Currently, upsert mutation has performance overhead if `hfid` is filled.
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
+            input_data = self._generate_input_data(exclude_hfid=False, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
