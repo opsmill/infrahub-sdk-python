@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import difflib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -9,7 +8,7 @@ import jinja2
 import ujson
 from httpx import HTTPStatusError
 
-from ...template import Jinja2Template
+from ...template import Jinja2TemplateSync
 from ...template.exceptions import JinjaTemplateError
 from ..exceptions import OutputMatchError
 from ..models import InfrahubInputOutputTest, InfrahubTestExpectedResult
@@ -20,8 +19,8 @@ if TYPE_CHECKING:
 
 
 class InfrahubJinja2Item(InfrahubItem):
-    def _get_jinja2(self) -> Jinja2Template:
-        return Jinja2Template(
+    def _get_jinja2(self) -> Jinja2TemplateSync:
+        return Jinja2TemplateSync(
             template=Path(self.resource_config.template_path),  # type: ignore[attr-defined]
             template_directory=Path(self.session.infrahub_config_path.parent),  # type: ignore[attr-defined]
         )
@@ -38,7 +37,7 @@ class InfrahubJinja2Item(InfrahubItem):
         jinja2_template = self._get_jinja2()
 
         try:
-            return asyncio.run(jinja2_template.render(variables=variables))
+            return jinja2_template.render(variables=variables)
         except JinjaTemplateError as exc:
             if self.test.expect == InfrahubTestExpectedResult.PASS:
                 raise exc

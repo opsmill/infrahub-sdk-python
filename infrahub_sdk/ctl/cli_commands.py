@@ -43,7 +43,7 @@ from ..ctl.utils import (
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
 from ..schema import MainSchemaTypesAll, SchemaRoot
-from ..template import Jinja2Template
+from ..template import Jinja2TemplateSync
 from ..template.exceptions import JinjaTemplateError
 from ..utils import get_branch, write_to_file
 from ..yaml import SchemaFile
@@ -178,9 +178,9 @@ async def run(
 
 async def render_jinja2_template(template_path: Path, variables: dict[str, Any], data: dict[str, Any]) -> str:
     variables["data"] = data
-    jinja_template = Jinja2Template(template=Path(template_path), template_directory=Path())
+    jinja_template = Jinja2TemplateSync(template=Path(template_path), template_directory=Path())
     try:
-        rendered_tpl = await jinja_template.render(variables=variables)
+        rendered_tpl = jinja_template.render(variables=variables)
     except JinjaTemplateError as exc:
         print_template_errors(error=exc, console=console)
         raise typer.Exit(1) from exc

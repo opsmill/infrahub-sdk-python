@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import linecache
 from pathlib import Path
-from typing import Any, Callable, NoReturn
+from typing import Any, Callable, ClassVar, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes
@@ -24,7 +24,9 @@ from .models import UndefinedJinja2Error
 netutils_filters = jinja2_convenience_function()
 
 
-class Jinja2Template:
+class Jinja2TemplateBase:
+    _is_async: ClassVar[bool] = True
+
     def __init__(
         self,
         template: str | Path,
@@ -106,29 +108,8 @@ class Jinja2Template:
                 f"These operations are forbidden for string based templates: {forbidden_operations}"
             )
 
-    async def render(self, variables: dict[str, Any]) -> str:
-        template = self.get_template()
-        try:
-            output = await template.render_async(variables)
-        except jinja2.exceptions.TemplateNotFound as exc:
-            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name), base_template=template.name)
-        except jinja2.TemplateSyntaxError as exc:
-            self._raise_template_syntax_error(error=exc)
-        except jinja2.UndefinedError as exc:
-            traceback = Traceback(show_locals=False)
-            errors = _identify_faulty_jinja_code(traceback=traceback)
-            raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)
-        except Exception as exc:
-            if error_message := getattr(exc, "message", None):
-                message = error_message
-            else:
-                message = str(exc)
-            raise JinjaTemplateError(message=message or "Unknown template error")
-
-        return output
-
     def _get_string_based_environment(self) -> jinja2.Environment:
-        env = SandboxedEnvironment(enable_async=True, undefined=jinja2.StrictUndefined)
+        env = SandboxedEnvironment(enable_async=self._is_async, undefined=jinja2.StrictUndefined)
         self._set_filters(env=env)
         self._environment = env
         return self._environment
@@ -139,7 +120,7 @@ class Jinja2Template:
             loader=template_loader,
             trim_blocks=True,
             lstrip_blocks=True,
-            enable_async=True,
+            enable_async=self._is_async,
         )
         self._set_filters(env=env)
         self._environment = env
@@ -175,6 +156,54 @@ class Jinja2Template:
                 filename = error.filename[len(str(self._template_directory)) :]
 
         raise JinjaTemplateSyntaxError(message=error.message, filename=filename, lineno=error.lineno)
+
+
+class Jinja2Template(Jinja2TemplateBase):
+    async def render(self, variables: dict[str, Any]) -> str:
+        template = self.get_template()
+        try:
+            output = await template.render_async(variables)
+        except jinja2.exceptions.TemplateNotFound as exc:
+            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name), base_template=template.name)
+        except jinja2.TemplateSyntaxError as exc:
+            self._raise_template_syntax_error(error=exc)
+        except jinja2.UndefinedError as exc:
+            traceback = Traceback(show_locals=False)
+            errors = _identify_faulty_jinja_code(traceback=traceback)
+            raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)
+        except Exception as exc:
+            if error_message := getattr(exc, "message", None):
+                message = error_message
+            else:
+                message = str(exc)
+            raise JinjaTemplateError(message=message or "Unknown template error")
+
+        return output
+
+
+class Jinja2TemplateSync(Jinja2TemplateBase):
+    _is_async: ClassVar[bool] = False
+
+    def render(self, variables: dict[str, Any]) -> str:
+        template = self.get_template()
+        try:
+            output = template.render(variables)
+        except jinja2.exceptions.TemplateNotFound as exc:
+            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name), base_template=template.name)
+        except jinja2.TemplateSyntaxError as exc:
+            self._raise_template_syntax_error(error=exc)
+        except jinja2.UndefinedError as exc:
+            traceback = Traceback(show_locals=False)
+            errors = _identify_faulty_jinja_code(traceback=traceback)
+            raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)
+        except Exception as exc:
+            if error_message := getattr(exc, "message", None):
+                message = error_message
+            else:
+                message = str(exc)
+            raise JinjaTemplateError(message=message or "Unknown template error")
+
+        return output
 
 
 def _identify_faulty_jinja_code(traceback: Traceback, nbr_context_lines: int = 3) -> list[UndefinedJinja2Error]:

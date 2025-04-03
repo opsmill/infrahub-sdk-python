@@ -6,7 +6,7 @@ import pytest
 from rich.syntax import Syntax
 from rich.traceback import Frame
 
-from infrahub_sdk.template import Jinja2Template
+from infrahub_sdk.template import Jinja2Template, Jinja2TemplateSync
 from infrahub_sdk.template.exceptions import (
     JinjaTemplateError,
     JinjaTemplateNotFoundError,
@@ -78,9 +78,15 @@ SUCCESSFUL_STRING_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in SUCCESSFUL_STRING_TEST_CASES],
 )
-async def test_render_string(test_case: JinjaTestCase) -> None:
-    jinja = Jinja2Template(template=test_case.template)
-    assert test_case.expected == await jinja.render(variables=test_case.variables)
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_render_string(test_case: JinjaTestCase, is_async: bool) -> None:
+    if is_async:
+        jinja = Jinja2Template(template=test_case.template)
+        assert test_case.expected == await jinja.render(variables=test_case.variables)
+    else:
+        jinja = Jinja2TemplateSync(template=test_case.template)
+        assert test_case.expected == jinja.render(variables=test_case.variables)
+
     assert test_case.expected_variables == jinja.get_variables()
 
 
@@ -106,9 +112,14 @@ SUCCESSFUL_FILE_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in SUCCESSFUL_FILE_TEST_CASES],
 )
-async def test_render_template_from_file(test_case: JinjaTestCase) -> None:
-    jinja = Jinja2Template(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
-    assert test_case.expected == await jinja.render(variables=test_case.variables)
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_render_template_from_file(test_case: JinjaTestCase, is_async: bool) -> None:
+    if is_async:
+        jinja = Jinja2Template(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
+        assert test_case.expected == await jinja.render(variables=test_case.variables)
+    else:
+        jinja = Jinja2TemplateSync(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
+        assert test_case.expected == jinja.render(variables=test_case.variables)
     assert test_case.expected_variables == jinja.get_variables()
     assert jinja.get_template()
 
@@ -153,10 +164,16 @@ FAILING_STRING_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in FAILING_STRING_TEST_CASES],
 )
-async def test_render_string_errors(test_case: JinjaTestCaseFailing) -> None:
-    jinja = Jinja2Template(template=test_case.template, template_directory=TEMPLATE_DIRECTORY)
-    with pytest.raises(test_case.error.__class__) as exc:
-        await jinja.render(variables=test_case.variables)
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_render_string_errors(test_case: JinjaTestCaseFailing, is_async: bool) -> None:
+    if is_async:
+        jinja = Jinja2Template(template=test_case.template, template_directory=TEMPLATE_DIRECTORY)
+        with pytest.raises(test_case.error.__class__) as exc:
+            await jinja.render(variables=test_case.variables)
+    else:
+        jinja = Jinja2TemplateSync(template=test_case.template, template_directory=TEMPLATE_DIRECTORY)
+        with pytest.raises(test_case.error.__class__) as exc:
+            jinja.render(variables=test_case.variables)
 
     _compare_errors(expected=test_case.error, received=exc.value)
 
@@ -234,27 +251,50 @@ FAILING_FILE_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in FAILING_FILE_TEST_CASES],
 )
-async def test_manage_file_based_errors(test_case: JinjaTestCaseFailing) -> None:
-    jinja = Jinja2Template(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
-    with pytest.raises(test_case.error.__class__) as exc:
-        await jinja.render(variables=test_case.variables)
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_manage_file_based_errors(test_case: JinjaTestCaseFailing, is_async: bool) -> None:
+    if is_async:
+        jinja = Jinja2Template(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
+        with pytest.raises(test_case.error.__class__) as exc:
+            await jinja.render(variables=test_case.variables)
+    else:
+        jinja = Jinja2TemplateSync(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
+        with pytest.raises(test_case.error.__class__) as exc:
+            jinja.render(variables=test_case.variables)
 
     _compare_errors(expected=test_case.error, received=exc.value)
 
 
-async def test_manage_unhandled_error() -> None:
-    jinja = Jinja2Template(
-        template="Hello {{ number | divide_by_zero }}",
-        filters={"divide_by_zero": _divide_by_zero},
-    )
-    with pytest.raises(JinjaTemplateError) as exc:
-        await jinja.render(variables={"number": 1})
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_manage_unhandled_error(is_async: bool) -> None:
+    template = "Hello {{ number | divide_by_zero }}"
+    filters = {"divide_by_zero": _divide_by_zero}
+    if is_async:
+        jinja = Jinja2Template(
+            template=template,
+            filters=filters,
+        )
+        with pytest.raises(JinjaTemplateError) as exc:
+            await jinja.render(variables={"number": 1})
+    else:
+        jinja = Jinja2TemplateSync(
+            template=template,
+            filters=filters,
+        )
+        with pytest.raises(JinjaTemplateError) as exc:
+            jinja.render(variables={"number": 1})
 
     assert exc.value.message == "division by zero"
 
 
-async def test_validate_filter() -> None:
-    jinja = Jinja2Template(template="{{ network | get_all_host }}")
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_validate_filter(is_async: bool) -> None:
+    template = "{{ network | get_all_host }}"
+    if is_async:
+        jinja = Jinja2Template(template=template)
+    else:
+        jinja = Jinja2TemplateSync(template=template)
+
     jinja.validate(restricted=False)
     with pytest.raises(JinjaTemplateOperationViolationError) as exc:
         jinja.validate(restricted=True)
@@ -262,8 +302,13 @@ async def test_validate_filter() -> None:
     assert exc.value.message == "The 'get_all_host' filter isn't allowed to be used"
 
 
-async def test_validate_operation() -> None:
-    jinja = Jinja2Template(template="Hello {% include 'very-forbidden.j2' %}")
+@pytest.mark.parametrize("is_async", [True, False])
+async def test_validate_operation(is_async: bool) -> None:
+    if is_async:
+        jinja = Jinja2Template(template="Hello {% include 'very-forbidden.j2' %}")
+    else:
+        jinja = Jinja2TemplateSync(template="Hello {% include 'very-forbidden.j2' %}")
+
     with pytest.raises(JinjaTemplateOperationViolationError) as exc:
         jinja.validate(restricted=True)
 
