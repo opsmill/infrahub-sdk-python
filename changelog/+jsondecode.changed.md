@@ -1,0 +1,1 @@
+Improve error message when a schema received from the server is not JSON valid. The new exception will be of type `infrahub_sdk.exceptions.JsonDecodeError` instead of `json.decoder.JSONDecodeError`
