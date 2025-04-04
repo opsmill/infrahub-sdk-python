@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.9.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.1) - 2025-04-04
+
+### Changed
+
+- Improve error message when a schema received from the server is not JSON valid. The new exception will be of type `infrahub_sdk.exceptions.JsonDecodeError` instead of `json.decoder.JSONDecodeError`
+
 ## [1.10.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.10.0) - 2025-04-01
 
 ### Deprecated
