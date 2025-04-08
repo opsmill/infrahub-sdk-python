@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
@@ -13,6 +14,7 @@ from typing_extensions import TypeAlias
 
 from ..exceptions import (
     InvalidResponseError,
+    JsonDecodeError,
     SchemaNotFoundError,
     ValidationError,
 )
@@ -420,7 +422,14 @@ class InfrahubSchema(InfrahubSchemaBase):
         response = await self.client._get(url=url, timeout=timeout)
         response.raise_for_status()
 
-        data: MutableMapping[str, Any] = response.json()
+        try:
+            data: MutableMapping[str, Any] = response.json()
+        except json.decoder.JSONDecodeError as exc:
+            raise JsonDecodeError(
+                message=f"Invalid Schema response received from the server at {response.url}: {response.text} [{response.status_code}] ",
+                content=response.text,
+                url=response.url,
+            ) from exc
 
         nodes: MutableMapping[str, MainSchemaTypesAPI] = {}
         for node_schema in data.get("nodes", []):
