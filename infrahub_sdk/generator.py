@@ -40,6 +40,7 @@ class InfrahubGenerator:
         self.generator_instance = generator_instance
         self._init_client = client.clone()
         self._init_client.config.default_branch = self._init_client.default_branch = self.branch_name
+        self._init_client.store._default_branch = self.branch_name
         self._client: InfrahubClient | None = None
         self._nodes: list[InfrahubNode] = []
         self._related_nodes: list[InfrahubNode] = []
