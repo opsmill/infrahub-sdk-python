@@ -11,7 +11,14 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
-## [1.9.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.1) - 2025-04-04
+## [1.10.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.10.2) - 2025-04-11
+
+### Fixed
+
+- fix an issue where nodes attributes were not updated when setting the same value than the one used during node instantiation
+- fixes an issue where the default branch of the client store was not properly set in a generator
+
+## [1.10.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.9.1) - 2025-04-04
 
 ### Changed
 
