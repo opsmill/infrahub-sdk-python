@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
             'guides/branches',
             'guides/store',
             'guides/tracking',
+            'guides/python-typing',
             'guides/batch',
             'guides/object-storage',
             'guides/resource-manager',

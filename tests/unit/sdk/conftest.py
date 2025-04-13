@@ -1822,6 +1822,18 @@ async def mock_schema_query_02(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 
 @pytest.fixture
+async def mock_schema_query_05(httpx_mock: HTTPXMock) -> HTTPXMock:
+    response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema?branch=main",
+        json=ujson.loads(response_text),
+    )
+    return httpx_mock
+
+
+@pytest.fixture
 async def mock_rest_api_artifact_definition_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
     httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"), is_reusable=True)
     return httpx_mock
