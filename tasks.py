@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from pathlib import Path
+from shutil import which
 from typing import Any
 
 from invoke import Context, task
@@ -9,6 +10,11 @@ CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
 
 MAIN_DIRECTORY_PATH = Path(__file__).parent
+
+
+def is_tool_installed(name: str) -> bool:
+    """Check whether `name` is on PATH and marked as executable."""
+    return which(name) is not None
 
 
 def _generate(context: Context) -> None:
@@ -165,12 +171,46 @@ def lint_ruff(context: Context) -> None:
         context.run(exec_cmd)
 
 
+@task
+def lint_markdownlint(context: Context) -> None:
+    """Run markdownlint to check all markdown files."""
+    if not is_tool_installed("markdownlint-cli2"):
+        print(" - markdownlint-cli2 is not installed, skipping documentation linting")
+        return
+
+    print(" - Check documentation with markdownlint-cli2")
+    exec_cmd = "markdownlint-cli2 **/*.{md,mdx} --config .markdownlint.yaml"
+    with context.cd(MAIN_DIRECTORY_PATH):
+        context.run(exec_cmd)
+
+
+@task
+def lint_vale(context: Context) -> None:
+    """Run vale to check all documentation files."""
+    if not is_tool_installed("vale"):
+        print(" - vale is not installed, skipping documentation style linting")
+        return
+
+    print(" - Check documentation style with vale")
+    exec_cmd = r'vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \))'
+    with context.cd(MAIN_DIRECTORY_PATH):
+        context.run(exec_cmd)
+
+
+@task
+def lint_docs(context: Context) -> None:
+    """Run all documentation linters."""
+    lint_markdownlint(context)
+    lint_vale(context)
+
+
 @task(name="lint")
 def lint_all(context: Context) -> None:
     """Run all linters."""
     lint_yaml(context)
     lint_ruff(context)
     lint_mypy(context)
+    lint_docs(context)
 
 
 @task(name="docs-validate")
