@@ -231,7 +231,11 @@ class BaseSchemaAttrRelAPI(BaseModel):
 
     @property
     def mandatory_attribute_names(self) -> list[str]:
-        return [item.name for item in self.attributes if not item.optional and item.default_value is None]
+        return [
+            item.name
+            for item in self.attributes
+            if (not item.optional and item.default_value is None) and not item.read_only
+        ]
 
     @property
     def mandatory_relationship_names(self) -> list[str]:

@@ -113,10 +113,28 @@ class InfrahubTransformNotFoundError(Error):
 
 
 class ValidationError(Error):
-    def __init__(self, identifier: str, message: str):
+    def __init__(self, identifier: str, message: str | None = None, messages: list[str] | None = None):
         self.identifier = identifier
         self.message = message
+        self.messages = messages
+        if not messages and not message:
+            self.message = f"Validation Error for {self.identifier}"
         super().__init__(self.message)
+
+    def __str__(self) -> str:
+        if self.messages:
+            return f"{self.identifier}: {', '.join(self.messages)}"
+        return f"{self.identifier}: {self.message}"
+
+
+class ObjectValidationError(Error):
+    def __init__(self, position: list[int | str], message: str):
+        self.position = position
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return f"{'.'.join(map(str, self.position))}: {self.message}"
 
 
 class AuthenticationError(Error):

@@ -1,0 +1,44 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Alex Thompson
+      height: 180
+      tags:
+        data:
+          - name: Dog Lover
+
+      animals:
+        kind: TestingDog
+        data:
+          - name: Max
+            weight: 25
+            breed: Golden Retriever
+            color: "#FFD700"
+
+    - name: Emily Parker
+      height: 165
+      animals:
+        - kind: TestingDog
+          data:
+            name: Max
+            weight: 25
+            breed: Golden Retriever
+            color: "#FFD700"
+        - kind: TestingCat
+          data:
+            name: Whiskers
+            weight: 10
+            breed: Siamese
+            color: "#FFD700"
+
+    - name: Mike Johnson
+      height: 175
+      best_friends: # Relationship of cardinality many that referenced existing nodes based on their HFID
+        - [Jane Smith, Max]
+        - [Sarah Williams, Charlie]
+      tags:
+        - Veterinarian    # Existing Node referenced by its HFID in string format
+        - [Breeder]       # Existing Node referenced by its HFID in list format

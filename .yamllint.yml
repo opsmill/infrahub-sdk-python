@@ -5,6 +5,7 @@ ignore: |
   /.venv
   /examples
   tests/unit/sdk/test_data/schema_encoding_error.yml
+  tests/unit/sdk/test_data/multiple_files_valid_not_valid.yml
 
 rules:
   new-lines: disable

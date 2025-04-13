@@ -25,6 +25,7 @@ from ..exceptions import (
     SchemaNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
+    ValidationError,
 )
 from ..yaml import YamlFile
 from .client import initialize_client_sync
@@ -32,6 +33,7 @@ from .exceptions import QueryNotFoundError
 
 if TYPE_CHECKING:
     from ..schema.repository import InfrahubRepositoryConfig
+    from ..spec.object import ObjectFile
 
 YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
 T = TypeVar("T")
@@ -199,3 +201,22 @@ def load_yamlfile_from_disk_and_exit(
         raise typer.Exit(1)
 
     return data_files
+
+
+def display_object_validate_format_success(file: ObjectFile, console: Console) -> None:
+    if file.multiple_documents:
+        console.print(f"[green] File '{file.location}' [{file.document_position}] is Valid!")
+    else:
+        console.print(f"[green] File '{file.location}' is Valid!")
+
+
+def display_object_validate_format_error(file: ObjectFile, error: ValidationError, console: Console) -> None:
+    if file.multiple_documents:
+        console.print(f"[red] File '{file.location}' [{file.document_position}] is not valid!")
+    else:
+        console.print(f"[red] File '{file.location}' is not valid!")
+    if error.messages:
+        for message in error.messages:
+            console.print(f"[red] {message}")
+    else:
+        console.print(f"[red] {error.message}")
