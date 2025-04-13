@@ -82,17 +82,18 @@ class Attribute:
 
         self.id: str | None = data.get("id", None)
 
-        self.value: Any | None = data.get("value", None)
+        self._value: Any | None = data.get("value", None)
+        self.value_has_been_mutated = False
         self.is_default: bool | None = data.get("is_default", None)
         self.is_from_profile: bool | None = data.get("is_from_profile", None)
 
-        if self.value:
+        if self._value:
             value_mapper: dict[str, Callable] = {
                 "IPHost": ipaddress.ip_interface,
                 "IPNetwork": ipaddress.ip_network,
             }
             mapper = value_mapper.get(schema.kind, lambda value: value)
-            self.value = mapper(data.get("value"))
+            self._value = mapper(data.get("value"))
 
         self.is_inherited: bool | None = data.get("is_inherited", None)
         self.updated_at: str | None = data.get("updated_at", None)
@@ -106,6 +107,15 @@ class Attribute:
         for prop_name in self._properties_object:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+
+    @property
+    def value(self) -> Any:
+        return self._value
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        self._value = value
+        self.value_has_been_mutated = True
 
     def _generate_input_data(self) -> dict | None:
         data: dict[str, Any] = {}
@@ -975,7 +985,9 @@ class InfrahubNodeBase:
         for item in original_data.keys():
             if item in data.keys():
                 if data[item] == original_data[item]:
-                    data.pop(item)
+                    if attr := getattr(self, item, None):  # this should never be None, just a safety default value
+                        if not isinstance(attr, Attribute) or not attr.value_has_been_mutated:
+                            data.pop(item)
                     continue
                 if isinstance(original_data[item], dict):
                     self._strip_unmodified_dict(data=data, original_data=original_data, variables=variables, item=item)

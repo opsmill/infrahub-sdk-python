@@ -63,6 +63,25 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert node_after.name.value == node.name.value
         assert node_after.manufacturer.peer.id == manufacturer_mercedes.id
 
+    async def test_node_update_with_original_data(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+    ):
+        person_marina = await client.create(kind="TestingPerson", name="marina", age=20)
+        await person_marina.save()
+
+        person_marina = await client.get(kind="TestingPerson", id=person_marina.id)
+
+        person_marina.age.value = 30
+        await person_marina.save()
+
+        person_marina.age.value = 20
+        await person_marina.save()
+        node = await client.get(kind="TestingPerson", id=person_marina.id)
+        assert node.age.value == 20, node.age.value
+
     # async def test_node_update_payload_with_relationships(
     #     self,
     #     db: InfrahubDatabase,
