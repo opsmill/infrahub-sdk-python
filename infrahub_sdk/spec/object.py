@@ -69,6 +69,26 @@ class RelationshipInfo(BaseModel):
     def is_reference(self) -> bool:
         return self.format in [RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF]
 
+    def get_context(self, value: Any) -> dict:
+        """Return a dict to insert to the context if the relationship is mandatory"""
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "one":
+            return {self.peer_rel.name: value}
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "many":
+            return {self.peer_rel.name: [value]}
+        return {}
+
+    def find_matching_relationship(
+        self, peer_schema: MainSchemaTypesAPI, force: bool = False
+    ) -> RelationshipSchema | None:
+        """Find the matching relationship on the other side of the relationship"""
+        if self.peer_rel and not force:
+            return self.peer_rel
+
+        self.peer_rel = peer_schema.get_matching_relationship(
+            id=self.rel_schema.identifier or "", direction=self.rel_schema.direction
+        )
+        return self.peer_rel
+
 
 async def get_relationship_info(
     client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None
@@ -202,12 +222,6 @@ class InfrahubObjectFileData(BaseModel):
                         )
                     )
 
-                # If there is a peer relationship, we add a placeholder for the related node
-                if rel_info.peer_rel and rel_info.is_mandatory and rel_info.peer_rel.cardinality == "one":
-                    context[rel_info.peer_rel.name] = "placeholder"
-                elif rel_info.peer_rel and rel_info.is_mandatory and rel_info.peer_rel.cardinality == "many":
-                    context[rel_info.peer_rel.name] = ["placeholder"]
-
                 errors.extend(
                     await cls.validate_related_nodes(
                         client=client,
@@ -243,6 +257,10 @@ class InfrahubObjectFileData(BaseModel):
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
             peer_kind = data.get("kind") or rel_info.peer_kind
             peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+
+            rel_info.find_matching_relationship(peer_schema=peer_schema)
+            context.update(rel_info.get_context(value="placeholder"))
+
             errors.extend(
                 await cls.validate_object(
                     client=client,
@@ -258,6 +276,9 @@ class InfrahubObjectFileData(BaseModel):
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
             peer_kind = data.get("kind") or rel_info.peer_kind
             peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+
+            rel_info.find_matching_relationship(peer_schema=peer_schema)
+            context.update(rel_info.get_context(value="placeholder"))
 
             for idx, peer_data in enumerate(data["data"]):
                 context["list_index"] = idx
@@ -278,6 +299,10 @@ class InfrahubObjectFileData(BaseModel):
                 context["list_index"] = idx
                 peer_kind = item.get("kind") or rel_info.peer_kind
                 peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+
+                rel_info.find_matching_relationship(peer_schema=peer_schema)
+                context.update(rel_info.get_context(value="placeholder"))
+
                 errors.extend(
                     await cls.validate_object(
                         client=client,
