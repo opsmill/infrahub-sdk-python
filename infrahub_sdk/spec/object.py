@@ -84,9 +84,13 @@ class RelationshipInfo(BaseModel):
         if self.peer_rel and not force:
             return self.peer_rel
 
-        self.peer_rel = peer_schema.get_matching_relationship(
-            id=self.rel_schema.identifier or "", direction=self.rel_schema.direction
-        )
+        try:
+            self.peer_rel = peer_schema.get_matching_relationship(
+                id=self.rel_schema.identifier or "", direction=self.rel_schema.direction
+            )
+        except ValueError:
+            pass
+
         return self.peer_rel
 
 
@@ -184,7 +188,7 @@ class InfrahubObjectFileData(BaseModel):
         branch: str | None = None,
     ) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
-        context = context or {}
+        context = context.copy() if context else {}
 
         # First validate if all mandatory fields are present
         for element in schema.mandatory_input_names:
@@ -245,7 +249,7 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
     ) -> list[ObjectValidationError]:
-        context = context or {}
+        context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
         if isinstance(data, (list, str)) and rel_info.format == RelationshipDataFormat.ONE_REF:
@@ -338,13 +342,14 @@ class InfrahubObjectFileData(BaseModel):
         branch: str | None = None,
         default_schema_kind: str | None = None,
     ) -> InfrahubNode:
-        context = context or {}
+        context = context.copy() if context else {}
 
         errors = await cls.validate_object(
             client=client, position=position, schema=schema, data=data, context=context, branch=branch
         )
         if errors:
-            raise ObjectValidationError(position=position, message="Object is not valid")
+            messages = [str(error) for error in errors]
+            raise ObjectValidationError(position=position, message="Object is not valid - " + ", ".join(messages))
 
         clean_data: dict[str, Any] = {}
 
@@ -424,13 +429,11 @@ class InfrahubObjectFileData(BaseModel):
 
             # If there is a peer relationship, we add the node id to the context
             rel_info = rels_info[rel]
-            if rel_info.peer_rel:
-                # TODO were making the assumption that the peer relationship is of cardinality one
-                # we need to check that and not sure how we should handle
-                context[rel_info.peer_rel.name] = node.id
+            context.update(rel_info.get_context(value=node.id))
 
             await cls.create_related_nodes(
                 client=client,
+                node=node,
                 rel_info=rel_info,
                 position=position,
                 data=data[rel],
@@ -448,16 +451,21 @@ class InfrahubObjectFileData(BaseModel):
         rel_info: RelationshipInfo,
         position: list[int | str],
         data: dict | list[dict],
+        node: InfrahubNode | None = None,
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
     ) -> list[InfrahubNode]:
         nodes: list[InfrahubNode] = []
-        context = context or {}
+        context = context.copy() if context else {}
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
             peer_kind = data.get("kind") or rel_info.peer_kind
             peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+
+            if node:
+                rel_info.find_matching_relationship(peer_schema=peer_schema)
+                context.update(rel_info.get_context(value=node.id))
 
             node = await cls.create_node(
                 client=client,
@@ -474,13 +482,17 @@ class InfrahubObjectFileData(BaseModel):
             peer_kind = data.get("kind") or rel_info.peer_kind
             peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
 
+            if node:
+                rel_info.find_matching_relationship(peer_schema=peer_schema)
+                context.update(rel_info.get_context(value=node.id))
+
             for idx, peer_data in enumerate(data["data"]):
                 context["list_index"] = idx
                 if isinstance(peer_data, dict):
                     node = await cls.create_node(
                         client=client,
                         schema=peer_schema,
-                        position=position + [idx + 1],
+                        position=position + [rel_info.name, idx + 1],
                         data=peer_data,
                         context=context,
                         branch=branch,
@@ -496,10 +508,14 @@ class InfrahubObjectFileData(BaseModel):
                 peer_kind = item.get("kind") or rel_info.peer_kind
                 peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
 
+                if node:
+                    rel_info.find_matching_relationship(peer_schema=peer_schema)
+                    context.update(rel_info.get_context(value=node.id))
+
                 node = await cls.create_node(
                     client=client,
                     schema=peer_schema,
-                    position=position + [idx + 1],
+                    position=position + [rel_info.name, idx + 1],
                     data=item["data"],
                     context=context,
                     branch=branch,
