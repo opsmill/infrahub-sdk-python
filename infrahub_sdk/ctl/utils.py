@@ -200,7 +200,7 @@ def load_yamlfile_from_disk_and_exit(
     if has_error:
         raise typer.Exit(1)
 
-    return data_files
+    return sorted(data_files, key=lambda x: x.location)
 
 
 def display_object_validate_format_success(file: ObjectFile, console: Console) -> None:
