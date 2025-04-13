@@ -1469,6 +1469,7 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-branch-all"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1502,8 +1503,8 @@ async def mock_repositories_query_no_pagination(httpx_mock: HTTPXMock) -> HTTPXM
         }
     }
 
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response1)
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/cr1234", json=response2)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response1, is_reusable=True)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/cr1234", json=response2, is_reusable=True)
     return httpx_mock
 
 
@@ -1536,6 +1537,7 @@ async def mock_query_repository_all_01_no_pagination(
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-repository-all"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1601,8 +1603,8 @@ async def mock_repositories_query(httpx_mock: HTTPXMock) -> HTTPXMock:
         }
     }
 
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response1)
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/cr1234", json=response2)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response1, is_reusable=True)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/cr1234", json=response2, is_reusable=True)
     return httpx_mock
 
 
@@ -1642,6 +1644,7 @@ async def mock_query_repository_page1_1(
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1676,13 +1679,14 @@ async def mock_query_corenode_page1_1(httpx_mock: HTTPXMock, client: InfrahubCli
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corenode-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
 
 @pytest.fixture
 async def mock_query_repository_count(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
-    httpx_mock.add_response(method="POST", json={"data": {"CoreRepository": {"count": 5}}})
+    httpx_mock.add_response(method="POST", json={"data": {"CoreRepository": {"count": 5}}}, is_reusable=True)
     return httpx_mock
 
 
@@ -1696,6 +1700,7 @@ async def mock_query_repository_page1_empty(
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1745,6 +1750,7 @@ async def mock_query_repository_page1_2(
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1785,6 +1791,7 @@ async def mock_query_repository_page2_2(
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page2"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1797,6 +1804,7 @@ async def mock_schema_query_01(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="GET",
         url="http://mock/api/schema?branch=main",
         json=ujson.loads(response_text),
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1805,14 +1813,17 @@ async def mock_schema_query_01(httpx_mock: HTTPXMock) -> HTTPXMock:
 async def mock_schema_query_02(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "schema_02.json").read_text(encoding="UTF-8")
     httpx_mock.add_response(
-        method="GET", url=re.compile(r"^http://mock/api/schema\?branch=(main|cr1234)"), json=ujson.loads(response_text)
+        method="GET",
+        url=re.compile(r"^http://mock/api/schema\?branch=(main|cr1234)"),
+        json=ujson.loads(response_text),
+        is_reusable=True,
     )
     return httpx_mock
 
 
 @pytest.fixture
 async def mock_rest_api_artifact_definition_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
-    httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"))
+    httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"), is_reusable=True)
     return httpx_mock
 
 
@@ -1824,6 +1835,7 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="GET",
         url="http://mock/api/schema?branch=main",
         json=ujson.loads(schema_response),
+        is_reusable=True,
     )
 
     graphql_response = {
@@ -1904,7 +1916,9 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
 ip name-server 1.1.1.1
 """
 
-    httpx_mock.add_response(method="GET", url=re.compile(r"^http://mock/api/storage/object/.*"), text=artifact_content)
+    httpx_mock.add_response(
+        method="GET", url=re.compile(r"^http://mock/api/storage/object/.*"), text=artifact_content, is_reusable=True
+    )
     return httpx_mock
 
 
@@ -1916,6 +1930,7 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="GET",
         url="http://mock/api/schema?branch=main",
         json=ujson.loads(schema_response),
+        is_reusable=True,
     )
 
     artifact_graphql_response = {
@@ -1989,7 +2004,9 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
             },
         }
     }
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=artifact_graphql_response)
+    httpx_mock.add_response(
+        method="POST", url="http://mock/graphql/main", json=artifact_graphql_response, is_reusable=True
+    )
 
     artifact_definition_graphql_response = {
         "data": {
@@ -2092,32 +2109,34 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
             }
         }
     }
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=artifact_definition_graphql_response)
-    httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"))
+    httpx_mock.add_response(
+        method="POST", url="http://mock/graphql/main", json=artifact_definition_graphql_response, is_reusable=True
+    )
+    httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"), is_reusable=True)
 
 
 @pytest.fixture
 async def mock_query_mutation_schema_dropdown_add(httpx_mock: HTTPXMock) -> None:
     response = {"data": {"SchemaDropdownAdd": {"ok": True}}}
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
 
 
 @pytest.fixture
 async def mock_query_mutation_schema_dropdown_remove(httpx_mock: HTTPXMock) -> None:
     response = {"data": {"SchemaDropdownRemove": {"ok": True}}}
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
 
 
 @pytest.fixture
 async def mock_query_mutation_schema_enum_add(httpx_mock: HTTPXMock) -> None:
     response = {"data": {"SchemaEnumAdd": {"ok": True}}}
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
 
 
 @pytest.fixture
 async def mock_query_mutation_schema_enum_remove(httpx_mock: HTTPXMock) -> None:
     response = {"data": {"SchemaEnumRemove": {"ok": True}}}
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
 
 
 @pytest.fixture
@@ -2136,21 +2155,21 @@ async def mock_query_mutation_location_create_failed(httpx_mock: HTTPXMock) -> H
         ],
     }
     url_regex = re.compile(r"http://mock/graphql/main")
-    httpx_mock.add_response(method="POST", url=url_regex, json=response1)
-    httpx_mock.add_response(method="POST", url=url_regex, json=response2)
+    httpx_mock.add_response(method="POST", url=url_regex, json=response1, is_reusable=True)
+    httpx_mock.add_response(method="POST", url=url_regex, json=response2, is_reusable=True)
     return httpx_mock
 
 
 @pytest.fixture
 async def mock_query_infrahub_version(httpx_mock: HTTPXMock) -> HTTPXMock:
-    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.1.0"}}})
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.1.0"}}}, is_reusable=True)
     return httpx_mock
 
 
 @pytest.fixture
 async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "account_profile.json").read_text(encoding="UTF-8")
-    httpx_mock.add_response(method="POST", json=ujson.loads(response_text))
+    httpx_mock.add_response(method="POST", json=ujson.loads(response_text), is_reusable=True)
     return httpx_mock
 
 
@@ -2485,7 +2504,9 @@ def query_introspection() -> str:
 async def mock_schema_query_ipam(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "schema_ipam.json").read_text(encoding="UTF-8")
 
-    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=ujson.loads(response_text))
+    httpx_mock.add_response(
+        method="GET", url="http://mock/api/schema?branch=main", json=ujson.loads(response_text), is_reusable=True
+    )
     return httpx_mock
 
 
@@ -2494,7 +2515,7 @@ async def mock_query_location_batch_count(
     httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
 ) -> HTTPXMock:
     response = {"data": {"BuiltinLocation": {"count": 30}}}
-    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response)
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
     return httpx_mock
 
 
@@ -2507,6 +2528,7 @@ async def mock_query_location_batch(httpx_mock: HTTPXMock, client: InfrahubClien
             method="POST",
             json=ujson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-builtinlocation-page{i}"},
+            is_reusable=True,
         )
     return httpx_mock
 
@@ -2520,6 +2542,7 @@ async def mock_query_tasks_01(httpx_mock: HTTPXMock) -> HTTPXMock:
             method="POST",
             json=ujson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
+            is_reusable=True,
         )
     return httpx_mock
 
@@ -2532,6 +2555,7 @@ async def mock_query_tasks_02_main(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="POST",
         json=ujson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -2544,6 +2568,7 @@ async def mock_query_tasks_empty(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="POST",
         json=ujson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -2556,6 +2581,7 @@ async def mock_query_tasks_03(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="POST",
         json=ujson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -2569,6 +2595,7 @@ async def mock_query_tasks_04_full(httpx_mock: HTTPXMock) -> HTTPXMock:
             method="POST",
             json=ujson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
+            is_reusable=True,
         )
     return httpx_mock
 
@@ -2581,5 +2608,6 @@ async def mock_query_tasks_05(httpx_mock: HTTPXMock) -> HTTPXMock:
         method="POST",
         json=ujson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
+        is_reusable=True,
     )
     return httpx_mock
