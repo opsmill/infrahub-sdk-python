@@ -20,7 +20,6 @@ from rich.table import Table
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
-from ..code_generator import CodeGenerator
 from ..ctl import config
 from ..ctl.branch import app as branch_app
 from ..ctl.check import run as run_check
@@ -42,6 +41,7 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
+from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
