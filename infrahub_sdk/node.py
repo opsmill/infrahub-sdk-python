@@ -793,13 +793,12 @@ class InfrahubNodeBase:
         return self.get_human_friendly_id_as_string(include_kind=True)
 
     def _init_attributes(self, data: dict | None = None) -> None:
-        for attr_name in self._attributes:
-            attr_schema = [attr for attr in self._schema.attributes if attr.name == attr_name][0]
-            attr_data = data.get(attr_name, None) if isinstance(data, dict) else None
+        for attr_schema in self._schema.attributes:
+            attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
             setattr(
                 self,
-                attr_name,
-                Attribute(name=attr_name, schema=attr_schema, data=attr_data),
+                attr_schema.name,
+                Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data),
             )
 
     def _get_request_context(self, request_context: RequestContext | None = None) -> dict[str, Any] | None:
@@ -1147,24 +1146,23 @@ class InfrahubNode(InfrahubNodeBase):
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
     def _init_relationships(self, data: dict | None = None) -> None:
-        for rel_name in self._relationships:
-            rel_schema = [rel for rel in self._schema.relationships if rel.name == rel_name][0]
-            rel_data = data.get(rel_name, None) if isinstance(data, dict) else None
+        for rel_schema in self._schema.relationships:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_name}", None)
+                setattr(self, f"_{rel_schema.name}", None)
                 setattr(
                     self.__class__,
-                    rel_name,
-                    generate_relationship_property(name=rel_name, node=self),
+                    rel_schema.name,
+                    generate_relationship_property(name=rel_schema.name, node=self),
                 )
-                setattr(self, rel_name, rel_data)
+                setattr(self, rel_schema.name, rel_data)
             else:
                 setattr(
                     self,
-                    rel_name,
+                    rel_schema.name,
                     RelationshipManager(
-                        name=rel_name,
+                        name=rel_schema.name,
                         client=self._client,
                         node=self,
                         branch=self._branch,
@@ -1679,24 +1677,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
     def _init_relationships(self, data: dict | None = None) -> None:
-        for rel_name in self._relationships:
-            rel_schema = [rel for rel in self._schema.relationships if rel.name == rel_name][0]
-            rel_data = data.get(rel_name, None) if isinstance(data, dict) else None
+        for rel_schema in self._schema.relationships:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_name}", None)
+                setattr(self, f"_{rel_schema.name}", None)
                 setattr(
                     self.__class__,
-                    rel_name,
-                    generate_relationship_property(name=rel_name, node=self),
+                    rel_schema.name,
+                    generate_relationship_property(name=rel_schema.name, node=self),
                 )
-                setattr(self, rel_name, rel_data)
+                setattr(self, rel_schema.name, rel_data)
             else:
                 setattr(
                     self,
-                    rel_name,
+                    rel_schema.name,
                     RelationshipManagerSync(
-                        name=rel_name,
+                        name=rel_schema.name,
                         client=self._client,
                         node=self,
                         branch=self._branch,
