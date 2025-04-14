@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypeAlias
 
 from ..exceptions import (
+    BranchNotFoundError,
     InvalidResponseError,
     JsonDecodeError,
     SchemaNotFoundError,
@@ -166,6 +167,25 @@ class InfrahubSchemaBase:
             return schema
 
         raise ValueError("schema must be a protocol or a string")
+
+    @staticmethod
+    def _parse_schema_response(response: httpx.Response, branch: str) -> MutableMapping[str, Any]:
+        if response.status_code == 400:
+            raise BranchNotFoundError(
+                identifier=branch, message=f"The requested branch was not found on the server [{branch}]"
+            )
+        response.raise_for_status()
+
+        try:
+            data: MutableMapping[str, Any] = response.json()
+        except json.decoder.JSONDecodeError as exc:
+            raise JsonDecodeError(
+                message=f"Invalid Schema response received from the server at {response.url}: {response.text} [{response.status_code}] ",
+                content=response.text,
+                url=str(response.url),
+            ) from exc
+
+        return data
 
 
 class InfrahubSchema(InfrahubSchemaBase):
@@ -420,16 +440,8 @@ class InfrahubSchema(InfrahubSchemaBase):
         url = f"{self.client.address}/api/schema?{query_params}"
 
         response = await self.client._get(url=url, timeout=timeout)
-        response.raise_for_status()
 
-        try:
-            data: MutableMapping[str, Any] = response.json()
-        except json.decoder.JSONDecodeError as exc:
-            raise JsonDecodeError(
-                message=f"Invalid Schema response received from the server at {response.url}: {response.text} [{response.status_code}] ",
-                content=response.text,
-                url=response.url,
-            ) from exc
+        data = self._parse_schema_response(response=response, branch=branch)
 
         nodes: MutableMapping[str, MainSchemaTypesAPI] = {}
         for node_schema in data.get("nodes", []):
@@ -648,9 +660,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         query_params = urlencode(url_parts)
         url = f"{self.client.address}/api/schema?{query_params}"
         response = self.client._get(url=url, timeout=timeout)
-        response.raise_for_status()
-
-        data: MutableMapping[str, Any] = response.json()
+        data = self._parse_schema_response(response=response, branch=branch)
 
         nodes: MutableMapping[str, MainSchemaTypesAPI] = {}
         for node_schema in data.get("nodes", []):
