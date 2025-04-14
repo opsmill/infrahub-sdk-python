@@ -83,6 +83,7 @@ class InfrahubCheckDefinitionConfig(InfrahubRepositoryConfigElement):
 
 class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
+
     name: str = Field(..., description="The name of the Generator Definition")
     file_path: Path = Field(..., description="The file within the repository with the generator code.")
     query: str = Field(..., description="The GraphQL query to use as input.")
@@ -112,6 +113,7 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
 
 class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
+
     name: str = Field(..., description="The name of the Transform")
     file_path: Path = Field(..., description="The file within the repository with the transform code.")
     class_name: str = Field(default="Transform", description="The name of the transform class to run.")
