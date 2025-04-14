@@ -25,7 +25,7 @@ class InfrahubFileData(BaseModel):
     api_version: InfrahubFileApiVersion = Field(InfrahubFileApiVersion.V1, alias="apiVersion")
     kind: InfrahubFileKind
     spec: dict
-    metadata: dict | None = Field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
 
 
 class LocalFile(BaseModel):
