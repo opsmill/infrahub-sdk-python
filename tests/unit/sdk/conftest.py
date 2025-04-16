@@ -1797,38 +1797,58 @@ async def mock_query_repository_page2_2(
 
 
 @pytest.fixture
-async def mock_schema_query_01(httpx_mock: HTTPXMock) -> HTTPXMock:
+async def schema_query_01_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_01.json").read_text(encoding="UTF-8")
+    return ujson.loads(response_text)
 
+
+@pytest.fixture
+async def schema_query_02_data() -> dict:
+    response_text = (get_fixtures_dir() / "schema_02.json").read_text(encoding="UTF-8")
+    return ujson.loads(response_text)
+
+
+@pytest.fixture
+async def schema_query_04_data() -> dict:
+    response_text = (get_fixtures_dir() / "schema_04.json").read_text(encoding="UTF-8")
+    return ujson.loads(response_text)
+
+
+@pytest.fixture
+async def schema_query_05_data() -> dict:
+    response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
+    return ujson.loads(response_text)
+
+
+@pytest.fixture
+async def mock_schema_query_01(httpx_mock: HTTPXMock, schema_query_01_data: dict) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
         url="http://mock/api/schema?branch=main",
-        json=ujson.loads(response_text),
+        json=schema_query_01_data,
         is_reusable=True,
     )
     return httpx_mock
 
 
 @pytest.fixture
-async def mock_schema_query_02(httpx_mock: HTTPXMock) -> HTTPXMock:
-    response_text = (get_fixtures_dir() / "schema_02.json").read_text(encoding="UTF-8")
+async def mock_schema_query_02(httpx_mock: HTTPXMock, schema_query_02_data: dict) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
         url=re.compile(r"^http://mock/api/schema\?branch=(main|cr1234)"),
-        json=ujson.loads(response_text),
+        json=schema_query_02_data,
         is_reusable=True,
     )
     return httpx_mock
 
 
 @pytest.fixture
-async def mock_schema_query_05(httpx_mock: HTTPXMock) -> HTTPXMock:
-    response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
-
+async def mock_schema_query_05(httpx_mock: HTTPXMock, schema_query_05_data: dict) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
         url="http://mock/api/schema?branch=main",
-        json=ujson.loads(response_text),
+        json=schema_query_05_data,
+        is_reusable=True,
     )
     return httpx_mock
 
@@ -1935,13 +1955,11 @@ ip name-server 1.1.1.1
 
 
 @pytest.fixture
-async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock) -> HTTPXMock:
-    schema_response = (get_fixtures_dir() / "schema_04.json").read_text(encoding="UTF-8")
-
+async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04_data: dict) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
         url="http://mock/api/schema?branch=main",
-        json=ujson.loads(schema_response),
+        json=schema_query_04_data,
         is_reusable=True,
     )
 
