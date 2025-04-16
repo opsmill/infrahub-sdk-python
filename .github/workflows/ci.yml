@@ -288,9 +288,6 @@ jobs:
           pip install invoke toml codecov
       - name: "Install Package"
         run: "poetry install --all-extras"
-      - name: "Set environment variables for python_testcontainers"
-        run: |
-          echo INFRAHUB_TESTING_IMAGE_VER=latest >> $GITHUB_ENV
       - name: "Integration Tests"
         run: |
           poetry run pytest --cov infrahub_sdk tests/integration/
