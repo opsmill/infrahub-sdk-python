@@ -18,6 +18,8 @@ from infrahub_sdk.utils import get_fixtures_dir
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+
 
 @dataclass
 class BothClients:

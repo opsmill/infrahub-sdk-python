@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
           label: 'Topics',
           items: [
             'topics/tracking',
+            'topics/object_file',
           ],
         },
         {

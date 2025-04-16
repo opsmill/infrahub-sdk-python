@@ -1,0 +1,9 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: BuiltinTag
+  data:
+    - name: Professional Trainer
+    - name: Pet Groomer
+    - name: Veterinarian

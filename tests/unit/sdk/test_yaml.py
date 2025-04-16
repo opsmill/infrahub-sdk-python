@@ -19,3 +19,23 @@ def test_read_incorrect_encoding() -> None:
     yaml_file.load_content()
     assert not yaml_file.valid
     assert yaml_file.error_message == f"Unable to read {file} with utf-8 encoding"
+
+
+def test_read_multiple_files() -> None:
+    file = here / "test_data/multiple_files_valid.yml"
+    yaml_files = YamlFile.load_file_from_disk(path=file)
+    assert len(yaml_files) == 2
+    assert yaml_files[0].document_position == 1
+    assert yaml_files[0].valid is True
+    assert yaml_files[1].document_position == 2
+    assert yaml_files[1].valid is True
+
+
+def test_read_multiple_files_invalid() -> None:
+    file = here / "test_data/multiple_files_valid_not_valid.yml"
+    yaml_files = YamlFile.load_file_from_disk(path=file)
+    assert len(yaml_files) == 2
+    assert yaml_files[0].document_position == 1
+    assert yaml_files[0].valid is True
+    assert yaml_files[1].document_position == 2
+    assert yaml_files[1].valid is False

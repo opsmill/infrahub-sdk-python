@@ -17,6 +17,7 @@ $ infrahubctl object [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `load`: Load one or multiple objects files into...
+* `validate`: Validate one or multiple objects files.
 
 ## `infrahubctl object load`
 
@@ -36,5 +37,26 @@ $ infrahubctl object load [OPTIONS] PATHS...
 
 * `--debug / --no-debug`: [default: no-debug]
 * `--branch TEXT`: Branch on which to load the objects.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl object validate`
+
+Validate one or multiple objects files.
+
+**Usage**:
+
+```console
+$ infrahubctl object validate [OPTIONS] PATHS...
+```
+
+**Arguments**:
+
+* `PATHS...`: [required]
+
+**Options**:
+
+* `--debug / --no-debug`: [default: no-debug]
+* `--branch TEXT`: Branch on which to validate the objects.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

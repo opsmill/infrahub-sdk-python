@@ -7,6 +7,8 @@ from infrahub_sdk import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+
 excluded_methods = ["request_context"]
 
 async_client_methods = [
