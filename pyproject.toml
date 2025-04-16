@@ -64,7 +64,8 @@ pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
 towncrier = "^24.8.0"
-infrahub-testcontainers = "^1.1.0b2"
+infrahub-testcontainers = "~1.1.9"
+
 astroid = "~3.1"
 
 [tool.poetry.extras]

@@ -1,0 +1,31 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingDog
+  data:
+    - name: Max
+      weight: 25
+      breed: Golden Retriever
+      color: "#FFD700"
+      owner: "Jane Smith"
+    - name: Luna
+      weight: 18
+      breed: Husky
+      color: "#C0C0C0"
+      owner: "Mike Johnson"
+    - name: Charlie
+      weight: 12
+      breed: Beagle
+      color: "#8B4513"
+      owner: ["Sarah Williams"]
+    - name: Bella
+      weight: 20
+      breed: Labrador
+      color: "#8B4513"
+      owner:
+        data:
+          name: Bill Smith
+          height: 180
+          tags:
+            - Pet Groomer

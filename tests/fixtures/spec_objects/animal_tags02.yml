@@ -1,0 +1,12 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: BuiltinTag
+  data:
+    - name: Veterinarian
+      description: Licensed animal healthcare professional
+    - name: Pet Groomer
+      description: Professional pet grooming specialist
+    - name: Breeder
+      description: Licensed and ethical animal breeder

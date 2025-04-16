@@ -3,6 +3,8 @@ import pytest
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
 
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+
 
 async def test_class_init():
     class IFCheckNoQuery(InfrahubCheck):

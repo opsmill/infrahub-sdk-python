@@ -28,3 +28,4 @@ dist/*
 
 # Generated files
 generated/
+sandbox/

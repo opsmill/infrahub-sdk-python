@@ -30,14 +30,23 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
 
     output_dir = DOCUMENTATION_DIRECTORY / "docs" / "infrahubctl"
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Delete any existing infrahubctl- files in output dir
+    for file in output_dir.glob("infrahubctl-*"):
+        file.unlink()
+
     print(" - Generate infrahubctl CLI documentation")
     for cmd in app.registered_commands:
+        if cmd.hidden:
+            continue
         exec_cmd = f'poetry run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
         exec_cmd += f" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx"
         with context.cd(MAIN_DIRECTORY_PATH):
             context.run(exec_cmd)
 
     for cmd in app.registered_groups:
+        if cmd.hidden:
+            continue
         exec_cmd = f"poetry run typer infrahub_sdk.ctl.{cmd.name} utils docs"
         exec_cmd += f' --name "infrahubctl {cmd.name}" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx'
         with context.cd(MAIN_DIRECTORY_PATH):

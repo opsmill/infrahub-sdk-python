@@ -20,6 +20,7 @@ TESTING_ANIMAL = f"{NAMESPACE}Animal"
 TESTING_CAT = f"{NAMESPACE}Cat"
 TESTING_DOG = f"{NAMESPACE}Dog"
 TESTING_PERSON = f"{NAMESPACE}Person"
+BUILTIN_TAG = "BuiltinTag"
 
 
 class SchemaAnimal:
@@ -124,6 +125,12 @@ class SchemaAnimal:
                     identifier="person__animal_friend",
                     cardinality="many",
                     direction=RelationshipDirection.INBOUND,
+                ),
+                Rel(
+                    name="tags",
+                    optional=True,
+                    peer=BUILTIN_TAG,
+                    cardinality="many",
                 ),
             ],
         )

@@ -1,8 +1,11 @@
+import pytest
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli import app
 
 runner = CliRunner()
+
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
 
 def test_main_app():

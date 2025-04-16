@@ -61,7 +61,7 @@ app.add_typer(schema_app, name="schema")
 app.add_typer(validate_app, name="validate")
 app.add_typer(repository_app, name="repository")
 app.add_typer(menu_app, name="menu")
-app.add_typer(object_app, name="object", hidden=True)
+app.add_typer(object_app, name="object")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
