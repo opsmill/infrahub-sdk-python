@@ -1,0 +1,1 @@
+Add method schema.set_cache() to populate the cache manually (primarily for unit testing)

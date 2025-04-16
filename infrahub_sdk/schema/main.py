@@ -6,6 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
@@ -356,3 +357,26 @@ class BranchSchema(BaseModel):
     nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = Field(
         default_factory=dict
     )
+
+    @classmethod
+    def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
+        nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = {}
+        for node_schema in data.get("nodes", []):
+            node = NodeSchemaAPI(**node_schema)
+            nodes[node.kind] = node
+
+        for generic_schema in data.get("generics", []):
+            generic = GenericSchemaAPI(**generic_schema)
+            nodes[generic.kind] = generic
+
+        for profile_schema in data.get("profiles", []):
+            profile = ProfileSchemaAPI(**profile_schema)
+            nodes[profile.kind] = profile
+
+        for template_schema in data.get("templates", []):
+            template = TemplateSchemaAPI(**template_schema)
+            nodes[template.kind] = template
+
+        schema_hash = data.get("main", "")
+
+        return cls(hash=schema_hash, nodes=nodes)
