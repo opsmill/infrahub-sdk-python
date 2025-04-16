@@ -67,7 +67,7 @@ nodes:
 
 A node can be created using the `create` method. The `create` method will first construct a `InfrahubNode` object in memory. This `InfrahubNode` object will then need to be saved into Infrahub using the `save` method.
 
-The attributes and relationships of the `InfrahubNode` you want to create can be passed as arguments to the `create` method, or you can pass then using a dictionary.
+The attributes and relationships of the `InfrahubNode` you want to create can be passed as arguments to the `create` method, or you can pass them using a dictionary.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -138,7 +138,7 @@ The attributes and relationships of the `InfrahubNode` you want to create can be
   <TabItem value="Async" default>
 
   ```python
-  interfaces = await client.get(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
+  interfaces = await client.filters(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
   device = await client.create(kind="TestDevice", name="atl1-edge1", interfaces=interfaces)
   await device.save()
   ```
@@ -147,7 +147,7 @@ The attributes and relationships of the `InfrahubNode` you want to create can be
   <TabItem value="Sync" default>
 
   ```python
-  interfaces = client.get(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
+  interfaces = client.filters(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
   device = client.create(kind="TestDevice", name="atl1-edge1", interfaces=interfaces)
   device.save()
   ```
@@ -222,7 +222,7 @@ Adding a single relation:
   <TabItem value="Sync" default>
 
   ```python
-  interface = client.get(kind="TestInterface", name__values="Ethernet1")
+  interface = client.get(kind="TestInterface", name__value="Ethernet1")
   device = client.get(kind="TestDevice", name__value="atl1-edge1")
   device.interfaces.add(interface)
   device.save()
@@ -236,7 +236,7 @@ Adding multiple relations:
   <TabItem value="Async" default>
 
   ```python
-  interfaces = await client.filters(kind="TestInterface", name__value=["Ethernet1", "Ethernet2"])
+  interfaces = await client.filters(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
   device = await client.get(kind="TestDevice", name__value="atl1-edge1")
   device.interfaces.extend(interfaces)
   await device.save()
@@ -246,7 +246,7 @@ Adding multiple relations:
   <TabItem value="Sync" default>
 
   ```python
-  interfaces = client.filters(kind="TestInterface", name__value=["Ethernet1", "Ethernet2"])
+  interfaces = client.filters(kind="TestInterface", name__values=["Ethernet1", "Ethernet2"])
   device = client.get(kind="TestDevice", name__value="atl1-edge1")
   device.interfaces.extend(interfaces)
   device.save()
