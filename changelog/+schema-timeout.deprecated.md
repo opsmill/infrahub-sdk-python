@@ -1,1 +1,1 @@
-The 'timeout' parameter  while fetching the schema has been deprecated. the default_timeout will be used instead.
+The 'timeout' parameter while creating a node or fetching the schema has been deprecated. the default_timeout will be used instead.

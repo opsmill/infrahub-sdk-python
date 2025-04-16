@@ -345,7 +345,7 @@ class SchemaRoot(BaseModel):
 class SchemaRootAPI(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    version: str
+    main: str | None = None
     generics: list[GenericSchemaAPI] = Field(default_factory=list)
     nodes: list[NodeSchemaAPI] = Field(default_factory=list)
     profiles: list[ProfileSchemaAPI] = Field(default_factory=list)
@@ -360,23 +360,29 @@ class BranchSchema(BaseModel):
 
     @classmethod
     def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
+        """
+        Convert an API response from /api/schema into a BranchSchema object.
+        """
+        return cls.from_schema_root_api(data=SchemaRootAPI(**data))
+
+    @classmethod
+    def from_schema_root_api(cls, data: SchemaRootAPI) -> Self:
+        """
+        Convert a SchemaRootAPI object to a BranchSchema object.
+        """
         nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = {}
-        for node_schema in data.get("nodes", []):
-            node = NodeSchemaAPI(**node_schema)
+        for node in data.nodes:
             nodes[node.kind] = node
 
-        for generic_schema in data.get("generics", []):
-            generic = GenericSchemaAPI(**generic_schema)
+        for generic in data.generics:
             nodes[generic.kind] = generic
 
-        for profile_schema in data.get("profiles", []):
-            profile = ProfileSchemaAPI(**profile_schema)
+        for profile in data.profiles:
             nodes[profile.kind] = profile
 
-        for template_schema in data.get("templates", []):
-            template = TemplateSchemaAPI(**template_schema)
+        for template in data.templates:
             nodes[template.kind] = template
 
-        schema_hash = data.get("main", "")
+        schema_hash = data.main or ""
 
         return cls(hash=schema_hash, nodes=nodes)

@@ -110,10 +110,19 @@ class InfrahubSchemaBase:
                     message=f"{key} is not a valid value for {identifier}",
                 )
 
-    def set_cache(self, schema: dict[str, Any] | BranchSchema, branch: str | None = None) -> None:
+    def set_cache(self, schema: dict[str, Any] | SchemaRootAPI | BranchSchema, branch: str | None = None) -> None:
+        """
+        Set the cache manually (primarily for unit testing)
+
+        Args:
+            schema: The schema to set the cache as provided by the /api/schema endpoint either in dict or SchemaRootAPI format
+            branch: The name of the branch to set the cache for.
+        """
         branch = branch or self.client.default_branch
 
-        if isinstance(schema, dict):
+        if isinstance(schema, SchemaRootAPI):
+            schema = BranchSchema.from_schema_root_api(data=schema)
+        elif isinstance(schema, dict):
             schema = BranchSchema.from_api_response(data=schema)
 
         self.cache[branch] = schema
