@@ -151,3 +151,15 @@ The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netu
 | vlanlist_to_config | ✅ |
 | wildcardmask_to_netmask | ✅ |
 <!-- vale on -->
+
+## Known issues
+
+### Unable to combine the map and sort filters (https://github.com/pallets/jinja/issues/2081)
+
+When using the `map` filter with the `sort` filter, you may encounter the following error:
+
+```python
+TypeError: 'async_generator' object is not iterable
+```
+
+**As a workaround you can use the `list` filter between `map` and `sort` filter.**
