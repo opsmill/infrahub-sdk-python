@@ -17,6 +17,7 @@ $ infrahubctl menu [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `load`: Load one or multiple menu files into...
+* `validate`: Validate one or multiple menu files.
 
 ## `infrahubctl menu load`
 
@@ -36,5 +37,26 @@ $ infrahubctl menu load [OPTIONS] MENUS...
 
 * `--debug / --no-debug`: [default: no-debug]
 * `--branch TEXT`: Branch on which to load the menu.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl menu validate`
+
+Validate one or multiple menu files.
+
+**Usage**:
+
+```console
+$ infrahubctl menu validate [OPTIONS] PATHS...
+```
+
+**Arguments**:
+
+* `PATHS...`: [required]
+
+**Options**:
+
+* `--debug / --no-debug`: [default: no-debug]
+* `--branch TEXT`: Branch on which to validate the objects.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

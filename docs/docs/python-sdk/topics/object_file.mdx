@@ -1,0 +1,195 @@
+---
+title: Manage data with Object Files
+---
+
+# Manage data with Object files
+
+## Introduction
+
+An Object file is a YAML file that allows you to manage data to be loaded in Infrahub based on your own custom schema. It provides a declarative way to define and manage resources in your Infrahub instance.
+
+Object files work well for models that don't change too often and/or that need to be tracked in Git. Examples include: Groups, tags, Users, etc.
+Below is an example of an Object file that defines tags (`BuiltinTag`).
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: BuiltinTag
+  data:
+    - name: Blue
+    - name: Yellow
+    - name: Red
+```
+
+Object files are meant to be used in an idempotent way and as such they work better for models with a Human Friendly ID (HFID) defined. An HFID is a unique identifier that makes it easier to reference objects across different files and operations.
+
+## Load Object files into Infrahub
+
+Object files can be loaded into Infrahub using the `infrahub object load` command.
+
+```bash
+infrahub object load <path_to_object_file>
+```
+
+Multiple object files can be loaded at once by specifying the path to multiple files or by specifying a directory.
+
+The `object load` command will create/update the objects using an `Upsert` operation. All objects previously loaded will NOT be deleted in the Infrahub instance.
+Also, if some objects present in different files are identical and dependent on each other, the `object load` command will NOT calculate the dependencies between the objects and as such it's the responsibility of the users to execute the command in the right order.
+
+### Validate the format of object files
+
+The object file can be validated using the `infrahub object validate` command.
+
+```bash
+infrahub object validate <path_to_object_file>
+```
+
+## Object file format
+
+All object files must start with the following format, all other formats will be automatically ignored.
+Each file is intended for one specific top level kind, but one file can include multiple nested objects of any kind.
+The kind of the top level object must be defined in spec/kind.
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: <NamespaceName>
+  data:
+    - [...]
+```
+
+> Multiple documents in a single YAML file are also supported, each document will be loaded separately. Documents are separated by `---`
+
+### Relationship of cardinality one
+
+A relationship of cardinality one can either reference an existing node via its HFID or create a new node if it doesn't exist.
+In the example below, both `site` and `primary_ip` are relationships of cardinality one.
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: InfraDevice
+  data:
+    - name: edge01
+      site: "Paris"         # Reference existing node via its HFID
+      primary_ip:           # Nested object, will be created if it doesn't exist
+        data:
+            address: "192.168.1.1"
+```
+
+### Relationship of cardinality many
+
+A relationship of cardinality many can reference existing nodes via their HFID or define nested objects.
+
+#### Existing nodes referenced by their HFID
+
+Existing nodes can be referenced by their HFID in string format or in list format.
+In the example below, both `best_friends` and `tags` are relationships of cardinality many.
+
+> An HFID is composed of a single value, it's possible to use a string instead of a list
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Mike Johnson
+      height: 175
+      best_friends: # Relationship of cardinality many that references existing nodes based on their HFID
+        - [Jane Smith, Max]
+        - [Sarah Williams, Charlie]
+      tags:
+        - Veterinarian    # Existing Node referenced by its HFID in string format
+        - [Breeder]       # Existing Node referenced by its HFID in list format
+```
+
+#### Nested objects
+
+When defining nested objects, the node will be automatically created if it doesn't exist and if the relationship between the parent object and the nested object exists, it will be automatically inserted.
+For example, in the example below, the `owner` of a `TestingDog` doesn't need to be specified because it will be automatically inserted.
+
+Two different syntax are supported:
+
+- A dictionary with multiple values under data
+- A list of objects
+
+##### Nested objects as a dictionary
+
+In the example below, `tags` is a relationship of cardinality many that is defined as a dictionary with multiple values under data.
+
+> The kind is optional here because there is only one option possible (not a generic)
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Alex Thompson
+      tags:
+        data:
+          - name: dog-lover
+            description: "Dog Lover"
+          - name: veterinarian
+            description: "Veterinarian"
+```
+
+This format works well when all objects are of the same kind and when all objects are using the same properties.
+For more complex cases, the list of objects format is more flexible.
+
+##### Nested objects as a list of objects
+
+In the example below, `animals` is a relationship of cardinality many that is defined as a list of objects.
+Each object must contain a `data` key and each object can also define a specific `kind`.
+
+> If the kind is not specified, it will be inferred from schema
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Alex Thompson
+      height: 180
+      animals:
+        - kind: TestingDog
+          data:
+            name: Max
+            weight: 25
+            breed: Golden Retriever
+            color: "#FFD700"
+        - kind: TestingCat
+          data:
+            name: Mimi
+            breed: Persian
+```
+
+### Support for metadata
+
+Metadata support is planned for future releases. Currently, the Object file does not support metadata on attributes or relationships.
+
+## Troubleshooting
+
+### Common issues
+
+1. **Objects not being created**: Ensure that the YAML syntax is correct and that the file follows the required format.
+2. **Dependency errors**: When objects depend on each other, load them in the correct order (dependencies first).
+3. **Validation errors**: Use the `infrahub object validate` command to check for syntax errors before loading.
+
+### Best practices
+
+1. Use Human Friendly IDs (HFIDs) for all objects to ensure consistent referencing.
+2. Keep object files organized by model type or purpose.
+3. Validate object files before loading them into production environments.
+4. Use comments in your YAML files to document complex relationships or dependencies.

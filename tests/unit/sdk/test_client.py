@@ -7,6 +7,8 @@ from infrahub_sdk import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+
 excluded_methods = ["request_context"]
 
 async_client_methods = [
@@ -243,6 +245,7 @@ async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_quer
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -291,6 +294,7 @@ async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_qu
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -338,6 +342,7 @@ async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -382,6 +387,7 @@ async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_qu
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -524,6 +530,7 @@ async def test_allocate_next_ip_address(
             }
         },
         match_headers={"X-Infrahub-Tracker": "allocate-ip-loopback"},
+        is_reusable=True,
     )
     httpx_mock.add_response(
         method="POST",
@@ -545,6 +552,7 @@ async def test_allocate_next_ip_address(
             }
         },
         match_headers={"X-Infrahub-Tracker": "query-ipamipaddress-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -623,6 +631,7 @@ async def test_allocate_next_ip_prefix(
             }
         },
         match_headers={"X-Infrahub-Tracker": "allocate-ip-interco"},
+        is_reusable=True,
     )
     httpx_mock.add_response(
         method="POST",
@@ -644,6 +653,7 @@ async def test_allocate_next_ip_prefix(
             }
         },
         match_headers={"X-Infrahub-Tracker": "query-ipamipprefix-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -723,6 +733,7 @@ async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinTag": {"edges": []}}},
+        is_reusable=True,
     )
 
     query = """

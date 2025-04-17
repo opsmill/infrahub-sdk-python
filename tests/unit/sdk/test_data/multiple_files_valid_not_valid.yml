@@ -1,0 +1,11 @@
+---
+version: "1.0"
+nodes:
+  - name: Node
+    namespace: Testing
+---
+version: "1.0"
+nodes:
+  - name: Node2
+    namespace: Testing
+    - name: Node3

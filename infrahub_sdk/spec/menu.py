@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..yaml import InfrahubFile, InfrahubFileKind
-from .object import InfrahubObjectFileData
+from .object import InfrahubObjectFileData, ObjectFile
 
 
 class InfrahubMenuFileData(InfrahubObjectFileData):
@@ -18,7 +18,7 @@ class InfrahubMenuFileData(InfrahubObjectFileData):
         return data
 
 
-class MenuFile(InfrahubFile):
+class MenuFile(ObjectFile):
     _spec: InfrahubMenuFileData | None = None
 
     @property
@@ -28,7 +28,7 @@ class MenuFile(InfrahubFile):
         return self._spec
 
     def validate_content(self) -> None:
-        super().validate_content()
+        InfrahubFile.validate_content(self)
         if self.kind != InfrahubFileKind.MENU:
             raise ValueError("File is not an Infrahub Menu file")
         self._spec = InfrahubMenuFileData(**self.data.spec)

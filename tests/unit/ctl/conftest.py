@@ -1,7 +1,26 @@
 import pytest
+import ujson
 from pytest_httpx import HTTPXMock
 
+from infrahub_sdk.utils import get_fixtures_dir
 from tests.unit.sdk.conftest import mock_query_infrahub_user, mock_query_infrahub_version  # noqa: F401
+
+
+@pytest.fixture
+async def schema_query_05_data() -> dict:
+    response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
+    return ujson.loads(response_text)
+
+
+@pytest.fixture
+async def mock_schema_query_05(httpx_mock: HTTPXMock, schema_query_05_data: dict) -> HTTPXMock:
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema?branch=main",
+        json=schema_query_05_data,
+        is_reusable=True,
+    )
+    return httpx_mock
 
 
 @pytest.fixture

@@ -8,13 +8,16 @@ from packaging.version import InvalidVersion, Version
 
 from .. import Config, InfrahubClient, InfrahubClientSync
 
-INFRAHUB_VERSION = os.getenv("INFRAHUB_TESTING_IMAGE_VER", "latest")
+INFRAHUB_VERSION = os.getenv("INFRAHUB_TESTING_IMAGE_VER")
 
 
 def skip_version(min_infrahub_version: str | None = None, max_infrahub_version: str | None = None) -> bool:
     """
     Check if a test should be skipped depending on infrahub version.
     """
+    if INFRAHUB_VERSION is None:
+        return True
+
     try:
         version = Version(INFRAHUB_VERSION)
     except InvalidVersion:
@@ -31,10 +34,6 @@ def skip_version(min_infrahub_version: str | None = None, max_infrahub_version: 
 
 
 class TestInfrahubDockerClient(TestInfrahubDocker):
-    @pytest.fixture(scope="class")
-    def infrahub_version(self) -> str:
-        return INFRAHUB_VERSION
-
     @pytest.fixture(scope="class")
     def client(self, infrahub_port: int) -> InfrahubClient:
         return InfrahubClient(

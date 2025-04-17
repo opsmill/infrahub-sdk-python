@@ -6,6 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
@@ -231,7 +232,11 @@ class BaseSchemaAttrRelAPI(BaseModel):
 
     @property
     def mandatory_attribute_names(self) -> list[str]:
-        return [item.name for item in self.attributes if not item.optional and item.default_value is None]
+        return [
+            item.name
+            for item in self.attributes
+            if (not item.optional and item.default_value is None) and not item.read_only
+        ]
 
     @property
     def mandatory_relationship_names(self) -> list[str]:
@@ -344,7 +349,7 @@ class SchemaRoot(BaseModel):
 class SchemaRootAPI(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
 
-    version: str
+    main: str | None = None
     generics: list[GenericSchemaAPI] = Field(default_factory=list)
     nodes: list[NodeSchemaAPI] = Field(default_factory=list)
     profiles: list[ProfileSchemaAPI] = Field(default_factory=list)
@@ -356,3 +361,32 @@ class BranchSchema(BaseModel):
     nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = Field(
         default_factory=dict
     )
+
+    @classmethod
+    def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
+        """
+        Convert an API response from /api/schema into a BranchSchema object.
+        """
+        return cls.from_schema_root_api(data=SchemaRootAPI(**data))
+
+    @classmethod
+    def from_schema_root_api(cls, data: SchemaRootAPI) -> Self:
+        """
+        Convert a SchemaRootAPI object to a BranchSchema object.
+        """
+        nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = {}
+        for node in data.nodes:
+            nodes[node.kind] = node
+
+        for generic in data.generics:
+            nodes[generic.kind] = generic
+
+        for profile in data.profiles:
+            nodes[profile.kind] = profile
+
+        for template in data.templates:
+            nodes[template.kind] = template
+
+        schema_hash = data.main or ""
+
+        return cls(hash=schema_hash, nodes=nodes)

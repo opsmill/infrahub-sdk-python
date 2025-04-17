@@ -1,0 +1,20 @@
+---
+apiVersion: infrahub.app/v1
+kind: Menu
+spec:
+  data:
+    - namespace: Testing
+      name: Animal
+      label: Animals
+      kind: TestingAnimal
+      children:
+        data:
+          - namespace: Testing
+            name: Dog
+            label: Dog
+            kind: TestingDog
+
+          - namespace: Testing
+            name: Cat
+            label: Cat
+            kind: TestingCat

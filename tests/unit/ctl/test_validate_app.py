@@ -21,7 +21,7 @@ def test_validate_schema_empty():
 
     result = runner.invoke(app=app, args=["schema", str(fixture_file)])
     assert result.exit_code == 1
-    assert "Empty YAML/JSON file" in remove_ansi_color(result.stdout)
+    assert "Invalid YAML/JSON file" in remove_ansi_color(result.stdout)
 
 
 def test_validate_schema_non_valid():

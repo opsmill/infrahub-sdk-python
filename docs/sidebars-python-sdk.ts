@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
             'guides/branches',
             'guides/store',
             'guides/tracking',
+            'guides/python-typing',
             'guides/batch',
             'guides/object-storage',
             'guides/resource-manager',
@@ -31,6 +32,7 @@ const sidebars: SidebarsConfig = {
           label: 'Topics',
           items: [
             'topics/tracking',
+            'topics/object_file',
           ],
         },
         {
