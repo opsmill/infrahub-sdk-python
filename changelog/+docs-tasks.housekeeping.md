@@ -1,1 +1,0 @@
-Add `invoke lint-doc` command to help run the docs linters locally

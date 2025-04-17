@@ -1,1 +1,0 @@
-Fix support for Sync when generating Python Protocols
