@@ -11,6 +11,31 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.11.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.11.0) - 2025-04-17
+
+### Deprecated
+
+- The 'timeout' parameter while creating a node or fetching the schema has been deprecated. the default_timeout will be used instead.
+
+### Added
+
+- Add support for object Template when generating protocols ([#329](https://github.com/opsmill/infrahub-sdk-python/issues/329))
+- Add a Guide related to Python Typing
+- Add method `client.schema.set_cache()` to populate the cache manually (primarily for unit testing)
+- By default, schema.fetch will now populate the cache (this behavior can be changed with `populate_cache`)
+- Add `menu validate` command to validate the format of menu files.
+
+### Fixed
+
+- Raise a proper branch not found error when requesting a node or schema for a branch that doesn't exist. ([#286](https://github.com/opsmill/infrahub-sdk-python/issues/286))
+- Fix support for Sync when generating Python Protocols
+
+### Housekeeping
+
+- Add `invoke lint-doc` command to help run the docs linters locally
+- Add a fixture to always reset some environment variables before running tests
+- Update Pytest-httpx and set all responses as reusable
+
 ## [1.10.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.10.2) - 2025-04-11
 
 ### Fixed

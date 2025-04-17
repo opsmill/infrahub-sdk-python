@@ -1,1 +1,0 @@
-Add `menu validate` command to validate the format of menu files.
