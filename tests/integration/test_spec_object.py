@@ -4,6 +4,7 @@ import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.schema import SchemaRoot
+from infrahub_sdk.spec.menu import MenuFile
 from infrahub_sdk.spec.object import ObjectFile
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import SchemaAnimal
@@ -12,6 +13,12 @@ from infrahub_sdk.utils import get_fixtures_dir
 
 def load_object_file(name: str) -> ObjectFile:
     files = ObjectFile.load_from_disk(paths=[get_fixtures_dir() / "spec_objects" / name])
+    assert len(files) == 1
+    return files[0]
+
+
+def load_menu_file(name: str) -> MenuFile:
+    files = MenuFile.load_from_disk(paths=[get_fixtures_dir() / "spec_objects" / name])
     assert len(files) == 1
     return files[0]
 
@@ -115,3 +122,17 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         await person_by_name["Emily Parker"].animals.fetch()
         animals_emily = [animal.display_label for animal in person_by_name["Emily Parker"].animals.peers]
         assert sorted(animals_emily) == sorted(["Max Golden Retriever", "Whiskers Siamese #FFD700"])
+
+    async def test_load_menu(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+        menu_file = load_menu_file("animal_menu01.yml")
+        await menu_file.validate_format(client=client, branch=branch_name)
+
+        await menu_file.process(client=client, branch=branch_name)
+
+        menu = await client.filters(kind=menu_file.spec.kind, protected__value=False, branch=branch_name)
+        assert len(menu) == 3
+
+        menu_by_name = {menu.display_label: menu for menu in menu}
+        await menu_by_name["Animals"].children.fetch()
+        peer_labels = [peer.display_label for peer in menu_by_name["Animals"].children.peers]
+        assert sorted(peer_labels) == sorted(["Dog", "Cat"])

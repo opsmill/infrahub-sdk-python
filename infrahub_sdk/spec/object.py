@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..schema import RelationshipSchema
+from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
 from ..yaml import InfrahubFile, InfrahubFileKind
 
 if TYPE_CHECKING:
@@ -59,6 +59,11 @@ class RelationshipInfo(BaseModel):
     def is_mandatory(self) -> bool:
         if not self.peer_rel:
             return False
+        # For hierarchical node, currently the relationship to the parent is always optional in the schema even if it's mandatory
+        # In order to build the tree from top to bottom, we need to consider it as mandatory
+        # While it should technically work bottom-up, it created some unexpected behavior while loading the menu
+        if self.peer_rel.cardinality == "one" and self.peer_rel.kind == RelationshipKind.HIERARCHY:
+            return True
         return not self.peer_rel.optional
 
     @property
@@ -168,14 +173,28 @@ class InfrahubObjectFileData(BaseModel):
         schema = await client.schema.get(kind=self.kind, branch=branch)
         for idx, item in enumerate(self.data):
             errors.extend(
-                await self.validate_object(client=client, position=[idx + 1], schema=schema, data=item, branch=branch)
+                await self.validate_object(
+                    client=client,
+                    position=[idx + 1],
+                    schema=schema,
+                    data=item,
+                    branch=branch,
+                    default_schema_kind=self.kind,
+                )
             )
         return errors
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
         for idx, item in enumerate(self.data):
-            await self.create_node(client=client, schema=schema, data=item, position=[idx + 1], branch=branch)
+            await self.create_node(
+                client=client,
+                schema=schema,
+                data=item,
+                position=[idx + 1],
+                branch=branch,
+                default_schema_kind=self.kind,
+            )
 
     @classmethod
     async def validate_object(
@@ -186,6 +205,7 @@ class InfrahubObjectFileData(BaseModel):
         position: list[int | str],
         context: dict | None = None,
         branch: str | None = None,
+        default_schema_kind: str | None = None,
     ) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         context = context.copy() if context else {}
@@ -234,6 +254,7 @@ class InfrahubObjectFileData(BaseModel):
                         data=value,
                         context=context,
                         branch=branch,
+                        default_schema_kind=default_schema_kind,
                     )
                 )
 
@@ -248,6 +269,7 @@ class InfrahubObjectFileData(BaseModel):
         data: dict | list[dict],
         context: dict | None = None,
         branch: str | None = None,
+        default_schema_kind: str | None = None,
     ) -> list[ObjectValidationError]:
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
@@ -260,7 +282,9 @@ class InfrahubObjectFileData(BaseModel):
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
             peer_kind = data.get("kind") or rel_info.peer_kind
-            peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+            peer_schema = await cls.get_peer_schema(
+                client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
+            )
 
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
@@ -273,13 +297,16 @@ class InfrahubObjectFileData(BaseModel):
                     data=data["data"],
                     context=context,
                     branch=branch,
+                    default_schema_kind=default_schema_kind,
                 )
             )
             return errors
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
             peer_kind = data.get("kind") or rel_info.peer_kind
-            peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+            peer_schema = await cls.get_peer_schema(
+                client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
+            )
 
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
@@ -294,6 +321,7 @@ class InfrahubObjectFileData(BaseModel):
                         data=peer_data,
                         context=context,
                         branch=branch,
+                        default_schema_kind=default_schema_kind,
                     )
                 )
             return errors
@@ -302,7 +330,9 @@ class InfrahubObjectFileData(BaseModel):
             for idx, item in enumerate(data):
                 context["list_index"] = idx
                 peer_kind = item.get("kind") or rel_info.peer_kind
-                peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+                peer_schema = await cls.get_peer_schema(
+                    client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
+                )
 
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
                 context.update(rel_info.get_context(value="placeholder"))
@@ -315,6 +345,7 @@ class InfrahubObjectFileData(BaseModel):
                         data=item["data"],
                         context=context,
                         branch=branch,
+                        default_schema_kind=default_schema_kind,
                     )
                 )
             return errors
@@ -345,7 +376,13 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
 
         errors = await cls.validate_object(
-            client=client, position=position, schema=schema, data=data, context=context, branch=branch
+            client=client,
+            position=position,
+            schema=schema,
+            data=data,
+            context=context,
+            branch=branch,
+            default_schema_kind=default_schema_kind,
         )
         if errors:
             messages = [str(error) for error in errors]
@@ -480,7 +517,9 @@ class InfrahubObjectFileData(BaseModel):
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
             peer_kind = data.get("kind") or rel_info.peer_kind
-            peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+            peer_schema = await cls.get_peer_schema(
+                client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
+            )
 
             if parent_node:
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
@@ -506,7 +545,9 @@ class InfrahubObjectFileData(BaseModel):
                 context["list_index"] = idx
 
                 peer_kind = item.get("kind") or rel_info.peer_kind
-                peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+                peer_schema = await cls.get_peer_schema(
+                    client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
+                )
 
                 if parent_node:
                     rel_info.find_matching_relationship(peer_schema=peer_schema)
@@ -528,6 +569,23 @@ class InfrahubObjectFileData(BaseModel):
         raise ValueError(
             f"Relationship {rel_info.rel_schema.name} doesn't have the right format {rel_info.rel_schema.cardinality} / {type(data)}"
         )
+
+    @classmethod
+    async def get_peer_schema(
+        cls, client: InfrahubClient, peer_kind: str, branch: str | None = None, default_schema_kind: str | None = None
+    ) -> MainSchemaTypesAPI:
+        peer_schema = await client.schema.get(kind=peer_kind, branch=branch)
+        if not isinstance(peer_schema, GenericSchemaAPI):
+            return peer_schema
+
+        if not default_schema_kind:
+            raise ValueError(f"Found a peer schema as a generic {peer_kind} but no default value was provided")
+
+        # if the initial peer_kind was a generic, we try the default_schema_kind
+        peer_schema = await client.schema.get(kind=default_schema_kind, branch=branch)
+        if isinstance(peer_schema, GenericSchemaAPI):
+            raise ValueError(f"Default schema kind {default_schema_kind} can't be a generic")
+        return peer_schema
 
 
 class ObjectFile(InfrahubFile):
