@@ -1,7 +1,8 @@
 import logging
 
-from infrahub_sdk import InfrahubClient
 from lib.example import print_nodes
+
+from infrahub_sdk import InfrahubClient
 
 
 async def run(
@@ -9,6 +10,6 @@ async def run(
     log: logging.Logger,
     branch: str,
 ):
-    log.info("Running example script...")
+    log.info(f"Running example script on {branch}...")
     nodes = await client.schema.all()
-    print_nodes(client, log, nodes)
+    print_nodes(log, nodes)

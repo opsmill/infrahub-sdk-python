@@ -293,9 +293,10 @@ mutation {
         assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")
 
     def test_repo_init(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dst, tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False, encoding="utf-8"
-        ) as temp_yaml:
+        with (
+            tempfile.TemporaryDirectory() as temp_dst,
+            tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False, encoding="utf-8") as temp_yaml,
+        ):
             dst = Path(temp_dst)
             yaml_path = Path(temp_yaml.name)
 

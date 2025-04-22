@@ -283,6 +283,11 @@ max-complexity = 17
     "ANN204", # Missing return type annotation for special method
 ]
 
+"infrahub_sdk/ctl/example_repo/**/*.py" = [
+    "S101",    # Use of assert detected
+    "N999",    # Invalid module name
+]
+
 "tests/unit/sdk/test_client.py" = [
     "W293", # Blank line contains whitespace (used within output check)
 ]

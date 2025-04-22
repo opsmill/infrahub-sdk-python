@@ -1,7 +1,8 @@
-from invoke import Context, task
-from pathlib import Path
-import httpx
 import os
+from pathlib import Path
+
+import httpx
+from invoke import Context, task
 
 # If no version is indicated, we will take the latest
 VERSION = os.getenv("INFRAHUB_IMAGE_VER", None)
@@ -12,7 +13,7 @@ def start(context: Context) -> None:
     """
     Start the services using docker-compose in detached mode.
     """
-    compose_file = download_compose_file(context, override=False)
+    download_compose_file(context, override=False)
     context.run("docker compose up -d")
 
 
@@ -21,7 +22,7 @@ def destroy(context: Context) -> None:
     """
     Stop and remove containers, networks, and volumes.
     """
-    compose_file = download_compose_file(context, override=False)
+    download_compose_file(context, override=False)
     context.run("docker compose down -v")
 
 
@@ -30,7 +31,7 @@ def stop(context: Context) -> None:
     """
     Stop containers and remove networks.
     """
-    compose_file = download_compose_file(context, override=False)
+    download_compose_file(context, override=False)
     context.run("docker compose down")
 
 
@@ -64,7 +65,7 @@ def test(ctx: Context):
 
 
 @task(help={"override": "Redownload the compose file even if it already exists."})
-def download_compose_file(context: Context, override: bool = False) -> Path:
+def download_compose_file(context: Context, override: bool = False) -> Path:  # noqa ARG001
     """
     Download docker-compose.yml from InfraHub if missing or override is True.
     """
