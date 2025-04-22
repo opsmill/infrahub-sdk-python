@@ -3,6 +3,7 @@
 Welcome! This repository was initialized via the `infrahubctl repo init` command. That bootstraps a repository for use with some example data.
 
 ## Installation
+
 Running `poetry install` will install all the main dependencies you need to interact with this repository.
 
 ## Starting Infrahub
@@ -24,6 +25,7 @@ Available tasks:
 To start infrahub simply use `invoke start`
 
 ## Tests
+
 By default there are some integration tests that will spin up Infrahub and its dependencies in docker and load the repository and schema. This can be run using the following:
 
 ```bash
