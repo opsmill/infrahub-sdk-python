@@ -172,7 +172,7 @@ async def list(
 @app.command()
 async def init(
     dst: Path,
-    data: Path | None = None,
+    data: Optional[Path] = None,
     _: str = CONFIG_PARAM,
 ) -> None:
     """Initialize a new Infrahub repository."""
