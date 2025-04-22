@@ -569,7 +569,9 @@ class RelationshipManager(RelationshipManagerBase):
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
-        if new_node.id and new_node.id not in self.peer_ids:
+        if (new_node.id and new_node.id not in self.peer_ids) or (
+            new_node.hfid and new_node.hfid not in self.peer_hfids
+        ):
             self.peers.append(new_node)
             self._has_update = True
 
@@ -587,6 +589,14 @@ class RelationshipManager(RelationshipManagerBase):
             idx = self.peer_ids.index(node_to_remove.id)
             if self.peers[idx].id != node_to_remove.id:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
+
+            self.peers.pop(idx)
+            self._has_update = True
+
+        elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
+            idx = self.peer_hfids.index(node_to_remove.hfid)
+            if self.peers[idx].hfid != node_to_remove.hfid:
+                raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
             self.peers.pop(idx)
             self._has_update = True
@@ -664,7 +674,9 @@ class RelationshipManagerSync(RelationshipManagerBase):
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
-        if new_node.id and new_node.id not in self.peer_ids:
+        if (new_node.id and new_node.id not in self.peer_ids) or (
+            new_node.hfid and new_node.hfid not in self.peer_hfids
+        ):
             self.peers.append(new_node)
             self._has_update = True
 
@@ -682,6 +694,13 @@ class RelationshipManagerSync(RelationshipManagerBase):
             idx = self.peer_ids.index(node_to_remove.id)
             if self.peers[idx].id != node_to_remove.id:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
+            self.peers.pop(idx)
+            self._has_update = True
+
+        elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
+            idx = self.peer_hfids.index(node_to_remove.hfid)
+            if self.peers[idx].hfid != node_to_remove.hfid:
+                raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
             self.peers.pop(idx)
             self._has_update = True
