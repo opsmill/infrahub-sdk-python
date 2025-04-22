@@ -479,7 +479,7 @@ class RelationshipManagerBase:
         """
         data: dict[str, Any] = {
             "count": None,
-            "edges": {"node": {"id": None, "display_label": None, "__typename": None}},
+            "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
         }
 
         properties: dict[str, Any] = {}
