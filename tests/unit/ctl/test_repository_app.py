@@ -347,8 +347,7 @@ mutation {
 
             yaml.safe_dump(answers, temp_yaml)
             temp_yaml.close()
-            output = runner.invoke(app, ["repository", "init", str(dst), "--data", str(yaml_path)])
-            print(output.stdout)
+            runner.invoke(app, ["repository", "init", str(dst), "--data", str(yaml_path)])
             coppied_answers = yaml.safe_load((dst / ".copier-answers.yml").read_text())
             coppied_answers.pop("_src_path")
 
