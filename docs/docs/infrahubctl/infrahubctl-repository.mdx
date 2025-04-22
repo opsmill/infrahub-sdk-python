@@ -19,6 +19,7 @@ $ infrahubctl repository [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `add`: Add a new repository.
+* `init`: Initialize a new Infrahub repository.
 * `list`
 
 ## `infrahubctl repository add`
@@ -44,6 +45,26 @@ $ infrahubctl repository add [OPTIONS] NAME LOCATION
 * `--ref TEXT`
 * `--read-only / --no-read-only`: [default: no-read-only]
 * `--debug / --no-debug`: [default: no-debug]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl repository init`
+
+Initialize a new Infrahub repository.
+
+**Usage**:
+
+```console
+$ infrahubctl repository init [OPTIONS] DST
+```
+
+**Arguments**:
+
+* `DST`: [required]
+
+**Options**:
+
+* `--data PATH`
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
