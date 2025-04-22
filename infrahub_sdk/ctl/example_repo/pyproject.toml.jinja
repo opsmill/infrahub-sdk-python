@@ -13,14 +13,15 @@ package-mode = false
 {% endif %}
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-infrahub-sdk = {extras = ["ctl"], version = "^1.7.2"}
+python = ">=3.9,<=3.13.1"
+infrahub-sdk = { extras = ["all"], version = "*" }
+invoke = "*"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.9.10"
-pytest = "^8.3.5"
-infrahub-testcontainers = "^1.1.8"
-pytest-asyncio = "^0.25.3"
+ruff = "*"
+pytest = "*"
+infrahub-testcontainers = "*"
+pytest-asyncio = "*"
 
 [build-system]
 requires = ["poetry-core"]

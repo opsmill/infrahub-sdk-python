@@ -17,7 +17,7 @@ def root_directory() -> Path:
 
 @pytest.fixture
 def schemas_directory(root_directory: Path) -> Path:
-    return root_directory / "schema"
+    return root_directory / "schemas"
 
 
 @pytest.fixture
