@@ -49,7 +49,7 @@ def restart(context: Context, component: str = "") -> None:
 
 
 @task
-def load_schema(ctx: Context):
+def load_schema(ctx: Context) -> None:
     """
     Load schemas into InfraHub using infrahubctl.
     """
@@ -57,7 +57,7 @@ def load_schema(ctx: Context):
 
 
 @task
-def test(ctx: Context):
+def test(ctx: Context) -> None:
     """
     Run tests using pytest.
     """
