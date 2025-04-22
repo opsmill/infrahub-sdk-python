@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import uuid
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -17,10 +19,17 @@ from graphql import (
 
 from infrahub_sdk.repository import GitRepoManager
 
-from .exceptions import JsonDecodeError
+from .exceptions import FileNotValidError, JsonDecodeError, TimestampFormatError
+from .timestamp import Timestamp
 
 if TYPE_CHECKING:
     from graphql import GraphQLResolveInfo
+    from whenever import TimeDelta
+
+
+def generate_short_id() -> str:
+    """Generate a short unique ID"""
+    return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii").lower()
 
 
 def base36encode(number: int) -> str:
@@ -342,6 +351,16 @@ def write_to_file(path: Path, value: Any) -> bool:
     return written is not None
 
 
+def read_file(file_name: Path) -> str:
+    if not file_name.is_file():
+        raise FileNotValidError(name=str(file_name), message=f"{file_name} is not a valid file")
+    try:
+        with Path.open(file_name, encoding="utf-8") as fobj:
+            return fobj.read()
+    except UnicodeDecodeError as exc:
+        raise FileNotValidError(name=str(file_name), message=f"Unable to read {file_name} with utf-8 encoding") from exc
+
+
 def get_user_permissions(data: list[dict]) -> dict:
     groups = {}
     for group in data:
@@ -357,3 +376,29 @@ def get_user_permissions(data: list[dict]) -> dict:
         groups[group_name] = permissions
 
     return groups
+
+
+def calculate_time_diff(value: str) -> str | None:
+    """Calculate the time in human format between a timedate in string format and now."""
+    try:
+        time_value = Timestamp(value)
+    except TimestampFormatError:
+        return None
+
+    delta: TimeDelta = Timestamp().get_obj().difference(time_value.get_obj())
+    (hrs, mins, secs, nanos) = delta.in_hrs_mins_secs_nanos()
+
+    if nanos and nanos > 500_000_000:
+        secs += 1
+
+    if hrs and hrs < 24 and mins:
+        return f"{hrs}h {mins}m and {secs}s ago"
+    if hrs and hrs > 24:
+        remaining_hrs = hrs % 24
+        days = int((hrs - remaining_hrs) / 24)
+        return f"{days}d and {remaining_hrs}h ago"
+    if hrs == 0 and mins and secs:
+        return f"{mins}m and {secs}s ago"
+    if hrs == 0 and mins == 0 and secs:
+        return f"{secs}s ago"
+    return "now"

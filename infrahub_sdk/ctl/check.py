@@ -5,7 +5,7 @@ import sys
 from asyncio import run as aiorun
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import typer
 from rich.console import Console
@@ -50,8 +50,8 @@ def run(
     format_json: bool,
     list_available: bool,
     variables: dict[str, str],
-    name: str | None = None,
-    branch: str | None = None,
+    name: Optional[str] = None,
+    branch: Optional[str] = None,
 ) -> None:
     """Locate and execute all checks under the defined path."""
 

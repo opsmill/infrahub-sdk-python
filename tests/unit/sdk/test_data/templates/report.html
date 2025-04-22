@@ -1,0 +1,11 @@
+<html>
+<body>
+<ul>
+{% for server in servers %}
+    <li>{{server.name}}: {{ server.ip.primary }}</li>
+{% endfor %}
+</ul>
+
+</body>
+
+</html>

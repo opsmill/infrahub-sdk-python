@@ -1,0 +1,21 @@
+{
+    "data": {
+      "InfrahubTask": {
+        "count": 2,
+        "edges": [
+          {
+            "node": {
+              "created_at": "2025-01-18T22:12:23.104373Z",
+              "id": "a60f4431-6a43-451e-8f42-9ec5db9a9370",
+              "branch": "main",
+              "title": "Setup computed attributes for Python transforms in task-manager",
+              "updated_at": "2025-01-18T22:12:25.436646Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "computed-attribute-setup-python"
+            }
+          }
+        ]
+      }
+    }
+  }

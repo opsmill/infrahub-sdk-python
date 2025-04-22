@@ -5,9 +5,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk.branch import BranchData
-from infrahub_sdk.exceptions import BranchNotFoundError
+from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.schema import ProfileSchemaAPI
+from infrahub_sdk.task.models import Task, TaskFilter, TaskLog, TaskState
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
 
@@ -16,10 +17,6 @@ if TYPE_CHECKING:
 
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
-    @pytest.fixture(scope="class")
-    def infrahub_version(self) -> str:
-        return "1.1.0"
-
     @pytest.fixture(scope="class")
     async def base_dataset(
         self,
@@ -34,6 +31,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         dog_rocky,
     ):
         await client.branch.create(branch_name="branch01")
+
+    @pytest.fixture
+    async def set_pagination_size3(self, client: InfrahubClient):
+        original_pagination_size = client.pagination_size
+        client.pagination_size = 3
+        yield
+        client.pagination_size = original_pagination_size
 
     async def test_query_branches(self, client: InfrahubClient, base_dataset):
         branches = await client.branch.all()
@@ -149,6 +153,60 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_count_with_filter(self, client: InfrahubClient, base_dataset):
         count = await client.count(kind=TESTING_PERSON, name__values=["Liam Walker", "Ethan Carter"])
         assert count == 2
+
+    async def test_query_unexisting_branch(self, client: InfrahubClient):
+        with pytest.raises(URLNotFoundError, match=r"/graphql/unexisting` not found."):
+            await client.execute_graphql(query="unused", branch_name="unexisting")
+
+    async def test_create_generic_rel_with_hfid(
+        self, client: InfrahubClient, base_dataset, cat_luna, person_sophia, schema_animal, schema_cat
+    ):
+        # See https://github.com/opsmill/infrahub-sdk-python/issues/277
+        assert schema_animal.human_friendly_id != schema_cat.human_friendly_id, (
+            "Inherited node schema should have a different hfid than generic one for this test to be relevant"
+        )
+        person_sophia.favorite_animal = {"hfid": cat_luna.hfid, "kind": TESTING_CAT}
+        await person_sophia.save()
+        person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
+        assert person_sophia.favorite_animal.id == cat_luna.id
+
+    async def test_task_query(self, client: InfrahubClient, base_dataset, set_pagination_size3):
+        nbr_tasks = await client.task.count()
+        assert nbr_tasks
+
+        tasks = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]))
+        assert tasks
+        task_ids = [task.id for task in tasks]
+
+        # Query Tasks using Parallel mode
+        tasks_parallel = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]), parallel=True)
+        assert tasks_parallel
+        assert len(tasks_parallel) == len(tasks)
+
+        # Query Tasks by ID
+        tasks_parallel_filtered = await client.task.filter(filter=TaskFilter(ids=task_ids[:2]), parallel=True)
+        assert tasks_parallel_filtered
+        assert len(tasks_parallel_filtered) == 2
+
+        # Query individual Task
+        task = await client.task.get(id=tasks[0].id)
+        assert task
+        assert isinstance(task, Task)
+        assert task.logs == []
+
+        # Wait for Task completion
+        task = await client.task.wait_for_completion(id=tasks[0].id)
+        assert task
+        assert isinstance(task, Task)
+
+        # Query Tasks with logs
+        tasks = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]), include_logs=True)
+        all_logs = [log for task in tasks for log in task.logs]
+        assert all_logs
+        assert isinstance(all_logs[0], TaskLog)
+        assert all_logs[0].message
+        assert all_logs[0].timestamp
+        assert all_logs[0].severity
 
     # async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset):
     #     admin = await client.get(kind="CoreAccount", name__value="admin")

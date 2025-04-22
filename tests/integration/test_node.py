@@ -10,10 +10,6 @@ from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFAC
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
-    def infrahub_version(self) -> str:
-        return "1.1.0"
-
-    @pytest.fixture(scope="class")
     async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
         await client.schema.wait_until_converged(branch=default_branch)
 
@@ -66,6 +62,25 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         node_after = await client.get(kind=TESTING_CAR, id=node.id, prefetch_relationships=True)
         assert node_after.name.value == node.name.value
         assert node_after.manufacturer.peer.id == manufacturer_mercedes.id
+
+    async def test_node_update_with_original_data(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+    ):
+        person_marina = await client.create(kind="TestingPerson", name="marina", age=20)
+        await person_marina.save()
+
+        person_marina = await client.get(kind="TestingPerson", id=person_marina.id)
+
+        person_marina.age.value = 30
+        await person_marina.save()
+
+        person_marina.age.value = 20
+        await person_marina.save()
+        node = await client.get(kind="TestingPerson", id=person_marina.id)
+        assert node.age.value == 20, node.age.value
 
     # async def test_node_update_payload_with_relationships(
     #     self,

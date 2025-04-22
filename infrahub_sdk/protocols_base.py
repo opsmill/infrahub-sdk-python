@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 if TYPE_CHECKING:
     import ipaddress
 
+    from .context import RequestContext
     from .schema import MainSchemaTypes
 
 
@@ -143,7 +144,8 @@ class AnyAttributeOptional(Attribute):
 @runtime_checkable
 class CoreNodeBase(Protocol):
     _schema: MainSchemaTypes
-    id: str
+    _internal_id: str
+    id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None
 
     @property
@@ -152,9 +154,15 @@ class CoreNodeBase(Protocol):
     @property
     def hfid_str(self) -> str | None: ...
 
+    def get_human_friendly_id(self) -> list[str] | None: ...
+
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
     def get_kind(self) -> str: ...
+
+    def get_all_kinds(self) -> list[str]: ...
+
+    def get_branch(self) -> str: ...
 
     def is_ip_prefix(self) -> bool: ...
 
@@ -169,13 +177,23 @@ class CoreNodeBase(Protocol):
 
 @runtime_checkable
 class CoreNode(CoreNodeBase, Protocol):
-    async def save(self, allow_upsert: bool = False, update_group_context: bool | None = None) -> None: ...
+    async def save(
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+    ) -> None: ...
 
-    async def delete(self) -> None: ...
+    async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None: ...
 
-    async def update(self, do_full_update: bool) -> None: ...
+    async def update(
+        self, do_full_update: bool, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None: ...
 
-    async def create(self, allow_upsert: bool = False) -> None: ...
+    async def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None: ...
 
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
 
@@ -184,13 +202,23 @@ class CoreNode(CoreNodeBase, Protocol):
 
 @runtime_checkable
 class CoreNodeSync(CoreNodeBase, Protocol):
-    def save(self, allow_upsert: bool = False, update_group_context: bool | None = None) -> None: ...
+    def save(
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+    ) -> None: ...
 
-    def delete(self) -> None: ...
+    def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None: ...
 
-    def update(self, do_full_update: bool) -> None: ...
+    def update(
+        self, do_full_update: bool, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None: ...
 
-    def create(self, allow_upsert: bool = False) -> None: ...
+    def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None: ...
 
     def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
 

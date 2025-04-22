@@ -1,0 +1,21 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Jane Smith
+      height: 165
+      tags:
+        data:
+          - name: Dog Lover
+          - name: Veterinarian
+
+    - name: Mike Johnson
+      height: 175
+      tags:
+        data:
+          - name: Professional Trainer
+
+    - name: Sarah Williams
+      height: 170

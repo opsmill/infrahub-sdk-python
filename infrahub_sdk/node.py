@@ -15,13 +15,14 @@ from .exceptions import (
 )
 from .graphql import Mutation, Query
 from .schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
-from .utils import compare_lists, get_flat_value
+from .utils import compare_lists, generate_short_id, get_flat_value
 from .uuidt import UUIDT
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
     from .client import InfrahubClient, InfrahubClientSync
+    from .context import RequestContext
     from .schema import AttributeSchemaAPI, MainSchemaTypesAPI, RelationshipSchemaAPI
     from .types import Order
 
@@ -41,6 +42,20 @@ ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
 ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling generate is only supported for CoreArtifactDefinition nodes"
 )
+
+HFID_STR_SEPARATOR = "__"
+
+
+def parse_human_friendly_id(hfid: str | list[str]) -> tuple[str | None, list[str]]:
+    """Parse a human friendly ID into a kind and an identifier."""
+    if isinstance(hfid, str):
+        hfid_parts = hfid.split(HFID_STR_SEPARATOR)
+        if len(hfid_parts) == 1:
+            return None, hfid_parts
+        return hfid_parts[0], hfid_parts[1:]
+    if isinstance(hfid, list):
+        return None, hfid
+    raise ValueError(f"Invalid human friendly ID: {hfid}")
 
 
 class Attribute:
@@ -67,17 +82,18 @@ class Attribute:
 
         self.id: str | None = data.get("id", None)
 
-        self.value: Any | None = data.get("value", None)
+        self._value: Any | None = data.get("value", None)
+        self.value_has_been_mutated = False
         self.is_default: bool | None = data.get("is_default", None)
         self.is_from_profile: bool | None = data.get("is_from_profile", None)
 
-        if self.value:
+        if self._value:
             value_mapper: dict[str, Callable] = {
                 "IPHost": ipaddress.ip_interface,
                 "IPNetwork": ipaddress.ip_network,
             }
             mapper = value_mapper.get(schema.kind, lambda value: value)
-            self.value = mapper(data.get("value"))
+            self._value = mapper(data.get("value"))
 
         self.is_inherited: bool | None = data.get("is_inherited", None)
         self.updated_at: str | None = data.get("updated_at", None)
@@ -91,6 +107,15 @@ class Attribute:
         for prop_name in self._properties_object:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+
+    @property
+    def value(self) -> Any:
+        return self._value
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        self._value = value
+        self.value_has_been_mutated = True
 
     def _generate_input_data(self) -> dict | None:
         data: dict[str, Any] = {}
@@ -187,6 +212,7 @@ class RelatedNodeBase:
             if node_data:
                 self._id = node_data.get("id", None)
                 self._hfid = node_data.get("hfid", None)
+                self._kind = node_data.get("kind", None)
                 self._display_label = node_data.get("display_label", None)
                 self._typename = node_data.get("__typename", None)
 
@@ -255,6 +281,8 @@ class RelatedNodeBase:
             data["id"] = self.id
         elif self.hfid is not None:
             data["hfid"] = self.hfid
+            if self._kind is not None:
+                data["kind"] = self._kind
 
         for prop_name in self._properties:
             if getattr(self, prop_name) is not None:
@@ -336,10 +364,10 @@ class RelatedNode(RelatedNodeBase):
             return self._peer  # type: ignore[return-value]
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename)  # type: ignore[return-value]
+            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
 
         if self.hfid_str:
-            return self._client.store.get_by_hfid(key=self.hfid_str)  # type: ignore[return-value]
+            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -383,10 +411,10 @@ class RelatedNodeSync(RelatedNodeBase):
             return self._peer  # type: ignore[return-value]
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename)  # type: ignore[return-value]
+            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
 
         if self.hfid_str:
-            return self._client.store.get_by_hfid(key=self.hfid_str)  # type: ignore[return-value]
+            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -674,6 +702,11 @@ class InfrahubNodeBase:
         self._branch = branch
         self._existing: bool = True
 
+        # Generate a unique ID only to be used inside the SDK
+        # The format if this ID is purposely different from the ID used by the API
+        # This is done to avoid confusion and potential conflicts between the IDs
+        self._internal_id = generate_short_id()
+
         self.id = data.get("id", None) if isinstance(data, dict) else None
         self.display_label: str | None = data.get("display_label", None) if isinstance(data, dict) else None
         self.typename: str | None = data.get("__typename", schema.kind) if isinstance(data, dict) else schema.kind
@@ -689,6 +722,9 @@ class InfrahubNodeBase:
 
         self._init_attributes(data)
         self._init_relationships(data)
+
+    def get_branch(self) -> str:
+        return self._branch
 
     def get_path_value(self, path: str) -> Any:
         path_parts = path.split("__")
@@ -757,14 +793,23 @@ class InfrahubNodeBase:
         return self.get_human_friendly_id_as_string(include_kind=True)
 
     def _init_attributes(self, data: dict | None = None) -> None:
-        for attr_name in self._attributes:
-            attr_schema = [attr for attr in self._schema.attributes if attr.name == attr_name][0]
-            attr_data = data.get(attr_name, None) if isinstance(data, dict) else None
+        for attr_schema in self._schema.attributes:
+            attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
             setattr(
                 self,
-                attr_name,
-                Attribute(name=attr_name, schema=attr_schema, data=attr_data),
+                attr_schema.name,
+                Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data),
             )
+
+    def _get_request_context(self, request_context: RequestContext | None = None) -> dict[str, Any] | None:
+        if request_context:
+            return request_context.model_dump(exclude_none=True)
+
+        client: InfrahubClient | InfrahubClientSync | None = getattr(self, "_client", None)
+        if not client or not client.request_context:
+            return None
+
+        return client.request_context.model_dump(exclude_none=True)
 
     def _init_relationships(self, data: dict | None = None) -> None:
         pass
@@ -780,6 +825,11 @@ class InfrahubNodeBase:
     def get_kind(self) -> str:
         return self._schema.kind
 
+    def get_all_kinds(self) -> list[str]:
+        if hasattr(self._schema, "inherit_from"):
+            return [self._schema.kind] + self._schema.inherit_from
+        return [self._schema.kind]
+
     def is_ip_prefix(self) -> bool:
         builtin_ipprefix_kind = "BuiltinIPPrefix"
         return self.get_kind() == builtin_ipprefix_kind or builtin_ipprefix_kind in self._schema.inherit_from  # type: ignore[union-attr]
@@ -794,7 +844,12 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(self, exclude_unmodified: bool = False, exclude_hfid: bool = False) -> dict[str, dict]:  # noqa: C901
+    def _generate_input_data(  # noqa: C901
+        self,
+        exclude_unmodified: bool = False,
+        exclude_hfid: bool = False,
+        request_context: RequestContext | None = None,
+    ) -> dict[str, dict]:
         """Generate a dictionary that represent the input data required by a mutation.
 
         Returns:
@@ -872,7 +927,15 @@ class InfrahubNodeBase:
         elif self.hfid is not None and not exclude_hfid:
             data["hfid"] = self.hfid
 
-        return {"data": {"data": data}, "variables": variables, "mutation_variables": mutation_variables}
+        mutation_payload = {"data": data}
+        if context_data := self._get_request_context(request_context=request_context):
+            mutation_payload["context"] = context_data
+
+        return {
+            "data": mutation_payload,
+            "variables": variables,
+            "mutation_variables": mutation_variables,
+        }
 
     @staticmethod
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
@@ -921,7 +984,9 @@ class InfrahubNodeBase:
         for item in original_data.keys():
             if item in data.keys():
                 if data[item] == original_data[item]:
-                    data.pop(item)
+                    if attr := getattr(self, item, None):  # this should never be None, just a safety default value
+                        if not isinstance(attr, Attribute) or not attr.value_has_been_mutated:
+                            data.pop(item)
                     continue
                 if isinstance(original_data[item], dict):
                     self._strip_unmodified_dict(data=data, original_data=original_data, variables=variables, item=item)
@@ -1081,24 +1146,23 @@ class InfrahubNode(InfrahubNodeBase):
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
     def _init_relationships(self, data: dict | None = None) -> None:
-        for rel_name in self._relationships:
-            rel_schema = [rel for rel in self._schema.relationships if rel.name == rel_name][0]
-            rel_data = data.get(rel_name, None) if isinstance(data, dict) else None
+        for rel_schema in self._schema.relationships:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_name}", None)
+                setattr(self, f"_{rel_schema.name}", None)
                 setattr(
                     self.__class__,
-                    rel_name,
-                    generate_relationship_property(name=rel_name, node=self),
+                    rel_schema.name,
+                    generate_relationship_property(name=rel_schema.name, node=self),
                 )
-                setattr(self, rel_name, rel_data)
+                setattr(self, rel_schema.name, rel_data)
             else:
                 setattr(
                     self,
-                    rel_name,
+                    rel_schema.name,
                     RelationshipManager(
-                        name=rel_name,
+                        name=rel_schema.name,
                         client=self._client,
                         node=self,
                         branch=self._branch,
@@ -1118,19 +1182,22 @@ class InfrahubNode(InfrahubNodeBase):
     async def artifact_generate(self, name: str) -> None:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        artifact = await self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         await artifact.definition.fetch()  # type: ignore[attr-defined]
         await artifact.definition.peer.generate([artifact.id])  # type: ignore[attr-defined]
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        artifact = await self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         content = await self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    async def delete(self, timeout: int | None = None) -> None:
+    async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
+        if context_data := self._get_request_context(request_context=request_context):
+            input_data["context"] = context_data
+
         mutation_query = {"ok": None}
         query = Mutation(
             mutation=f"{self._schema.kind}Delete",
@@ -1145,12 +1212,16 @@ class InfrahubNode(InfrahubNodeBase):
         )
 
     async def save(
-        self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         if self._existing is False or allow_upsert is True:
-            await self.create(allow_upsert=allow_upsert, timeout=timeout)
+            await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
-            await self.update(timeout=timeout)
+            await self.update(timeout=timeout, request_context=request_context)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1167,7 +1238,7 @@ class InfrahubNode(InfrahubNodeBase):
         else:
             await self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
 
-        self._client.store.set(key=self.id, node=self)
+        self._client.store.set(node=self)
 
     async def generate_query_data(
         self,
@@ -1379,15 +1450,19 @@ class InfrahubNode(InfrahubNodeBase):
             await related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    async def create(self, allow_upsert: bool = False, timeout: int | None = None) -> None:
+    async def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
         mutation_query = self._generate_mutation_query()
 
+        # Upserting means we may want to create, meaning payload contains all mandatory fields required for a creation,
+        # so hfid is just redondant information. Currently, upsert mutation has performance overhead if `hfid` is filled.
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=False)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
-            input_data = self._generate_input_data(exclude_hfid=True)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
         query = Mutation(
@@ -1405,8 +1480,10 @@ class InfrahubNode(InfrahubNodeBase):
         )
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    async def update(self, do_full_update: bool = False, timeout: int | None = None) -> None:
-        input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
+    async def update(
+        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
+        input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
 
@@ -1439,15 +1516,15 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNode):
-                relation = node_data["node"].get(rel_name)
-                if relation.get("node", None):
+                relation = node_data["node"].get(rel_name, None)
+                if relation and relation.get("node", None):
                     related_node = await InfrahubNode.from_graphql(
                         client=self._client, branch=branch, data=relation, timeout=timeout
                     )
                     related_nodes.append(related_node)
             elif rel and isinstance(rel, RelationshipManager):
-                peers = node_data["node"].get(rel_name)
-                if peers:
+                peers = node_data["node"].get(rel_name, None)
+                if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = await InfrahubNode.from_graphql(
                             client=self._client, branch=branch, data=peer, timeout=timeout
@@ -1600,24 +1677,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
     def _init_relationships(self, data: dict | None = None) -> None:
-        for rel_name in self._relationships:
-            rel_schema = [rel for rel in self._schema.relationships if rel.name == rel_name][0]
-            rel_data = data.get(rel_name, None) if isinstance(data, dict) else None
+        for rel_schema in self._schema.relationships:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_name}", None)
+                setattr(self, f"_{rel_schema.name}", None)
                 setattr(
                     self.__class__,
-                    rel_name,
-                    generate_relationship_property(name=rel_name, node=self),
+                    rel_schema.name,
+                    generate_relationship_property(name=rel_schema.name, node=self),
                 )
-                setattr(self, rel_name, rel_data)
+                setattr(self, rel_schema.name, rel_data)
             else:
                 setattr(
                     self,
-                    rel_name,
+                    rel_schema.name,
                     RelationshipManagerSync(
-                        name=rel_name,
+                        name=rel_schema.name,
                         client=self._client,
                         node=self,
                         branch=self._branch,
@@ -1635,18 +1711,21 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
     def artifact_generate(self, name: str) -> None:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
-        artifact = self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         artifact.definition.fetch()  # type: ignore[attr-defined]
         artifact.definition.peer.generate([artifact.id])  # type: ignore[attr-defined]
 
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
-        artifact = self._client.get(kind="CoreArtifact", definition__name__value=name, object__ids=[self.id])
+        artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         content = self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
         return content
 
-    def delete(self, timeout: int | None = None) -> None:
+    def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
+        if context_data := self._get_request_context(request_context=request_context):
+            input_data["context"] = context_data
+
         mutation_query = {"ok": None}
         query = Mutation(
             mutation=f"{self._schema.kind}Delete",
@@ -1661,12 +1740,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
     def save(
-        self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None
+        self,
+        allow_upsert: bool = False,
+        update_group_context: bool | None = None,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         if self._existing is False or allow_upsert is True:
-            self.create(allow_upsert=allow_upsert, timeout=timeout)
+            self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
-            self.update(timeout=timeout)
+            self.update(timeout=timeout, request_context=request_context)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1679,7 +1762,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         else:
             self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
 
-        self._client.store.set(key=self.id, node=self)
+        self._client.store.set(node=self)
 
     def generate_query_data(
         self,
@@ -1890,15 +1973,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
-    def create(self, allow_upsert: bool = False, timeout: int | None = None) -> None:
+    def create(
+        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=False)
+            input_data = self._generate_input_data(exclude_hfid=False, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
-            input_data = self._generate_input_data(exclude_hfid=True)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
         query = Mutation(
@@ -1917,8 +2002,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
         self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
-    def update(self, do_full_update: bool = False, timeout: int | None = None) -> None:
-        input_data = self._generate_input_data(exclude_unmodified=not do_full_update)
+    def update(
+        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+    ) -> None:
+        input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
 

@@ -6,33 +6,34 @@ import traceback
 from collections.abc import Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, TypeVar
 
-import pendulum
 import typer
 from click.exceptions import Exit
 from httpx import HTTPError
-from pendulum.datetime import DateTime
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
 
-from ..ctl.exceptions import FileNotValidError, QueryNotFoundError
 from ..exceptions import (
     AuthenticationError,
     Error,
+    FileNotValidError,
     GraphQLError,
     NodeNotFoundError,
     ResourceNotDefinedError,
     SchemaNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
+    ValidationError,
 )
 from ..yaml import YamlFile
 from .client import initialize_client_sync
+from .exceptions import QueryNotFoundError
 
 if TYPE_CHECKING:
     from ..schema.repository import InfrahubRepositoryConfig
+    from ..spec.object import ObjectFile
 
 YamlFileVar = TypeVar("YamlFileVar", bound=YamlFile)
 T = TypeVar("T")
@@ -144,25 +145,11 @@ def print_graphql_errors(console: Console, errors: list) -> None:
             console.print(f"[red]{escape(str(error))}")
 
 
-def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:
+def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
     if not variables:
         return {}
 
     return {var.split("=")[0]: var.split("=")[1] for var in variables if "=" in var}
-
-
-def calculate_time_diff(value: str) -> str | None:
-    """Calculate the time in human format between a timedate in string format and now."""
-    try:
-        time_value = pendulum.parse(value)
-    except pendulum.parsing.exceptions.ParserError:
-        return None
-
-    if not isinstance(time_value, DateTime):
-        return None
-
-    pendulum.set_locale("en")
-    return time_value.diff_for_humans(other=pendulum.now(), absolute=True)
 
 
 def find_graphql_query(name: str, directory: str | Path = ".") -> str:
@@ -213,4 +200,23 @@ def load_yamlfile_from_disk_and_exit(
     if has_error:
         raise typer.Exit(1)
 
-    return data_files
+    return sorted(data_files, key=lambda x: x.location)
+
+
+def display_object_validate_format_success(file: ObjectFile, console: Console) -> None:
+    if file.multiple_documents:
+        console.print(f"[green] File '{file.location}' [{file.document_position}] is Valid!")
+    else:
+        console.print(f"[green] File '{file.location}' is Valid!")
+
+
+def display_object_validate_format_error(file: ObjectFile, error: ValidationError, console: Console) -> None:
+    if file.multiple_documents:
+        console.print(f"[red] File '{file.location}' [{file.document_position}] is not valid!")
+    else:
+        console.print(f"[red] File '{file.location}' is not valid!")
+    if error.messages:
+        for message in error.messages:
+            console.print(f"[red] {message}")
+    else:
+        console.print(f"[red] {error.message}")

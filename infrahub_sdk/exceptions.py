@@ -69,12 +69,12 @@ class ModuleImportError(Error):
 class NodeNotFoundError(Error):
     def __init__(
         self,
-        node_type: str,
         identifier: Mapping[str, list[str]],
         message: str = "Unable to find the node in the database.",
         branch_name: str | None = None,
+        node_type: str | None = None,
     ):
-        self.node_type = node_type
+        self.node_type = node_type or "unknown"
         self.identifier = identifier
         self.branch_name = branch_name
 
@@ -86,6 +86,10 @@ class NodeNotFoundError(Error):
         {self.message}
         {self.branch_name} | {self.node_type} | {self.identifier}
         """
+
+
+class NodeInvalidError(NodeNotFoundError):
+    pass
 
 
 class ResourceNotDefinedError(Error):
@@ -109,15 +113,39 @@ class InfrahubTransformNotFoundError(Error):
 
 
 class ValidationError(Error):
-    def __init__(self, identifier: str, message: str):
+    def __init__(self, identifier: str, message: str | None = None, messages: list[str] | None = None):
         self.identifier = identifier
         self.message = message
+        self.messages = messages
+        if not messages and not message:
+            self.message = f"Validation Error for {self.identifier}"
         super().__init__(self.message)
+
+    def __str__(self) -> str:
+        if self.messages:
+            return f"{self.identifier}: {', '.join(self.messages)}"
+        return f"{self.identifier}: {self.message}"
+
+
+class ObjectValidationError(Error):
+    def __init__(self, position: list[int | str], message: str):
+        self.position = position
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return f"{'.'.join(map(str, self.position))}: {self.message}"
 
 
 class AuthenticationError(Error):
     def __init__(self, message: str | None = None):
         self.message = message or "Authentication Error, unable to execute the query."
+        super().__init__(self.message)
+
+
+class URLNotFoundError(Error):
+    def __init__(self, url: str):
+        self.message = f"`{url}` not found."
         super().__init__(self.message)
 
 
@@ -131,3 +159,15 @@ class UninitializedError(Error):
 
 class InvalidResponseError(Error):
     """Raised when an object requires an initialization step before use"""
+
+
+class FileNotValidError(Error):
+    def __init__(self, name: str, message: str = ""):
+        self.message = message or f"Cannot parse '{name}' content."
+        super().__init__(self.message)
+
+
+class TimestampFormatError(Error):
+    def __init__(self, message: str | None = None):
+        self.message = message or "Invalid timestamp format"
+        super().__init__(self.message)

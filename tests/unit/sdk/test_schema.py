@@ -9,11 +9,7 @@ from rich.console import Console
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
-from infrahub_sdk.schema import (
-    InfrahubSchema,
-    InfrahubSchemaSync,
-    NodeSchemaAPI,
-)
+from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from infrahub_sdk.schema.repository import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -62,6 +58,33 @@ async def test_fetch_schema(mock_schema_query_01, client_type):
         "CoreRepository",
     ]
     assert isinstance(nodes["BuiltinTag"], NodeSchemaAPI)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_fetch_schema_conditional_refresh(mock_schema_query_01: HTTPXMock, client_type: str) -> None:
+    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash"""
+    if client_type == "standard":
+        client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
+        nodes = await client.schema.all(branch="main")
+        schema_hash = client.schema.cache["main"].hash
+        assert schema_hash
+        nodes = await client.schema.all(branch="main", refresh=True, schema_hash=schema_hash)
+    else:
+        client = InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True))
+        nodes = client.schema.all(branch="main")
+        schema_hash = client.schema.cache["main"].hash
+        assert schema_hash
+        nodes = client.schema.all(branch="main", refresh=True, schema_hash=schema_hash)
+
+    assert len(nodes) == 4
+    assert sorted(nodes.keys()) == [
+        "BuiltinLocation",
+        "BuiltinTag",
+        "CoreGraphQLQuery",
+        "CoreRepository",
+    ]
+    assert isinstance(nodes["BuiltinTag"], NodeSchemaAPI)
+    assert len(mock_schema_query_01.get_requests()) == 1
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -193,6 +216,34 @@ async def test_schema_wait_happy_path(clients: BothClients, client_type: list[st
         clients.sync.schema.wait_until_converged(branch="branch1")
 
     assert len(httpx_mock.get_requests()) == 2
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_schema_set_cache_dict(clients: BothClients, client_type: list[str], schema_query_01_data: dict) -> None:
+    if client_type == "standard":
+        client = clients.standard
+    else:
+        client = clients.sync
+
+    client.schema.set_cache(schema_query_01_data, branch="branch1")
+    assert "branch1" in client.schema.cache
+    assert client.schema.cache["branch1"].nodes["CoreGraphQLQuery"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_schema_set_cache_branch_schema(
+    clients: BothClients, client_type: list[str], schema_query_01_data: dict
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+    else:
+        client = clients.sync
+
+    schema = BranchSchema.from_api_response(schema_query_01_data)
+
+    client.schema.set_cache(schema)
+    assert "main" in client.schema.cache
+    assert client.schema.cache["main"].nodes["CoreGraphQLQuery"]
 
 
 async def test_infrahub_repository_config_getters():

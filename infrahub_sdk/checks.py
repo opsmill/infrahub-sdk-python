@@ -83,7 +83,7 @@ class InfrahubCheck:
     async def init(cls, client: InfrahubClient | None = None, *args: Any, **kwargs: Any) -> InfrahubCheck:
         """Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically."""
         warnings.warn(
-            "InfrahubCheck.init has been deprecated and will be removed in the version in Infrahub SDK 2.0.0",
+            "InfrahubCheck.init has been deprecated and will be removed in version 2.0.0 of the Infrahub Python SDK",
             DeprecationWarning,
             stacklevel=1,
         )

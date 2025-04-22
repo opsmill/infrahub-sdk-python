@@ -1,0 +1,15 @@
+{
+    "data": {
+      "BuiltinTag": {
+        "edges": [
+          {
+            "node": {
+              "name": {
+                "value": "red"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }

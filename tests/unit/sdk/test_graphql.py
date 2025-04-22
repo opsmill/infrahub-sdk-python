@@ -1,6 +1,18 @@
+from enum import Enum
+
 import pytest
 
 from infrahub_sdk.graphql import Mutation, Query, render_input_block, render_query_block
+
+
+class MyStrEnum(str, Enum):
+    VALUE1 = "value1"
+    VALUE2 = "value2"
+
+
+class MyIntEnum(int, Enum):
+    VALUE1 = 12
+    VALUE2 = 24
 
 
 @pytest.fixture
@@ -78,10 +90,10 @@ def query_data_filters_01():
 def query_data_filters_02():
     data = {
         "device": {
-            "@filters": {"name__value": "myname", "integer__value": 44},
+            "@filters": {"name__value": "myname", "integer__value": 44, "enumstr__value": MyStrEnum.VALUE2},
             "name": {"value": None},
             "interfaces": {
-                "@filters": {"enabled__value": True},
+                "@filters": {"enabled__value": True, "enumint__value": MyIntEnum.VALUE1},
                 "name": {"value": None},
             },
         }
@@ -324,11 +336,11 @@ def test_query_rendering_with_filters(query_data_filters_02):
 
     expected_query = """
 query {
-    device(name__value: "myname", integer__value: 44) {
+    device(name__value: "myname", integer__value: 44, enumstr__value: VALUE2) {
         name {
             value
         }
-        interfaces(enabled__value: true) {
+        interfaces(enabled__value: true, enumint__value: VALUE1) {
             name {
                 value
             }
@@ -337,6 +349,26 @@ query {
 }
 """
     assert query.render() == expected_query
+
+
+def test_query_rendering_with_filters_convert_enum(query_data_filters_02):
+    query = Query(query=query_data_filters_02)
+
+    expected_query = """
+query {
+    device(name__value: "myname", integer__value: 44, enumstr__value: "value2") {
+        name {
+            value
+        }
+        interfaces(enabled__value: true, enumint__value: 12) {
+            name {
+                value
+            }
+        }
+    }
+}
+"""
+    assert query.render(convert_enum=True) == expected_query
 
 
 def test_mutation_rendering_no_vars(input_data_01):
@@ -412,6 +444,40 @@ mutation {
                     id: "c5dffab1-e3f1-4039-9a1e-c0df1705d612"
                 },
             ]
+        }
+    ){
+        ok
+        object {
+            id
+        }
+    }
+}
+"""
+    assert query.render_first_line() == "mutation {"
+    assert query.render() == expected_query
+
+
+def test_mutation_rendering_enum():
+    query_data = {"ok": None, "object": {"id": None}}
+    input_data = {
+        "data": {
+            "description": {"value": MyStrEnum.VALUE1},
+            "size": {"value": MyIntEnum.VALUE2},
+        }
+    }
+
+    query = Mutation(mutation="myobject", query=query_data, input_data=input_data)
+
+    expected_query = """
+mutation {
+    myobject(
+        data: {
+            description: {
+                value: VALUE1
+            }
+            size: {
+                value: VALUE2
+            }
         }
     ){
         ok

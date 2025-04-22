@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict
+import json
+import warnings
 from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
@@ -13,7 +14,9 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypeAlias
 
 from ..exceptions import (
+    BranchNotFoundError,
     InvalidResponseError,
+    JsonDecodeError,
     SchemaNotFoundError,
     ValidationError,
 )
@@ -22,6 +25,7 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
+    BranchSchema,
     BranchSupportType,
     GenericSchema,
     GenericSchemaAPI,
@@ -34,6 +38,7 @@ from .main import (
     RelationshipSchemaAPI,
     SchemaRoot,
     SchemaRootAPI,
+    TemplateSchemaAPI,
 )
 
 if TYPE_CHECKING:
@@ -58,6 +63,7 @@ __all__ = [
     "RelationshipSchemaAPI",
     "SchemaRoot",
     "SchemaRootAPI",
+    "TemplateSchemaAPI",
 ]
 
 
@@ -78,11 +84,20 @@ class EnumMutation(str, Enum):
 
 
 MainSchemaTypes: TypeAlias = Union[NodeSchema, GenericSchema]
-MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI]
-MainSchemaTypesAll: TypeAlias = Union[NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI]
+MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI]
+MainSchemaTypesAll: TypeAlias = Union[
+    NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI
+]
 
 
 class InfrahubSchemaBase:
+    client: InfrahubClient | InfrahubClientSync
+    cache: dict[str, BranchSchema]
+
+    def __init__(self, client: InfrahubClient | InfrahubClientSync):
+        self.client = client
+        self.cache = {}
+
     def validate(self, data: dict[str, Any]) -> None:
         SchemaRoot(**data)
 
@@ -94,6 +109,23 @@ class InfrahubSchemaBase:
                     identifier=identifier,
                     message=f"{key} is not a valid value for {identifier}",
                 )
+
+    def set_cache(self, schema: dict[str, Any] | SchemaRootAPI | BranchSchema, branch: str | None = None) -> None:
+        """
+        Set the cache manually (primarily for unit testing)
+
+        Args:
+            schema: The schema to set the cache as provided by the /api/schema endpoint either in dict or SchemaRootAPI format
+            branch: The name of the branch to set the cache for.
+        """
+        branch = branch or self.client.default_branch
+
+        if isinstance(schema, SchemaRootAPI):
+            schema = BranchSchema.from_schema_root_api(data=schema)
+        elif isinstance(schema, dict):
+            schema = BranchSchema.from_api_response(data=schema)
+
+        self.cache[branch] = schema
 
     def generate_payload_create(
         self,
@@ -161,11 +193,37 @@ class InfrahubSchemaBase:
 
         raise ValueError("schema must be a protocol or a string")
 
+    @staticmethod
+    def _parse_schema_response(response: httpx.Response, branch: str) -> MutableMapping[str, Any]:
+        if response.status_code == 400:
+            raise BranchNotFoundError(
+                identifier=branch, message=f"The requested branch was not found on the server [{branch}]"
+            )
+        response.raise_for_status()
+
+        try:
+            data: MutableMapping[str, Any] = response.json()
+        except json.decoder.JSONDecodeError as exc:
+            raise JsonDecodeError(
+                message=f"Invalid Schema response received from the server at {response.url}: {response.text} [{response.status_code}] ",
+                content=response.text,
+                url=str(response.url),
+            ) from exc
+
+        return data
+
+    @staticmethod
+    def _deprecated_schema_timeout() -> None:
+        warnings.warn(
+            "The 'timeout' parameter is deprecated while fetching the schema and will be removed version 2.0.0 of the Infrahub Python SDK. "
+            "Use client.default_timeout instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
 
 class InfrahubSchema(InfrahubSchemaBase):
-    def __init__(self, client: InfrahubClient):
-        self.client = client
-        self.cache: dict = defaultdict(lambda: dict)
+    client: InfrahubClient
 
     async def get(
         self,
@@ -178,24 +236,31 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         kind_str = self._get_schema_name(schema=kind)
 
-        if refresh:
-            self.cache[branch] = await self.fetch(branch=branch, timeout=timeout)
+        if timeout:
+            self._deprecated_schema_timeout()
 
-        if branch in self.cache and kind_str in self.cache[branch]:
-            return self.cache[branch][kind_str]
+        if refresh:
+            self.cache[branch] = await self._fetch(branch=branch)
+
+        if branch in self.cache and kind_str in self.cache[branch].nodes:
+            return self.cache[branch].nodes[kind_str]
 
         # Fetching the latest schema from the server if we didn't fetch it earlier
         #   because we coulnd't find the object on the local cache
         if not refresh:
-            self.cache[branch] = await self.fetch(branch=branch, timeout=timeout)
+            self.cache[branch] = await self._fetch(branch=branch)
 
-        if branch in self.cache and kind_str in self.cache[branch]:
-            return self.cache[branch][kind_str]
+        if branch in self.cache and kind_str in self.cache[branch].nodes:
+            return self.cache[branch].nodes[kind_str]
 
         raise SchemaNotFoundError(identifier=kind_str)
 
     async def all(
-        self, branch: str | None = None, refresh: bool = False, namespaces: list[str] | None = None
+        self,
+        branch: str | None = None,
+        refresh: bool = False,
+        namespaces: list[str] | None = None,
+        schema_hash: str | None = None,
     ) -> MutableMapping[str, MainSchemaTypesAPI]:
         """Retrieve the entire schema for a given branch.
 
@@ -205,15 +270,19 @@ class InfrahubSchema(InfrahubSchemaBase):
         Args:
             branch (str, optional): Name of the branch to query. Defaults to default_branch.
             refresh (bool, optional): Force a refresh of the schema. Defaults to False.
+            schema_hash (str, optional): Only refresh if the current schema doesn't match this hash.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
         """
         branch = branch or self.client.default_branch
-        if refresh or branch not in self.cache:
-            self.cache[branch] = await self.fetch(branch=branch, namespaces=namespaces)
+        if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
+            refresh = False
 
-        return self.cache[branch]
+        if refresh or branch not in self.cache:
+            self.cache[branch] = await self._fetch(branch=branch, namespaces=namespaces)
+
+        return self.cache[branch].nodes
 
     async def load(
         self, schemas: list[dict], branch: str | None = None, wait_until_converged: bool = False
@@ -382,51 +451,52 @@ class InfrahubSchema(InfrahubSchemaBase):
         )
 
     async def fetch(
-        self, branch: str, namespaces: list[str] | None = None, timeout: int | None = None
+        self, branch: str, namespaces: list[str] | None = None, timeout: int | None = None, populate_cache: bool = True
     ) -> MutableMapping[str, MainSchemaTypesAPI]:
         """Fetch the schema from the server for a given branch.
 
         Args:
-            branch (str): Name of the branch to fetch the schema for.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            branch: Name of the branch to fetch the schema for.
+            timeout: Overrides default timeout used when querying the schema. deprecated.
+            populate_cache: Whether to populate the cache with the fetched schema. Defaults to True.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
         """
+
+        if timeout:
+            self._deprecated_schema_timeout()
+
+        branch_schema = await self._fetch(branch=branch, namespaces=namespaces)
+
+        if populate_cache:
+            self.cache[branch] = branch_schema
+
+        return branch_schema.nodes
+
+    async def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
         if namespaces:
             url_parts.extend([("namespaces", ns) for ns in namespaces])
         query_params = urlencode(url_parts)
         url = f"{self.client.address}/api/schema?{query_params}"
 
-        response = await self.client._get(url=url, timeout=timeout)
-        response.raise_for_status()
+        response = await self.client._get(url=url)
 
-        data: MutableMapping[str, Any] = response.json()
+        data = self._parse_schema_response(response=response, branch=branch)
 
-        nodes: MutableMapping[str, MainSchemaTypesAPI] = {}
-        for node_schema in data.get("nodes", []):
-            node = NodeSchemaAPI(**node_schema)
-            nodes[node.kind] = node
-
-        for generic_schema in data.get("generics", []):
-            generic = GenericSchemaAPI(**generic_schema)
-            nodes[generic.kind] = generic
-
-        for profile_schema in data.get("profiles", []):
-            profile = ProfileSchemaAPI(**profile_schema)
-            nodes[profile.kind] = profile
-
-        return nodes
+        return BranchSchema.from_api_response(data=data)
 
 
 class InfrahubSchemaSync(InfrahubSchemaBase):
-    def __init__(self, client: InfrahubClientSync):
-        self.client = client
-        self.cache: dict = defaultdict(lambda: dict)
+    client: InfrahubClientSync
 
     def all(
-        self, branch: str | None = None, refresh: bool = False, namespaces: list[str] | None = None
+        self,
+        branch: str | None = None,
+        refresh: bool = False,
+        namespaces: list[str] | None = None,
+        schema_hash: str | None = None,
     ) -> MutableMapping[str, MainSchemaTypesAPI]:
         """Retrieve the entire schema for a given branch.
 
@@ -436,15 +506,19 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         Args:
             branch (str, optional): Name of the branch to query. Defaults to default_branch.
             refresh (bool, optional): Force a refresh of the schema. Defaults to False.
+            schema_hash (str, optional): Only refresh if the current schema doesn't match this hash.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
         """
         branch = branch or self.client.default_branch
-        if refresh or branch not in self.cache:
-            self.cache[branch] = self.fetch(branch=branch, namespaces=namespaces)
+        if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
+            refresh = False
 
-        return self.cache[branch]
+        if refresh or branch not in self.cache:
+            self.cache[branch] = self._fetch(branch=branch, namespaces=namespaces)
+
+        return self.cache[branch].nodes
 
     def get(
         self,
@@ -453,23 +527,38 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         refresh: bool = False,
         timeout: int | None = None,
     ) -> MainSchemaTypesAPI:
+        """
+        Retrieve a specific schema object from the server.
+
+        Args:
+            kind: The kind of schema object to retrieve.
+            branch: The branch to retrieve the schema from.
+            refresh: Whether to refresh the schema.
+            timeout: Overrides default timeout used when querying the GraphQL API. Specified in seconds (deprecated).
+
+        Returns:
+            MainSchemaTypes: The schema object.
+        """
         branch = branch or self.client.default_branch
 
         kind_str = self._get_schema_name(schema=kind)
 
-        if refresh:
-            self.cache[branch] = self.fetch(branch=branch)
+        if timeout:
+            self._deprecated_schema_timeout()
 
-        if branch in self.cache and kind_str in self.cache[branch]:
-            return self.cache[branch][kind_str]
+        if refresh:
+            self.cache[branch] = self._fetch(branch=branch)
+
+        if branch in self.cache and kind_str in self.cache[branch].nodes:
+            return self.cache[branch].nodes[kind_str]
 
         # Fetching the latest schema from the server if we didn't fetch it earlier
         #   because we coulnd't find the object on the local cache
         if not refresh:
-            self.cache[branch] = self.fetch(branch=branch, timeout=timeout)
+            self.cache[branch] = self._fetch(branch=branch)
 
-        if branch in self.cache and kind_str in self.cache[branch]:
-            return self.cache[branch][kind_str]
+        if branch in self.cache and kind_str in self.cache[branch].nodes:
+            return self.cache[branch].nodes[kind_str]
 
         raise SchemaNotFoundError(identifier=kind_str)
 
@@ -586,42 +675,39 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         )
 
     def fetch(
-        self, branch: str, namespaces: list[str] | None = None, timeout: int | None = None
+        self, branch: str, namespaces: list[str] | None = None, timeout: int | None = None, populate_cache: bool = True
     ) -> MutableMapping[str, MainSchemaTypesAPI]:
         """Fetch the schema from the server for a given branch.
 
         Args:
-            branch (str): Name of the branch to fetch the schema for.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            branch: Name of the branch to fetch the schema for.
+            timeout: Overrides default timeout used when querying the GraphQL API. Specified in seconds (deprecated).
+            populate_cache: Whether to populate the cache with the fetched schema. Defaults to True.
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
         """
+        if timeout:
+            self._deprecated_schema_timeout()
+
+        branch_schema = self._fetch(branch=branch, namespaces=namespaces)
+
+        if populate_cache:
+            self.cache[branch] = branch_schema
+
+        return branch_schema.nodes
+
+    def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
         if namespaces:
             url_parts.extend([("namespaces", ns) for ns in namespaces])
         query_params = urlencode(url_parts)
         url = f"{self.client.address}/api/schema?{query_params}"
+        response = self.client._get(url=url)
 
-        response = self.client._get(url=url, timeout=timeout)
-        response.raise_for_status()
+        data = self._parse_schema_response(response=response, branch=branch)
 
-        data: MutableMapping[str, Any] = response.json()
-
-        nodes: MutableMapping[str, MainSchemaTypesAPI] = {}
-        for node_schema in data.get("nodes", []):
-            node = NodeSchemaAPI(**node_schema)
-            nodes[node.kind] = node
-
-        for generic_schema in data.get("generics", []):
-            generic = GenericSchemaAPI(**generic_schema)
-            nodes[generic.kind] = generic
-
-        for profile_schema in data.get("profiles", []):
-            profile = ProfileSchemaAPI(**profile_schema)
-            nodes[profile.kind] = profile
-
-        return nodes
+        return BranchSchema.from_api_response(data=data)
 
     def load(
         self, schemas: list[dict], branch: str | None = None, wait_until_converged: bool = False

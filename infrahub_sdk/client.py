@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import time
 from collections.abc import Coroutine, MutableMapping
 from functools import wraps
 from time import sleep
@@ -38,6 +39,7 @@ from .exceptions import (
     NodeNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
+    URLNotFoundError,
 )
 from .graphql import Mutation, Query
 from .node import (
@@ -50,12 +52,15 @@ from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
+from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
 from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
 if TYPE_CHECKING:
     from types import TracebackType
+
+    from .context import RequestContext
 
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
@@ -138,6 +143,7 @@ class BaseClient:
         self.identifier = self.config.identifier
         self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
+        self._request_context: RequestContext | None = None
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client"""
@@ -151,6 +157,14 @@ class BaseClient:
             print(f"QUERY:\n{query}")
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
+
+    @property
+    def request_context(self) -> RequestContext | None:
+        return self._request_context
+
+    @request_context.setter
+    def request_context(self, request_context: RequestContext) -> None:
+        self._request_context = request_context
 
     def start_tracking(
         self,
@@ -267,7 +281,8 @@ class InfrahubClient(BaseClient):
         self.schema = InfrahubSchema(self)
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
-        self.store = NodeStore()
+        self.store = NodeStore(default_branch=self.default_branch)
+        self.task = InfrahubTaskManager(self)
         self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
@@ -455,7 +470,7 @@ class InfrahubClient(BaseClient):
         hfid: list[str] | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
@@ -609,7 +624,7 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -705,7 +720,7 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -825,11 +840,11 @@ class InfrahubClient(BaseClient):
         if populate_store:
             for node in nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
         return nodes
 
     def clone(self) -> InfrahubClient:
@@ -878,7 +893,8 @@ class InfrahubClient(BaseClient):
 
         retry = True
         resp = None
-        while retry:
+        start_time = time.time()
+        while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
@@ -902,6 +918,8 @@ class InfrahubClient(BaseClient):
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
+                if exc.response.status_code == 404:
+                    raise URLNotFoundError(url=url)
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
@@ -1500,13 +1518,19 @@ class InfrahubClient(BaseClient):
 
 
 class InfrahubClientSync(BaseClient):
+    schema: InfrahubSchemaSync
+    branch: InfrahubBranchManagerSync
+    object_store: ObjectStoreSync
+    store: NodeStoreSync
+    task: InfrahubTaskManagerSync
     group_context: InfrahubGroupContextSync
 
     def _initialize(self) -> None:
         self.schema = InfrahubSchemaSync(self)
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
-        self.store = NodeStoreSync()
+        self.store = NodeStoreSync(default_branch=self.default_branch)
+        self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
 
@@ -1613,7 +1637,8 @@ class InfrahubClientSync(BaseClient):
 
         retry = True
         resp = None
-        while retry:
+        start_time = time.time()
+        while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
@@ -1637,6 +1662,8 @@ class InfrahubClientSync(BaseClient):
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
+                if exc.response.status_code == 404:
+                    raise URLNotFoundError(url=url)
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
@@ -1718,7 +1745,7 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -1849,7 +1876,7 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -1970,11 +1997,11 @@ class InfrahubClientSync(BaseClient):
         if populate_store:
             for node in nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(key=node.id, node=node)
+                    self.store.set(node=node)
         return nodes
 
     @overload
@@ -2102,7 +2129,7 @@ class InfrahubClientSync(BaseClient):
         hfid: list[str] | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
-        populate_store: bool = False,
+        populate_store: bool = True,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -10,6 +11,7 @@ from .exceptions import UninitializedError
 
 if TYPE_CHECKING:
     from .client import InfrahubClient
+    from .context import RequestContext
     from .node import InfrahubNode
     from .store import NodeStore
 
@@ -27,6 +29,8 @@ class InfrahubGenerator:
         generator_instance: str = "",
         params: dict | None = None,
         convert_query_response: bool = False,
+        logger: logging.Logger | None = None,
+        request_context: RequestContext | None = None,
     ) -> None:
         self.query = query
         self.branch = branch
@@ -36,11 +40,14 @@ class InfrahubGenerator:
         self.generator_instance = generator_instance
         self._init_client = client.clone()
         self._init_client.config.default_branch = self._init_client.default_branch = self.branch_name
+        self._init_client.store._default_branch = self.branch_name
         self._client: InfrahubClient | None = None
         self._nodes: list[InfrahubNode] = []
         self._related_nodes: list[InfrahubNode] = []
         self.infrahub_node = infrahub_node
         self.convert_query_response = convert_query_response
+        self.logger = logger if logger else logging.getLogger("infrahub.tasks")
+        self.request_context = request_context
 
     @property
     def store(self) -> NodeStore:
@@ -119,7 +126,7 @@ class InfrahubGenerator:
         await self._init_client.schema.all(branch=self.branch_name)
 
         for kind in data:
-            if kind in self._init_client.schema.cache[self.branch_name]:
+            if kind in self._init_client.schema.cache[self.branch_name].nodes.keys():
                 for result in data[kind].get("edges", []):
                     node = await self.infrahub_node.from_graphql(
                         client=self._init_client, branch=self.branch_name, data=result
@@ -131,7 +138,7 @@ class InfrahubGenerator:
 
         for node in self._nodes + self._related_nodes:
             if node.id:
-                self._init_client.store.set(key=node.id, node=node)
+                self._init_client.store.set(node=node)
 
     @abstractmethod
     async def generate(self, data: dict) -> None:

@@ -20,6 +20,7 @@ TESTING_ANIMAL = f"{NAMESPACE}Animal"
 TESTING_CAT = f"{NAMESPACE}Cat"
 TESTING_DOG = f"{NAMESPACE}Dog"
 TESTING_PERSON = f"{NAMESPACE}Person"
+BUILTIN_TAG = "BuiltinTag"
 
 
 class SchemaAnimal:
@@ -80,6 +81,7 @@ class SchemaAnimal:
             namespace=NAMESPACE,
             include_in_menu=True,
             inherit_from=[TESTING_ANIMAL],
+            human_friendly_id=["owner__name__value", "name__value", "color__value"],
             display_labels=["name__value", "breed__value", "color__value"],
             order_by=["name__value"],
             attributes=[
@@ -108,6 +110,14 @@ class SchemaAnimal:
                     identifier="person__animal",
                     cardinality="many",
                     direction=RelationshipDirection.INBOUND,
+                    max_count=10,
+                ),
+                Rel(
+                    name="favorite_animal",
+                    peer=TESTING_ANIMAL,
+                    identifier="favorite_animal",
+                    cardinality="one",
+                    direction=RelationshipDirection.INBOUND,
                 ),
                 Rel(
                     name="best_friends",
@@ -115,6 +125,12 @@ class SchemaAnimal:
                     identifier="person__animal_friend",
                     cardinality="many",
                     direction=RelationshipDirection.INBOUND,
+                ),
+                Rel(
+                    name="tags",
+                    optional=True,
+                    peer=BUILTIN_TAG,
+                    cardinality="many",
                 ),
             ],
         )

@@ -7,8 +7,16 @@ from infrahub_sdk import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
-async_client_methods = [method for method in dir(InfrahubClient) if not method.startswith("_")]
-sync_client_methods = [method for method in dir(InfrahubClientSync) if not method.startswith("_")]
+pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+
+excluded_methods = ["request_context"]
+
+async_client_methods = [
+    method for method in dir(InfrahubClient) if not method.startswith("_") and method not in excluded_methods
+]
+sync_client_methods = [
+    method for method in dir(InfrahubClientSync) if not method.startswith("_") and method not in excluded_methods
+]
 
 batch_client_types = [
     ("standard", False),
@@ -128,18 +136,17 @@ async def test_method_get_user_permissions(clients, mock_query_infrahub_user, cl
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):
     if client_type == "standard":
+        repos = await clients.standard.all(kind="CoreRepository", populate_store=False, limit=3)
+        assert clients.standard.store.count() == 0
+
         repos = await clients.standard.all(kind="CoreRepository", limit=3)
-        assert not clients.standard.store._store["CoreRepository"]
-
-        repos = await clients.standard.all(kind="CoreRepository", populate_store=True, limit=3)
-        assert len(clients.standard.store._store["CoreRepository"]) == 3
+        assert clients.standard.store.count() == 3
     else:
+        repos = clients.sync.all(kind="CoreRepository", populate_store=False, limit=3)
+        assert clients.sync.store.count() == 0
+
         repos = clients.sync.all(kind="CoreRepository", limit=3)
-        assert not clients.sync.store._store["CoreRepository"]
-
-        repos = clients.sync.all(kind="CoreRepository", populate_store=True, limit=3)
-        assert len(clients.sync.store._store["CoreRepository"]) == 3
-
+        assert clients.sync.store.count() == 3
     assert len(repos) == 3
 
 
@@ -148,17 +155,17 @@ async def test_method_all_multiple_pages(
     clients, mock_query_repository_page1_2, mock_query_repository_page2_2, client_type
 ):
     if client_type == "standard":
+        repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
+        assert clients.standard.store.count() == 0
+
         repos = await clients.standard.all(kind="CoreRepository")
-        assert not clients.standard.store._store["CoreRepository"]
-
-        repos = await clients.standard.all(kind="CoreRepository", populate_store=True)
-        assert len(clients.standard.store._store["CoreRepository"]) == 5
+        assert clients.standard.store.count() == 5
     else:
-        repos = clients.sync.all(kind="CoreRepository")
-        assert not clients.sync.store._store["CoreRepository"]
+        repos = clients.sync.all(kind="CoreRepository", populate_store=False)
+        assert clients.sync.store.count() == 0
 
-        repos = clients.sync.all(kind="CoreRepository", populate_store=True)
-        assert len(clients.sync.store._store["CoreRepository"]) == 5
+        repos = clients.sync.all(kind="CoreRepository")
+        assert clients.sync.store.count() == 5
 
     assert len(repos) == 5
 
@@ -168,17 +175,17 @@ async def test_method_all_batching(
     clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_parallel
 ):
     if client_type == "standard":
+        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=False, parallel=use_parallel)
+        assert clients.standard.store.count() == 0
+
         locations = await clients.standard.all(kind="BuiltinLocation", parallel=use_parallel)
-        assert not clients.standard.store._store["BuiltinLocation"]
-
-        locations = await clients.standard.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
-        assert len(clients.standard.store._store["BuiltinLocation"]) == 30
+        assert clients.standard.store.count() == 30
     else:
-        locations = clients.sync.all(kind="BuiltinLocation", parallel=use_parallel)
-        assert not clients.sync.store._store["BuiltinLocation"]
+        locations = clients.sync.all(kind="BuiltinLocation", populate_store=False, parallel=use_parallel)
+        assert clients.sync.store.count() == 0
 
-        locations = clients.sync.all(kind="BuiltinLocation", populate_store=True, parallel=use_parallel)
-        assert len(clients.sync.store._store["BuiltinLocation"]) == 30
+        locations = clients.sync.all(kind="BuiltinLocation", parallel=use_parallel)
+        assert clients.sync.store.count() == 30
 
     assert len(locations) == 30
 
@@ -186,17 +193,17 @@ async def test_method_all_batching(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type):
     if client_type == "standard":
+        repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
+        assert clients.standard.store.count() == 0
+
         repos = await clients.standard.all(kind="CoreRepository")
-        assert not clients.standard.store._store["CoreRepository"]
-
-        repos = await clients.standard.all(kind="CoreRepository", populate_store=True)
-        assert len(clients.standard.store._store["CoreRepository"]) == 2
+        assert clients.standard.store.count() == 2
     else:
-        repos = clients.sync.all(kind="CoreRepository")
-        assert not clients.sync.store._store["CoreRepository"]
+        repos = clients.sync.all(kind="CoreRepository", populate_store=False)
+        assert clients.sync.store.count() == 0
 
-        repos = clients.sync.all(kind="CoreRepository", populate_store=True)
-        assert len(clients.sync.store._store["CoreRepository"]) == 2
+        repos = clients.sync.all(kind="CoreRepository")
+        assert clients.sync.store.count() == 2
 
     assert len(repos) == 2
 
@@ -238,23 +245,26 @@ async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_quer
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
-        repo = await clients.standard.get(kind="CoreRepository", id=response_id)
+        repo = await clients.standard.get(kind="CoreRepository", id=response_id, populate_store=False)
         assert isinstance(repo, InfrahubNode)
         with pytest.raises(NodeNotFoundError):
             assert clients.standard.store.get(key=response_id)
 
-        repo = await clients.standard.get(kind="CoreRepository", id=response_id, populate_store=True)
+        repo = await clients.standard.get(kind="CoreRepository", id=response_id)
+        assert isinstance(repo, InfrahubNode)
         assert clients.standard.store.get(key=response_id)
     else:
-        repo = clients.sync.get(kind="CoreRepository", id=response_id)
+        repo = clients.sync.get(kind="CoreRepository", id=response_id, populate_store=False)
         assert isinstance(repo, InfrahubNodeSync)
         with pytest.raises(NodeNotFoundError):
             assert clients.sync.store.get(key=response_id)
 
-        repo = clients.sync.get(kind="CoreRepository", id=response_id, populate_store=True)
+        repo = clients.sync.get(kind="CoreRepository", id=response_id)
+        assert isinstance(repo, InfrahubNodeSync)
         assert clients.sync.store.get(key=response_id)
 
 
@@ -284,23 +294,26 @@ async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_qu
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
-        repo = await clients.standard.get(kind="CoreRepository", hfid=["infrahub-demo-core"])
+        repo = await clients.standard.get(kind="CoreRepository", hfid=["infrahub-demo-core"], populate_store=False)
         assert isinstance(repo, InfrahubNode)
         with pytest.raises(NodeNotFoundError):
             assert clients.standard.store.get(key=response_id)
 
-        repo = await clients.standard.get(kind="CoreRepository", hfid=["infrahub-demo-core"], populate_store=True)
+        repo = await clients.standard.get(kind="CoreRepository", hfid=["infrahub-demo-core"])
+        assert isinstance(repo, InfrahubNode)
         assert clients.standard.store.get(key=response_id)
     else:
-        repo = clients.sync.get(kind="CoreRepository", hfid=["infrahub-demo-core"])
+        repo = clients.sync.get(kind="CoreRepository", hfid=["infrahub-demo-core"], populate_store=False)
         assert isinstance(repo, InfrahubNodeSync)
         with pytest.raises(NodeNotFoundError):
             assert clients.sync.store.get(key="infrahub-demo-core")
 
-        repo = clients.sync.get(kind="CoreRepository", hfid=["infrahub-demo-core"], populate_store=True)
+        repo = clients.sync.get(kind="CoreRepository", hfid=["infrahub-demo-core"])
+        assert isinstance(repo, InfrahubNodeSync)
         assert clients.sync.store.get(key=response_id)
 
 
@@ -329,23 +342,24 @@ async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
-        repo = await clients.standard.get(kind="CoreRepository", id="infrahub-demo-core")
+        repo = await clients.standard.get(kind="CoreRepository", id="infrahub-demo-core", populate_store=False)
         assert isinstance(repo, InfrahubNode)
         with pytest.raises(NodeNotFoundError):
             assert clients.standard.store.get(key=response_id)
 
-        repo = await clients.standard.get(kind="CoreRepository", id="infrahub-demo-core", populate_store=True)
+        repo = await clients.standard.get(kind="CoreRepository", id="infrahub-demo-core")
         assert clients.standard.store.get(key=response_id)
     else:
-        repo = clients.sync.get(kind="CoreRepository", id="infrahub-demo-core")
+        repo = clients.sync.get(kind="CoreRepository", id="infrahub-demo-core", populate_store=False)
         assert isinstance(repo, InfrahubNodeSync)
         with pytest.raises(NodeNotFoundError):
             assert clients.sync.store.get(key="infrahub-demo-core")
 
-        repo = clients.sync.get(kind="CoreRepository", id="infrahub-demo-core", populate_store=True)
+        repo = clients.sync.get(kind="CoreRepository", id="infrahub-demo-core")
         assert clients.sync.store.get(key=response_id)
 
 
@@ -373,6 +387,7 @@ async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_qu
         method="POST",
         json=response,
         match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -431,9 +446,10 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "bfae43e8-5ebb-456c-a946-bf64e930710a",
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
+            populate_store=False,
         )
         assert len(repos) == 2
-        assert not clients.standard.store._store["CoreRepository"]
+        assert clients.standard.store.count() == 0
 
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -441,9 +457,8 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "bfae43e8-5ebb-456c-a946-bf64e930710a",
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
-            populate_store=True,
         )
-        assert len(clients.standard.store._store["CoreRepository"]) == 2
+        assert clients.standard.store.count() == 2
         assert len(repos) == 2
     else:
         repos = clients.sync.filters(
@@ -452,9 +467,10 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "bfae43e8-5ebb-456c-a946-bf64e930710a",
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
+            populate_store=False,
         )
         assert len(repos) == 2
-        assert not clients.sync.store._store["CoreRepository"]
+        assert clients.sync.store.count() == 0
 
         repos = clients.sync.filters(
             kind="CoreRepository",
@@ -462,9 +478,8 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
                 "bfae43e8-5ebb-456c-a946-bf64e930710a",
                 "9486cfce-87db-479d-ad73-07d80ba96a0f",
             ],
-            populate_store=True,
         )
-        assert len(clients.sync.store._store["CoreRepository"]) == 2
+        assert clients.sync.store.count() == 2
         assert len(repos) == 2
 
 
@@ -515,6 +530,7 @@ async def test_allocate_next_ip_address(
             }
         },
         match_headers={"X-Infrahub-Tracker": "allocate-ip-loopback"},
+        is_reusable=True,
     )
     httpx_mock.add_response(
         method="POST",
@@ -536,6 +552,7 @@ async def test_allocate_next_ip_address(
             }
         },
         match_headers={"X-Infrahub-Tracker": "query-ipamipaddress-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -614,6 +631,7 @@ async def test_allocate_next_ip_prefix(
             }
         },
         match_headers={"X-Infrahub-Tracker": "allocate-ip-interco"},
+        is_reusable=True,
     )
     httpx_mock.add_response(
         method="POST",
@@ -635,6 +653,7 @@ async def test_allocate_next_ip_prefix(
             }
         },
         match_headers={"X-Infrahub-Tracker": "query-ipamipprefix-page1"},
+        is_reusable=True,
     )
 
     if client_type == "standard":
@@ -714,6 +733,7 @@ async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinTag": {"edges": []}}},
+        is_reusable=True,
     )
 
     query = """

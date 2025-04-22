@@ -1,0 +1,39 @@
+---
+title: Python SDK Templating
+---
+Filters can be used when defining [computed attributes](https://docs.infrahub.app/guides/computed-attributes) or [Jinja2 Transforms](https://docs.infrahub.app/guides/jinja2-transform) within Infrahub.
+
+## Builtin Jinja2 filters
+
+The following filters are those that are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub. The trusted column indicates if the filter is allowed for use with Infrahub's computed attributes when the server is configured in strict mode.
+
+<!-- vale off -->
+| Name | Trusted |
+|----------|----------|
+{% for filter in builtin %}
+| {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
+{% endfor %}
+<!-- vale on -->
+
+## Netutils filters
+
+The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netutils</a> are included within Infrahub.
+<!-- vale off -->
+| Name | Trusted |
+|----------|----------|
+{% for filter in netutils %}
+| {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
+{% endfor %}
+<!-- vale on -->
+
+## Known issues
+
+### Unable to combine the map and sort filters (https://github.com/pallets/jinja/issues/2081)
+
+When using the `map` filter with the `sort` filter, you may encounter the following error:
+
+```python
+TypeError: 'async_generator' object is not iterable
+```
+
+**As a workaround you can use the `list` filter between `map` and `sort` filter.**

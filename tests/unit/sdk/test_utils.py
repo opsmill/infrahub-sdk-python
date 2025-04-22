@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from graphql import parse
+from whenever import Instant
 
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.utils import (
@@ -11,17 +12,25 @@ from infrahub_sdk.utils import (
     base16encode,
     base36decode,
     base36encode,
+    calculate_time_diff,
     compare_lists,
     deep_merge_dict,
     dict_hash,
     duplicates,
     extract_fields,
+    generate_short_id,
     get_flat_value,
     is_valid_url,
     is_valid_uuid,
     str_to_bool,
     write_to_file,
 )
+
+
+def test_generate_short_id():
+    assert len(generate_short_id()) == 22
+    assert isinstance(generate_short_id(), str)
+    assert generate_short_id() != generate_short_id()
 
 
 def test_is_valid_uuid():
@@ -207,3 +216,20 @@ def test_write_to_file():
     assert write_to_file(directory / "file.txt", {"key": "value"}) is True
 
     tmp_dir.cleanup()
+
+
+def test_calculate_time_diff():
+    time1 = Instant.now().subtract(seconds=98).format_common_iso()
+    assert calculate_time_diff(time1) == "1m and 38s ago"
+
+    time2 = Instant.now().subtract(hours=1, minutes=12, seconds=34).format_common_iso()
+    assert calculate_time_diff(time2) == "1h 12m and 34s ago"
+
+    time3 = Instant.now().format_common_iso()
+    assert calculate_time_diff(time3) == "now"
+
+    time4 = Instant.now().subtract(seconds=23).format_common_iso()
+    assert calculate_time_diff(time4) == "23s ago"
+
+    time5 = Instant.now().subtract(hours=77, minutes=12, seconds=34).format_common_iso()
+    assert calculate_time_diff(time5) == "3d and 5h ago"

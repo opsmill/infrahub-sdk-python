@@ -1,15 +1,27 @@
-# import pytest
+import pytest
+
+from infrahub_sdk import InfrahubClient
+from infrahub_sdk.exceptions import BranchNotFoundError
+from infrahub_sdk.testing.docker import TestInfrahubDockerClient
+
+
 # from infrahub.core.schema import core_models
 # from infrahub.server import app
 #
-# from infrahub_sdk import Config, InfrahubClient
 # from infrahub_sdk.schema import NodeSchemaAPI
 #
 # from .conftest import InfrahubTestClient
 #
 #
 #
-#
+class TestInfrahubSchema(TestInfrahubDockerClient):
+    async def test_query_schema_for_branch_not_found(self, client: InfrahubClient):
+        with pytest.raises(BranchNotFoundError) as exc:
+            await client.all(kind="BuiltinTag", branch="I-do-not-exist")
+
+        assert str(exc.value) == "The requested branch was not found on the server [I-do-not-exist]"
+
+
 # class TestInfrahubSchema:
 #     @pytest.fixture(scope="class")
 #     async def client(self):

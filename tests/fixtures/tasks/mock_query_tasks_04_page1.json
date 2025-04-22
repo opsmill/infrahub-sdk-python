@@ -1,0 +1,84 @@
+{
+    "data": {
+      "InfrahubTask": {
+        "count": 8,
+        "edges": [
+          {
+            "node": {
+              "created_at": "2025-02-21T04:05:53.804642Z",
+              "id": "b6752ef3-d51c-48c2-a8d7-17a061e1484b",
+              "branch": null,
+              "title": "Configuration webhook automation and populate cache",
+              "updated_at": "2025-02-21T04:06:46.647125Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "webhook-setup-automations",
+              "related_nodes": [],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Worker 'InfrahubEntWorkerAsync ebde081b-2cb6-4a3a-afc1-30b9074cb570' submitting flow run 'b6752ef3-d51c-48c2-a8d7-17a061e1484b'",
+                      "timestamp": "2025-02-21T04:06:31.055559Z"
+
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "node": {
+              "created_at": "2025-02-10T13:40:40.699598Z",
+              "id": "06c14140-8404-47cf-a8b8-585dd7302653",
+              "branch": null,
+              "title": "Configuration webhook automation and populate cache",
+              "updated_at": "2025-02-10T13:41:21.228266Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "webhook-setup-automations",
+              "related_nodes": [],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Worker 'InfrahubEntWorkerAsync e6c576a1-5be3-4647-af78-e803b2fb4b5c' submitting flow run '06c14140-8404-47cf-a8b8-585dd7302653'",
+                      "timestamp": "2025-02-10T13:41:15.444768Z"
+
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "node": {
+              "created_at": "2025-02-10T13:37:04.191653Z",
+              "id": "2210f266-2705-4581-ae45-4d82852cb811",
+              "branch": null,
+              "title": "Configuration webhook automation and populate cache",
+              "updated_at": "2025-02-10T13:37:50.591615Z",
+              "state": "COMPLETED",
+              "progress": null,
+              "workflow": "webhook-setup-automations",
+              "related_nodes": [],
+              "logs": {
+                "edges": [
+                  {
+                    "node": {
+                      "severity": "info",
+                      "message": "Worker 'InfrahubEntWorkerAsync 647a77bf-5328-4f21-9841-63b3705ab64c' submitting flow run '2210f266-2705-4581-ae45-4d82852cb811'",
+                      "timestamp": "2025-02-10T13:37:39.662456Z"
+
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
