@@ -187,4 +187,8 @@ async def init(
             typer.echo(f"Error loading YAML file: {e}", err=True)
             raise typer.Exit(code=1)
 
-    await asyncio.to_thread(run_copy, str(example_repo), str(dst), data=config_data)
+    try:
+        await asyncio.to_thread(run_copy, str(example_repo), str(dst), data=config_data)
+    except Exception as e:
+        typer.echo(f"Error running copier: {e}", err=True)
+        raise typer.Exit(code=1)
