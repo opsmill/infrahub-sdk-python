@@ -171,8 +171,8 @@ async def list(
 
 @app.command()
 async def init(
-    dst: Path,
-    data: Optional[Path] = None,
+    directory: Path = typer.Argument(help="Directory path for the new project."),
+    data: Optional[Path] = typer.Option(default=None, help="Path to YAML file containing answers to CLI prompt."),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Initialize a new Infrahub repository."""
@@ -188,7 +188,7 @@ async def init(
             raise typer.Exit(code=1)
 
     try:
-        await asyncio.to_thread(run_copy, str(example_repo), str(dst), data=config_data)
+        await asyncio.to_thread(run_copy, str(example_repo), str(directory), data=config_data)
     except Exception as e:
         typer.echo(f"Error running copier: {e}", err=True)
         raise typer.Exit(code=1)
