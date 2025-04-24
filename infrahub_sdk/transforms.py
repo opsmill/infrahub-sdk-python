@@ -5,34 +5,38 @@ import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from infrahub_sdk.repository import GitRepoManager
-
-from .exceptions import UninitializedError
+from .operation import InfrahubOperation
 
 if TYPE_CHECKING:
     from . import InfrahubClient
+    from .node import InfrahubNode
 
 INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
 
 
-class InfrahubTransform:
+class InfrahubTransform(InfrahubOperation):
     name: str | None = None
     query: str
     timeout: int = 10
 
     def __init__(
         self,
+        client: InfrahubClient,
+        infrahub_node: type[InfrahubNode],
+        convert_query_response: bool = False,
         branch: str = "",
         root_directory: str = "",
         server_url: str = "",
-        client: InfrahubClient | None = None,
     ):
-        self.git: GitRepoManager
+        super().__init__(
+            client=client,
+            infrahub_node=infrahub_node,
+            convert_query_response=convert_query_response,
+            branch=branch,
+            root_directory=root_directory,
+        )
 
-        self.branch = branch
         self.server_url = server_url or os.environ.get("INFRAHUB_URL", "http://127.0.0.1:8000")
-        self.root_directory = root_directory or os.getcwd()
-
         self._client = client
 
         if not self.name:
@@ -43,24 +47,7 @@ class InfrahubTransform:
 
     @property
     def client(self) -> InfrahubClient:
-        if self._client:
-            return self._client
-
-        raise UninitializedError("The client has not been initialized")
-
-    @property
-    def branch_name(self) -> str:
-        """Return the name of the current git branch."""
-
-        if self.branch:
-            return self.branch
-
-        if not hasattr(self, "git") or not self.git:
-            self.git = GitRepoManager(self.root_directory)
-
-        self.branch = str(self.git.active_branch)
-
-        return self.branch
+        return self._init_client
 
     @abstractmethod
     def transform(self, data: dict) -> Any:
@@ -86,6 +73,7 @@ class InfrahubTransform:
             data = await self.collect_data()
 
         unpacked = data.get("data") or data
+        await self.process_nodes(data=unpacked)
 
         if asyncio.iscoroutinefunction(self.transform):
             return await self.transform(data=unpacked)

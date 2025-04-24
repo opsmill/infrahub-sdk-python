@@ -62,7 +62,7 @@ async def run(
         generator = generator_class(
             query=generator_config.query,
             client=client,
-            branch=branch,
+            branch=branch or "",
             params=variables_dict,
             convert_query_response=generator_config.convert_query_response,
             infrahub_node=InfrahubNode,
@@ -91,7 +91,7 @@ async def run(
             generator = generator_class(
                 query=generator_config.query,
                 client=client,
-                branch=branch,
+                branch=branch or "",
                 params=params,
                 convert_query_response=generator_config.convert_query_response,
                 infrahub_node=InfrahubNode,
