@@ -6,6 +6,7 @@ from pytest_httpx import HTTPXMock
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from tests.unit.sdk.conftest import BothClients
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
@@ -761,12 +762,37 @@ async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_clone(clients, client_type):
+async def test_clone(clients: BothClients, client_type: str) -> None:
+    """Validate that the configuration of a cloned client is a replica of the original client"""
     if client_type == "standard":
         clone = clients.standard.clone()
         assert clone.config == clients.standard.config
         assert isinstance(clone, InfrahubClient)
+        assert clients.standard.default_branch == clone.default_branch
     else:
         clone = clients.sync.clone()
         assert clone.config == clients.sync.config
         assert isinstance(clone, InfrahubClientSync)
+        assert clients.sync.default_branch == clone.default_branch
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_clone_define_branch(clients: BothClients, client_type: str) -> None:
+    """Validate that the clone branch parameter sets the correct branch of the cloned client"""
+    clone_branch = "my_other_branch"
+    if client_type == "standard":
+        original_branch = clients.standard.default_branch
+        clone = clients.standard.clone(branch=clone_branch)
+        assert clients.standard.store._default_branch == original_branch
+        assert isinstance(clone, InfrahubClient)
+        assert clients.standard.default_branch != clone.default_branch
+    else:
+        original_branch = clients.standard.default_branch
+        clone = clients.sync.clone(branch="my_other_branch")
+        assert clients.sync.store._default_branch == original_branch
+        assert isinstance(clone, InfrahubClientSync)
+        assert clients.sync.default_branch != clone.default_branch
+
+    assert clone.default_branch == clone_branch
+    assert original_branch != clone_branch
+    assert clone.store._default_branch == clone_branch
