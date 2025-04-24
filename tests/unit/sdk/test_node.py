@@ -1105,6 +1105,7 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
                             },
                             "node": {
                                 "id": None,
+                                "hfid": None,
                                 "display_label": None,
                                 "__typename": None,
                             },
@@ -1157,6 +1158,7 @@ async def test_query_data_include(client, location_schema: NodeSchemaAPI, client
                         "edges": {
                             "node": {
                                 "id": None,
+                                "hfid": None,
                                 "display_label": None,
                                 "__typename": None,
                             },
