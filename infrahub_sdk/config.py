@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
@@ -158,3 +159,19 @@ class Config(ConfigBase):
         elif values.get("recorder") == RecorderType.JSON and "custom_recorder" not in values:
             values["custom_recorder"] = JSONRecorder()
         return values
+
+    def clone(self, branch: str | None = None) -> Config:
+        config: dict[str, Any] = {
+            "default_branch": branch or self.default_branch,
+            "recorder": self.recorder,
+            "custom_recorder": self.custom_recorder,
+            "requester": self.requester,
+            "sync_requester": self.sync_requester,
+            "log": self.log,
+        }
+        covered_keys = list(config.keys())
+        for field in Config.model_fields.keys():
+            if field not in covered_keys:
+                config[field] = deepcopy(getattr(self, field))
+
+        return Config(**config)

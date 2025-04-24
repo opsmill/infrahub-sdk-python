@@ -41,6 +41,7 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
+from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
@@ -330,7 +331,12 @@ def transform(
         console.print(f"[red]{exc.message}")
         raise typer.Exit(1) from exc
 
-    transform = transform_class(client=client, branch=branch)
+    transform = transform_class(
+        client=client,
+        branch=branch,
+        infrahub_node=InfrahubNode,
+        convert_query_response=transform_config.convert_query_response,
+    )
     # Get data
     query_str = repository_config.get_query(name=transform.query).load_query()
     data = asyncio.run(

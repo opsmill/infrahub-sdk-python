@@ -271,11 +271,6 @@ class BaseClient:
             input_data={"data": input_data},
         )
 
-    def _clone_config(self, branch: str | None = None) -> Config:
-        config = copy.deepcopy(self.config)
-        config.default_branch = branch or config.default_branch
-        return config
-
 
 class InfrahubClient(BaseClient):
     """GraphQL Client to interact with Infrahub."""
@@ -854,7 +849,7 @@ class InfrahubClient(BaseClient):
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
         """Return a cloned version of the client using the same configuration"""
-        return InfrahubClient(config=self._clone_config(branch=branch))
+        return InfrahubClient(config=self.config.clone(branch=branch))
 
     async def execute_graphql(
         self,
@@ -1598,7 +1593,7 @@ class InfrahubClientSync(BaseClient):
 
     def clone(self, branch: str | None = None) -> InfrahubClientSync:
         """Return a cloned version of the client using the same configuration"""
-        return InfrahubClientSync(config=self._clone_config(branch=branch))
+        return InfrahubClientSync(config=self.config.clone(branch=branch))
 
     def execute_graphql(
         self,
