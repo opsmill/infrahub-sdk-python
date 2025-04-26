@@ -1,0 +1,1 @@
+When processing relationships to add to the store, traverse tree and add all nodes to the store.
