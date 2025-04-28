@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.11.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.11.1) - 2025-04-28
+
+### Changed
+
+- Set the HFID on related nodes for cardinality many relationships, and add HFID support to the RelationshipManager `add`, `extend` and `remove` methods.
+
 ## [1.11.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.11.0) - 2025-04-17
 
 ### Deprecated
