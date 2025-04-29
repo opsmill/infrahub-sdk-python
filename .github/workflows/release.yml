@@ -87,3 +87,10 @@ jobs:
     secrets: inherit
     with:
       version: ${{ github.ref_name }}
+
+  repository-dispatch:
+    needs: check_release
+    uses: ./.github/workflows/repository-dispatch.yml
+    secrets: inherit
+    with:
+      version: ${{ needs.check_release.outputs.version }}
