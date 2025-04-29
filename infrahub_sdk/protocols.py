@@ -154,6 +154,10 @@ class CoreMenu(CoreNode):
     children: RelationshipManager
 
 
+class CoreObjectComponentTemplate(CoreNode):
+    template_name: String
+
+
 class CoreObjectTemplate(CoreNode):
     template_name: String
 
@@ -205,6 +209,7 @@ class CoreWebhook(CoreNode):
     name: String
     event_type: Enum
     branch_scope: Dropdown
+    node_kind: StringOptional
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
@@ -479,6 +484,7 @@ class CoreTransformJinja2(CoreTransformation):
 class CoreTransformPython(CoreTransformation):
     file_path: String
     class_name: String
+    convert_query_response: BooleanOptional
 
 
 class CoreUserValidator(CoreValidator):
@@ -625,6 +631,10 @@ class CoreMenuSync(CoreNodeSync):
     children: RelationshipManagerSync
 
 
+class CoreObjectComponentTemplateSync(CoreNodeSync):
+    template_name: String
+
+
 class CoreObjectTemplateSync(CoreNodeSync):
     template_name: String
 
@@ -676,6 +686,7 @@ class CoreWebhookSync(CoreNodeSync):
     name: String
     event_type: Enum
     branch_scope: Dropdown
+    node_kind: StringOptional
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
@@ -950,6 +961,7 @@ class CoreTransformJinja2Sync(CoreTransformationSync):
 class CoreTransformPythonSync(CoreTransformationSync):
     file_path: String
     class_name: String
+    convert_query_response: BooleanOptional
 
 
 class CoreUserValidatorSync(CoreValidatorSync):

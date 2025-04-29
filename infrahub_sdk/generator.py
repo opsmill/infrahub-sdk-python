@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 import logging
-import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from infrahub_sdk.repository import GitRepoManager
-
 from .exceptions import UninitializedError
+from .operation import InfrahubOperation
 
 if TYPE_CHECKING:
     from .client import InfrahubClient
     from .context import RequestContext
     from .node import InfrahubNode
-    from .store import NodeStore
 
 
-class InfrahubGenerator:
+class InfrahubGenerator(InfrahubOperation):
     """Infrahub Generator class"""
 
     def __init__(
@@ -24,7 +21,7 @@ class InfrahubGenerator:
         query: str,
         client: InfrahubClient,
         infrahub_node: type[InfrahubNode],
-        branch: str | None = None,
+        branch: str = "",
         root_directory: str = "",
         generator_instance: str = "",
         params: dict | None = None,
@@ -33,34 +30,20 @@ class InfrahubGenerator:
         request_context: RequestContext | None = None,
     ) -> None:
         self.query = query
-        self.branch = branch
-        self.git: GitRepoManager | None = None
+
+        super().__init__(
+            client=client,
+            infrahub_node=infrahub_node,
+            convert_query_response=convert_query_response,
+            branch=branch,
+            root_directory=root_directory,
+        )
+
         self.params = params or {}
-        self.root_directory = root_directory or os.getcwd()
         self.generator_instance = generator_instance
-        self._init_client = client.clone(branch=self.branch_name)
         self._client: InfrahubClient | None = None
-        self._nodes: list[InfrahubNode] = []
-        self._related_nodes: list[InfrahubNode] = []
-        self.infrahub_node = infrahub_node
-        self.convert_query_response = convert_query_response
         self.logger = logger if logger else logging.getLogger("infrahub.tasks")
         self.request_context = request_context
-
-    @property
-    def store(self) -> NodeStore:
-        """The store will be populated with nodes based on the query during the collection of data if activated"""
-        return self._init_client.store
-
-    @property
-    def nodes(self) -> list[InfrahubNode]:
-        """Returns nodes collected and parsed during the data collection process if this feature is enables"""
-        return self._nodes
-
-    @property
-    def related_nodes(self) -> list[InfrahubNode]:
-        """Returns nodes collected and parsed during the data collection process if this feature is enables"""
-        return self._related_nodes
 
     @property
     def subscribers(self) -> list[str] | None:
@@ -77,20 +60,6 @@ class InfrahubGenerator:
     @client.setter
     def client(self, value: InfrahubClient) -> None:
         self._client = value
-
-    @property
-    def branch_name(self) -> str:
-        """Return the name of the current git branch."""
-
-        if self.branch:
-            return self.branch
-
-        if not self.git:
-            self.git = GitRepoManager(self.root_directory)
-
-        self.branch = str(self.git.active_branch)
-
-        return self.branch
 
     async def collect_data(self) -> dict:
         """Query the result of the GraphQL Query defined in self.query and return the result"""
@@ -116,27 +85,6 @@ class InfrahubGenerator:
             identifier=identifier, params=self.params, delete_unused_nodes=True, group_type="CoreGeneratorGroup"
         ) as self.client:
             await self.generate(data=unpacked)
-
-    async def process_nodes(self, data: dict) -> None:
-        if not self.convert_query_response:
-            return
-
-        await self._init_client.schema.all(branch=self.branch_name)
-
-        for kind in data:
-            if kind in self._init_client.schema.cache[self.branch_name].nodes.keys():
-                for result in data[kind].get("edges", []):
-                    node = await self.infrahub_node.from_graphql(
-                        client=self._init_client, branch=self.branch_name, data=result
-                    )
-                    self._nodes.append(node)
-                    await node._process_relationships(
-                        node_data=result, branch=self.branch_name, related_nodes=self._related_nodes
-                    )
-
-        for node in self._nodes + self._related_nodes:
-            if node.id:
-                self._init_client.store.set(node=node)
 
     @abstractmethod
     async def generate(self, data: dict) -> None:

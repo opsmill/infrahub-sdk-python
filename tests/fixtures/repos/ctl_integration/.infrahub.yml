@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://schema.infrahub.app/python-sdk/repository-config/develop.json
+---
+python_transforms:
+  - name: animal_person
+    class_name: AnimalPerson
+    file_path: "transforms/animal_person.py"
+    convert_query_response: false
+  - name: animal_person_converted
+    class_name: ConvertedAnimalPerson
+    file_path: "transforms/converted.py"
+    convert_query_response: true
+
+generator_definitions:
+  - name: animal_tags
+    file_path: "generators/tag_generator.py"
+    targets: pet_owners
+    query: animal_person
+    convert_query_response: false
+    parameters:
+      name: "name__value"
+  - name: animal_tags_convert
+    file_path: "generators/tag_generator_convert.py"
+    targets: pet_owners
+    query: animal_person
+    convert_query_response: true
+    parameters:
+      name: "name__value"
+
+
+queries:
+  - name: animal_person
+    file_path: queries/animal_person.gql
