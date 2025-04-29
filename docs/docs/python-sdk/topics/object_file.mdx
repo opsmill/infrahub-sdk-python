@@ -27,10 +27,10 @@ Object files are meant to be used in an idempotent way and as such they work bet
 
 ## Load Object files into Infrahub
 
-Object files can be loaded into Infrahub using the `infrahub object load` command.
+Object files can be loaded into Infrahub using the `infrahubctl object load` command.
 
 ```bash
-infrahub object load <path_to_object_file>
+infrahubctl object load <path_to_object_file>
 ```
 
 Multiple object files can be loaded at once by specifying the path to multiple files or by specifying a directory.
@@ -40,10 +40,10 @@ Also, if some objects present in different files are identical and dependent on 
 
 ### Validate the format of object files
 
-The object file can be validated using the `infrahub object validate` command.
+The object file can be validated using the `infrahubctl object validate` command.
 
 ```bash
-infrahub object validate <path_to_object_file>
+infrahubctl object validate <path_to_object_file>
 ```
 
 ## Object file format
@@ -185,7 +185,7 @@ Metadata support is planned for future releases. Currently, the Object file does
 
 1. **Objects not being created**: Ensure that the YAML syntax is correct and that the file follows the required format.
 2. **Dependency errors**: When objects depend on each other, load them in the correct order (dependencies first).
-3. **Validation errors**: Use the `infrahub object validate` command to check for syntax errors before loading.
+3. **Validation errors**: Use the `infrahubctl object validate` command to check for syntax errors before loading.
 
 ### Best practices
 
