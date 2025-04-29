@@ -11,6 +11,13 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.12.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.0) - 2025-04-29
+
+### Added
+
+- Added the ability to convert the query response to InfrahubNode objects when using Python Transforms in the same way you can with Generators. ([#281](https://github.com/opsmill/infrahub-sdk-python/issues/281))
+- Added a "branch" parameter to the client.clone() method to allow properly cloning a client that targets another branch.
+
 ## [1.11.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.11.1) - 2025-04-28
 
 ### Changed
