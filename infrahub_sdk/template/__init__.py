@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import linecache
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Callable, NoReturn
 
@@ -8,6 +9,7 @@ import jinja2
 from jinja2 import meta, nodes
 from jinja2.sandbox import SandboxedEnvironment
 from netutils.utils import jinja2_convenience_function
+from pydantic import BaseModel
 from rich.syntax import Syntax
 from rich.traceback import Traceback
 
@@ -24,30 +26,40 @@ from .models import UndefinedJinja2Error
 netutils_filters = jinja2_convenience_function()
 
 
-class Jinja2Template:
-    def __init__(
-        self,
-        template: str | Path,
-        template_directory: Path | None = None,
-        filters: dict[str, Callable] | None = None,
-    ) -> None:
-        self.is_string_based = isinstance(template, str)
-        self.is_file_based = isinstance(template, Path)
-        self._template = str(template)
-        self._template_directory = template_directory
-        self._environment: jinja2.Environment | None = None
+class Jinja2Template(BaseModel):
+    template: str | Path
+    template_directory: Path | None = None
+    filters: dict[str, Callable] | None = None
+    _environment: jinja2.Environment | None = None
+    _template_definition: jinja2.Template | None = None
 
-        self._available_filters = [filter_definition.name for filter_definition in AVAILABLE_FILTERS]
-        self._trusted_filters = [
+    @cached_property
+    def is_string_based(self) -> bool:
+        return isinstance(self.template, str)
+
+    @cached_property
+    def is_file_based(self) -> bool:
+        return isinstance(self.template, Path)
+
+    @cached_property
+    def _template(self) -> str:
+        return str(self.template)
+
+    @cached_property
+    def _user_filters(self) -> list[str]:
+        if not self.filters:
+            return []
+        return list(self.filters)
+
+    @cached_property
+    def _available_filters(self) -> list[str]:
+        return [filter_definition.name for filter_definition in AVAILABLE_FILTERS] + self._user_filters
+
+    @cached_property
+    def _trusted_filters(self) -> list[str]:
+        return [
             filter_definition.name for filter_definition in AVAILABLE_FILTERS if filter_definition.trusted
-        ]
-
-        self._filters = filters or {}
-        for user_filter in self._filters:
-            self._available_filters.append(user_filter)
-            self._trusted_filters.append(user_filter)
-
-        self._template_definition: jinja2.Template | None = None
+        ] + self._user_filters
 
     def get_environment(self) -> jinja2.Environment:
         if self._environment:
@@ -85,7 +97,7 @@ class Jinja2Template:
 
         return sorted(meta.find_undeclared_variables(template))
 
-    def validate(self, restricted: bool = True) -> None:
+    def validate_template(self, restricted: bool = True) -> None:
         allowed_list = self._available_filters
         if restricted:
             allowed_list = self._trusted_filters
@@ -134,7 +146,7 @@ class Jinja2Template:
         return self._environment
 
     def _get_file_based_environment(self) -> jinja2.Environment:
-        template_loader = jinja2.FileSystemLoader(searchpath=str(self._template_directory))
+        template_loader = jinja2.FileSystemLoader(searchpath=str(self.template_directory))
         env = jinja2.Environment(
             loader=template_loader,
             trim_blocks=True,
@@ -155,7 +167,7 @@ class Jinja2Template:
             {name: jinja_filter for name, jinja_filter in netutils_filters.items() if name in self._available_filters}
         )
         # Add user supplied filters
-        env.filters.update(self._filters)
+        env.filters.update(self.filters or {})
 
     def _get_string_based_template(self) -> jinja2.Template:
         env = self.get_environment()
@@ -169,10 +181,10 @@ class Jinja2Template:
 
     def _raise_template_syntax_error(self, error: jinja2.TemplateSyntaxError) -> NoReturn:
         filename: str | None = None
-        if error.filename and self._template_directory:
+        if error.filename and self.template_directory:
             filename = error.filename
-            if error.filename.startswith(str(self._template_directory)):
-                filename = error.filename[len(str(self._template_directory)) :]
+            if error.filename.startswith(str(self.template_directory)):
+                filename = error.filename[len(str(self.template_directory)) :]
 
         raise JinjaTemplateSyntaxError(message=error.message, filename=filename, lineno=error.lineno)
 

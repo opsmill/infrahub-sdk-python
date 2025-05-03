@@ -113,6 +113,20 @@ async def test_render_template_from_file(test_case: JinjaTestCase) -> None:
     assert jinja.get_template()
 
 
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in SUCCESSFUL_FILE_TEST_CASES],
+)
+async def test_serialize(test_case: JinjaTestCase) -> None:
+    jinja = Jinja2Template(template=Path(test_case.template), template_directory=TEMPLATE_DIRECTORY)
+
+    serialized_jinja = jinja.model_dump(exclude_none=True)
+    assert serialized_jinja == {"template": Path(test_case.template), "template_directory": TEMPLATE_DIRECTORY}
+
+    jinja2 = Jinja2Template(**serialized_jinja)
+    assert test_case.expected == await jinja2.render(variables=test_case.variables)
+
+
 FAILING_STRING_TEST_CASES = [
     JinjaTestCaseFailing(
         name="missing-closing-end-if",
@@ -255,9 +269,9 @@ async def test_manage_unhandled_error() -> None:
 
 async def test_validate_filter() -> None:
     jinja = Jinja2Template(template="{{ network | get_all_host }}")
-    jinja.validate(restricted=False)
+    jinja.validate_template(restricted=False)
     with pytest.raises(JinjaTemplateOperationViolationError) as exc:
-        jinja.validate(restricted=True)
+        jinja.validate_template(restricted=True)
 
     assert exc.value.message == "The 'get_all_host' filter isn't allowed to be used"
 
@@ -265,7 +279,7 @@ async def test_validate_filter() -> None:
 async def test_validate_operation() -> None:
     jinja = Jinja2Template(template="Hello {% include 'very-forbidden.j2' %}")
     with pytest.raises(JinjaTemplateOperationViolationError) as exc:
-        jinja.validate(restricted=True)
+        jinja.validate_template(restricted=True)
 
     assert (
         exc.value.message == "These operations are forbidden for string based templates: ['Call', 'Import', 'Include']"
