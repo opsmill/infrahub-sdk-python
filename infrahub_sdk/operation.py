@@ -72,7 +72,7 @@ class InfrahubOperation:
                     )
                     self._nodes.append(node)
                     await node._process_relationships(
-                        node_data=result, branch=self.branch_name, related_nodes=self._related_nodes
+                        node_data=result, branch=self.branch_name, related_nodes=self._related_nodes, recursive=True
                     )
 
         for node in self._nodes + self._related_nodes:
