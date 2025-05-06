@@ -37,6 +37,7 @@ jobs:
         repo:
           - "opsmill/infrahub-demo-dc-fabric"
           - "INFRAHUB_CUSTOMER1_REPOSITORY"
+          - "INFRAHUB_CUSTOMER2_REPOSITORY"
 
     steps:
       - name: Checkout code
