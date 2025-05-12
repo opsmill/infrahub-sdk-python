@@ -7,7 +7,6 @@ from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import (
-    SAFE_VALUE,
     InfrahubNode,
     InfrahubNodeBase,
     InfrahubNodeSync,
@@ -15,6 +14,7 @@ from infrahub_sdk.node import (
     RelationshipManagerBase,
     parse_human_friendly_id,
 )
+from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
