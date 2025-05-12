@@ -183,7 +183,7 @@ class Timestamp:
         nanoseconds: int = 0,
         disambiguate: Literal["compatible"] = "compatible",
     ) -> Timestamp:
-        return Timestamp(
+        return self.__class__(
             self._obj.subtract(
                 years=years,
                 months=months,
