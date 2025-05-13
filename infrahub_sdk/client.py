@@ -562,6 +562,7 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -572,8 +573,13 @@ class InfrahubClient(BaseClient):
         if at:
             at = Timestamp(at)
 
-        response = await self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+        data = {"count": None, "@filters": filters}
+
+        if partial_match:
+            data["@filters"]["partial_match"] = True
+
+        response = self.execute_graphql(
+            query=Query(query={schema.kind: data}).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -801,7 +807,7 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind, **filters)
+            count = await self.count(kind=schema.kind, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1683,6 +1689,7 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -1693,8 +1700,12 @@ class InfrahubClientSync(BaseClient):
         if at:
             at = Timestamp(at)
 
+        data = {"count": None, "@filters": filters}
+        if partial_match:
+            data["@filters"]["partial_match"] = True
+
         response = self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            query=Query(query={schema.kind: data}).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -1957,7 +1968,7 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind, **filters)
+            count = self.count(kind=schema.kind, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
