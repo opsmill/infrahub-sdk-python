@@ -578,7 +578,7 @@ class InfrahubClient(BaseClient):
         if partial_match:
             data["@filters"]["partial_match"] = True
 
-        response = self.execute_graphql(
+        response = await self.execute_graphql(
             query=Query(query={schema.kind: data}).render(),
             branch_name=branch,
             at=at,
