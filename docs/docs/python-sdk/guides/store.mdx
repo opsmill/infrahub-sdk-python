@@ -6,21 +6,22 @@ import TabItem from '@theme/TabItem';
 
 # Using the client store
 
-The client in the SDK contains a store object that is used to store Nodes in a local cache.
+The client in the SDK contains a store that is used to store objects in a local cache.
 
-The store is mainly used for the internal working of the SDK. It is used to create relations between nodes that might not yet exist in the database, or to store relations for nodes that were retrieved from the database, amongst other things.
+The store is mainly used for the internal working of the SDK. It is used to create relations between objects that might not yet exist in the database, or to store relations for objects that were retrieved from the database, amongst other things.
 
-The store can also be used to store Nodes that we retrieve using the client query methods. This allows to not have to keep references to nodes we retrieved throughout scripts, or avoids situations where we have to redo queries to retrieve nodes.
+The store stores objects that we are retrieving from Infrahub using the different query methods. This allows to not have to keep references to objects throughout scripts, or avoids situations where we have to re-execute queries.
 
-## Storing nodes in the store
+Objects are stored in the following scenario:
 
-Nodes retrieved from Infrahub using a the SDK client's query methods, such as the `get` `filters` or `all` method, will be automatically stored in the internal store. Nodes stored in the store using this method can be retrieved using their `id` as the key in the store.
+- The resulting objects from using the SDK client's `get`, `filters` or `all` methods
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
   ```python
   tag = await client.get(kind="BuiltinTag", name__value="RED")
+  tag_in_store = client.store.get(key=tag.id)
   ```
 
   </TabItem>
@@ -28,25 +29,107 @@ Nodes retrieved from Infrahub using a the SDK client's query methods, such as th
 
   ```python
   tag = client.get(kind="BuiltinTag", name__value="RED")
+  tag_in_store = client.store.get(key=tag.id)
   ```
 
   </TabItem>
 </Tabs>
 
-This behaviour may not be desirable in all scenarios, therefor you can explicitly disable this behaviour by setting the `populate_store` argument to `False` when calling the query methods.
+- The resulting related objects for objects retrieved using the SDK client's query methods, when we use  the `prefetch_relationships` argument.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
   ```python
-  tag = await client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
+  device = await client.get(kind="InfraDevice", name__value="atl1-edge1", prefetch_relationships=True)
+  site = client.store.get(key=device.site.id)
   ```
 
   </TabItem>
   <TabItem value="Sync" default>
 
   ```python
-  tag = client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
+  device = client.get(kind="InfraDevice", name__value="atl1-edge1", prefetch_relationships=True)
+  site = client.store.get(key=device.site.id)
+  ```
+
+  </TabItem>
+</Tabs>
+
+- The related objects of a object's relationship when the `fetch` method is used
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="InfraDevice", name__value="atl1-edge1")
+  await device.site.fetch()
+  site = client.store.get(key=device.site.id)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="InfraDevice", name__value="atl1-edge1")
+  device.site.fetch()
+  site = client.store.get(key=device.site.id)
+  ```
+
+  </TabItem>
+</Tabs>
+
+- Objects that get created using the SDK
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  tag = await client.create("BuiltinTag", name="BLACK")
+  await tag.save()
+  tag_in_store = client.store.get(key=tag.id)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  tag = client.create("BuiltinTag", name="BLACK")
+  tag.save()
+  tag_in_store = client.store.get(key=tag.id)
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Retrieving objects from the store
+
+You can retrieve objects from the store using their `id` or `hfid`. When using the `hfid`, we also have to provide the `kind` of the object that we want to retrieve.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  tag = await client.get("BuiltinTag", name__value="BLACK")
+  tag_in_store = client.store.get(key=tag.id)
+  tag == tag_in_store
+  
+  tag = await client.get("BuiltinTag", name__value="BLACK")
+  tag_in_store = client.store.get(key=tag.hfid, kind="BuiltinTag")
+  tag == tag_in_store
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  tag = client.get("BuiltinTag", name__value="BLACK")
+  tag_in_store = client.store.get(key=tag.id)
+  tag == tag_in_store
+  
+  tag = client.get("BuiltinTag", name__value="BLACK")
+  tag_in_store = client.store.get(key=tag.hfid, kind="BuiltinTag")
+  tag == tag_in_store
   ```
 
   </TabItem>
@@ -54,7 +137,7 @@ This behaviour may not be desirable in all scenarios, therefor you can explicitl
 
 ## Manually storing objects in the store
 
-You can store nodes in the object store manually using the `set` method. This has the advantage that you can choose which key you use to reference the node in the store. For example, we could use the name attribute value of the node as the key.
+You can store objects in the store manually using the `set` method. This has the advantage that you can choose a key that you want to use to reference the object in the store, besides the `id` or `hfid`. For example, we could use the name attribute value of the node as the key.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -62,6 +145,10 @@ You can store nodes in the object store manually using the `set` method. This ha
   ```python
   tag = await client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
   client.store.set(key=tag.name.value, node=tag)
+  
+  tag_in_store = client.store.get(key=tag.name.value)
+  tag_in_store = client.store.get(key=tag.id)
+  tag_in_store = client.store.get(key=tag.hfid, kind="BuiltinTag")
   ```
 
   </TabItem>
@@ -70,47 +157,24 @@ You can store nodes in the object store manually using the `set` method. This ha
   ```python
   tag = client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
   client.store.set(key=tag.name.value, node=tag)
+
+  tag_in_store = client.store.get(key=tag.name.value)
+  tag_in_store = client.store.get(key=tag.id)
+  tag_in_store = client.store.get(key=tag.hfid, kind="BuiltinTag")
   ```
 
   </TabItem>
 </Tabs>
 
-## Retrieving object from the store
+## Disable storing objects in the store using the different query methods
 
-Nodes can be retrieved from the internal store using the key that was used to store them.
-For nodes that are stored by the client's query methods, this will be their `id`.
-
-<Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-
-  ```python
-  tag = await client.get(kind="BuiltinTag", name__value="RED")
-  tag_in_store = client.store.get(key=tag.id)
-  assert tag == tag_in_store
-  ```
-
-  </TabItem>
-  <TabItem value="Sync" default>
-
-  ```python
-  tag = client.get(kind="BuiltinTag", name__value="RED")
-  tag_in_store = client.store.get(key=tag.id)
-  assert tag == tag_in_store
-  ```
-
-  </TabItem>
-</Tabs>
-
-For nodes that have been added manually to the store, this will be the key that you specified when storing the node. For example, when you used the name attribute value of the node you can use that name to retrieve the node from the store.
+In some scenarios it might not be desirable to automatically store the retrieved objects in the store, when using the SDK client's different query methods. In this case you can set the `populate_store` argument to `False`.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
   ```python
   tag = await client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
-  client.store.set(key=tag.name.value, node=tag)
-  tag_in_store = client.store.get(key=tag.name.value)
-  assert tag == tag_in_store
   ```
 
   </TabItem>
@@ -118,63 +182,6 @@ For nodes that have been added manually to the store, this will be the key that 
 
   ```python
   tag = client.get(kind="BuiltinTag", name__value="RED", populate_store=False)
-  client.store.set(key=tag.name.value, node=tag)
-  tag_in_store = client.store.get(key=tag.name.value)
-  assert tag == tag_in_store
-  ```
-
-  </TabItem>
-</Tabs>
-
-## Prefetch relationships
-
-When you are using the internal store, you can use the `prefect_relationships` argument in all the client query methods. All the related nodes, for the relationships that are in scope of the query will be retrieved using this option. This has the advantage that you don't have to `fetch` related node(s) for a relation manually, but it comes at the cost of a more complex query, which might have an impact on the performance of the query.
-
-<Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-
-  ```python
-  device = await client.get(kind="TestDevice", name__value="atl1-edge1", populate_store=True, prefetch_relationships=True, include=["interfaces"])
-  print(device.interfaces.peers[0].peer.name.value)
-  ```
-
-  </TabItem>
-  <TabItem value="Sync" default>
-
-  ```python
-  device = client.get(kind="TestDevice", name__value="atl1-edge1", populate_store=True, prefetch_relationships=True, include=["interfaces"])
-  print(device.interfaces.peers[0].peer.name.value)
-  ```
-
-  </TabItem>
-</Tabs>
-
-## Using a custom store
-
-You can use a custom store, outside of the Infrahub SDK client. Storing or retrieving nodes works exactly the same as for the internal store. The advantage is that you are in full control of the contents of the store.
-
-<Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-
-  ```python
-  from infrahub_sdk.store import NodeStore
-  store = NodeStore()
-
-  device = await client.get(kind="TestDevice", name__value="atl1-edge1", populate_store=False)
-  store.set(key=device.name.value, node=device)
-  store.get(key=device.name.value)
-  ```
-
-  </TabItem>
-  <TabItem value="Sync" default>
-
-  ```python
-  from infrahub_sdk.store import NodeStoreSync
-  store = NodeStoreSync()
-
-  device = await client.get(kind="TestDevice", name__value="atl1-edge1", populate_store=False)
-  store.set(key=device.name.value, node=device)
-  store.get(key=device.name.value)
   ```
 
   </TabItem>

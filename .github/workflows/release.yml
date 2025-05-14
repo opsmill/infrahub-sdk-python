@@ -89,7 +89,9 @@ jobs:
       version: ${{ github.ref_name }}
 
   repository-dispatch:
-    needs: check_release
+    needs:
+      - check_release
+      - publish-pypi
     uses: ./.github/workflows/repository-dispatch.yml
     secrets: inherit
     with:

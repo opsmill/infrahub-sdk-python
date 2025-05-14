@@ -17,7 +17,7 @@ At its heart, Infrahub is built on 3 fundamental pillars:
 
 The Infrahub Python SDK greatly simplifies how you can interact with Infrahub programmatically.
 
-More information can be found in the [Infrahub Python SDK Documentation](https://docs.infrahub.app/python-sdk/).
+More information can be found in the [Infrahub Python SDK Documentation](https://docs.infrahub.app/python-sdk/introduction).
 
 ## Installation
 
