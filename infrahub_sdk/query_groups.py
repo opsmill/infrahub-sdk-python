@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
@@ -19,7 +20,7 @@ class InfrahubGroupContextBase:
         self.related_node_ids: list[str] = []
         self.related_group_ids: list[str] = []
         self.unused_member_ids: list[str] | None = None
-        self.previous_members: list[RelatedNodeBase] | None = None
+        self.previous_members: Sequence[RelatedNodeBase] | None = None
         self.previous_children: list[RelatedNodeBase] | None = None
         self.identifier: str | None = None
         self.params: dict[str, str] = {}
@@ -101,7 +102,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         if not store_peers:
             return group
 
-        self.previous_members = group.members.peers  # type: ignore[attr-defined]
+        self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
     async def delete_unused(self) -> None:
@@ -195,7 +196,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         if not store_peers:
             return group
 
-        self.previous_members = group.members.peers  # type: ignore[attr-defined]
+        self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
     def delete_unused(self) -> None:

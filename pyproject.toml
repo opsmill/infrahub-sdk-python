@@ -114,10 +114,6 @@ module = "infrahub_sdk.ctl.check"
 disable_error_code = ["call-overload"]
 
 [[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.generator"
-disable_error_code = ["attr-defined"]
-
-[[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.schema"
 disable_error_code = ["arg-type", "attr-defined", "misc", "union-attr"]
 
