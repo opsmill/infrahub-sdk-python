@@ -1719,7 +1719,6 @@ class InfrahubClientSync(BaseClient):
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
-
     @overload
     def all(
         self,
