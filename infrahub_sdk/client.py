@@ -566,17 +566,20 @@ class InfrahubClient(BaseClient):
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
-        filters = kwargs
-        schema = await self.schema.get(kind=kind, branch=branch)
+        filters: dict[str, Any] = dict(kwargs)
 
+        if partial_match:
+            filters["partial_match"] = True
+
+        schema = await self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
         if at:
             at = Timestamp(at)
 
-        data = {"count": None, "@filters": filters}
-
-        if partial_match:
-            data["@filters"]["partial_match"] = True
+        data: dict[str, Any] = {
+            "count": None,
+            "@filters": filters,
+        }
 
         response = await self.execute_graphql(
             query=Query(query={schema.kind: data}).render(),
@@ -1693,16 +1696,20 @@ class InfrahubClientSync(BaseClient):
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
-        filters = kwargs
-        schema = self.schema.get(kind=kind, branch=branch)
+        filters: dict[str, Any] = dict(kwargs)
 
+        if partial_match:
+            filters["partial_match"] = True
+
+        schema = self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
         if at:
             at = Timestamp(at)
 
-        data = {"count": None, "@filters": filters}
-        if partial_match:
-            data["@filters"]["partial_match"] = True
+        data: dict[str, Any] = {
+            "count": None,
+            "@filters": filters,
+        }
 
         response = self.execute_graphql(
             query=Query(query={schema.kind: data}).render(),
@@ -1711,6 +1718,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
+
 
     @overload
     def all(
