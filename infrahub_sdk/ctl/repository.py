@@ -102,6 +102,8 @@ async def add(
             password=password,
         )
         await credential.save(allow_upsert=True)
+        if not credential.id:
+            raise ValueError("credential.id must be set before building the request")
         input_data["data"]["credential"] = {"id": credential.id}
 
     query = Mutation(

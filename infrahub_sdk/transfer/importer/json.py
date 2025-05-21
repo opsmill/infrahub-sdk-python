@@ -65,7 +65,8 @@ class LineDelimitedJSONImporter(ImporterInterface):
             for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind")):
                 node = await InfrahubNode.from_graphql(self.client, branch, ujson.loads(str(graphql_data)))
                 import_nodes_by_kind[str(kind)].append(node)
-                self.all_nodes[node.id] = node
+                if node.id:
+                    self.all_nodes[node.id] = node
 
         schema_batch = await self.client.create_batch()
         for kind in import_nodes_by_kind:
@@ -112,11 +113,11 @@ class LineDelimitedJSONImporter(ImporterInterface):
             for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind].keys():
                 relationship_value = getattr(node, relationship_name)
                 if isinstance(relationship_value, RelationshipManager):
-                    if relationship_value.peer_ids:
+                    if relationship_value.peer_ids and node.id:
                         self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
                         setattr(node, relationship_name, None)
                 elif isinstance(relationship_value, RelatedNode):
-                    if relationship_value.id:
+                    if relationship_value.id and node.id:
                         self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
                         setattr(node, relationship_name, None)
 

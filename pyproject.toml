@@ -32,7 +32,8 @@ ujson = "^5"
 Jinja2 = { version = "^3", optional = true }
 numpy = [
     { version = "^1.24.2", optional = true, python = ">=3.9,<3.12" },
-    { version = "^1.26.2", optional = true, python = ">=3.12" },
+    { version = "^1.26.2", optional = true, python = "==3.12" },
+    { version = "^2.2.6", optional = true, python = ">=3.13" },
 ]
 pyarrow = { version = ">=14", optional = true }
 rich = { version = "^13", optional = true }
