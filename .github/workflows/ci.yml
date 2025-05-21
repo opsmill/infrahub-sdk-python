@@ -84,7 +84,9 @@ jobs:
 
 
   markdown-lint:
-    if: needs.files-changed.outputs.documentation == 'true'
+    if: |
+      needs.files-changed.outputs.documentation == 'true' ||
+      needs.files-changed.outputs.github_workflows == 'true'
     needs: ["files-changed"]
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
