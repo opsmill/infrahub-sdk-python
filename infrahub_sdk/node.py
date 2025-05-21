@@ -1261,9 +1261,7 @@ class InfrahubNode(InfrahubNodeBase):
         else:
             if self.id is None:
                 raise UninitializedError("Cannot add related nodes before the node has an ID")
-            await self._client.group_context.add_related_nodes(
-                ids=[self.id], update_group_context=update_group_context
-            )
+            await self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
         self._client.store.set(node=self)
 
     async def generate_query_data(
@@ -1784,9 +1782,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if "CoreGroup" in self._schema.inherit_from:
                 if self.id is None:
                     raise UninitializedError("Cannot add related nodes before the node has an ID")
-                self._client.group_context.add_related_nodes(
-                    ids=[self.id], update_group_context=update_group_context
-                )
+                self._client.group_context.add_related_nodes(ids=[self.id], update_group_context=update_group_context)
 
             else:
                 if self.id is None:
