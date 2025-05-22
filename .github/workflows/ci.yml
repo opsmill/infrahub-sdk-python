@@ -29,7 +29,9 @@ env:
   METRICS_ENDPOINT: ${{ secrets.METRICS_ENDPOINT }}
 
 jobs:
-   # ------------------------------------------ Check Files Changes  ------------------------------------------
+  prepare-environment:
+    uses: ./.github/workflows/define-versions.yml
+  # ------------------------------------------ Check Files Changes  ------------------------------------------
   files-changed:
     name: Detect which file has changed
     runs-on: ubuntu-latest
@@ -152,7 +154,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       (needs.files-changed.outputs.python == 'true') || (needs.files-changed.outputs.documentation_generated == 'true')
-    needs: ["files-changed", "yaml-lint", "python-lint"]
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on: "ubuntu-22.04"
     timeout-minutes: 5
     steps:
@@ -166,7 +168,7 @@ jobs:
           python-version: "3.12"
       - name: "Setup Python environment"
         run: |
-          pipx install poetry==2.1
+          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
           poetry config virtualenvs.create true --local
           poetry env use 3.12
       - name: "Install dependencies"
@@ -218,7 +220,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.files-changed.outputs.python == 'true'
-    needs: ["files-changed", "yaml-lint", "python-lint"]
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -230,7 +232,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: "Setup environment"
         run: |
-          pipx install poetry==2.1 --python python${{ matrix.python-version }}
+          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }} --python python${{ matrix.python-version }}
           poetry config virtualenvs.create true --local
           pip install invoke toml codecov
       - name: "Install Package"
@@ -266,7 +268,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.files-changed.outputs.python == 'true'
-    needs: ["files-changed", "yaml-lint", "python-lint"]
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on:
       group: "huge-runners"
     timeout-minutes: 30
@@ -283,7 +285,7 @@ jobs:
           echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
       - name: "Setup environment"
         run: |
-          pipx install poetry==2.1
+          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
           poetry config virtualenvs.create true --local
           pip install invoke toml codecov
       - name: "Install Package"
@@ -306,7 +308,7 @@ jobs:
   #     !contains(needs.*.result, 'cancelled') &&
   #     needs.files-changed.outputs.python == 'true' &&
   #     (github.base_ref == 'stable' || github.base_ref == 'develop')
-  #   needs: ["files-changed", "yaml-lint", "python-lint"]
+  #   needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
   #   runs-on:
   #     group: "huge-runners"
   #   timeout-minutes: 30
@@ -356,7 +358,7 @@ jobs:
 
   #     - name: "Setup environment"
   #       run: |
-  #         pipx install poetry==2.1
+  #         pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
   #         poetry config virtualenvs.create true --local
   #         pip install invoke toml codecov
 
