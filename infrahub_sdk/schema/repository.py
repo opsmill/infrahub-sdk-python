@@ -147,6 +147,12 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
             return file.read()
 
 
+class InfrahubObjectConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="The name associated to the object file")
+    file_path: Path = Field(..., description="The file within the repository containing object data.")
+
+
 RESOURCE_MAP: dict[Any, str] = {
     InfrahubJinja2TransformConfig: "jinja2_transforms",
     InfrahubCheckDefinitionConfig: "check_definitions",
@@ -154,6 +160,7 @@ RESOURCE_MAP: dict[Any, str] = {
     InfrahubPythonTransformConfig: "python_transforms",
     InfrahubGeneratorDefinitionConfig: "generator_definitions",
     InfrahubRepositoryGraphQLConfig: "queries",
+    InfrahubObjectConfig: "objects",
 }
 
 
@@ -176,6 +183,7 @@ class InfrahubRepositoryConfig(BaseModel):
         default_factory=list, description="Generator definitions"
     )
     queries: list[InfrahubRepositoryGraphQLConfig] = Field(default_factory=list, description="GraphQL Queries")
+    objects: list[InfrahubObjectConfig] = Field(default_factory=list, description="Objects")
 
     @field_validator(
         "check_definitions",
@@ -184,6 +192,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "python_transforms",
         "generator_definitions",
         "queries",
+        "objects",
     )
     @classmethod
     def unique_items(cls, v: list[Any]) -> list[Any]:
