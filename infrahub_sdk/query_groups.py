@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
 from .exceptions import NodeNotFoundError
@@ -25,6 +25,7 @@ class InfrahubGroupContextBase:
         self.params: dict[str, str] = {}
         self.delete_unused_nodes: bool = False
         self.group_type: str = "CoreStandardGroup"
+        self.group_params: dict[str, Any] = {}
 
     def set_properties(
         self,
@@ -32,6 +33,8 @@ class InfrahubGroupContextBase:
         params: dict[str, str] | None = None,
         delete_unused_nodes: bool = False,
         group_type: str | None = None,
+        group_params: dict[str, Any] | None = None,
+        branch: str | None = None,
     ) -> None:
         """Setter method to set the values of identifier and params.
 
@@ -43,6 +46,8 @@ class InfrahubGroupContextBase:
         self.params = params or {}
         self.delete_unused_nodes = delete_unused_nodes
         self.group_type = group_type or self.group_type
+        self.group_params = group_params or {}
+        self.branch = branch
 
     def _get_params_as_str(self) -> str:
         """Convert the params in dict format, into a string"""
@@ -87,7 +92,9 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
     async def get_group(self, store_peers: bool = False) -> InfrahubNode | None:
         group_name = self._generate_group_name()
         try:
-            group = await self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
+            group = await self.client.get(
+                kind=self.group_type, name__value=group_name, include=["members"], branch=self.branch
+            )
         except NodeNotFoundError:
             return None
 
@@ -151,6 +158,8 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             name=group_name,
             description=description,
             members=members,
+            branch=self.branch,
+            **self.group_params,
         )
         await group.save(allow_upsert=True, update_group_context=False)
 
@@ -243,6 +252,8 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             name=group_name,
             description=description,
             members=members,
+            branch=self.branch,
+            **self.group_params,
         )
         group.save(allow_upsert=True, update_group_context=False)
 

@@ -153,6 +153,12 @@ class InfrahubObjectConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository containing object data.")
 
 
+class InfrahubMenuConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="The name of the menu")
+    file_path: Path = Field(..., description="The file within the repository containing menu data.")
+
+
 RESOURCE_MAP: dict[Any, str] = {
     InfrahubJinja2TransformConfig: "jinja2_transforms",
     InfrahubCheckDefinitionConfig: "check_definitions",
@@ -161,6 +167,7 @@ RESOURCE_MAP: dict[Any, str] = {
     InfrahubGeneratorDefinitionConfig: "generator_definitions",
     InfrahubRepositoryGraphQLConfig: "queries",
     InfrahubObjectConfig: "objects",
+    InfrahubMenuConfig: "menus",
 }
 
 
@@ -183,7 +190,8 @@ class InfrahubRepositoryConfig(BaseModel):
         default_factory=list, description="Generator definitions"
     )
     queries: list[InfrahubRepositoryGraphQLConfig] = Field(default_factory=list, description="GraphQL Queries")
-    objects: list[InfrahubObjectConfig] = Field(default_factory=list, description="Objects")
+    objects: list[Path] = Field(default_factory=list, description="Objects")
+    menus: list[Path] = Field(default_factory=list, description="Menus")
 
     @field_validator(
         "check_definitions",
@@ -192,7 +200,6 @@ class InfrahubRepositoryConfig(BaseModel):
         "python_transforms",
         "generator_definitions",
         "queries",
-        "objects",
     )
     @classmethod
     def unique_items(cls, v: list[Any]) -> list[Any]:

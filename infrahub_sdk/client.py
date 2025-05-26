@@ -172,11 +172,18 @@ class BaseClient:
         params: dict[str, Any] | None = None,
         delete_unused_nodes: bool = False,
         group_type: str | None = None,
+        group_params: dict[str, Any] | None = None,
+        branch: str | None = None,
     ) -> Self:
         self.mode = InfrahubClientMode.TRACKING
         identifier = identifier or self.identifier or "python-sdk"
         self.set_context_properties(
-            identifier=identifier, params=params, delete_unused_nodes=delete_unused_nodes, group_type=group_type
+            identifier=identifier,
+            params=params,
+            delete_unused_nodes=delete_unused_nodes,
+            group_type=group_type,
+            group_params=group_params,
+            branch=branch,
         )
         return self
 
@@ -187,14 +194,22 @@ class BaseClient:
         delete_unused_nodes: bool = True,
         reset: bool = True,
         group_type: str | None = None,
+        group_params: dict[str, Any] | None = None,
+        branch: str | None = None,
     ) -> None:
         if reset:
             if isinstance(self, InfrahubClient):
                 self.group_context = InfrahubGroupContext(self)
             elif isinstance(self, InfrahubClientSync):
                 self.group_context = InfrahubGroupContextSync(self)
+
         self.group_context.set_properties(
-            identifier=identifier, params=params, delete_unused_nodes=delete_unused_nodes, group_type=group_type
+            identifier=identifier,
+            params=params,
+            delete_unused_nodes=delete_unused_nodes,
+            group_type=group_type,
+            group_params=group_params,
+            branch=branch,
         )
 
     def _graphql_url(
