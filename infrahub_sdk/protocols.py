@@ -68,6 +68,12 @@ class BuiltinIPPrefix(CoreNode):
     children: RelationshipManager
 
 
+class CoreAction(CoreNode):
+    name: String
+    description: StringOptional
+    triggers: RelationshipManager
+
+
 class CoreArtifactTarget(CoreNode):
     artifacts: RelationshipManager
 
@@ -154,6 +160,10 @@ class CoreMenu(CoreNode):
     children: RelationshipManager
 
 
+class CoreNodeTriggerMatch(CoreNode):
+    trigger: RelatedNode
+
+
 class CoreObjectComponentTemplate(CoreNode):
     template_name: String
 
@@ -193,6 +203,14 @@ class CoreTransformation(CoreNode):
     query: RelatedNode
     repository: RelatedNode
     tags: RelationshipManager
+
+
+class CoreTriggerRule(CoreNode):
+    name: String
+    description: StringOptional
+    active: Boolean
+    branch_scope: Dropdown
+    action: RelatedNode
 
 
 class CoreValidator(CoreNode):
@@ -328,6 +346,10 @@ class CoreFileThread(CoreThread):
     repository: RelatedNode
 
 
+class CoreGeneratorAction(CoreAction):
+    generator: RelatedNode
+
+
 class CoreGeneratorCheck(CoreCheck):
     instance: String
 
@@ -382,6 +404,16 @@ class CoreGraphQLQueryGroup(CoreGroup):
     query: RelatedNode
 
 
+class CoreGroupAction(CoreAction):
+    add_members: Boolean
+    group: RelatedNode
+
+
+class CoreGroupTriggerRule(CoreTriggerRule):
+    members_added: Boolean
+    group: RelatedNode
+
+
 class CoreIPAddressPool(CoreResourcePool, LineageSource):
     default_address_type: String
     default_prefix_length: IntegerOptional
@@ -399,6 +431,25 @@ class CoreIPPrefixPool(CoreResourcePool, LineageSource):
 
 class CoreMenuItem(CoreMenu):
     pass
+
+
+class CoreNodeTriggerAttributeMatch(CoreNodeTriggerMatch):
+    attribute_name: String
+    value: StringOptional
+    value_previous: StringOptional
+    value_match: Dropdown
+
+
+class CoreNodeTriggerRelationshipMatch(CoreNodeTriggerMatch):
+    relationship_name: String
+    added: Boolean
+    peer: StringOptional
+
+
+class CoreNodeTriggerRule(CoreTriggerRule):
+    node_kind: String
+    mutation_action: Enum
+    matches: RelationshipManager
 
 
 class CoreNumberPool(CoreResourcePool, LineageSource):
@@ -446,6 +497,11 @@ class CoreReadOnlyRepository(LineageOwner, LineageSource, CoreGenericRepository,
 class CoreRepository(LineageOwner, LineageSource, CoreGenericRepository, CoreTaskTarget):
     default_branch: String
     commit: StringOptional
+
+
+class CoreRepositoryGroup(CoreGroup):
+    content: Dropdown
+    repository: RelatedNode
 
 
 class CoreRepositoryValidator(CoreValidator):
@@ -545,6 +601,12 @@ class BuiltinIPPrefixSync(CoreNodeSync):
     children: RelationshipManagerSync
 
 
+class CoreActionSync(CoreNodeSync):
+    name: String
+    description: StringOptional
+    triggers: RelationshipManagerSync
+
+
 class CoreArtifactTargetSync(CoreNodeSync):
     artifacts: RelationshipManagerSync
 
@@ -631,6 +693,10 @@ class CoreMenuSync(CoreNodeSync):
     children: RelationshipManagerSync
 
 
+class CoreNodeTriggerMatchSync(CoreNodeSync):
+    trigger: RelatedNodeSync
+
+
 class CoreObjectComponentTemplateSync(CoreNodeSync):
     template_name: String
 
@@ -670,6 +736,14 @@ class CoreTransformationSync(CoreNodeSync):
     query: RelatedNodeSync
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
+
+
+class CoreTriggerRuleSync(CoreNodeSync):
+    name: String
+    description: StringOptional
+    active: Boolean
+    branch_scope: Dropdown
+    action: RelatedNodeSync
 
 
 class CoreValidatorSync(CoreNodeSync):
@@ -805,6 +879,10 @@ class CoreFileThreadSync(CoreThreadSync):
     repository: RelatedNodeSync
 
 
+class CoreGeneratorActionSync(CoreActionSync):
+    generator: RelatedNodeSync
+
+
 class CoreGeneratorCheckSync(CoreCheckSync):
     instance: String
 
@@ -859,6 +937,16 @@ class CoreGraphQLQueryGroupSync(CoreGroupSync):
     query: RelatedNodeSync
 
 
+class CoreGroupActionSync(CoreActionSync):
+    add_members: Boolean
+    group: RelatedNodeSync
+
+
+class CoreGroupTriggerRuleSync(CoreTriggerRuleSync):
+    members_added: Boolean
+    group: RelatedNodeSync
+
+
 class CoreIPAddressPoolSync(CoreResourcePoolSync, LineageSourceSync):
     default_address_type: String
     default_prefix_length: IntegerOptional
@@ -876,6 +964,25 @@ class CoreIPPrefixPoolSync(CoreResourcePoolSync, LineageSourceSync):
 
 class CoreMenuItemSync(CoreMenuSync):
     pass
+
+
+class CoreNodeTriggerAttributeMatchSync(CoreNodeTriggerMatchSync):
+    attribute_name: String
+    value: StringOptional
+    value_previous: StringOptional
+    value_match: Dropdown
+
+
+class CoreNodeTriggerRelationshipMatchSync(CoreNodeTriggerMatchSync):
+    relationship_name: String
+    added: Boolean
+    peer: StringOptional
+
+
+class CoreNodeTriggerRuleSync(CoreTriggerRuleSync):
+    node_kind: String
+    mutation_action: Enum
+    matches: RelationshipManagerSync
 
 
 class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
@@ -923,6 +1030,11 @@ class CoreReadOnlyRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGeneri
 class CoreRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGenericRepositorySync, CoreTaskTargetSync):
     default_branch: String
     commit: StringOptional
+
+
+class CoreRepositoryGroupSync(CoreGroupSync):
+    content: Dropdown
+    repository: RelatedNodeSync
 
 
 class CoreRepositoryValidatorSync(CoreValidatorSync):

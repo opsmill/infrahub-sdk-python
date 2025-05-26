@@ -48,6 +48,7 @@ class SchemaCarPerson:
             namespace=NAMESPACE,
             include_in_menu=True,
             label="Person",
+            default_filter="name__value",
             human_friendly_id=["name__value"],
             attributes=[
                 Attr(name="name", kind=AttributeKind.TEXT, unique=True),

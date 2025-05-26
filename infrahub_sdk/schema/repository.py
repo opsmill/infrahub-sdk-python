@@ -147,6 +147,18 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
             return file.read()
 
 
+class InfrahubObjectConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="The name associated to the object file")
+    file_path: Path = Field(..., description="The file within the repository containing object data.")
+
+
+class InfrahubMenuConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="The name of the menu")
+    file_path: Path = Field(..., description="The file within the repository containing menu data.")
+
+
 RESOURCE_MAP: dict[Any, str] = {
     InfrahubJinja2TransformConfig: "jinja2_transforms",
     InfrahubCheckDefinitionConfig: "check_definitions",
@@ -154,6 +166,8 @@ RESOURCE_MAP: dict[Any, str] = {
     InfrahubPythonTransformConfig: "python_transforms",
     InfrahubGeneratorDefinitionConfig: "generator_definitions",
     InfrahubRepositoryGraphQLConfig: "queries",
+    InfrahubObjectConfig: "objects",
+    InfrahubMenuConfig: "menus",
 }
 
 
@@ -176,6 +190,8 @@ class InfrahubRepositoryConfig(BaseModel):
         default_factory=list, description="Generator definitions"
     )
     queries: list[InfrahubRepositoryGraphQLConfig] = Field(default_factory=list, description="GraphQL Queries")
+    objects: list[Path] = Field(default_factory=list, description="Objects")
+    menus: list[Path] = Field(default_factory=list, description="Menus")
 
     @field_validator(
         "check_definitions",
