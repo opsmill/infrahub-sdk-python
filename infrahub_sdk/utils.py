@@ -353,7 +353,7 @@ def write_to_file(path: Path, value: Any) -> bool:
 
 def read_file(file_name: Path) -> str:
     if not file_name.is_file():
-        raise FileNotValidError(name=str(file_name), message=f"{file_name} is not a valid file")
+        raise FileNotValidError(name=str(file_name), message=f"{file_name}: not found at {Path.cwd()}")
     try:
         with Path.open(file_name, encoding="utf-8") as fobj:
             return fobj.read()
