@@ -1,13 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import copy
 from typing import TYPE_CHECKING, Any
 
 from ..constants import InfrahubClientMode
-from ..exceptions import (
-    FeatureNotSupportedError,
-    NodeNotFoundError,
-)
+from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
 from ..graphql import Mutation, Query
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
 from ..utils import compare_lists, generate_short_id, get_flat_value
@@ -30,48 +28,6 @@ if TYPE_CHECKING:
     from ..types import Order
 
 
-def generate_relationship_property(node: InfrahubNode | InfrahubNodeSync, name: str) -> property:
-    """Generates a property that stores values under a private non-public name.
-
-    Args:
-        node (Union[InfrahubNode, InfrahubNodeSync]): The node instance.
-        name (str): The name of the relationship property.
-
-    Returns:
-        A property object for managing the relationship.
-
-    """
-    internal_name = "_" + name.lower()
-    external_name = name
-
-    def prop_getter(self: InfrahubNodeBase) -> Any:
-        return getattr(self, internal_name)
-
-    def prop_setter(self: InfrahubNodeBase, value: Any) -> None:
-        if isinstance(value, RelatedNodeBase) or value is None:
-            setattr(self, internal_name, value)
-        else:
-            schema = [rel for rel in self._schema.relationships if rel.name == external_name][0]
-            if isinstance(node, InfrahubNode):
-                setattr(
-                    self,
-                    internal_name,
-                    RelatedNode(
-                        name=external_name, branch=node._branch, client=node._client, schema=schema, data=value
-                    ),
-                )
-            else:
-                setattr(
-                    self,
-                    internal_name,
-                    RelatedNodeSync(
-                        name=external_name, branch=node._branch, client=node._client, schema=schema, data=value
-                    ),
-                )
-
-    return property(prop_getter, prop_setter)
-
-
 class InfrahubNodeBase:
     """Base class for InfrahubNode and InfrahubNodeSync"""
 
@@ -86,6 +42,7 @@ class InfrahubNodeBase:
         self._data = data
         self._branch = branch
         self._existing: bool = True
+        self._attribute_data: dict[str, Attribute] = {}
 
         # Generate a unique ID only to be used inside the SDK
         # The format if this ID is purposely different from the ID used by the API
@@ -180,11 +137,17 @@ class InfrahubNodeBase:
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
             attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
-            setattr(
-                self,
-                attr_schema.name,
-                Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data),
+            self._attribute_data[attr_schema.name] = Attribute(
+                name=attr_schema.name, schema=attr_schema, data=attr_data
             )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Set values for attributes that exist or revert to normal behaviour"""
+        if "_attribute_data" in self.__dict__ and name in self._attribute_data:
+            self._attribute_data[name].value = value
+            return
+
+        super().__setattr__(name, value)
 
     def _get_request_context(self, request_context: RequestContext | None = None) -> dict[str, Any] | None:
         if request_context:
@@ -487,6 +450,12 @@ class InfrahubNodeBase:
         }}
         """
 
+    def _get_attribute(self, name: str) -> Attribute:
+        if name in self._attribute_data:
+            return self._attribute_data[name]
+
+        raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
+
 
 class InfrahubNode(InfrahubNodeBase):
     """Represents a Infrahub node in an asynchronous context."""
@@ -506,10 +475,12 @@ class InfrahubNode(InfrahubNodeBase):
             data: Optional data to initialize the node.
         """
         self._client = client
-        self.__class__ = type(f"{schema.kind}InfrahubNode", (self.__class__,), {})
 
         if isinstance(data, dict) and isinstance(data.get("node"), dict):
             data = data.get("node")
+
+        self._relationship_cardinality_many_data: dict[str, RelationshipManager] = {}
+        self._relationship_cardinality_one_data: dict[str, RelatedNode] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
 
@@ -535,26 +506,45 @@ class InfrahubNode(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_schema.name}", None)
-                setattr(
-                    self.__class__,
-                    rel_schema.name,
-                    generate_relationship_property(name=rel_schema.name, node=self),
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
-                setattr(self, rel_schema.name, rel_data)
             else:
-                setattr(
-                    self,
-                    rel_schema.name,
-                    RelationshipManager(
-                        name=rel_schema.name,
-                        client=self._client,
-                        node=self,
-                        branch=self._branch,
-                        schema=rel_schema,
-                        data=rel_data,
-                    ),
+                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
                 )
+
+    def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
+        if "_attribute_data" in self.__dict__ and name in self._attribute_data:
+            return self._attribute_data[name]
+        if "_relationship_cardinality_many_data" in self.__dict__ and name in self._relationship_cardinality_many_data:
+            return self._relationship_cardinality_many_data[name]
+        if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
+            return self._relationship_cardinality_one_data[name]
+
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Set values for relationship names that exist or revert to normal behaviour"""
+        if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
+            rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
+            if not rel_schemas:
+                raise SchemaNotFoundError(
+                    identifier=self._schema.kind,
+                    message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
+                )
+            rel_schema = rel_schemas[0]
+            self._relationship_cardinality_one_data[name] = RelatedNode(
+                name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
+            )
+            return
+
+        super().__setattr__(name, value)
 
     async def generate(self, nodes: list[str] | None = None) -> None:
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -568,14 +558,14 @@ class InfrahubNode(InfrahubNodeBase):
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        await artifact.definition.fetch()  # type: ignore[attr-defined]
-        await artifact.definition.peer.generate([artifact.id])  # type: ignore[attr-defined]
+        await artifact._get_relationship_one(name="definition").fetch()
+        await artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        content = await self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
+        content = await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
         return content
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
@@ -1018,6 +1008,27 @@ class InfrahubNode(InfrahubNodeBase):
             return [edge["node"] for edge in response[graphql_query_name]["edges"]]
         return []
 
+    def _get_relationship_many(self, name: str) -> RelationshipManager:
+        if name in self._relationship_cardinality_many_data:
+            return self._relationship_cardinality_many_data[name]
+
+        raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=many relationship for {name}")
+
+    def _get_relationship_one(self, name: str) -> RelatedNode:
+        if name in self._relationship_cardinality_one_data:
+            return self._relationship_cardinality_one_data[name]
+
+        raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
+
+    def __dir__(self) -> Iterable[str]:
+        base = list(super().__dir__())
+        return sorted(
+            base
+            + list(self._attribute_data.keys())
+            + list(self._relationship_cardinality_many_data.keys())
+            + list(self._relationship_cardinality_one_data.keys())
+        )
+
 
 class InfrahubNodeSync(InfrahubNodeBase):
     """Represents a Infrahub node in a synchronous context."""
@@ -1036,11 +1047,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
             branch (Optional[str]): The branch where the node resides.
             data (Optional[dict]): Optional data to initialize the node.
         """
-        self.__class__ = type(f"{schema.kind}InfrahubNodeSync", (self.__class__,), {})
         self._client = client
 
         if isinstance(data, dict) and isinstance(data.get("node"), dict):
             data = data.get("node")
+
+        self._relationship_cardinality_many_data: dict[str, RelationshipManagerSync] = {}
+        self._relationship_cardinality_one_data: dict[str, RelatedNodeSync] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
 
@@ -1066,26 +1079,46 @@ class InfrahubNodeSync(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                setattr(self, f"_{rel_schema.name}", None)
-                setattr(
-                    self.__class__,
-                    rel_schema.name,
-                    generate_relationship_property(name=rel_schema.name, node=self),
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
-                setattr(self, rel_schema.name, rel_data)
+
             else:
-                setattr(
-                    self,
-                    rel_schema.name,
-                    RelationshipManagerSync(
-                        name=rel_schema.name,
-                        client=self._client,
-                        node=self,
-                        branch=self._branch,
-                        schema=rel_schema,
-                        data=rel_data,
-                    ),
+                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
                 )
+
+    def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
+        if "_attribute_data" in self.__dict__ and name in self._attribute_data:
+            return self._attribute_data[name]
+        if "_relationship_cardinality_many_data" in self.__dict__ and name in self._relationship_cardinality_many_data:
+            return self._relationship_cardinality_many_data[name]
+        if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
+            return self._relationship_cardinality_one_data[name]
+
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Set values for relationship names that exist or revert to normal behaviour"""
+        if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
+            rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
+            if not rel_schemas:
+                raise SchemaNotFoundError(
+                    identifier=self._schema.kind,
+                    message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
+                )
+            rel_schema = rel_schemas[0]
+            self._relationship_cardinality_one_data[name] = RelatedNodeSync(
+                name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
+            )
+            return
+
+        super().__setattr__(name, value)
 
     def generate(self, nodes: list[str] | None = None) -> None:
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -1097,13 +1130,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def artifact_generate(self, name: str) -> None:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        artifact.definition.fetch()  # type: ignore[attr-defined]
-        artifact.definition.peer.generate([artifact.id])  # type: ignore[attr-defined]
+        artifact._get_relationship_one(name="definition").fetch()
+        artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        content = self._client.object_store.get(identifier=artifact.storage_id.value)  # type: ignore[attr-defined]
+        content = self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
         return content
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
@@ -1545,3 +1578,24 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if response[graphql_query_name].get("count", 0):
             return [edge["node"] for edge in response[graphql_query_name]["edges"]]
         return []
+
+    def _get_relationship_many(self, name: str) -> RelationshipManager | RelationshipManagerSync:
+        if name in self._relationship_cardinality_many_data:
+            return self._relationship_cardinality_many_data[name]
+
+        raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=many relationship for {name}")
+
+    def _get_relationship_one(self, name: str) -> RelatedNode | RelatedNodeSync:
+        if name in self._relationship_cardinality_one_data:
+            return self._relationship_cardinality_one_data[name]
+
+        raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
+
+    def __dir__(self) -> Iterable[str]:
+        base = list(super().__dir__())
+        return sorted(
+            base
+            + list(self._attribute_data.keys())
+            + list(self._relationship_cardinality_many_data.keys())
+            + list(self._relationship_cardinality_one_data.keys())
+        )

@@ -187,6 +187,12 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == "pppppppp"
 
+    keys = dir(node)
+    assert "name" in keys
+    assert "type" in keys
+    assert "tags" in keys
+    assert "get_kind" in keys
+
 
 @pytest.mark.parametrize("property_test", property_tests)
 @pytest.mark.parametrize("client_type", client_types)
