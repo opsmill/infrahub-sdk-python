@@ -10,7 +10,7 @@ from typing_extensions import Self
 from yaml.parser import ParserError
 
 from .exceptions import FileNotValidError
-from .utils import find_files, read_file
+from .utils import read_file
 
 
 class InfrahubFileApiVersion(str, Enum):
@@ -121,12 +121,13 @@ class YamlFile(LocalFile):
     def load_from_disk(cls, paths: list[Path]) -> list[Self]:
         yaml_files: list[Self] = []
         for file_path in paths:
-            if file_path.is_file():
+            if file_path.is_file() and file_path.suffix in [".yaml", ".yml", ".json"]:
                 yaml_files.extend(cls.load_file_from_disk(path=file_path))
             elif file_path.is_dir():
-                files = find_files(extension=["yaml", "yml", "json"], directory=file_path)
-                for item in files:
-                    yaml_files.extend(cls.load_file_from_disk(path=item))
+                sub_paths = [Path(sub_file_path) for sub_file_path in file_path.glob("*")]
+                sub_files = cls.load_from_disk(paths=sub_paths)
+                sorted_sub_files = sorted(sub_files, key=lambda x: x.location)
+                yaml_files.extend(sorted_sub_files)
             else:
                 raise FileNotValidError(name=str(file_path), message=f"{file_path} does not exist!")
 

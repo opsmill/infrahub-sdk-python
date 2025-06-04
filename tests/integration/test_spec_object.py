@@ -9,6 +9,7 @@ from infrahub_sdk.spec.object import ObjectFile
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import SchemaAnimal
 from infrahub_sdk.utils import get_fixtures_dir
+from infrahub_sdk.yaml import YamlFile
 
 
 def load_object_file(name: str) -> ObjectFile:
@@ -21,6 +22,17 @@ def load_menu_file(name: str) -> MenuFile:
     files = MenuFile.load_from_disk(paths=[get_fixtures_dir() / "spec_objects" / name])
     assert len(files) == 1
     return files[0]
+
+
+def test_load_nested_folders_order():
+    files = YamlFile.load_from_disk(paths=[get_fixtures_dir() / "nested_spec_objects"])
+    assert len(files) == 6
+    assert Path(files[0].location).name == "3_file.yml"
+    assert Path(files[1].location).name == "5_file.yml"
+    assert Path(files[2].location).name == "6_file.yml"
+    assert Path(files[3].location).name == "0_file.yml"
+    assert Path(files[4].location).name == "1_file.yml"
+    assert Path(files[5].location).name == "4_file.yml"
 
 
 class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
