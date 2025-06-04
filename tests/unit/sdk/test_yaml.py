@@ -6,11 +6,13 @@ here = Path(__file__).parent.resolve()
 
 
 def test_read_missing_file() -> None:
-    file = here / "test_data/i_do_not_exist.yml"
-    yaml_file = YamlFile(location=file)
+    file_name = "i_do_not_exist.yml"
+    dir = here / "test_data"
+    full_path = dir / filename
+    yaml_file = YamlFile(location=full_path)
     yaml_file.load_content()
     assert not yaml_file.valid
-    assert yaml_file.error_message == f"{file} is not a valid file"
+    assert yaml_file.error_message == f"{file_name}: not found at {dir}"
 
 
 def test_read_incorrect_encoding() -> None:
