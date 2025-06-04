@@ -351,14 +351,14 @@ def write_to_file(path: Path, value: Any) -> bool:
     return written is not None
 
 
-def read_file(file_name: Path) -> str:
-    if not file_name.is_file():
-        raise FileNotValidError(name=str(file_name), message=f"{file_name}: not found at {Path.cwd()}")
+def read_file(file_path: Path) -> str:
+    if not file_path.is_file():
+        raise FileNotValidError(name=str(file_path.name), message=f"{file_path.name}: not found at {file_path.cwd()}")
     try:
-        with Path.open(file_name, encoding="utf-8") as fobj:
+        with Path.open(file_path, encoding="utf-8") as fobj:
             return fobj.read()
     except UnicodeDecodeError as exc:
-        raise FileNotValidError(name=str(file_name), message=f"Unable to read {file_name} with utf-8 encoding") from exc
+        raise FileNotValidError(name=str(file_path.name), message=f"Unable to read {file_path.name} with utf-8 encoding") from exc
 
 
 def get_user_permissions(data: list[dict]) -> dict:
