@@ -358,7 +358,9 @@ def read_file(file_path: Path) -> str:
         with Path.open(file_path, encoding="utf-8") as fobj:
             return fobj.read()
     except UnicodeDecodeError as exc:
-        raise FileNotValidError(name=str(file_path.name), message=f"Unable to read {file_path.name} with utf-8 encoding") from exc
+        raise FileNotValidError(
+            name=str(file_path.name), message=f"Unable to read {file_path.name} with utf-8 encoding"
+        ) from exc
 
 
 def get_user_permissions(data: list[dict]) -> dict:
