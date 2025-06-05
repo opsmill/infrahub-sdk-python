@@ -45,7 +45,7 @@ def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
 
 
 def load_repository_config_file(repo_config_file: Path) -> dict:
-    yaml_data = read_file(file_name=repo_config_file)
+    yaml_data = read_file(file_path=repo_config_file)
 
     try:
         data = yaml.safe_load(yaml_data)
