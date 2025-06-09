@@ -73,11 +73,24 @@ class ProcessRelationsNode(TypedDict):
 
 
 class ProcessRelationsNodeSync(TypedDict):
+    """A dictionary type for results of processing nodes and their relationships (sync version)."""
     nodes: list[InfrahubNodeSync]
     related_nodes: list[InfrahubNodeSync]
 
 
 def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  # type: ignore[no-untyped-def]
+    """
+    Decorator for InfrahubClient methods to handle automatic re-login on expired signature errors.
+
+    If a 401 error with "Expired Signature" message is received, it attempts to
+    re-login using `client.login(refresh=True)` and then retries the original call.
+
+    Args:
+        func: The asynchronous client method to wrap.
+
+    Returns:
+        The wrapped function.
+    """
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
@@ -92,6 +105,18 @@ def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  #
 
 
 def handle_relogin_sync(func: Callable[..., httpx.Response]):  # type: ignore[no-untyped-def]
+    """
+    Decorator for InfrahubClientSync methods to handle automatic re-login on expired signature errors.
+
+    If a 401 error with "Expired Signature" message is received, it attempts to
+    re-login using `client.login(refresh=True)` and then retries the original call.
+
+    Args:
+        func: The synchronous client method to wrap.
+
+    Returns:
+        The wrapped function.
+    """
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
@@ -113,6 +138,14 @@ class BaseClient:
         address: str = "",
         config: Config | dict[str, Any] | None = None,
     ):
+        """
+        Initializes the BaseClient.
+
+        Args:
+            address: The Infrahub server address. Overrides address in config if provided.
+            config: A Config object or a dictionary to initialize the client's configuration.
+                    If None, a default Config object will be created.
+        """
         self.client = None
         self.headers = {"content-type": "application/json"}
         self.access_token: str = ""
@@ -146,12 +179,29 @@ class BaseClient:
         self._request_context: RequestContext | None = None
 
     def _initialize(self) -> None:
-        """Sets the properties for each version of the client"""
+        """
+        Sets the version-specific properties for the client (async or sync).
+        To be implemented by subclasses.
+        """
 
     def _record(self, response: httpx.Response) -> None:
+        """
+        Records the HTTP response using the custom recorder if configured.
+
+        Args:
+            response: The httpx.Response object to record.
+        """
         self.config.custom_recorder.record(response)
 
     def _echo(self, url: str, query: str, variables: dict | None = None) -> None:
+        """
+        Prints the GraphQL query details to stdout if echo_graphql_queries is enabled in config.
+
+        Args:
+            url: The GraphQL endpoint URL.
+            query: The GraphQL query string.
+            variables: Optional dictionary of variables for the query.
+        """
         if self.config.echo_graphql_queries:
             print(f"URL: {url}")
             print(f"QUERY:\n{query}")
@@ -160,10 +210,17 @@ class BaseClient:
 
     @property
     def request_context(self) -> RequestContext | None:
+        """The current request context, if any."""
         return self._request_context
 
     @request_context.setter
     def request_context(self, request_context: RequestContext) -> None:
+        """
+        Sets the request context for the client.
+
+        Args:
+            request_context: The RequestContext object.
+        """
         self._request_context = request_context
 
     def start_tracking(
@@ -173,6 +230,22 @@ class BaseClient:
         delete_unused_nodes: bool = False,
         group_type: str | None = None,
     ) -> Self:
+        """
+        Switches the client to TRACKING mode and configures the group context.
+
+        In TRACKING mode, changes made via the client can be associated with a group,
+        allowing for features like automatic cleanup of unused nodes.
+
+        Args:
+            identifier: A unique identifier for the tracking group. Defaults to `self.identifier` or "python-sdk".
+            params: Optional parameters to associate with the tracking group.
+            delete_unused_nodes: If True, nodes associated with this group that are no longer
+                                 referenced might be deleted when the context ends.
+            group_type: An optional type for the group.
+
+        Returns:
+            The client instance (self).
+        """
         self.mode = InfrahubClientMode.TRACKING
         identifier = identifier or self.identifier or "python-sdk"
         self.set_context_properties(
@@ -188,6 +261,17 @@ class BaseClient:
         reset: bool = True,
         group_type: str | None = None,
     ) -> None:
+        """
+        Sets the properties for the group context used in TRACKING mode.
+
+        Args:
+            identifier: A unique identifier for the tracking group.
+            params: Optional parameters to associate with the tracking group.
+            delete_unused_nodes: If True, nodes associated with this group that are no longer
+                                 referenced might be deleted when the context ends.
+            reset: If True (default), initializes a new group context.
+            group_type: An optional type for the group.
+        """
         if reset:
             if isinstance(self, InfrahubClient):
                 self.group_context = InfrahubGroupContext(self)
@@ -202,6 +286,16 @@ class BaseClient:
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
     ) -> str:
+        """
+        Constructs the GraphQL API URL for a given branch and optional timestamp.
+
+        Args:
+            branch_name: The name of the branch. If None, the base GraphQL URL is returned.
+            at: An optional timestamp or ISO 8601 string to query at a specific point in time.
+
+        Returns:
+            The constructed GraphQL URL.
+        """
         url = f"{self.config.address}/graphql"
         if branch_name:
             url += f"/{branch_name}"
@@ -222,6 +316,19 @@ class BaseClient:
         address_type: str | None = None,
         data: dict[str, Any] | None = None,
     ) -> Mutation:
+        """
+        Builds a GraphQL mutation for allocating an IP address from a resource pool.
+
+        Args:
+            resource_pool_id: The ID of the CoreIPAddressPool.
+            identifier: Optional identifier for idempotent allocation.
+            prefix_length: Optional prefix length for the allocated address.
+            address_type: Optional type/kind of the IP address to allocate.
+            data: Optional dictionary of additional data to set on the allocated IP address.
+
+        Returns:
+            A Mutation object for the IP address allocation.
+        """
         input_data: dict[str, Any] = {"id": resource_pool_id}
 
         if identifier:
@@ -249,6 +356,23 @@ class BaseClient:
         prefix_type: str | None = None,
         data: dict[str, Any] | None = None,
     ) -> Mutation:
+        """
+        Builds a GraphQL mutation for allocating an IP prefix from a resource pool.
+
+        Args:
+            resource_pool_id: The ID of the CoreIPPrefixPool.
+            identifier: Optional identifier for idempotent allocation.
+            prefix_length: Optional length of the prefix to allocate.
+            member_type: Optional member type for the prefix ("prefix" or "address").
+            prefix_type: Optional type/kind of the IP prefix to allocate.
+            data: Optional dictionary of additional data to set on the allocated IP prefix.
+
+        Returns:
+            A Mutation object for the IP prefix allocation.
+
+        Raises:
+            ValueError: If `member_type` is provided and is not "prefix" or "address".
+        """
         input_data: dict[str, Any] = {"id": resource_pool_id}
 
         if identifier:
@@ -273,11 +397,18 @@ class BaseClient:
 
 
 class InfrahubClient(BaseClient):
-    """GraphQL Client to interact with Infrahub."""
+    """
+    Asynchronous GraphQL Client to interact with an Infrahub instance.
+
+    This client provides methods for CRUD operations on Infrahub nodes,
+    branch management, schema introspection, and other Infrahub-specific functionalities.
+    It uses `httpx` for asynchronous HTTP requests.
+    """
 
     group_context: InfrahubGroupContext
 
     def _initialize(self) -> None:
+        """Initializes asynchronous client-specific components."""
         self.schema = InfrahubSchema(self)
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
@@ -288,18 +419,33 @@ class InfrahubClient(BaseClient):
         self.group_context = InfrahubGroupContext(self)
 
     async def get_version(self) -> str:
-        """Return the Infrahub version."""
+        """
+        Retrieves the version of the connected Infrahub instance.
+
+        Returns:
+            A string representing the Infrahub server version.
+        """
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         version = response.get("InfrahubInfo", {}).get("version", "")
         return version
 
     async def get_user(self) -> dict:
-        """Return user information"""
+        """
+        Retrieves information about the currently authenticated user.
+
+        Returns:
+            A dictionary containing user profile information.
+        """
         user_info = await self.execute_graphql(query=QUERY_USER)
         return user_info
 
     async def get_user_permissions(self) -> dict:
-        """Return user permissions"""
+        """
+        Retrieves the permissions of the currently authenticated user.
+
+        Returns:
+            A dictionary representing the user's permissions.
+        """
         user_info = await self.get_user()
         return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
@@ -329,6 +475,25 @@ class InfrahubClient(BaseClient):
         timeout: int | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType:
+        """
+        Creates a new Infrahub node.
+
+        Args:
+            kind: The kind of the node to create (e.g., "CoreSite") or its type (e.g., CoreSite).
+            data: A dictionary of data to initialize the node with.
+                  Can be used instead of or in addition to kwargs.
+            branch: The branch on which to create the node. Defaults to the client's default branch.
+            timeout: Optional timeout in seconds for the schema retrieval.
+            **kwargs: Attributes and their values to set on the new node.
+
+        Returns:
+            An `InfrahubNode` instance (or a typed subclass if `kind` was a type)
+            representing the newly created node. It is not yet saved to Infrahub.
+            Call `.save()` on the returned node to persist it.
+
+        Raises:
+            ValueError: If neither `data` nor `kwargs` are provided.
+        """
         branch = branch or self.default_branch
 
         schema = await self.schema.get(kind=kind, branch=branch, timeout=timeout)
@@ -339,6 +504,16 @@ class InfrahubClient(BaseClient):
         return InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
 
     async def delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None:
+        """
+        Deletes an Infrahub node by its ID.
+
+        Note: This performs an immediate deletion request to the server.
+
+        Args:
+            kind: The kind of the node to delete or its type.
+            id: The ID of the node to delete.
+            branch: The branch from which to delete the node. Defaults to the client's default branch.
+        """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -476,6 +651,35 @@ class InfrahubClient(BaseClient):
         property: bool = False,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
+        """
+        Retrieves a single Infrahub node by its ID, HFID, or other unique attributes.
+
+        Args:
+            kind: The kind of the node to retrieve (e.g., "CoreSite") or its type (e.g., CoreSite).
+            raise_when_missing: If True (default), raises `NodeNotFoundError` if the node isn't found.
+                                If False, returns None when not found.
+            at: Optional timestamp to retrieve the node state at a specific time.
+            branch: The branch to retrieve the node from. Defaults to the client's default branch.
+            timeout: Optional timeout in seconds for the GraphQL request.
+            id: The UUID of the node.
+            hfid: A list of Human-Friendly IDs to search for.
+            include: List of specific attributes or relationships to include in the response.
+            exclude: List of attributes or relationships to exclude from the response.
+            populate_store: If True (default), the retrieved node is added/updated in the client's NodeStore.
+            fragment: If True, uses GraphQL fragments (useful for generic schema types).
+            prefetch_relationships: If True, attempts to prefetch data for related nodes.
+            property: If True, indicates that a property field is being queried directly.
+            **kwargs: Additional filter criteria (attribute=value pairs) to find the node.
+
+        Returns:
+            An `InfrahubNode` (or its typed subclass) if found, or None if `raise_when_missing` is False.
+
+        Raises:
+            NodeNotFoundError: If `raise_when_missing` is True and no node matches the criteria.
+            IndexError: If more than one node matches the criteria.
+            ValueError: If no filter criteria (id, hfid, or kwargs) are provided, or if filtering
+                        by HFID is attempted on a node kind that doesn't support it.
+        """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -527,19 +731,23 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool,
         timeout: int | None = None,
     ) -> ProcessRelationsNode:
-        """Processes InfrahubNode and their Relationships from the GraphQL query response.
+        """
+        Processes InfrahubNode objects and their relationships from a GraphQL query response.
+
+        This is an internal helper method.
 
         Args:
-            response (dict[str, Any]): The response from the GraphQL query.
-            schema_kind (str): The kind of schema being queried.
-            branch (str): The branch name.
-            prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            response: The raw dictionary response from a GraphQL query.
+            schema_kind: The `kind` of the primary nodes being processed from the response.
+            branch: The branch name these nodes belong to.
+            prefetch_relationships: If True, additionally processes and fetches related nodes.
+            timeout: Optional timeout for fetching related node schemas.
 
         Returns:
-            ProcessRelationsNodeSync: A TypedDict containing two lists:
-                - 'nodes': A list of InfrahubNode objects representing the nodes processed.
-                - 'related_nodes': A list of InfrahubNode objects representing the related nodes
+            A ProcessRelationsNode TypedDict containing:
+                - 'nodes': A list of processed `InfrahubNode` objects.
+                - 'related_nodes': A list of `InfrahubNode` objects that are related to the primary nodes
+                                 (populated if `prefetch_relationships` is True).
         """
 
         nodes: list[InfrahubNode] = []
@@ -565,7 +773,20 @@ class InfrahubClient(BaseClient):
         partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
-        """Return the number of nodes of a given kind."""
+        """
+        Counts the number of nodes of a given kind that match the specified filters.
+
+        Args:
+            kind: The kind of the node (e.g., "CoreSite") or its type (e.g., CoreSite).
+            at: Optional timestamp to count nodes at a specific time.
+            branch: The branch to count nodes in. Defaults to the client's default branch.
+            timeout: Optional timeout in seconds for the GraphQL request.
+            partial_match: If True, allows partial matching for string filters.
+            **kwargs: Filter criteria (attribute=value pairs) for counting nodes.
+
+        Returns:
+            The number of matching nodes.
+        """
         filters: dict[str, Any] = dict(kwargs)
 
         if partial_match:
@@ -644,25 +865,29 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
-        """Retrieve all nodes of a given kind
+        """
+        Retrieves all nodes of a given kind.
+
+        This is a convenience method that calls `filters()` without any specific filter arguments.
 
         Args:
-            kind (str): kind of the nodes to query
-            at (Timestamp, optional): Time of the query. Defaults to Now.
-            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-            offset (int, optional): The offset for pagination.
-            limit (int, optional): The limit for pagination.
-            include (list[str], optional): List of attributes or relationships to include in the query.
-            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
-            parallel (bool, optional): Whether to use parallel processing for the query.
-            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            kind: The kind of the nodes to query (e.g., "CoreSite") or its type (e.g., CoreSite).
+            at: Optional timestamp to query nodes at a specific time.
+            branch: The branch to query from. Defaults to the client's default branch.
+            timeout: Optional timeout in seconds for GraphQL requests.
+            populate_store: If True (default), retrieved nodes are added/updated in the client's NodeStore.
+            offset: Optional offset for pagination.
+            limit: Optional limit for pagination.
+            include: List of specific attributes or relationships to include in the response.
+            exclude: List of attributes or relationships to exclude from the response.
+            fragment: If True, uses GraphQL fragments (useful for generic schema types).
+            prefetch_relationships: If True, attempts to prefetch data for related nodes.
+            property: If True, indicates that property fields are being queried directly.
+            parallel: If True, fetches pages in parallel (can be faster but consumes more resources).
+            order: Optional `Order` object to specify sorting. Disabling order enhances performance.
 
         Returns:
-            list[InfrahubNode]: List of Nodes
+            A list of `InfrahubNode` objects (or their typed subclasses).
         """
         return await self.filters(
             kind=kind,
@@ -742,27 +967,31 @@ class InfrahubClient(BaseClient):
         order: Order | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
-        """Retrieve nodes of a given kind based on provided filters.
+        """
+        Retrieves nodes of a given kind based on provided filters and pagination options.
 
         Args:
-            kind (str): kind of the nodes to query
-            at (Timestamp, optional): Time of the query. Defaults to Now.
-            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            offset (int, optional): The offset for pagination.
-            limit (int, optional): The limit for pagination.
-            include (list[str], optional): List of attributes or relationships to include in the query.
-            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
-            partial_match (bool, optional): Allow partial match of filter criteria for the query.
-            parallel (bool, optional): Whether to use parallel processing for the query.
-            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
-            **kwargs (Any): Additional filter criteria for the query.
+            kind: The kind of the nodes to query (e.g., "CoreSite") or its type (e.g., CoreSite).
+            at: Optional timestamp to query nodes at a specific time.
+            branch: The branch to query from. Defaults to the client's default branch.
+            timeout: Optional timeout in seconds for GraphQL requests.
+            populate_store: If True (default), retrieved nodes are added/updated in the client's NodeStore.
+            offset: Optional offset for pagination.
+            limit: Optional limit for pagination. If set, `parallel` processing might be less effective
+                   if limit is smaller than pagination_size.
+            include: List of specific attributes or relationships to include in the response.
+            exclude: List of attributes or relationships to exclude from the response.
+            fragment: If True, uses GraphQL fragments (useful for generic schema types).
+            prefetch_relationships: If True, attempts to prefetch data for related nodes.
+            partial_match: If True, allows partial matching for string filters.
+            property: If True, indicates that property fields are being queried directly.
+            parallel: If True, fetches pages in parallel (can be faster but consumes more resources).
+                      Not recommended if `limit` is set to a small value.
+            order: Optional `Order` object to specify sorting. Disabling order enhances performance.
+            **kwargs: Additional filter criteria (attribute=value pairs) for the query.
 
         Returns:
-            list[InfrahubNodeSync]: List of Nodes that match the given filters.
+            A list of `InfrahubNode` objects (or their typed subclasses) that match the filters.
         """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
@@ -857,7 +1086,19 @@ class InfrahubClient(BaseClient):
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
-        """Return a cloned version of the client using the same configuration"""
+        """
+        Creates a new `InfrahubClient` instance with a cloned configuration.
+
+        This is useful for creating a client for a different branch while retaining
+        the original client's settings (address, credentials, etc.).
+
+        Args:
+            branch: Optional new default branch name for the cloned client.
+                    If None, the current client's default branch is used.
+
+        Returns:
+            A new `InfrahubClient` instance.
+        """
         return InfrahubClient(config=self.config.clone(branch=branch))
 
     async def execute_graphql(
@@ -870,21 +1111,31 @@ class InfrahubClient(BaseClient):
         raise_for_error: bool = True,
         tracker: str | None = None,
     ) -> dict:
-        """Execute a GraphQL query (or mutation).
-        If retry_on_failure is True, the query will retry until the server becomes reacheable.
+        """
+        Executes a raw GraphQL query or mutation.
+
+        If `retry_on_failure` is True in the client config, the query will be retried
+        if the server is unreachable.
 
         Args:
-            query (_type_): GraphQL Query to execute, can be a query or a mutation
-            variables (dict, optional): Variables to pass along with the GraphQL query. Defaults to None.
-            branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
-            at (str, optional): Time when the query should be executed. Defaults to None.
-            timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool, optional): Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
-        Raises:
-            GraphQLError: _description_
+            query: The GraphQL query or mutation string.
+            variables: Optional dictionary of variables for the query.
+            branch_name: The branch to execute against. Defaults to the client's default branch.
+            at: Optional timestamp to execute the query at a specific time.
+            timeout: Optional timeout in seconds for this specific request.
+            raise_for_error: If True (default), raises `GraphQLError` if the response contains errors.
+            tracker: Optional tracker string to include in request headers for debugging/logging.
 
         Returns:
-            _type_: _description_
+            A dictionary containing the "data" part of the GraphQL response.
+
+        Raises:
+            ServerNotReachableError: If the server cannot be reached after retries (if enabled).
+            httpx.HTTPStatusError: For HTTP errors (e.g., 401, 403, 404) if not handled otherwise.
+            AuthenticationError: For 401/403 errors specifically.
+            URLNotFoundError: For 404 errors.
+            GraphQLError: If `raise_for_error` is True and the GraphQL response contains errors.
+            Error: If an unexpected situation occurs where the response object isn't initialized.
         """
 
         branch_name = branch_name or self.default_branch
@@ -983,6 +1234,21 @@ class InfrahubClient(BaseClient):
     async def _request(
         self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
+        """
+        Internal method to make an HTTP request using the configured requester.
+
+        Also handles recording the response.
+
+        Args:
+            url: The URL for the request.
+            method: The HTTP method (GET, POST, etc.).
+            headers: Dictionary of request headers.
+            timeout: Request timeout in seconds.
+            payload: Optional request payload (typically for POST/PUT).
+
+        Returns:
+            An `httpx.Response` object.
+        """
         response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
@@ -990,6 +1256,25 @@ class InfrahubClient(BaseClient):
     async def _default_request_method(
         self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
+        """
+        The default asynchronous HTTP request method using httpx.AsyncClient.
+
+        Handles proxy configuration and TLS verification settings.
+
+        Args:
+            url: The URL for the request.
+            method: The HTTP method.
+            headers: Request headers.
+            timeout: Request timeout in seconds.
+            payload: Optional request payload.
+
+        Returns:
+            An `httpx.Response` object.
+
+        Raises:
+            ServerNotReachableError: If a network error occurs.
+            ServerNotResponsiveError: If a read timeout occurs.
+        """
         params: dict[str, Any] = {}
         if payload:
             params["json"] = payload
@@ -1023,6 +1308,15 @@ class InfrahubClient(BaseClient):
         return response
 
     async def refresh_login(self) -> None:
+        """
+        Refreshes the authentication access token using the stored refresh token.
+
+        Updates `self.access_token` and the "Authorization" header.
+        This method is called automatically by decorated request methods if a token expires.
+
+        Raises:
+            httpx.HTTPStatusError: If the refresh request itself fails (e.g., invalid refresh token).
+        """
         if not self.refresh_token:
             return
 
@@ -1040,6 +1334,24 @@ class InfrahubClient(BaseClient):
         self.headers["Authorization"] = f"Bearer {self.access_token}"
 
     async def login(self, refresh: bool = False) -> None:
+        """
+        Logs into Infrahub using username/password or refreshes an existing session.
+
+        If password authentication is not configured, this method does nothing.
+        If an access token already exists and `refresh` is False, it does nothing.
+        If `refresh` is True and a refresh token exists, it attempts `refresh_login()`.
+        Otherwise, it performs a full login with username and password.
+
+        Updates `self.access_token`, `self.refresh_token`, and the "Authorization" header.
+
+        Args:
+            refresh: If True, forces an attempt to refresh the token if one exists.
+
+        Raises:
+            AuthenticationError: If login fails due to authentication issues (e.g., bad credentials
+                                 during initial login, or non-401 error during refresh).
+            httpx.HTTPStatusError: For other HTTP errors during the login process.
+        """
         if not self.config.password_authentication:
             return
 
@@ -1055,7 +1367,7 @@ class InfrahubClient(BaseClient):
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
                     response = exc.response.json()
-                    errors = response.get("errors")
+                    errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
 
@@ -1087,6 +1399,27 @@ class InfrahubClient(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> dict:
+        """
+        Executes a pre-defined GraphQL query stored on the Infrahub server by its name.
+
+        Args:
+            name: The name of the stored GraphQL query.
+            variables: Optional dictionary of variables for the query.
+            update_group: If True, associates this query with the current tracking group (if active).
+            subscribers: Optional list of subscriber identifiers.
+            params: Optional dictionary of additional URL parameters.
+            branch_name: The branch to execute against. Defaults to client's default.
+            at: Optional timestamp to execute at a specific time.
+            timeout: Optional timeout for this request.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises an exception on HTTP or GraphQL errors.
+
+        Returns:
+            A dictionary containing the query's response data.
+
+        Raises:
+            httpx.HTTPStatusError: For HTTP errors if `raise_for_error` is True.
+        """
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         headers = copy.copy(self.headers or {})
@@ -1143,6 +1476,18 @@ class InfrahubClient(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
+        """
+        Retrieves a summary of differences (diffs) for a given branch.
+
+        Args:
+            branch: The name of the branch to get the diff summary for.
+            timeout: Optional timeout for the GraphQL request.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises an exception on HTTP or GraphQL errors.
+
+        Returns:
+            A list of `NodeDiff` objects representing the changes on the branch.
+        """
         query = get_diff_summary_query()
         response = await self.execute_graphql(
             query=query,
@@ -1267,20 +1612,30 @@ class InfrahubClient(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> CoreNode | SchemaType | None:
-        """Allocate a new IP address by using the provided resource pool.
+        """
+        Allocates the next available IP address from a specified CoreIPAddressPool.
 
         Args:
-            resource_pool (InfrahubNode): Node corresponding to the pool to allocate resources from.
-            identifier (str, optional): Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            prefix_length (int, optional): Length of the prefix to set on the address to allocate.
-            address_type (str, optional): Kind of the address to allocate.
-            data (dict, optional): A key/value map to use to set attributes values on the allocated address.
-            branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
-            timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+            resource_pool: The `CoreIPAddressPool` node from which to allocate.
+            kind: Optional specific type of `CoreIPAddress` to expect (e.g., a custom subclass).
+            identifier: Optional identifier for idempotent allocation. If provided, subsequent calls
+                        with the same identifier will return the same allocated address.
+            prefix_length: Optional desired prefix length for the allocated IP address.
+            address_type: Optional specific kind of IP address to allocate if the pool supports multiple.
+            data: Optional dictionary of attributes to set on the newly allocated IP address node.
+            branch: The branch on which to perform the allocation. Defaults to the client's default branch.
+            timeout: Optional timeout for the GraphQL request.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises an exception on HTTP or GraphQL errors.
+                             If False and allocation fails, returns None.
+
         Returns:
-            InfrahubNode: Node corresponding to the allocated resource.
+            The allocated `CoreIPAddress` node (or its typed subclass if `kind` was specified),
+            or None if allocation failed and `raise_for_error` is False.
+
+        Raises:
+            ValueError: If `resource_pool` is not a "CoreIPAddressPool".
+            GraphQLError: If allocation fails and `raise_for_error` is True.
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -1418,21 +1773,30 @@ class InfrahubClient(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> CoreNode | SchemaType | None:
-        """Allocate a new IP prefix by using the provided resource pool.
+        """
+        Allocates the next available IP prefix from a specified CoreIPPrefixPool.
 
         Args:
-            resource_pool: Node corresponding to the pool to allocate resources from.
-            identifier: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            prefix_length: Length of the prefix to allocate.
-            member_type: Member type of the prefix to allocate.
-            prefix_type: Kind of the prefix to allocate.
-            data: A key/value map to use to set attributes values on the allocated prefix.
-            branch: Name of the branch to allocate from. Defaults to default_branch.
-            timeout: Flag to indicate whether to populate the store with the retrieved nodes.
-            tracker: The offset for pagination.
-            raise_for_error: The limit for pagination.
+            resource_pool: The `CoreIPPrefixPool` node from which to allocate.
+            kind: Optional specific type of `CoreIPPrefix` to expect (e.g., a custom subclass).
+            identifier: Optional identifier for idempotent allocation.
+            prefix_length: Optional desired length of the prefix to allocate.
+            member_type: Optional member type for the prefix (e.g., "prefix", "address").
+            prefix_type: Optional specific kind of IP prefix to allocate if the pool supports multiple.
+            data: Optional dictionary of attributes to set on the newly allocated IP prefix node.
+            branch: The branch on which to perform the allocation. Defaults to the client's default branch.
+            timeout: Optional timeout for the GraphQL request.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises an exception on HTTP or GraphQL errors.
+                             If False and allocation fails, returns None.
+
         Returns:
-            InfrahubNode: Node corresponding to the allocated resource.
+            The allocated `CoreIPPrefix` node (or its typed subclass if `kind` was specified),
+            or None if allocation failed and `raise_for_error` is False.
+
+        Raises:
+            ValueError: If `resource_pool` is not a "CoreIPPrefixPool".
+            GraphQLError: If allocation fails and `raise_for_error` is True.
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -1458,11 +1822,31 @@ class InfrahubClient(BaseClient):
         return None
 
     async def create_batch(self, return_exceptions: bool = False) -> InfrahubBatch:
+        """
+        Creates an `InfrahubBatch` instance for managing concurrent asynchronous tasks.
+
+        Args:
+            return_exceptions: If True, exceptions from tasks in the batch will be returned
+                               as results instead of being raised.
+
+        Returns:
+            An `InfrahubBatch` instance.
+        """
         return InfrahubBatch(semaphore=self.concurrent_execution_limit, return_exceptions=return_exceptions)
 
     async def get_list_repositories(
-        self, branches: dict[str, BranchData] | None = None, kind: str = "CoreGenericRepository"
+        self, branches: dict[str, BranchData] | None = None, kind:str = "CoreGenericRepository"
     ) -> dict[str, RepositoryData]:
+        """
+        Retrieves a list of repositories and their branch information.
+
+        Args:
+            branches: Optional dictionary of branch data. If None, all branches are fetched.
+            kind: The kind of repository node to list (defaults to "CoreGenericRepository").
+
+        Returns:
+            A dictionary where keys are repository names and values are `RepositoryData` objects.
+        """
         branches = branches or await self.branch.all()
 
         batch = await self.create_batch()
@@ -1501,6 +1885,18 @@ class InfrahubClient(BaseClient):
     async def repository_update_commit(
         self, branch_name: str, repository_id: str, commit: str, is_read_only: bool = False
     ) -> bool:
+        """
+        Updates the commit SHA for a specific repository on a given branch.
+
+        Args:
+            branch_name: The name of the branch where the repository's commit will be updated.
+            repository_id: The ID of the repository node to update.
+            commit: The new commit SHA.
+            is_read_only: If True, uses a read-only mutation (e.g., for dry runs or checks).
+
+        Returns:
+            True if the operation was successful (the GraphQL mutation returned ok).
+        """
         variables = {"repository_id": str(repository_id), "commit": str(commit)}
         await self.execute_graphql(
             query=get_commit_update_mutation(is_read_only=is_read_only),
@@ -1512,6 +1908,7 @@ class InfrahubClient(BaseClient):
         return True
 
     async def __aenter__(self) -> Self:
+        """Enters an asynchronous context, returning the client instance."""
         return self
 
     async def __aexit__(
@@ -1520,6 +1917,13 @@ class InfrahubClient(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """
+        Exits an asynchronous context.
+
+        If the client was in TRACKING mode and no exception occurred,
+        it finalizes the group context (e.g., by calling `update_group()`).
+        Resets client mode to DEFAULT.
+        """
         if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
             await self.group_context.update_group()
 
@@ -1527,6 +1931,13 @@ class InfrahubClient(BaseClient):
 
 
 class InfrahubClientSync(BaseClient):
+    """
+    Synchronous GraphQL Client to interact with an Infrahub instance.
+
+    This client provides methods for CRUD operations on Infrahub nodes,
+    branch management, schema introspection, and other Infrahub-specific functionalities.
+    It uses `httpx` for synchronous HTTP requests.
+    """
     schema: InfrahubSchemaSync
     branch: InfrahubBranchManagerSync
     object_store: ObjectStoreSync
@@ -1535,6 +1946,7 @@ class InfrahubClientSync(BaseClient):
     group_context: InfrahubGroupContextSync
 
     def _initialize(self) -> None:
+        """Initializes synchronous client-specific components."""
         self.schema = InfrahubSchemaSync(self)
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
@@ -1544,18 +1956,33 @@ class InfrahubClientSync(BaseClient):
         self.group_context = InfrahubGroupContextSync(self)
 
     def get_version(self) -> str:
-        """Return the Infrahub version."""
+        """
+        Retrieves the version of the connected Infrahub instance.
+
+        Returns:
+            A string representing the Infrahub server version.
+        """
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         version = response.get("InfrahubInfo", {}).get("version", "")
         return version
 
     def get_user(self) -> dict:
-        """Return user information"""
+        """
+        Retrieves information about the currently authenticated user.
+
+        Returns:
+            A dictionary containing user profile information.
+        """
         user_info = self.execute_graphql(query=QUERY_USER)
         return user_info
 
     def get_user_permissions(self) -> dict:
-        """Return user permissions"""
+        """
+        Retrieves the permissions of the currently authenticated user.
+
+        Returns:
+            A dictionary representing the user's permissions.
+        """
         user_info = self.get_user()
         return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
@@ -1585,6 +2012,23 @@ class InfrahubClientSync(BaseClient):
         timeout: int | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync:
+        """
+        Creates a new Infrahub node (synchronous version).
+
+        Args:
+            kind: The kind of the node to create (e.g., "CoreSite") or its type (e.g., CoreSite).
+            data: A dictionary of data to initialize the node with.
+            branch: The branch on which to create the node. Defaults to the client's default branch.
+            timeout: Optional timeout for schema retrieval.
+            **kwargs: Attributes and their values to set on the new node.
+
+        Returns:
+            An `InfrahubNodeSync` instance (or a typed subclass) representing the new node.
+            It is not yet saved. Call `.save()` on the returned node to persist it.
+
+        Raises:
+            ValueError: If neither `data` nor `kwargs` are provided.
+        """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch, timeout=timeout)
 
@@ -1594,6 +2038,16 @@ class InfrahubClientSync(BaseClient):
         return InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
 
     def delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None:
+        """
+        Deletes an Infrahub node by its ID (synchronous version).
+
+        Note: This performs an immediate deletion request to the server.
+
+        Args:
+            kind: The kind of the node to delete or its type.
+            id: The ID of the node to delete.
+            branch: The branch from which to delete the node. Defaults to the client's default branch.
+        """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
@@ -1601,7 +2055,15 @@ class InfrahubClientSync(BaseClient):
         node.delete()
 
     def clone(self, branch: str | None = None) -> InfrahubClientSync:
-        """Return a cloned version of the client using the same configuration"""
+        """
+        Creates a new `InfrahubClientSync` instance with a cloned configuration.
+
+        Args:
+            branch: Optional new default branch name for the cloned client.
+
+        Returns:
+            A new `InfrahubClientSync` instance.
+        """
         return InfrahubClientSync(config=self.config.clone(branch=branch))
 
     def execute_graphql(
@@ -1614,21 +2076,30 @@ class InfrahubClientSync(BaseClient):
         raise_for_error: bool = True,
         tracker: str | None = None,
     ) -> dict:
-        """Execute a GraphQL query (or mutation).
-        If retry_on_failure is True, the query will retry until the server becomes reacheable.
+        """
+        Executes a raw GraphQL query or mutation (synchronous version).
+
+        If `retry_on_failure` is True in config, retries if the server is unreachable.
 
         Args:
-            query (str): GraphQL Query to execute, can be a query or a mutation
-            variables (dict, optional): Variables to pass along with the GraphQL query. Defaults to None.
-            branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
-            at (str, optional): Time when the query should be executed. Defaults to None.
-            timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool, optional): Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
-        Raises:
-            GraphQLError: When an error occurs during the execution of the GraphQL query or mutation.
+            query: The GraphQL query or mutation string.
+            variables: Optional dictionary of variables.
+            branch_name: Branch to execute against. Defaults to client's default.
+            at: Optional timestamp for point-in-time query.
+            timeout: Optional request timeout in seconds.
+            raise_for_error: If True (default), raises `GraphQLError` on response errors.
+            tracker: Optional tracker string for request headers.
 
         Returns:
-            dict: The result of the GraphQL query or mutation.
+            A dictionary containing the "data" part of the GraphQL response.
+
+        Raises:
+            ServerNotReachableError: If server unreachable after retries.
+            httpx.HTTPStatusError: For HTTP errors if not handled otherwise.
+            AuthenticationError: For 401/403 errors.
+            URLNotFoundError: For 404 errors.
+            GraphQLError: If `raise_for_error` is True and response has errors.
+            Error: If response object isn't initialized unexpectedly.
         """
 
         branch_name = branch_name or self.default_branch
@@ -1688,14 +2159,27 @@ class InfrahubClientSync(BaseClient):
 
     def count(
         self,
-        kind: str | type[SchemaType],
+        kind: str | type[SchemaTypeSync], # Corrected type hint
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
         partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
-        """Return the number of nodes of a given kind."""
+        """
+        Counts nodes of a given kind matching filters (synchronous version).
+
+        Args:
+            kind: The kind of the node or its type (e.g., CoreSiteSync).
+            at: Optional timestamp for point-in-time count.
+            branch: Branch to count in. Defaults to client's default.
+            timeout: Optional request timeout.
+            partial_match: If True, allows partial string matching.
+            **kwargs: Filter criteria (attribute=value).
+
+        Returns:
+            The number of matching nodes.
+        """
         filters: dict[str, Any] = dict(kwargs)
 
         if partial_match:
@@ -1774,25 +2258,29 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
-        """Retrieve all nodes of a given kind
+        """
+        Retrieves all nodes of a given kind (synchronous version).
+
+        Calls `filters()` without specific filter arguments.
 
         Args:
-            kind (str): kind of the nodes to query
-            at (Timestamp, optional): Time of the query. Defaults to Now.
-            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            offset (int, optional): The offset for pagination.
-            limit (int, optional): The limit for pagination.
-            include (list[str], optional): List of attributes or relationships to include in the query.
-            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
-            parallel (bool, optional): Whether to use parallel processing for the query.
-            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            kind: Node kind (e.g., "CoreSite") or type (e.g., CoreSiteSync).
+            at: Optional timestamp for point-in-time query.
+            branch: Branch to query. Defaults to client's default.
+            timeout: Optional request timeout.
+            populate_store: If True (default), updates client's NodeStore.
+            offset: Optional pagination offset.
+            limit: Optional pagination limit.
+            include: Specific attributes/relationships to include.
+            exclude: Attributes/relationships to exclude.
+            fragment: If True, uses GraphQL fragments.
+            prefetch_relationships: If True, prefetches related node data.
+            property: If True, indicates direct property field query.
+            parallel: If True, fetches pages in parallel (thread pool).
+            order: Optional `Order` object for sorting.
 
         Returns:
-            list[InfrahubNodeSync]: List of Nodes
+            A list of `InfrahubNodeSync` objects (or typed subclasses).
         """
         return self.filters(
             kind=kind,
@@ -1819,19 +2307,20 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool,
         timeout: int | None = None,
     ) -> ProcessRelationsNodeSync:
-        """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
+        """
+        Processes InfrahubNodeSync objects and relationships from a GraphQL response (synchronous version).
+
+        Internal helper method.
 
         Args:
-            response (dict[str, Any]): The response from the GraphQL query.
-            schema_kind (str): The kind of schema being queried.
-            branch (str): The branch name.
-            prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            response: Raw dictionary response from GraphQL.
+            schema_kind: `kind` of primary nodes being processed.
+            branch: Branch name for these nodes.
+            prefetch_relationships: If True, processes and fetches related nodes.
+            timeout: Optional timeout for fetching related node schemas.
 
         Returns:
-            ProcessRelationsNodeSync: A TypedDict containing two lists:
-                - 'nodes': A list of InfrahubNodeSync objects representing the nodes processed.
-                - 'related_nodes': A list of InfrahubNodeSync objects representing the related nodes
+            ProcessRelationsNodeSync TypedDict with 'nodes' and 'related_nodes' lists.
         """
 
         nodes: list[InfrahubNodeSync] = []
@@ -1907,27 +2396,29 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
-        """Retrieve nodes of a given kind based on provided filters.
+        """
+        Retrieves nodes based on filters and pagination (synchronous version).
 
         Args:
-            kind (str): kind of the nodes to query
-            at (Timestamp, optional): Time of the query. Defaults to Now.
-            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            offset (int, optional): The offset for pagination.
-            limit (int, optional): The limit for pagination.
-            include (list[str], optional): List of attributes or relationships to include in the query.
-            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
-            partial_match (bool, optional): Allow partial match of filter criteria for the query.
-            parallel (bool, optional): Whether to use parallel processing for the query.
-            order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
-            **kwargs (Any): Additional filter criteria for the query.
+            kind: Node kind (e.g., "CoreSite") or type (e.g., CoreSiteSync).
+            at: Optional timestamp for point-in-time query.
+            branch: Branch to query. Defaults to client's default.
+            timeout: Optional request timeout.
+            populate_store: If True (default), updates client's NodeStore.
+            offset: Optional pagination offset.
+            limit: Optional pagination limit.
+            include: Specific attributes/relationships to include.
+            exclude: Attributes/relationships to exclude.
+            fragment: If True, uses GraphQL fragments.
+            prefetch_relationships: If True, prefetches related node data.
+            partial_match: If True, allows partial string matching.
+            property: If True, indicates direct property field query.
+            parallel: If True, fetches pages in parallel (thread pool).
+            order: Optional `Order` object for sorting.
+            **kwargs: Filter criteria (attribute=value).
 
         Returns:
-            list[InfrahubNodeSync]: List of Nodes that match the given filters.
+            List of `InfrahubNodeSync` objects (or typed subclasses) matching filters.
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
@@ -2153,6 +2644,34 @@ class InfrahubClientSync(BaseClient):
         property: bool = False,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
+        """
+        Retrieves a single node by ID, HFID, or attributes (synchronous version).
+
+        Args:
+            kind: Node kind (e.g., "CoreSite") or type (e.g., CoreSiteSync).
+            raise_when_missing: If True (default), raises `NodeNotFoundError`.
+                                If False, returns None if not found.
+            at: Optional timestamp for point-in-time query.
+            branch: Branch to query. Defaults to client's default.
+            timeout: Optional request timeout.
+            id: UUID of the node.
+            hfid: List of Human-Friendly IDs.
+            include: Specific attributes/relationships to include.
+            exclude: Attributes/relationships to exclude.
+            populate_store: If True (default), updates client's NodeStore.
+            fragment: If True, uses GraphQL fragments.
+            prefetch_relationships: If True, prefetches related node data.
+            property: If True, indicates direct property field query.
+            **kwargs: Additional filter criteria (attribute=value).
+
+        Returns:
+            `InfrahubNodeSync` (or typed subclass) if found, or None.
+
+        Raises:
+            NodeNotFoundError: If `raise_when_missing` and node not found.
+            IndexError: If multiple nodes match.
+            ValueError: If no filters provided or HFID used incorrectly.
+        """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
@@ -2197,10 +2716,18 @@ class InfrahubClientSync(BaseClient):
         return results[0]
 
     def create_batch(self, return_exceptions: bool = False) -> InfrahubBatchSync:
-        """Create a batch to execute multiple queries concurrently.
+        """
+        Creates an `InfrahubBatchSync` for managing concurrent synchronous tasks using a thread pool.
 
-        Executing the batch will be performed using a thread pool, meaning it cannot guarantee the execution order. It is not recommended to use such
-        batch to manipulate objects that depend on each others.
+        Note: Due to the nature of thread pools, execution order of tasks within the batch
+        is not guaranteed. Avoid using for operations with strong interdependencies.
+
+        Args:
+            return_exceptions: If True, exceptions from tasks are returned as results
+                               instead of being raised.
+
+        Returns:
+            An `InfrahubBatchSync` instance.
         """
         return InfrahubBatchSync(
             max_concurrent_execution=self.max_concurrent_execution, return_exceptions=return_exceptions
@@ -2209,6 +2736,15 @@ class InfrahubClientSync(BaseClient):
     def get_list_repositories(
         self, branches: dict[str, BranchData] | None = None, kind: str = "CoreGenericRepository"
     ) -> dict[str, RepositoryData]:
+        """
+        Retrieves a list of repositories and their branch information.
+
+        Note: This method is deprecated in the async client and not implemented
+              in the sync client.
+
+        Raises:
+            NotImplementedError
+        """
         raise NotImplementedError(
             "This method is deprecated in the async client and won't be implemented in the sync client."
         )
@@ -2226,6 +2762,27 @@ class InfrahubClientSync(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> dict:
+        """
+        Executes a pre-defined GraphQL query stored on Infrahub by name (synchronous version).
+
+        Args:
+            name: Name of the stored GraphQL query.
+            variables: Optional dictionary of variables.
+            update_group: If True, associates query with current tracking group.
+            subscribers: Optional list of subscriber identifiers.
+            params: Optional dictionary of additional URL parameters.
+            branch_name: Branch to execute against. Defaults to client's default.
+            at: Optional timestamp for point-in-time query.
+            timeout: Optional request timeout.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises on HTTP/GraphQL errors.
+
+        Returns:
+            Dictionary containing query response data.
+
+        Raises:
+            httpx.HTTPStatusError: For HTTP errors if `raise_for_error` is True.
+        """
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         headers = copy.copy(self.headers or {})
@@ -2281,6 +2838,18 @@ class InfrahubClientSync(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
+        """
+        Retrieves a diff summary for a branch (synchronous version).
+
+        Args:
+            branch: Name of the branch.
+            timeout: Optional request timeout.
+            tracker: Optional tracker string for request headers.
+            raise_for_error: If True (default), raises on HTTP/GraphQL errors.
+
+        Returns:
+            List of `NodeDiff` objects representing changes.
+        """
         query = get_diff_summary_query()
         response = self.execute_graphql(
             query=query,
@@ -2405,20 +2974,28 @@ class InfrahubClientSync(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> CoreNodeSync | SchemaTypeSync | None:
-        """Allocate a new IP address by using the provided resource pool.
+        """
+        Allocates next IP address from a pool (synchronous version).
 
         Args:
-            resource_pool (InfrahubNodeSync): Node corresponding to the pool to allocate resources from.
-            identifier (str, optional): Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            prefix_length (int, optional): Length of the prefix to set on the address to allocate.
-            address_type (str, optional): Kind of the address to allocate.
-            data (dict, optional): A key/value map to use to set attributes values on the allocated address.
-            branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
-            timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+            resource_pool: `CoreIPAddressPool` node.
+            kind: Optional specific type of `CoreIPAddress` to expect.
+            identifier: Optional identifier for idempotent allocation.
+            prefix_length: Optional desired prefix length.
+            address_type: Optional specific kind of IP address if pool supports multiple.
+            data: Optional attributes for the new IP address node.
+            branch: Branch for allocation. Defaults to client's default.
+            timeout: Optional request timeout.
+            tracker: Optional tracker string.
+            raise_for_error: If True (default), raises on errors.
+                             If False, returns None on allocation failure.
+
         Returns:
-            InfrahubNodeSync: Node corresponding to the allocated resource.
+            Allocated `CoreIPAddress` node (or typed subclass), or None.
+
+        Raises:
+            ValueError: If `resource_pool` is not "CoreIPAddressPool".
+            GraphQLError: If allocation fails and `raise_for_error` is True.
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -2552,21 +3129,29 @@ class InfrahubClientSync(BaseClient):
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> CoreNodeSync | SchemaTypeSync | None:
-        """Allocate a new IP prefix by using the provided resource pool.
+        """
+        Allocates next IP prefix from a pool (synchronous version).
 
         Args:
-            resource_pool (InfrahubNodeSync): Node corresponding to the pool to allocate resources from.
-            identifier (str, optional): Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            size (int, optional): Length of the prefix to allocate.
-            member_type (str, optional): Member type of the prefix to allocate.
-            prefix_type (str, optional): Kind of the prefix to allocate.
-            data (dict, optional): A key/value map to use to set attributes values on the allocated prefix.
-            branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
-            timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+            resource_pool: `CoreIPPrefixPool` node.
+            kind: Optional specific type of `CoreIPPrefix` to expect.
+            identifier: Optional identifier for idempotent allocation.
+            prefix_length: Optional desired prefix length.
+            member_type: Optional member type (e.g., "prefix", "address").
+            prefix_type: Optional specific kind of IP prefix if pool supports multiple.
+            data: Optional attributes for the new IP prefix node.
+            branch: Branch for allocation. Defaults to client's default.
+            timeout: Optional request timeout.
+            tracker: Optional tracker string.
+            raise_for_error: If True (default), raises on errors.
+                             If False, returns None on allocation failure.
+
         Returns:
-            InfrahubNodeSync: Node corresponding to the allocated resource.
+            Allocated `CoreIPPrefix` node (or typed subclass), or None.
+
+        Raises:
+            ValueError: If `resource_pool` is not "CoreIPPrefixPool".
+            GraphQLError: If allocation fails and `raise_for_error` is True.
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -2594,17 +3179,35 @@ class InfrahubClientSync(BaseClient):
     def repository_update_commit(
         self, branch_name: str, repository_id: str, commit: str, is_read_only: bool = False
     ) -> bool:
+        """
+        Updates the commit SHA for a repository on a branch.
+
+        Note: This method is deprecated in the async client and not implemented
+              in the sync client.
+
+        Raises:
+            NotImplementedError
+        """
         raise NotImplementedError(
             "This method is deprecated in the async client and won't be implemented in the sync client."
         )
 
     @handle_relogin_sync
     def _get(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
-        """Execute a HTTP GET with HTTPX.
+        """
+        Executes an HTTP GET request with login handling (synchronous version).
+
+        Args:
+            url: The URL for the GET request.
+            headers: Optional request headers.
+            timeout: Optional request timeout.
+
+        Returns:
+            An `httpx.Response` object.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server times out.
         """
         self.login()
 
@@ -2616,11 +3219,21 @@ class InfrahubClientSync(BaseClient):
 
     @handle_relogin_sync
     def _post(self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
-        """Execute a HTTP POST with HTTPX.
+        """
+        Executes an HTTP POST request with login handling (synchronous version).
+
+        Args:
+            url: The URL for the POST request.
+            payload: The request payload.
+            headers: Optional request headers.
+            timeout: Optional request timeout.
+
+        Returns:
+            An `httpx.Response` object.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server times out.
         """
         self.login()
 
@@ -2635,6 +3248,21 @@ class InfrahubClientSync(BaseClient):
     def _request(
         self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
+        """
+        Internal method for making HTTP requests (synchronous version).
+
+        Uses the configured synchronous requester and records the response.
+
+        Args:
+            url: Request URL.
+            method: HTTP method.
+            headers: Request headers.
+            timeout: Request timeout.
+            payload: Optional request payload.
+
+        Returns:
+            An `httpx.Response` object.
+        """
         response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
@@ -2642,6 +3270,25 @@ class InfrahubClientSync(BaseClient):
     def _default_request_method(
         self, url: str, method: HTTPMethod, headers: dict[str, Any], timeout: int, payload: dict | None = None
     ) -> httpx.Response:
+        """
+        Default synchronous HTTP request method using `httpx.Client`.
+
+        Handles proxy and TLS settings.
+
+        Args:
+            url: Request URL.
+            method: HTTP method.
+            headers: Request headers.
+            timeout: Request timeout.
+            payload: Optional request payload.
+
+        Returns:
+            An `httpx.Response` object.
+
+        Raises:
+            ServerNotReachableError: If a network error occurs.
+            ServerNotResponsiveError: If a read timeout occurs.
+        """
         params: dict[str, Any] = {}
         if payload:
             params["json"] = payload
@@ -2675,6 +3322,15 @@ class InfrahubClientSync(BaseClient):
         return response
 
     def refresh_login(self) -> None:
+        """
+        Refreshes authentication token (synchronous version).
+
+        Updates `self.access_token` and "Authorization" header.
+        Called automatically by decorated request methods on token expiry.
+
+        Raises:
+            httpx.HTTPStatusError: If refresh request fails.
+        """
         if not self.refresh_token:
             return
 
@@ -2692,6 +3348,20 @@ class InfrahubClientSync(BaseClient):
         self.headers["Authorization"] = f"Bearer {self.access_token}"
 
     def login(self, refresh: bool = False) -> None:
+        """
+        Logs into Infrahub or refreshes session (synchronous version).
+
+        Performs full login if no token or `refresh` is False.
+        Attempts token refresh if `refresh` is True and refresh token exists.
+        Updates `self.access_token`, `self.refresh_token`, and "Authorization" header.
+
+        Args:
+            refresh: If True, attempts to refresh token if available.
+
+        Raises:
+            AuthenticationError: On authentication failure.
+            httpx.HTTPStatusError: For other HTTP errors.
+        """
         if not self.config.password_authentication:
             return
 
@@ -2707,7 +3377,7 @@ class InfrahubClientSync(BaseClient):
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
                     response = exc.response.json()
-                    errors = response.get("errors")
+                    errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
 
@@ -2727,6 +3397,7 @@ class InfrahubClientSync(BaseClient):
         self.headers["Authorization"] = f"Bearer {self.access_token}"
 
     def __enter__(self) -> Self:
+        """Enters a synchronous context, returning the client instance."""
         return self
 
     def __exit__(
@@ -2735,6 +3406,13 @@ class InfrahubClientSync(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """
+        Exits a synchronous context.
+
+        If client was in TRACKING mode and no exception occurred,
+        finalizes group context (e.g., calls `update_group()`).
+        Resets client mode to DEFAULT.
+        """
         if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
             self.group_context.update_group()
 

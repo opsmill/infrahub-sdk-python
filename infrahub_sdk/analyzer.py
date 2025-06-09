@@ -18,6 +18,7 @@ from .utils import calculate_dict_depth, calculate_dict_height, extract_fields
 
 
 class GraphQLQueryVariable(BaseModel):
+    """Represents a variable in a GraphQL query."""
     name: str
     type: str
     required: bool = False
@@ -25,12 +26,20 @@ class GraphQLQueryVariable(BaseModel):
 
 
 class GraphQLOperation(BaseModel):
+    """Represents a single operation within a GraphQL query."""
     name: str | None = None
     operation_type: OperationType
 
 
 class GraphQLQueryAnalyzer:
+    """Analyzes GraphQL queries to extract information about operations, variables, and structure."""
     def __init__(self, query: str, schema: GraphQLSchema | None = None):
+        """Initializes the GraphQLQueryAnalyzer.
+
+        Args:
+            query: The GraphQL query string.
+            schema: The GraphQL schema.
+        """
         self.query: str = query
         self.schema: GraphQLSchema | None = schema
         self.document: DocumentNode = parse(self.query)
@@ -38,6 +47,11 @@ class GraphQLQueryAnalyzer:
 
     @property
     def is_valid(self) -> tuple[bool, list[GraphQLError] | None]:
+        """Validates the query against the schema if provided.
+
+        Returns:
+            A tuple containing a boolean indicating validity and a list of errors if any.
+        """
         if self.schema is None:
             return False, [GraphQLError("Schema is not provided")]
 
@@ -49,10 +63,16 @@ class GraphQLQueryAnalyzer:
 
     @property
     def nbr_queries(self) -> int:
+        """Returns the number of definitions in the query document."""
         return len(self.document.definitions)
 
     @property
     def operations(self) -> list[GraphQLOperation]:
+        """Extracts all operations (queries, mutations, subscriptions) from the query.
+
+        Returns:
+            A list of GraphQLOperation objects.
+        """
         operations = []
         for definition in self.document.definitions:
             if not isinstance(definition, OperationDefinitionNode):
@@ -66,10 +86,20 @@ class GraphQLQueryAnalyzer:
 
     @property
     def contains_mutation(self) -> bool:
+        """Checks if the query contains any mutation operations.
+
+        Returns:
+            True if a mutation is present, False otherwise.
+        """
         return any(op.operation_type == OperationType.MUTATION for op in self.operations)
 
     @property
     def variables(self) -> list[GraphQLQueryVariable]:
+        """Extracts all variables defined in the query.
+
+        Returns:
+            A list of GraphQLQueryVariable objects.
+        """
         response = []
         for definition in self.document.definitions:
             variable_definitions = getattr(definition, "variable_definitions", None)
@@ -99,16 +129,32 @@ class GraphQLQueryAnalyzer:
         return response
 
     async def calculate_depth(self) -> int:
-        """Number of nested levels in the query"""
+        """Calculates the maximum depth of nesting in the query's selection sets.
+
+        Returns:
+            The maximum depth of the query.
+        """
         fields = await self.get_fields()
         return calculate_dict_depth(data=fields)
 
     async def calculate_height(self) -> int:
-        """Total number of fields requested in the query"""
+        """Calculates the total number of fields requested across all operations in the query.
+
+        Returns:
+            The total height (number of fields) of the query.
+        """
         fields = await self.get_fields()
         return calculate_dict_height(data=fields)
 
     async def get_fields(self) -> dict[str, Any]:
+        """Extracts all fields requested in the query.
+
+        This method parses the document definitions and extracts fields from
+        OperationDefinitionNode instances.
+
+        Returns:
+            A dictionary representing the fields structure.
+        """
         if not self._fields:
             fields = {}
             for definition in self.document.definitions:

@@ -14,6 +14,21 @@ def initialize_client(
     max_concurrent_execution: int | None = None,
     retry_on_failure: bool | None = None,
 ) -> InfrahubClient:
+    """
+    Initializes and returns an asynchronous InfrahubClient.
+
+    Uses global CLI configuration settings and allows overriding specific parameters.
+
+    Args:
+        branch: Optional default branch for the client.
+        identifier: Optional identifier for tracking client operations.
+        timeout: Optional request timeout in seconds.
+        max_concurrent_execution: Optional limit for concurrent operations in batch mode.
+        retry_on_failure: Optional flag to enable/disable retries on failure.
+
+    Returns:
+        An initialized InfrahubClient instance.
+    """
     return InfrahubClient(
         config=_define_config(
             branch=branch,
@@ -32,6 +47,21 @@ def initialize_client_sync(
     max_concurrent_execution: int | None = None,
     retry_on_failure: bool | None = None,
 ) -> InfrahubClientSync:
+    """
+    Initializes and returns a synchronous InfrahubClientSync.
+
+    Uses global CLI configuration settings and allows overriding specific parameters.
+
+    Args:
+        branch: Optional default branch for the client.
+        identifier: Optional identifier for tracking client operations.
+        timeout: Optional request timeout in seconds.
+        max_concurrent_execution: Optional limit for concurrent operations in batch mode.
+        retry_on_failure: Optional flag to enable/disable retries on failure.
+
+    Returns:
+        An initialized InfrahubClientSync instance.
+    """
     return InfrahubClientSync(
         config=_define_config(
             branch=branch,
@@ -50,6 +80,21 @@ def _define_config(
     max_concurrent_execution: int | None = None,
     retry_on_failure: bool | None = None,
 ) -> Config:
+    """
+    Internal helper to construct a Config object for client initialization.
+
+    Prioritizes explicitly passed arguments, then falls back to global CLI settings.
+
+    Args:
+        branch: Default branch.
+        identifier: Tracker identifier.
+        timeout: Request timeout.
+        max_concurrent_execution: Max concurrent tasks for batch operations.
+        retry_on_failure: Whether to retry on failure.
+
+    Returns:
+        A Config object.
+    """
     client_config: dict[str, Any] = {
         "address": config.SETTINGS.active.server_address,
         "insert_tracker": True,

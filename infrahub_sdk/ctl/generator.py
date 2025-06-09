@@ -25,6 +25,28 @@ async def run(
     branch: str | None = None,
     variables: Optional[list[str]] = None,
 ) -> None:
+    """
+    Runs a specified generator script.
+
+    This function initializes logging, loads repository and generator configurations,
+    and then executes the generator. If `list_available` is True or `generator_name`
+    is not provided, it lists available generators instead.
+
+    The generator can be run with specific variables or against targets defined
+    in its configuration (members of a CoreGroup).
+
+    Args:
+        generator_name: The name of the generator to run.
+        path: The root directory path (currently unused, marked with noqa: ARG001).
+        debug: If True, enables debug logging.
+        list_available: If True, lists available generators and exits.
+        branch: Optional branch name to run the generator against.
+        variables: Optional list of "key=value" strings to pass as variables
+                   to the generator's query. If provided, target discovery is skipped.
+
+    Raises:
+        typer.Exit: If the generator class cannot be loaded or other critical errors occur.
+    """
     init_logging(debug=debug)
     repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
 
@@ -108,6 +130,12 @@ async def run(
 
 
 def list_generators(repository_config: InfrahubRepositoryConfig) -> None:
+    """
+    Prints a list of available generators defined in the repository configuration.
+
+    Args:
+        repository_config: The loaded repository configuration.
+    """
     console = Console()
     console.print(f"Generators defined in repository: {len(repository_config.generator_definitions)}")
 

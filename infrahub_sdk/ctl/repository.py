@@ -23,6 +23,18 @@ console = Console()
 
 
 def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
+    """
+    Loads, validates, and returns the repository configuration from a YAML file.
+
+    Args:
+        repo_config_file: Path to the repository configuration file (e.g., .infrahub.yml).
+
+    Returns:
+        An InfrahubRepositoryConfig object.
+
+    Raises:
+        typer.Exit: If the file is not found, not valid YAML, or fails Pydantic validation.
+    """
     try:
         config_file_data = load_repository_config_file(repo_config_file)
     except FileNotFoundError as exc:
@@ -45,6 +57,19 @@ def get_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
 
 
 def load_repository_config_file(repo_config_file: Path) -> dict:
+    """
+    Reads a YAML file from the given path and loads it into a Python dictionary.
+
+    Args:
+        repo_config_file: Path to the YAML configuration file.
+
+    Returns:
+        A dictionary representing the content of the YAML file.
+
+    Raises:
+        FileNotFoundError: If the `repo_config_file` does not exist (raised by `read_file`).
+        FileNotValidError: If the file content is not valid YAML.
+    """
     yaml_data = read_file(file_path=repo_config_file)
 
     try:

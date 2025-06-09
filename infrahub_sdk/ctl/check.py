@@ -29,6 +29,14 @@ console = Console()
 
 @dataclass
 class CheckModule:
+    """
+    Represents a check module loaded from a repository configuration.
+
+    Attributes:
+        name: The name of the check module (usually derived from the file name).
+        check_class: The loaded class that implements the InfrahubCheck logic.
+        definition: The configuration definition of the check from the repository.
+    """
     name: str
     check_class: type[InfrahubCheck]
     definition: InfrahubCheckDefinitionConfig
@@ -91,6 +99,21 @@ async def run_check(
     branch: str | None = None,
     params: dict | None = None,
 ) -> bool:
+    """
+    Runs a single InfrahubCheck instance.
+
+    Args:
+        check_module: The CheckModule to run.
+        client: Initialized InfrahubClient.
+        format_json: If True, logs will be output in JSON format to stdout.
+        path: The root directory path for the check.
+        repository_config: The repository configuration.
+        branch: Optional branch name to run the check against.
+        params: Optional parameters to pass to the check's GraphQL query.
+
+    Returns:
+        True if the check passed, False otherwise.
+    """
     module_name = check_module.name
     output = "stdout" if format_json else None
     log = logging.getLogger("infrahub")
@@ -137,6 +160,25 @@ async def run_targeted_check(
     variables: dict[str, str],
     branch: str | None = None,
 ) -> bool:
+    """
+    Runs a check that is targeted against specific members of a group.
+
+    If `variables` are provided, the check runs once with those variables.
+    Otherwise, it discovers members of the target group defined in `check_module.definition`
+    and runs the check for each member.
+
+    Args:
+        check_module: The CheckModule to run, which includes target definitions.
+        client: Initialized InfrahubClient.
+        format_json: If True, logs will be output in JSON format.
+        path: Root directory path for the check.
+        repository_config: The repository configuration.
+        variables: Specific variables to run the check with, bypassing target discovery.
+        branch: Optional branch name.
+
+    Returns:
+        True if all runs of the check passed, False otherwise.
+    """
     filters = {}
     param_value = list(check_module.definition.parameters.values())
     if param_value:
@@ -189,6 +231,23 @@ async def run_checks(
     repository_config: InfrahubRepositoryConfig,
     branch: str | None = None,
 ) -> None:
+    """
+    Asynchronously runs a list of check modules.
+
+    It initializes a client and then iterates through `check_modules`,
+    running either `run_targeted_check` or `run_check` based on whether
+    the check definition has targets.
+
+    Exits with status code 1 if any check fails.
+
+    Args:
+        check_modules: A list of CheckModule instances to execute.
+        format_json: If True, logs output in JSON format.
+        path: Root directory path for the checks.
+        variables: Variables to pass to checks (can override targeted check discovery).
+        repository_config: The repository configuration.
+        branch: Optional branch name to run checks against.
+    """
     log = logging.getLogger("infrahub")
 
     check_summary: list[bool] = []
@@ -227,6 +286,18 @@ async def run_checks(
 
 
 def get_modules(check_definitions: list[InfrahubCheckDefinitionConfig]) -> list[CheckModule]:
+    """
+    Loads check classes from their file paths based on check definitions.
+
+    Args:
+        check_definitions: A list of InfrahubCheckDefinitionConfig objects.
+
+    Returns:
+        A list of CheckModule objects, each containing the loaded class and its definition.
+
+    Raises:
+        typer.Exit: If a module cannot be imported or a class cannot be loaded.
+    """
     modules = []
     for check_definition in check_definitions:
         module_name = check_definition.file_path.stem
@@ -245,6 +316,12 @@ def get_modules(check_definitions: list[InfrahubCheckDefinitionConfig]) -> list[
 
 
 def list_checks(repository_config: InfrahubRepositoryConfig) -> None:
+    """
+    Prints a list of available checks defined in the repository configuration.
+
+    Args:
+        repository_config: The loaded repository configuration.
+    """
     console.print(f"Python checks defined in repository: {len(repository_config.check_definitions)}")
 
     for check in repository_config.check_definitions:

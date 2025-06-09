@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 
 class BranchData(BaseModel):
+    """Represents data associated with a branch."""
     id: str
     name: str
     description: str | None = None
@@ -48,6 +49,7 @@ QUERY_ONE_BRANCH_DATA = {"Branch": {**BRANCH_DATA, **BRANCH_DATA_FILTER}}
 
 
 class InfraHubBranchManagerBase:
+    """Base class for branch management operations."""
     @classmethod
     def generate_diff_data_url(
         cls,
@@ -57,7 +59,18 @@ class InfraHubBranchManagerBase:
         time_from: str | None = None,
         time_to: str | None = None,
     ) -> str:
-        """Generate the URL for the diff_data function."""
+        """Generates the URL for the diff_data function.
+
+        Args:
+            client: The Infrahub client (either sync or async).
+            branch_name: The name of the branch.
+            branch_only: Whether to include only branch data in the diff. Defaults to True.
+            time_from: The start time for the diff (ISO 8601 format).
+            time_to: The end time for the diff (ISO 8601 format).
+
+        Returns:
+            The generated URL string.
+        """
         url = f"{client.address}/api/diff/data"
         url_params = {}
         url_params["branch"] = branch_name
@@ -71,7 +84,13 @@ class InfraHubBranchManagerBase:
 
 
 class InfrahubBranchManager(InfraHubBranchManagerBase):
+    """Manages branches in Infrahub (asynchronous operations)."""
     def __init__(self, client: InfrahubClient):
+        """Initializes the asynchronous branch manager.
+
+        Args:
+            client: An instance of InfrahubClient.
+        """
         self.client = client
 
     @overload
@@ -102,6 +121,19 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         wait_until_completion: bool = True,
         background_execution: bool | None = False,
     ) -> BranchData | str:
+        """Creates a new branch.
+
+        Args:
+            branch_name: The name for the new branch.
+            sync_with_git: Whether to synchronize the branch with Git. Defaults to True.
+            description: An optional description for the branch.
+            wait_until_completion: If True (default), waits for the branch creation to complete
+                                   and returns BranchData. If False, returns a task ID string.
+            background_execution: Deprecated. Use `wait_until_completion=False` instead.
+
+        Returns:
+            BranchData if `wait_until_completion` is True, otherwise a task ID string.
+        """
         if background_execution is not None:
             warnings.warn(
                 "`background_execution` is deprecated, please use `wait_until_completion` instead.",
@@ -131,6 +163,14 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return BranchData(**response["BranchCreate"]["object"])
 
     async def delete(self, branch_name: str) -> bool:
+        """Deletes a branch.
+
+        Args:
+            branch_name: The name of the branch to delete.
+
+        Returns:
+            True if the deletion was successful, False otherwise.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -141,6 +181,14 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return response["BranchDelete"]["ok"]
 
     async def rebase(self, branch_name: str) -> BranchData:
+        """Rebases a branch onto its origin branch.
+
+        Args:
+            branch_name: The name of the branch to rebase.
+
+        Returns:
+            BranchData for the rebased branch.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -151,6 +199,16 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return response["BranchRebase"]["ok"]
 
     async def validate(self, branch_name: str) -> BranchData:
+        """Validates a branch.
+
+        Args:
+            branch_name: The name of the branch to validate.
+
+        Returns:
+            True if the branch validation was successful, False otherwise.
+            Actually returns BranchData from the response, but the 'ok' field indicates success.
+            The return type should ideally be `bool` or a more specific validation result type.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -172,6 +230,14 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return response["BranchValidate"]["ok"]
 
     async def merge(self, branch_name: str) -> bool:
+        """Merges a branch into its origin branch.
+
+        Args:
+            branch_name: The name of the branch to merge.
+
+        Returns:
+            True if the merge was successful, False otherwise.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -185,6 +251,11 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return response["BranchMerge"]["ok"]
 
     async def all(self) -> dict[str, BranchData]:
+        """Retrieves all branches.
+
+        Returns:
+            A dictionary mapping branch names to BranchData objects.
+        """
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
         data = await self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
 
@@ -193,6 +264,17 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         return branches
 
     async def get(self, branch_name: str) -> BranchData:
+        """Retrieves a specific branch by name.
+
+        Args:
+            branch_name: The name of the branch to retrieve.
+
+        Returns:
+            BranchData for the specified branch.
+
+        Raises:
+            BranchNotFoundError: If the branch with the given name is not found.
+        """
         query = Query(name="GetBranch", query=QUERY_ONE_BRANCH_DATA, variables={"branch_name": str})
         data = await self.client.execute_graphql(
             query=query.render(),
@@ -211,6 +293,19 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
         time_from: str | None = None,
         time_to: str | None = None,
     ) -> dict[Any, Any]:
+        """Retrieves the data differences for a branch.
+
+        This typically involves changes made on the branch compared to its origin.
+
+        Args:
+            branch_name: The name of the branch.
+            branch_only: Whether to include only branch data in the diff. Defaults to True.
+            time_from: The start time for the diff (ISO 8601 format).
+            time_to: The end time for the diff (ISO 8601 format).
+
+        Returns:
+            A dictionary representing the diff data.
+        """
         url = self.generate_diff_data_url(
             client=self.client,
             branch_name=branch_name,
@@ -223,10 +318,21 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
 
 
 class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
+    """Manages branches in Infrahub (synchronous operations)."""
     def __init__(self, client: InfrahubClientSync):
+        """Initializes the synchronous branch manager.
+
+        Args:
+            client: An instance of InfrahubClientSync.
+        """
         self.client = client
 
     def all(self) -> dict[str, BranchData]:
+        """Retrieves all branches.
+
+        Returns:
+            A dictionary mapping branch names to BranchData objects.
+        """
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
         data = self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
 
@@ -235,6 +341,17 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         return branches
 
     def get(self, branch_name: str) -> BranchData:
+        """Retrieves a specific branch by name.
+
+        Args:
+            branch_name: The name of the branch to retrieve.
+
+        Returns:
+            BranchData for the specified branch.
+
+        Raises:
+            BranchNotFoundError: If the branch with the given name is not found.
+        """
         query = Query(name="GetBranch", query=QUERY_ONE_BRANCH_DATA, variables={"branch_name": str})
         data = self.client.execute_graphql(
             query=query.render(),
@@ -274,6 +391,19 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         wait_until_completion: bool = True,
         background_execution: bool | None = False,
     ) -> BranchData | str:
+        """Creates a new branch.
+
+        Args:
+            branch_name: The name for the new branch.
+            sync_with_git: Whether to synchronize the branch with Git. Defaults to True.
+            description: An optional description for the branch.
+            wait_until_completion: If True (default), waits for the branch creation to complete
+                                   and returns BranchData. If False, returns a task ID string.
+            background_execution: Deprecated. Use `wait_until_completion=False` instead.
+
+        Returns:
+            BranchData if `wait_until_completion` is True, otherwise a task ID string.
+        """
         if background_execution is not None:
             warnings.warn(
                 "`background_execution` is deprecated, please use `wait_until_completion` instead.",
@@ -302,6 +432,14 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         return BranchData(**response["BranchCreate"]["object"])
 
     def delete(self, branch_name: str) -> bool:
+        """Deletes a branch.
+
+        Args:
+            branch_name: The name of the branch to delete.
+
+        Returns:
+            True if the deletion was successful, False otherwise.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -318,6 +456,19 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         time_from: str | None = None,
         time_to: str | None = None,
     ) -> dict[Any, Any]:
+        """Retrieves the data differences for a branch.
+
+        This typically involves changes made on the branch compared to its origin.
+
+        Args:
+            branch_name: The name of the branch.
+            branch_only: Whether to include only branch data in the diff. Defaults to True.
+            time_from: The start time for the diff (ISO 8601 format).
+            time_to: The end time for the diff (ISO 8601 format).
+
+        Returns:
+            A dictionary representing the diff data.
+        """
         url = self.generate_diff_data_url(
             client=self.client,
             branch_name=branch_name,
@@ -329,6 +480,14 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         return decode_json(response=response)
 
     def merge(self, branch_name: str) -> bool:
+        """Merges a branch into its origin branch.
+
+        Args:
+            branch_name: The name of the branch to merge.
+
+        Returns:
+            True if the merge was successful, False otherwise.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -340,6 +499,14 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         return response["BranchMerge"]["ok"]
 
     def rebase(self, branch_name: str) -> BranchData:
+        """Rebases a branch onto its origin branch.
+
+        Args:
+            branch_name: The name of the branch to rebase.
+
+        Returns:
+            BranchData for the rebased branch.
+        """
         input_data = {
             "data": {
                 "name": branch_name,
@@ -350,6 +517,16 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
         return response["BranchRebase"]["ok"]
 
     def validate(self, branch_name: str) -> BranchData:
+        """Validates a branch.
+
+        Args:
+            branch_name: The name of the branch to validate.
+
+        Returns:
+            True if the branch validation was successful, False otherwise.
+            Actually returns BranchData from the response, but the 'ok' field indicates success.
+            The return type should ideally be `bool` or a more specific validation result type.
+        """
         input_data = {
             "data": {
                 "name": branch_name,

@@ -33,6 +33,15 @@ def callback() -> None:
 
 
 def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[SchemaFile]) -> None:
+    """
+    Validates the content of schema files using the client's schema validation.
+
+    If any schema is invalid, prints error details to the console and exits the program.
+
+    Args:
+        client: An initialized InfrahubClient.
+        schemas: A list of SchemaFile objects whose content will be validated.
+    """
     has_error: bool = False
     for schema_file in schemas:
         try:
@@ -49,6 +58,18 @@ def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[Schem
 
 
 def display_schema_load_errors(response: dict[str, Any], schemas_data: list[dict]) -> None:
+    """
+    Displays detailed error messages when schema loading fails.
+
+    Parses the error response from the Infrahub API and attempts to pinpoint
+    the location of errors within the provided schema data, printing them
+    in a user-friendly format.
+
+    Args:
+        response: The error response dictionary from the Infrahub API.
+        schemas_data: A list of dictionaries, where each dictionary is the parsed
+                      content of a schema file (used to find node names for errors).
+    """
     console.print("[red]Unable to load the schema:")
     if "detail" not in response:
         handle_non_detail_errors(response=response)
@@ -84,21 +105,56 @@ def display_schema_load_errors(response: dict[str, Any], schemas_data: list[dict
 
 
 def handle_non_detail_errors(response: dict[str, Any]) -> None:
+    """
+    Handles and prints generic error messages from an API response
+    when a detailed error structure (like `response["detail"]`) is not available.
+
+    Args:
+        response: The error response dictionary from the API.
+    """
     if "error" in response:
         console.print(f"  {response.get('error')}")
     elif "errors" in response:
-        for error in response.get("errors"):
-            console.print(f"  {error.get('message')}")
+        for error_item in response.get("errors", []): # Ensure errors is treated as a list
+            if isinstance(error_item, dict):
+                console.print(f"  {error_item.get('message')}")
+            else:
+                console.print(f"  {error_item}") # Handle cases where error is just a string
     else:
         console.print(f"  '{response}'")
 
 
 def valid_error_path(loc_path: list[Any]) -> bool:
+    """
+    Checks if an error location path from Pydantic validation is valid for schema errors.
+
+    A valid path typically looks like: `['body', 'schemas', <schema_index>, 'nodes', <node_index>, <field_or_type>]`.
+
+    Args:
+        loc_path: The location path list from a Pydantic validation error.
+
+    Returns:
+        True if the path structure is recognized for schema errors, False otherwise.
+    """
     return len(loc_path) >= 6 and loc_path[0] == "body" and loc_path[1] == "schemas"
 
 
-def get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> dict | None:
-    if schema_index < len(schemas_data) and node_index < len(schemas_data[schema_index].content["nodes"]):
+def get_node(schemas_data: list[SchemaFile], schema_index: int, node_index: int) -> dict | None: # Corrected type hint for schemas_data
+    """
+    Retrieves a specific node definition from a list of parsed schema file contents.
+
+    Args:
+        schemas_data: A list of SchemaFile objects, where each object's `content`
+                      attribute holds the parsed schema data (e.g., from YAML).
+        schema_index: The index of the schema file in `schemas_data`.
+        node_index: The index of the node within the specified schema file's "nodes" list.
+
+    Returns:
+        A dictionary representing the node definition if found, otherwise None.
+    """
+    if schema_index < len(schemas_data) and schemas_data[schema_index].content and \
+       "nodes" in schemas_data[schema_index].content and \
+       node_index < len(schemas_data[schema_index].content["nodes"]):
         return schemas_data[schema_index].content["nodes"][node_index]
     return None
 

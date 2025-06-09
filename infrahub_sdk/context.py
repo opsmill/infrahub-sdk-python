@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ContextAccount(BaseModel):
+    """Represents account information within a request context."""
     id: str = Field(..., description="The ID of the account")
 
 

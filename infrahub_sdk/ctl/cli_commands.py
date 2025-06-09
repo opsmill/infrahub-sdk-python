@@ -198,15 +198,26 @@ async def _run_transform(
     repository_config: InfrahubRepositoryConfig,
 ) -> Any:
     """
-    Query GraphQL for the required data then run a transform on that data.
+    Queries GraphQL for data and then applies a transformation function to it.
+
+    This internal helper function is used by commands like `render` and `transform`.
+    It fetches data using a specified GraphQL query and variables, then passes
+    the response to the provided `transform_func`.
 
     Args:
-        query_name: Name of the query to load (e.g. tags_query)
-        variables: Dictionary of variables used for graphql query
-        transform_func: The function responsible for transforming data received from graphql
-        branch: Name of the *infrahub* branch that should be queried for data
-        debug: Prints debug info to the command line
-        repository_config: Repository config object. This is used to load the graphql query from the repository.
+        query_name: The name of the GraphQL query to execute (must be defined in `repository_config`).
+        variables: A dictionary of variables to pass to the GraphQL query.
+        transform_func: A callable (sync or async) that takes the GraphQL response data
+                        and returns the transformed data.
+        branch: The Infrahub branch name to query against.
+        debug: If True, enables debug logging/output (currently affects GraphQL query execution).
+        repository_config: The repository configuration containing query definitions.
+
+    Returns:
+        The result of applying `transform_func` to the GraphQL query response.
+
+    Raises:
+        typer.Exit: If the specified query is not found or if GraphQL errors occur.
     """
     branch = get_branch(branch)
 

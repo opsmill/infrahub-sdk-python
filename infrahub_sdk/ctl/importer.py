@@ -15,6 +15,16 @@ from .parameters import CONFIG_PARAM
 
 
 def local_directory() -> Path:
+    """
+    Returns the current working directory as a resolved Path object.
+
+    This is used as a default for Typer options requiring a directory path.
+    The comment about documentation generation suggests it might be to ensure
+    Path().resolve() is called at runtime rather than module load time.
+
+    Returns:
+        A Path object representing the current absolute directory.
+    """
     # We use a function here to avoid failure when generating the documentation due to directory name
     return Path().resolve()
 

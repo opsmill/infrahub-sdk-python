@@ -12,6 +12,13 @@ from .parameters import CONFIG_PARAM
 
 
 def directory_name_with_timestamp() -> str:
+    """
+    Generates a directory name string prefixed with "infrahubexport-"
+    and appended with the current timestamp in YYYYMMDD-HHMMSS format.
+
+    Returns:
+        A string suitable for a directory name.
+    """
     right_now = datetime.now(timezone.utc).astimezone()
     timestamp = right_now.strftime("%Y%m%d-%H%M%S")
     return f"infrahubexport-{timestamp}"

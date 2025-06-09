@@ -10,6 +10,12 @@ from ..template.exceptions import (
 
 
 def list_jinja2_transforms(config: InfrahubRepositoryConfig) -> None:
+    """
+    Prints a list of available Jinja2 transforms defined in the repository configuration.
+
+    Args:
+        config: The loaded repository configuration.
+    """
     console = Console()
     console.print(f"Jinja2 transforms defined in repository: {len(config.jinja2_transforms)}")
 
@@ -18,6 +24,16 @@ def list_jinja2_transforms(config: InfrahubRepositoryConfig) -> None:
 
 
 def print_template_errors(error: JinjaTemplateError, console: Console) -> None:
+    """
+    Prints formatted error messages to the console for JinjaTemplateError exceptions.
+
+    It handles specific subtypes of JinjaTemplateError (NotFoundError, UndefinedError, SyntaxError)
+    to provide more detailed information.
+
+    Args:
+        error: The JinjaTemplateError instance.
+        console: The Rich Console object for printing.
+    """
     if isinstance(error, JinjaTemplateNotFoundError):
         console.print("[red]An error occurred while rendering the jinja template")
         console.print("")

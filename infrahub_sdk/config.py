@@ -15,6 +15,7 @@ from .utils import get_branch, is_valid_url
 
 
 class ProxyMountsConfig(BaseSettings):
+    """Configuration for HTTP/HTTPS proxy mounts."""
     model_config = SettingsConfigDict(populate_by_name=True)
     http: str | None = Field(
         default=None,
@@ -31,10 +32,17 @@ class ProxyMountsConfig(BaseSettings):
 
     @property
     def is_set(self) -> bool:
+        """True if either HTTP or HTTPS proxy is configured."""
         return self.http is not None or self.https is not None
 
 
 class ConfigBase(BaseSettings):
+    """
+    Base configuration settings for the Infrahub client.
+
+    These settings can be sourced from environment variables (with INFRAHUB_ prefix)
+    or direct initialization.
+    """
     model_config = SettingsConfigDict(env_prefix="INFRAHUB_", validate_assignment=True)
     address: str = Field(default="http://localhost:8000", description="The URL to use when connecting to Infrahub.")
     api_token: str | None = Field(default=None, description="API token for authentication against Infrahub.")
@@ -82,6 +90,7 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_credentials_input(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Ensures that if 'username' is provided, 'password' is also provided, and vice-versa."""
         has_username = "username" in values
         has_password = "password" in values
         if has_username != has_password:
@@ -91,6 +100,7 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def set_transport(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Sets requester and sync_requester if transport is JSONPlayback."""
         if values.get("transport") == RequesterTransport.JSON:
             playback = JSONPlayback()
             if "requester" not in values:
@@ -103,6 +113,7 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_mix_authentication_schemes(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Ensures that password authentication and API token authentication are not mixed."""
         if values.get("password") and values.get("api_token"):
             raise ValueError("Unable to combine password with token based authentication")
         return values
@@ -110,6 +121,7 @@ class ConfigBase(BaseSettings):
     @field_validator("address")
     @classmethod
     def validate_address(cls, value: str) -> str:
+        """Validates and normalizes the Infrahub server address."""
         if is_valid_url(value):
             return value.rstrip("/")
 
@@ -117,12 +129,19 @@ class ConfigBase(BaseSettings):
 
     @model_validator(mode="after")
     def validate_proxy_config(self) -> Self:
+        """Ensures that 'proxy' and 'proxy_mounts' are not used simultaneously."""
         if self.proxy and self.proxy_mounts.is_set:
             raise ValueError("'proxy' and 'proxy_mounts' are mutually exclusive")
         return self
 
     @property
     def default_infrahub_branch(self) -> str:
+        """
+        Determines the default Infrahub branch to use.
+
+        If `default_branch_from_git` is True, it attempts to get the current git branch.
+        Otherwise, it uses `default_branch`.
+        """
         branch: str | None = None
         if not self.default_branch_from_git:
             branch = self.default_branch
@@ -131,10 +150,17 @@ class ConfigBase(BaseSettings):
 
     @property
     def password_authentication(self) -> bool:
+        """True if username (and thus password) is configured, indicating password authentication is intended."""
         return bool(self.username)
 
 
 class Config(ConfigBase):
+    """
+    Main configuration object for the Infrahub client.
+
+    Inherits from `ConfigBase` and adds settings for recorders, custom requesters,
+    and logging.
+    """
     recorder: RecorderType = Field(default=RecorderType.NONE, description="Select builtin recorder for later replay.")
     custom_recorder: Recorder = Field(
         default_factory=NoRecorder.default, description="Provides a way to record responses from the Infrahub API"
@@ -145,6 +171,13 @@ class Config(ConfigBase):
 
     @property
     def logger(self) -> InfrahubLoggers:
+        """
+        Provides the configured logger instance.
+
+        This property allows for type hinting and usage of the logger,
+        even if a custom logger (like structlog) with a different class
+        structure is provided.
+        """
         # We expect the log to adhere to the definitions defined by the InfrahubLoggers object
         # When using structlog the logger doesn't expose the expected methods by looking at the
         # object to pydantic rejects them. This is a workaround to allow structlog to be used
@@ -154,6 +187,7 @@ class Config(ConfigBase):
     @model_validator(mode="before")
     @classmethod
     def set_custom_recorder(cls, values: dict[str, Any]) -> dict[str, Any]:
+        """Sets the `custom_recorder` based on the `recorder` type if not already set."""
         if values.get("recorder") == RecorderType.NONE and "custom_recorder" not in values:
             values["custom_recorder"] = NoRecorder()
         elif values.get("recorder") == RecorderType.JSON and "custom_recorder" not in values:
@@ -161,6 +195,15 @@ class Config(ConfigBase):
         return values
 
     def clone(self, branch: str | None = None) -> Config:
+        """
+        Creates a deep copy of the current configuration, optionally overriding the default branch.
+
+        Args:
+            branch: If provided, sets the `default_branch` in the cloned configuration.
+
+        Returns:
+            A new `Config` instance with copied settings.
+        """
         config: dict[str, Any] = {
             "default_branch": branch or self.default_branch,
             "recorder": self.recorder,

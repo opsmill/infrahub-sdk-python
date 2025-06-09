@@ -25,15 +25,32 @@ class Settings(BaseSettings):
     @field_validator("server_address")
     @classmethod
     def cleanup_server_address(cls, v: str) -> str:
+        """Removes trailing slashes from the server_address."""
         return v.rstrip("/")
 
 
 class ConfiguredSettings:
+    """
+    Manages the loading and access of Infrahub CLI settings.
+
+    This class ensures that settings are loaded (e.g., from a TOML file or environment variables)
+    before they are accessed, providing a single point of truth for configuration.
+    """
     def __init__(self) -> None:
+        """Initializes ConfiguredSettings with no settings loaded yet."""
         self._settings: Settings | None = None
 
     @property
     def active(self) -> Settings:
+        """
+        Provides the currently active Settings instance.
+
+        Raises:
+            typer.Abort: If settings have not been loaded before access.
+
+        Returns:
+            The loaded Settings object.
+        """
         if self._settings:
             return self._settings
 
@@ -41,10 +58,21 @@ class ConfiguredSettings:
         raise typer.Abort()
 
     def load(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
-        """Load configuration.
+        """
+        Loads configuration settings.
 
-        Configuration is loaded from a config file in toml format that contains the settings,
-        or from a dictionary of those settings passed in as "config_data"
+        The method attempts to load settings from `config_data` if provided.
+        If not, it tries to load from the specified `config_file`.
+        If neither is successful or available, it falls back to default Pydantic settings
+        (which can include environment variables).
+
+        Once settings are successfully loaded, subsequent calls to `load` will do nothing.
+
+        Args:
+            config_file: Path to the TOML configuration file.
+                         Defaults to "infrahubctl.toml".
+            config_data: A dictionary containing configuration settings.
+                         If provided, this takes precedence over `config_file`.
         """
 
         if self._settings:
