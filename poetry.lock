@@ -2394,4 +2394,4 @@ tests = ["Jinja2", "pytest", "pyyaml", "rich"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9, <3.14"
-content-hash = "8fb3db8c3b2045247ef681d483005c7f3d19579fb9f982d9595a3ec7b94f8b24"
+content-hash = "978a8ed3c6f4f4e46d39b8c33affb767a91275ee2bee532a48a7abc3d224deb8"
