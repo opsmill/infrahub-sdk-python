@@ -11,6 +11,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.12.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.2) - 2025-06-05
+
+### Fixed
+
+- fix bug in Timestamp.add by @ajtmccarty in [#403](https://github.com/opsmill/infrahub-sdk-python/pull/403)
+- utils.py: improve file not found exception message by @granoe668 in [#425](https://github.com/opsmill/infrahub-sdk-python/pull/425)
+
+### Changed
+
+- Add partial_match to the client.count() by @BeArchiTek in [#411](https://github.com/opsmill/infrahub-sdk-python/pull/411)
+
+### Housekeeping
+
+- Loosen pinned requirement for `whenever` to allow versions from 0.7.2 up to but not including 0.8.0.
+- Bump http-proxy-middleware from 2.0.7 to 2.0.9 in /docs by @dependabot in [#418](https://github.com/opsmill/infrahub-sdk-python/pull/418)
+
 ## [1.12.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.1) - 2025-05-12
 
 ### Changed

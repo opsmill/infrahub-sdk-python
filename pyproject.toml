@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.12.1"
+version = "1.12.2"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -35,7 +35,7 @@ numpy = [
     { version = "^1.26.2", optional = true, python = ">=3.12" },
 ]
 pyarrow = { version = ">=14", optional = true }
-rich = { version = "^13", optional = true }
+rich = { version = ">=12, <14", optional = true }
 toml = { version = "^0.10", optional = true }
 typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
