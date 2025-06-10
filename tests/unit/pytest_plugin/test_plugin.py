@@ -231,3 +231,61 @@ def test_jinja2_transform_unexpected_output(pytester):
 
     result = pytester.runpytest("--infrahub-repo-config=infrahub_config.yml")
     result.assert_outcomes(failed=1)
+
+
+def test_python_transform(pytester):
+    pytester.makefile(
+        ".yml",
+        test_python_transform="""
+        ---
+        version: "1.0"
+        infrahub_tests:
+          - resource: "PythonTransform"
+            resource_name: "device_config"
+            tests:
+              - name: "base_config"
+                expect: PASS
+                spec:
+                  kind: "python-transform-unit-process"
+                  directory: device_config/base_config
+    """,
+    )
+    pytester.makefile(
+        ".yml",
+        infrahub_config="""
+        ---
+        schemas:
+          - schemas/dcim.yml
+
+        python_transforms:
+          - name: device_config
+            class_name: "DeviceConfig"
+            file_path: "transforms/device_config.py"
+    """,
+    )
+    test_input = pytester.makefile(
+        ".json", input='{"data": { "InfraDevice": { "edges": [ { "node": { "name": {"value": "atl1-edge1"} } } ] } } }'
+    )
+    test_output = pytester.makefile(".json", output='{"hostname": "atl1-edge1"}')
+    test_template = pytester.makefile(
+        ".py",
+        device_config="""
+        from infrahub_sdk.transforms import InfrahubTransform
+
+        class DeviceConfig(InfrahubTransform):
+            query = "device_config"
+            async def transform(self, data):
+                return {"hostname": data["InfraDevice"]["edges"][0]["node"]["name"]["value"]}
+    """,
+    )
+
+    pytester.mkdir("device_config")
+    test_dir = pytester.mkdir("device_config/base_config")
+    pytester.run("mv", test_input, test_dir)
+    pytester.run("mv", test_output, test_dir)
+
+    transform_dir = pytester.mkdir("transforms")
+    pytester.run("mv", test_template, transform_dir)
+
+    result = pytester.runpytest("--infrahub-repo-config=infrahub_config.yml")
+    result.assert_outcomes(passed=1)
