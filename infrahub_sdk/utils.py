@@ -240,21 +240,6 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
-def find_files(extension: str | list[str], directory: str | Path = ".") -> list[Path]:
-    files: list[Path] = []
-
-    if isinstance(extension, str):
-        extension = [extension]
-    if isinstance(directory, str):
-        directory = Path(directory)
-
-    for ext in extension:
-        files.extend(list(directory.glob(f"**/*.{ext}")))
-        files.extend(list(directory.glob(f"**/.*.{ext}")))
-
-    return files
-
-
 def get_branch(branch: str | None = None, directory: str | Path = ".") -> str:
     """If branch isn't provide, return the name of the local Git branch."""
     if branch:

@@ -459,7 +459,7 @@ class InfrahubObjectFileData(BaseModel):
         await node.save(allow_upsert=True)
 
         display_label = node.get_human_friendly_id_as_string() or f"{node.get_kind()} : {node.id}"
-        client.log.info(f"Node: {display_label}")
+        client.log.info(f"Created node: {display_label}")
 
         for rel in remaining_rels:
             context = {}

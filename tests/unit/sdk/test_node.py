@@ -7,7 +7,6 @@ from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import (
-    SAFE_VALUE,
     InfrahubNode,
     InfrahubNodeBase,
     InfrahubNodeSync,
@@ -15,6 +14,7 @@ from infrahub_sdk.node import (
     RelationshipManagerBase,
     parse_human_friendly_id,
 )
+from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
@@ -186,6 +186,12 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
     assert isinstance(node.tags.peers[0], RelatedNodeBase)
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == "pppppppp"
+
+    keys = dir(node)
+    assert "name" in keys
+    assert "type" in keys
+    assert "tags" in keys
+    assert "get_kind" in keys
 
 
 @pytest.mark.parametrize("property_test", property_tests)

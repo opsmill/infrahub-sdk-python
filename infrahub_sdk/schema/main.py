@@ -49,6 +49,7 @@ class AttributeKind(str, Enum):
     TEXTAREA = "TextArea"
     DATETIME = "DateTime"
     NUMBER = "Number"
+    NUMBERPOOL = "NumberPool"
     DROPDOWN = "Dropdown"
     EMAIL = "Email"
     PASSWORD = "Password"  # noqa: S105

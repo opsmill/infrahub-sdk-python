@@ -4,7 +4,7 @@ import warnings
 from typing import TYPE_CHECKING, Literal, overload
 
 from .exceptions import NodeInvalidError, NodeNotFoundError
-from .node import parse_human_friendly_id
+from .node.parsers import parse_human_friendly_id
 
 if TYPE_CHECKING:
     from .client import SchemaType, SchemaTypeSync

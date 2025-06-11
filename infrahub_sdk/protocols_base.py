@@ -10,11 +10,42 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class RelatedNode(Protocol): ...
+class RelatedNodeBase(Protocol):
+    @property
+    def id(self) -> str | None: ...
+
+    @property
+    def hfid(self) -> list[Any] | None: ...
+
+    @property
+    def hfid_str(self) -> str | None: ...
+
+    @property
+    def is_resource_pool(self) -> bool: ...
+
+    @property
+    def initialized(self) -> bool: ...
+
+    @property
+    def display_label(self) -> str | None: ...
+
+    @property
+    def typename(self) -> str | None: ...
+
+    def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]: ...
+
+    def _generate_mutation_query(self) -> dict[str, Any]: ...
+
+    @classmethod
+    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None, property: bool = False) -> dict: ...
 
 
 @runtime_checkable
-class RelatedNodeSync(Protocol): ...
+class RelatedNode(RelatedNodeBase, Protocol): ...
+
+
+@runtime_checkable
+class RelatedNodeSync(RelatedNodeBase, Protocol): ...
 
 
 @runtime_checkable
@@ -147,6 +178,7 @@ class CoreNodeBase(Protocol):
     _internal_id: str
     id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None
+    typename: str | None
 
     @property
     def hfid(self) -> list[str] | None: ...
