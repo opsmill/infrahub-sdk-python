@@ -11,6 +11,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.0) - 2025-06-11
+
+This release adds support for the new NumberPool attribute and loading object and menu files from external repositories in Infrahub 1.3.
+
+### Added
+
+- Added NumberPool as a new attribute kind, for support in Infrahub 1.3
+- Added support for object and menu files in the `.infrahub` repository configuration file
+- Defined ordering in which object files are loaded
+
+### Housekeeping
+
+- Refactor InfrahubNode to avoid the creation of a dynamic Python class for each object defined
+
 ## [1.12.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.3) - 2025-06-10
 
 ## Fixed
