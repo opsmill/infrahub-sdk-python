@@ -11,6 +11,17 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.12.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.3) - 2025-06-10
+
+## Fixed
+
+- fix Python transforms tests in the resource testing framework by @ogenstad in https://github.com/opsmill/infrahub-sdk-python/pull/433
+- add unit test for Python transforms test for the resource testing framework @wvandeun in https://github.com/opsmill/infrahub-sdk-python/pull/435
+
+### Changed
+
+- loosen requirement for the optional Rich dependency from v12.0.0 up to but not including v14.0.0 by @wvandeun in https://github.com/opsmill/infrahub-sdk-python/pull/434
+
 ## [1.12.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.2) - 2025-06-05
 
 ### Fixed
