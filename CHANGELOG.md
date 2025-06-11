@@ -11,6 +11,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.0) - 2025-06-11
+
+### Added
+
+- Added NumberPool as a new attribute kind, for support in Infrahub 1.3
+
+### Housekeeping
+
+- Refactor InfrahubNode to avoid the creation of a dynamic Python class for each object defined
+
 ## [1.12.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.3) - 2025-06-10
 
 ## Fixed
