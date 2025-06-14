@@ -138,14 +138,13 @@ async def run_targeted_check(
     branch: str | None = None,
 ) -> bool:
     filters = {}
-    param_value = list(check_module.definition.parameters.values())
-    if param_value:
-        filters[param_value[0]] = check_module.definition.targets
-
-    param_key = list(check_module.definition.parameters.keys())
     identifier = None
-    if param_key:
-        identifier = param_key[0]
+    identifier_attribute = None
+    # TODO: Does this support multiple parameters and we need make identifiers a dict to iterate over on L166-168?
+    for param_key, param_value in check_module.definition.parameters.items():
+        filters[param_value] = check_module.definition.targets
+        identifier = param_key
+        identifier_attribute = param_value.split("__")[0]
 
     check_summary: list[bool] = []
     if variables:
@@ -164,8 +163,8 @@ async def run_targeted_check(
         await targets.members.fetch()
         for member in targets.members.peers:
             check_parameter = {}
-            if identifier:
-                attribute = getattr(member.peer, identifier)
+            if identifier and identifier_attribute:
+                attribute = getattr(member.peer, identifier_attribute)
                 check_parameter = {identifier: attribute.value}
             result = await run_check(
                 check_module=check_module,
