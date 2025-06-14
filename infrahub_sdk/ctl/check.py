@@ -137,12 +137,10 @@ async def run_targeted_check(
     variables: dict[str, str],
     branch: str | None = None,
 ) -> bool:
-    filters = {}
     identifier = None
     identifier_attribute = None
     # TODO: Does this support multiple parameters and we need make identifiers a dict to iterate over on L166-168?
     for param_key, param_value in check_module.definition.parameters.items():
-        filters[param_value] = check_module.definition.targets
         identifier = param_key
         identifier_attribute = param_value.split("__")[0]
 
@@ -159,7 +157,9 @@ async def run_targeted_check(
         )
         check_summary.append(result)
     else:
-        targets = await client.get(kind="CoreGroup", include=["members"], **filters)
+        targets = await client.get(
+            kind="CoreGroup", include=["members"], **{"name__value": check_module.definition.targets}
+        )
         await targets.members.fetch()
         for member in targets.members.peers:
             check_parameter = {}
