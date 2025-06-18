@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .attribute import Attribute
 from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE,
@@ -25,6 +26,7 @@ __all__ = [
     "PROPERTIES_FLAG",
     "PROPERTIES_OBJECT",
     "SAFE_VALUE",
+    "Attribute",
     "InfrahubNode",
     "InfrahubNodeBase",
     "InfrahubNodeSync",
