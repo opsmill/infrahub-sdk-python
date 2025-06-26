@@ -1090,11 +1090,18 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNodeSync):
-                    self._relationship_cardinality_one_data[rel_schema.name] = rel_data
-                else:
-                    self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
-                        name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
-                    )
+                    peer_id_data: dict[str, Any] = {}
+                    if rel_data.id:
+                        peer_id_data["id"] = rel_data.id
+                    if rel_data.hfid:
+                        peer_id_data["hfid"] = rel_data.hfid
+                    if peer_id_data:
+                        rel_data = peer_id_data
+                    else:
+                        rel_data = None
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
