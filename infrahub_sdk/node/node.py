@@ -506,9 +506,12 @@ class InfrahubNode(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
-                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
-                )
+                if isinstance(rel_data, RelatedNode):
+                    self._relationship_cardinality_one_data[rel_schema.name] = rel_data
+                else:
+                    self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                        name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                    )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
@@ -1079,10 +1082,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
-                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
-                )
-
+                if isinstance(rel_data, RelatedNodeSync):
+                    self._relationship_cardinality_one_data[rel_schema.name] = rel_data
+                else:
+                    self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                        name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                    )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
