@@ -74,7 +74,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
     ):
         related_node = car_golf.owner
         node = await client.create(
-            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes.id, owner=related_node
+            kind=TESTING_CAR, name="CoolerTiguan", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
         )
         await node.save()
         assert node.id is not None
