@@ -501,17 +501,23 @@ class InfrahubNode(InfrahubNodeBase):
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
-    def _init_relationships(self, data: dict | None = None) -> None:
+    def _init_relationships(self, data: dict | RelatedNode | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNode):
-                    self._relationship_cardinality_one_data[rel_schema.name] = rel_data
-                else:
-                    self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
-                        name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
-                    )
+                    peer_id_data: dict[str, Any] | None = {}
+                    if rel_data.id:
+                        peer_id_data["id"] = rel_data.id
+                    if rel_data.hfid:
+                        peer_id_data["hfid"] = rel_data.hfid
+                    if not peer_id_data:
+                        peer_id_data = None
+                    rel_data = peer_id_data
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
