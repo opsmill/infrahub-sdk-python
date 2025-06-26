@@ -196,17 +196,16 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
 
 
 @pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("rel_data", [{"id": "pppppppp"}, {"hfid": ["pppp", "pppp"]}])
 async def test_init_node_data_user_with_relationships_using_related_node(
-    client, location_schema: NodeSchemaAPI, client_type
+    client, location_schema: NodeSchemaAPI, client_type, rel_data
 ):
     rel_schema = location_schema.get_relationship(name="primary_tag")
     if client_type == "standard":
-        primary_tag = RelatedNode(
-            name="primary_tag", branch="main", client=client, schema=rel_schema, data={"id": "pppppppp"}
-        )
+        primary_tag = RelatedNode(name="primary_tag", branch="main", client=client, schema=rel_schema, data=rel_data)
     else:
         primary_tag = RelatedNodeSync(
-            name="primary_tag", branch="main", client=client, schema=rel_schema, data={"id": "pppppppp"}
+            name="primary_tag", branch="main", client=client, schema=rel_schema, data=rel_data
         )
 
     data = {
@@ -230,7 +229,8 @@ async def test_init_node_data_user_with_relationships_using_related_node(
     assert len(node.tags.peers) == 2
     assert isinstance(node.tags.peers[0], RelatedNodeBase)
     assert isinstance(node.primary_tag, RelatedNodeBase)
-    assert node.primary_tag.id == "pppppppp"
+    assert node.primary_tag.id == rel_data.get("id")
+    assert node.primary_tag.hfid == rel_data.get("hfid")
 
     keys = dir(node)
     assert "name" in keys
