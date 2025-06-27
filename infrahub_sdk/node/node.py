@@ -507,13 +507,17 @@ class InfrahubNode(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNode):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
-                    if rel_data.typename:
-                        peer_id_data["__typename"] = rel_data.typename
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1092,13 +1096,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNodeSync):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
-                    if rel_data.typename:
-                        peer_id_data["__typename"] = rel_data.typename
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:

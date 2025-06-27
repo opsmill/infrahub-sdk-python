@@ -196,7 +196,13 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
 
 
 @pytest.mark.parametrize("client_type", client_types)
-@pytest.mark.parametrize("rel_data", [{"id": "pppppppp"}, {"hfid": ["pppp", "pppp"]}])
+@pytest.mark.parametrize(
+    "rel_data",
+    [
+        {"id": "pppppppp", "__typename": "BuiltinTag"},
+        {"hfid": ["pppp", "pppp"], "display_label": "mmmm", "kind": "BuiltinTag"},
+    ],
+)
 async def test_init_node_data_user_with_relationships_using_related_node(
     client, location_schema: NodeSchemaAPI, client_type, rel_data
 ):
@@ -231,6 +237,9 @@ async def test_init_node_data_user_with_relationships_using_related_node(
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == rel_data.get("id")
     assert node.primary_tag.hfid == rel_data.get("hfid")
+    assert node.primary_tag.typename == rel_data.get("__typename")
+    assert node.primary_tag.kind == rel_data.get("kind")
+    assert node.primary_tag.display_label == rel_data.get("display_label")
 
     keys = dir(node)
     assert "name" in keys

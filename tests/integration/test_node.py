@@ -83,7 +83,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert node_after.name.value == node.name.value
         assert node_after.manufacturer.peer.id == manufacturer_mercedes.id
         assert node_after.owner.peer.id == person_joe.id
-        assert node_after.owner.peer.__typename == "TestingPerson"
+        assert node_after.owner.peer.typename == "TestingPerson"
 
     async def test_node_update_with_original_data(
         self,
