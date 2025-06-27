@@ -512,6 +512,8 @@ class InfrahubNode(InfrahubNodeBase):
                         peer_id_data["id"] = rel_data.id
                     if rel_data.hfid:
                         peer_id_data["hfid"] = rel_data.hfid
+                    if rel_data.typename:
+                        peer_id_data["__typename"] = rel_data.typename
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1095,6 +1097,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         peer_id_data["id"] = rel_data.id
                     if rel_data.hfid:
                         peer_id_data["hfid"] = rel_data.hfid
+                    if rel_data.typename:
+                        peer_id_data["__typename"] = rel_data.typename
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
