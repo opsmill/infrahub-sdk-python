@@ -11,6 +11,18 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.2) - 2025-06-27
+
+### Fixed
+
+- Re-enable specifying a cardinality-one relationship using a RelatedNode when creating an InfrahubNode ([#452](https://github.com/opsmill/infrahub-sdk-python/issues/452))
+
+## [1.13.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.1) - 2025-06-19
+
+### Fixed
+
+- Fix the import path of the Attribute class [#448](https://github.com/opsmill/infrahub-sdk-python/pull/448)
+
 ## [1.13.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.0) - 2025-06-11
 
 This release adds support for the new NumberPool attribute and loading object and menu files from external repositories in Infrahub 1.3.
