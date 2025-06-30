@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.3) - 2025-06-30
+
+### Fixed
+
+- Update InfrahubNode creation to include __typename, display_label, and kind from a RelatedNode ([#455](https://github.com/opsmill/infrahub-sdk-python/issues/455))
+
 ## [1.13.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.2) - 2025-06-27
 
 ### Fixed
