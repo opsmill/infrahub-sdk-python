@@ -11,6 +11,59 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.2) - 2025-06-27
+
+### Fixed
+
+- Re-enable specifying a cardinality-one relationship using a RelatedNode when creating an InfrahubNode ([#452](https://github.com/opsmill/infrahub-sdk-python/issues/452))
+
+## [1.13.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.1) - 2025-06-19
+
+### Fixed
+
+- Fix the import path of the Attribute class [#448](https://github.com/opsmill/infrahub-sdk-python/pull/448)
+
+## [1.13.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.0) - 2025-06-11
+
+This release adds support for the new NumberPool attribute and loading object and menu files from external repositories in Infrahub 1.3.
+
+### Added
+
+- Added NumberPool as a new attribute kind, for support in Infrahub 1.3
+- Added support for object and menu files in the `.infrahub` repository configuration file
+- Defined ordering in which object files are loaded
+
+### Housekeeping
+
+- Refactor InfrahubNode to avoid the creation of a dynamic Python class for each object defined
+
+## [1.12.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.3) - 2025-06-10
+
+## Fixed
+
+- fix Python transforms tests in the resource testing framework by @ogenstad in https://github.com/opsmill/infrahub-sdk-python/pull/433
+- add unit test for Python transforms test for the resource testing framework @wvandeun in https://github.com/opsmill/infrahub-sdk-python/pull/435
+
+### Changed
+
+- loosen requirement for the optional Rich dependency from v12.0.0 up to but not including v14.0.0 by @wvandeun in https://github.com/opsmill/infrahub-sdk-python/pull/434
+
+## [1.12.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.2) - 2025-06-05
+
+### Fixed
+
+- fix bug in Timestamp.add by @ajtmccarty in [#403](https://github.com/opsmill/infrahub-sdk-python/pull/403)
+- utils.py: improve file not found exception message by @granoe668 in [#425](https://github.com/opsmill/infrahub-sdk-python/pull/425)
+
+### Changed
+
+- Add partial_match to the client.count() by @BeArchiTek in [#411](https://github.com/opsmill/infrahub-sdk-python/pull/411)
+
+### Housekeeping
+
+- Loosen pinned requirement for `whenever` to allow versions from 0.7.2 up to but not including 0.8.0.
+- Bump http-proxy-middleware from 2.0.7 to 2.0.9 in /docs by @dependabot in [#418](https://github.com/opsmill/infrahub-sdk-python/pull/418)
+
 ## [1.12.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.12.1) - 2025-05-12
 
 ### Changed

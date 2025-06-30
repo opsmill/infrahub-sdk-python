@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import ujson
 from httpx import HTTPStatusError
 
+from ...node import InfrahubNode
 from ..exceptions import OutputMatchError, PythonTransformDefinitionError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -41,7 +42,7 @@ class InfrahubPythonTransformItem(InfrahubItem):
         )
         client = self.session.infrahub_client  # type: ignore[attr-defined]
         # TODO: Look into seeing how a transform class may use the branch, but set as a empty string for the time being to keep current behaviour
-        self.transform_instance = transform_class(branch="", client=client)
+        self.transform_instance = transform_class(branch="", client=client, infrahub_node=InfrahubNode)
 
     def run_transform(self, variables: dict[str, Any]) -> Any:
         self.instantiate_transform()

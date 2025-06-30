@@ -74,20 +74,20 @@ async def run(
         targets = await client.get(
             kind="CoreGroup", branch=branch, include=["members"], name__value=generator_config.targets
         )
-        await targets.members.fetch()
+        await targets._get_relationship_many(name="members").fetch()
 
-        if not targets.members.peers:
+        if not targets._get_relationship_many(name="members").peers:
             console.print(
                 f"[red]No members found within '{generator_config.targets}', not running generator '{generator_name}'"
             )
             return
 
-        for member in targets.members.peers:
+        for member in targets._get_relationship_many(name="members").peers:
             check_parameter = {}
             if identifier:
                 attribute = getattr(member.peer, identifier)
                 check_parameter = {identifier: attribute.value}
-            params = {"name": member.peer.name.value}
+            params = {"name": member.peer._get_attribute(name="name").value}
             generator = generator_class(
                 query=generator_config.query,
                 client=client,

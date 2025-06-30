@@ -240,21 +240,6 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
-def find_files(extension: str | list[str], directory: str | Path = ".") -> list[Path]:
-    files: list[Path] = []
-
-    if isinstance(extension, str):
-        extension = [extension]
-    if isinstance(directory, str):
-        directory = Path(directory)
-
-    for ext in extension:
-        files.extend(list(directory.glob(f"**/*.{ext}")))
-        files.extend(list(directory.glob(f"**/.*.{ext}")))
-
-    return files
-
-
 def get_branch(branch: str | None = None, directory: str | Path = ".") -> str:
     """If branch isn't provide, return the name of the local Git branch."""
     if branch:
@@ -351,14 +336,16 @@ def write_to_file(path: Path, value: Any) -> bool:
     return written is not None
 
 
-def read_file(file_name: Path) -> str:
-    if not file_name.is_file():
-        raise FileNotValidError(name=str(file_name), message=f"{file_name} is not a valid file")
+def read_file(file_path: Path) -> str:
+    if not file_path.is_file():
+        raise FileNotValidError(name=str(file_path.name), message=f"{file_path.name}: not found at {file_path.parent}")
     try:
-        with Path.open(file_name, encoding="utf-8") as fobj:
+        with Path.open(file_path, encoding="utf-8") as fobj:
             return fobj.read()
     except UnicodeDecodeError as exc:
-        raise FileNotValidError(name=str(file_name), message=f"Unable to read {file_name} with utf-8 encoding") from exc
+        raise FileNotValidError(
+            name=str(file_path.name), message=f"Unable to read {file_path.name} with utf-8 encoding"
+        ) from exc
 
 
 def get_user_permissions(data: list[dict]) -> dict:

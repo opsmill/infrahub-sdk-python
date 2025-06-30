@@ -172,11 +172,18 @@ class BaseClient:
         params: dict[str, Any] | None = None,
         delete_unused_nodes: bool = False,
         group_type: str | None = None,
+        group_params: dict[str, Any] | None = None,
+        branch: str | None = None,
     ) -> Self:
         self.mode = InfrahubClientMode.TRACKING
         identifier = identifier or self.identifier or "python-sdk"
         self.set_context_properties(
-            identifier=identifier, params=params, delete_unused_nodes=delete_unused_nodes, group_type=group_type
+            identifier=identifier,
+            params=params,
+            delete_unused_nodes=delete_unused_nodes,
+            group_type=group_type,
+            group_params=group_params,
+            branch=branch,
         )
         return self
 
@@ -187,14 +194,22 @@ class BaseClient:
         delete_unused_nodes: bool = True,
         reset: bool = True,
         group_type: str | None = None,
+        group_params: dict[str, Any] | None = None,
+        branch: str | None = None,
     ) -> None:
         if reset:
             if isinstance(self, InfrahubClient):
                 self.group_context = InfrahubGroupContext(self)
             elif isinstance(self, InfrahubClientSync):
                 self.group_context = InfrahubGroupContextSync(self)
+
         self.group_context.set_properties(
-            identifier=identifier, params=params, delete_unused_nodes=delete_unused_nodes, group_type=group_type
+            identifier=identifier,
+            params=params,
+            delete_unused_nodes=delete_unused_nodes,
+            group_type=group_type,
+            group_params=group_params,
+            branch=branch,
         )
 
     def _graphql_url(
@@ -562,18 +577,27 @@ class InfrahubClient(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
-        filters = kwargs
-        schema = await self.schema.get(kind=kind, branch=branch)
+        filters: dict[str, Any] = dict(kwargs)
 
+        if partial_match:
+            filters["partial_match"] = True
+
+        schema = await self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
         if at:
             at = Timestamp(at)
 
+        data: dict[str, Any] = {
+            "count": None,
+            "@filters": filters,
+        }
+
         response = await self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            query=Query(query={schema.kind: data}).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -801,7 +825,7 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind, **filters)
+            count = await self.count(kind=schema.kind, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1683,18 +1707,27 @@ class InfrahubClientSync(BaseClient):
         at: Timestamp | None = None,
         branch: str | None = None,
         timeout: int | None = None,
+        partial_match: bool = False,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
-        filters = kwargs
-        schema = self.schema.get(kind=kind, branch=branch)
+        filters: dict[str, Any] = dict(kwargs)
 
+        if partial_match:
+            filters["partial_match"] = True
+
+        schema = self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
         if at:
             at = Timestamp(at)
 
+        data: dict[str, Any] = {
+            "count": None,
+            "@filters": filters,
+        }
+
         response = self.execute_graphql(
-            query=Query(query={schema.kind: {"count": None, "@filters": filters}}).render(),
+            query=Query(query={schema.kind: data}).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -1957,7 +1990,7 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind, **filters)
+            count = self.count(kind=schema.kind, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):

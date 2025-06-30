@@ -7,7 +7,6 @@ from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import (
-    SAFE_VALUE,
     InfrahubNode,
     InfrahubNodeBase,
     InfrahubNodeSync,
@@ -15,6 +14,8 @@ from infrahub_sdk.node import (
     RelationshipManagerBase,
     parse_human_friendly_id,
 )
+from infrahub_sdk.node.constants import SAFE_VALUE
+from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
@@ -186,6 +187,56 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
     assert isinstance(node.tags.peers[0], RelatedNodeBase)
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == "pppppppp"
+
+    keys = dir(node)
+    assert "name" in keys
+    assert "type" in keys
+    assert "tags" in keys
+    assert "get_kind" in keys
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("rel_data", [{"id": "pppppppp"}, {"hfid": ["pppp", "pppp"]}])
+async def test_init_node_data_user_with_relationships_using_related_node(
+    client, location_schema: NodeSchemaAPI, client_type, rel_data
+):
+    rel_schema = location_schema.get_relationship(name="primary_tag")
+    if client_type == "standard":
+        primary_tag = RelatedNode(name="primary_tag", branch="main", client=client, schema=rel_schema, data=rel_data)
+    else:
+        primary_tag = RelatedNodeSync(
+            name="primary_tag", branch="main", client=client, schema=rel_schema, data=rel_data
+        )
+
+    data = {
+        "name": {"value": "JFK1"},
+        "description": {"value": "JFK Airport"},
+        "type": {"value": "SITE"},
+        "primary_tag": primary_tag,
+        "tags": [{"id": "aaaaaa"}, {"id": "bbbb"}],
+    }
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+
+    assert node.name.value == "JFK1"
+    assert node.name.is_protected is None
+    assert node.description.value == "JFK Airport"
+    assert node.type.value == "SITE"
+
+    assert isinstance(node.tags, RelationshipManagerBase)
+    assert len(node.tags.peers) == 2
+    assert isinstance(node.tags.peers[0], RelatedNodeBase)
+    assert isinstance(node.primary_tag, RelatedNodeBase)
+    assert node.primary_tag.id == rel_data.get("id")
+    assert node.primary_tag.hfid == rel_data.get("hfid")
+
+    keys = dir(node)
+    assert "name" in keys
+    assert "type" in keys
+    assert "tags" in keys
+    assert "get_kind" in keys
 
 
 @pytest.mark.parametrize("property_test", property_tests)
