@@ -5,7 +5,13 @@ from copy import copy
 from typing import TYPE_CHECKING, Any
 
 from ..constants import InfrahubClientMode
-from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
+from ..exceptions import (
+    FeatureNotSupportedError,
+    NodeNotFoundError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    UninitializedError,
+)
 from ..graphql import Mutation, Query
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
 from ..utils import compare_lists, generate_short_id, get_flat_value
