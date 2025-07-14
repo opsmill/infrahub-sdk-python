@@ -402,10 +402,10 @@ class InfrahubNodeBase:
         if order:
             data["@filters"]["order"] = order
 
-        if offset:
+        if offset is not None:
             data["@filters"]["offset"] = offset
 
-        if limit:
+        if limit is not None:
             data["@filters"]["limit"] = limit
 
         if include and exclude:
