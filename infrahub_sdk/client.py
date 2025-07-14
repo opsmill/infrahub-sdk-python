@@ -830,7 +830,7 @@ class InfrahubClient(BaseClient):
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
+                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
 
             async for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
@@ -1996,7 +1996,7 @@ class InfrahubClientSync(BaseClient):
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
+                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
 
             for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
