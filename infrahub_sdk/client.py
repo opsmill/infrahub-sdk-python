@@ -1946,9 +1946,10 @@ class InfrahubClientSync(BaseClient):
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
-        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         if at:
             at = Timestamp(at)
+
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         filters = kwargs
         pagination_size = self.pagination_size
 
@@ -2012,7 +2013,7 @@ class InfrahubClientSync(BaseClient):
 
             while has_remaining_items:
                 page_offset = (page_number - 1) * pagination_size
-                response, process_result = process_page(page_offset, page_number)
+                response, process_result = process_page(page_offset=page_offset, page_number=page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
