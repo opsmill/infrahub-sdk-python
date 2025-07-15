@@ -37,7 +37,7 @@ numpy = [
 pyarrow = { version = ">=14", optional = true }
 rich = { version = ">=12, <14", optional = true }
 toml = { version = "^0.10", optional = true }
-typer = { version = "^0.12.3", optional = true }
+typer = { version = "^0.16.0", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
 eval-type-backport = { version = "^0.2.2", python = "~3.9" }
