@@ -250,7 +250,7 @@ class BaseClient:
 
         return Mutation(
             name="AllocateIPAddress",
-            mutation="IPAddressPoolGetResource",
+            mutation="InfrahubIPAddressPoolGetResource",
             query={"ok": None, "node": {"id": None, "kind": None, "identifier": None, "display_label": None}},
             input_data={"data": input_data},
         )
@@ -281,7 +281,7 @@ class BaseClient:
 
         return Mutation(
             name="AllocateIPPrefix",
-            mutation="IPPrefixPoolGetResource",
+            mutation="InfrahubIPPrefixPoolGetResource",
             query={"ok": None, "node": {"id": None, "kind": None, "identifier": None, "display_label": None}},
             input_data={"data": input_data},
         )
@@ -1301,7 +1301,7 @@ class InfrahubClient(BaseClient):
             raise ValueError("resource_pool is not an IP address pool")
 
         branch = branch or self.default_branch
-        mutation_name = "IPAddressPoolGetResource"
+        mutation_name = "InfrahubIPAddressPoolGetResource"
 
         query = self._build_ip_address_allocation_query(
             resource_pool_id=resource_pool.id,
@@ -1453,7 +1453,7 @@ class InfrahubClient(BaseClient):
             raise ValueError("resource_pool is not an IP prefix pool")
 
         branch = branch or self.default_branch
-        mutation_name = "IPPrefixPoolGetResource"
+        mutation_name = "InfrahubIPPrefixPoolGetResource"
 
         query = self._build_ip_prefix_allocation_query(
             resource_pool_id=resource_pool.id,
@@ -2439,7 +2439,7 @@ class InfrahubClientSync(BaseClient):
             raise ValueError("resource_pool is not an IP address pool")
 
         branch = branch or self.default_branch
-        mutation_name = "IPAddressPoolGetResource"
+        mutation_name = "InfrahubIPAddressPoolGetResource"
 
         query = self._build_ip_address_allocation_query(
             resource_pool_id=resource_pool.id,
@@ -2587,7 +2587,7 @@ class InfrahubClientSync(BaseClient):
             raise ValueError("resource_pool is not an IP prefix pool")
 
         branch = branch or self.default_branch
-        mutation_name = "IPPrefixPoolGetResource"
+        mutation_name = "InfrahubIPPrefixPoolGetResource"
 
         query = self._build_ip_prefix_allocation_query(
             resource_pool_id=resource_pool.id,

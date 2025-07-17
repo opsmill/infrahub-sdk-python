@@ -519,7 +519,7 @@ async def test_allocate_next_ip_address(
         method="POST",
         json={
             "data": {
-                "IPAddressPoolGetResource": {
+                "InfrahubIPAddressPoolGetResource": {
                     "ok": True,
                     "node": {
                         "id": "17da1246-54f1-a9c0-2784-179f0ec5b128",
@@ -620,7 +620,7 @@ async def test_allocate_next_ip_prefix(
         method="POST",
         json={
             "data": {
-                "IPPrefixPoolGetResource": {
+                "InfrahubIPPrefixPoolGetResource": {
                     "ok": True,
                     "node": {
                         "id": "7d9bd8d-8fc2-70b0-278a-179f425e25cb",
