@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -158,7 +159,7 @@ class RelationshipManager(RelationshipManagerBase):
             self.peers = rm.peers
             self.initialized = True
 
-        ids_per_kind_map = {}
+        ids_per_kind_map = defaultdict(list)
         for peer in self.peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
@@ -167,10 +168,20 @@ class RelationshipManager(RelationshipManagerBase):
             else:
                 ids_per_kind_map[peer.typename].append(peer.id)
 
+        batch = await self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
-            await self.client.filters(
-                kind=kind, ids=ids, populate_store=True, branch=self.branch, parallel=True, order=Order(disable=True)
+            batch.add(
+                task=self.client.filters,
+                kind=kind,
+                ids=ids,
+                populate_store=True,
+                branch=self.branch,
+                parallel=True,
+                order=Order(disable=True),
             )
+
+        async for _ in batch.execute():
+            pass
 
     def add(self, data: str | RelatedNode | dict) -> None:
         """Add a new peer to this relationship."""
@@ -274,7 +285,7 @@ class RelationshipManagerSync(RelationshipManagerBase):
             self.peers = rm.peers
             self.initialized = True
 
-        ids_per_kind_map = {}
+        ids_per_kind_map = defaultdict(list)
         for peer in self.peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
@@ -283,10 +294,20 @@ class RelationshipManagerSync(RelationshipManagerBase):
             else:
                 ids_per_kind_map[peer.typename].append(peer.id)
 
+        batch = self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
-            self.client.filters(
-                kind=kind, ids=ids, populate_store=True, branch=self.branch, parallel=True, order=Order(disable=True)
+            batch.add(
+                task=self.client.filters,
+                kind=kind,
+                ids=ids,
+                populate_store=True,
+                branch=self.branch,
+                parallel=True,
+                order=Order(disable=True),
             )
+
+        for _ in batch.execute():
+            pass
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
         """Add a new peer to this relationship."""
