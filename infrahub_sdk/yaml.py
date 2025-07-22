@@ -122,8 +122,6 @@ class YamlFile(LocalFile):
         yaml_files: list[Self] = []
         file_extensions = {".yaml", ".yml", ".json"}  # FIXME: .json is not a YAML file, should be removed
 
-        paths = sorted(paths, key=lambda p: p.name)  # Ensure order when processing paths
-
         for file_path in paths:
             if not file_path.exists():
                 # Check if the provided path exists, relevant for the first call coming from the user
@@ -135,6 +133,7 @@ class YamlFile(LocalFile):
             elif file_path.is_dir():
                 # Introduce recursion to handle sub-folders
                 sub_paths = [Path(sub_file_path) for sub_file_path in file_path.glob("*")]
+                sub_paths = sorted(sub_paths, key=lambda p: p.name)
                 yaml_files.extend(cls.load_from_disk(paths=sub_paths))
             # else: skip non-file, non-dir (e.g., symlink...)
 
