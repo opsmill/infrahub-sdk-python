@@ -1886,6 +1886,19 @@ async def test_node_fetch_relationship(
         "data": {
             "BuiltinTag": {
                 "count": 1,
+            }
+        }
+    }
+
+    httpx_mock.add_response(
+        method="POST",
+        json=response2,
+    )
+
+    response3 = {
+        "data": {
+            "BuiltinTag": {
+                "count": 1,
                 "edges": [
                     tag_blue_data,
                 ],
@@ -1895,7 +1908,7 @@ async def test_node_fetch_relationship(
 
     httpx_mock.add_response(
         method="POST",
-        json=response2,
+        json=response3,
         match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
     )
 
