@@ -11,6 +11,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.4](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.4) - 2025-07-22
+
+### Fixed
+
+- Fix processing of relationshhip during nodes retrieval using the Sync Client, when prefecthing related_nodes. ([#461](https://github.com/opsmill/infrahub-sdk-python/issues/461))
+- Fix schema loading to ignore non-YAML files in folders. ([#462](https://github.com/opsmill/infrahub-sdk-python/issues/462))
+- Fix ignored node variable in filters(). ([#469](https://github.com/opsmill/infrahub-sdk-python/issues/469))
+- Fix use of parallel with filters for Infrahub Client Sync.
+- Avoid sending empty list to infrahub if no valids schemas are found.
+
 ## [1.13.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.3) - 2025-06-30
 
 ### Fixed
