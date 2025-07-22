@@ -4,8 +4,10 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from ..exceptions import (
+    Error,
     UninitializedError,
 )
+from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .related_node import RelatedNode, RelatedNodeSync
 
@@ -156,8 +158,19 @@ class RelationshipManager(RelationshipManagerBase):
             self.peers = rm.peers
             self.initialized = True
 
+        ids_per_kind_map = {}
         for peer in self.peers:
-            await peer.fetch()  # type: ignore[misc]
+            if not peer.id or not peer.typename:
+                raise Error("Unable to fetch the peer, id and/or typename are not defined")
+            if peer.typename not in ids_per_kind_map:
+                ids_per_kind_map[peer.typename] = [peer.id]
+            else:
+                ids_per_kind_map[peer.typename].append(peer.id)
+
+        for kind, ids in ids_per_kind_map.items():
+            await self.client.filters(
+                kind=kind, ids=ids, populate_store=True, branch=self.branch, parallel=True, order=Order(disable=True)
+            )
 
     def add(self, data: str | RelatedNode | dict) -> None:
         """Add a new peer to this relationship."""
@@ -261,8 +274,19 @@ class RelationshipManagerSync(RelationshipManagerBase):
             self.peers = rm.peers
             self.initialized = True
 
+        ids_per_kind_map = {}
         for peer in self.peers:
-            peer.fetch()
+            if not peer.id or not peer.typename:
+                raise Error("Unable to fetch the peer, id and/or typename are not defined")
+            if peer.typename not in ids_per_kind_map:
+                ids_per_kind_map[peer.typename] = [peer.id]
+            else:
+                ids_per_kind_map[peer.typename].append(peer.id)
+
+        for kind, ids in ids_per_kind_map.items():
+            self.client.filters(
+                kind=kind, ids=ids, populate_store=True, branch=self.branch, parallel=True, order=Order(disable=True)
+            )
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
         """Add a new peer to this relationship."""
