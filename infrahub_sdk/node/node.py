@@ -419,7 +419,7 @@ class InfrahubNodeBase:
         return data
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
+        """Extract some data points defined in a flat notation."""
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = get_flat_value(self, key=value)

@@ -7,7 +7,7 @@ from rich.traceback import Frame, Traceback
 def identify_faulty_jinja_code(traceback: Traceback, nbr_context_lines: int = 3) -> list[tuple[Frame, Syntax]]:
     """This function identifies the faulty Jinja2 code and beautify it to provide meaningful information to the user.
 
-    We use the rich's Traceback to parse the complete stack trace and extract Frames for each expection found in the trace.
+    We use the rich's Traceback to parse the complete stack trace and extract Frames for each exception found in the trace.
     """
     response = []
 
