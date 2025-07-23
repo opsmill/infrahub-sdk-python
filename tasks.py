@@ -7,7 +7,6 @@ from shutil import which
 from typing import Any
 
 from invoke import Context, task
-from invoke.exceptions import UnexpectedExit
 
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
@@ -270,18 +269,15 @@ def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
 
     output_dir = Path(output) if output else DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
 
+    if not is_tool_installed("mdxify"):
+        print(" - mdxify is not installed, skipping documentation generation")
+        return
+
     # Create a temporary directory to store the generated documentation
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Generate the API documentation using mdxify and get flat file structure
         exec_cmd = f"mdxify --all --root-module infrahub_sdk --output-dir {tmp_dir}"
-        try:
-            context.run(exec_cmd, pty=True)
-        except UnexpectedExit as e:
-            if e.result.exited == 127:
-                print(
-                    " - mdxify is not installed, probably due to the python version being outside its supported range."
-                )
-            sys.exit(1)
+        context.run(exec_cmd, pty=True)
 
         # Remove current obsolete documentation file structure
         if (output_dir / "infrahub_sdk").exists():
@@ -304,3 +300,11 @@ def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
 
             # Move the file to the new location
             shutil.move(mdx_file, target_path)
+
+        # Fix possible linting issues in the generated documentation
+        if not is_tool_installed("markdownlint-cli2"):
+            print(" - markdownlint-cli2 is not installed, skipping documentation linting")
+            return
+
+        exec_cmd = f"markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml"
+        context.run(exec_cmd, pty=True)
