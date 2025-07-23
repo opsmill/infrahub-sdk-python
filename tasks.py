@@ -2,9 +2,10 @@ import asyncio
 import sys
 from pathlib import Path
 from shutil import which
-from typing import Any
+from typing import Any, Union
 
 from invoke import Context, task
+from invoke.exceptions import UnexpectedExit
 
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
@@ -254,3 +255,50 @@ def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
+
+
+@task(name="generate-sdk-api-docs")
+def generate_sdk_api_docs(context: Context, output: Union[str, None] = None) -> None:
+    """Generate API documentation for the Python SDK."""
+
+    import operator
+    import shutil
+    import tempfile
+    from functools import reduce
+
+    output_dir = Path(output) if output else DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
+
+    # Create a temporary directory to store the generated documentation
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Generate the API documentation using mdxify and get flat file structure
+        exec_cmd = f"mdxify --all --root-module infrahub_sdk --output-dir {tmp_dir}"
+        try:
+            context.run(exec_cmd, pty=True)
+        except UnexpectedExit as e:
+            if e.result.exited == 127:
+                print(
+                    " - mdxify is not installed, probably due to the python version being outside its supported range."
+                )
+            sys.exit(1)
+
+        # Remove current obsolete documentation file structure
+        if (output_dir / "infrahub_sdk").exists():
+            shutil.rmtree(output_dir / "infrahub_sdk")
+
+        # Get all .mdx files in the generated doc folder and apply filters
+        filters = ["__init__"]
+        filtered_files = [
+            file
+            for file in list(Path(tmp_dir).glob("*.mdx"))
+            if all(filter.lower() not in file.name for filter in filters)
+        ]
+
+        # Reorganize the generated relevant files into the desired structure
+        for mdx_file in filtered_files:
+            target_path = output_dir / reduce(operator.truediv, (Path(part) for part in mdx_file.name.split("-")))
+
+            # Create the future parent directory if it doesn't exist
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Move the file to the new location
+            shutil.move(mdx_file, target_path)
