@@ -1,0 +1,345 @@
+---
+title: node
+sidebarTitle: node
+---
+
+# `infrahub_sdk.node.node`
+
+## Classes
+
+### `InfrahubNodeBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Base class for InfrahubNode and InfrahubNodeSync
+
+
+**Methods:**
+
+#### `get_branch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_branch(self) -> str
+```
+
+#### `get_path_value` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_path_value(self, path: str) -> Any
+```
+
+#### `get_human_friendly_id` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_human_friendly_id(self) -> list[str] | None
+```
+
+#### `get_human_friendly_id_as_string` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
+```
+
+#### `hfid` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+hfid(self) -> list[str] | None
+```
+
+#### `hfid_str` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+hfid_str(self) -> str | None
+```
+
+#### `get_kind` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_kind(self) -> str
+```
+
+#### `get_all_kinds` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_all_kinds(self) -> list[str]
+```
+
+#### `is_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_ip_prefix(self) -> bool
+```
+
+#### `is_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_ip_address(self) -> bool
+```
+
+#### `is_resource_pool` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_resource_pool(self) -> bool
+```
+
+#### `get_raw_graphql_data` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_raw_graphql_data(self) -> dict | None
+```
+
+#### `generate_query_data_init` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None) -> dict[str, Any | dict]
+```
+
+#### `extract` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+extract(self, params: dict[str, str]) -> dict[str, Any]
+```
+
+Extract some datapoints defined in a flat notation.
+
+
+### `InfrahubNode` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Represents a Infrahub node in an asynchronous context.
+
+
+**Methods:**
+
+#### `from_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+from_graphql(cls, client: InfrahubClient, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
+```
+
+#### `generate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate(self, nodes: list[str] | None = None) -> None
+```
+
+#### `artifact_generate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_generate(self, name: str) -> None
+```
+
+#### `artifact_fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_fetch(self, name: str) -> str | dict[str, Any]
+```
+
+#### `delete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L587" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `save` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L605" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `generate_query_data` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L634" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None) -> dict[str, Any | dict]
+```
+
+#### `generate_query_data_node` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False) -> dict[str, Any | dict]
+```
+
+Generate the node part of a GraphQL Query with attributes and nodes.
+
+**Args:**
+- `include`: List of attributes or relationships to include. Defaults to None.
+- `exclude`: List of attributes or relationships to exclude. Defaults to None.
+- `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
+                        Defaults to True.
+- `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
+- `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
+
+**Returns:**
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
+
+
+#### `add_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L782" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `remove_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L789" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L844" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `update` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L874" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `get_pool_allocated_resources` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L925" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]
+```
+
+Fetch all nodes that were allocated for the pool and a given resource.
+
+**Args:**
+- `resource`: The resource from which the nodes were allocated.
+
+**Returns:**
+- list\[InfrahubNode]: The allocated nodes.
+
+
+#### `get_pool_resources_utilization` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_pool_resources_utilization(self) -> list[dict[str, Any]]
+```
+
+Fetch the utilization of each resource for the pool.
+
+**Returns:**
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+
+### `InfrahubNodeSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1049" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Represents a Infrahub node in a synchronous context.
+
+
+**Methods:**
+
+#### `from_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1077" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+from_graphql(cls, client: InfrahubClientSync, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
+```
+
+#### `generate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate(self, nodes: list[str] | None = None) -> None
+```
+
+#### `artifact_generate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_generate(self, name: str) -> None
+```
+
+#### `artifact_fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_fetch(self, name: str) -> str | dict[str, Any]
+```
+
+#### `delete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `save` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `generate_query_data` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None) -> dict[str, Any | dict]
+```
+
+#### `generate_query_data_node` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False) -> dict[str, Any | dict]
+```
+
+Generate the node part of a GraphQL Query with attributes and nodes.
+
+**Args:**
+- `include`: List of attributes or relationships to include. Defaults to None.
+- `exclude`: List of attributes or relationships to exclude. Defaults to None.
+- `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
+                        Defaults to True.
+- `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
+- `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
+
+**Returns:**
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
+
+
+#### `add_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1359" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `remove_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `update` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `get_pool_allocated_resources` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1511" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubNodeSync]
+```
+
+Fetch all nodes that were allocated for the pool and a given resource.
+
+**Args:**
+- `resource`: The resource from which the nodes were allocated.
+
+**Returns:**
+- list\[InfrahubNodeSync]: The allocated nodes.
+
+
+#### `get_pool_resources_utilization` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_pool_resources_utilization(self) -> list[dict[str, Any]]
+```
+
+Fetch the utilization of each resource for the pool.
+
+**Returns:**
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+

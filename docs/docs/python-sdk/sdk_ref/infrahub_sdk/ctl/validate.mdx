@@ -1,0 +1,38 @@
+---
+title: validate
+sidebarTitle: validate
+---
+
+# `infrahub_sdk.ctl.validate`
+
+## Functions
+
+### `callback` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/validate.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+callback() -> None
+```
+
+
+Helper to validate the format of various files.
+
+
+### `validate_schema` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/validate.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None
+```
+
+
+Validate the format of a schema file either in JSON or YAML
+
+
+### `validate_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/validate.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_graphql(query: str, variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.'), debug: bool = typer.Option(False, help='Display more troubleshooting information.'), branch: str = typer.Option(None, help='Branch on which to validate the GraphQL Query.'), _: str = CONFIG_PARAM, out: str = typer.Option(None, help='Path to a file to save the result.')) -> None
+```
+
+
+Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint
+

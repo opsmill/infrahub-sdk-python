@@ -1,0 +1,38 @@
+---
+title: object
+sidebarTitle: object
+---
+
+# `infrahub_sdk.ctl.object`
+
+## Functions
+
+### `callback` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/object.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+callback() -> None
+```
+
+
+Manage objects in a remote Infrahub instance.
+
+
+### `load` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/object.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(paths: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to load the objects.'), _: str = CONFIG_PARAM) -> None
+```
+
+
+Load one or multiple objects files into Infrahub.
+
+
+### `validate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/object.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate(paths: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to validate the objects.'), _: str = CONFIG_PARAM) -> None
+```
+
+
+Validate one or multiple objects files.
+

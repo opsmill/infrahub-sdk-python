@@ -1,0 +1,42 @@
+---
+title: object_store
+sidebarTitle: object_store
+---
+
+# `infrahub_sdk.object_store`
+
+## Classes
+
+### `ObjectStoreBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `ObjectStore` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, identifier: str, tracker: str | None = None) -> str
+```
+
+#### `upload` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload(self, content: str, tracker: str | None = None) -> dict[str, str]
+```
+
+### `ObjectStoreSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, identifier: str, tracker: str | None = None) -> str
+```
+
+#### `upload` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/object_store.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload(self, content: str, tracker: str | None = None) -> dict[str, str]
+```

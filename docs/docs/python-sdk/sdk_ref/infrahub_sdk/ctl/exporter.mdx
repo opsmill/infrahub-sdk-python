@@ -1,0 +1,24 @@
+---
+title: exporter
+sidebarTitle: exporter
+---
+
+# `infrahub_sdk.ctl.exporter`
+
+## Functions
+
+### `directory_name_with_timestamp` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/exporter.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+directory_name_with_timestamp() -> str
+```
+
+### `dump` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/exporter.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+dump(namespace: list[str] = typer.Option([], help='Namespace(s) to export'), directory: Path = typer.Option(directory_name_with_timestamp, help='Directory path to store export'), quiet: bool = typer.Option(False, help='No console output'), _: str = CONFIG_PARAM, branch: str = typer.Option(None, help='Branch from which to export'), concurrent: int = typer.Option(4, help='Maximum number of requests to execute at the same time.', envvar='INFRAHUB_MAX_CONCURRENT_EXECUTION'), timeout: int = typer.Option(60, help='Timeout in sec', envvar='INFRAHUB_TIMEOUT'), exclude: list[str] = typer.Option(['CoreAccount'], help='Prevent node kind(s) from being exported, CoreAccount is excluded by default')) -> None
+```
+
+
+Export nodes and their relationships out of the database.
+

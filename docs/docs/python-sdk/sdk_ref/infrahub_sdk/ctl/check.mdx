@@ -1,0 +1,62 @@
+---
+title: check
+sidebarTitle: check
+---
+
+# `infrahub_sdk.ctl.check`
+
+## Functions
+
+### `callback` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+callback() -> None
+```
+
+
+Execute user-defined checks.
+
+
+### `run` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run() -> None
+```
+
+
+Locate and execute all checks under the defined path.
+
+
+### `run_check` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_check(check_module: CheckModule, client: InfrahubClient, format_json: bool, path: str, repository_config: InfrahubRepositoryConfig, branch: str | None = None, params: dict | None = None) -> bool
+```
+
+### `run_targeted_check` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_targeted_check(check_module: CheckModule, client: InfrahubClient, format_json: bool, path: str, repository_config: InfrahubRepositoryConfig, variables: dict[str, str], branch: str | None = None) -> bool
+```
+
+### `run_checks` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_checks(check_modules: list[CheckModule], format_json: bool, path: str, variables: dict[str, str], repository_config: InfrahubRepositoryConfig, branch: str | None = None) -> None
+```
+
+### `get_modules` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_modules(check_definitions: list[InfrahubCheckDefinitionConfig]) -> list[CheckModule]
+```
+
+### `list_checks` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_checks(repository_config: InfrahubRepositoryConfig) -> None
+```
+
+## Classes
+
+### `CheckModule` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/check.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

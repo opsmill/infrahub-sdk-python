@@ -1,0 +1,52 @@
+---
+title: recorder
+sidebarTitle: recorder
+---
+
+# `infrahub_sdk.recorder`
+
+## Classes
+
+### `RecorderType` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `Recorder` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `record` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record(self, response: httpx.Response) -> None
+```
+
+Record the response from Infrahub
+
+
+### `NoRecorder` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `record` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record(response: httpx.Response) -> None
+```
+
+The NoRecorder just silently returns
+
+
+#### `default` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+default(cls) -> NoRecorder
+```
+
+### `JSONRecorder` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `record` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/recorder.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record(self, response: httpx.Response) -> None
+```

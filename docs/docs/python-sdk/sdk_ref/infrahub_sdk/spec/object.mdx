@@ -1,0 +1,175 @@
+---
+title: object
+sidebarTitle: object
+---
+
+# `infrahub_sdk.spec.object`
+
+## Functions
+
+### `validate_list_of_scalars` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_list_of_scalars(value: list[Any]) -> bool
+```
+
+### `validate_list_of_hfids` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_list_of_hfids(value: list[Any]) -> bool
+```
+
+### `validate_list_of_data_dicts` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_list_of_data_dicts(value: list[Any]) -> bool
+```
+
+### `validate_list_of_objects` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_list_of_objects(value: list[Any]) -> bool
+```
+
+### `get_relationship_info` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_relationship_info(client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None) -> RelationshipInfo
+```
+
+
+Get the relationship info for a given relationship name.
+
+
+## Classes
+
+### `RelationshipDataFormat` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `RelationshipInfo` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `is_bidirectional` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_bidirectional(self) -> bool
+```
+
+Indicate if a relationship with the same identifier exists on the other side
+
+
+#### `is_mandatory` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_mandatory(self) -> bool
+```
+
+#### `is_valid` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_valid(self) -> bool
+```
+
+#### `is_reference` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_reference(self) -> bool
+```
+
+#### `get_context` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_context(self, value: Any) -> dict
+```
+
+Return a dict to insert to the context if the relationship is mandatory
+
+
+#### `find_matching_relationship` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+find_matching_relationship(self, peer_schema: MainSchemaTypesAPI, force: bool = False) -> RelationshipSchema | None
+```
+
+Find the matching relationship on the other side of the relationship
+
+
+### `InfrahubObjectFileData` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `validate_format` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]
+```
+
+#### `process` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process(self, client: InfrahubClient, branch: str | None = None) -> None
+```
+
+#### `validate_object` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_object(cls, client: InfrahubClient, schema: MainSchemaTypesAPI, data: dict, position: list[int | str], context: dict | None = None, branch: str | None = None, default_schema_kind: str | None = None) -> list[ObjectValidationError]
+```
+
+#### `validate_related_nodes` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_related_nodes(cls, client: InfrahubClient, position: list[int | str], rel_info: RelationshipInfo, data: dict | list[dict], context: dict | None = None, branch: str | None = None, default_schema_kind: str | None = None) -> list[ObjectValidationError]
+```
+
+#### `enrich_node` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enrich_node(cls, data: dict, context: dict) -> dict
+```
+
+#### `create_node` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_node(cls, client: InfrahubClient, schema: MainSchemaTypesAPI, data: dict, position: list[int | str], context: dict | None = None, branch: str | None = None, default_schema_kind: str | None = None) -> InfrahubNode
+```
+
+#### `create_related_nodes` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_related_nodes(cls, client: InfrahubClient, rel_info: RelationshipInfo, position: list[int | str], data: dict | list[dict], parent_node: InfrahubNode | None = None, context: dict | None = None, branch: str | None = None, default_schema_kind: str | None = None) -> list[InfrahubNode]
+```
+
+#### `get_peer_schema` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_peer_schema(cls, client: InfrahubClient, peer_kind: str, branch: str | None = None, default_schema_kind: str | None = None) -> MainSchemaTypesAPI
+```
+
+### `ObjectFile` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `spec` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+spec(self) -> InfrahubObjectFileData
+```
+
+#### `validate_content` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_content(self) -> None
+```
+
+#### `validate_format` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L606" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_format(self, client: InfrahubClient, branch: str | None = None) -> None
+```
+
+#### `process` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L612" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process(self, client: InfrahubClient, branch: str | None = None) -> None
+```

@@ -1,0 +1,75 @@
+---
+title: batch
+sidebarTitle: batch
+---
+
+# `infrahub_sdk.batch`
+
+## Functions
+
+### `execute_batch_task_in_pool` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_batch_task_in_pool(task: BatchTask, semaphore: asyncio.Semaphore, return_exceptions: bool = False) -> tuple[InfrahubNode | None, Any]
+```
+
+## Classes
+
+### `BatchTask` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `BatchTaskSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `execute` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute(self, return_exceptions: bool = False) -> tuple[InfrahubNodeSync | None, Any]
+```
+
+Executes the stored task.
+
+
+### `InfrahubBatch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `num_tasks` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+num_tasks(self) -> int
+```
+
+#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add(self, *args: Any, **kwargs: Any) -> None
+```
+
+#### `execute` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute(self) -> AsyncGenerator
+```
+
+### `InfrahubBatchSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `num_tasks` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+num_tasks(self) -> int
+```
+
+#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add(self, *args: Any, **kwargs: Any) -> None
+```
+
+#### `execute` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/batch.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute(self) -> Generator[tuple[InfrahubNodeSync | None, Any], None, None]
+```

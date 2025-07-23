@@ -1,0 +1,46 @@
+---
+title: repository
+sidebarTitle: repository
+---
+
+# `infrahub_sdk.testing.repository`
+
+## Classes
+
+### `RepositorySyncStatus` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `GitRepoType` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `GitRepo` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `repo` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+repo(self) -> GitRepoManager
+```
+
+#### `path` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+path(self) -> str
+```
+
+#### `init` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+init(self) -> None
+```
+
+#### `add_to_infrahub` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict
+```
+
+#### `wait_for_sync_to_complete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/testing/repository.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_sync_to_complete(self, client: InfrahubClient, branch: str | None = None, interval: int = 5, retries: int = 6) -> bool
+```

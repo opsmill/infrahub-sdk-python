@@ -1,0 +1,76 @@
+---
+title: types
+sidebarTitle: types
+---
+
+# `infrahub_sdk.types`
+
+## Classes
+
+### `HTTPMethod` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `RequesterTransport` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `SyncRequester` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `AsyncRequester` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `InfrahubLogger` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `debug` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+debug(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send a debug event
+
+
+#### `info` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+info(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send an info event
+
+
+#### `warning` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+warning(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send a warning event
+
+
+#### `error` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+error(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send an error event.
+
+
+#### `critical` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+critical(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send a critical event.
+
+
+#### `exception` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+exception(self, event: str | None = None, *args: Any, **kw: Any) -> Any
+```
+
+Send an exception event.
+
+
+### `Order` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/types.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

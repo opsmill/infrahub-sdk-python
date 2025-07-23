@@ -1,0 +1,32 @@
+---
+title: plugin
+sidebarTitle: plugin
+---
+
+# `infrahub_sdk.pytest_plugin.plugin`
+
+## Functions
+
+### `pytest_addoption` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/plugin.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pytest_addoption(parser: Parser) -> None
+```
+
+### `pytest_sessionstart` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/plugin.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pytest_sessionstart(session: Session) -> None
+```
+
+### `pytest_collect_file` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/plugin.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pytest_collect_file(parent: Collector | Item, file_path: Path) -> InfrahubYamlFile | None
+```
+
+### `pytest_configure` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/plugin.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pytest_configure(config: Config) -> None
+```

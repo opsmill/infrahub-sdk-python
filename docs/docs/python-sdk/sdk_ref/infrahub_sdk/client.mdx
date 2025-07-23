@@ -1,0 +1,828 @@
+---
+title: client
+sidebarTitle: client
+---
+
+# `infrahub_sdk.client`
+
+## Functions
+
+### `handle_relogin` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]])
+```
+
+### `handle_relogin_sync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handle_relogin_sync(func: Callable[..., httpx.Response])
+```
+
+## Classes
+
+### `ProcessRelationsNode` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `ProcessRelationsNodeSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `BaseClient` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Base class for InfrahubClient and InfrahubClientSync
+
+
+**Methods:**
+
+#### `request_context` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+request_context(self) -> RequestContext | None
+```
+
+#### `request_context` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+request_context(self, request_context: RequestContext) -> None
+```
+
+#### `start_tracking` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_tracking(self, identifier: str | None = None, params: dict[str, Any] | None = None, delete_unused_nodes: bool = False, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> Self
+```
+
+#### `set_context_properties` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+set_context_properties(self, identifier: str, params: dict[str, str] | None = None, delete_unused_nodes: bool = True, reset: bool = True, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> None
+```
+
+### `InfrahubClient` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+GraphQL Client to interact with Infrahub.
+
+
+**Methods:**
+
+#### `get_version` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_version(self) -> str
+```
+
+Return the Infrahub version.
+
+
+#### `get_user` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_user(self) -> dict
+```
+
+Return user information
+
+
+#### `get_user_permissions` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L316" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_user_permissions(self) -> dict
+```
+
+Return user permissions
+
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNode
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: type[SchemaType], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaType
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: str | type[SchemaType], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNode | SchemaType
+```
+
+#### `delete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaType | None
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaType], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaType
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L402" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaType], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaType
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNode | None
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNode
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L459" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNode
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, **kwargs: Any) -> InfrahubNode | SchemaType | None
+```
+
+#### `count` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, **kwargs: Any) -> int
+```
+
+Return the number of nodes of a given kind.
+
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ...) -> list[SchemaType]
+```
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ...) -> list[InfrahubNode]
+```
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None) -> list[InfrahubNode] | list[SchemaType]
+```
+
+Retrieve all nodes of a given kind
+
+**Args:**
+- `kind`: kind of the nodes to query
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `timeout`: Overrides default timeout used when querying the graphql API. Specified in seconds.
+- `offset`: The offset for pagination.
+- `limit`: The limit for pagination.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to prefetch related node data.
+- `parallel`: Whether to use parallel processing for the query.
+- `order`: Ordering related options. Setting `disable=True` enhances performances.
+
+**Returns:**
+- list\[InfrahubNode]: List of Nodes
+
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L700" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., **kwargs: Any) -> list[SchemaType]
+```
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., **kwargs: Any) -> list[InfrahubNode]
+```
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, **kwargs: Any) -> list[InfrahubNode] | list[SchemaType]
+```
+
+Retrieve nodes of a given kind based on provided filters.
+
+**Args:**
+- `kind`: kind of the nodes to query
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `timeout`: Overrides default timeout used when querying the graphql API. Specified in seconds.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `offset`: The offset for pagination.
+- `limit`: The limit for pagination.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to prefetch related node data.
+- `partial_match`: Allow partial match of filter criteria for the query.
+- `parallel`: Whether to use parallel processing for the query.
+- `order`: Ordering related options. Setting `disable=True` enhances performances.
+- `**kwargs`: Additional filter criteria for the query.
+
+**Returns:**
+- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
+
+
+#### `clone` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clone(self, branch: str | None = None) -> InfrahubClient
+```
+
+Return a cloned version of the client using the same configuration
+
+
+#### `execute_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L877" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool = True, tracker: str | None = None) -> dict
+```
+
+Execute a GraphQL query (or mutation).
+If retry_on_failure is True, the query will retry until the server becomes reacheable.
+
+**Args:**
+- `query`: GraphQL Query to execute, can be a query or a mutation
+- `variables`: Variables to pass along with the GraphQL query. Defaults to None.
+- `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
+- `at`: Time when the query should be executed. Defaults to None.
+- `timeout`: Timeout in second for the query. Defaults to None.
+- `raise_for_error`: Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
+
+Raises:
+    GraphQLError: _description_
+
+**Returns:**
+- _description_
+
+
+#### `refresh_login` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+refresh_login(self) -> None
+```
+
+#### `login` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+login(self, refresh: bool = False) -> None
+```
+
+#### `query_gql_query` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1091" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> dict
+```
+
+#### `get_diff_summary` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_diff_summary(self, branch: str, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> list[NodeDiff]
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> SchemaType
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> CoreNode | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> CoreNode | SchemaType | None
+```
+
+Allocate a new IP address by using the provided resource pool.
+
+**Args:**
+- `resource_pool`: Node corresponding to the pool to allocate resources from.
+- `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
+- `prefix_length`: Length of the prefix to set on the address to allocate.
+- `address_type`: Kind of the address to allocate.
+- `data`: A key/value map to use to set attributes values on the allocated address.
+- `branch`: Name of the branch to allocate from. Defaults to default_branch.
+- `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `tracker`: The offset for pagination.
+- `raise_for_error`: The limit for pagination.
+
+Returns:
+    InfrahubNode: Node corresponding to the allocated resource.
+
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> SchemaType
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1390" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> CoreNode | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> CoreNode | SchemaType | None
+```
+
+Allocate a new IP prefix by using the provided resource pool.
+
+**Args:**
+- `resource_pool`: Node corresponding to the pool to allocate resources from.
+- `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
+- `prefix_length`: Length of the prefix to allocate.
+- `member_type`: Member type of the prefix to allocate.
+- `prefix_type`: Kind of the prefix to allocate.
+- `data`: A key/value map to use to set attributes values on the allocated prefix.
+- `branch`: Name of the branch to allocate from. Defaults to default_branch.
+- `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `tracker`: The offset for pagination.
+- `raise_for_error`: The limit for pagination.
+
+Returns:
+    InfrahubNode: Node corresponding to the allocated resource.
+
+
+#### `create_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_batch(self, return_exceptions: bool = False) -> InfrahubBatch
+```
+
+#### `get_list_repositories` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_list_repositories(self, branches: dict[str, BranchData] | None = None, kind: str = 'CoreGenericRepository') -> dict[str, RepositoryData]
+```
+
+#### `repository_update_commit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1515" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+repository_update_commit(self, branch_name: str, repository_id: str, commit: str, is_read_only: bool = False) -> bool
+```
+
+### `InfrahubClientSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `get_version` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_version(self) -> str
+```
+
+Return the Infrahub version.
+
+
+#### `get_user` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_user(self) -> dict
+```
+
+Return user information
+
+
+#### `get_user_permissions` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_user_permissions(self) -> dict
+```
+
+Return user permissions
+
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1577" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1586" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: type[SchemaTypeSync], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1594" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(self, kind: str | type[SchemaTypeSync], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync
+```
+
+#### `delete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None
+```
+
+#### `clone` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clone(self, branch: str | None = None) -> InfrahubClientSync
+```
+
+Return a cloned version of the client using the same configuration
+
+
+#### `execute_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool = True, tracker: str | None = None) -> dict
+```
+
+Execute a GraphQL query (or mutation).
+If retry_on_failure is True, the query will retry until the server becomes reacheable.
+
+**Args:**
+- `query`: GraphQL Query to execute, can be a query or a mutation
+- `variables`: Variables to pass along with the GraphQL query. Defaults to None.
+- `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
+- `at`: Time when the query should be executed. Defaults to None.
+- `timeout`: Timeout in second for the query. Defaults to None.
+- `raise_for_error`: Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
+
+Raises:
+    GraphQLError: When an error occurs during the execution of the GraphQL query or mutation.
+
+**Returns:**
+- The result of the GraphQL query or mutation.
+
+
+#### `count` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1703" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, **kwargs: Any) -> int
+```
+
+Return the number of nodes of a given kind.
+
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ...) -> list[SchemaTypeSync]
+```
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1756" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ...) -> list[InfrahubNodeSync]
+```
+
+#### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1774" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+```
+
+Retrieve all nodes of a given kind
+
+**Args:**
+- `kind`: kind of the nodes to query
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `timeout`: Overrides default timeout used when querying the graphql API. Specified in seconds.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `offset`: The offset for pagination.
+- `limit`: The limit for pagination.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to prefetch related node data.
+- `parallel`: Whether to use parallel processing for the query.
+- `order`: Ordering related options. Setting `disable=True` enhances performances.
+
+**Returns:**
+- list\[InfrahubNodeSync]: List of Nodes
+
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., **kwargs: Any) -> list[SchemaTypeSync]
+```
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1885" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., **kwargs: Any) -> list[InfrahubNodeSync]
+```
+
+#### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1905" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, **kwargs: Any) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+```
+
+Retrieve nodes of a given kind based on provided filters.
+
+**Args:**
+- `kind`: kind of the nodes to query
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `timeout`: Overrides default timeout used when querying the graphql API. Specified in seconds.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `offset`: The offset for pagination.
+- `limit`: The limit for pagination.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to prefetch related node data.
+- `partial_match`: Allow partial match of filter criteria for the query.
+- `parallel`: Whether to use parallel processing for the query.
+- `order`: Ordering related options. Setting `disable=True` enhances performances.
+- `**kwargs`: Additional filter criteria for the query.
+
+**Returns:**
+- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
+
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaTypeSync | None
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2059" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2078" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2097" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNodeSync | None
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
+```
+
+#### `create_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_batch(self, return_exceptions: bool = False) -> InfrahubBatchSync
+```
+
+Create a batch to execute multiple queries concurrently.
+
+Executing the batch will be performed using a thread pool, meaning it cannot guarantee the execution order. It is not recommended to use such
+batch to manipulate objects that depend on each others.
+
+
+#### `get_list_repositories` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_list_repositories(self, branches: dict[str, BranchData] | None = None, kind: str = 'CoreGenericRepository') -> dict[str, RepositoryData]
+```
+
+#### `query_gql_query` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2230" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> dict
+```
+
+#### `get_diff_summary` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_diff_summary(self, branch: str, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> list[NodeDiff]
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> SchemaTypeSync
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> CoreNodeSync | None
+```
+
+#### `allocate_next_ip_address` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> CoreNodeSync | SchemaTypeSync | None
+```
+
+Allocate a new IP address by using the provided resource pool.
+
+**Args:**
+- `resource_pool`: Node corresponding to the pool to allocate resources from.
+- `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
+- `prefix_length`: Length of the prefix to set on the address to allocate.
+- `address_type`: Kind of the address to allocate.
+- `data`: A key/value map to use to set attributes values on the allocated address.
+- `branch`: Name of the branch to allocate from. Defaults to default_branch.
+- `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `tracker`: The offset for pagination.
+- `raise_for_error`: The limit for pagination.
+
+Returns:
+    InfrahubNodeSync: Node corresponding to the allocated resource.
+
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> SchemaTypeSync
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2524" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool = ...) -> CoreNodeSync | None
+```
+
+#### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool = True) -> CoreNodeSync | SchemaTypeSync | None
+```
+
+Allocate a new IP prefix by using the provided resource pool.
+
+**Args:**
+- `resource_pool`: Node corresponding to the pool to allocate resources from.
+- `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
+- `size`: Length of the prefix to allocate.
+- `member_type`: Member type of the prefix to allocate.
+- `prefix_type`: Kind of the prefix to allocate.
+- `data`: A key/value map to use to set attributes values on the allocated prefix.
+- `branch`: Name of the branch to allocate from. Defaults to default_branch.
+- `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
+- `tracker`: The offset for pagination.
+- `raise_for_error`: The limit for pagination.
+
+Returns:
+    InfrahubNodeSync: Node corresponding to the allocated resource.
+
+
+#### `repository_update_commit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+repository_update_commit(self, branch_name: str, repository_id: str, commit: str, is_read_only: bool = False) -> bool
+```
+
+#### `refresh_login` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2691" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+refresh_login(self) -> None
+```
+
+#### `login` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2708" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+login(self, refresh: bool = False) -> None
+```

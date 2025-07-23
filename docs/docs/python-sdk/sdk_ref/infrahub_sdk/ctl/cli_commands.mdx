@@ -1,0 +1,94 @@
+---
+title: cli_commands
+sidebarTitle: cli_commands
+---
+
+# `infrahub_sdk.ctl.cli_commands`
+
+## Functions
+
+### `check` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+check(check_name: str = typer.Argument(default='', help='Name of the Python check'), branch: Optional[str] = None, path: str = typer.Option('.', help='Root directory'), debug: bool = False, format_json: bool = False, _: str = CONFIG_PARAM, list_available: bool = typer.Option(False, '--list', help='Show available Python checks'), variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.')) -> None
+```
+
+
+Execute user-defined checks.
+
+
+### `generator` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+generator(generator_name: str = typer.Argument(default='', help='Name of the Generator'), branch: Optional[str] = None, path: str = typer.Option('.', help='Root directory'), debug: bool = False, _: str = CONFIG_PARAM, list_available: bool = typer.Option(False, '--list', help='Show available Generators'), variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.')) -> None
+```
+
+
+Run a generator script.
+
+
+### `run` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(script: Path, method: str = 'run', debug: bool = False, _: str = CONFIG_PARAM, branch: str = typer.Option(None, help='Branch on which to run the script.'), concurrent: Optional[int] = typer.Option(None, help='Maximum number of requests to execute at the same time.', envvar='INFRAHUB_MAX_CONCURRENT_EXECUTION'), timeout: int = typer.Option(60, help='Timeout in sec', envvar='INFRAHUB_TIMEOUT'), variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.')) -> None
+```
+
+
+Execute a script.
+
+
+### `render_jinja2_template` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+render_jinja2_template(template_path: Path, variables: dict[str, Any], data: dict[str, Any]) -> str
+```
+
+### `render` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+render(transform_name: str = typer.Argument(default='', help='Name of the Python transformation', show_default=False), variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.'), branch: str = typer.Option(None, help='Branch on which to render the transform.'), debug: bool = False, _: str = CONFIG_PARAM, list_available: bool = typer.Option(False, '--list', help='Show available transforms'), out: str = typer.Option(None, help='Path to a file to save the result.')) -> None
+```
+
+
+Render a local Jinja2 Transform for debugging purpose.
+
+
+### `transform` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+transform(transform_name: str = typer.Argument(default='', help='Name of the Python transformation', show_default=False), variables: Optional[list[str]] = typer.Argument(None, help='Variables to pass along with the query. Format key=value key=value.'), branch: str = typer.Option(None, help='Branch on which to run the transformation'), debug: bool = False, _: str = CONFIG_PARAM, list_available: bool = typer.Option(False, '--list', help='Show available transforms'), out: str = typer.Option(None, help='Path to a file to save the result.')) -> None
+```
+
+
+Render a local transform (TransformPython) for debugging purpose.
+
+
+### `protocols` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+protocols(schemas: list[Path] = typer.Option(None, help='List of schemas or directory to load.'), branch: str = typer.Option(None, help='Branch of schema to export Python protocols for.'), sync: bool = typer.Option(False, help='Generate for sync or async.'), _: str = CONFIG_PARAM, out: str = typer.Option('schema_protocols.py', help='Path to a file to save the result.')) -> None
+```
+
+
+Export Python protocols corresponding to a schema.
+
+
+### `version` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+version() -> None
+```
+
+
+Display the version of Python and the version of the Python SDK in use.
+
+
+### `info` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/cli_commands.py#L407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+info(detail: bool = typer.Option(False, help='Display detailed information.'), _: str = CONFIG_PARAM) -> None
+```
+
+
+Display the status of the Python SDK.
+

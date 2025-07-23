@@ -1,0 +1,68 @@
+---
+title: schema
+sidebarTitle: schema
+---
+
+# `infrahub_sdk.ctl.schema`
+
+## Functions
+
+### `callback` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+callback() -> None
+```
+
+
+Manage the schema in a remote Infrahub instance.
+
+
+### `validate_schema_content_and_exit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_schema_content_and_exit(client: InfrahubClient, schemas: list[SchemaFile]) -> None
+```
+
+### `display_schema_load_errors` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+display_schema_load_errors(response: dict[str, Any], schemas_data: list[dict]) -> None
+```
+
+### `handle_non_detail_errors` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handle_non_detail_errors(response: dict[str, Any]) -> None
+```
+
+### `valid_error_path` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+valid_error_path(loc_path: list[Any]) -> bool
+```
+
+### `get_node` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> dict | None
+```
+
+### `load` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load(schemas: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to load the schema.'), wait: int = typer.Option(0, help='Time in seconds to wait until the schema has converged across all workers'), _: str = CONFIG_PARAM) -> None
+```
+
+
+Load one or multiple schema files into Infrahub.
+
+
+### `check` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+check(schemas: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to check the schema.'), _: str = CONFIG_PARAM) -> None
+```
+
+
+Check if schema files are valid and what would be the impact of loading them with Infrahub.
+

@@ -1,0 +1,65 @@
+---
+title: base
+sidebarTitle: base
+---
+
+# `infrahub_sdk.pytest_plugin.items.base`
+
+## Classes
+
+### `InfrahubItem` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `validate_resource_config` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_resource_config(self) -> None
+```
+
+Make sure that a test resource config is properly defined.
+
+
+#### `get_result_differences` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_result_differences(self, computed: Any) -> str | None
+```
+
+Compute the differences between the computed result and the expected one.
+
+If the results are not JSON parsable, this method must be redefined to handle them.
+
+
+#### `runtest` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+runtest(self) -> None
+```
+
+Run the test logic.
+
+
+#### `repr_failure` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str
+```
+
+#### `reportinfo` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reportinfo(self) -> tuple[Path | str, int | None, str]
+```
+
+#### `repository_base` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+repository_base(self) -> str
+```
+
+Return the path to the root of the repository
+
+This will be an absolute path if --infrahub-config-path is an absolut path as happens when
+tests are started from within Infrahub server.
+
