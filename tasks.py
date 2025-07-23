@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import sys
@@ -281,3 +283,49 @@ def generate_repository_jsonschema(context: Context) -> None:
         repository_jsonschema.parent.mkdir(parents=True, exist_ok=True)
         repository_jsonschema.write_text(schema)
         print(f"Wrote to {repository_jsonschema}")
+
+
+@task(name="generate-sdk-api-docs")
+def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
+    """Generate API documentation for the Python SDK."""
+
+    # This is the list of code modules to generate documentation for.
+    MODULES_LIST = [
+        "infrahub_sdk.client",
+        "infrahub_sdk.node.node",
+    ]
+
+    import operator
+    import shutil
+    import tempfile
+    from functools import reduce
+
+    output_dir = Path(output) if output else DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
+
+    # Create a temporary directory to store the generated documentation
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Generate the API documentation using mdxify and get flat file structure
+        exec_cmd = f"mdxify {' '.join(MODULES_LIST)} --output-dir {tmp_dir}"
+        context.run(exec_cmd, pty=True)
+
+        # Remove current obsolete documentation file structure
+        if (output_dir / "infrahub_sdk").exists():
+            shutil.rmtree(output_dir / "infrahub_sdk")
+
+        # Get all .mdx files in the generated doc folder and apply filters
+        filters = ["__init__"]
+        filtered_files = [
+            file
+            for file in list(Path(tmp_dir).glob("*.mdx"))
+            if all(filter.lower() not in file.name for filter in filters)
+        ]
+
+        # Reorganize the generated relevant files into the desired structure
+        for mdx_file in filtered_files:
+            target_path = output_dir / reduce(operator.truediv, (Path(part) for part in mdx_file.name.split("-")))
+
+            # Create the future parent directory if it doesn't exist
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Move the file to the new location
+            shutil.move(mdx_file, target_path)
