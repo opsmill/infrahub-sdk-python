@@ -19,11 +19,9 @@ generate_uuid() -> str
 encode_number(number: int, min_length: int) -> str
 ```
 
-
 Encode a number into a base16 string and ensure the result has a minimum size.
 If the initial response produced doesn't match the min requirement,
 random number will be used to fill the gap
-
 
 ## Classes
 
@@ -38,7 +36,6 @@ short(self) -> str
 ```
 
 Return the last 8 digit of the UUID (the most random part)
-
 
 #### `new` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/uuidt.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

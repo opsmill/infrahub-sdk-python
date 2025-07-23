@@ -9,9 +9,7 @@ sidebarTitle: query_groups
 
 ### `InfrahubGroupContextBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Base class for InfrahubGroupContext and InfrahubGroupContextSync
-
 
 **Methods:**
 
@@ -24,15 +22,13 @@ set_properties(self, identifier: str, params: dict[str, str] | None = None, dele
 Setter method to set the values of identifier and params.
 
 **Args:**
+
 - `identifier`: The new value for the identifier.
 - `params`: A dictionary with new values for the params.
 
-
 ### `InfrahubGroupContext` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Represents a Infrahub GroupContext in an asynchronous context.
-
 
 **Methods:**
 
@@ -57,9 +53,9 @@ add_related_nodes(self, ids: list[str], update_group_context: bool | None = None
 Add related Nodes IDs to the context.
 
 **Args:**
+
 - `ids`: List of node IDs to be added.
 - `update_group_context`: Flag to control whether to update the group context.
-
 
 #### `add_related_groups` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -70,9 +66,9 @@ add_related_groups(self, ids: list[str], update_group_context: bool | None = Non
 Add related Groups IDs to the context.
 
 **Args:**
+
 - `ids`: List of group IDs to be added.
 - `update_group_context`: Flag to control whether to update the group context.
-
 
 #### `update_group` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -82,12 +78,9 @@ update_group(self) -> None
 
 Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
 
-
 ### `InfrahubGroupContextSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Represents a Infrahub GroupContext in an synchronous context.
-
 
 **Methods:**
 
@@ -112,9 +105,9 @@ add_related_nodes(self, ids: list[str], update_group_context: bool | None = None
 Add related Nodes IDs to the context.
 
 **Args:**
+
 - `ids`: List of node IDs to be added.
 - `update_group_context`: Flag to control whether to update the group context.
-
 
 #### `add_related_groups` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -125,9 +118,9 @@ add_related_groups(self, ids: list[str], update_group_context: bool | None = Non
 Add related Groups IDs to the context.
 
 **Args:**
+
 - `ids`: List of group IDs to be added.
 - `update_group_context`: Flag to control whether to update the group context.
-
 
 #### `update_group` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/query_groups.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -136,4 +129,3 @@ update_group(self) -> None
 ```
 
 Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
-

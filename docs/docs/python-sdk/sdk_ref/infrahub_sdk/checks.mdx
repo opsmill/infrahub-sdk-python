@@ -9,9 +9,7 @@ sidebarTitle: checks
 
 ### `InfrahubCheckInitializer` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Information about the originator of the check.
-
 
 ### `InfrahubCheck` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -36,7 +34,6 @@ init(cls, client: InfrahubClient | None = None, *args: Any, **kwargs: Any) -> In
 ```
 
 Async init method, If an existing InfrahubClient client hasn't been provided, one will be created automatically.
-
 
 #### `errors` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -70,7 +67,6 @@ branch_name(self) -> str
 
 Return the name of the current git branch.
 
-
 #### `validate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -78,7 +74,6 @@ validate(self, data: dict) -> None
 ```
 
 Code to validate the status of this check.
-
 
 #### `collect_data` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -88,7 +83,6 @@ collect_data(self) -> dict
 
 Query the result of the GraphQL Query defined in self.query and return the result
 
-
 #### `run` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/checks.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -97,4 +91,3 @@ run(self, data: dict | None = None) -> bool
 
 Execute the check after collecting the data from the GraphQL query.
 The result of the check is determined based on the presence or not of ERROR log messages.
-

@@ -19,11 +19,9 @@ convert_to_graphql_as_string(value: str | bool | list | BaseModel | Enum | Any, 
 render_variables_to_string(data: dict[str, type[str | int | float | bool]]) -> str
 ```
 
-
 Render a dict into a variable string that will be used in a GraphQL Query.
 
 The $ sign will be automatically added to the name of the query.
-
 
 ### `render_query_block` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/graphql.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

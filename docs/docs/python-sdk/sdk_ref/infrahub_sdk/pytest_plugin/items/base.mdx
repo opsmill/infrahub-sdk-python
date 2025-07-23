@@ -19,7 +19,6 @@ validate_resource_config(self) -> None
 
 Make sure that a test resource config is properly defined.
 
-
 #### `get_result_differences` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -30,7 +29,6 @@ Compute the differences between the computed result and the expected one.
 
 If the results are not JSON parsable, this method must be redefined to handle them.
 
-
 #### `runtest` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -38,7 +36,6 @@ runtest(self) -> None
 ```
 
 Run the test logic.
-
 
 #### `repr_failure` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/pytest_plugin/items/base.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -62,4 +59,3 @@ Return the path to the root of the repository
 
 This will be an absolute path if --infrahub-config-path is an absolute path as happens when
 tests are started from within Infrahub server.
-

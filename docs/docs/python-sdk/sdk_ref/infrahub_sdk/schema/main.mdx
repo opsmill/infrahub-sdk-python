@@ -149,9 +149,7 @@ convert_api(self) -> GenericSchemaAPI
 
 ### `GenericSchemaAPI` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/schema/main.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined.
-
 
 ### `BaseNodeSchema` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/schema/main.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -197,7 +195,6 @@ from_api_response(cls, data: MutableMapping[str, Any]) -> Self
 
 Convert an API response from /api/schema into a BranchSchema object.
 
-
 #### `from_schema_root_api` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/schema/main.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -205,4 +202,3 @@ from_schema_root_api(cls, data: SchemaRootAPI) -> Self
 ```
 
 Convert a SchemaRootAPI object to a BranchSchema object.
-

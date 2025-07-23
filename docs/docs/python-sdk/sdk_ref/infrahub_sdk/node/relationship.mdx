@@ -9,9 +9,7 @@ sidebarTitle: relationship
 
 ### `RelationshipManagerBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Base class for RelationshipManager and RelationshipManagerSync
-
 
 **Methods:**
 
@@ -41,9 +39,7 @@ has_update(self) -> bool
 
 ### `RelationshipManager` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Manages relationships of a node in an asynchronous context.
-
 
 **Methods:**
 
@@ -61,7 +57,6 @@ add(self, data: str | RelatedNode | dict) -> None
 
 Add a new peer to this relationship.
 
-
 #### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -69,7 +64,6 @@ extend(self, data: Iterable[str | RelatedNode | dict]) -> None
 ```
 
 Add new peers to this relationship.
-
 
 #### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -79,9 +73,7 @@ remove(self, data: str | RelatedNode | dict) -> None
 
 ### `RelationshipManagerSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Manages relationships of a node in a synchronous context.
-
 
 **Methods:**
 
@@ -99,7 +91,6 @@ add(self, data: str | RelatedNodeSync | dict) -> None
 
 Add a new peer to this relationship.
 
-
 #### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -107,7 +98,6 @@ extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None
 ```
 
 Add new peers to this relationship.
-
 
 #### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

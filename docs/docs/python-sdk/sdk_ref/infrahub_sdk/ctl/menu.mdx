@@ -13,9 +13,7 @@ sidebarTitle: menu
 callback() -> None
 ```
 
-
 Manage the menu in a remote Infrahub instance.
-
 
 ### `load` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/menu.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -23,9 +21,7 @@ Manage the menu in a remote Infrahub instance.
 load(menus: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to load the menu.'), _: str = CONFIG_PARAM) -> None
 ```
 
-
 Load one or multiple menu files into Infrahub.
-
 
 ### `validate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/menu.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -33,6 +29,4 @@ Load one or multiple menu files into Infrahub.
 validate(paths: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to validate the objects.'), _: str = CONFIG_PARAM) -> None
 ```
 
-
 Validate one or multiple menu files.
-

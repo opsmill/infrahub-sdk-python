@@ -13,9 +13,7 @@ sidebarTitle: schema
 callback() -> None
 ```
 
-
 Manage the schema in a remote Infrahub instance.
-
 
 ### `validate_schema_content_and_exit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -53,9 +51,7 @@ get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> dict |
 load(schemas: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to load the schema.'), wait: int = typer.Option(0, help='Time in seconds to wait until the schema has converged across all workers'), _: str = CONFIG_PARAM) -> None
 ```
 
-
 Load one or multiple schema files into Infrahub.
-
 
 ### `check` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/schema.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -63,6 +59,4 @@ Load one or multiple schema files into Infrahub.
 check(schemas: list[Path], debug: bool = False, branch: str = typer.Option(None, help='Branch on which to check the schema.'), _: str = CONFIG_PARAM) -> None
 ```
 
-
 Check if schema files are valid and what would be the impact of loading them with Infrahub.
-

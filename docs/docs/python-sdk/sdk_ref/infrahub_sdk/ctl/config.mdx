@@ -5,16 +5,13 @@ sidebarTitle: config
 
 # `infrahub_sdk.ctl.config`
 
-
 Config Class.
 
 ## Classes
 
 ### `Settings` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/config.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Main Settings Class for the project.
-
 
 **Methods:**
 
@@ -45,7 +42,6 @@ Load configuration.
 Configuration is loaded from a config file in toml format that contains the settings,
 or from a dictionary of those settings passed in as "config_data"
 
-
 #### `load_and_exit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/config.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -58,6 +54,6 @@ This is done to handle a ValidationErorr which is raised when settings are speci
 In such cases, a message is printed to the screen indicating the settings which don't pass validation.
 
 **Args:**
+
 - `config_file_name`: [description]. Defaults to "pyprojectctl.toml".
 - `config_data`: [description]. Defaults to None.
-

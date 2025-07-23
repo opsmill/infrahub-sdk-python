@@ -9,9 +9,7 @@ sidebarTitle: node
 
 ### `InfrahubNodeBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Base class for InfrahubNode and InfrahubNodeSync
-
 
 **Methods:**
 
@@ -101,12 +99,9 @@ extract(self, params: dict[str, str]) -> dict[str, Any]
 
 Extract some data points defined in a flat notation.
 
-
 ### `InfrahubNode` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Represents a Infrahub node in an asynchronous context.
-
 
 **Methods:**
 
@@ -161,6 +156,7 @@ generate_query_data_node(self, include: list[str] | None = None, exclude: list[s
 Generate the node part of a GraphQL Query with attributes and nodes.
 
 **Args:**
+
 - `include`: List of attributes or relationships to include. Defaults to None.
 - `exclude`: List of attributes or relationships to exclude. Defaults to None.
 - `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
@@ -169,8 +165,8 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
 
 **Returns:**
-- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
 #### `add_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L782" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -205,11 +201,12 @@ get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]
 Fetch all nodes that were allocated for the pool and a given resource.
 
 **Args:**
+
 - `resource`: The resource from which the nodes were allocated.
 
 **Returns:**
-- list\[InfrahubNode]: The allocated nodes.
 
+- list\[InfrahubNode]: The allocated nodes.
 
 #### `get_pool_resources_utilization` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -220,14 +217,12 @@ get_pool_resources_utilization(self) -> list[dict[str, Any]]
 Fetch the utilization of each resource for the pool.
 
 **Returns:**
-- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
 ### `InfrahubNodeSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1049" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Represents a Infrahub node in a synchronous context.
-
 
 **Methods:**
 
@@ -282,6 +277,7 @@ generate_query_data_node(self, include: list[str] | None = None, exclude: list[s
 Generate the node part of a GraphQL Query with attributes and nodes.
 
 **Args:**
+
 - `include`: List of attributes or relationships to include. Defaults to None.
 - `exclude`: List of attributes or relationships to exclude. Defaults to None.
 - `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
@@ -290,8 +286,8 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
 
 **Returns:**
-- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
 #### `add_relationships` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1359" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -326,11 +322,12 @@ get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubN
 Fetch all nodes that were allocated for the pool and a given resource.
 
 **Args:**
+
 - `resource`: The resource from which the nodes were allocated.
 
 **Returns:**
-- list\[InfrahubNodeSync]: The allocated nodes.
 
+- list\[InfrahubNodeSync]: The allocated nodes.
 
 #### `get_pool_resources_utilization` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/node.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -341,5 +338,5 @@ get_pool_resources_utilization(self) -> list[dict[str, Any]]
 Fetch the utilization of each resource for the pool.
 
 **Returns:**
-- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.

@@ -22,11 +22,12 @@ count(self, filters: TaskFilter | None = None) -> int
 Count the number of tasks.
 
 **Args:**
+
 - `filters`: The filter to apply to the tasks. Defaults to None.
 
 **Returns:**
-- The number of tasks.
 
+- The number of tasks.
 
 #### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -37,6 +38,7 @@ all(self, limit: int | None = None, offset: int | None = None, timeout: int | No
 Get all tasks.
 
 **Args:**
+
 - `limit`: The maximum number of tasks to return. Defaults to None.
 - `offset`: The offset to start the tasks from. Defaults to None.
 - `timeout`: The timeout to wait for the tasks to complete. Defaults to None.
@@ -45,8 +47,8 @@ Get all tasks.
 - `include_related_nodes`: Whether to include the related nodes in the tasks. Defaults to False.
 
 **Returns:**
-- A list of tasks.
 
+- A list of tasks.
 
 #### `filter` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -57,6 +59,7 @@ filter(self, filter: TaskFilter | None = None, limit: int | None = None, offset:
 Filter tasks.
 
 **Args:**
+
 - `filter`: The filter to apply to the tasks. Defaults to None.
 - `limit`: The maximum number of tasks to return. Defaults to None.
 - `offset`: The offset to start the tasks from. Defaults to None.
@@ -66,8 +69,8 @@ Filter tasks.
 - `include_related_nodes`: Whether to include the related nodes in the tasks. Defaults to False.
 
 **Returns:**
-- A list of tasks.
 
+- A list of tasks.
 
 #### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -84,16 +87,18 @@ wait_for_completion(self, id: str, interval: int = 1, timeout: int = 60) -> Task
 Wait for a task to complete.
 
 **Args:**
+
 - `id`: The id of the task to wait for.
 - `interval`: The interval to check the task state. Defaults to 1.
 - `timeout`: The timeout to wait for the task to complete. Defaults to 60.
 
 **Raises:**
+
 - `TaskNotCompletedError`: The task did not complete in the given timeout.
 
 **Returns:**
-- The task object.
 
+- The task object.
 
 #### `process_page` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -104,14 +109,15 @@ process_page(client: InfrahubClient, query: Query, page_number: int, timeout: in
 Process a single page of results.
 
 **Args:**
+
 - `client`: The client to use to execute the query.
 - `query`: The query to execute.
 - `page_number`: The page number to process.
 - `timeout`: The timeout to wait for the query to complete. Defaults to None.
 
 **Returns:**
-- A tuple containing a list of tasks and the count of tasks.
 
+- A tuple containing a list of tasks and the count of tasks.
 
 #### `process_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -121,7 +127,6 @@ process_batch(self, filters: TaskFilter | None = None, timeout: int | None = Non
 
 Process queries in parallel mode.
 
-
 #### `process_non_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -129,7 +134,6 @@ process_non_batch(self, filters: TaskFilter | None = None, offset: int | None = 
 ```
 
 Process queries without parallel mode.
-
 
 ### `InfrahubTaskManagerSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -144,11 +148,12 @@ count(self, filters: TaskFilter | None = None) -> int
 Count the number of tasks.
 
 **Args:**
+
 - `filters`: The filter to apply to the tasks. Defaults to None.
 
 **Returns:**
-- The number of tasks.
 
+- The number of tasks.
 
 #### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L341" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -159,6 +164,7 @@ all(self, limit: int | None = None, offset: int | None = None, timeout: int | No
 Get all tasks.
 
 **Args:**
+
 - `limit`: The maximum number of tasks to return. Defaults to None.
 - `offset`: The offset to start the tasks from. Defaults to None.
 - `timeout`: The timeout to wait for the tasks to complete. Defaults to None.
@@ -167,8 +173,8 @@ Get all tasks.
 - `include_related_nodes`: Whether to include the related nodes in the tasks. Defaults to False.
 
 **Returns:**
-- A list of tasks.
 
+- A list of tasks.
 
 #### `filter` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -179,6 +185,7 @@ filter(self, filter: TaskFilter | None = None, limit: int | None = None, offset:
 Filter tasks.
 
 **Args:**
+
 - `filter`: The filter to apply to the tasks. Defaults to None.
 - `limit`: The maximum number of tasks to return. Defaults to None.
 - `offset`: The offset to start the tasks from. Defaults to None.
@@ -188,8 +195,8 @@ Filter tasks.
 - `include_related_nodes`: Whether to include the related nodes in the tasks. Defaults to False.
 
 **Returns:**
-- A list of tasks.
 
+- A list of tasks.
 
 #### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -206,16 +213,18 @@ wait_for_completion(self, id: str, interval: int = 1, timeout: int = 60) -> Task
 Wait for a task to complete.
 
 **Args:**
+
 - `id`: The id of the task to wait for.
 - `interval`: The interval to check the task state. Defaults to 1.
 - `timeout`: The timeout to wait for the task to complete. Defaults to 60.
 
 **Raises:**
+
 - `TaskNotCompletedError`: The task did not complete in the given timeout.
 
 **Returns:**
-- The task object.
 
+- The task object.
 
 #### `process_page` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -226,14 +235,15 @@ process_page(client: InfrahubClientSync, query: Query, page_number: int, timeout
 Process a single page of results.
 
 **Args:**
+
 - `client`: The client to use to execute the query.
 - `query`: The query to execute.
 - `page_number`: The page number to process.
 - `timeout`: The timeout to wait for the query to complete. Defaults to None.
 
 **Returns:**
-- A tuple containing a list of tasks and the count of tasks.
 
+- A tuple containing a list of tasks and the count of tasks.
 
 #### `process_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -243,7 +253,6 @@ process_batch(self, filters: TaskFilter | None = None, timeout: int | None = Non
 
 Process queries in parallel mode.
 
-
 #### `process_non_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/task/manager.py#L516" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -251,4 +260,3 @@ process_non_batch(self, filters: TaskFilter | None = None, offset: int | None = 
 ```
 
 Process queries without parallel mode.
-

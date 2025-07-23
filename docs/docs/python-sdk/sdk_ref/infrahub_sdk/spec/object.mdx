@@ -37,9 +37,7 @@ validate_list_of_objects(value: list[Any]) -> bool
 get_relationship_info(client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None) -> RelationshipInfo
 ```
 
-
 Get the relationship info for a given relationship name.
-
 
 ## Classes
 
@@ -56,7 +54,6 @@ is_bidirectional(self) -> bool
 ```
 
 Indicate if a relationship with the same identifier exists on the other side
-
 
 #### `is_mandatory` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -84,7 +81,6 @@ get_context(self, value: Any) -> dict
 
 Return a dict to insert to the context if the relationship is mandatory
 
-
 #### `find_matching_relationship` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -92,7 +88,6 @@ find_matching_relationship(self, peer_schema: MainSchemaTypesAPI, force: bool = 
 ```
 
 Find the matching relationship on the other side of the relationship
-
 
 ### `InfrahubObjectFileData` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/spec/object.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

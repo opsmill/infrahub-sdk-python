@@ -27,9 +27,7 @@ handle_relogin_sync(func: Callable[..., httpx.Response])
 
 ### `BaseClient` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Base class for InfrahubClient and InfrahubClientSync
-
 
 **Methods:**
 
@@ -59,9 +57,7 @@ set_context_properties(self, identifier: str, params: dict[str, str] | None = No
 
 ### `InfrahubClient` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 GraphQL Client to interact with Infrahub.
-
 
 **Methods:**
 
@@ -73,7 +69,6 @@ get_version(self) -> str
 
 Return the Infrahub version.
 
-
 #### `get_user` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -82,7 +77,6 @@ get_user(self) -> dict
 
 Return user information
 
-
 #### `get_user_permissions` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L316" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -90,7 +84,6 @@ get_user_permissions(self) -> dict
 ```
 
 Return user permissions
-
 
 #### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -166,7 +159,6 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 
 Return the number of nodes of a given kind.
 
-
 #### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -188,6 +180,7 @@ all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str
 Retrieve all nodes of a given kind
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -203,8 +196,8 @@ Retrieve all nodes of a given kind
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 
 **Returns:**
-- list\[InfrahubNode]: List of Nodes
 
+- list\[InfrahubNode]: List of Nodes
 
 #### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L700" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -227,6 +220,7 @@ filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch:
 Retrieve nodes of a given kind based on provided filters.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -244,8 +238,8 @@ Retrieve nodes of a given kind based on provided filters.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
-- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
+- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 #### `clone` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -254,7 +248,6 @@ clone(self, branch: str | None = None) -> InfrahubClient
 ```
 
 Return a cloned version of the client using the same configuration
-
 
 #### `execute_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L877" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -266,6 +259,7 @@ Execute a GraphQL query (or mutation).
 If retry_on_failure is True, the query will retry until the server becomes reacheable.
 
 **Args:**
+
 - `query`: GraphQL Query to execute, can be a query or a mutation
 - `variables`: Variables to pass along with the GraphQL query. Defaults to None.
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
@@ -277,8 +271,8 @@ Raises:
     GraphQLError: _description_
 
 **Returns:**
-- _description_
 
+- _description_
 
 #### `refresh_login` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -349,6 +343,7 @@ allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] |
 Allocate a new IP address by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to set on the address to allocate.
@@ -361,7 +356,6 @@ Allocate a new IP address by using the provided resource pool.
 
 Returns:
     InfrahubNode: Node corresponding to the allocated resource.
-
 
 #### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -408,6 +402,7 @@ allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | 
 Allocate a new IP prefix by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to allocate.
@@ -421,7 +416,6 @@ Allocate a new IP prefix by using the provided resource pool.
 
 Returns:
     InfrahubNode: Node corresponding to the allocated resource.
-
 
 #### `create_batch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -453,7 +447,6 @@ get_version(self) -> str
 
 Return the Infrahub version.
 
-
 #### `get_user` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -462,7 +455,6 @@ get_user(self) -> dict
 
 Return user information
 
-
 #### `get_user_permissions` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -470,7 +462,6 @@ get_user_permissions(self) -> dict
 ```
 
 Return user permissions
-
 
 #### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1577" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -504,7 +495,6 @@ clone(self, branch: str | None = None) -> InfrahubClientSync
 
 Return a cloned version of the client using the same configuration
 
-
 #### `execute_graphql` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -515,6 +505,7 @@ Execute a GraphQL query (or mutation).
 If retry_on_failure is True, the query will retry until the server becomes reacheable.
 
 **Args:**
+
 - `query`: GraphQL Query to execute, can be a query or a mutation
 - `variables`: Variables to pass along with the GraphQL query. Defaults to None.
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
@@ -526,8 +517,8 @@ Raises:
     GraphQLError: When an error occurs during the execution of the GraphQL query or mutation.
 
 **Returns:**
-- The result of the GraphQL query or mutation.
 
+- The result of the GraphQL query or mutation.
 
 #### `count` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1703" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -536,7 +527,6 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 ```
 
 Return the number of nodes of a given kind.
-
 
 #### `all` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -559,6 +549,7 @@ all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch:
 Retrieve all nodes of a given kind
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -574,8 +565,8 @@ Retrieve all nodes of a given kind
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 
 **Returns:**
-- list\[InfrahubNodeSync]: List of Nodes
 
+- list\[InfrahubNodeSync]: List of Nodes
 
 #### `filters` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L1864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -598,6 +589,7 @@ filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, bra
 Retrieve nodes of a given kind based on provided filters.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -615,8 +607,8 @@ Retrieve nodes of a given kind based on provided filters.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
-- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
+- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 #### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -670,7 +662,6 @@ Create a batch to execute multiple queries concurrently.
 
 Executing the batch will be performed using a thread pool, meaning it cannot guarantee the execution order. It is not recommended to use such
 batch to manipulate objects that depend on each others.
-
 
 #### `get_list_repositories` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -735,6 +726,7 @@ allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTyp
 Allocate a new IP address by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to set on the address to allocate.
@@ -747,7 +739,6 @@ Allocate a new IP address by using the provided resource pool.
 
 Returns:
     InfrahubNodeSync: Node corresponding to the allocated resource.
-
 
 #### `allocate_next_ip_prefix` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -794,6 +785,7 @@ allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaType
 Allocate a new IP prefix by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `size`: Length of the prefix to allocate.
@@ -807,7 +799,6 @@ Allocate a new IP prefix by using the provided resource pool.
 
 Returns:
     InfrahubNodeSync: Node corresponding to the allocated resource.
-
 
 #### `repository_update_commit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/client.py#L2608" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

@@ -9,9 +9,7 @@ sidebarTitle: generator
 
 ### `InfrahubGenerator` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/generator.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-
 Infrahub Generator class
-
 
 **Methods:**
 
@@ -41,7 +39,6 @@ collect_data(self) -> dict
 
 Query the result of the GraphQL Query defined in self.query and return the result
 
-
 #### `run` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/generator.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -49,7 +46,6 @@ run(self, identifier: str, data: dict | None = None) -> None
 ```
 
 Execute the generator after collecting the data from the GraphQL query.
-
 
 #### `generate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/generator.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -66,4 +62,3 @@ way as the method could be executed multiple times. Typically this would be done
 await new_or_updated_object.save(allow_upsert=True)
 
 The tracking system will be responsible for deleting nodes that are no longer required.
-

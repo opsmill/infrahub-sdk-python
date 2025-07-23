@@ -19,9 +19,7 @@ init_logging(debug: bool = False) -> None
 handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn
 ```
 
-
 Handle exception in a different fashion based on its type.
-
 
 ### `catch_exception` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/utils.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -29,9 +27,7 @@ Handle exception in a different fashion based on its type.
 catch_exception(console: Console | None = None, exit_code: int = 1) -> Callable[[Callable[..., T]], Callable[..., T | Coroutine[Any, Any, T]]]
 ```
 
-
 Decorator to handle exception for commands.
-
 
 ### `execute_graphql_query` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/utils.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -69,9 +65,7 @@ render_action_rich(value: str) -> str
 get_fixtures_dir() -> Path
 ```
 
-
 Get the directory which stores fixtures that are common to multiple unit/integration tests.
-
 
 ### `load_yamlfile_from_disk_and_exit` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/utils.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 

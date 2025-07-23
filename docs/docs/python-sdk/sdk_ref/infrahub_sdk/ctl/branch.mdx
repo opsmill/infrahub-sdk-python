@@ -13,11 +13,9 @@ sidebarTitle: branch
 callback() -> None
 ```
 
-
 Manage the branches in a remote Infrahub instance.
 
 List, create, merge, rebase ..
-
 
 ### `list_branch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -25,9 +23,7 @@ List, create, merge, rebase ..
 list_branch(_: str = CONFIG_PARAM) -> None
 ```
 
-
 List all existing branches.
-
 
 ### `create` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -35,9 +31,7 @@ List all existing branches.
 create(branch_name: str = typer.Argument(..., help='Name of the branch to create'), description: str = typer.Option(default='', help='Description of the branch'), sync_with_git: bool = typer.Option(False, help='Extend the branch to Git and have Infrahub create the branch in connected repositories.'), isolated: bool = typer.Option(True, hidden=True, help='Set the branch to isolated mode (deprecated)'), _: str = CONFIG_PARAM) -> None
 ```
 
-
 Create a new branch.
-
 
 ### `delete` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -45,9 +39,7 @@ Create a new branch.
 delete(branch_name: str, _: str = CONFIG_PARAM) -> None
 ```
 
-
 Delete a branch.
-
 
 ### `rebase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -55,9 +47,7 @@ Delete a branch.
 rebase(branch_name: str, _: str = CONFIG_PARAM) -> None
 ```
 
-
 Rebase a Branch with main.
-
 
 ### `merge` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -65,9 +55,7 @@ Rebase a Branch with main.
 merge(branch_name: str, _: str = CONFIG_PARAM) -> None
 ```
 
-
 Merge a Branch with main.
-
 
 ### `validate` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/ctl/branch.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -75,6 +63,4 @@ Merge a Branch with main.
 validate(branch_name: str, _: str = CONFIG_PARAM) -> None
 ```
 
-
 Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET).
-
