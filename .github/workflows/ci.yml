@@ -173,7 +173,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: docs/package-lock.json
       - name: "Install dependencies"
         run: npm install
@@ -217,6 +217,50 @@ jobs:
       - name: Validate generated documentation
         run: uv run invoke docs-validate
 
+  check-api-documentation-obsolescence:
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      (needs.files-changed.outputs.python == 'true') || (needs.files-changed.outputs.documentation_generated == 'true')
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
+    runs-on: "ubuntu-22.04"
+    env:
+      DOCS_COMMAND: "poetry run invoke generate-sdk-api-docs"
+      SDK_API_DOCS_DIR: "docs/docs/python-sdk/sdk_ref"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Setup Python environment"
+        run: |
+          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
+          poetry config virtualenvs.create true --local
+          poetry env use 3.12
+      - name: "Install dependencies"
+        run: "poetry install --no-interaction --no-ansi --extras ctl"
+      - name: "Setup environment"
+        run: "pip install invoke toml"
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - name: Install markdown linter
+        run: npm install -g markdownlint-cli2
+      - name: "Generate SDK API documentation"
+        run: ${{ env.DOCS_COMMAND }}
+      - name: "Check if SDK API documentation needs to be refreshed"
+        run: |
+          git diff --quiet ${SDK_API_DOCS_DIR}
+
   validate-documentation-style:
     if: |
       always() && !cancelled() &&
@@ -240,7 +284,7 @@ jobs:
         env:
           VALE_VERSION: ${{ env.VALE_VERSION }}
       - name: "Validate documentation style"
-        run: ./vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \) )
+        run: ./vale $(find ./docs -type d -name sdk_ref -prune -false -o -type f \( -name "*.mdx" -o -name "*.md" \) )
 
   unit-tests:
     env:
