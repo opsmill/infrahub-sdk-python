@@ -45,9 +45,9 @@ dulwich = "^0.21.4"
 whenever = ">=0.7.2,<0.8.0"
 netutils = "^1.0.0"
 click = { version = "8.1.*", optional = true }
-mdxify = {version = "^0.2.23", python = ">=3.10"}
 
 [tool.poetry.group.dev.dependencies]
+mdxify = {version = "^0.2.23", python = ">=3.10"}
 pytest = "*"
 pytest-asyncio = "<0.23"
 pytest-clarity = "^1.0.1"

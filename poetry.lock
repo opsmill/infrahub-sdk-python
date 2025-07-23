@@ -220,7 +220,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "(extra == \"ctl\" or extra == \"all\") and platform_system == \"Windows\" or sys_platform == \"win32\" or python_version >= \"3.10\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
+markers = {main = "(extra == \"ctl\" or extra == \"all\") and platform_system == \"Windows\" or sys_platform == \"win32\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\" or python_version >= \"3.10\""}
 
 [[package]]
 name = "coverage"
@@ -543,7 +543,7 @@ version = "1.8.0"
 description = "Signatures for entire Python programs. Extract the structure, the frame, the skeleton of your project, to generate API documentation or find breaking changes in your API."
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["dev"]
 markers = "python_version >= \"3.10\""
 files = [
     {file = "griffe-1.8.0-py3-none-any.whl", hash = "sha256:110faa744b2c5c84dd432f4fa9aa3b14805dd9519777dd55e8db214320593b02"},
@@ -943,7 +943,7 @@ version = "0.2.23"
 description = "Generate MDX API documentation from Python modules"
 optional = false
 python-versions = ">=3.10"
-groups = ["main"]
+groups = ["dev"]
 markers = "python_version >= \"3.10\""
 files = [
     {file = "mdxify-0.2.23-py3-none-any.whl", hash = "sha256:9e920bd01bc34f11f6e250cc7a926ed8ae8a29ea39cb4707a69700972965fc4b"},
@@ -2426,4 +2426,4 @@ tests = ["Jinja2", "pytest", "pyyaml", "rich"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9, <3.14"
-content-hash = "cdca7035da908c2345cc19398c38c9370a590908321303ce23fa3d7f3a683e1d"
+content-hash = "3be561b51687bf09fe7a2c6d5954cb158e474eb42b9388a65f3e3bc94cb15b6a"
