@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.13.5](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.5) - 2025-07-23
+
+### Fixed
+
+- Respect ordering when loading files from a directory
+
 ## [1.13.4](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.4) - 2025-07-22
 
 ### Fixed
