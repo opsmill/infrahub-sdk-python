@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import sys
 from pathlib import Path
 from shutil import which
-from typing import Any, Union
+from typing import Any
 
 from invoke import Context, task
 from invoke.exceptions import UnexpectedExit
@@ -258,7 +260,7 @@ def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
 
 
 @task(name="generate-sdk-api-docs")
-def generate_sdk_api_docs(context: Context, output: Union[str, None] = None) -> None:
+def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
     """Generate API documentation for the Python SDK."""
 
     import operator

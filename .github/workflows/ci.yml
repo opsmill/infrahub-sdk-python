@@ -54,7 +54,7 @@ jobs:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
 
- # ------------------------------------------ All Linter  ------------------------------------------
+  # ------------------------------------------ All Linter  ------------------------------------------
 
   yaml-lint:
     if: needs.files-changed.outputs.yaml == 'true'
@@ -83,7 +83,6 @@ jobs:
         run: "ruff check ."
       - name: "Linting: ruff format"
         run: "ruff format --check --diff ."
-
 
   markdown-lint:
     if: |
@@ -119,7 +118,6 @@ jobs:
         env:
           SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004 --exclude=SC2129
 
-
   documentation:
     defaults:
       run:
@@ -141,7 +139,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: docs/package-lock.json
       - name: "Install dependencies"
         run: npm install
