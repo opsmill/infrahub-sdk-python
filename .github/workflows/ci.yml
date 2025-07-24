@@ -220,7 +220,7 @@ jobs:
         run: ${{ env.DOCS_COMMAND }}
       - name: "Check if SDK API documentation needs to be refreshed"
         run: |
-          git diff ${SDK_API_DOCS_DIR}
+          git diff --quiet ${SDK_API_DOCS_DIR}
 
   validate-documentation-style:
     if: |
