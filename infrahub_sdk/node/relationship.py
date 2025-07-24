@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
+from ..batch import InfrahubBatch
 from ..exceptions import (
     Error,
     UninitializedError,
@@ -163,12 +164,9 @@ class RelationshipManager(RelationshipManagerBase):
         for peer in self.peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
-            if peer.typename not in ids_per_kind_map:
-                ids_per_kind_map[peer.typename] = [peer.id]
-            else:
-                ids_per_kind_map[peer.typename].append(peer.id)
+            ids_per_kind_map[peer.typename].append(peer.id)
 
-        batch = await self.client.create_batch()
+        batch = InfrahubBatch(max_concurrent_execution=self.client.max_concurrent_execution)
         for kind, ids in ids_per_kind_map.items():
             batch.add(
                 task=self.client.filters,
@@ -289,11 +287,9 @@ class RelationshipManagerSync(RelationshipManagerBase):
         for peer in self.peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
-            if peer.typename not in ids_per_kind_map:
-                ids_per_kind_map[peer.typename] = [peer.id]
-            else:
-                ids_per_kind_map[peer.typename].append(peer.id)
+            ids_per_kind_map[peer.typename].append(peer.id)
 
+        # Unlike Async, no need to create a new batch from scratch because we are not using a semaphore
         batch = self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
             batch.add(
