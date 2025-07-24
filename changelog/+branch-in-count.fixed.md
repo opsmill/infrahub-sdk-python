@@ -1,0 +1,1 @@
+Update internal calls to `count` to include the branch parameter so that the query is performed on the correct branch
