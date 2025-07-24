@@ -208,6 +208,14 @@ jobs:
         run: "poetry install --no-interaction --no-ansi --extras ctl"
       - name: "Setup environment"
         run: "pip install invoke toml"
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - name: Install markdown linter
+        run: npm install -g markdownlint-cli2
       - name: "Generate SDK API documentation"
         run: ${{ env.DOCS_COMMAND }}
       - name: "Check if SDK API documentation needs to be refreshed"
