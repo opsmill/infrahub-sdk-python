@@ -7,49 +7,49 @@ sidebarTitle: relationship
 
 ## Classes
 
-### `RelationshipManagerBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RelationshipManagerBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Base class for RelationshipManager and RelationshipManagerSync
 
 **Methods:**
 
-#### `peer_ids` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `peer_ids` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 peer_ids(self) -> list[str]
 ```
 
-#### `peer_hfids` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `peer_hfids` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 peer_hfids(self) -> list[list[Any]]
 ```
 
-#### `peer_hfids_str` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `peer_hfids_str` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 peer_hfids_str(self) -> list[str]
 ```
 
-#### `has_update` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `has_update` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 has_update(self) -> bool
 ```
 
-### `RelationshipManager` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RelationshipManager` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Manages relationships of a node in an asynchronous context.
 
 **Methods:**
 
-#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch(self) -> None
 ```
 
-#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add(self, data: str | RelatedNode | dict) -> None
@@ -57,7 +57,7 @@ add(self, data: str | RelatedNode | dict) -> None
 
 Add a new peer to this relationship.
 
-#### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 extend(self, data: Iterable[str | RelatedNode | dict]) -> None
@@ -65,25 +65,25 @@ extend(self, data: Iterable[str | RelatedNode | dict]) -> None
 
 Add new peers to this relationship.
 
-#### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove(self, data: str | RelatedNode | dict) -> None
 ```
 
-### `RelationshipManagerSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RelationshipManagerSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Manages relationships of a node in a synchronous context.
 
 **Methods:**
 
-#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch(self) -> None
 ```
 
-#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add(self, data: str | RelatedNodeSync | dict) -> None
@@ -91,7 +91,7 @@ add(self, data: str | RelatedNodeSync | dict) -> None
 
 Add a new peer to this relationship.
 
-#### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `extend` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None
@@ -99,7 +99,7 @@ extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None
 
 Add new peers to this relationship.
 
-#### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `remove` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/infrahub_sdk/node/relationship.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove(self, data: str | RelatedNodeSync | dict) -> None
