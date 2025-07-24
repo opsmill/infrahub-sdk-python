@@ -824,7 +824,7 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind, partial_match=partial_match, **filters)
+            count = await self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1989,7 +1989,7 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind, partial_match=partial_match, **filters)
+            count = self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
