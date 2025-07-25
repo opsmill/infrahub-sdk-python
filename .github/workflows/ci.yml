@@ -245,7 +245,7 @@ jobs:
         env:
           VALE_VERSION: ${{ env.VALE_VERSION }}
       - name: "Validate documentation style"
-        run: ./vale $(find ./docs -type d -name sdk_ref -prune -o -type f \( -name "*.mdx" -o -name "*.md" \) )
+        run: ./vale $(find ./docs -type d -name sdk_ref -prune -false -o -type f \( -name "*.mdx" -o -name "*.md" \) )
 
   unit-tests:
     env:
