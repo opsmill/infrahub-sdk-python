@@ -402,10 +402,10 @@ class InfrahubNodeBase:
         if order:
             data["@filters"]["order"] = order
 
-        if offset:
+        if offset is not None:
             data["@filters"]["offset"] = offset
 
-        if limit:
+        if limit is not None:
             data["@filters"]["limit"] = limit
 
         if include and exclude:
@@ -507,11 +507,17 @@ class InfrahubNode(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNode):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1090,11 +1096,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNodeSync):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1481,15 +1493,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNodeSync):
-                relation = node_data["node"].get(rel_name)
-                if relation.get("node", None):
+                relation = node_data["node"].get(rel_name, None)
+                if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
                         client=self._client, branch=branch, data=relation, timeout=timeout
                     )
                     related_nodes.append(related_node)
             elif rel and isinstance(rel, RelationshipManagerSync):
-                peers = node_data["node"].get(rel_name)
-                if peers:
+                peers = node_data["node"].get(rel_name, None)
+                if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
                             client=self._client, branch=branch, data=peer, timeout=timeout

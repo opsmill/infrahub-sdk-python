@@ -784,7 +784,6 @@ class InfrahubClient(BaseClient):
         if at:
             at = Timestamp(at)
 
-        node = InfrahubNode(client=self, schema=schema, branch=branch)
         filters = kwargs
         pagination_size = self.pagination_size
 
@@ -825,12 +824,12 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind, partial_match=partial_match, **filters)
+            count = await self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
+                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
 
             async for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
@@ -847,7 +846,7 @@ class InfrahubClient(BaseClient):
 
             while has_remaining_items:
                 page_offset = (page_number - 1) * pagination_size
-                response, process_result = await process_page(page_offset, page_number)
+                response, process_result = await process_page(page_offset=page_offset, page_number=page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
@@ -1946,9 +1945,9 @@ class InfrahubClientSync(BaseClient):
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
-        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
         if at:
             at = Timestamp(at)
+
         filters = kwargs
         pagination_size = self.pagination_size
 
@@ -1990,12 +1989,12 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind, partial_match=partial_match, **filters)
+            count = self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(task=process_page, node=node, page_offset=page_offset, page_number=page_number)
+                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
 
             for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
@@ -2012,7 +2011,7 @@ class InfrahubClientSync(BaseClient):
 
             while has_remaining_items:
                 page_offset = (page_number - 1) * pagination_size
-                response, process_result = process_page(page_offset, page_number)
+                response, process_result = process_page(page_offset=page_offset, page_number=page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])

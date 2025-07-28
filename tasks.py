@@ -201,7 +201,7 @@ def lint_vale(context: Context) -> None:
         return
 
     print(" - Check documentation style with vale")
-    exec_cmd = r'vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \))'
+    exec_cmd = r'vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \) -not -path "*/node_modules/*")'
     with context.cd(MAIN_DIRECTORY_PATH):
         context.run(exec_cmd)
 
