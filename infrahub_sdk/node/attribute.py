@@ -34,12 +34,12 @@ class Attribute:
 
         self._read_only = ["updated_at", "is_inherited"]
 
-        self.id: str | None = data.get("id")
+        self.id: str | None = data.get("id", None)
 
-        self._value: Any | None = data.get("value")
+        self._value: Any | None = data.get("value", None)
         self.value_has_been_mutated = False
-        self.is_default: bool | None = data.get("is_default")
-        self.is_from_profile: bool | None = data.get("is_from_profile")
+        self.is_default: bool | None = data.get("is_default", None)
+        self.is_from_profile: bool | None = data.get("is_from_profile", None)
 
         if self._value:
             value_mapper: dict[str, Callable] = {
@@ -49,11 +49,11 @@ class Attribute:
             mapper = value_mapper.get(schema.kind, lambda value: value)
             self._value = mapper(data.get("value"))
 
-        self.is_inherited: bool | None = data.get("is_inherited")
-        self.updated_at: str | None = data.get("updated_at")
+        self.is_inherited: bool | None = data.get("is_inherited", None)
+        self.updated_at: str | None = data.get("updated_at", None)
 
-        self.is_visible: bool | None = data.get("is_visible")
-        self.is_protected: bool | None = data.get("is_protected")
+        self.is_visible: bool | None = data.get("is_visible", None)
+        self.is_protected: bool | None = data.get("is_protected", None)
 
         self.source: NodeProperty | None = None
         self.owner: NodeProperty | None = None
