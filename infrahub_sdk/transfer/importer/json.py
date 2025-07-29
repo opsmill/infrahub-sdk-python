@@ -145,7 +145,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         await self.execute_batches([update_batch], "Adding optional relationships to nodes")
 
     async def update_many_to_many_relationships(self, file: Path) -> None:
-        relationships = ujson.loads(file.read_text())
+        relationships = ujson.loads(file.read_text(encoding="utf-8"))
         update_batch = await self.client.create_batch(return_exceptions=True)
 
         for relationship in relationships:

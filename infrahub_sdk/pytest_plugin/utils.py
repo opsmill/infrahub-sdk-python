@@ -11,7 +11,7 @@ def load_repository_config(repo_config_file: Path) -> InfrahubRepositoryConfig:
         raise FileNotFoundError(repo_config_file)
 
     try:
-        yaml_data = repo_config_file.read_text()
+        yaml_data = repo_config_file.read_text(encoding="utf-8")
         data = yaml.safe_load(yaml_data)
     except yaml.YAMLError as exc:
         raise FileNotValidError(name=str(repo_config_file)) from exc
