@@ -22,6 +22,7 @@ ATTRIBUTE_KIND_MAP = {
     "List": "ListAttribute",
     "JSON": "JSONAttribute",
     "Any": "AnyAttribute",
+    "NumberPool": "Integer",
 }
 
 # The order of the classes in the list determines the order of the classes in the generated code
