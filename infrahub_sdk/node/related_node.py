@@ -34,7 +34,7 @@ class RelatedNodeBase:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self._peer = None
+        self._peer: CoreNodeBase | InfrahubNode | InfrahubNodeSync | None = None
         self._id: str | None = None
         self._hfid: list[str] | None = None
         self._display_label: str | None = None

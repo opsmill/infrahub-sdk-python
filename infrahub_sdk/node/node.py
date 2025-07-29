@@ -580,8 +580,9 @@ class InfrahubNode(InfrahubNodeBase):
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        await artifact._get_relationship_one(name="definition").fetch()
-        await artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
+        if artifact.id:
+            await artifact._get_relationship_one(name="definition").fetch()
+            await artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -1172,8 +1173,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def artifact_generate(self, name: str) -> None:
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        artifact._get_relationship_one(name="definition").fetch()
-        artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
+        if artifact.id:
+            artifact._get_relationship_one(name="definition").fetch()
+            artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
