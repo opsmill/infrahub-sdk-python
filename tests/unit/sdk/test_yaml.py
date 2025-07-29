@@ -1,5 +1,9 @@
 from pathlib import Path
 
+import pytest
+
+from infrahub_sdk.exceptions import FileNotValidError
+from infrahub_sdk.utils import get_fixtures_dir
 from infrahub_sdk.yaml import YamlFile
 
 here = Path(__file__).parent.resolve()
@@ -42,3 +46,9 @@ def test_read_multiple_files_invalid() -> None:
     assert yaml_files[0].valid is True
     assert yaml_files[1].document_position == 2
     assert yaml_files[1].valid is False
+
+
+def test_load_non_existing_folder():
+    with pytest.raises(FileNotValidError) as exc:
+        YamlFile.load_from_disk(paths=[get_fixtures_dir() / "does_not_exist"])
+    assert "does not exist" in str(exc.value)

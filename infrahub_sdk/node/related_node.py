@@ -39,6 +39,7 @@ class RelatedNodeBase:
         self._hfid: list[str] | None = None
         self._display_label: str | None = None
         self._typename: str | None = None
+        self._kind: str | None = None
 
         if isinstance(data, (CoreNodeBase)):
             self._peer = data
@@ -117,6 +118,12 @@ class RelatedNodeBase:
         if self._peer:
             return self._peer.typename
         return self._typename
+
+    @property
+    def kind(self) -> str | None:
+        if self._peer:
+            return self._peer.get_kind()
+        return self._kind
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
