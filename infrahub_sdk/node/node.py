@@ -1053,7 +1053,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         if rel.cardinality != RelationshipCardinality.ONE:
             raise ValueError(
-                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE}"
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE.value}"
             )
 
         related_node: RelatedNode = getattr(self, first)
@@ -1679,7 +1679,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         if rel.cardinality != RelationshipCardinality.ONE:
             raise ValueError(
-                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE}"
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE.value}"
             )
 
         related_node: RelatedNodeSync = getattr(self, first)
