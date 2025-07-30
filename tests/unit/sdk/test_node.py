@@ -1963,7 +1963,7 @@ async def test_get_flat_value(
         assert await tag.get_flat_value(key="primary_tag__display_label") == "red"
         assert await tag.get_flat_value(key="primary_tag.display_label", separator=".") == "red"
 
-        with pytest.raises(ValueError, match="Unable to lookup flat value for relationship of cardinality"):
+        with pytest.raises(ValueError, match="Can only look up flat value for relationships of cardinality one"):
             assert await tag.get_flat_value(key="tags__display_label") == "red"
     else:
         tag = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data01)
@@ -1971,7 +1971,7 @@ async def test_get_flat_value(
         assert tag.get_flat_value(key="primary_tag__display_label") == "red"
         assert tag.get_flat_value(key="primary_tag.display_label", separator=".") == "red"
 
-        with pytest.raises(ValueError, match="Unable to lookup flat value for relationship of cardinality"):
+        with pytest.raises(ValueError, match="Can only look up flat value for relationships of cardinality one"):
             assert tag.get_flat_value(key="tags__display_label") == "red"
 
 
