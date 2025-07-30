@@ -1029,7 +1029,7 @@ class InfrahubNode(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     async def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively an value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
 
         Examples:
             name__value
@@ -1053,7 +1053,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         if rel.cardinality != RelationshipCardinality.ONE:
             raise ValueError(
-                f"Unable to lookup flat value for relationship of cardinality {RelationshipCardinality.MANY}"
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE}"
             )
 
         related_node: RelatedNode = getattr(self, first)
@@ -1655,7 +1655,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively an value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
 
         Examples:
             name__value
@@ -1679,7 +1679,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         if rel.cardinality != RelationshipCardinality.ONE:
             raise ValueError(
-                f"Unable to lookup flat value for relationship of cardinality {RelationshipCardinality.MANY}"
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE}"
             )
 
         related_node: RelatedNodeSync = getattr(self, first)
