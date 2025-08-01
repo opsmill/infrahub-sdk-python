@@ -262,6 +262,12 @@ def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
 def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
     """Generate API documentation for the Python SDK."""
 
+    # This is the list of code modules to generate documentation for.
+    MODULES_LIST = [
+        "infrahub_sdk.client",
+        "infrahub_sdk.node.node",
+    ]
+
     import operator
     import shutil
     import tempfile
@@ -276,7 +282,7 @@ def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
     # Create a temporary directory to store the generated documentation
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Generate the API documentation using mdxify and get flat file structure
-        exec_cmd = f"mdxify --all --root-module infrahub_sdk --output-dir {tmp_dir}"
+        exec_cmd = f"mdxify {' '.join(MODULES_LIST)} --output-dir {tmp_dir}"
         context.run(exec_cmd, pty=True)
 
         # Remove current obsolete documentation file structure
