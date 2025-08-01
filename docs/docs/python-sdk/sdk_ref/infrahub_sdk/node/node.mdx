@@ -91,14 +91,6 @@ get_raw_graphql_data(self) -> dict | None
 generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None) -> dict[str, Any | dict]
 ```
 
-#### `extract`
-
-```python
-extract(self, params: dict[str, str]) -> dict[str, Any]
-```
-
-Extract some data points defined in a flat notation.
-
 ### `InfrahubNode`
 
 Represents a Infrahub node in an asynchronous context.
@@ -220,6 +212,27 @@ Fetch the utilization of each resource for the pool.
 
 - list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+#### `get_flat_value`
+
+```python
+get_flat_value(self, key: str, separator: str = '__') -> Any
+```
+
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+**Examples:**
+
+name__value
+module.object.value
+
+#### `extract`
+
+```python
+extract(self, params: dict[str, str]) -> dict[str, Any]
+```
+
+Extract some datapoints defined in a flat notation.
+
 ### `InfrahubNodeSync`
 
 Represents a Infrahub node in a synchronous context.
@@ -340,3 +353,24 @@ Fetch the utilization of each resource for the pool.
 **Returns:**
 
 - list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+#### `get_flat_value`
+
+```python
+get_flat_value(self, key: str, separator: str = '__') -> Any
+```
+
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+**Examples:**
+
+name__value
+module.object.value
+
+#### `extract`
+
+```python
+extract(self, params: dict[str, str]) -> dict[str, Any]
+```
+
+Extract some datapoints defined in a flat notation.
