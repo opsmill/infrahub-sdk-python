@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Optional
 import typer
 from rich.console import Console
 
-from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.utils import execute_graphql_query, init_logging, parse_cli_vars

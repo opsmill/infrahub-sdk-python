@@ -11,7 +11,6 @@ import typer
 from rich.console import Console
 from rich.logging import RichHandler
 
-from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.repository import find_repository_config_file, get_repository_config
