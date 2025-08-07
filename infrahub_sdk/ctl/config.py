@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 DEFAULT_CONFIG_FILE = "infrahubctl.toml"
 ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
 INFRAHUB_REPO_CONFIG_FILE = ".infrahub.yml"
+INFRAHUB_REPO_CONFIG_FILE_ALT = ".infrahub.yaml"
 
 
 class Settings(BaseSettings):
@@ -69,7 +70,7 @@ class ConfiguredSettings:
     def load_and_exit(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
         """Calls load, but wraps it in a try except block.
 
-        This is done to handle a ValidationErorr which is raised when settings are specified but invalid.
+        This is done to handle a ValidationError which is raised when settings are specified but invalid.
         In such cases, a message is printed to the screen indicating the settings which don't pass validation.
 
         Args:
