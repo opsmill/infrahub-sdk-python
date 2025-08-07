@@ -8,7 +8,7 @@ from ..constants import InfrahubClientMode
 from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
 from ..graphql import Mutation, Query
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
-from ..utils import compare_lists, generate_short_id, get_flat_value
+from ..utils import compare_lists, generate_short_id
 from .attribute import Attribute
 from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
@@ -402,10 +402,10 @@ class InfrahubNodeBase:
         if order:
             data["@filters"]["order"] = order
 
-        if offset:
+        if offset is not None:
             data["@filters"]["offset"] = offset
 
-        if limit:
+        if limit is not None:
             data["@filters"]["limit"] = limit
 
         if include and exclude:
@@ -417,14 +417,6 @@ class InfrahubNodeBase:
             data["@filters"]["partial_match"] = True
 
         return data
-
-    def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
-        result: dict[str, Any] = {}
-        for key, value in params.items():
-            result[key] = get_flat_value(self, key=value)
-
-        return result
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -507,11 +499,17 @@ class InfrahubNode(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNode):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1030,6 +1028,46 @@ class InfrahubNode(InfrahubNodeBase):
 
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
+    async def get_flat_value(self, key: str, separator: str = "__") -> Any:
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+        Examples:
+            name__value
+            module.object.value
+        """
+        if separator not in key:
+            return getattr(self, key)
+
+        first, remaining = key.split(separator, maxsplit=1)
+
+        if first in self._schema.attribute_names:
+            attr = getattr(self, first)
+            for part in remaining.split(separator):
+                attr = getattr(attr, part)
+            return attr
+
+        try:
+            rel = self._schema.get_relationship(name=first)
+        except ValueError as exc:
+            raise ValueError(f"No attribute or relationship named '{first}' for '{self._schema.kind}'") from exc
+
+        if rel.cardinality != RelationshipCardinality.ONE:
+            raise ValueError(
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE.value}"
+            )
+
+        related_node: RelatedNode = getattr(self, first)
+        await related_node.fetch()
+        return await related_node.peer.get_flat_value(key=remaining, separator=separator)
+
+    async def extract(self, params: dict[str, str]) -> dict[str, Any]:
+        """Extract some datapoints defined in a flat notation."""
+        result: dict[str, Any] = {}
+        for key, value in params.items():
+            result[key] = await self.get_flat_value(key=value)
+
+        return result
+
     def __dir__(self) -> Iterable[str]:
         base = list(super().__dir__())
         return sorted(
@@ -1090,11 +1128,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if rel_schema.cardinality == "one":
                 if isinstance(rel_data, RelatedNodeSync):
-                    peer_id_data: dict[str, Any] = {}
-                    if rel_data.id:
-                        peer_id_data["id"] = rel_data.id
-                    if rel_data.hfid:
-                        peer_id_data["hfid"] = rel_data.hfid
+                    peer_id_data: dict[str, Any] = {
+                        key: value
+                        for key, value in (
+                            ("id", rel_data.id),
+                            ("hfid", rel_data.hfid),
+                            ("__typename", rel_data.typename),
+                            ("kind", rel_data.kind),
+                            ("display_label", rel_data.display_label),
+                        )
+                        if value is not None
+                    }
                     if peer_id_data:
                         rel_data = peer_id_data
                     else:
@@ -1481,15 +1525,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNodeSync):
-                relation = node_data["node"].get(rel_name)
-                if relation.get("node", None):
+                relation = node_data["node"].get(rel_name, None)
+                if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
                         client=self._client, branch=branch, data=relation, timeout=timeout
                     )
                     related_nodes.append(related_node)
             elif rel and isinstance(rel, RelationshipManagerSync):
-                peers = node_data["node"].get(rel_name)
-                if peers:
+                peers = node_data["node"].get(rel_name, None)
+                if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
                             client=self._client, branch=branch, data=peer, timeout=timeout
@@ -1609,6 +1653,46 @@ class InfrahubNodeSync(InfrahubNodeBase):
             return self._relationship_cardinality_one_data[name]
 
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
+
+    def get_flat_value(self, key: str, separator: str = "__") -> Any:
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+        Examples:
+            name__value
+            module.object.value
+        """
+        if separator not in key:
+            return getattr(self, key)
+
+        first, remaining = key.split(separator, maxsplit=1)
+
+        if first in self._schema.attribute_names:
+            attr = getattr(self, first)
+            for part in remaining.split(separator):
+                attr = getattr(attr, part)
+            return attr
+
+        try:
+            rel = self._schema.get_relationship(name=first)
+        except ValueError as exc:
+            raise ValueError(f"No attribute or relationship named '{first}' for '{self._schema.kind}'") from exc
+
+        if rel.cardinality != RelationshipCardinality.ONE:
+            raise ValueError(
+                f"Can only look up flat value for relationships of cardinality {RelationshipCardinality.ONE.value}"
+            )
+
+        related_node: RelatedNodeSync = getattr(self, first)
+        related_node.fetch()
+        return related_node.peer.get_flat_value(key=remaining, separator=separator)
+
+    def extract(self, params: dict[str, str]) -> dict[str, Any]:
+        """Extract some datapoints defined in a flat notation."""
+        result: dict[str, Any] = {}
+        for key, value in params.items():
+            result[key] = self.get_flat_value(key=value)
+
+        return result
 
     def __dir__(self) -> Iterable[str]:
         base = list(super().__dir__())

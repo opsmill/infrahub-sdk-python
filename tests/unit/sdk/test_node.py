@@ -196,7 +196,13 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
 
 
 @pytest.mark.parametrize("client_type", client_types)
-@pytest.mark.parametrize("rel_data", [{"id": "pppppppp"}, {"hfid": ["pppp", "pppp"]}])
+@pytest.mark.parametrize(
+    "rel_data",
+    [
+        {"id": "pppppppp", "__typename": "BuiltinTag"},
+        {"hfid": ["pppp", "pppp"], "display_label": "mmmm", "kind": "BuiltinTag"},
+    ],
+)
 async def test_init_node_data_user_with_relationships_using_related_node(
     client, location_schema: NodeSchemaAPI, client_type, rel_data
 ):
@@ -231,6 +237,9 @@ async def test_init_node_data_user_with_relationships_using_related_node(
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == rel_data.get("id")
     assert node.primary_tag.hfid == rel_data.get("hfid")
+    assert node.primary_tag.typename == rel_data.get("__typename")
+    assert node.primary_tag.kind == rel_data.get("kind")
+    assert node.primary_tag.display_label == rel_data.get("display_label")
 
     keys = dir(node)
     assert "name" in keys
@@ -1877,6 +1886,19 @@ async def test_node_fetch_relationship(
         "data": {
             "BuiltinTag": {
                 "count": 1,
+            }
+        }
+    }
+
+    httpx_mock.add_response(
+        method="POST",
+        json=response2,
+    )
+
+    response3 = {
+        "data": {
+            "BuiltinTag": {
+                "count": 1,
                 "edges": [
                     tag_blue_data,
                 ],
@@ -1886,7 +1908,7 @@ async def test_node_fetch_relationship(
 
     httpx_mock.add_response(
         method="POST",
-        json=response2,
+        json=response3,
         match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
     )
 
@@ -1938,23 +1960,52 @@ async def test_node_IPNetwork_deserialization(client, ipnetwork_schema, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_extract(client, location_schema, location_data01, client_type):
+async def test_get_flat_value(
+    httpx_mock: HTTPXMock, mock_schema_query_01, clients, location_schema, location_data01, client_type
+):
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinTag": {"count": 1, "edges": [location_data01["node"]["primary_tag"]]}}},
+        match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
+        is_reusable=True,
+    )
+
     if client_type == "standard":
-        node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+        tag = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data01)
+        assert await tag.get_flat_value(key="name__value") == "DFW"
+        assert await tag.get_flat_value(key="primary_tag__display_label") == "red"
+        assert await tag.get_flat_value(key="primary_tag.display_label", separator=".") == "red"
+
+        with pytest.raises(ValueError, match="Can only look up flat value for relationships of cardinality one"):
+            assert await tag.get_flat_value(key="tags__display_label") == "red"
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+        tag = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data01)
+        assert tag.get_flat_value(key="name__value") == "DFW"
+        assert tag.get_flat_value(key="primary_tag__display_label") == "red"
+        assert tag.get_flat_value(key="primary_tag.display_label", separator=".") == "red"
 
-    params = {
-        "identifier": "id",
-        "name": "name__value",
-        "description": "description__value",
-    }
+        with pytest.raises(ValueError, match="Can only look up flat value for relationships of cardinality one"):
+            assert tag.get_flat_value(key="tags__display_label") == "red"
 
-    assert node.extract(params=params) == {
-        "description": None,
-        "identifier": "llllllll-llll-llll-llll-llllllllllll",
-        "name": "DFW",
-    }
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_extract(clients, location_schema, location_data01, client_type):
+    params = {"identifier": "id", "name": "name__value", "description": "description__value"}
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data01)
+        assert await node.extract(params=params) == {
+            "description": None,
+            "identifier": "llllllll-llll-llll-llll-llllllllllll",
+            "name": "DFW",
+        }
+
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data01)
+        assert node.extract(params=params) == {
+            "description": None,
+            "identifier": "llllllll-llll-llll-llll-llllllllllll",
+            "name": "DFW",
+        }
 
 
 @pytest.mark.parametrize("client_type", client_types)

@@ -187,6 +187,9 @@ def load_yamlfile_from_disk_and_exit(
     has_error = False
     try:
         data_files = file_type.load_from_disk(paths=paths)
+        if not data_files:
+            console.print("[red]No valid files found to load.")
+            raise typer.Exit(1)
     except FileNotValidError as exc:
         console.print(f"[red]{exc.message}")
         raise typer.Exit(1) from exc

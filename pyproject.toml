@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.13.2"
+version = "1.13.5"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -45,6 +45,7 @@ dulwich = "^0.21.4"
 whenever = ">=0.7.2,<0.8.0"
 netutils = "^1.0.0"
 click = { version = "8.1.*", optional = true }
+copier = { version = "^9.8.0", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -69,7 +70,7 @@ infrahub-testcontainers = { version = "^1.2.5", python = ">=3.10" }
 astroid = "~3.1"
 
 [tool.poetry.extras]
-ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "toml", "typer", "click"]
+ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "toml", "typer", "click", "copier"]
 tests = ["Jinja2", "pytest", "pyyaml", "rich"]
 all = [
     "Jinja2",
@@ -81,6 +82,7 @@ all = [
     "toml",
     "typer",
     "click",
+    "copier",
 ]
 
 [tool.poetry.scripts]
@@ -112,10 +114,6 @@ disallow_untyped_defs = true
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
 disable_error_code = ["call-overload"]
-
-[[tool.mypy.overrides]]
-module = "infrahub_sdk.ctl.schema"
-disable_error_code = ["arg-type", "attr-defined", "misc", "union-attr"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
