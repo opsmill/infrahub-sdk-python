@@ -6,7 +6,6 @@ import pytest
 from graphql import parse
 from whenever import Instant
 
-from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.utils import (
     base16decode,
     base16encode,
@@ -19,7 +18,6 @@ from infrahub_sdk.utils import (
     duplicates,
     extract_fields,
     generate_short_id,
-    get_flat_value,
     is_valid_url,
     is_valid_uuid,
     str_to_bool,
@@ -141,13 +139,6 @@ def test_base16():
     assert base16decode("139b5be157694069") == 1412823931503067241
     assert base16decode(base16encode(-9223372036721928027)) == -9223372036721928027
     assert base16decode(base16encode(1412823931503067241)) == 1412823931503067241
-
-
-def test_get_flat_value(client, tag_schema, tag_green_data):
-    tag = InfrahubNode(client=client, schema=tag_schema, data=tag_green_data)
-    assert get_flat_value(obj=tag, key="name__value") == "green"
-    assert get_flat_value(obj=tag, key="name__source__display_label") == "CRM"
-    assert get_flat_value(obj=tag, key="name.source.display_label", separator=".") == "CRM"
 
 
 def test_dict_hash():

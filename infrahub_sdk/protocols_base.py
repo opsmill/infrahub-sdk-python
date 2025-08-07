@@ -204,8 +204,6 @@ class CoreNodeBase(Protocol):
 
     def get_raw_graphql_data(self) -> dict | None: ...
 
-    def extract(self, params: dict[str, str]) -> dict[str, Any]: ...
-
 
 @runtime_checkable
 class CoreNode(CoreNodeBase, Protocol):
