@@ -20,7 +20,6 @@ from rich.table import Table
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
-from ..ctl import config
 from ..ctl.branch import app as branch_app
 from ..ctl.check import run as run_check
 from ..ctl.client import initialize_client, initialize_client_sync
