@@ -142,14 +142,18 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     if path is None:
         path = []
     for key in dictb:
+        b_val = dictb[key]
         if key in dicta:
-            if isinstance(dicta[key], dict) and isinstance(dictb[key], dict):
-                deep_merge_dict(dicta[key], dictb[key], path + [str(key)])
-            elif isinstance(dicta[key], list) and isinstance(dictb[key], list):
+            a_val = dicta[key]
+            if isinstance(a_val, dict) and isinstance(b_val, dict):
+                deep_merge_dict(a_val, b_val, path + [str(key)])
+            elif isinstance(a_val, list) and isinstance(b_val, list):
                 # Merge lists
                 # Cannot use compare_list because list of dicts won't work (dict not hashable)
-                dicta[key] = [i for i in dicta[key] if i not in dictb[key]] + dictb[key]
-            elif dicta[key] == dictb[key]:
+                dicta[key] = [i for i in a_val if i not in b_val] + b_val
+            elif a_val is None and b_val is not None:
+                dicta[key] = b_val
+            elif a_val == b_val or (a_val is not None and b_val is None):
                 continue
             else:
                 raise ValueError("Conflict at %s" % ".".join(path + [str(key)]))
