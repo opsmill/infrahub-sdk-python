@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 class InfrahubGraphQLQueryItem(InfrahubItem):
     def validate_resource_config(self) -> None:
-        # Resource name does not need to match against infrahub repo config
+        # Resource name does not need to match against Infrahub repository configuration
         return
 
     def execute_query(self) -> Any:
