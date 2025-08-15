@@ -95,7 +95,7 @@ def decode_json(response: httpx.Response) -> dict:
     try:
         return response.json()
     except json.decoder.JSONDecodeError as exc:
-        raise JsonDecodeError(content=response.text, url=response.url) from exc
+        raise JsonDecodeError(content=response.text, url=str(response.url)) from exc
 
 
 def generate_uuid() -> str:
@@ -232,7 +232,7 @@ def get_branch(branch: str | None = None, directory: str | Path = ".") -> str:
     if branch:
         return branch
 
-    repo = GitRepoManager(directory)
+    repo = GitRepoManager(root_directory=str(directory))
     return str(repo.active_branch)
 
 
