@@ -24,7 +24,7 @@ ResourceClass = TypeVar("ResourceClass")
 
 
 class InfrahubRepositoryConfigElement(BaseModel):
-    """Class to regroup all elements of the infrahub configuration for a repository for typing purpose."""
+    """Class to regroup all elements of the Infrahub configuration for a repository for typing purpose."""
 
 
 class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement):
