@@ -42,7 +42,7 @@ Create an `InfrahubClientSync` for traditional synchronous code:
 ```python
 from infrahub_sdk import InfrahubClientSync
 
-# Connect to local Infrahub instance  
+# Connect to local Infrahub instance
 client = InfrahubClientSync(address="http://localhost:8000")
 
 # Connect to remote instance
@@ -67,7 +67,7 @@ API tokens provide secure, long-lived authentication. Set them via environment v
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
@@ -92,7 +92,7 @@ For interactive authentication, use username and password. The SDK automatically
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
@@ -121,7 +121,7 @@ To troubleshoot or understand the queries being sent to Infrahub, enable query e
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
@@ -154,7 +154,7 @@ Use `INFRAHUB_PROXY` environment variable or the `proxy` configuration parameter
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
@@ -188,7 +188,7 @@ export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import InfrahubClientSync
@@ -220,7 +220,7 @@ Configure your client to work with a specific Infrahub branch. This is useful fo
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import InfrahubClientSync, Config
@@ -260,12 +260,12 @@ To verify your client is properly configured and can connect to Infrahub, test t
   ```
 
   </TabItem>
-  <TabItem value="Sync" default>
+  <TabItem value="Sync">
 
   ```python
   from infrahub_sdk import InfrahubClientSync, Config
   
-  # Test connection and authentication  
+  # Test connection and authentication
   def test_connection():
       client = InfrahubClientSync(address="http://localhost:8000")
       
