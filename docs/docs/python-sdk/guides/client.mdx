@@ -145,16 +145,11 @@ Use `INFRAHUB_PROXY` environment variable or the `proxy` configuration parameter
 
   ```python
   from infrahub_sdk import Config, InfrahubClient
-  # Programmatic configuration
-  config = Config(proxy_mounts={
-      "http": "http://http-proxy.example.com:8080",
-      "https": "http://https-proxy.example.com:8080",
-  })
+  config = Config(proxy="http://proxy.example.com:8080")
   client = InfrahubClient(config=config)
-
-  # Or using environment variables
-  # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
-  # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
+  
+  # Or using environment variable
+  # export INFRAHUB_PROXY=http://proxy.example.com:8080
   client = InfrahubClient()
   ```
 
@@ -163,52 +158,24 @@ Use `INFRAHUB_PROXY` environment variable or the `proxy` configuration parameter
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
-  # Programmatic configuration
-  config = Config(proxy_mounts={
-      "http": "http://http-proxy.example.com:8080",
-      "https": "http://https-proxy.example.com:8080",
-  })
+  config = Config(proxy="http://proxy.example.com:8080")
   client = InfrahubClientSync(config=config)
-  ### Separate proxies for HTTP and HTTPS
+  
+  # Or using environment variable
+  # export INFRAHUB_PROXY=http://proxy.example.com:8080
+  client = InfrahubClientSync()
+  ```
 
-  <Tabs groupId="async-sync">
-    <TabItem value="Async" default>
+  </TabItem>
+</Tabs>
 
-    ```python
-    from infrahub_sdk import Config, InfrahubClient
-    # Programmatic configuration
-    config = Config(proxy_mounts={
-        "http": "http://http-proxy.example.com:8080",
-        "https": "http://https-proxy.example.com:8080",
-    })
-    client = InfrahubClient(config=config)
+### Separate proxies for HTTP and HTTPS
 
-    # Or using environment variables
-    # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
-    # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
-    client = InfrahubClient()
-    ```
+Use `INFRAHUB_PROXY_MOUNTS_HTTP` and `INFRAHUB_PROXY_MOUNTS_HTTPS` environment variables to configure different proxies for HTTP and HTTPS requests:
 
-    </TabItem>
-    <TabItem value="Sync">
-
-    ```python
-    from infrahub_sdk import Config, InfrahubClientSync
-    # Programmatic configuration
-    config = Config(proxy_mounts={
-        "http": "http://http-proxy.example.com:8080",
-        "https": "http://https-proxy.example.com:8080",
-    })
-    client = InfrahubClientSync(config=config)
-
-    # Or using environment variables
-    # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
-    # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
-    client = InfrahubClientSync()
-    ```
-
-    </TabItem>
-  </Tabs>
+```bash
+export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
+export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
 ```
 
 <Tabs groupId="async-sync">
@@ -282,10 +249,10 @@ To verify your client is properly configured and can connect to Infrahub, test t
   async def test_connection():
       client = InfrahubClient(address="http://localhost:8000")
       
-      # Try to fetch schema to validate connection
+      # Try to query accounts to validate connection
       try:
-          schema = await client.schema.get()
-          print(f"Successfully connected to Infrahub! Schema version: {schema.version}")
+          accounts = await client.all(kind="CoreAccount")
+          print(f"Successfully connected to Infrahub! Found {len(accounts)} accounts")
       except Exception as e:
           print(f"Connection failed: {e}")
   
@@ -303,10 +270,10 @@ To verify your client is properly configured and can connect to Infrahub, test t
   def test_connection():
       client = InfrahubClientSync(address="http://localhost:8000")
       
-      # Try to fetch schema to validate connection
+      # Try to query accounts to validate connection
       try:
-          schema = client.schema.get()
-          print(f"Successfully connected to Infrahub! Schema version: {schema.version}")
+          accounts = client.all(kind="CoreAccount")
+          print(f"Successfully connected to Infrahub! Found {len(accounts)} accounts")
       except Exception as e:
           print(f"Connection failed: {e}")
   
