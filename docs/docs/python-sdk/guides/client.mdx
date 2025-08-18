@@ -145,11 +145,16 @@ Use `INFRAHUB_PROXY` environment variable or the `proxy` configuration parameter
 
   ```python
   from infrahub_sdk import Config, InfrahubClient
-  config = Config(proxy="http://proxy.example.com:8080")
+  # Programmatic configuration
+  config = Config(proxy_mounts={
+      "http": "http://http-proxy.example.com:8080",
+      "https": "http://https-proxy.example.com:8080",
+  })
   client = InfrahubClient(config=config)
-  
-  # Or using environment variable
-  # export INFRAHUB_PROXY=http://proxy.example.com:8080
+
+  # Or using environment variables
+  # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
+  # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
   client = InfrahubClient()
   ```
 
@@ -158,24 +163,52 @@ Use `INFRAHUB_PROXY` environment variable or the `proxy` configuration parameter
 
   ```python
   from infrahub_sdk import Config, InfrahubClientSync
-  config = Config(proxy="http://proxy.example.com:8080")
+  # Programmatic configuration
+  config = Config(proxy_mounts={
+      "http": "http://http-proxy.example.com:8080",
+      "https": "http://https-proxy.example.com:8080",
+  })
   client = InfrahubClientSync(config=config)
-  
-  # Or using environment variable
-  # export INFRAHUB_PROXY=http://proxy.example.com:8080
-  client = InfrahubClientSync()
-  ```
+  ### Separate proxies for HTTP and HTTPS
 
-  </TabItem>
-</Tabs>
+  <Tabs groupId="async-sync">
+    <TabItem value="Async" default>
 
-### Separate proxies for HTTP and HTTPS
+    ```python
+    from infrahub_sdk import Config, InfrahubClient
+    # Programmatic configuration
+    config = Config(proxy_mounts={
+        "http": "http://http-proxy.example.com:8080",
+        "https": "http://https-proxy.example.com:8080",
+    })
+    client = InfrahubClient(config=config)
 
-Use `INFRAHUB_PROXY_MOUNTS_HTTP` and `INFRAHUB_PROXY_MOUNTS_HTTPS` environment variables to configure different proxies for HTTP and HTTPS requests:
+    # Or using environment variables
+    # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
+    # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
+    client = InfrahubClient()
+    ```
 
-```bash
-export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
-export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
+    </TabItem>
+    <TabItem value="Sync">
+
+    ```python
+    from infrahub_sdk import Config, InfrahubClientSync
+    # Programmatic configuration
+    config = Config(proxy_mounts={
+        "http": "http://http-proxy.example.com:8080",
+        "https": "http://https-proxy.example.com:8080",
+    })
+    client = InfrahubClientSync(config=config)
+
+    # Or using environment variables
+    # export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
+    # export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
+    client = InfrahubClientSync()
+    ```
+
+    </TabItem>
+  </Tabs>
 ```
 
 <Tabs groupId="async-sync">
@@ -243,6 +276,7 @@ To verify your client is properly configured and can connect to Infrahub, test t
 
   ```python
   from infrahub_sdk import InfrahubClient, Config
+  import asyncio
   
   # Test connection and authentication
   async def test_connection():
@@ -256,7 +290,7 @@ To verify your client is properly configured and can connect to Infrahub, test t
           print(f"Connection failed: {e}")
   
   # Run the test
-  await test_connection()
+  asyncio.run(test_connection())
   ```
 
   </TabItem>
