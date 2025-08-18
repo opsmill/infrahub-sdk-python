@@ -1,40 +1,61 @@
 ---
-title: Creating a client
+title: How to create and configure an Infrahub client
 ---
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Creating an Infrahub client
+# How to create and configure an Infrahub client
 
-Interfacing with Infrahub through the Python SDK is performed using a client object. A client object defines the Infrahub instance that you will be interfacing with. It provides methods to query data, create data, manage the schema and branches in Infrahub.
+This guide shows you how to create and configure an Infrahub client using the Python SDK. You'll learn how to set up authentication, configure proxy settings, and customize client behavior for your infrastructure automation workflows.
 
-The Python SDK supports synchronous and asynchronous Python.
+The Infrahub client is your primary interface for querying data, creating objects, managing schemas, and working with branches in Infrahub.
 
-## Asynchronous Python
+## Prerequisites
 
-The default client class `InfrahubClient` provides the asynchronous version.
+- Python 3.9 or higher
+- Infrahub SDK installed (`pip install infrahub-sdk` or `poetry add infrahub-sdk`)
+- Access to an Infrahub instance (local or remote)
+- Valid credentials (API token or username/password) if authentication is required
+
+## Step 1: Create a basic client connection
+
+Choose between asynchronous or synchronous client based on your application's needs.
+
+### For asynchronous applications
+
+Create an `InfrahubClient` for async/await workflows:
 
 ```python
 from infrahub_sdk import InfrahubClient
+
+# Connect to local Infrahub instance
 client = InfrahubClient(address="http://localhost:8000")
+
+# Connect to remote instance
+client = InfrahubClient(address="https://sandbox.infrahub.app")
 ```
 
-## Synchronous Python
+### For synchronous applications
 
-The `InfrahubClientSync` class provides the synchronous version.
+Create an `InfrahubClientSync` for traditional synchronous code:
 
 ```python
 from infrahub_sdk import InfrahubClientSync
+
+# Connect to local Infrahub instance  
 client = InfrahubClientSync(address="http://localhost:8000")
+
+# Connect to remote instance
+client = InfrahubClientSync(address="https://sandbox.infrahub.app")
 ```
 
-## Authentication
+## Step 2: Configure authentication (optional)
 
-The SDK can use API Tokens or JWT Tokens to authenticate with the REST API and GraphQL.
+If your Infrahub instance requires authentication, configure it using either API tokens or username/password credentials.
 
-### API tokens
+### Using API tokens
 
-The API token can be provided using a `Config` object or you can define it as the `INFRAHUB_API_TOKEN` environment variable.
+API tokens provide secure, long-lived authentication. Set them via environment variable or directly in code:
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -57,9 +78,9 @@ The API token can be provided using a `Config` object or you can define it as th
   </TabItem>
 </Tabs>
 
-### JWT tokens
+### Using username/password (JWT tokens)
 
-The username and password of the user can be provided using a `Config` object or you can define them using the `INFRAHUB_USERNAME` and `INFRAHUB_PASSWORD` environment variables. The usage of JWT Tokens is completely transparent to the user, including the process of refreshing the JWT token.
+For interactive authentication, use username and password. The SDK automatically handles JWT token generation and refresh:
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -82,9 +103,13 @@ The username and password of the user can be provided using a `Config` object or
   </TabItem>
 </Tabs>
 
-## Configuring the client object
+## Step 3: Configure client options (optional)
 
-The client object can be configured by providing a `Config` object. Here we will show you how to enable the client to print out all of the GraphQL queries it will send to Infrahub.
+Customize client behavior using a `Config` object to enable debugging, set timeouts, or modify other settings.
+
+### Enable GraphQL query debugging
+
+To troubleshoot or understand the queries being sent to Infrahub, enable query echoing:
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -107,11 +132,80 @@ The client object can be configured by providing a `Config` object. Here we will
   </TabItem>
 </Tabs>
 
-More details on the available configuration options can be found [SDK configuration reference](../../python-sdk/reference/config).
+## Step 4: Configure proxy settings (optional)  
 
-## Setting the default branch
+If you're behind a corporate firewall or need to route traffic through a proxy, configure proxy settings for HTTP requests.
 
-The client object can be configured to use a specific branch in Infrahub. By default the client will use the main branch, but you can change this to be any other branch. The methods, provided by the client, have a branch argument which allow you to specific against which branch you want to execute the functionality provided by the branch. If this argument is not provided then the `default_branch` of the client will be used.
+### Single proxy for all requests
+
+Use `INFRAHUB_PROXY` environment variable or the `proxy` config parameter to set a single proxy for all HTTP and HTTPS requests:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk import Config, InfrahubClient
+  config = Config(proxy="http://proxy.example.com:8080")
+  client = await InfrahubClient(config=config)
+  
+  # Or using environment variable
+  # export INFRAHUB_PROXY=http://proxy.example.com:8080
+  client = await InfrahubClient()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk import Config, InfrahubClientSync
+  config = Config(proxy="http://proxy.example.com:8080")
+  client = InfrahubClientSync(config=config)
+  
+  # Or using environment variable
+  # export INFRAHUB_PROXY=http://proxy.example.com:8080
+  client = InfrahubClientSync()
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Separate proxies for HTTP and HTTPS
+
+Use `INFRAHUB_PROXY_MOUNTS_HTTP` and `INFRAHUB_PROXY_MOUNTS_HTTPS` environment variables to configure different proxies for HTTP and HTTPS requests:
+
+```bash
+export INFRAHUB_PROXY_MOUNTS_HTTP=http://http-proxy.example.com:8080
+export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
+```
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk import InfrahubClient
+  # Proxy configuration is read from environment variables
+  client = await InfrahubClient()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk import InfrahubClientSync
+  # Proxy configuration is read from environment variables
+  client = InfrahubClientSync()
+  ```
+
+  </TabItem>
+</Tabs>
+
+:::warning
+The `proxy` and `proxy_mounts` configurations are mutually exclusive. You cannot use both at the same time.
+:::
+
+## Step 5: Set the default branch (optional)
+
+Configure your client to work with a specific Infrahub branch. This is useful for development workflows where you want to isolate changes.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -139,3 +233,68 @@ The client object can be configured to use a specific branch in Infrahub. By def
 
   </TabItem>
 </Tabs>
+
+## Validation
+
+To verify your client is properly configured and can connect to Infrahub, test the connection:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk import InfrahubClient, Config
+  
+  # Test connection and authentication
+  async def test_connection():
+      client = InfrahubClient(address="http://localhost:8000")
+      
+      # Try to fetch schema to validate connection
+      try:
+          schema = await client.schema.get()
+          print(f"Successfully connected to Infrahub! Schema version: {schema.version}")
+      except Exception as e:
+          print(f"Connection failed: {e}")
+  
+  # Run the test
+  await test_connection()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk import InfrahubClientSync, Config
+  
+  # Test connection and authentication  
+  def test_connection():
+      client = InfrahubClientSync(address="http://localhost:8000")
+      
+      # Try to fetch schema to validate connection
+      try:
+          schema = client.schema.get()
+          print(f"Successfully connected to Infrahub! Schema version: {schema.version}")
+      except Exception as e:
+          print(f"Connection failed: {e}")
+  
+  # Run the test
+  test_connection()
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Next steps
+
+Now that you have a configured client, you can:
+
+- **Query data**: Learn how to [query objects and data](./query_data) from Infrahub
+- **Create and update objects**: Follow the [create, update, delete guide](./create_update_delete) to modify data
+- **Work with branches**: Use the [branches guide](./branches) to manage different versions of your infrastructure
+- **Batch operations**: Process multiple objects efficiently with [batch operations](./batch)
+
+## Related resources
+
+- [SDK Configuration Reference](../reference/config) - Complete list of configuration options
+- [Installation Guide](./installation) - Detailed installation instructions
+- [Python Typing Guide](./python-typing) - Type hints and IDE integration
+- [Tracking Guide](./tracking) - Monitor and trace SDK operations
