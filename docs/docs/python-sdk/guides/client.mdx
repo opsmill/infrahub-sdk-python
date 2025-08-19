@@ -25,8 +25,10 @@ If you prefer to jump right in, check out the ["Hello World" example](#hello-wor
 
 :::info Asynchronous vs. Synchronous Clients
 The SDK offers both asynchronous and synchronous client implementations. Choose the one that best fits your application architecture:
+
 - **Asynchronous client** (`InfrahubClient`): Ideal for modern async applications using Python's `async`/`await` syntax
 - **Synchronous client** (`InfrahubClientSync`): Better for traditional synchronous workflows or scripts
+
 :::
 
 <Tabs groupId="async-sync">
@@ -62,6 +64,7 @@ Next, configure the address of your Infrahub instance and set up authentication 
 
 :::info Configuration Methods
 You can configure the client in two ways:
+
 1. **Environment variables**: Ideal for sensitive information
 2. **`Config` object**: Better for explicit configuration in code
 
@@ -75,64 +78,64 @@ You can find the full list of configuration options in the [SDK configuration re
 API tokens provide secure, long-lived authentication and are the recommended method for most use cases, especially for automation scripts and non-interactive applications.
 
 <Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-    <Tabs groupId="env-config">
-      <TabItem value="Config" default>
+<TabItem value="Async" default>
+<Tabs groupId="env-config">
+<TabItem value="Config" default>
 
-      We can set the address and API token directly in the `Config` object:
+We can set the address and API token directly in the `Config` object:
 
-      ```python
-      from infrahub_sdk import Config, InfrahubClient
-      client = InfrahubClient(config=Config(address="http://localhost:8000", api_token="token"))
-      ```
+```python
+from infrahub_sdk import Config, InfrahubClient
+client = InfrahubClient(config=Config(address="http://localhost:8000", api_token="token"))
+```
 
-      </TabItem>
-      <TabItem value="Environment">
+</TabItem>
+<TabItem value="Environment">
 
-      We need to export the address and API token as an environment variable:
+We need to export the address and API token as an environment variable:
 
-      ```bash
-      export INFRAHUB_ADDRESS="http://localhost:8000"
-      export INFRAHUB_API_TOKEN="token"
-      ```
+```bash
+export INFRAHUB_ADDRESS="http://localhost:8000"
+export INFRAHUB_API_TOKEN="token"
+```
 
-      ```python
-      from infrahub_sdk import InfrahubClient
-      client = InfrahubClient() # token and address are read from the INFRAHUB_API_TOKEN and INFRAHUB_ADDRESS environment variables
-      ```
+```python
+from infrahub_sdk import InfrahubClient
+client = InfrahubClient() # token and address are read from the INFRAHUB_API_TOKEN and INFRAHUB_ADDRESS environment variables
+```
 
-      </TabItem>
-    </Tabs>
-  </TabItem>
-  <TabItem value="Sync">
-    <Tabs groupId="env-config">
-      <TabItem value="Config" default>
+</TabItem>
+</Tabs>
+</TabItem>
+<TabItem value="Sync">
+<Tabs groupId="env-config">
+<TabItem value="Config" default>
 
-      We can set the address and API token directly in the `Config` object:
+We can set the address and API token directly in the `Config` object:
 
-      ```python
-      from infrahub_sdk import Config, InfrahubClientSync
-      client = InfrahubClientSync(config=Config(address="http://localhost:8000", api_token="token"))
-      ```
+```python
+from infrahub_sdk import Config, InfrahubClientSync
+client = InfrahubClientSync(config=Config(address="http://localhost:8000", api_token="token"))
+```
 
-      </TabItem>
-      <TabItem value="Environment">
+</TabItem>
+<TabItem value="Environment">
 
-      We need to export the address and API token as an environment variable:
+We need to export the address and API token as an environment variable:
 
-      ```bash
-      export INFRAHUB_ADDRESS="http://localhost:8000"
-      export INFRAHUB_API_TOKEN="token"
-      ```
+```bash
+export INFRAHUB_ADDRESS="http://localhost:8000"
+export INFRAHUB_API_TOKEN="token"
+```
 
-      ```python
-      from infrahub_sdk import InfrahubClientSync
-      client = InfrahubClientSync() # token and address are read from the INFRAHUB_API_TOKEN and INFRAHUB_ADDRESS environment variables
-      ```
+```python
+from infrahub_sdk import InfrahubClientSync
+client = InfrahubClientSync() # token and address are read from the INFRAHUB_API_TOKEN and INFRAHUB_ADDRESS environment variables
+```
 
-      </TabItem>
-    </Tabs>
-  </TabItem>
+</TabItem>
+</Tabs>
+</TabItem>
 </Tabs>
 
 ### Using username/password
@@ -140,66 +143,66 @@ API tokens provide secure, long-lived authentication and are the recommended met
 For interactive authentication, use username and password. The SDK automatically handles JWT token generation and refresh.
 
 <Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-    <Tabs groupId="env-config">
-      <TabItem value="Config" default>
+<TabItem value="Async" default>
+<Tabs groupId="env-config">
+<TabItem value="Config" default>
 
-      We can set the address, username and password directly in the `Config` object:
+We can set the address, username and password directly in the `Config` object:
 
-      ```python
-      from infrahub_sdk import Config, InfrahubClient
-      client = InfrahubClient(config=Config(address="http://localhost:8000", username="admin", password="infrahub"))
-      ```
+```python
+from infrahub_sdk import Config, InfrahubClient
+client = InfrahubClient(config=Config(address="http://localhost:8000", username="admin", password="infrahub"))
+```
 
-      </TabItem>
-      <TabItem value="Environment">
+</TabItem>
+<TabItem value="Environment">
 
-      We need to export the address, username and password as environment variables:
+We need to export the address, username and password as environment variables:
 
-      ```bash
-      export INFRAHUB_ADDRESS="http://localhost:8000"
-      export INFRAHUB_USERNAME="admin"
-      export INFRAHUB_PASSWORD="infrahub"
-      ```
+```bash
+export INFRAHUB_ADDRESS="http://localhost:8000"
+export INFRAHUB_USERNAME="admin"
+export INFRAHUB_PASSWORD="infrahub"
+```
 
-      ```python
-      from infrahub_sdk import InfrahubClient
-      client = InfrahubClient() # username and password are read from the INFRAHUB_USERNAME and INFRAHUB_PASSWORD environment variables
-      ```
+```python
+from infrahub_sdk import InfrahubClient
+client = InfrahubClient() # username and password are read from the INFRAHUB_USERNAME and INFRAHUB_PASSWORD environment variables
+```
 
-      </TabItem>
-    </Tabs>
-  </TabItem>
-  <TabItem value="Sync">
-    <Tabs groupId="env-config">
-      <TabItem value="Config" default>
+</TabItem>
+</Tabs>
+</TabItem>
+<TabItem value="Sync">
+<Tabs groupId="env-config">
+<TabItem value="Config" default>
 
-      We can set the address, username and password directly in the `Config` object:
+We can set the address, username and password directly in the `Config` object:
 
-      ```python
-      from infrahub_sdk import Config, InfrahubClientSync
-      client = InfrahubClientSync(config=Config(address="http://localhost:8000", username="admin", password="infrahub"))
-      ```
+```python
+from infrahub_sdk import Config, InfrahubClientSync
+client = InfrahubClientSync(config=Config(address="http://localhost:8000", username="admin", password="infrahub"))
+```
 
-      </TabItem>
-      <TabItem value="Environment">
+</TabItem>
+<TabItem value="Environment">
 
-      We need to export the address, username and password as environment variables:
+We need to export the address, username and password as environment variables:
 
-      ```bash
-      export INFRAHUB_ADDRESS="http://localhost:8000"
-      export INFRAHUB_USERNAME="admin"
-      export INFRAHUB_PASSWORD="infrahub"
-      ```
+```bash
+export INFRAHUB_ADDRESS="http://localhost:8000"
+export INFRAHUB_USERNAME="admin"
+export INFRAHUB_PASSWORD="infrahub"
+```
 
-      ```python
-      from infrahub_sdk import InfrahubClientSync
-      client = InfrahubClientSync() # username and password are read from the INFRAHUB_USERNAME and INFRAHUB_PASSWORD environment variables
-      ```
+```python
+from infrahub_sdk import InfrahubClientSync
+client = InfrahubClientSync() # username and password are read from the INFRAHUB_USERNAME and INFRAHUB_PASSWORD environment variables
+```
 
-      </TabItem>
-    </Tabs>
-  </TabItem>
+</TabItem>
+</Tabs>
+</TabItem>
 </Tabs>
 
 :::success
@@ -211,35 +214,35 @@ Your client is now configured and ready to use!
 Configure your client to work with a specific Infrahub branch instead of the default `main` branch. This is particularly useful when working on feature branches or experimental changes, as it eliminates the need to specify the branch name in every method call.
 
 <Tabs groupId="env-config">
-  <TabItem value="Config" default>
+<TabItem value="Config" default>
 
-  ```python
-  from infrahub_sdk import InfrahubClient, Config
-  config = Config(address="http://localhost:8000", api_token="token", default_branch="other-branch")
-  client_other_branch = InfrahubClient(config=config)
+```python
+from infrahub_sdk import InfrahubClient, Config
+config = Config(address="http://localhost:8000", api_token="token", default_branch="other-branch")
+client_other_branch = InfrahubClient(config=config)
 
-  tag_other_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED")
-  tag_main_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED", branch="main")
-  ```
+tag_other_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED")
+tag_main_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED", branch="main")
+```
 
-  </TabItem>
-  <TabItem value="Environment">
+</TabItem>
+<TabItem value="Environment">
 
-  ```bash
-  export INFRAHUB_ADDRESS="http://localhost:8000"
-  export INFRAHUB_API_TOKEN="token"
-  export INFRAHUB_DEFAULT_BRANCH="other-branch"
-  ```
+```bash
+export INFRAHUB_ADDRESS="http://localhost:8000"
+export INFRAHUB_API_TOKEN="token"
+export INFRAHUB_DEFAULT_BRANCH="other-branch"
+```
 
-  ```python
-  from infrahub_sdk import InfrahubClient
-  client_other_branch = InfrahubClient()
+```python
+from infrahub_sdk import InfrahubClient
+client_other_branch = InfrahubClient()
 
-  tag_other_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED")
-  tag_main_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED", branch="main")
-  ```
+tag_other_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED")
+tag_main_branch = await client_other_branch.get(kind="BuiltinTag", name__value="RED", branch="main")
+```
 
-  </TabItem>
+</TabItem>
 </Tabs>
 
 :::success Branch Configuration
@@ -263,50 +266,51 @@ Avoid naming your script `test.py` as this name could conflict with Python's tes
 2. Add the following code to `hello_world.py`:
 
 <Tabs groupId="async-sync">
-  <TabItem value="Async" default>
-  ```python
-  import asyncio
+<TabItem value="Async" default>
 
-  from infrahub_sdk import Config, InfrahubClient
+```python
+import asyncio
 
-
-  async def hello_world():
-      client = InfrahubClient(config=Config(address="http://localhost:8000"))
-
-      # Try to query accounts to validate connection
-      try:
-          accounts = await client.all(kind="CoreAccount")
-          print(f"Successfully connected to Infrahub! Found {len(accounts)} account(s)")
-      except Exception as e:
-          print(f"Something went wrong: {e}")
+from infrahub_sdk import Config, InfrahubClient
 
 
-  asyncio.run(hello_world())
-  ```
+async def hello_world():
+    client = InfrahubClient(config=Config(address="http://localhost:8000"))
 
-  </TabItem>
-  <TabItem value="Sync">
-
-  ```python
-  from infrahub_sdk import Config, InfrahubClientSync
-
-
-  # Test connection and authentication
-  def hello_world():
-      client = InfrahubClientSync(config=Config(address="http://localhost:8000"))
-
-      # Try to query accounts to validate connection
-      try:
-          accounts = client.all(kind="CoreAccount")
-          print(f"Successfully connected to Infrahub! Found {len(accounts)} account(s)")
-      except Exception as e:
-          print(f"Something went wrong: {e}")
+    # Try to query accounts to validate connection
+    try:
+        accounts = await client.all(kind="CoreAccount")
+        print(f"Successfully connected to Infrahub! Found {len(accounts)} account(s)")
+    except Exception as e:
+        print(f"Something went wrong: {e}")
 
 
-  hello_world()
-  ```
+asyncio.run(hello_world())
+```
 
-  </TabItem>
+</TabItem>
+<TabItem value="Sync">
+
+```python
+from infrahub_sdk import Config, InfrahubClientSync
+
+
+# Test connection and authentication
+def hello_world():
+    client = InfrahubClientSync(config=Config(address="http://localhost:8000"))
+
+    # Try to query accounts to validate connection
+    try:
+        accounts = client.all(kind="CoreAccount")
+        print(f"Successfully connected to Infrahub! Found {len(accounts)} account(s)")
+    except Exception as e:
+        print(f"Something went wrong: {e}")
+
+
+hello_world()
+```
+
+</TabItem>
 </Tabs>
 
 3. Export the necessary environment variables:
