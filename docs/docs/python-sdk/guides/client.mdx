@@ -80,7 +80,7 @@ API tokens provide secure, long-lived authentication and are the recommended met
 <Tabs groupId="async-sync">
 <TabItem value="Async" default>
 <Tabs groupId="env-config">
-<TabItem value="Config" default>
+<TabItem value="Code" default>
 
 We can set the address and API token directly in the `Config` object:
 
@@ -109,7 +109,7 @@ client = InfrahubClient() # token and address are read from the INFRAHUB_API_TOK
 </TabItem>
 <TabItem value="Sync">
 <Tabs groupId="env-config">
-<TabItem value="Config" default>
+<TabItem value="Code" default>
 
 We can set the address and API token directly in the `Config` object:
 
@@ -145,7 +145,7 @@ For interactive authentication, use username and password. The SDK automatically
 <Tabs groupId="async-sync">
 <TabItem value="Async" default>
 <Tabs groupId="env-config">
-<TabItem value="Config" default>
+<TabItem value="Code" default>
 
 We can set the address, username and password directly in the `Config` object:
 
@@ -175,7 +175,7 @@ client = InfrahubClient() # username and password are read from the INFRAHUB_USE
 </TabItem>
 <TabItem value="Sync">
 <Tabs groupId="env-config">
-<TabItem value="Config" default>
+<TabItem value="Code" default>
 
 We can set the address, username and password directly in the `Config` object:
 
@@ -214,7 +214,7 @@ Your client is now configured and ready to use!
 Configure your client to work with a specific Infrahub branch instead of the default `main` branch. This is particularly useful when working on feature branches or experimental changes, as it eliminates the need to specify the branch name in every method call.
 
 <Tabs groupId="env-config">
-<TabItem value="Config" default>
+<TabItem value="Code" default>
 
 ```python
 from infrahub_sdk import InfrahubClient, Config
@@ -249,7 +249,7 @@ tag_main_branch = await client_other_branch.get(kind="BuiltinTag", name__value="
 Your client is now configured to use the specified default branch instead of `main`. Remember that you can always override this setting by explicitly passing the `branch` argument to any method call.
 :::
 
-## Hello World example
+## Hello world example
 
 Let's create a simple "Hello World" example to verify your client configuration works correctly. This example will connect to your Infrahub instance and query the available accounts.
 
@@ -260,7 +260,7 @@ touch hello_world.py
 ```
 
 :::danger File Naming
-Avoid naming your script `test.py` as this name could conflict with Python's testing modules and the SDK's internal tests.
+Avoid naming your script `test.py` as this name could conflict with Python's testing modules.
 :::
 
 2. Add the following code to `hello_world.py`:
@@ -338,7 +338,7 @@ If everything is configured correctly, you should see:
 When developing or troubleshooting, you can enable GraphQL query logging to see exactly what requests are being sent to Infrahub:
 
 <Tabs groupId="env-config">
-  <TabItem value="Config" default>
+  <TabItem value="Code" default>
 
   ```python
   from infrahub_sdk import Config, InfrahubClient
