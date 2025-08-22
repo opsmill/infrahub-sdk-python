@@ -15,7 +15,7 @@ from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 #
 #
 class TestInfrahubSchema(TestInfrahubDockerClient):
-    async def test_query_schema_for_branch_not_found(self, client: InfrahubClient):
+    async def test_query_schema_for_branch_not_found(self, client: InfrahubClient) -> None:
         with pytest.raises(BranchNotFoundError) as exc:
             await client.all(kind="BuiltinTag", branch="I-do-not-exist")
 

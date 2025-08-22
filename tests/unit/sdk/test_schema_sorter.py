@@ -2,7 +2,7 @@ from infrahub_sdk import InfrahubClient
 from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 
 
-async def test_schema_sorter(client: InfrahubClient, mock_schema_query_01):
+async def test_schema_sorter(client: InfrahubClient, mock_schema_query_01) -> None:
     schemas = await client.schema.all()
     topological_sorter = InfrahubSchemaTopologicalSorter()
 

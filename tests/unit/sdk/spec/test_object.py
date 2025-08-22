@@ -43,7 +43,7 @@ def location_bad_syntax02(root_location: dict) -> dict:
     return location
 
 
-async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_mexico_01):
+async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_mexico_01) -> None:
     obj = ObjectFile(location="some/path", content=location_mexico_01)
     await obj.validate_format(client=client)
 
@@ -52,7 +52,7 @@ async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTT
 
 async def test_validate_object_bad_syntax01(
     client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_bad_syntax01
-):
+) -> None:
     obj = ObjectFile(location="some/path", content=location_bad_syntax01)
     with pytest.raises(ValidationError) as exc:
         await obj.validate_format(client=client)
@@ -62,7 +62,7 @@ async def test_validate_object_bad_syntax01(
 
 async def test_validate_object_bad_syntax02(
     client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_bad_syntax02
-):
+) -> None:
     obj = ObjectFile(location="some/path", content=location_bad_syntax02)
     with pytest.raises(ValidationError) as exc:
         await obj.validate_format(client=client)
@@ -116,7 +116,7 @@ async def test_get_relationship_info_tags(
     data: dict | list,
     is_valid: bool,
     format: RelationshipDataFormat,
-):
+) -> None:
     location_schema = await client.schema.get(kind="BuiltinLocation")
 
     rel_info = await get_relationship_info(client, location_schema, "tags", data)

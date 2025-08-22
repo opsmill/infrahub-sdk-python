@@ -8,7 +8,7 @@ client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_set(client_type, clients, schema_with_hfid):
+def test_node_store_set(client_type, clients, schema_with_hfid) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -33,7 +33,7 @@ def test_node_store_set(client_type, clients, schema_with_hfid):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_set_no_hfid(client_type, clients, location_schema):
+def test_node_store_set_no_hfid(client_type, clients, location_schema) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -67,7 +67,7 @@ def test_node_store_set_no_hfid(client_type, clients, location_schema):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_get(client_type, clients, location_schema):
+def test_node_store_get(client_type, clients, location_schema) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -111,7 +111,7 @@ def test_node_store_get(client_type, clients, location_schema):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_get_with_hfid(client_type, clients, schema_with_hfid):
+def test_node_store_get_with_hfid(client_type, clients, schema_with_hfid) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
