@@ -20,7 +20,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
 
     async def test_node_create(
         self, client: InfrahubClient, initial_schema: None, schema_manufacturer_base: NodeSchema
-    ):
+    ) -> None:
         schema_manufacturer = NodeSchemaAPI(**schema_manufacturer_base.model_dump(exclude_unset=True))
         data = {
             "name": "Fiat",
@@ -34,7 +34,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         self,
         client: InfrahubClient,
         initial_schema: None,
-    ):
+    ) -> None:
         obj = await client.create(kind=TESTING_MANUFACTURER, name="Dacia")
         await obj.save()
 
@@ -52,7 +52,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         initial_schema: None,
         manufacturer_mercedes,
         person_joe,
-    ):
+    ) -> None:
         node = await client.create(
             kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
         )
@@ -71,7 +71,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         manufacturer_mercedes,
         car_golf,
         person_joe,
-    ):
+    ) -> None:
         related_node = car_golf.owner
         node = await client.create(
             kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
@@ -90,7 +90,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-    ):
+    ) -> None:
         person_marina = await client.create(kind="TestingPerson", name="marina", age=20)
         await person_marina.save()
 
@@ -183,7 +183,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         tag_blue,
         tag_red,
         tag_green,
-    ):
+    ) -> None:
         car_golf.color.value = "White"
         await car_golf.tags.fetch()
         car_golf.tags.add(tag_blue.id)

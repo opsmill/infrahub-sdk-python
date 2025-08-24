@@ -20,7 +20,7 @@ def event_loop():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def execute_before_any_test():
+def execute_before_any_test() -> None:
     config.SETTINGS.load_and_exit()
     config.SETTINGS.active.server_address = "http://mock"
 

@@ -115,7 +115,7 @@ def input_data_01():
     return data
 
 
-def test_render_query_block(query_data_no_filter):
+def test_render_query_block(query_data_no_filter) -> None:
     lines = render_query_block(data=query_data_no_filter)
 
     expected_lines = [
@@ -158,7 +158,7 @@ def test_render_query_block(query_data_no_filter):
     assert lines == expected_lines
 
 
-def test_render_query_block_alias(query_data_alias):
+def test_render_query_block_alias(query_data_alias) -> None:
     lines = render_query_block(data=query_data_alias)
 
     expected_lines = [
@@ -180,7 +180,7 @@ def test_render_query_block_alias(query_data_alias):
     assert lines == expected_lines
 
 
-def test_render_query_block_fragment(query_data_fragment):
+def test_render_query_block_fragment(query_data_fragment) -> None:
     lines = render_query_block(data=query_data_fragment)
 
     expected_lines = [
@@ -204,7 +204,7 @@ def test_render_query_block_fragment(query_data_fragment):
     assert lines == expected_lines
 
 
-def test_render_input_block(input_data_01):
+def test_render_input_block(input_data_01) -> None:
     lines = render_input_block(data=input_data_01)
 
     expected_lines = [
@@ -259,7 +259,7 @@ def test_render_input_block(input_data_01):
     assert lines == expected_lines
 
 
-def test_query_rendering_no_vars(query_data_no_filter):
+def test_query_rendering_no_vars(query_data_no_filter) -> None:
     query = Query(query=query_data_no_filter)
 
     expected_query = """
@@ -283,7 +283,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_empty_filter(query_data_empty_filter):
+def test_query_rendering_empty_filter(query_data_empty_filter) -> None:
     query = Query(query=query_data_empty_filter)
 
     expected_query = """
@@ -307,7 +307,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters_and_vars(query_data_filters_01):
+def test_query_rendering_with_filters_and_vars(query_data_filters_01) -> None:
     query = Query(query=query_data_filters_01, variables={"name": str, "enabled": bool})
 
     expected_query = """
@@ -331,7 +331,7 @@ query ($name: String!, $enabled: Boolean!) {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters(query_data_filters_02):
+def test_query_rendering_with_filters(query_data_filters_02) -> None:
     query = Query(query=query_data_filters_02)
 
     expected_query = """
@@ -351,7 +351,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters_convert_enum(query_data_filters_02):
+def test_query_rendering_with_filters_convert_enum(query_data_filters_02) -> None:
     query = Query(query=query_data_filters_02)
 
     expected_query = """
@@ -371,7 +371,7 @@ query {
     assert query.render(convert_enum=True) == expected_query
 
 
-def test_mutation_rendering_no_vars(input_data_01):
+def test_mutation_rendering_no_vars(input_data_01) -> None:
     query_data = {"ok": None, "object": {"id": None}}
 
     query = Mutation(mutation="myobject_create", query=query_data, input_data=input_data_01)
@@ -411,7 +411,7 @@ mutation {
     assert query.render() == expected_query
 
 
-def test_mutation_rendering_many_relationships():
+def test_mutation_rendering_many_relationships() -> None:
     query_data = {"ok": None, "object": {"id": None}}
     input_data = {
         "data": {
@@ -457,7 +457,7 @@ mutation {
     assert query.render() == expected_query
 
 
-def test_mutation_rendering_enum():
+def test_mutation_rendering_enum() -> None:
     query_data = {"ok": None, "object": {"id": None}}
     input_data = {
         "data": {
@@ -491,7 +491,7 @@ mutation {
     assert query.render() == expected_query
 
 
-def test_mutation_rendering_with_vars(input_data_01):
+def test_mutation_rendering_with_vars(input_data_01) -> None:
     query_data = {"ok": None, "object": {"id": None}}
     variables = {"name": str, "description": str, "number": int}
     query = Mutation(

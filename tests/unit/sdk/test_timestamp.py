@@ -9,7 +9,7 @@ from infrahub_sdk.timestamp import Timestamp
 UTC = timezone.utc  # Required for older versions of Python
 
 
-def test_init_empty():
+def test_init_empty() -> None:
     t1 = Timestamp()
     assert isinstance(t1, Timestamp)
     assert t1.to_datetime() == t1._obj.py_datetime()
@@ -19,7 +19,7 @@ def test_init_empty():
     assert t2.to_datetime() == t2._obj.py_datetime()
 
 
-def test_init_timestamp():
+def test_init_timestamp() -> None:
     t1 = Timestamp()
     t2 = Timestamp(t1)
     assert t1.to_string() == t2.to_string()
@@ -27,7 +27,7 @@ def test_init_timestamp():
     assert t2.to_datetime() == t2._obj.py_datetime()
 
 
-def test_parse_string():
+def test_parse_string() -> None:
     REF = "2022-01-01T10:00:00.000000Z"
 
     assert Timestamp._parse_string(REF).instant() == Instant.parse_common_iso(REF)
@@ -63,7 +63,7 @@ def test_parse_string():
         ),
     ],
 )
-def test_to_datetime(input_str, expected_datetime):
+def test_to_datetime(input_str, expected_datetime) -> None:
     assert isinstance(Timestamp(input_str).to_datetime(), datetime)
     assert Timestamp(input_str).to_datetime() == expected_datetime
 
@@ -85,25 +85,25 @@ def test_to_datetime(input_str, expected_datetime):
         ),
     ],
 )
-def test_to_string_default(input_str, expected_str, expected_str_no_z):
+def test_to_string_default(input_str, expected_str, expected_str_no_z) -> None:
     assert isinstance(Timestamp(input_str).to_string(), str)
     assert Timestamp(input_str).to_string() == expected_str
     assert Timestamp(input_str).to_string(with_z=False) == expected_str_no_z
 
 
-def test_add():
+def test_add() -> None:
     t1 = Timestamp("2022-01-01T10:01:01.123Z")
     t2 = t1.add(hours=1)
     assert t2.to_string() == "2022-01-01T11:01:01.123000Z"
 
 
-def test_subtract():
+def test_subtract() -> None:
     t1 = Timestamp("2022-01-01T10:05:01.123Z")
     t2 = t1.subtract(hours=1)
     assert t2.to_string() == "2022-01-01T09:05:01.123000Z"
 
 
-def test_compare():
+def test_compare() -> None:
     time1 = "2022-01-01T11:00:00.000000Z"
     time2 = "2022-02-01T11:00:00.000000Z"
 
@@ -119,7 +119,7 @@ def test_compare():
     assert t11 == t12
 
 
-def test_serialize():
+def test_serialize() -> None:
     time_no_z = "2022-01-01T11:00:00.000000+00:00"
     time = "2022-01-01T11:00:00.000000Z"
     timestamp = Timestamp(time)
@@ -129,6 +129,6 @@ def test_serialize():
 
 
 @pytest.mark.parametrize("invalid_str", ["blurple", "1122334455667788", "2023-45-99"])
-def test_invalid_raises_correct_error(invalid_str):
+def test_invalid_raises_correct_error(invalid_str) -> None:
     with pytest.raises(TimestampFormatError):
         Timestamp(invalid_str)
