@@ -11,10 +11,9 @@ import typer
 from rich.console import Console
 from rich.logging import RichHandler
 
-from ..ctl import config
 from ..ctl.client import initialize_client
 from ..ctl.exceptions import QueryNotFoundError
-from ..ctl.repository import get_repository_config
+from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.utils import catch_exception, execute_graphql_query
 from ..exceptions import ModuleImportError
 
@@ -59,7 +58,7 @@ def run(
     FORMAT = "%(message)s"
     logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
 
-    repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
+    repository_config = get_repository_config(find_repository_config_file())
 
     if list_available:
         list_checks(repository_config=repository_config)
