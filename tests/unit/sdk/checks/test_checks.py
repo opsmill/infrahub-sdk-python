@@ -6,7 +6,7 @@ from infrahub_sdk.checks import InfrahubCheck
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
 
-async def test_class_init():
+async def test_class_init() -> None:
     class IFCheckNoQuery(InfrahubCheck):
         pass
 
@@ -34,7 +34,7 @@ async def test_class_init():
     assert check.root_directory == "/tmp"
 
 
-async def test_async_init(client):
+async def test_async_init(client) -> None:
     class IFCheck(InfrahubCheck):
         query = "my_query"
 
@@ -42,7 +42,7 @@ async def test_async_init(client):
     assert isinstance(check.client, InfrahubClient)
 
 
-async def test_validate_sync_async(mock_gql_query_my_query):
+async def test_validate_sync_async(mock_gql_query_my_query) -> None:
     class IFCheckAsync(InfrahubCheck):
         query = "my_query"
 

@@ -36,12 +36,12 @@ SYNCIFY_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in SYNCIFY_TEST_CASES],
 )
-async def test_filter_syncify(test_case: SyncifyTestCase):
+async def test_filter_syncify(test_case: SyncifyTestCase) -> None:
     assert CodeGenerator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
     assert CodeGenerator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
 
 
-async def test_generator(client: InfrahubClient, mock_schema_query_05):
+async def test_generator(client: InfrahubClient, mock_schema_query_05) -> None:
     schemas = await client.schema.fetch(branch="main")
 
     code_generator = CodeGenerator(schema=schemas)

@@ -3,11 +3,11 @@ import pytest
 from infrahub_sdk.topological_sort import DependencyCycleExistsError, topological_sort
 
 
-def test_topological_sort_empty():
+def test_topological_sort_empty() -> None:
     assert topological_sort({}) == []
 
 
-def test_topological_sort_with_cycle_raises_error():
+def test_topological_sort_with_cycle_raises_error() -> None:
     dependencies = {0: [1, 2], 1: [2], 2: [0]}
 
     with pytest.raises(DependencyCycleExistsError) as exc:
@@ -16,7 +16,7 @@ def test_topological_sort_with_cycle_raises_error():
     assert [0, 1, 2, 0] in exc.value.cycles or [0, 2, 0] in exc.value.cycles
 
 
-def test_topological_sort_with_two_separate_cycles_raises_error():
+def test_topological_sort_with_two_separate_cycles_raises_error() -> None:
     dependencies = {0: [1, 2], 1: [2], 2: [0], 4: [5, 6], 5: [1, 6], 6: [4]}
 
     with pytest.raises(DependencyCycleExistsError) as exc:
@@ -26,7 +26,7 @@ def test_topological_sort_with_two_separate_cycles_raises_error():
     assert [4, 5, 6, 4] in exc.value.cycles or [4, 6, 4] in exc.value.cycles
 
 
-def test_topological_sort():
+def test_topological_sort() -> None:
     dependencies = {0: [1, 2], 1: [2]}
 
     ordered = topological_sort(dependencies)
@@ -34,7 +34,7 @@ def test_topological_sort():
     assert ordered == [{2}, {1}, {0}]
 
 
-def test_topological_sort_2():
+def test_topological_sort_2() -> None:
     dependencies = {
         0: [1, 2],
         1: [2],
@@ -46,7 +46,7 @@ def test_topological_sort_2():
     assert ordered == [{3}, {2}, {1}, {0}]
 
 
-def test_topological_sort_disjoint():
+def test_topological_sort_disjoint() -> None:
     dependencies = {
         "a": ["b", "c"],
         "b": ["c"],
@@ -61,7 +61,7 @@ def test_topological_sort_disjoint():
     assert ordered == [{"h", "d"}, {"g", "c"}, {"b", "f"}, {"a", "e"}]
 
 
-def test_topological_sort_disjoint_2():
+def test_topological_sort_disjoint_2() -> None:
     dependencies = {
         "a": ["b"],
         "c": ["d"],
@@ -73,7 +73,7 @@ def test_topological_sort_disjoint_2():
     assert ordered == [{"b", "d", "f"}, {"a", "c", "e"}]
 
 
-def test_topological_sort_binary_tree():
+def test_topological_sort_binary_tree() -> None:
     """
                 a
         b               c

@@ -6,13 +6,13 @@ from infrahub_sdk.ctl.branch import app
 runner = CliRunner()
 
 
-def test_branch_list(mock_branches_list_query):
+def test_branch_list(mock_branches_list_query) -> None:
     result = runner.invoke(app=app, args=["list"])
     assert result.exit_code == 0
     assert "cr1234" in result.stdout
 
 
-def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_payload):
+def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_payload) -> None:
     httpx_mock.add_response(
         status_code=401,
         method="POST",
@@ -24,7 +24,7 @@ def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_paylo
     assert "Authentication is required" in result.stdout
 
 
-def test_branch_create_wrong_name(mock_branch_create_error):
+def test_branch_create_wrong_name(mock_branch_create_error) -> None:
     result = runner.invoke(app=app, args=["create", "branch2"])
 
     assert result.exit_code == 1

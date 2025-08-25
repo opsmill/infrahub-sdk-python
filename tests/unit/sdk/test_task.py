@@ -10,7 +10,7 @@ client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all(clients, mock_query_tasks_01, client_type):
+async def test_method_all(clients, mock_query_tasks_01, client_type) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.all()
     else:
@@ -21,7 +21,7 @@ async def test_method_all(clients, mock_query_tasks_01, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_full(clients, mock_query_tasks_01, client_type):
+async def test_method_all_full(clients, mock_query_tasks_01, client_type) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.all(include_logs=True, include_related_nodes=True)
     else:
@@ -31,7 +31,7 @@ async def test_method_all_full(clients, mock_query_tasks_01, client_type):
     assert isinstance(tasks[0], Task)
 
 
-async def test_generate_count_query():
+async def test_generate_count_query() -> None:
     query = InfraHubTaskManagerBase._generate_count_query()
     assert query
     assert (
@@ -62,7 +62,7 @@ query {
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters(clients, mock_query_tasks_02_main, client_type):
+async def test_method_filters(clients, mock_query_tasks_02_main, client_type) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.filter(filter=TaskFilter(branch="main"))
     else:
@@ -73,7 +73,7 @@ async def test_method_filters(clients, mock_query_tasks_02_main, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_too_many(clients, mock_query_tasks_02_main, client_type):
+async def test_method_get_too_many(clients, mock_query_tasks_02_main, client_type) -> None:
     with pytest.raises(TooManyTasksError):
         if client_type == "standard":
             await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
@@ -82,7 +82,7 @@ async def test_method_get_too_many(clients, mock_query_tasks_02_main, client_typ
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_not_found(clients, mock_query_tasks_empty, client_type):
+async def test_method_get_not_found(clients, mock_query_tasks_empty, client_type) -> None:
     with pytest.raises(TaskNotFoundError):
         if client_type == "standard":
             await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
@@ -91,7 +91,7 @@ async def test_method_get_not_found(clients, mock_query_tasks_empty, client_type
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get(clients, mock_query_tasks_03, client_type):
+async def test_method_get(clients, mock_query_tasks_03, client_type) -> None:
     if client_type == "standard":
         task = await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
     else:
@@ -102,7 +102,7 @@ async def test_method_get(clients, mock_query_tasks_03, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_full(clients, mock_query_tasks_05, client_type):
+async def test_method_get_full(clients, mock_query_tasks_05, client_type) -> None:
     if client_type == "standard":
         task = await clients.standard.task.get(id="32116fcd-9071-43a7-9f14-777901020b5b")
     else:

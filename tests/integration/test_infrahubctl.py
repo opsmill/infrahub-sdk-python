@@ -42,7 +42,7 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
         dog_daisy,
         dog_rocky,
         ctl_client_config,
-    ):
+    ) -> None:
         await client.branch.create(branch_name="branch01")
 
     @pytest.fixture(scope="class")

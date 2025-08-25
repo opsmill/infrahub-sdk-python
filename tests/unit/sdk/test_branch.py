@@ -14,14 +14,14 @@ sync_branch_methods = [method for method in dir(InfrahubBranchManagerSync) if no
 client_types = ["standard", "sync"]
 
 
-def test_method_sanity():
+def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_branch_methods
     assert async_branch_methods == sync_branch_methods
 
 
 @pytest.mark.parametrize("method", async_branch_methods)
-def test_validate_method_signature(method):
+def test_validate_method_signature(method) -> None:
     async_method = getattr(InfrahubBranchManager, method)
     sync_method = getattr(InfrahubBranchManagerSync, method)
     async_sig = inspect.signature(async_method)
@@ -31,7 +31,7 @@ def test_validate_method_signature(method):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_branches(clients, mock_branches_list_query, client_type):
+async def test_get_branches(clients, mock_branches_list_query, client_type) -> None:
     if client_type == "standard":
         branches = await clients.standard.branch.all()
     else:
