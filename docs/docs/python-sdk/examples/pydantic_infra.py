@@ -8,39 +8,41 @@ from rich import print as rprint
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.async_typer import AsyncTyper
 from infrahub_sdk.schema import (
-    GenericModel,
     GenericSchema,
-    NodeModel,
     NodeSchema,
     RelationshipKind,
+)
+from infrahub_sdk.schema.pydantic_utils import (
+    Attribute,
+    GenericModel,
+    InfrahubConfig,
+    NodeModel,
+    Relationship,
+    SchemaModel,
+    analyze_field,
+    field_to_attribute,
+    field_to_relationship,
     from_pydantic,
-)
-from infrahub_sdk.schema import (
-    InfrahubAttributeParam as AttrParam,
-)
-from infrahub_sdk.schema import (
-    InfrahubRelationshipParam as RelParam,
+    get_attribute_kind,
+    get_kind,
+    model_to_node,
 )
 
 app = AsyncTyper()
 
 
 class Site(NodeModel):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(
-            name="Site", namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"]
-        )
+    model_config = InfrahubConfig(
+        namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"]
     )
 
-    name: Annotated[str, AttrParam(unique=True)] = Field(description="The name of the site")
+    name: str = Attribute(unique=True, description="The name of the site")
 
 
 class Vlan(NodeModel):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(
-            name="Vlan", namespace="Infra", human_friendly_id=["vlan_id__value"], display_labels=["vlan_id__value"]
+    model_config = InfrahubConfig(
+            namespace="Infra", human_friendly_id=["vlan_id__value"], display_labels=["vlan_id__value"]
         )
-    )
 
     name: str
     vlan_id: int
@@ -48,42 +50,33 @@ class Vlan(NodeModel):
 
 
 class Device(NodeModel):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(
+    model_config = InfrahubConfig(
             name="Device", namespace="Infra", human_friendly_id=["name__value"], display_labels=["name__value"]
         )
-    )
 
-    name: Annotated[str, AttrParam(unique=True)] = Field(description="The name of the car")
-    site: Annotated[Site, RelParam(kind=RelationshipKind.ATTRIBUTE, identifier="device__site")]
-    interfaces: Annotated[
-        list[Interface], RelParam(kind=RelationshipKind.COMPONENT, identifier="device__interfaces")
-    ] = Field(default_factory=list)
+    name: str = Attribute(unique=True, description="The name of the car")
+    site: Site = Relationship(kind=RelationshipKind.ATTRIBUTE, identifier="device__site")
+    interfaces: list[Interface] = Relationship(kind=RelationshipKind.COMPONENT, identifier="device__interfaces")
 
 
 class Interface(GenericModel):
-    model_config = ConfigDict(
-        generic_schema=GenericSchema(
-            name="Interface",
-            namespace="Infra",
-            human_friendly_id=["device__name__value", "name__value"],
-            display_labels=["name__value"],
-        )
+    model_config = InfrahubConfig(
+        namespace="Infra", human_friendly_id=["device__name__value", "name__value"], display_labels=["name__value"]
     )
 
-    device: Annotated[Device, RelParam(kind=RelationshipKind.PARENT, identifier="device__interfaces")]
+    device: Device = Relationship(kind=RelationshipKind.PARENT, identifier="device__interfaces")
     name: str
     description: str | None = None
 
 
 class L2Interface(Interface):
-    model_config = ConfigDict(node_schema=NodeSchema(name="L2Interface", namespace="Infra"))
+    model_config = InfrahubConfig(namespace="Infra")
 
     vlans: list[Vlan] = Field(default_factory=list)
 
 
 class LoopbackInterface(Interface):
-    model_config = ConfigDict(node_schema=NodeSchema(name="LoopbackInterface", namespace="Infra"))
+    model_config = InfrahubConfig(namespace="Infra")
 
 
 @app.command()

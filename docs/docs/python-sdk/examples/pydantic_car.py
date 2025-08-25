@@ -14,28 +14,35 @@ from infrahub_sdk.schema import (
     NodeSchema,
     from_pydantic,
 )
-from infrahub_sdk.schema import (
-    InfrahubAttributeParam as AttrParam,
-)
-from infrahub_sdk.schema import (
-    InfrahubRelationshipParam as RelParam,
+from infrahub_sdk.schema.pydantic_utils import (
+    Attribute,
+    GenericModel,
+    InfrahubConfig,
+    NodeModel,
+    Relationship,
+    SchemaModel,
+    analyze_field,
+    field_to_attribute,
+    field_to_relationship,
+    from_pydantic,
+    get_attribute_kind,
+    get_kind,
+    model_to_node,
 )
 
 
 class Tag(NodeModel):
-    model_config = ConfigDict(
-        node_schema=NodeSchema(name="Tag", namespace="Test", human_readable_fields=["name__value"])
-    )
+    model_config = InfrahubConfig(namespace="Test", human_readable_fields=["name__value"])
 
-    name: Annotated[str, AttrParam(unique=True), Field(description="The name of the tag")]
+    name: str = Attribute(unique=True, description="The name of the tag")
     label: str | None = Field(description="The label of the tag")
-    description: Annotated[str | None, AttrParam(kind=AttributeKind.TEXTAREA)] = None
+    description: str | None = Attribute(None, kind=AttributeKind.TEXTAREA)
 
 
 class TestCar(NodeModel):
     name: str = Field(description="The name of the car")
     tags: list[Tag]
-    owner: Annotated[TestPerson, RelParam(identifier="car__person")]
+    owner: TestPerson = Relationship(identifier="car__person")]
     secondary_owner: TestPerson | None = None
 
 
@@ -44,7 +51,7 @@ class TestPerson(GenericModel):
 
 
 class TestCarOwner(NodeModel, TestPerson):
-    cars: Annotated[list[TestCar] | None, RelParam(identifier="car__person")] = None
+    cars: list[TestCar] = Relationship(identifier="car__person")
 
 
 async def main() -> None:

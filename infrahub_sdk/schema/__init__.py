@@ -43,8 +43,6 @@ from .main import (
 )
 from .pydantic_utils import (
     GenericModel,
-    InfrahubAttributeParam,
-    InfrahubRelationshipParam,
     NodeModel,
     SchemaModel,
     from_pydantic,
@@ -65,8 +63,6 @@ __all__ = [
     "GenericModel",
     "GenericSchema",
     "GenericSchemaAPI",
-    "InfrahubAttributeParam",
-    "InfrahubRelationshipParam",
     "NodeModel",
     "NodeSchema",
     "NodeSchemaAPI",

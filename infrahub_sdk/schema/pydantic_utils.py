@@ -4,10 +4,14 @@ import re
 import typing
 from dataclasses import dataclass
 from types import UnionType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, ForwardRef, Literal, TypeVar, Union
 
-from pydantic import BaseModel, Field
-from pydantic.fields import FieldInfo, PydanticUndefined
+from pydantic import BaseModel
+from pydantic import ConfigDict as BaseConfig
+from pydantic._internal._model_construction import ModelMetaclass  # noqa: PLC2701
+from pydantic._internal._repr import Representation  # noqa: PLC2701
+from pydantic.fields import FieldInfo as PydanticFieldInfo
+from pydantic.fields import PydanticUndefined as Undefined
 from typing_extensions import Self
 
 from .main import (
@@ -25,6 +29,8 @@ from .main import (
 if TYPE_CHECKING:
     from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
+_T = TypeVar("_T")
+
 KIND_MAPPING: dict[type, AttributeKind] = {
     int: AttributeKind.NUMBER,
     float: AttributeKind.NUMBER,
@@ -36,8 +42,181 @@ NAMESPACE_REGEX = r"^[A-Z][a-z0-9]+$"
 NODE_KIND_REGEX = r"^[A-Z][a-zA-Z0-9]+$"
 
 
-class SchemaModel(BaseModel):
-    id: str | None = Field(default=None, description="The ID of the node")
+def __dataclass_transform__(
+    *,
+    eq_default: bool = True,
+    order_default: bool = False,
+    kw_only_default: bool = False,
+    field_descriptors: tuple[Union[type, Callable[..., Any]], ...] = (()),
+) -> Callable[[_T], _T]:
+    return lambda a: a
+
+
+class InfrahubConfig(BaseConfig, total=False):
+    generic: bool = False
+    name: str | None = None
+    namespace: str | None = None
+    display_labels: list[str] | None = None
+    description: str | None = None
+    state: SchemaState = SchemaState.PRESENT
+    label: str | None = None
+    include_in_menu: bool | None = None
+    menu_placement: str | None = None
+
+
+class AttributeInfo(PydanticFieldInfo):
+    def __init__(self, default: Any = Undefined, **kwargs: Any) -> None:
+        unique = kwargs.pop("unique", False)
+        label = kwargs.pop("label", None)
+        kind = kwargs.pop("kind", None)
+        regex = kwargs.pop("regex", None)
+        branch = kwargs.pop("branch", None)
+        super().__init__(default=default, **kwargs)
+        self.unique = unique
+        self.label = label
+        self.kind = kind
+        self.regex = regex
+        self.branch = branch
+
+
+class RelationshipInfo(Representation):
+    def __init__(
+        self,
+        *,
+        alias: str | None = None,
+        kind: RelationshipKind | None = None,
+        peer: str | None = None,
+        description: str | None = None,
+        identifier: str | None = None,
+        branch: BranchSupportType | None = None,
+        optional: bool = False,
+    ) -> None:
+        self.alias = alias
+        self.kind = kind
+        self.identifier = identifier
+        self.branch = branch
+        self.description = description
+        self.peer = peer
+        self.optional = optional
+
+
+def Relationship(
+    *,
+    alias: str | None = None,
+    kind: RelationshipKind | None = None,
+    identifier: str | None = None,
+    branch: BranchSupportType | None = None,
+    peer: str | None = None,
+    description: str | None = None,
+    optional: bool = False,
+) -> Any:
+    relationship_info = RelationshipInfo(
+        alias=alias,
+        kind=kind,
+        identifier=identifier,
+        branch=branch,
+        peer=peer,
+        description=description,
+        optional=optional,
+    )
+    return relationship_info
+
+
+def Attribute(
+    default: Any = Undefined,
+    *,
+    alias: str | None = None,
+    description: str | None = None,
+    state: SchemaState = SchemaState.PRESENT,
+    kind: AttributeKind | None = None,
+    label: str | None = None,
+    unique: bool = False,
+    branch: BranchSupportType | None = None,
+    regex: str | None = None,
+    pattern: str | None = None,
+) -> Any:
+    current_schema_extra = {}
+    field_info = AttributeInfo(
+        default,
+        alias=alias,
+        description=description,
+        state=state,
+        kind=kind,
+        label=label,
+        unique=unique,
+        branch=branch,
+        regex=regex,
+        pattern=pattern,
+        **current_schema_extra,
+    )
+    return field_info
+
+
+@__dataclass_transform__(kw_only_default=True, field_descriptors=(Attribute, AttributeInfo))
+class InfrahubMetaclass(ModelMetaclass):
+    __infrahub_relationships__: dict[str, RelationshipInfo]
+    model_config: InfrahubConfig
+    model_fields: dict[str, AttributeInfo]
+
+    def __new__(
+        cls,
+        name: str,
+        bases: tuple[type[Any], ...],
+        class_dict: dict[str, Any],
+        **kwargs: Any,
+    ) -> Any:
+        relationships: dict[str, RelationshipInfo] = {}
+        dict_for_pydantic = {}
+        original_annotations: dict[str, Any] = class_dict.get("__annotations__", {})
+        pydantic_annotations = {}
+        relationship_annotations = {}
+        for k, v in class_dict.items():
+            if isinstance(v, RelationshipInfo):
+                relationships[k] = v
+            else:
+                dict_for_pydantic[k] = v
+        for k, v in original_annotations.items():
+            if k in relationships:
+                relationship_annotations[k] = v
+            else:
+                pydantic_annotations[k] = v
+        dict_used = {
+            **dict_for_pydantic,
+            "__infrahub_relationships__": relationships,
+            "__annotations__": pydantic_annotations,
+        }
+        # Duplicate logic from Pydantic to filter config kwargs because if they are
+        # passed directly including the registry Pydantic will pass them over to the
+        # superclass causing an error
+        allowed_config_kwargs: set[str] = {
+            key
+            for key in dir(BaseConfig)
+            if not (key.startswith("__") and key.endswith("__"))  # skip dunder methods and attributes
+        }
+        config_kwargs = {key: kwargs[key] for key in kwargs.keys() & allowed_config_kwargs}
+        new_cls = super().__new__(cls, name, bases, dict_used, **config_kwargs)
+        new_cls.__annotations__ = {
+            **relationship_annotations,
+            **pydantic_annotations,
+            **new_cls.__annotations__,
+        }
+
+        # def get_config(name: str) -> Any:
+        #     config_class_value = new_cls.model_config.get(name, Undefined)
+        #     if config_class_value is not Undefined:
+        #         return config_class_value
+        #     kwarg_value = kwargs.get(name, Undefined)
+        #     if kwarg_value is not Undefined:
+        #         return kwarg_value
+        #     return Undefined
+
+        # new_cls.model_config["generic"] = get_config("generic")
+
+        return new_cls
+
+
+class SchemaModel(BaseModel, metaclass=InfrahubMetaclass):
+    id: str | None = Attribute(default=None, description="The ID of the node")
 
     @classmethod
     def get_kind(cls) -> str:
@@ -70,31 +249,16 @@ class GenericModel(SchemaModel):
 
 
 @dataclass
-class InfrahubAttributeParam:
-    state: SchemaState = SchemaState.PRESENT
-    kind: AttributeKind | None = None
-    label: str | None = None
-    unique: bool = False
-    branch: BranchSupportType | None = None
-
-
-@dataclass
-class InfrahubRelationshipParam:
-    kind: RelationshipKind | None = None
-    identifier: str | None = None
-    branch: BranchSupportType | None = None
-
-
-@dataclass
 class InfrahubFieldInfo:
     name: str
     types: list[type]
     optional: bool
     default: Any
+    field_kind: Literal["attribute", "relationship"] | None = None
 
     @property
     def primary_type(self) -> type:
-        if len(self.types) == 0:
+        if not self.types:
             raise ValueError("No types found")
 
         # if isinstance(self.primary_type, ForwardRef):
@@ -107,15 +271,20 @@ class InfrahubFieldInfo:
 
     @property
     def is_attribute(self) -> bool:
+        if self.field_kind == "attribute":
+            return True
         return self.primary_type in KIND_MAPPING
 
     @property
     def is_relationship(self) -> bool:
+        if self.field_kind == "relationship":
+            return True
+        if isinstance(self.primary_type, ForwardRef):
+            return True
         return issubclass(self.primary_type, BaseModel)
 
     @property
     def is_list(self) -> bool:
-        # breakpoint()
         return typing.get_origin(self.types[0]) is list
 
     def to_dict(self) -> dict:
@@ -130,7 +299,16 @@ class InfrahubFieldInfo:
         }
 
 
-def analyze_field(field_name: str, field: FieldInfo) -> InfrahubFieldInfo:
+def analyze_field(field_name: str, field: AttributeInfo | RelationshipInfo | PydanticFieldInfo) -> InfrahubFieldInfo:
+    if isinstance(field, RelationshipInfo):
+        return InfrahubFieldInfo(
+            name=field.alias or field_name,
+            types=[field.peer] if field.peer else [],
+            optional=field.optional,
+            field_kind="relationship",
+            default=None,
+        )
+
     clean_types = []
     if isinstance(field.annotation, UnionType) or (
         hasattr(field.annotation, "_name") and field.annotation._name == "Optional"  # type: ignore[union-attr]
@@ -143,11 +321,14 @@ def analyze_field(field_name: str, field: FieldInfo) -> InfrahubFieldInfo:
         name=field.alias or field_name,
         types=clean_types,
         optional=not field.is_required(),
-        default=field.default if field.default is not PydanticUndefined else None,
+        default=field.default if field.default is not Undefined else None,
     )
 
 
-def get_attribute_kind(field: FieldInfo) -> AttributeKind:
+def get_attribute_kind(field: AttributeInfo | PydanticFieldInfo) -> AttributeKind:
+    if isinstance(field, AttributeInfo) and field.kind:
+        return field.kind
+
     if field.annotation in KIND_MAPPING:
         return KIND_MAPPING[field.annotation]
 
@@ -161,24 +342,36 @@ def get_attribute_kind(field: FieldInfo) -> AttributeKind:
     raise ValueError(f"Unknown field type: {field.annotation}")
 
 
-def field_to_attribute(field_name: str, field_info: InfrahubFieldInfo, field: FieldInfo) -> AttributeSchema:
-    field_param = InfrahubAttributeParam()
-    field_params = [metadata for metadata in field.metadata if isinstance(metadata, InfrahubAttributeParam)]
-    if len(field_params) == 1:
-        field_param = field_params[0]
-
+def field_to_attribute(
+    field_name: str, field_info: InfrahubFieldInfo, field: AttributeInfo | PydanticFieldInfo
+) -> AttributeSchema:
     pattern = field._attributes_set.get("pattern", None)
     max_length = field._attributes_set.get("max_length", None)
     min_length = field._attributes_set.get("min_length", None)
 
+    if isinstance(field, AttributeInfo):
+        return AttributeSchema(
+            name=field_name,
+            label=field.label,
+            description=field.description,
+            kind=get_attribute_kind(field),
+            optional=field_info.optional,  # not field.is_required(),
+            unique=field.unique,
+            branch=field.branch,
+            default_value=field_info.default,
+            regex=str(pattern) if pattern else None,
+            max_length=int(str(max_length)) if max_length else None,
+            min_length=int(str(min_length)) if min_length else None,
+        )
+
     return AttributeSchema(
         name=field_name,
-        label=field_param.label,
+        # label=field.label,
         description=field.description,
-        kind=field_param.kind or get_attribute_kind(field),
+        kind=get_attribute_kind(field),
         optional=not field.is_required(),
-        unique=field_param.unique,
-        branch=field_param.branch,
+        # unique=field.unique,
+        # branch=field.branch,
         default_value=field_info.default,
         regex=str(pattern) if pattern else None,
         max_length=int(str(max_length)) if max_length else None,
@@ -189,21 +382,25 @@ def field_to_attribute(field_name: str, field_info: InfrahubFieldInfo, field: Fi
 def field_to_relationship(
     field_name: str,
     field_info: InfrahubFieldInfo,
-    field: FieldInfo,
+    field: RelationshipInfo | PydanticFieldInfo,
 ) -> RelationshipSchema:
-    field_param = InfrahubRelationshipParam()
-    field_params = [metadata for metadata in field.metadata if isinstance(metadata, InfrahubRelationshipParam)]
-    if len(field_params) == 1:
-        field_param = field_params[0]
+    if isinstance(field, RelationshipInfo):
+        return RelationshipSchema(
+            name=field_name,
+            description=field.description,
+            peer=field.peer or get_kind(field_info.primary_type),
+            identifier=field.identifier,
+            cardinality="many" if field_info.is_list else "one",
+            optional=field_info.optional,
+            branch=field.branch,
+        )
 
     return RelationshipSchema(
         name=field_name,
         description=field.description,
         peer=get_kind(field_info.primary_type),
-        identifier=field_param.identifier,
         cardinality="many" if field_info.is_list else "one",
         optional=field_info.optional,
-        branch=field_param.branch,
     )
 
 
@@ -212,6 +409,11 @@ def extract_validate_generic(model: type[BaseModel]) -> list[str]:
 
 
 def validate_kind(kind: str) -> tuple[str, str]:
+    """Validate the kind of a model.
+
+    TODO Move the function to the main module
+    """
+
     # First, handle transition from a lowercase to uppercase
     name_with_spaces = re.sub(r"([a-z])([A-Z])", r"\1 \2", kind)
 
@@ -236,14 +438,32 @@ def is_generic(model: type[BaseModel]) -> bool:
     return GenericModel in model.__bases__
 
 
-def get_kind(model: type[BaseModel]) -> str:
-    node_schema: NodeSchema | None = model.model_config.get("node_schema") or None  # type: ignore[assignment]
-    generic_schema: GenericSchema | None = model.model_config.get("generic_schema") or None  # type: ignore[assignment]
+def get_kind(model: type[BaseModel] | ForwardRef) -> str:
+    """Get the kind of a model.
 
-    if is_generic(model) and generic_schema:
-        return generic_schema.kind
-    if node_schema:
-        return node_schema.kind
+    If the model name and namespace are set in model_config, return the full kind.
+    If the model namespace is set in model_config, use the name of the class as name.
+    If the model has no name or namespace, extract both from the name of the class.
+    """
+
+    model_class: type[BaseModel]
+
+    if isinstance(model, type) and issubclass(model, BaseModel):
+        model_class = model
+    elif isinstance(model, ForwardRef):
+        return model.__forward_arg__
+    else:
+        raise ValueError(f"Expected BaseModel class, got {model}")
+
+    name = model_class.model_config.get("name", None)
+    namespace = model_class.model_config.get("namespace", None)
+    class_name = model_class.__name__
+
+    if name and namespace:
+        return f"{namespace}{name}"
+    if namespace and not name and not class_name.startswith(namespace):
+        return f"{namespace}{class_name}"
+
     namespace, name = validate_kind(model.__name__)
     return f"{namespace}{name}"
 
@@ -278,26 +498,25 @@ def model_to_node(model: type[BaseModel]) -> NodeSchema | GenericSchema:
     # ------------------------------------------------------------
     # GenericSchema
     # ------------------------------------------------------------
+
+    kind = get_kind(model)
+    namespace, name = validate_kind(kind)
+
     if GenericModel in model.__bases__:
-        generic_schema: GenericSchema | None = model.model_config.get("generic_schema") or None  # type: ignore[assignment]
-
-        if not generic_schema:
-            namespace, name = validate_kind(model.__name__)
-
         generic = GenericSchema(
-            name=generic_schema.name if generic_schema else name,
-            namespace=generic_schema.namespace if generic_schema else namespace,
-            display_labels=generic_schema.display_labels if generic_schema else None,
-            description=generic_schema.description if generic_schema else None,
-            state=generic_schema.state if generic_schema else SchemaState.PRESENT,
-            label=generic_schema.label if generic_schema else None,
-            include_in_menu=generic_schema.include_in_menu if generic_schema else None,
-            menu_placement=generic_schema.menu_placement if generic_schema else None,
-            documentation=generic_schema.documentation if generic_schema else None,
-            order_by=generic_schema.order_by if generic_schema else None,
+            name=name,
+            namespace=namespace,
+            display_labels=model.model_config.get("display_labels", None),
+            description=model.model_config.get("description", None),
+            state=model.model_config.get("state", SchemaState.PRESENT),
+            label=model.model_config.get("label", None),
+            # include_in_menu=generic_schema.include_in_menu if generic_schema else None,
+            # menu_placement=generic_schema.menu_placement if generic_schema else None,
+            # documentation=generic_schema.documentation if generic_schema else None,
+            # order_by=generic_schema.order_by if generic_schema else None,
             # parent=schema.parent if schema else None,
             # children=schema.children if schema else None,
-            icon=generic_schema.icon if generic_schema else None,
+            # icon=generic_schema.icon if generic_schema else None,
             # generate_profile=schema.generate_profile if schema else None,
             # branch=schema.branch if schema else None,
             # default_filter=schema.default_filter if schema else None,
@@ -308,11 +527,6 @@ def model_to_node(model: type[BaseModel]) -> NodeSchema | GenericSchema:
     # ------------------------------------------------------------
     # NodeSchema
     # ------------------------------------------------------------
-    node_schema: NodeSchema | None = model.model_config.get("node_schema") or None  # type: ignore[assignment]
-
-    if not node_schema:
-        namespace, name = validate_kind(model.__name__)
-
     generics = get_generics(model)
 
     # list all inherited fields with a hash for each to track if they are identical on the node
@@ -321,22 +535,22 @@ def model_to_node(model: type[BaseModel]) -> NodeSchema | GenericSchema:
     }
 
     node = NodeSchema(
-        name=node_schema.name if node_schema else name,
-        namespace=node_schema.namespace if node_schema else namespace,
-        display_labels=node_schema.display_labels if node_schema else None,
-        description=node_schema.description if node_schema else None,
-        state=node_schema.state if node_schema else SchemaState.PRESENT,
-        label=node_schema.label if node_schema else None,
-        include_in_menu=node_schema.include_in_menu if node_schema else None,
-        menu_placement=node_schema.menu_placement if node_schema else None,
-        documentation=node_schema.documentation if node_schema else None,
-        order_by=node_schema.order_by if node_schema else None,
+        name=name,
+        namespace=namespace,
+        display_labels=model.model_config.get("display_labels", None),
+        description=model.model_config.get("description", None),
+        state=model.model_config.get("state", SchemaState.PRESENT),
+        label=model.model_config.get("label", None),
+        # include_in_menu=node_schema.include_in_menu if node_schema else None,
+        # menu_placement=node_schema.menu_placement if node_schema else None,
+        # documentation=node_schema.documentation if node_schema else None,
+        # order_by=node_schema.order_by if node_schema else None,
         inherit_from=[get_kind(generic) for generic in generics],
-        parent=node_schema.parent if node_schema else None,
-        children=node_schema.children if node_schema else None,
-        icon=node_schema.icon if node_schema else None,
-        generate_profile=node_schema.generate_profile if node_schema else None,
-        branch=node_schema.branch if node_schema else None,
+        # parent=node_schema.parent if node_schema else None,
+        # children=node_schema.children if node_schema else None,
+        # icon=node_schema.icon if node_schema else None,
+        # generate_profile=node_schema.generate_profile if node_schema else None,
+        # branch=node_schema.branch if node_schema else None,
         # default_filter=schema.default_filter if schema else None,
     )
 
