@@ -92,7 +92,7 @@ async def mock_diff_tree_query(httpx_mock: HTTPXMock, client: InfrahubClient) ->
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_type):
+async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_type) -> None:
     if client_type == "standard":
         node_diffs = await clients.standard.get_diff_summary(
             branch="branch2",

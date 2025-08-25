@@ -10,14 +10,16 @@ sync_methods = [method for method in dir(InfrahubGroupContextSync) if not method
 client_types = ["standard", "sync"]
 
 
-async def test_method_sanity():
+async def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_methods
     assert async_methods == sync_methods
 
 
 @pytest.mark.parametrize("method", async_methods)
-async def test_validate_method_signature(method, replace_sync_return_annotation, replace_async_return_annotation):
+async def test_validate_method_signature(
+    method, replace_sync_return_annotation, replace_async_return_annotation
+) -> None:
     async_method = getattr(InfrahubGroupContext, method)
     sync_method = getattr(InfrahubGroupContextSync, method)
     async_sig = inspect.signature(async_method)
@@ -27,7 +29,7 @@ async def test_validate_method_signature(method, replace_sync_return_annotation,
     assert replace_async_return_annotation(async_sig.return_annotation) == sync_sig.return_annotation
 
 
-def test_set_properties():
+def test_set_properties() -> None:
     context = InfrahubGroupContextBase()
     context.set_properties(identifier="MYID")
     assert context.identifier == "MYID"
@@ -39,7 +41,7 @@ def test_set_properties():
     assert context.delete_unused_nodes is True
 
 
-def test_get_params_as_str():
+def test_get_params_as_str() -> None:
     context = InfrahubGroupContextBase()
     context.set_properties(identifier="MYID", params={"one": 1, "two": "two"})
     assert context._get_params_as_str() == "one: 1, two: two"
@@ -49,7 +51,7 @@ def test_get_params_as_str():
     assert not context._get_params_as_str()
 
 
-def test_generate_group_name():
+def test_generate_group_name() -> None:
     context = InfrahubGroupContextBase()
     context.set_properties(identifier="MYID")
     assert context._generate_group_name() == "MYID"
@@ -63,7 +65,7 @@ def test_generate_group_name():
     assert context._generate_group_name(suffix="xxx") == "MYID-xxx-11aaec5206c3dca37cbbcaaabf121550"
 
 
-def test_generate_group_description(std_group_schema):
+def test_generate_group_description(std_group_schema) -> None:
     context = InfrahubGroupContextBase()
     context.set_properties(identifier="MYID")
     assert not context._generate_group_description(schema=std_group_schema)

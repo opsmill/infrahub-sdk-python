@@ -15,7 +15,7 @@ client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_batch_execution(clients: BothClients, client_type: str):
+async def test_batch_execution(clients: BothClients, client_type: str) -> None:
     r: list[int] = []
     tasks_number = 10
 
@@ -54,7 +54,7 @@ async def test_batch_return_exception(
     mock_schema_query_01,
     clients: BothClients,
     client_type: str,
-):
+) -> None:
     if client_type == "standard":
         batch = await clients.standard.create_batch(return_exceptions=True)
         locations = ["JFK1", "JFK1"]
@@ -100,7 +100,7 @@ async def test_batch_exception(
     mock_schema_query_01,
     clients: BothClients,
     client_type: str,
-):
+) -> None:
     if client_type == "standard":
         batch = await clients.standard.create_batch(return_exceptions=False)
         locations = ["JFK1", "JFK1"]

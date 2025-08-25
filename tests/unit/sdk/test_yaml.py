@@ -48,7 +48,7 @@ def test_read_multiple_files_invalid() -> None:
     assert yaml_files[1].valid is False
 
 
-def test_load_non_existing_folder():
+def test_load_non_existing_folder() -> None:
     with pytest.raises(FileNotValidError) as exc:
         YamlFile.load_from_disk(paths=[get_fixtures_dir() / "does_not_exist"])
     assert "does not exist" in str(exc.value)

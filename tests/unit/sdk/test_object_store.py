@@ -37,14 +37,14 @@ async def mock_upload_object_store_01(httpx_mock: HTTPXMock) -> HTTPXMock:
     return httpx_mock
 
 
-async def test_method_sanity():
+async def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_methods
     assert async_methods == sync_methods
 
 
 @pytest.mark.parametrize("method", async_methods)
-async def test_validate_method_signature(method):
+async def test_validate_method_signature(method) -> None:
     async_method = getattr(ObjectStore, method)
     sync_method = getattr(ObjectStoreSync, method)
     async_sig = inspect.signature(async_method)
@@ -54,7 +54,7 @@ async def test_validate_method_signature(method):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_object_store_get(client_type, clients, mock_get_object_store_01):
+async def test_object_store_get(client_type, clients, mock_get_object_store_01) -> None:
     client = getattr(clients, client_type)
 
     if client_type == "standard":
@@ -66,7 +66,7 @@ async def test_object_store_get(client_type, clients, mock_get_object_store_01):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_object_store_upload(client_type, clients, mock_upload_object_store_01):
+async def test_object_store_upload(client_type, clients, mock_upload_object_store_01) -> None:
     client = getattr(clients, client_type)
 
     if client_type == "standard":
