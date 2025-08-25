@@ -4,7 +4,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import GraphQLError, NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from tests.unit.sdk.conftest import BothClients
 
@@ -800,3 +800,35 @@ async def test_clone_define_branch(clients: BothClients, client_type: str) -> No
     assert clone.default_branch == clone_branch
     assert original_branch != clone_branch
     assert clone.store._default_branch == clone_branch
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_execute_graphql_error(httpx_mock: HTTPXMock, clients, client_type) -> None:
+    httpx_mock.add_response(method="POST", json={"errors": ["foo"]}, is_reusable=True)
+
+    query = """
+    query GetTags {
+        BuiltinTag {
+            edges {
+                node {
+                    id
+                    display_label
+                }
+            }
+        }
+    }
+    """
+
+    if client_type == "standard":
+        with pytest.raises(GraphQLError):
+            await clients.standard.execute_graphql(query=query, raise_for_error=True)
+
+        response = await clients.standard.execute_graphql(query=query, raise_for_error=False)
+    else:
+        with pytest.raises(GraphQLError):
+            clients.sync.execute_graphql(query=query, raise_for_error=True)
+
+        response = clients.sync.execute_graphql(query=query, raise_for_error=False)
+
+    assert response
+    assert response[0] == "foo"
