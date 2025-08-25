@@ -950,7 +950,9 @@ class InfrahubClient(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            if raise_for_error:
+                raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            return response["errors"]
 
         return response["data"]
 
@@ -1694,7 +1696,9 @@ class InfrahubClientSync(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            if raise_for_error:
+                raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            return response["errors"]
 
         return response["data"]
 
