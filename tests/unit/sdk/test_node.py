@@ -53,7 +53,7 @@ UNSAFE_GRAPHQL_VALUES = [
 ]
 
 
-async def test_method_sanity():
+async def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_node_methods
     assert async_node_methods == sync_node_methods
@@ -78,7 +78,7 @@ async def test_validate_method_signature(
     replace_sync_parameter_annotations,
     replace_async_return_annotation,
     replace_sync_return_annotation,
-):
+) -> None:
     EXCLUDE_PARAMETERS = ["client"]
     async_method = getattr(InfrahubNode, method)
     sync_method = getattr(InfrahubNodeSync, method)
@@ -103,14 +103,14 @@ async def test_validate_method_signature(
 
 
 @pytest.mark.parametrize("hfid,expected_kind,expected_hfid", [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])])
-def test_parse_human_friendly_id(hfid: str, expected_kind: str, expected_hfid: list[str]):
+def test_parse_human_friendly_id(hfid: str, expected_kind: str, expected_hfid: list[str]) -> None:
     kind, hfid = parse_human_friendly_id(hfid)
     assert kind == expected_kind
     assert hfid == expected_hfid
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_no_data(client, location_schema, client_type):
+async def test_init_node_no_data(client, location_schema, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
     else:
@@ -123,7 +123,7 @@ async def test_init_node_no_data(client, location_schema, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_hfid(client, schema_with_hfid, client_type):
+async def test_node_hfid(client, schema_with_hfid, client_type) -> None:
     location_data = {"name": {"value": "JFK1"}, "description": {"value": "JFK Airport"}, "type": {"value": "SITE"}}
     if client_type == "standard":
         location = InfrahubNode(client=client, schema=schema_with_hfid["location"], data=location_data)
@@ -146,7 +146,7 @@ async def test_node_hfid(client, schema_with_hfid, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_user(client, location_schema: NodeSchemaAPI, client_type):
+async def test_init_node_data_user(client, location_schema: NodeSchemaAPI, client_type) -> None:
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -164,7 +164,7 @@ async def test_init_node_data_user(client, location_schema: NodeSchemaAPI, clien
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_init_node_data_user_with_relationships(client, location_schema: NodeSchemaAPI, client_type):
+async def test_init_node_data_user_with_relationships(client, location_schema: NodeSchemaAPI, client_type) -> None:
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -205,7 +205,7 @@ async def test_init_node_data_user_with_relationships(client, location_schema: N
 )
 async def test_init_node_data_user_with_relationships_using_related_node(
     client, location_schema: NodeSchemaAPI, client_type, rel_data
-):
+) -> None:
     rel_schema = location_schema.get_relationship(name="primary_tag")
     if client_type == "standard":
         primary_tag = RelatedNode(name="primary_tag", branch="main", client=client, schema=rel_schema, data=rel_data)
@@ -252,7 +252,7 @@ async def test_init_node_data_user_with_relationships_using_related_node(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_init_node_data_graphql(
     client, location_schema: NodeSchemaAPI, location_data01, location_data01_property, client_type, property_test
-):
+) -> None:
     location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
 
     if client_type == "standard":
@@ -274,7 +274,7 @@ async def test_init_node_data_graphql(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_no_filters_property(clients, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_no_filters_property(clients, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -374,7 +374,7 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_no_filters(clients, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_no_filters(clients, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -418,7 +418,7 @@ async def test_query_data_no_filters(clients, location_schema: NodeSchemaAPI, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -482,7 +482,7 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_node(clients, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_node(clients, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         node = InfrahubNode(client=client, schema=location_schema)
@@ -514,7 +514,7 @@ async def test_query_data_node(clients, location_schema: NodeSchemaAPI, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_with_prefetch_relationships_property(clients, mock_schema_query_02, client_type):
+async def test_query_data_with_prefetch_relationships_property(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         location_schema: GenericSchema = await client.schema.get(kind="BuiltinLocation")  # type: ignore[annotation-unchecked]
@@ -650,7 +650,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_with_prefetch_relationships(clients, mock_schema_query_02, client_type):
+async def test_query_data_with_prefetch_relationships(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         location_schema: GenericSchema = await client.schema.get(kind="BuiltinLocation")  # type: ignore[annotation-unchecked]
@@ -702,7 +702,7 @@ async def test_query_data_with_prefetch_relationships(clients, mock_schema_query
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_node_with_prefetch_relationships_property(clients, mock_schema_query_02, client_type):
+async def test_query_data_node_with_prefetch_relationships_property(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         location_schema: GenericSchema = await client.schema.get(kind="BuiltinLocation")  # type: ignore[annotation-unchecked]
@@ -778,7 +778,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_node_with_prefetch_relationships(clients, mock_schema_query_02, client_type):
+async def test_query_data_node_with_prefetch_relationships(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         location_schema: GenericSchema = await client.schema.get(kind="BuiltinLocation")  # type: ignore[annotation-unchecked]
@@ -818,7 +818,7 @@ async def test_query_data_node_with_prefetch_relationships(clients, mock_schema_
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_property(clients, mock_schema_query_02, client_type):
+async def test_query_data_generic_property(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -847,7 +847,7 @@ async def test_query_data_generic_property(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_fragment_property(clients, mock_schema_query_02, client_type):
+async def test_query_data_generic_fragment_property(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -993,7 +993,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_generic_fragment(clients, mock_schema_query_02, client_type):
+async def test_query_data_generic_fragment(clients, mock_schema_query_02, client_type) -> None:
     if client_type == "standard":
         client: InfrahubClient = getattr(clients, client_type)  # type: ignore[annotation-unchecked]
         corenode_schema: GenericSchema = await client.schema.get(kind="CoreNode")  # type: ignore[annotation-unchecked]
@@ -1055,7 +1055,7 @@ async def test_query_data_generic_fragment(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include_property(client, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_include_property(client, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"], property=True)
@@ -1178,7 +1178,7 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"])
@@ -1231,7 +1231,7 @@ async def test_query_data_include(client, location_schema: NodeSchemaAPI, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_exclude_property(client, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_exclude_property(client, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(exclude=["description", "primary_tag"], property=True)
@@ -1290,7 +1290,7 @@ async def test_query_data_exclude_property(client, location_schema: NodeSchemaAP
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_exclude(client, location_schema: NodeSchemaAPI, client_type):
+async def test_query_data_exclude(client, location_schema: NodeSchemaAPI, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(exclude=["description", "primary_tag"])
@@ -1321,7 +1321,7 @@ async def test_query_data_exclude(client, location_schema: NodeSchemaAPI, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_type):
+async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_type) -> None:
     data = {"name": {"value": "JFK1"}, "description": {"value": "JFK Airport"}, "type": {"value": "SITE"}}
 
     if client_type == "standard":
@@ -1335,7 +1335,7 @@ async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data__with_relationships_02(client, location_schema, client_type):
+async def test_create_input_data__with_relationships_02(client, location_schema, client_type) -> None:
     """Validate input data with variables that needs replacements"""
     data = {
         "name": {"value": "JFK1"},
@@ -1369,7 +1369,7 @@ async def test_create_input_data__with_relationships_02(client, location_schema,
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data__with_relationships_01(client, location_schema, client_type):
+async def test_create_input_data__with_relationships_01(client, location_schema, client_type) -> None:
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -1395,7 +1395,7 @@ async def test_create_input_data__with_relationships_01(client, location_schema,
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_relationships_02(clients, rfile_schema, client_type):
+async def test_create_input_data_with_relationships_02(clients, rfile_schema, client_type) -> None:
     data = {
         "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff", "owner": "ffffffff"},
         "template_path": {"value": "mytemplate.j2"},
@@ -1434,7 +1434,7 @@ async def test_create_input_data_with_relationships_02(clients, rfile_schema, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_relationships_03(clients, rfile_schema, client_type):
+async def test_create_input_data_with_relationships_03(clients, rfile_schema, client_type) -> None:
     data = {
         "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff"},
         "template_path": {"value": "mytemplate.j2"},
@@ -1473,7 +1473,7 @@ async def test_create_input_data_with_relationships_03_for_update_include_unmodi
     rfile_userdata01_property,
     client_type,
     property_test,
-):
+) -> None:
     rfile_userdata = rfile_userdata01 if property_test == WITHOUT_PROPERTY else rfile_userdata01_property
 
     if client_type == "standard":
@@ -1531,7 +1531,7 @@ async def test_create_input_data_with_relationships_03_for_update_exclude_unmodi
     rfile_userdata01_property,
     client_type,
     property_test,
-):
+) -> None:
     """NOTE: Need to fix this test, the issue is tracked in https://github.com/opsmill/infrahub-sdk-python/issues/214."""
     rfile_userdata = rfile_userdata01 if property_test == WITHOUT_PROPERTY else rfile_userdata01_property
 
@@ -1568,7 +1568,7 @@ async def test_create_input_data_with_relationships_03_for_update_exclude_unmodi
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_IPHost_attribute(client, ipaddress_schema, client_type):
+async def test_create_input_data_with_IPHost_attribute(client, ipaddress_schema, client_type) -> None:
     data = {"address": {"value": ipaddress.ip_interface("1.1.1.1/24"), "is_protected": True}}
 
     if client_type == "standard":
@@ -1582,7 +1582,7 @@ async def test_create_input_data_with_IPHost_attribute(client, ipaddress_schema,
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_IPNetwork_attribute(client, ipnetwork_schema, client_type):
+async def test_create_input_data_with_IPNetwork_attribute(client, ipnetwork_schema, client_type) -> None:
     data = {"network": {"value": ipaddress.ip_network("1.1.1.0/24"), "is_protected": True}}
 
     if client_type == "standard":
@@ -1608,7 +1608,7 @@ async def test_update_input_data__with_relationships_01(
     tag_red_data,
     client_type,
     property_test,
-):
+) -> None:
     location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
 
     if client_type == "standard":
@@ -1655,7 +1655,7 @@ async def test_update_input_data__with_relationships_01(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data_with_relationships_02(
     client, location_schema, location_data02, location_data02_property, client_type, property_test
-):
+) -> None:
     location_data = location_data02 if property_test == WITHOUT_PROPERTY else location_data02_property
 
     if client_type == "standard":
@@ -1726,7 +1726,7 @@ async def test_update_input_data_with_relationships_02(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data_with_relationships_02_exclude_unmodified(
     client, location_schema, location_data02, location_data02_property, client_type, property_test
-):
+) -> None:
     """NOTE Need to fix this test, issue is tracked in https://github.com/opsmill/infrahub-sdk-python/issues/214."""
     location_data = location_data02 if property_test == WITHOUT_PROPERTY else location_data02_property
 
@@ -1771,7 +1771,7 @@ async def test_update_input_data_empty_relationship(
     tag_blue_data,
     client_type,
     property_test,
-):
+) -> None:
     """TODO: investigate why name and type are being returned since they haven't been modified."""
     location_data = location_data01 if property_test == WITHOUT_PROPERTY else location_data01_property
 
@@ -1819,7 +1819,7 @@ async def test_node_get_relationship_from_store(
     tag_red_data,
     tag_blue_data,
     client_type,
-):
+) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
         tag_red = InfrahubNode(client=client, schema=tag_schema, data=tag_red_data)
@@ -1840,7 +1840,7 @@ async def test_node_get_relationship_from_store(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_get_relationship_not_in_store(client, location_schema, location_data01, client_type):
+async def test_node_get_relationship_not_in_store(client, location_schema, location_data01, client_type) -> None:
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
     else:
@@ -1864,7 +1864,7 @@ async def test_node_fetch_relationship(
     tag_red_data,
     tag_blue_data,
     client_type,
-):
+) -> None:
     response1 = {
         "data": {
             "BuiltinTag": {
@@ -1926,7 +1926,7 @@ async def test_node_fetch_relationship(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_IPHost_deserialization(client, ipaddress_schema, client_type):
+async def test_node_IPHost_deserialization(client, ipaddress_schema, client_type) -> None:
     data = {
         "id": "aaaaaaaaaaaaaa",
         "address": {
@@ -1943,7 +1943,7 @@ async def test_node_IPHost_deserialization(client, ipaddress_schema, client_type
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_IPNetwork_deserialization(client, ipnetwork_schema, client_type):
+async def test_node_IPNetwork_deserialization(client, ipnetwork_schema, client_type) -> None:
     data = {
         "id": "aaaaaaaaaaaaaa",
         "network": {
@@ -1962,7 +1962,7 @@ async def test_node_IPNetwork_deserialization(client, ipnetwork_schema, client_t
 @pytest.mark.parametrize("client_type", client_types)
 async def test_get_flat_value(
     httpx_mock: HTTPXMock, mock_schema_query_01, clients, location_schema, location_data01, client_type
-):
+) -> None:
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinTag": {"count": 1, "edges": [location_data01["node"]["primary_tag"]]}}},
@@ -1989,7 +1989,7 @@ async def test_get_flat_value(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_extract(clients, location_schema, location_data01, client_type):
+async def test_node_extract(clients, location_schema, location_data01, client_type) -> None:
     params = {"identifier": "id", "name": "name__value", "description": "description__value"}
     if client_type == "standard":
         node = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data01)
@@ -2014,7 +2014,7 @@ async def test_read_only_attr(
     address_schema,
     address_data,
     client_type,
-):
+) -> None:
     if client_type == "standard":
         address = InfrahubNode(client=client, schema=address_schema, data=address_data)
     else:
@@ -2032,7 +2032,7 @@ async def test_read_only_attr(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_relationships_excluded_input_data(client, location_schema, client_type):
+async def test_relationships_excluded_input_data(client, location_schema, client_type) -> None:
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -2051,7 +2051,7 @@ async def test_relationships_excluded_input_data(client, location_schema, client
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_resource_pool_relationship(
     client, ipaddress_pool_schema, ipam_ipprefix_schema, simple_device_schema, ipam_ipprefix_data, client_type
-):
+) -> None:
     if client_type == "standard":
         ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNode(
@@ -2103,7 +2103,7 @@ async def test_create_input_data_with_resource_pool_relationship(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_mutation_query_with_resource_pool_relationship(
     client, ipaddress_pool_schema, ipam_ipprefix_schema, simple_device_schema, ipam_ipprefix_data, client_type
-):
+) -> None:
     if client_type == "standard":
         ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNode(
@@ -2162,7 +2162,7 @@ async def test_get_pool_allocated_resources(
     ipam_ipprefix_schema,
     ipam_ipprefix_data,
     client_type,
-):
+) -> None:
     httpx_mock.add_response(
         method="POST",
         json={
@@ -2257,7 +2257,7 @@ async def test_get_pool_allocated_resources(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_get_pool_resources_utilization(
     httpx_mock: HTTPXMock, clients, ipaddress_pool_schema, ipam_ipprefix_schema, ipam_ipprefix_data, client_type
-):
+) -> None:
     httpx_mock.add_response(
         method="POST",
         json={
@@ -2319,7 +2319,7 @@ async def test_get_pool_resources_utilization(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_from_graphql(clients, mock_schema_query_01, location_data01, client_type):
+async def test_from_graphql(clients, mock_schema_query_01, location_data01, client_type) -> None:
     if client_type == "standard":
         schema = await clients.standard.schema.get(kind="BuiltinLocation", branch="main")
         node = await InfrahubNode.from_graphql(

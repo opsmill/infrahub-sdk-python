@@ -24,7 +24,7 @@ def load_menu_file(name: str) -> MenuFile:
     return files[0]
 
 
-def test_load_nested_folders_order():
+def test_load_nested_folders_order() -> None:
     files = YamlFile.load_from_disk(paths=[get_fixtures_dir() / "nested_spec_objects"])
     assert len(files) == 6
     assert Path(files[0].location).name == "3_file.yml"
@@ -53,10 +53,10 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         )
         assert resp.errors == {}
 
-    async def test_create_branch(self, client: InfrahubClient, initial_schema: None, branch_name: str):
+    async def test_create_branch(self, client: InfrahubClient, initial_schema: None, branch_name: str) -> None:
         await client.branch.create(branch_name=branch_name, sync_with_git=False)
 
-    async def test_load_tags(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_load_tags(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         obj_file = load_object_file("animal_tags01.yml")
         await obj_file.validate_format(client=client, branch=branch_name)
 
@@ -67,7 +67,7 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
 
         assert len(await client.all(kind=obj_file.spec.kind, branch=branch_name)) == 3
 
-    async def test_update_tags(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_update_tags(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         obj_file = load_object_file("animal_tags02.yml")
         await obj_file.validate_format(client=client, branch=branch_name)
 
@@ -81,7 +81,7 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         assert len(tags_by_name) == 4
         assert tags_by_name["Veterinarian"].description.value == "Licensed animal healthcare professional"
 
-    async def test_load_persons(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_load_persons(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         obj_file = load_object_file("animal_person01.yml")
         await obj_file.validate_format(client=client, branch=branch_name)
 
@@ -92,7 +92,7 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
 
         assert len(await client.all(kind=obj_file.spec.kind, branch=branch_name)) == 3
 
-    async def test_load_dogs(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_load_dogs(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         obj_file = load_object_file("animal_dog01.yml")
         await obj_file.validate_format(client=client, branch=branch_name)
 
@@ -103,7 +103,7 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
 
         assert len(await client.all(kind=obj_file.spec.kind, branch=branch_name)) == 4
 
-    async def test_load_persons02(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_load_persons02(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         obj_file = load_object_file("animal_person02.yml")
         await obj_file.validate_format(client=client, branch=branch_name)
 
@@ -135,7 +135,7 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         animals_emily = [animal.display_label for animal in person_by_name["Emily Parker"].animals.peers]
         assert sorted(animals_emily) == sorted(["Max Golden Retriever", "Whiskers Siamese #FFD700"])
 
-    async def test_load_menu(self, client: InfrahubClient, branch_name: str, initial_schema: None):
+    async def test_load_menu(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         menu_file = load_menu_file("animal_menu01.yml")
         await menu_file.validate_format(client=client, branch=branch_name)
 

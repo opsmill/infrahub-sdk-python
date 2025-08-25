@@ -5,7 +5,7 @@ from graphql.error import GraphQLSyntaxError
 from infrahub_sdk.analyzer import GraphQLOperation, GraphQLQueryAnalyzer
 
 
-async def test_analyzer_init_query_only(query_01, bad_query_01):
+async def test_analyzer_init_query_only(query_01, bad_query_01) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert isinstance(gqa.document, DocumentNode)
 
@@ -13,7 +13,7 @@ async def test_analyzer_init_query_only(query_01, bad_query_01):
         gqa = GraphQLQueryAnalyzer(query=bad_query_01)
 
 
-async def test_nbr_queries(query_01: str, query_03: str):
+async def test_nbr_queries(query_01: str, query_03: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert gqa.nbr_queries == 1
 
@@ -21,7 +21,7 @@ async def test_nbr_queries(query_01: str, query_03: str):
     assert gqa.nbr_queries == 2
 
 
-async def test_query_types(query_01: str, query_03: str, query_introspection: str):
+async def test_query_types(query_01: str, query_03: str, query_introspection: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert gqa.operations == [GraphQLOperation(name="TestPerson", operation_type=OperationType.QUERY)]
 
@@ -34,7 +34,7 @@ async def test_query_types(query_01: str, query_03: str, query_introspection: st
     assert gqa.operations == [GraphQLOperation(name="__schema", operation_type=OperationType.QUERY)]
 
 
-async def test_get_fields(query_01: str, query_03: str):
+async def test_get_fields(query_01: str, query_03: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert await gqa.get_fields() == {
         "TestPerson": {
@@ -61,7 +61,7 @@ async def test_get_fields(query_01: str, query_03: str):
     }
 
 
-async def test_calculate_depth(query_01: str, query_02: str, query_03: str, query_04: str):
+async def test_calculate_depth(query_01: str, query_02: str, query_03: str, query_04: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert await gqa.calculate_depth() == 9
 
@@ -75,7 +75,7 @@ async def test_calculate_depth(query_01: str, query_02: str, query_03: str, quer
     assert await gqa.calculate_depth() == 6
 
 
-async def test_calculate_height(query_01: str, query_02: str, query_03: str, query_04: str):
+async def test_calculate_height(query_01: str, query_02: str, query_03: str, query_04: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert await gqa.calculate_height() == 10
 
@@ -89,7 +89,7 @@ async def test_calculate_height(query_01: str, query_02: str, query_03: str, que
     assert await gqa.calculate_height() == 5
 
 
-async def test_get_variables(query_01: str, query_04: str, query_05: str, query_06: str):
+async def test_get_variables(query_01: str, query_04: str, query_05: str, query_06: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert gqa.variables == []
 
@@ -151,7 +151,7 @@ async def test_get_variables(query_01: str, query_04: str, query_05: str, query_
     "var_type,var_required",
     [("[ID]", False), ("[ID]!", True), ("[ID!]", False), ("[ID!]!", True)],
 )
-async def test_get_nested_variables(var_type, var_required):
+async def test_get_nested_variables(var_type, var_required) -> None:
     query = (
         """
         query ($ids: %s){

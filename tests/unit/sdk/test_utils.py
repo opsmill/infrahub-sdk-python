@@ -25,13 +25,13 @@ from infrahub_sdk.utils import (
 )
 
 
-def test_generate_short_id():
+def test_generate_short_id() -> None:
     assert len(generate_short_id()) == 22
     assert isinstance(generate_short_id(), str)
     assert generate_short_id() != generate_short_id()
 
 
-def test_is_valid_uuid():
+def test_is_valid_uuid() -> None:
     assert is_valid_uuid(uuid.uuid4()) is True
     assert is_valid_uuid(uuid.UUID("ba0aecd9-546a-4d77-9187-23e17a20633e")) is True
     assert is_valid_uuid("ba0aecd9-546a-4d77-9187-23e17a20633e") is True
@@ -57,11 +57,11 @@ def test_is_valid_uuid():
         ("http:/192.168.1.10", False),
     ],
 )
-def test_is_valid_url(input, result):
+def test_is_valid_url(input, result) -> None:
     assert is_valid_url(input) is result
 
 
-def test_duplicates():
+def test_duplicates() -> None:
     assert duplicates([2, 4, 6, 8, 4, 6, 12]) == [4, 6]
     assert duplicates(["first", "second", "first", "third", "first", "last"]) == ["first"]
     assert not duplicates([2, 8, 4, 6, 12])
@@ -69,7 +69,7 @@ def test_duplicates():
     assert duplicates([None, None]) == []
 
 
-def test_compare_lists():
+def test_compare_lists() -> None:
     list_a = ["black", "blue", "red"]
     list_b = ["black", "green"]
     list_c = ["purple", "yellow"]
@@ -90,7 +90,7 @@ def test_compare_lists():
     assert in2 == []
 
 
-def test_deep_merge_dict():
+def test_deep_merge_dict() -> None:
     a = {"keyA": 1}
     b = {"keyB": {"sub1": 10}}
     c = {"keyB": {"sub2": 20}}
@@ -104,7 +104,7 @@ def test_deep_merge_dict():
     assert deep_merge_dict(f, g) == {"keyA": "foo", "keyB": "bar"}
 
 
-def test_str_to_bool():
+def test_str_to_bool() -> None:
     assert str_to_bool(True) is True
     assert str_to_bool(False) is False
 
@@ -130,21 +130,21 @@ def test_str_to_bool():
         str_to_bool(tuple("a", "b", "c"))
 
 
-def test_base36():
+def test_base36() -> None:
     assert base36encode(1412823931503067241) == "AQF8AA0006EH"
     assert base36decode("AQF8AA0006EH") == 1412823931503067241
     assert base36decode(base36encode(-9223372036721928027)) == -9223372036721928027
     assert base36decode(base36encode(1412823931503067241)) == 1412823931503067241
 
 
-def test_base16():
+def test_base16() -> None:
     assert base16encode(1412823931503067241) == "139b5be157694069"
     assert base16decode("139b5be157694069") == 1412823931503067241
     assert base16decode(base16encode(-9223372036721928027)) == -9223372036721928027
     assert base16decode(base16encode(1412823931503067241)) == 1412823931503067241
 
 
-def test_dict_hash():
+def test_dict_hash() -> None:
     assert dict_hash({"a": 1, "b": 2}) == "608de49a4600dbb5b173492759792e4a"
     assert dict_hash({"b": 2, "a": 1}) == "608de49a4600dbb5b173492759792e4a"
     assert dict_hash({"b": 2, "a": {"c": 1, "d": 2}}) == "4d8f1a3d03e0b487983383d0ff984d13"
@@ -152,7 +152,7 @@ def test_dict_hash():
     assert dict_hash({}) == "99914b932bd37a50b983c5e7c90ae93b"
 
 
-async def test_extract_fields(query_01):
+async def test_extract_fields(query_01) -> None:
     document = parse(query_01)
     expected_response = {
         "TestPerson": {
@@ -167,7 +167,7 @@ async def test_extract_fields(query_01):
     assert await extract_fields(document.definitions[0].selection_set) == expected_response
 
 
-async def test_extract_fields_fragment(query_02):
+async def test_extract_fields_fragment(query_02) -> None:
     document = parse(query_02)
 
     expected_response = {
@@ -195,7 +195,7 @@ async def test_extract_fields_fragment(query_02):
     assert await extract_fields(document.definitions[0].selection_set) == expected_response
 
 
-def test_write_to_file():
+def test_write_to_file() -> None:
     tmp_dir = tempfile.TemporaryDirectory()
     directory = Path(tmp_dir.name)
 
@@ -212,7 +212,7 @@ def test_write_to_file():
     tmp_dir.cleanup()
 
 
-def test_calculate_time_diff():
+def test_calculate_time_diff() -> None:
     time1 = Instant.now().subtract(seconds=98).format_common_iso()
     assert calculate_time_diff(time1) == "1m and 38s ago"
 

@@ -9,7 +9,7 @@ from tests.helpers.cli import remove_ansi_color
 runner = CliRunner()
 
 
-def test_schema_load_empty(httpx_mock: HTTPXMock):
+def test_schema_load_empty(httpx_mock: HTTPXMock) -> None:
     fixture_file = get_fixtures_dir() / "models" / "empty.json"
     result = runner.invoke(app=app, args=["load", str(fixture_file)])
 
@@ -17,7 +17,7 @@ def test_schema_load_empty(httpx_mock: HTTPXMock):
     assert "Invalid YAML/JSON file" in result.stdout
 
 
-def test_schema_load_one_valid(httpx_mock: HTTPXMock):
+def test_schema_load_one_valid(httpx_mock: HTTPXMock) -> None:
     fixture_file = get_fixtures_dir() / "models" / "valid_model_01.json"
 
     httpx_mock.add_response(
@@ -48,7 +48,7 @@ def test_schema_load_one_valid(httpx_mock: HTTPXMock):
     assert content_json == {"schemas": [fixture_file_content]}
 
 
-def test_schema_load_multiple(httpx_mock: HTTPXMock):
+def test_schema_load_multiple(httpx_mock: HTTPXMock) -> None:
     fixture_file1 = get_fixtures_dir() / "models" / "valid_schemas" / "contract.yml"
     fixture_file2 = get_fixtures_dir() / "models" / "valid_schemas" / "rack.yml"
 
@@ -81,7 +81,7 @@ def test_schema_load_multiple(httpx_mock: HTTPXMock):
     assert content_json == {"schemas": [fixture_file1_content, fixture_file2_content]}
 
 
-def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock):
+def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock) -> None:
     fixture_file = get_fixtures_dir() / "models" / "non_valid_namespace.json"
 
     httpx_mock.add_response(

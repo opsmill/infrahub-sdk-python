@@ -24,8 +24,8 @@ exceptions:
   - Computed Attribute
   - Computed Attributes
   - CoreArtifactTarget
-  - CoreRepository
   - CoreGroup
+  - CoreRepository
   - Docker Compose
   - E2E
   - Generics
@@ -36,17 +36,17 @@ exceptions:
   - GitPod
   - GraphQL
   - GraphQLQuery
-  - include_in_menu & menu_placement
   - Helm
   - High Availability
   - Human Friendly Identifier
+  - include_in_menu & menu_placement
   - Infrahub
   - infrahubctl
-  - IPHost
   - IP
-  - IPAM
-  - IPNetwork
   - IP Fabric
+  - IPAM
+  - IPHost
+  - IPNetwork
   - JavaScript
   - JetStream
   - Jinja
@@ -65,6 +65,7 @@ exceptions:
   - REST
   - RFile
   - SDK
+  - Separate proxies for HTTP and HTTPS
   - Single sign-on
   - SSO
   - TLS

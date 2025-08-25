@@ -29,7 +29,7 @@ batch_client_types = [
 client_types = ["standard", "sync"]
 
 
-async def test_method_sanity():
+async def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_client_methods
     assert async_client_methods == sync_client_methods
@@ -42,7 +42,7 @@ async def test_validate_method_signature(
     replace_sync_return_annotation,
     replace_async_parameter_annotations,
     replace_sync_parameter_annotations,
-):
+) -> None:
     async_method = getattr(InfrahubClient, method)
     sync_method = getattr(InfrahubClientSync, method)
     async_sig = inspect.signature(async_method)
@@ -58,7 +58,7 @@ async def test_validate_method_signature(
     assert replace_async_return_annotation(async_sig.return_annotation) == sync_sig.return_annotation
 
 
-def test_init_with_invalid_address():
+def test_init_with_invalid_address() -> None:
     with pytest.raises(ValueError) as exc:
         InfrahubClient(address="missing-schema")
 
@@ -67,7 +67,7 @@ def test_init_with_invalid_address():
 
 async def test_get_repositories(
     client: InfrahubClient, mock_branches_list_query, mock_schema_query_02, mock_repositories_query
-):
+) -> None:
     repos = await client.get_list_repositories()
 
     assert len(repos) == 2
@@ -83,7 +83,7 @@ async def test_get_repositories(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_count(clients, mock_query_repository_count, client_type):
+async def test_method_count(clients, mock_query_repository_count, client_type) -> None:
     if client_type == "standard":
         count = await clients.standard.count(kind="CoreRepository")
     else:
@@ -93,7 +93,7 @@ async def test_method_count(clients, mock_query_repository_count, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_count_with_filter(clients, mock_query_repository_count, client_type):
+async def test_method_count_with_filter(clients, mock_query_repository_count, client_type) -> None:
     if client_type == "standard":
         count = await clients.standard.count(kind="CoreRepository", name__value="test")
     else:
@@ -103,7 +103,7 @@ async def test_method_count_with_filter(clients, mock_query_repository_count, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_version(clients, mock_query_infrahub_version, client_type):
+async def test_method_get_version(clients, mock_query_infrahub_version, client_type) -> None:
     if client_type == "standard":
         version = await clients.standard.get_version()
     else:
@@ -113,7 +113,7 @@ async def test_method_get_version(clients, mock_query_infrahub_version, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_user(clients, mock_query_infrahub_user, client_type):
+async def test_method_get_user(clients, mock_query_infrahub_user, client_type) -> None:
     if client_type == "standard":
         user = await clients.standard.get_user()
     else:
@@ -124,7 +124,7 @@ async def test_method_get_user(clients, mock_query_infrahub_user, client_type):
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type):
+async def test_method_get_user_permissions(clients, mock_query_infrahub_user, client_type) -> None:
     if client_type == "standard":
         groups = await clients.standard.get_user_permissions()
     else:
@@ -135,7 +135,7 @@ async def test_method_get_user_permissions(clients, mock_query_infrahub_user, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type):
+async def test_method_all_with_limit(clients, mock_query_repository_page1_2, client_type) -> None:
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False, limit=3)
         assert clients.standard.store.count() == 0
@@ -154,7 +154,7 @@ async def test_method_all_with_limit(clients, mock_query_repository_page1_2, cli
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_all_multiple_pages(
     clients, mock_query_repository_page1_2, mock_query_repository_page2_2, client_type
-):
+) -> None:
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
         assert clients.standard.store.count() == 0
@@ -174,7 +174,7 @@ async def test_method_all_multiple_pages(
 @pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
 async def test_method_all_batching(
     clients, mock_query_location_batch_count, mock_query_location_batch, client_type, use_parallel
-):
+) -> None:
     if client_type == "standard":
         locations = await clients.standard.all(kind="BuiltinLocation", populate_store=False, parallel=use_parallel)
         assert clients.standard.store.count() == 0
@@ -192,7 +192,7 @@ async def test_method_all_batching(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type):
+async def test_method_all_single_page(clients, mock_query_repository_page1_1, client_type) -> None:
     if client_type == "standard":
         repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
         assert clients.standard.store.count() == 0
@@ -210,7 +210,7 @@ async def test_method_all_single_page(clients, mock_query_repository_page1_1, cl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_type):
+async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_type) -> None:
     if client_type == "standard":
         nodes = await clients.standard.all(kind="CoreNode")
     else:
@@ -222,7 +222,7 @@ async def test_method_all_generic(clients, mock_query_corenode_page1_1, client_t
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
+async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type) -> None:
     response = {
         "data": {
             "CoreRepository": {
@@ -270,7 +270,7 @@ async def test_method_get_by_id(httpx_mock: HTTPXMock, clients, mock_schema_quer
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
+async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type) -> None:
     response = {
         "data": {
             "CoreRepository": {
@@ -319,7 +319,7 @@ async def test_method_get_by_hfid(httpx_mock: HTTPXMock, clients, mock_schema_qu
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
+async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type) -> None:
     response = {
         "data": {
             "CoreRepository": {
@@ -365,7 +365,7 @@ async def test_method_get_by_default_filter(httpx_mock: HTTPXMock, clients, mock
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type):
+async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_query_01, client_type) -> None:
     response = {
         "data": {
             "CoreRepository": {
@@ -401,7 +401,9 @@ async def test_method_get_by_name(httpx_mock: HTTPXMock, clients, mock_schema_qu
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):
+async def test_method_get_not_found(
+    httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type
+) -> None:
     with pytest.raises(NodeNotFoundError):
         if client_type == "standard":
             await clients.standard.get(kind="CoreRepository", name__value="infrahub-demo-core")
@@ -412,7 +414,7 @@ async def test_method_get_not_found(httpx_mock: HTTPXMock, clients, mock_query_r
 @pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_not_found_none(
     httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type
-):
+) -> None:
     if client_type == "standard":
         response = await clients.standard.get(
             kind="CoreRepository", name__value="infrahub-demo-core", raise_when_missing=False
@@ -430,7 +432,7 @@ async def test_method_get_found_many(
     mock_schema_query_01,
     mock_query_repository_page1_1,
     client_type,
-):
+) -> None:
     with pytest.raises(IndexError):
         if client_type == "standard":
             await clients.standard.get(kind="CoreRepository", id="bfae43e8-5ebb-456c-a946-bf64e930710a")
@@ -439,7 +441,7 @@ async def test_method_get_found_many(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_1, client_type):
+async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_1, client_type) -> None:
     if client_type == "standard":
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -485,7 +487,9 @@ async def test_method_filters_many(httpx_mock: HTTPXMock, clients, mock_query_re
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters_empty(httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type):
+async def test_method_filters_empty(
+    httpx_mock: HTTPXMock, clients, mock_query_repository_page1_empty, client_type
+) -> None:
     if client_type == "standard":
         repos = await clients.standard.filters(
             kind="CoreRepository",
@@ -514,7 +518,7 @@ async def test_allocate_next_ip_address(
     ipam_ipprefix_schema,
     ipam_ipprefix_data,
     client_type,
-):
+) -> None:
     httpx_mock.add_response(
         method="POST",
         json={
@@ -615,7 +619,7 @@ async def test_allocate_next_ip_prefix(
     ipam_ipprefix_schema,
     ipam_ipprefix_data,
     client_type,
-):
+) -> None:
     httpx_mock.add_response(
         method="POST",
         json={
@@ -730,7 +734,7 @@ VARIABLES:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type):
+async def test_query_echo(httpx_mock: HTTPXMock, echo_clients, client_type) -> None:
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinTag": {"edges": []}}},

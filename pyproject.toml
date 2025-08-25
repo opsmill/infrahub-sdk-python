@@ -174,7 +174,6 @@ ignore = [
     ##################################################################################################
     "B008",    # Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
     "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
-    "C408",    # Unnecessary `dict` call (rewrite as a literal)
     "FURB110", # Replace ternary `if` expression with `or` operator
     "FURB113", # Use `lines.extend((" " * self.indentation + "}", "}"))` instead of repeatedly calling `lines.append()`
     "FURB177", # Prefer `Path.cwd()` over `Path().resolve()` for current-directory lookups

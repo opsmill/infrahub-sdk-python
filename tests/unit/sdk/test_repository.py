@@ -16,7 +16,7 @@ def temp_dir():
         yield tmp_dir
 
 
-def test_initialize_repo_creates_new_repo(temp_dir):
+def test_initialize_repo_creates_new_repo(temp_dir) -> None:
     """Test that a new Git repository is created if none exists."""
     manager = GitRepoManager(root_directory=temp_dir, branch="main")
 
@@ -28,7 +28,7 @@ def test_initialize_repo_creates_new_repo(temp_dir):
     assert isinstance(manager.git, Repo)
 
 
-def test_initialize_repo_uses_existing_repo(temp_dir):
+def test_initialize_repo_uses_existing_repo(temp_dir) -> None:
     """Test that the GitRepoManager uses an existing repository without an active branch."""
     # Manually initialize a repo
     Repo.init(temp_dir, default_branch=b"main")
@@ -39,7 +39,7 @@ def test_initialize_repo_uses_existing_repo(temp_dir):
     assert (Path(temp_dir) / ".git").is_dir()
 
 
-def test_active_branch_returns_correct_branch(temp_dir):
+def test_active_branch_returns_correct_branch(temp_dir) -> None:
     """Test that the active branch is correctly returned."""
     manager = GitRepoManager(temp_dir, branch="develop")
 
@@ -47,7 +47,7 @@ def test_active_branch_returns_correct_branch(temp_dir):
     assert manager.active_branch == "develop"
 
 
-def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir):
+def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir) -> None:
     """Test that an error is raised if the repository cannot be initialized."""
 
     def mock_init(*args, **kwargs):  # noqa: ANN002, ANN003
@@ -59,7 +59,7 @@ def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir):
         GitRepoManager(temp_dir)
 
 
-def test_gitrepo_init(temp_dir):
+def test_gitrepo_init(temp_dir) -> None:
     src_directory = get_fixtures_dir() / "integration/mock_repo"
     repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=Path(temp_dir))
     assert len(list(repo._repo.git.get_walker())) == 1

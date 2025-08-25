@@ -1,16 +1,16 @@
-def test_help_message(pytester):
+def test_help_message(pytester) -> None:
     """Make sure that the plugin is loaded by capturing an option it adds in the help message."""
     result = pytester.runpytest("--help")
     result.stdout.fnmatch_lines(["*Infrahub configuration file for the repository*"])
 
 
-def test_without_config(pytester):
+def test_without_config(pytester) -> None:
     """Make sure 0 tests run when test file is not found."""
     result = pytester.runpytest()
     result.assert_outcomes()
 
 
-def test_emptyconfig(pytester):
+def test_emptyconfig(pytester) -> None:
     """Make sure that the plugin load the test file properly."""
     pytester.makefile(
         ".yml",
@@ -25,7 +25,7 @@ def test_emptyconfig(pytester):
     result.assert_outcomes()
 
 
-def test_jinja2_transform_config_missing_directory(pytester):
+def test_jinja2_transform_config_missing_directory(pytester) -> None:
     """Make sure tests raise errors if directories are not found."""
     pytester.makefile(
         ".yml",
@@ -63,7 +63,7 @@ def test_jinja2_transform_config_missing_directory(pytester):
     result.assert_outcomes(errors=1)
 
 
-def test_jinja2_transform_config_missing_input(pytester):
+def test_jinja2_transform_config_missing_input(pytester) -> None:
     """Make sure tests raise errors if no inputs are provided."""
     pytester.makefile(
         ".yml",
@@ -104,7 +104,7 @@ def test_jinja2_transform_config_missing_input(pytester):
     result.assert_outcomes(errors=1)
 
 
-def test_jinja2_transform_no_expected_output(pytester):
+def test_jinja2_transform_no_expected_output(pytester) -> None:
     """Make sure tests succeed if no expect outputs are provided."""
     pytester.makefile(
         ".yml",
@@ -161,7 +161,7 @@ def test_jinja2_transform_no_expected_output(pytester):
     result.assert_outcomes(passed=1)
 
 
-def test_jinja2_transform_unexpected_output(pytester):
+def test_jinja2_transform_unexpected_output(pytester) -> None:
     """Make sure tests fail if the expected and computed outputs don't match."""
     pytester.makefile(
         ".yml",
@@ -233,7 +233,7 @@ def test_jinja2_transform_unexpected_output(pytester):
     result.assert_outcomes(failed=1)
 
 
-def test_python_transform(pytester):
+def test_python_transform(pytester) -> None:
     pytester.makefile(
         ".yml",
         test_python_transform="""
