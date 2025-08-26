@@ -730,10 +730,11 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             rel_schema = self._schema.get_relationship(name=rel_name)
-
             if not rel_schema or (not inherited and rel_schema.inherited):
                 continue
 
+            # Don't fetch many attribute/parent relationships unless they are specified in `include`
+            # TODO Why wouldn't we we fetch them if prefetch_relationships is True?
             if (
                 rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
                 and rel_schema.kind not in [RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT]  # type: ignore[union-attr]
@@ -741,8 +742,8 @@ class InfrahubNode(InfrahubNodeBase):
             ):
                 continue
 
-            peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = await self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = await peer_node.generate_query_data_node(
@@ -751,23 +752,26 @@ class InfrahubNode(InfrahubNodeBase):
                     property=property,
                 )
 
-            if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
-                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
-                # tries to resolve attributes in this ancestor instead of actual node. To avoid
-                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
-                # to explicit actual node kind we are querying.
-                if rel_schema.kind == RelationshipKind.HIERARCHY:
-                    data_node = rel_data["node"]
-                    rel_data["node"] = {}
-                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
-            elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
+                # TODO is there a reason why we fetch here even with prefetch_relationships == False?
+                if rel_schema.cardinality == "one":
+                    rel_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
+                    # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
+                    # tries to resolve attributes in this ancestor instead of actual node. To avoid
+                    # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
+                    # to explicit actual node kind we are querying.
+                    if rel_schema.kind == RelationshipKind.HIERARCHY:
+                        data_node = rel_data["node"]
+                        rel_data["node"] = {}
+                        rel_data["node"][f"...on {rel_schema.peer}"] = data_node
+                elif rel_schema.cardinality == "many":
+                    rel_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
+                else:
+                    raise ValueError(f"Unknown relationship cardinality {rel_schema.cardinality}")
 
-            data[rel_name] = rel_data
+                data[rel_name] = rel_data
 
-            if insert_alias:
-                data[rel_name]["@alias"] = f"__alias__{self._schema.kind}__{rel_name}"
+                if insert_alias:
+                    data[rel_name]["@alias"] = f"__alias__{self._schema.kind}__{rel_name}"
 
         return data
 
