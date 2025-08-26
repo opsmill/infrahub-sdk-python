@@ -105,10 +105,11 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         await car.save(allow_upsert=True)
         assert car.id is not None
 
+        # Clear store, as when we call `owner.peer`, we actually rely on the peer having being stored in store.
+        client.store._branches = {}
         node_after = await client.get(kind=TESTING_CAR, id=car.id)
 
-        with pytest.raises(ValueError):
-            # match=r"Node must have at least one identifier (ID or HFID) to query it."
+        with pytest.raises(NodeNotFoundError, match=f"Unable to find the node '{person_joe.id}' in the store"):
             _ = node_after.owner.peer
 
         assert len(node_after.tags.peers) == 0

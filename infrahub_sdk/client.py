@@ -539,6 +539,8 @@ class InfrahubClient(BaseClient):
         response: dict[str, Any],
         schema_kind: str,
         branch: str,
+        prefetch_relationships: bool,
+        include: list[str] | None,
         timeout: int | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
@@ -547,6 +549,7 @@ class InfrahubClient(BaseClient):
             response (dict[str, Any]): The response from the GraphQL query.
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
+            prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
 
         Returns:
@@ -562,9 +565,14 @@ class InfrahubClient(BaseClient):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            await node._process_relationships(
-                node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout
-            )
+            if prefetch_relationships or include is not None:
+                await node._process_relationships(
+                    node_data=item,
+                    branch=branch,
+                    related_nodes=related_nodes,
+                    timeout=timeout,
+                    include=include,
+                )
 
         return ProcessRelationsNode(nodes=nodes, related_nodes=related_nodes)
 
@@ -811,7 +819,9 @@ class InfrahubClient(BaseClient):
                 response=response,
                 schema_kind=schema.kind,
                 branch=branch,
+                prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
+                include=include,
             )
             return response, process_result
 
