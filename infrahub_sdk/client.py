@@ -790,7 +790,7 @@ class InfrahubClient(BaseClient):
         async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
             """Process a single page of results."""
             query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=offset or page_offset,
+                offset=page_offset if offset is None else offset,
                 limit=limit or pagination_size,
                 filters=filters,
                 include=include,
@@ -1954,7 +1954,7 @@ class InfrahubClientSync(BaseClient):
         def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
             """Process a single page of results."""
             query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=offset or page_offset,
+                offset=page_offset if offset is None else offset,
                 limit=limit or pagination_size,
                 filters=filters,
                 include=include,
