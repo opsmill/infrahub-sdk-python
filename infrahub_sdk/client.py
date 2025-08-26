@@ -4,6 +4,7 @@ import asyncio
 import copy
 import logging
 import time
+import warnings
 from collections.abc import Coroutine, MutableMapping
 from functools import wraps
 from time import sleep
@@ -893,13 +894,20 @@ class InfrahubClient(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool, optional): Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
+            raise_for_error (bool, optional): Deprecated, flag to indicate that we need to raise an exception if the response has some errors.
+            Defaults to True.
         Raises:
             GraphQLError: _description_
 
         Returns:
             _type_: _description_
         """
+        if not raise_for_error:
+            warnings.warn(
+                "Setting `raise_for_error=False` is deprecated, use `try/except` to handle errors.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
 
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -950,9 +958,7 @@ class InfrahubClient(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            if raise_for_error:
-                raise GraphQLError(errors=response["errors"], query=query, variables=variables)
-            return response["errors"]
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -1639,13 +1645,20 @@ class InfrahubClientSync(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool, optional): Flag to indicate that we need to raise an exception if the response has some errors. Defaults to True.
+            raise_for_error (bool, optional): Deprecated, flag to indicate that we need to raise an exception if the response has some errors.
+            Defaults to True.
         Raises:
             GraphQLError: When an error occurs during the execution of the GraphQL query or mutation.
 
         Returns:
             dict: The result of the GraphQL query or mutation.
         """
+        if not raise_for_error:
+            warnings.warn(
+                "Setting `raise_for_error=False` is deprecated, use `try/except` to handle errors.",
+                DeprecationWarning,
+                stacklevel=1,
+            )
 
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -1696,9 +1709,7 @@ class InfrahubClientSync(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            if raise_for_error:
-                raise GraphQLError(errors=response["errors"], query=query, variables=variables)
-            return response["errors"]
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
