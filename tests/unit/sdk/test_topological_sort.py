@@ -4,7 +4,7 @@ from infrahub_sdk.topological_sort import DependencyCycleExistsError, topologica
 
 
 def test_topological_sort_empty() -> None:
-    assert topological_sort(dict()) == []
+    assert topological_sort({}) == []
 
 
 def test_topological_sort_with_cycle_raises_error() -> None:

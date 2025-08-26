@@ -36,7 +36,7 @@ def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[Schem
     has_error: bool = False
     for schema_file in schemas:
         try:
-            client.schema.validate(data=schema_file.content)
+            client.schema.validate(data=schema_file.payload)
         except ValidationError as exc:
             console.print(f"[red]Schema not valid, found '{len(exc.errors())}' error(s) in {schema_file.location}")
             has_error = True
@@ -48,7 +48,7 @@ def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[Schem
         raise typer.Exit(1)
 
 
-def display_schema_load_errors(response: dict[str, Any], schemas_data: list[dict]) -> None:
+def display_schema_load_errors(response: dict[str, Any], schemas_data: list[SchemaFile]) -> None:
     console.print("[red]Unable to load the schema:")
     if "detail" not in response:
         handle_non_detail_errors(response=response)
@@ -87,7 +87,7 @@ def handle_non_detail_errors(response: dict[str, Any]) -> None:
     if "error" in response:
         console.print(f"  {response.get('error')}")
     elif "errors" in response:
-        for error in response.get("errors"):
+        for error in response["errors"]:
             console.print(f"  {error.get('message')}")
     else:
         console.print(f"  '{response}'")
@@ -97,9 +97,9 @@ def valid_error_path(loc_path: list[Any]) -> bool:
     return len(loc_path) >= 6 and loc_path[0] == "body" and loc_path[1] == "schemas"
 
 
-def get_node(schemas_data: list[dict], schema_index: int, node_index: int) -> dict | None:
-    if schema_index < len(schemas_data) and node_index < len(schemas_data[schema_index].content["nodes"]):
-        return schemas_data[schema_index].content["nodes"][node_index]
+def get_node(schemas_data: list[SchemaFile], schema_index: int, node_index: int) -> dict | None:
+    if schema_index < len(schemas_data) and node_index < len(schemas_data[schema_index].payload["nodes"]):
+        return schemas_data[schema_index].payload["nodes"][node_index]
     return None
 
 
@@ -122,7 +122,7 @@ async def load(
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
     start_time = time.time()
-    response = await client.schema.load(schemas=[item.content for item in schemas_data], branch=branch)
+    response = await client.schema.load(schemas=[item.payload for item in schemas_data], branch=branch)
     loading_time = time.time() - start_time
 
     if response.errors:
@@ -170,10 +170,10 @@ async def check(
     client = initialize_client()
     validate_schema_content_and_exit(client=client, schemas=schemas_data)
 
-    success, response = await client.schema.check(schemas=[item.content for item in schemas_data], branch=branch)
+    success, response = await client.schema.check(schemas=[item.payload for item in schemas_data], branch=branch)
 
     if not success:
-        display_schema_load_errors(response=response, schemas_data=schemas_data)
+        display_schema_load_errors(response=response or {}, schemas_data=schemas_data)
     else:
         for schema_file in schemas_data:
             console.print(f"[green] schema '{schema_file.location}' is Valid!")
