@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from copy import copy
+from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any
 
 from ..constants import InfrahubClientMode
@@ -397,7 +397,7 @@ class InfrahubNodeBase:
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
         }
 
-        data["@filters"] = filters or {}
+        data["@filters"] = deepcopy(filters) if filters is not None else {}
 
         if order:
             data["@filters"]["order"] = order
