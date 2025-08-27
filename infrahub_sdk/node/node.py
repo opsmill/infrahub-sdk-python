@@ -314,7 +314,9 @@ class InfrahubNodeBase:
         original_data_item = original_data.get(item)
         original_data_item_is_none = original_data_item is None or (
             isinstance(original_data_item, dict)
-            and (("node" in original_data_item and original_data_item["node"] is None) or "id" not in original_data)
+            and (
+                ("node" in original_data_item and original_data_item["node"] is None) or "id" not in original_data_item
+            )
         )
         if item in data and (data_item in ({}, []) or (data_item is None and original_data_item_is_none)):
             data.pop(item)
