@@ -882,7 +882,7 @@ class InfrahubClient(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
@@ -902,9 +902,9 @@ class InfrahubClient(BaseClient):
         Returns:
             _type_: _description_
         """
-        if not raise_for_error:
+        if raise_for_error is not None:
             warnings.warn(
-                "Setting `raise_for_error=False` is deprecated, use `try/except` to handle errors.",
+                "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -930,7 +930,7 @@ class InfrahubClient(BaseClient):
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error:
+                if raise_for_error in (None, True):
                     resp.raise_for_status()
 
                 retry = False
@@ -1633,7 +1633,7 @@ class InfrahubClientSync(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
@@ -1653,9 +1653,9 @@ class InfrahubClientSync(BaseClient):
         Returns:
             dict: The result of the GraphQL query or mutation.
         """
-        if not raise_for_error:
+        if raise_for_error is not None:
             warnings.warn(
-                "Setting `raise_for_error=False` is deprecated, use `try/except` to handle errors.",
+                "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -1681,7 +1681,7 @@ class InfrahubClientSync(BaseClient):
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error:
+                if raise_for_error in (None, True):
                     resp.raise_for_status()
 
                 retry = False
