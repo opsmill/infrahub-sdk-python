@@ -894,13 +894,17 @@ class InfrahubClient(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool, optional): Deprecated, flag to indicate that we need to raise an exception if the response has some errors.
-            Defaults to True.
+            raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
+                - None (default) or True: HTTP errors raise via resp.raise_for_status().
+                - False: HTTP errors are not automatically raised.
+              GraphQL errors always raise GraphQLError.
+            Defaults to None.
+
         Raises:
-            GraphQLError: _description_
+            GraphQLError: When the GraphQL response contains errors.
 
         Returns:
-            _type_: _description_
+            dict: The GraphQL data payload (response["data"]).
         """
         if raise_for_error is not None:
             warnings.warn(
