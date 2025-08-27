@@ -66,7 +66,7 @@ pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
 towncrier = "^24.8.0"
-infrahub-testcontainers = { version = "^1.2.5", python = ">=3.10" }
+infrahub-testcontainers = { version = "^1.4.0", python = ">=3.10" }
 astroid = "~3.1"
 
 [tool.poetry.extras]
@@ -243,7 +243,7 @@ max-complexity = 17
 ]
 
 "infrahub_sdk/ctl/**/*.py" = [
-    "UP007",  # Use `X | Y` for type annotations | Required for Typer until we can drop the support for Python 3.9
+    "UP007", # Use `X | Y` for type annotations | Required for Typer until we can drop the support for Python 3.9
 ]
 
 "infrahub_sdk/client.py" = [
