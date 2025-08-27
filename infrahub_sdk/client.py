@@ -1660,6 +1660,7 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
+        """
         if raise_for_error is not None:
             warnings.warn(
                 "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
