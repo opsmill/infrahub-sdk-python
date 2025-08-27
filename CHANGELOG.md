@@ -11,6 +11,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.14.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.14.0) - 2025-08-26
+
+### Added
+
+- Added `infrahubctl repository init` command to allow the initialization of an Infrahub repository using [infrahub-template](https://github.com/opsmill/infrahub-template). ([#466](https://github.com/opsmill/infrahub-sdk-python/issues/466))
+- add support for NumberPool attributes in generated protocols
+
+### Fixed
+
+- Fix value lookup using a flat notation like `foo__bar__value` with relationships of cardinality one ([#6882](https://github.com/opsmill/infrahub-sdk-python/issues/6882))
+- Create a new batch while fetching relationships instead of using the reusing the same one.
+- Update internal calls to `count` to include the branch parameter so that the query is performed on the correct branch
+- Update offset in process_page() which was causing a race condition in rare case. ([#514](https://github.com/opsmill/infrahub-sdk-python/pull/514))
+
 ## [1.13.5](https://github.com/opsmill/infrahub-sdk-python/tree/v1.13.5) - 2025-07-23
 
 ### Fixed
