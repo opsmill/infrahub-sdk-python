@@ -890,7 +890,6 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str,
         related_nodes: list[InfrahubNode],
         timeout: int | None = None,
-        include: list[str] | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -901,8 +900,6 @@ class InfrahubNode(InfrahubNodeBase):
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
         """
         for rel_name in self._relationships:
-            if include is not None and rel_name not in include:
-                continue
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNode):
                 relation = node_data["node"].get(rel_name, None)
@@ -1369,7 +1366,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 continue
 
             peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = peer_node.generate_query_data_node(include=include, exclude=exclude, property=property)

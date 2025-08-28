@@ -17,6 +17,7 @@ from infrahub_sdk.node import (
 from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
+from tests.unit.sdk.conftest import set_builtin_tag_schema_cache
 
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
@@ -1055,12 +1056,19 @@ async def test_query_data_generic_fragment(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include_property(client, location_schema: NodeSchemaAPI, client_type) -> None:
+async def test_query_data_include_property(
+    client,
+    client_sync,
+    location_schema: NodeSchemaAPI,
+    client_type,
+) -> None:
     if client_type == "standard":
+        await set_builtin_tag_schema_cache(client)
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"], property=True)
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema)
+        await set_builtin_tag_schema_cache(client_sync)
+        node = InfrahubNodeSync(client=client_sync, schema=location_schema)
         data = node.generate_query_data(include=["tags"], property=True)
 
     assert data == {
@@ -1178,12 +1186,19 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type) -> None:
+async def test_query_data_include(
+    client,
+    client_sync,
+    location_schema: NodeSchemaAPI,
+    client_type,
+) -> None:
     if client_type == "standard":
+        await set_builtin_tag_schema_cache(client)
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"])
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema)
+        await set_builtin_tag_schema_cache(client_sync)
+        node = InfrahubNodeSync(client=client_sync, schema=location_schema)
         data = node.generate_query_data(include=["tags"])
 
     assert data == {
