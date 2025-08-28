@@ -234,15 +234,10 @@ class InfrahubNodeBase:
 
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
-            # BLOCKED by https://github.com/opsmill/infrahub/issues/330
-            # if (
-            #     item is None
-            #     and item_name in self._relationships
-            #     and self._schema.get_relationship(item_name).cardinality == "one"
-            # ):
-            #     data[item_name] = None
-            #     continue
-            # el
+            if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
+                data[item_name] = None
+                continue
+
             if rel is None or not rel.initialized:
                 continue
 
@@ -315,7 +310,16 @@ class InfrahubNodeBase:
                         variables.pop(variable_key)
 
         # TODO: I do not feel _great_ about this
-        if not data_item and data_item != [] and item in data:
+        # -> I don't even know who you are (but this is not great indeed) -- gmazoyer (quoting Thanos)
+        original_data_item = original_data.get(item)
+        original_data_item_is_none = original_data_item is None
+        if isinstance(original_data_item, dict):
+            if "node" in original_data_item:
+                original_data_item_is_none = original_data_item["node"] is None
+            elif "id" not in original_data_item:
+                original_data_item_is_none = True
+
+        if item in data and (data_item in ({}, []) or (data_item is None and original_data_item_is_none)):
             data.pop(item)
 
     def _strip_unmodified(self, data: dict, variables: dict) -> tuple[dict, dict]:
@@ -324,7 +328,9 @@ class InfrahubNodeBase:
             relationship_property = getattr(self, relationship)
             if not relationship_property or relationship not in data:
                 continue
-            if not relationship_property.initialized:
+            if not relationship_property.initialized and (
+                not isinstance(relationship_property, RelatedNodeBase) or not relationship_property.schema.optional
+            ):
                 data.pop(relationship)
             elif isinstance(relationship_property, RelationshipManagerBase) and not relationship_property.has_update:
                 data.pop(relationship)
