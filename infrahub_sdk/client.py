@@ -106,6 +106,15 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]):  # type: ignore[no
     return wrapper
 
 
+def raise_for_error_deprecation_warning(value: bool | None) -> None:
+    if value is not None:
+        warnings.warn(
+            "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
+            DeprecationWarning,
+            stacklevel=1,
+        )
+
+
 class BaseClient:
     """Base class for InfrahubClient and InfrahubClientSync"""
 
@@ -896,9 +905,7 @@ class InfrahubClient(BaseClient):
             timeout (int, optional): Timeout in second for the query. Defaults to None.
             raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
                 - None (default) or True: HTTP errors raise via resp.raise_for_status().
-                - False: HTTP errors are not automatically raised.
-              GraphQL errors always raise GraphQLError.
-            Defaults to None.
+                - False: HTTP errors are not automatically raised. Defaults to None.
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
@@ -906,12 +913,7 @@ class InfrahubClient(BaseClient):
         Returns:
             dict: The GraphQL data payload (response["data"]).
         """
-        if raise_for_error is not None:
-            warnings.warn(
-                "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
-                DeprecationWarning,
-                stacklevel=1,
-            )
+        raise_for_error_deprecation_warning(value=raise_for_error)
 
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -1111,8 +1113,10 @@ class InfrahubClient(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> dict:
+        raise_for_error_deprecation_warning(value=raise_for_error)
+
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         headers = copy.copy(self.headers or {})
@@ -1157,7 +1161,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error:
+        if raise_for_error in (None, True):
             resp.raise_for_status()
 
         return decode_json(response=resp)
@@ -1167,7 +1171,7 @@ class InfrahubClient(BaseClient):
         branch: str,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         response = await self.execute_graphql(
@@ -1232,7 +1236,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> SchemaType: ...
 
     @overload
@@ -1277,7 +1281,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_address(
@@ -1291,7 +1295,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -1304,7 +1308,7 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
         """
@@ -1379,7 +1383,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> SchemaType: ...
 
     @overload
@@ -1427,7 +1431,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_prefix(
@@ -1442,7 +1446,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
@@ -1456,7 +1460,7 @@ class InfrahubClient(BaseClient):
             branch: Name of the branch to allocate from. Defaults to default_branch.
             timeout: Flag to indicate whether to populate the store with the retrieved nodes.
             tracker: The offset for pagination.
-            raise_for_error: The limit for pagination.
+            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
         """
@@ -1652,8 +1656,7 @@ class InfrahubClientSync(BaseClient):
             raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
                 - None (default) or True: HTTP errors raise via `resp.raise_for_status()`.
                 - False: HTTP errors are not automatically raised.
-              GraphQL errors always raise `GraphQLError`.
-            Defaults to None.
+              GraphQL errors always raise `GraphQLError`. Defaults to None.
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
@@ -1661,12 +1664,7 @@ class InfrahubClientSync(BaseClient):
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
         """
-        if raise_for_error is not None:
-            warnings.warn(
-                "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
-                DeprecationWarning,
-                stacklevel=1,
-            )
+        raise_for_error_deprecation_warning(value=raise_for_error)
 
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -2261,8 +2259,10 @@ class InfrahubClientSync(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> dict:
+        raise_for_error_deprecation_warning(value=raise_for_error)
+
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         headers = copy.copy(self.headers or {})
@@ -2306,7 +2306,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error:
+        if raise_for_error in (None, True):
             resp.raise_for_status()
 
         return decode_json(response=resp)
@@ -2316,7 +2316,7 @@ class InfrahubClientSync(BaseClient):
         branch: str,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         response = self.execute_graphql(
@@ -2381,7 +2381,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> SchemaTypeSync: ...
 
     @overload
@@ -2426,7 +2426,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_address(
@@ -2440,7 +2440,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -2524,7 +2524,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> SchemaTypeSync: ...
 
     @overload
@@ -2572,7 +2572,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: bool = ...,
+        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_prefix(
@@ -2587,7 +2587,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool = True,
+        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
