@@ -38,7 +38,7 @@ Multiple object files can be loaded at once by specifying the path to multiple f
 The `object load` command will create/update the objects using an `Upsert` operation. All objects previously loaded will NOT be deleted in the Infrahub instance.
 Also, if some objects present in different files are identical and dependent on each other, the `object load` command will NOT calculate the dependencies between the objects and as such it's the responsibility of the users to execute the command in the right order.
 
-> Object files can also be loaded into Infrahub when using external Git repositories. To see how to do this, please refer to the [.infrahub.yml](https://docs.infrahub.app/topics/infrahub-yml#objects) documentation.
+> Object files can also be loaded into Infrahub when using external Git repositories. To see how to do this, please refer to the [.infrahub.yml](https://docs.infrahub.app/topics/infrahub-yml) documentation.
 
 ### Validate the format of object files
 
