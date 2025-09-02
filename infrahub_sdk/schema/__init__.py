@@ -23,6 +23,7 @@ from ..exceptions import (
 from ..graphql import Mutation
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
+    AttributeKind,
     AttributeSchema,
     AttributeSchemaAPI,
     BranchSchema,
@@ -40,20 +41,29 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
+from .pydantic_utils import (
+    GenericModel,
+    NodeModel,
+    SchemaModel,
+    from_pydantic,
+)
 
 if TYPE_CHECKING:
-    from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
+    from ..client import InfrahubClient, InfrahubClientSync, SchemaModelType, SchemaType, SchemaTypeSync
     from ..node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
 
 
 __all__ = [
+    "AttributeKind",
     "AttributeSchema",
     "AttributeSchemaAPI",
     "BranchSupportType",
+    "GenericModel",
     "GenericSchema",
     "GenericSchemaAPI",
+    "NodeModel",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",
@@ -61,9 +71,11 @@ __all__ = [
     "RelationshipKind",
     "RelationshipSchema",
     "RelationshipSchemaAPI",
+    "SchemaModel",
     "SchemaRoot",
     "SchemaRootAPI",
     "TemplateSchemaAPI",
+    "from_pydantic",
 ]
 
 
@@ -184,14 +196,17 @@ class InfrahubSchemaBase:
         raise InvalidResponseError(message=f"Invalid response received from server HTTP {response.status_code}")
 
     @staticmethod
-    def _get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str) -> str:
+    def _get_schema_name(schema: type[SchemaType | SchemaTypeSync | SchemaModelType] | str) -> str:
         if hasattr(schema, "_is_runtime_protocol") and schema._is_runtime_protocol:  # type: ignore[union-attr]
             return schema.__name__  # type: ignore[union-attr]
+
+        if isinstance(schema, type) and issubclass(schema, SchemaModel):
+            return schema.get_kind()
 
         if isinstance(schema, str):
             return schema
 
-        raise ValueError("schema must be a protocol or a string")
+        raise ValueError("schema must be a protocol, a SchemaModel, or a string")
 
     @staticmethod
     def _parse_schema_response(response: httpx.Response, branch: str) -> MutableMapping[str, Any]:
@@ -227,7 +242,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
     async def get(
         self,
-        kind: type[SchemaType | SchemaTypeSync] | str,
+        kind: type[SchemaType | SchemaTypeSync | SchemaModelType] | str,
         branch: str | None = None,
         refresh: bool = False,
         timeout: int | None = None,
@@ -522,7 +537,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
     def get(
         self,
-        kind: type[SchemaType | SchemaTypeSync] | str,
+        kind: type[SchemaType | SchemaTypeSync | SchemaModelType] | str,
         branch: str | None = None,
         refresh: bool = False,
         timeout: int | None = None,
