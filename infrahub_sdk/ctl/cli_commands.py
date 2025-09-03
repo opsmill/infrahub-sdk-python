@@ -417,12 +417,17 @@ def info(  # noqa: PLR0915
         "user_info": {},
         "groups": {},
     }
+    client = initialize_client_sync()
+    fetch_user_details = client.config.username or client.config.api_token
+
     try:
-        client = initialize_client_sync()
         info["infrahub_version"] = client.get_version()
-        info["user_info"] = client.get_user()
+
+        if fetch_user_details:
+            info["user_info"] = client.get_user()
+            info["groups"] = client.get_user_permissions()
+
         info["status"] = ":white_heavy_check_mark:"
-        info["groups"] = client.get_user_permissions()
     except Exception as e:
         info["error"] = f"{e!s} ({e.__class__.__name__})"
 
@@ -469,7 +474,7 @@ def info(  # noqa: PLR0915
         pretty_model = Pretty(client.config.model_dump(), expand_all=True)
         layout["client_info"].update(Panel(pretty_model, title="Client Info"))
 
-        # Infrahub information planel
+        # Infrahub information panel
         infrahub_info = Table(show_header=False, box=None)
         if info["user_info"]:
             infrahub_info.add_row("User:", info["user_info"]["AccountProfile"]["display_label"])
@@ -487,6 +492,8 @@ def info(  # noqa: PLR0915
                 infrahub_info.add_row("Groups:", "")
                 for group, roles in groups.items():
                     infrahub_info.add_row("", group, ", ".join(roles))
+        else:
+            infrahub_info.add_row("User:", "anonymous")
 
         layout["infrahub_info"].update(Panel(infrahub_info, title="Infrahub Info"))
 
