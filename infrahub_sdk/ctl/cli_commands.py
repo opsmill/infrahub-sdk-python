@@ -409,7 +409,6 @@ def info(  # noqa: PLR0915
     _: str = CONFIG_PARAM,
 ) -> None:
     """Display the status of the Python SDK."""
-
     info: dict[str, Any] = {
         "error": None,
         "status": ":x:",
