@@ -2646,20 +2646,3 @@ async def mock_query_tasks_05(httpx_mock: HTTPXMock) -> HTTPXMock:
         is_reusable=True,
     )
     return httpx_mock
-
-
-async def set_builtin_tag_schema_cache(client) -> None:
-    # Set tag schema in cache to avoid needed to request the server.
-    builtin_tag_schema = {
-        "version": "1.0",
-        "nodes": [
-            {
-                "name": "Tag",
-                "namespace": "Builtin",
-                "default_filter": "name__value",
-                "display_label": "name__value",
-                "branch": "aware",
-            }
-        ],
-    }
-    client.schema.set_cache(builtin_tag_schema)

@@ -558,9 +558,6 @@ class InfrahubClient(BaseClient):
                 - 'related_nodes': A list of InfrahubNode objects representing the related nodes
         """
 
-        # Ideally, include and relationships wouldn't be parameters of this method, they should only
-        # be used to build the request for the server, and this method would build node according to the response.
-
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
 
@@ -568,7 +565,7 @@ class InfrahubClient(BaseClient):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or include is not None:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -1864,7 +1861,7 @@ class InfrahubClientSync(BaseClient):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or include is not None:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout)
 
         return ProcessRelationsNodeSync(nodes=nodes, related_nodes=related_nodes)

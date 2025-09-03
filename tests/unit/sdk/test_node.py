@@ -17,7 +17,6 @@ from infrahub_sdk.node import (
 from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
-from tests.unit.sdk.conftest import set_builtin_tag_schema_cache
 
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
@@ -52,6 +51,23 @@ UNSAFE_GRAPHQL_VALUES = [
     pytest.param('No "quote"', id="disallow-quotes"),
     pytest.param("Line \n break", id="disallow-linebreaks"),
 ]
+
+
+async def set_builtin_tag_schema_cache(client) -> None:
+    # Set tag schema in cache to avoid needed to request the server.
+    builtin_tag_schema = {
+        "version": "1.0",
+        "nodes": [
+            {
+                "name": "Tag",
+                "namespace": "Builtin",
+                "default_filter": "name__value",
+                "display_label": "name__value",
+                "branch": "aware",
+            }
+        ],
+    }
+    client.schema.set_cache(builtin_tag_schema)
 
 
 async def test_method_sanity() -> None:
