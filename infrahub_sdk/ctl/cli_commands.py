@@ -418,7 +418,7 @@ def info(  # noqa: PLR0915
         "groups": {},
     }
     client = initialize_client_sync()
-    fetch_user_details = client.config.username or client.config.api_token
+    fetch_user_details = bool(client.config.username) or bool(client.config.api_token)
 
     try:
         info["infrahub_version"] = client.get_version()
