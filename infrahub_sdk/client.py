@@ -310,8 +310,7 @@ class InfrahubClient(BaseClient):
 
     async def get_user(self) -> dict:
         """Return user information"""
-        user_info = await self.execute_graphql(query=QUERY_USER)
-        return user_info
+        return await self.execute_graphql(query=QUERY_USER)
 
     async def get_user_permissions(self) -> dict:
         """Return user permissions"""
@@ -1565,8 +1564,7 @@ class InfrahubClientSync(BaseClient):
 
     def get_user(self) -> dict:
         """Return user information"""
-        user_info = self.execute_graphql(query=QUERY_USER)
-        return user_info
+        return self.execute_graphql(query=QUERY_USER)
 
     def get_user_permissions(self) -> dict:
         """Return user permissions"""
