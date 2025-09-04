@@ -748,12 +748,11 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = await self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = await peer_node.generate_query_data_node(
-                    include=include,
-                    exclude=exclude,
                     property=property,
                 )
 
@@ -892,7 +891,11 @@ class InfrahubNode(InfrahubNodeBase):
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     async def _process_relationships(
-        self, node_data: dict[str, Any], branch: str, related_nodes: list[InfrahubNode], timeout: int | None = None
+        self,
+        node_data: dict[str, Any],
+        branch: str,
+        related_nodes: list[InfrahubNode],
+        timeout: int | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1369,7 +1372,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 continue
 
             peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = peer_node.generate_query_data_node(include=include, exclude=exclude, property=property)

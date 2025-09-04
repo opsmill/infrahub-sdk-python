@@ -539,6 +539,7 @@ class InfrahubClient(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
+        include: list[str] | None,
         timeout: int | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
@@ -563,9 +564,12 @@ class InfrahubClient(BaseClient):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
-                    node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout
+                    node_data=item,
+                    branch=branch,
+                    related_nodes=related_nodes,
+                    timeout=timeout,
                 )
 
         return ProcessRelationsNode(nodes=nodes, related_nodes=related_nodes)
@@ -815,6 +819,7 @@ class InfrahubClient(BaseClient):
                 branch=branch,
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
+                include=include,
             )
             return response, process_result
 
@@ -1829,6 +1834,7 @@ class InfrahubClientSync(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
+        include: list[str] | None,
         timeout: int | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
@@ -1853,7 +1859,7 @@ class InfrahubClientSync(BaseClient):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout)
 
         return ProcessRelationsNodeSync(nodes=nodes, related_nodes=related_nodes)
@@ -1978,6 +1984,7 @@ class InfrahubClientSync(BaseClient):
                 branch=branch,
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
+                include=include,
             )
             return response, process_result
 

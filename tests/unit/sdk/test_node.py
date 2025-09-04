@@ -53,6 +53,23 @@ UNSAFE_GRAPHQL_VALUES = [
 ]
 
 
+async def set_builtin_tag_schema_cache(client) -> None:
+    # Set tag schema in cache to avoid needed to request the server.
+    builtin_tag_schema = {
+        "version": "1.0",
+        "nodes": [
+            {
+                "name": "Tag",
+                "namespace": "Builtin",
+                "default_filter": "name__value",
+                "display_label": "name__value",
+                "branch": "aware",
+            }
+        ],
+    }
+    client.schema.set_cache(builtin_tag_schema)
+
+
 async def test_method_sanity() -> None:
     """Validate that there is at least one public method and that both clients look the same."""
     assert async_node_methods
@@ -1055,12 +1072,19 @@ async def test_query_data_generic_fragment(clients, mock_schema_query_02, client
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include_property(client, location_schema: NodeSchemaAPI, client_type) -> None:
+async def test_query_data_include_property(
+    client,
+    client_sync,
+    location_schema: NodeSchemaAPI,
+    client_type,
+) -> None:
     if client_type == "standard":
+        await set_builtin_tag_schema_cache(client)
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"], property=True)
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema)
+        await set_builtin_tag_schema_cache(client_sync)
+        node = InfrahubNodeSync(client=client_sync, schema=location_schema)
         data = node.generate_query_data(include=["tags"], property=True)
 
     assert data == {
@@ -1178,12 +1202,19 @@ async def test_query_data_include_property(client, location_schema: NodeSchemaAP
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_query_data_include(client, location_schema: NodeSchemaAPI, client_type) -> None:
+async def test_query_data_include(
+    client,
+    client_sync,
+    location_schema: NodeSchemaAPI,
+    client_type,
+) -> None:
     if client_type == "standard":
+        await set_builtin_tag_schema_cache(client)
         node = InfrahubNode(client=client, schema=location_schema)
         data = await node.generate_query_data(include=["tags"])
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema)
+        await set_builtin_tag_schema_cache(client_sync)
+        node = InfrahubNodeSync(client=client_sync, schema=location_schema)
         data = node.generate_query_data(include=["tags"])
 
     assert data == {
