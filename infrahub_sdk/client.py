@@ -209,7 +209,7 @@ class BaseClient:
             delete_unused_nodes=delete_unused_nodes,
             group_type=group_type,
             group_params=group_params,
-            branch=branch,
+            branch=branch or self.default_branch,
         )
 
     def _graphql_url(
@@ -1107,13 +1107,13 @@ class InfrahubClient(BaseClient):
     ) -> dict:
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
+        url_params["branch"] = branch_name or self.default_branch
+
         headers = copy.copy(self.headers or {})
 
         if self.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
 
-        if branch_name:
-            url_params["branch"] = branch_name
         if at:
             url_params["at"] = at
 
@@ -2247,13 +2247,13 @@ class InfrahubClientSync(BaseClient):
     ) -> dict:
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
+        url_params["branch"] = branch_name or self.default_branch
+
         headers = copy.copy(self.headers or {})
 
         if self.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
 
-        if branch_name:
-            url_params["branch"] = branch_name
         if at:
             url_params["at"] = at
         if subscribers:
