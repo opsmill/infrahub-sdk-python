@@ -5,6 +5,7 @@ import copy
 import logging
 import time
 from collections.abc import Coroutine, MutableMapping
+from datetime import datetime
 from functools import wraps
 from time import sleep
 from typing import (
@@ -24,6 +25,7 @@ from typing_extensions import Self
 
 from .batch import InfrahubBatch, InfrahubBatchSync
 from .branch import (
+    MUTATION_QUERY_TASK,
     BranchData,
     InfrahubBranchManager,
     InfrahubBranchManagerSync,
@@ -1149,21 +1151,48 @@ class InfrahubClient(BaseClient):
 
         return decode_json(response=resp)
 
+    async def create_diff(
+        self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
+    ) -> str:
+        input_data = {
+            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
+            "wait_until_completion": wait_until_completion,
+            "data": {
+                "name": name,
+                "branch": branch,
+                "from_time": from_time.isoformat(),
+                "to_time": to_time.isoformat(),
+            },
+        }
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        print(query.render())
+        response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+        if not wait_until_completion and "task" in response["DiffUpdate"]:
+            return response["DiffUpdate"]["task"]["id"]
+        return response["DiffUpdate"]["ok"]
+
+    # async def get_diff(self, branch: str, name: str) -> list
+
     async def get_diff_summary(
         self,
         branch: str,
+        name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
         response = await self.execute_graphql(
             query=query,
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
             raise_for_error=raise_for_error,
-            variables={"branch_name": branch},
+            variables=input_data,
         )
 
         node_diffs: list[NodeDiff] = []
@@ -2289,18 +2318,22 @@ class InfrahubClientSync(BaseClient):
     def get_diff_summary(
         self,
         branch: str,
+        name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
         response = self.execute_graphql(
             query=query,
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
             raise_for_error=raise_for_error,
-            variables={"branch_name": branch},
+            variables=input_data,
         )
 
         node_diffs: list[NodeDiff] = []

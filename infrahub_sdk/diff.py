@@ -37,8 +37,8 @@ class NodeDiffPeer(TypedDict):
 
 def get_diff_summary_query() -> str:
     return """
-        query GetDiffTree($branch_name: String!) {
-            DiffTree(branch: $branch_name) {
+        query GetDiffTree($branch_name: String!, $name: String) {
+            DiffTree(branch: $branch_name, name: $name) {
                 nodes {
                     uuid
                     kind
