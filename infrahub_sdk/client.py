@@ -2319,7 +2319,7 @@ class InfrahubClientSync(BaseClient):
             resp.raise_for_status()
 
         return decode_json(response=resp)
-    
+
     def create_diff(
         self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
     ) -> str:
@@ -2342,7 +2342,6 @@ class InfrahubClientSync(BaseClient):
             return response["DiffUpdate"]["task"]["id"]
 
         return response["DiffUpdate"]["ok"]
-
 
     def get_diff_summary(
         self,
