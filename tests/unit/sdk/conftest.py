@@ -34,6 +34,11 @@ async def client() -> InfrahubClient:
 
 
 @pytest.fixture
+async def client_sync() -> InfrahubClientSync:
+    return InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True, pagination_size=3))
+
+
+@pytest.fixture
 async def clients() -> BothClients:
     both = BothClients(
         standard=InfrahubClient(config=Config(address="http://mock", insert_tracker=True, pagination_size=3)),

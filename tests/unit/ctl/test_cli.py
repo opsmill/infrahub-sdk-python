@@ -33,7 +33,7 @@ def test_version_command() -> None:
 
 
 def test_info_command_success(mock_query_infrahub_version, mock_query_infrahub_user) -> None:
-    result = runner.invoke(app, ["info"])
+    result = runner.invoke(app, ["info"], env={"INFRAHUB_API_TOKEN": "foo"})
     assert result.exit_code == 0
     for expected in ["Connection Status", "Python Version", "SDK Version", "Infrahub Version"]:
         assert expected in result.stdout, f"'{expected}' not found in info command output"
@@ -46,15 +46,16 @@ def test_info_command_failure() -> None:
 
 
 def test_info_detail_command_success(mock_query_infrahub_version, mock_query_infrahub_user) -> None:
+    result = runner.invoke(app, ["info", "--detail"], env={"INFRAHUB_API_TOKEN": "foo"})
+    assert result.exit_code == 0
+    for expected in ["Connection Status", "Version Information", "Client Info", "Infrahub Info", "Groups:"]:
+        assert expected in result.stdout, f"'{expected}' not found in detailed info command output"
+
+
+def test_anonymous_info_detail_command_success(mock_query_infrahub_version) -> None:
     result = runner.invoke(app, ["info", "--detail"])
     assert result.exit_code == 0
-    for expected in [
-        "Connection Status",
-        "Version Information",
-        "Client Info",
-        "Infrahub Info",
-        "Groups:",
-    ]:
+    for expected in ["Connection Status", "Version Information", "Client Info", "Infrahub Info", "anonymous"]:
         assert expected in result.stdout, f"'{expected}' not found in detailed info command output"
 
 

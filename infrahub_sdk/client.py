@@ -219,7 +219,7 @@ class BaseClient:
             delete_unused_nodes=delete_unused_nodes,
             group_type=group_type,
             group_params=group_params,
-            branch=branch,
+            branch=branch or self.default_branch,
         )
 
     def _graphql_url(
@@ -320,8 +320,7 @@ class InfrahubClient(BaseClient):
 
     async def get_user(self) -> dict:
         """Return user information"""
-        user_info = await self.execute_graphql(query=QUERY_USER)
-        return user_info
+        return await self.execute_graphql(query=QUERY_USER)
 
     async def get_user_permissions(self) -> dict:
         """Return user permissions"""
@@ -550,6 +549,7 @@ class InfrahubClient(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
+        include: list[str] | None,
         timeout: int | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
@@ -574,9 +574,12 @@ class InfrahubClient(BaseClient):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
-                    node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout
+                    node_data=item,
+                    branch=branch,
+                    related_nodes=related_nodes,
+                    timeout=timeout,
                 )
 
         return ProcessRelationsNode(nodes=nodes, related_nodes=related_nodes)
@@ -826,6 +829,7 @@ class InfrahubClient(BaseClient):
                 branch=branch,
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
+                include=include,
             )
             return response, process_result
 
@@ -1119,13 +1123,13 @@ class InfrahubClient(BaseClient):
 
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
+        url_params["branch"] = branch_name or self.default_branch
+
         headers = copy.copy(self.headers or {})
 
         if self.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
 
-        if branch_name:
-            url_params["branch"] = branch_name
         if at:
             url_params["at"] = at
 
@@ -1581,8 +1585,7 @@ class InfrahubClientSync(BaseClient):
 
     def get_user(self) -> dict:
         """Return user information"""
-        user_info = self.execute_graphql(query=QUERY_USER)
-        return user_info
+        return self.execute_graphql(query=QUERY_USER)
 
     def get_user_permissions(self) -> dict:
         """Return user permissions"""
@@ -1852,6 +1855,7 @@ class InfrahubClientSync(BaseClient):
         schema_kind: str,
         branch: str,
         prefetch_relationships: bool,
+        include: list[str] | None,
         timeout: int | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
@@ -1876,7 +1880,7 @@ class InfrahubClientSync(BaseClient):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships:
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(node_data=item, branch=branch, related_nodes=related_nodes, timeout=timeout)
 
         return ProcessRelationsNodeSync(nodes=nodes, related_nodes=related_nodes)
@@ -2001,6 +2005,7 @@ class InfrahubClientSync(BaseClient):
                 branch=branch,
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
+                include=include,
             )
             return response, process_result
 
@@ -2265,13 +2270,13 @@ class InfrahubClientSync(BaseClient):
 
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
+        url_params["branch"] = branch_name or self.default_branch
+
         headers = copy.copy(self.headers or {})
 
         if self.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
 
-        if branch_name:
-            url_params["branch"] = branch_name
         if at:
             url_params["at"] = at
         if subscribers:
