@@ -1164,12 +1164,14 @@ class InfrahubClient(BaseClient):
                 "to_time": to_time.isoformat(),
             },
         }
+
         mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
         query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
-        print(query.render())
         response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+
         if not wait_until_completion and "task" in response["DiffUpdate"]:
             return response["DiffUpdate"]["task"]["id"]
+
         return response["DiffUpdate"]["ok"]
 
     async def get_diff_summary(
@@ -2317,11 +2319,37 @@ class InfrahubClientSync(BaseClient):
             resp.raise_for_status()
 
         return decode_json(response=resp)
+    
+    def create_diff(
+        self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
+    ) -> str:
+        input_data = {
+            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
+            "wait_until_completion": wait_until_completion,
+            "data": {
+                "name": name,
+                "branch": branch,
+                "from_time": from_time.isoformat(),
+                "to_time": to_time.isoformat(),
+            },
+        }
+
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        response = self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+
+        if not wait_until_completion and "task" in response["DiffUpdate"]:
+            return response["DiffUpdate"]["task"]["id"]
+
+        return response["DiffUpdate"]["ok"]
+
 
     def get_diff_summary(
         self,
         branch: str,
         name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
@@ -2330,6 +2358,9 @@ class InfrahubClientSync(BaseClient):
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
+        if from_time and to_time:
+            input_data["from_time"] = from_time.isoformat()
+            input_data["to_time"] = to_time.isoformat()
         response = self.execute_graphql(
             query=query,
             branch_name=branch,
