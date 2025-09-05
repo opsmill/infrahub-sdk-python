@@ -121,7 +121,7 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
         branch=branch_name,
         kind=str(node_dict.get("kind")),
         id=str(node_dict.get("uuid")),
-        action=str(node_dict.get("action")),
+        action=str(node_dict.get("status")),
         display_label=str(node_dict.get("label")),
         elements=element_diffs,
     )

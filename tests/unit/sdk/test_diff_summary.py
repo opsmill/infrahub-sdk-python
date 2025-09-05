@@ -109,7 +109,7 @@ async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_ty
         "branch": "branch2",
         "kind": "TestCar",
         "id": "17fbadf0-6637-4fa2-43e6-1677ea170e0f",
-        "action": "None",
+        "action": "UPDATED",
         "display_label": "nolt #444444",
         "elements": [
             {
@@ -124,7 +124,7 @@ async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_ty
         "branch": "branch2",
         "kind": "TestPerson",
         "id": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
-        "action": "None",
+        "action": "UPDATED",
         "display_label": "Jane",
         "elements": [
             {
@@ -140,7 +140,7 @@ async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_ty
         "branch": "branch2",
         "kind": "TestPerson",
         "id": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
-        "action": "None",
+        "action": "UPDATED",
         "display_label": "Jonathan",
         "elements": [
             {
