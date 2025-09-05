@@ -1153,9 +1153,10 @@ class InfrahubClient(BaseClient):
 
     async def create_diff(
         self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
-    ) -> str:
+    ) -> bool | str:
+        if from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
         input_data = {
-            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
             "wait_until_completion": wait_until_completion,
             "data": {
                 "name": name,
@@ -1188,8 +1189,11 @@ class InfrahubClient(BaseClient):
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
-        if from_time and to_time:
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
             input_data["from_time"] = from_time.isoformat()
+        if to_time:
             input_data["to_time"] = to_time.isoformat()
         response = await self.execute_graphql(
             query=query,
@@ -2322,9 +2326,10 @@ class InfrahubClientSync(BaseClient):
 
     def create_diff(
         self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
-    ) -> str:
+    ) -> bool | str:
+        if from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
         input_data = {
-            # Should be switched to `wait_until_completion` once `background_execution` is removed server side.
             "wait_until_completion": wait_until_completion,
             "data": {
                 "name": name,
@@ -2357,8 +2362,11 @@ class InfrahubClientSync(BaseClient):
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
-        if from_time and to_time:
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
             input_data["from_time"] = from_time.isoformat()
+        if to_time:
             input_data["to_time"] = to_time.isoformat()
         response = self.execute_graphql(
             query=query,
