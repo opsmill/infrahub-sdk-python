@@ -1172,12 +1172,12 @@ class InfrahubClient(BaseClient):
             return response["DiffUpdate"]["task"]["id"]
         return response["DiffUpdate"]["ok"]
 
-    # async def get_diff(self, branch: str, name: str) -> list
-
     async def get_diff_summary(
         self,
         branch: str,
         name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
@@ -1186,6 +1186,9 @@ class InfrahubClient(BaseClient):
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
+        if from_time and to_time:
+            input_data["from_time"] = from_time.isoformat()
+            input_data["to_time"] = to_time.isoformat()
         response = await self.execute_graphql(
             query=query,
             branch_name=branch,
