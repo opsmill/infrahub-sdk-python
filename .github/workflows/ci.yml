@@ -165,7 +165,7 @@ jobs:
         with:
           submodules: true
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: "Setup Python environment"
@@ -229,7 +229,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v5"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: "Setup environment"
@@ -278,7 +278,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v5"
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: "Set environment variables"
@@ -331,7 +331,7 @@ jobs:
   #         submodules: true
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@v6
   #       with:
   #         python-version: "3.12"
 
