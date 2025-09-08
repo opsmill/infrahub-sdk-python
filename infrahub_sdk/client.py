@@ -5,6 +5,7 @@ import copy
 import logging
 import time
 from collections.abc import Coroutine, MutableMapping
+from datetime import datetime
 from functools import wraps
 from time import sleep
 from typing import (
@@ -24,6 +25,7 @@ from typing_extensions import Self
 
 from .batch import InfrahubBatch, InfrahubBatchSync
 from .branch import (
+    MUTATION_QUERY_TASK,
     BranchData,
     InfrahubBranchManager,
     InfrahubBranchManagerSync,
@@ -1154,21 +1156,57 @@ class InfrahubClient(BaseClient):
 
         return decode_json(response=resp)
 
+    async def create_diff(
+        self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
+    ) -> bool | str:
+        if from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        input_data = {
+            "wait_until_completion": wait_until_completion,
+            "data": {
+                "name": name,
+                "branch": branch,
+                "from_time": from_time.isoformat(),
+                "to_time": to_time.isoformat(),
+            },
+        }
+
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+
+        if not wait_until_completion and "task" in response["DiffUpdate"]:
+            return response["DiffUpdate"]["task"]["id"]
+
+        return response["DiffUpdate"]["ok"]
+
     async def get_diff_summary(
         self,
         branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
         response = await self.execute_graphql(
             query=query,
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
             raise_for_error=raise_for_error,
-            variables={"branch_name": branch},
+            variables=input_data,
         )
 
         node_diffs: list[NodeDiff] = []
@@ -2293,21 +2331,57 @@ class InfrahubClientSync(BaseClient):
 
         return decode_json(response=resp)
 
+    def create_diff(
+        self, branch: str, name: str, from_time: datetime, to_time: datetime, wait_until_completion: bool = True
+    ) -> bool | str:
+        if from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        input_data = {
+            "wait_until_completion": wait_until_completion,
+            "data": {
+                "name": name,
+                "branch": branch,
+                "from_time": from_time.isoformat(),
+                "to_time": to_time.isoformat(),
+            },
+        }
+
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        response = self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+
+        if not wait_until_completion and "task" in response["DiffUpdate"]:
+            return response["DiffUpdate"]["task"]["id"]
+
+        return response["DiffUpdate"]["ok"]
+
     def get_diff_summary(
         self,
         branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
         raise_for_error: bool = True,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
         response = self.execute_graphql(
             query=query,
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
             raise_for_error=raise_for_error,
-            variables={"branch_name": branch},
+            variables=input_data,
         )
 
         node_diffs: list[NodeDiff] = []
