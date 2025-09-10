@@ -193,7 +193,6 @@ ignore = [
     "PLW1641", # Object does not implement `__hash__` method
     "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
-    "RET504",  # Unnecessary assignment to `data` before `return` statement
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
     "RUF015",  # Prefer `next(iter(input_data["variables"].keys()))` over single element slice
     "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
@@ -273,6 +272,7 @@ max-complexity = 17
     "ANN201", # ANN201 Missing return type annotation for public function
     "ANN202", # Missing return type annotation for private function
     "ANN204", # Missing return type annotation for special method
+    "RET504",  # Unnecessary assignment to `data` before `return` statement
 ]
 
 "tests/unit/sdk/test_client.py" = [
