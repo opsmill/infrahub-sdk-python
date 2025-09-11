@@ -56,5 +56,4 @@ class JSONPlayback(BaseSettings):
         with Path(f"{self.directory}/{filename}.json").open(encoding="utf-8") as fobj:
             data = ujson.load(fobj)
 
-        response = httpx.Response(status_code=data["status_code"], content=data["response_content"], request=request)
-        return response
+        return httpx.Response(status_code=data["status_code"], content=data["response_content"], request=request)

@@ -307,8 +307,7 @@ class InfrahubClient(BaseClient):
     async def get_version(self) -> str:
         """Return the Infrahub version."""
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
-        version = response.get("InfrahubInfo", {}).get("version", "")
-        return version
+        return response.get("InfrahubInfo", {}).get("version", "")
 
     async def get_user(self) -> dict:
         """Return user information"""
@@ -1602,8 +1601,7 @@ class InfrahubClientSync(BaseClient):
     def get_version(self) -> str:
         """Return the Infrahub version."""
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
-        version = response.get("InfrahubInfo", {}).get("version", "")
-        return version
+        return response.get("InfrahubInfo", {}).get("version", "")
 
     def get_user(self) -> dict:
         """Return user information"""

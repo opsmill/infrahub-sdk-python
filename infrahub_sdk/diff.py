@@ -117,7 +117,7 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     )
                 relationship_diff["peers"] = peer_diffs
             element_diffs.append(relationship_diff)
-    node_diff = NodeDiff(
+    return NodeDiff(
         branch=branch_name,
         kind=str(node_dict.get("kind")),
         id=str(node_dict.get("uuid")),
@@ -125,4 +125,3 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
         display_label=str(node_dict.get("label")),
         elements=element_diffs,
     )
-    return node_diff
