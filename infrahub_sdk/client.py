@@ -5,7 +5,7 @@ import copy
 import logging
 import time
 import warnings
-from collections.abc import Coroutine, MutableMapping
+from collections.abc import Coroutine, Mapping, MutableMapping
 from functools import wraps
 from time import sleep
 from typing import (
@@ -61,6 +61,9 @@ from .utils import decode_json, get_user_permissions, is_valid_uuid
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from httpx._transports.base import AsyncBaseTransport, BaseTransport
+    from httpx._types import ProxyTypes
+
     from .context import RequestContext
 
 
@@ -71,6 +74,16 @@ SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
 class ProcessRelationsNode(TypedDict):
     nodes: list[InfrahubNode]
     related_nodes: list[InfrahubNode]
+
+
+class ProxyConfig(TypedDict):
+    proxy: ProxyTypes | None
+    mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+class ProxyConfigSync(TypedDict):
+    proxy: ProxyTypes | None
+    mounts: Mapping[str, BaseTransport | None] | None
 
 
 class ProcessRelationsNodeSync(TypedDict):
@@ -1026,17 +1039,17 @@ class InfrahubClient(BaseClient):
         if payload:
             params["json"] = payload
 
-        proxy_config: dict[str, str | dict[str, httpx.HTTPTransport]] = {}
+        proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
         if self.config.proxy:
             proxy_config["proxy"] = self.config.proxy
         elif self.config.proxy_mounts.is_set:
             proxy_config["mounts"] = {
-                key: httpx.HTTPTransport(proxy=value)
+                key: httpx.AsyncHTTPTransport(proxy=value)
                 for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
             }
 
         async with httpx.AsyncClient(
-            **proxy_config,  # type: ignore[arg-type]
+            **proxy_config,
             verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
         ) as client:
             try:
@@ -2688,7 +2701,8 @@ class InfrahubClientSync(BaseClient):
         if payload:
             params["json"] = payload
 
-        proxy_config: dict[str, str | dict[str, httpx.HTTPTransport]] = {}
+        proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
+
         if self.config.proxy:
             proxy_config["proxy"] = self.config.proxy
         elif self.config.proxy_mounts.is_set:
@@ -2698,7 +2712,7 @@ class InfrahubClientSync(BaseClient):
             }
 
         with httpx.Client(
-            **proxy_config,  # type: ignore[arg-type]
+            **proxy_config,
             verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
         ) as client:
             try:
