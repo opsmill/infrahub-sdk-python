@@ -3,13 +3,21 @@ from __future__ import annotations
 import re
 import warnings
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, TypedDict
 
+from typing_extensions import NotRequired
 from whenever import Date, Instant, LocalDateTime, OffsetDateTime, Time, ZonedDateTime
 
 from .exceptions import TimestampFormatError
 
 UTC = timezone.utc  # Required for older versions of Python
+
+
+class SubstractParams(TypedDict):
+    seconds: NotRequired[float]
+    minutes: NotRequired[float]
+    hours: NotRequired[float]
+
 
 REGEX_MAPPING = {
     "seconds": r"(\d+)(s|sec|second|seconds)",
@@ -73,14 +81,19 @@ class Timestamp:
         except ValueError:
             pass
 
-        params: dict[str, float] = {}
+        params: SubstractParams = {}
         for key, regex in REGEX_MAPPING.items():
             match = re.search(regex, value)
             if match:
-                params[key] = float(match.group(1))
+                if key == "seconds":
+                    params["seconds"] = float(match.group(1))
+                elif key == "minutes":
+                    params["minutes"] = float(match.group(1))
+                elif key == "hours":
+                    params["hours"] = float(match.group(1))
 
         if params:
-            return ZonedDateTime.now("UTC").subtract(**params)  # type: ignore[call-overload]
+            return ZonedDateTime.now("UTC").subtract(**params)
 
         raise TimestampFormatError(f"Invalid time format for {value}")
 
