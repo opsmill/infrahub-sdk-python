@@ -170,6 +170,12 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
         assert person_sophia.favorite_animal.id == cat_luna.id
 
+        # Ensure that nullify it will remove the relationship related node
+        person_sophia.favorite_animal = None
+        await person_sophia.save()
+        person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
+        assert not person_sophia.favorite_animal.id
+
     async def test_task_query(self, client: InfrahubClient, base_dataset, set_pagination_size3) -> None:
         nbr_tasks = await client.task.count()
         assert nbr_tasks

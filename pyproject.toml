@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.13.5"
+version = "1.14.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -66,7 +66,7 @@ pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
 towncrier = "^24.8.0"
-infrahub-testcontainers = { version = "^1.2.5", python = ">=3.10" }
+infrahub-testcontainers = { version = "^1.4.0", python = ">=3.10" }
 astroid = "~3.1"
 
 [tool.poetry.extras]
@@ -243,7 +243,7 @@ max-complexity = 17
 ]
 
 "infrahub_sdk/ctl/**/*.py" = [
-    "UP007",  # Use `X | Y` for type annotations | Required for Typer until we can drop the support for Python 3.9
+    "UP007", # Use `X | Y` for type annotations | Required for Typer until we can drop the support for Python 3.9
 ]
 
 "infrahub_sdk/client.py" = [
@@ -271,8 +271,6 @@ max-complexity = 17
     ##################################################################################################
     "ANN001", # Missing type annotation for function argument
     "ANN201", # ANN201 Missing return type annotation for public function
-    "ANN202", # Missing return type annotation for private function
-    "ANN204", # Missing return type annotation for special method
 ]
 
 "tests/unit/sdk/test_client.py" = [

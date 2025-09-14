@@ -85,6 +85,40 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert node_after.owner.peer.id == person_joe.id
         assert node_after.owner.peer.typename == "TestingPerson"
 
+    async def test_node_filters_include(
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes,
+        person_joe,
+        tag_red,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR,
+            name="Tiguan2",
+            color="Black",
+            manufacturer=manufacturer_mercedes,
+            owner=person_joe,
+            tags=[tag_red],
+        )
+        await car.save(allow_upsert=True)
+        assert car.id is not None
+
+        # Clear store, as when we call `owner.peer`, we actually rely on the peer having being stored in store.
+        client.store._branches = {}
+        node_after = await client.get(kind=TESTING_CAR, id=car.id)
+
+        with pytest.raises(NodeNotFoundError, match=f"Unable to find the node '{person_joe.id}' in the store"):
+            _ = node_after.owner.peer
+
+        assert len(node_after.tags.peers) == 0
+
+        # Test both one and many relationships
+        node_after = await client.get(kind=TESTING_CAR, id=car.id, include=["tags", "owner"])
+        assert [tag.id for tag in node_after.tags.peers] == [tag_red.id]
+        assert node_after.owner.peer.id == person_joe.id, f"{person_joe.id=}"
+
     async def test_node_update_with_original_data(
         self,
         default_branch: str,

@@ -8,7 +8,9 @@ from pydantic import BaseModel
 VARIABLE_TYPE_MAPPING = ((str, "String!"), (int, "Int!"), (float, "Float!"), (bool, "Boolean!"))
 
 
-def convert_to_graphql_as_string(value: str | bool | list | BaseModel | Enum | Any, convert_enum: bool = False) -> str:  # noqa: PLR0911
+def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:  # noqa: PLR0911
+    if value is None:
+        return "null"
     if isinstance(value, str) and value.startswith("$"):
         return value
     if isinstance(value, Enum):

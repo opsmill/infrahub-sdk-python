@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from copy import copy
+from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any
 
 from ..constants import InfrahubClientMode
@@ -234,15 +234,10 @@ class InfrahubNodeBase:
 
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
-            # BLOCKED by https://github.com/opsmill/infrahub/issues/330
-            # if (
-            #     item is None
-            #     and item_name in self._relationships
-            #     and self._schema.get_relationship(item_name).cardinality == "one"
-            # ):
-            #     data[item_name] = None
-            #     continue
-            # el
+            if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
+                data[item_name] = None
+                continue
+
             if rel is None or not rel.initialized:
                 continue
 
@@ -315,7 +310,16 @@ class InfrahubNodeBase:
                         variables.pop(variable_key)
 
         # TODO: I do not feel _great_ about this
-        if not data_item and data_item != [] and item in data:
+        # -> I don't even know who you are (but this is not great indeed) -- gmazoyer (quoting Thanos)
+        original_data_item = original_data.get(item)
+        original_data_item_is_none = original_data_item is None
+        if isinstance(original_data_item, dict):
+            if "node" in original_data_item:
+                original_data_item_is_none = original_data_item["node"] is None
+            elif "id" not in original_data_item:
+                original_data_item_is_none = True
+
+        if item in data and (data_item in ({}, []) or (data_item is None and original_data_item_is_none)):
             data.pop(item)
 
     def _strip_unmodified(self, data: dict, variables: dict) -> tuple[dict, dict]:
@@ -324,7 +328,9 @@ class InfrahubNodeBase:
             relationship_property = getattr(self, relationship)
             if not relationship_property or relationship not in data:
                 continue
-            if not relationship_property.initialized:
+            if not relationship_property.initialized and (
+                not isinstance(relationship_property, RelatedNodeBase) or not relationship_property.schema.optional
+            ):
                 data.pop(relationship)
             elif isinstance(relationship_property, RelationshipManagerBase) and not relationship_property.has_update:
                 data.pop(relationship)
@@ -397,7 +403,7 @@ class InfrahubNodeBase:
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
         }
 
-        data["@filters"] = filters or {}
+        data["@filters"] = deepcopy(filters) if filters is not None else {}
 
         if order:
             data["@filters"]["order"] = order
@@ -742,12 +748,11 @@ class InfrahubNode(InfrahubNodeBase):
                 continue
 
             peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = await self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = await peer_node.generate_query_data_node(
-                    include=include,
-                    exclude=exclude,
                     property=property,
                 )
 
@@ -886,7 +891,11 @@ class InfrahubNode(InfrahubNodeBase):
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     async def _process_relationships(
-        self, node_data: dict[str, Any], branch: str, related_nodes: list[InfrahubNode], timeout: int | None = None
+        self,
+        node_data: dict[str, Any],
+        branch: str,
+        related_nodes: list[InfrahubNode],
+        timeout: int | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1363,7 +1372,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 continue
 
             peer_data: dict[str, Any] = {}
-            if rel_schema and prefetch_relationships:
+            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
+            if rel_schema and should_fetch_relationship:
                 peer_schema = self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = peer_node.generate_query_data_node(include=include, exclude=exclude, property=property)
