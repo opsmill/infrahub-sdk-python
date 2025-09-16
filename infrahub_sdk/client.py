@@ -95,9 +95,7 @@ class ProcessRelationsNodeSync(TypedDict):
 
 def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  # type: ignore[no-untyped-def]
     @wraps(func)
-    async def wrapper(
-        client: InfrahubClient, *args: Any, **kwargs: Any
-    ) -> httpx.Response:
+    async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
         if response.status_code == 401:
             errors = response.json().get("errors", [])
@@ -111,9 +109,7 @@ def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  #
 
 def handle_relogin_sync(func: Callable[..., httpx.Response]):  # type: ignore[no-untyped-def]
     @wraps(func)
-    def wrapper(
-        client: InfrahubClientSync, *args: Any, **kwargs: Any
-    ) -> httpx.Response:
+    def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
         if response.status_code == 401:
             errors = response.json().get("errors", [])
@@ -309,9 +305,7 @@ class BaseClient:
             input_data["prefix_length"] = prefix_length
         if member_type:
             if member_type not in ("prefix", "address"):
-                raise ValueError(
-                    "member_type possible values are 'prefix' or 'address'"
-                )
+                raise ValueError("member_type possible values are 'prefix' or 'address'")
             input_data["member_type"] = member_type
         if prefix_type:
             input_data["prefix_type"] = prefix_type
@@ -345,12 +339,8 @@ class InfrahubClient(BaseClient):
         self.object_store = ObjectStore(self)
         self.store = NodeStore(default_branch=self.default_branch)
         self.task = InfrahubTaskManager(self)
-        self.concurrent_execution_limit = asyncio.Semaphore(
-            self.max_concurrent_execution
-        )
-        self._request_method: AsyncRequester = (
-            self.config.requester or self._default_request_method
-        )
+        self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
+        self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
 
     async def get_version(self) -> str:
@@ -365,9 +355,7 @@ class InfrahubClient(BaseClient):
     async def get_user_permissions(self) -> dict:
         """Return user permissions"""
         user_info = await self.get_user()
-        return get_user_permissions(
-            user_info["AccountProfile"]["member_of_groups"]["edges"]
-        )
+        return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
     @overload
     async def create(
@@ -402,13 +390,9 @@ class InfrahubClient(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNode(
-            client=self, schema=schema, branch=branch, data=data or kwargs
-        )
+        return InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
 
-    async def delete(
-        self, kind: str | type[SchemaType], id: str, branch: str | None = None
-    ) -> None:
+    async def delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
 
@@ -552,11 +536,7 @@ class InfrahubClient(BaseClient):
         filters: MutableMapping[str, Any] = {}
 
         if id:
-            if (
-                not is_valid_uuid(id)
-                and isinstance(schema, NodeSchemaAPI)
-                and schema.default_filter
-            ):
+            if not is_valid_uuid(id) and isinstance(schema, NodeSchemaAPI) and schema.default_filter:
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
@@ -564,9 +544,7 @@ class InfrahubClient(BaseClient):
             if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
-                raise ValueError(
-                    "Cannot filter by HFID if the node doesn't have an HFID defined"
-                )
+                raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")
         if kwargs:
             filters.update(kwargs)
         if len(filters) == 0:
@@ -587,9 +565,7 @@ class InfrahubClient(BaseClient):
         )
 
         if len(results) == 0 and raise_when_missing:
-            raise NodeNotFoundError(
-                branch_name=branch, node_type=schema.kind, identifier=filters
-            )
+            raise NodeNotFoundError(branch_name=branch, node_type=schema.kind, identifier=filters)
         if len(results) == 0 and not raise_when_missing:
             return None
         if len(results) > 1:
@@ -625,14 +601,10 @@ class InfrahubClient(BaseClient):
         related_nodes: list[InfrahubNode] = []
 
         for item in response.get(schema_kind, {}).get("edges", []):
-            node = await InfrahubNode.from_graphql(
-                client=self, branch=branch, data=item, timeout=timeout
-            )
+            node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or (
-                include and any(rel in include for rel in node._relationships)
-            ):
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -858,13 +830,9 @@ class InfrahubClient(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
-        async def process_page(
-            page_offset: int, page_number: int
-        ) -> tuple[dict, ProcessRelationsNode]:
+        async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
             """Process a single page of results."""
-            query_data = await InfrahubNode(
-                client=self, schema=schema, branch=branch
-            ).generate_query_data(
+            query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=page_offset if offset is None else offset,
                 limit=limit or pagination_size,
                 filters=filters,
@@ -885,15 +853,13 @@ class InfrahubClient(BaseClient):
                 timeout=timeout,
             )
 
-            process_result: ProcessRelationsNode = (
-                await self._process_nodes_and_relationships(
-                    response=response,
-                    schema_kind=schema.kind,
-                    branch=branch,
-                    prefetch_relationships=prefetch_relationships,
-                    timeout=timeout,
-                    include=include,
-                )
+            process_result: ProcessRelationsNode = await self._process_nodes_and_relationships(
+                response=response,
+                schema_kind=schema.kind,
+                branch=branch,
+                prefetch_relationships=prefetch_relationships,
+                timeout=timeout,
+                include=include,
             )
             return response, process_result
 
@@ -902,16 +868,12 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(
-                kind=schema.kind, branch=branch, partial_match=partial_match, **filters
-            )
+            count = await self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(
-                    task=process_page, page_offset=page_offset, page_number=page_number
-                )
+                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
 
             async for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
@@ -928,15 +890,11 @@ class InfrahubClient(BaseClient):
 
             while has_remaining_items:
                 page_offset = (page_number - 1) * pagination_size
-                response, process_result = await process_page(
-                    page_offset=page_offset, page_number=page_number
-                )
+                response, process_result = await process_page(page_offset=page_offset, page_number=page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
-                remaining_items = response[schema.kind].get("count", 0) - (
-                    page_offset + pagination_size
-                )
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + pagination_size)
                 if remaining_items < 0 or offset is not None or limit is not None:
                     has_remaining_items = False
                 page_number += 1
@@ -944,9 +902,7 @@ class InfrahubClient(BaseClient):
             return nodes, related_nodes
 
         # Select parallel or non-parallel processing
-        nodes, related_nodes = await (
-            process_batch() if parallel else process_non_batch()
-        )
+        nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
         if populate_store:
             for node in nodes:
@@ -1012,9 +968,7 @@ class InfrahubClient(BaseClient):
         while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
-                resp = await self._post(
-                    url=url, payload=payload, headers=headers, timeout=timeout
-                )
+                resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
                 if raise_for_error in (None, True):
                     resp.raise_for_status()
@@ -1044,9 +998,7 @@ class InfrahubClient(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(
-                errors=response["errors"], query=query, variables=variables
-            )
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -1081,9 +1033,7 @@ class InfrahubClient(BaseClient):
         )
 
     @handle_relogin
-    async def _get(
-        self, url: str, headers: dict | None = None, timeout: int | None = None
-    ) -> httpx.Response:
+    async def _get(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
         """Execute a HTTP GET with HTTPX.
 
         Raises:
@@ -1111,9 +1061,7 @@ class InfrahubClient(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = await self._request_method(
-            url=url, method=method, headers=headers, timeout=timeout, payload=payload
-        )
+        response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
 
@@ -1135,16 +1083,12 @@ class InfrahubClient(BaseClient):
         elif self.config.proxy_mounts.is_set:
             proxy_config["mounts"] = {
                 key: httpx.AsyncHTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(
-                    by_alias=True
-                ).items()
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
             }
 
         async with httpx.AsyncClient(
             **proxy_config,
-            verify=self.config.tls_ca_file
-            if self.config.tls_ca_file
-            else not self.config.tls_insecure,
+            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
         ) as client:
             try:
                 response = await client.request(
@@ -1303,15 +1247,9 @@ class InfrahubClient(BaseClient):
             },
         }
 
-        mutation_query = (
-            MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
-        )
-        query = Mutation(
-            mutation="DiffUpdate", input_data=input_data, query=mutation_query
-        )
-        response = await self.execute_graphql(
-            query=query.render(), tracker="mutation-diff-update"
-        )
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
 
         if not wait_until_completion and "task" in response["DiffUpdate"]:
             return response["DiffUpdate"]["task"]["id"]
@@ -1353,9 +1291,7 @@ class InfrahubClient(BaseClient):
         if diff_tree is None or "nodes" not in diff_tree:
             return []
         for node_dict in diff_tree["nodes"]:
-            node_diff = diff_tree_node_to_node_diff(
-                node_dict=node_dict, branch_name=branch
-            )
+            node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
             node_diffs.append(node_diff)
 
         return node_diffs
@@ -1501,9 +1437,7 @@ class InfrahubClient(BaseClient):
 
         if response[mutation_name]["ok"]:
             resource_details = response[mutation_name]["node"]
-            return await self.get(
-                kind=resource_details["kind"], id=resource_details["id"], branch=branch
-            )
+            return await self.get(kind=resource_details["kind"], id=resource_details["id"], branch=branch)
         return None
 
     @overload
@@ -1656,9 +1590,7 @@ class InfrahubClient(BaseClient):
 
         if response[mutation_name]["ok"]:
             resource_details = response[mutation_name]["node"]
-            return await self.get(
-                kind=resource_details["kind"], id=resource_details["id"], branch=branch
-            )
+            return await self.get(kind=resource_details["kind"], id=resource_details["id"], branch=branch)
         return None
 
     async def create_batch(self, return_exceptions: bool = False) -> InfrahubBatch:
@@ -1753,9 +1685,7 @@ class InfrahubClientSync(BaseClient):
         self.object_store = ObjectStoreSync(self)
         self.store = NodeStoreSync(default_branch=self.default_branch)
         self.task = InfrahubTaskManagerSync(self)
-        self._request_method: SyncRequester = (
-            self.config.sync_requester or self._default_request_method
-        )
+        self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
 
     def get_version(self) -> str:
@@ -1770,9 +1700,7 @@ class InfrahubClientSync(BaseClient):
     def get_user_permissions(self) -> dict:
         """Return user permissions"""
         user_info = self.get_user()
-        return get_user_permissions(
-            user_info["AccountProfile"]["member_of_groups"]["edges"]
-        )
+        return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
     @overload
     def create(
@@ -1806,19 +1734,13 @@ class InfrahubClientSync(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNodeSync(
-            client=self, schema=schema, branch=branch, data=data or kwargs
-        )
+        return InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
 
-    def delete(
-        self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None
-    ) -> None:
+    def delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
 
-        node = InfrahubNodeSync(
-            client=self, schema=schema, branch=branch, data={"id": id}
-        )
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch, data={"id": id})
         node.delete()
 
     def clone(self, branch: str | None = None) -> InfrahubClientSync:
@@ -1876,9 +1798,7 @@ class InfrahubClientSync(BaseClient):
         while retry and time.time() - start_time < self.config.max_retry_duration:
             retry = self.retry_on_failure
             try:
-                resp = self._post(
-                    url=url, payload=payload, headers=headers, timeout=timeout
-                )
+                resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
                 if raise_for_error in (None, True):
                     resp.raise_for_status()
@@ -1908,9 +1828,7 @@ class InfrahubClientSync(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(
-                errors=response["errors"], query=query, variables=variables
-            )
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -2069,14 +1987,10 @@ class InfrahubClientSync(BaseClient):
         related_nodes: list[InfrahubNodeSync] = []
 
         for item in response.get(schema_kind, {}).get("edges", []):
-            node = InfrahubNodeSync.from_graphql(
-                client=self, branch=branch, data=item, timeout=timeout
-            )
+            node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or (
-                include and any(rel in include for rel in node._relationships)
-            ):
+            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -2177,13 +2091,9 @@ class InfrahubClientSync(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
-        def process_page(
-            page_offset: int, page_number: int
-        ) -> tuple[dict, ProcessRelationsNodeSync]:
+        def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
             """Process a single page of results."""
-            query_data = InfrahubNodeSync(
-                client=self, schema=schema, branch=branch
-            ).generate_query_data(
+            query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
                 offset=page_offset if offset is None else offset,
                 limit=limit or pagination_size,
                 filters=filters,
@@ -2204,15 +2114,13 @@ class InfrahubClientSync(BaseClient):
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
             )
 
-            process_result: ProcessRelationsNodeSync = (
-                self._process_nodes_and_relationships(
-                    response=response,
-                    schema_kind=schema.kind,
-                    branch=branch,
-                    prefetch_relationships=prefetch_relationships,
-                    timeout=timeout,
-                    include=include,
-                )
+            process_result: ProcessRelationsNodeSync = self._process_nodes_and_relationships(
+                response=response,
+                schema_kind=schema.kind,
+                branch=branch,
+                prefetch_relationships=prefetch_relationships,
+                timeout=timeout,
+                include=include,
             )
             return response, process_result
 
@@ -2222,16 +2130,12 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(
-                kind=schema.kind, branch=branch, partial_match=partial_match, **filters
-            )
+            count = self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
                 page_offset = (page_number - 1) * pagination_size
-                batch_process.add(
-                    task=process_page, page_offset=page_offset, page_number=page_number
-                )
+                batch_process.add(task=process_page, page_offset=page_offset, page_number=page_number)
 
             for _, response in batch_process.execute():
                 nodes.extend(response[1]["nodes"])
@@ -2239,9 +2143,7 @@ class InfrahubClientSync(BaseClient):
 
             return nodes, related_nodes
 
-        def process_non_batch() -> tuple[
-            list[InfrahubNodeSync], list[InfrahubNodeSync]
-        ]:
+        def process_non_batch() -> tuple[list[InfrahubNodeSync], list[InfrahubNodeSync]]:
             """Process queries without parallel mode."""
             nodes = []
             related_nodes = []
@@ -2250,16 +2152,12 @@ class InfrahubClientSync(BaseClient):
 
             while has_remaining_items:
                 page_offset = (page_number - 1) * pagination_size
-                response, process_result = process_page(
-                    page_offset=page_offset, page_number=page_number
-                )
+                response, process_result = process_page(page_offset=page_offset, page_number=page_number)
 
                 nodes.extend(process_result["nodes"])
                 related_nodes.extend(process_result["related_nodes"])
 
-                remaining_items = response[schema.kind].get("count", 0) - (
-                    page_offset + pagination_size
-                )
+                remaining_items = response[schema.kind].get("count", 0) - (page_offset + pagination_size)
                 if remaining_items < 0 or offset is not None or limit is not None:
                     has_remaining_items = False
                 page_number += 1
@@ -2416,11 +2314,7 @@ class InfrahubClientSync(BaseClient):
         filters: MutableMapping[str, Any] = {}
 
         if id:
-            if (
-                not is_valid_uuid(id)
-                and isinstance(schema, NodeSchemaAPI)
-                and schema.default_filter
-            ):
+            if not is_valid_uuid(id) and isinstance(schema, NodeSchemaAPI) and schema.default_filter:
                 filters[schema.default_filter] = id
             else:
                 filters["ids"] = [id]
@@ -2428,9 +2322,7 @@ class InfrahubClientSync(BaseClient):
             if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
                 filters["hfid"] = hfid
             else:
-                raise ValueError(
-                    "Cannot filter by HFID if the node doesn't have an HFID defined"
-                )
+                raise ValueError("Cannot filter by HFID if the node doesn't have an HFID defined")
         if kwargs:
             filters.update(kwargs)
         if len(filters) == 0:
@@ -2451,9 +2343,7 @@ class InfrahubClientSync(BaseClient):
         )
 
         if len(results) == 0 and raise_when_missing:
-            raise NodeNotFoundError(
-                branch_name=branch, node_type=schema.kind, identifier=filters
-            )
+            raise NodeNotFoundError(branch_name=branch, node_type=schema.kind, identifier=filters)
         if len(results) == 0 and not raise_when_missing:
             return None
         if len(results) > 1:
@@ -2564,15 +2454,9 @@ class InfrahubClientSync(BaseClient):
             },
         }
 
-        mutation_query = (
-            MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
-        )
-        query = Mutation(
-            mutation="DiffUpdate", input_data=input_data, query=mutation_query
-        )
-        response = self.execute_graphql(
-            query=query.render(), tracker="mutation-diff-update"
-        )
+        mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
+        query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
+        response = self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
 
         if not wait_until_completion and "task" in response["DiffUpdate"]:
             return response["DiffUpdate"]["task"]["id"]
@@ -2614,9 +2498,7 @@ class InfrahubClientSync(BaseClient):
         if diff_tree is None or "nodes" not in diff_tree:
             return []
         for node_dict in diff_tree["nodes"]:
-            node_diff = diff_tree_node_to_node_diff(
-                node_dict=node_dict, branch_name=branch
-            )
+            node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
             node_diffs.append(node_diff)
 
         return node_diffs
@@ -2762,9 +2644,7 @@ class InfrahubClientSync(BaseClient):
 
         if response[mutation_name]["ok"]:
             resource_details = response[mutation_name]["node"]
-            return self.get(
-                kind=resource_details["kind"], id=resource_details["id"], branch=branch
-            )
+            return self.get(kind=resource_details["kind"], id=resource_details["id"], branch=branch)
         return None
 
     @overload
@@ -2917,9 +2797,7 @@ class InfrahubClientSync(BaseClient):
 
         if response[mutation_name]["ok"]:
             resource_details = response[mutation_name]["node"]
-            return self.get(
-                kind=resource_details["kind"], id=resource_details["id"], branch=branch
-            )
+            return self.get(kind=resource_details["kind"], id=resource_details["id"], branch=branch)
         return None
 
     def repository_update_commit(
@@ -2934,9 +2812,7 @@ class InfrahubClientSync(BaseClient):
         )
 
     @handle_relogin_sync
-    def _get(
-        self, url: str, headers: dict | None = None, timeout: int | None = None
-    ) -> httpx.Response:
+    def _get(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
         """Execute a HTTP GET with HTTPX.
 
         Raises:
@@ -2992,9 +2868,7 @@ class InfrahubClientSync(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = self._request_method(
-            url=url, method=method, headers=headers, timeout=timeout, payload=payload
-        )
+        response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
         self._record(response)
         return response
 
@@ -3017,16 +2891,12 @@ class InfrahubClientSync(BaseClient):
         elif self.config.proxy_mounts.is_set:
             proxy_config["mounts"] = {
                 key: httpx.HTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(
-                    by_alias=True
-                ).items()
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
             }
 
         with httpx.Client(
             **proxy_config,
-            verify=self.config.tls_ca_file
-            if self.config.tls_ca_file
-            else not self.config.tls_insecure,
+            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
         ) as client:
             try:
                 response = client.request(
