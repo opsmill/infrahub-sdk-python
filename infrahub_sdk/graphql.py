@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from enum import Enum
 from typing import Any
 
@@ -18,7 +19,9 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
             return convert_to_graphql_as_string(value=value.value, convert_enum=True)
         return value.name
     if isinstance(value, str):
-        return f'"{value}"'
+        # Use json.dumps() to properly escape the string according to JSON rules,
+        # which are compatible with GraphQL string escaping
+        return json.dumps(value)
     if isinstance(value, bool):
         return repr(value).lower()
     if isinstance(value, list):

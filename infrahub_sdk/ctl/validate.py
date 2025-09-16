@@ -14,7 +14,7 @@ from ..ctl.client import initialize_client, initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
 from ..exceptions import GraphQLError
-from ..utils import get_branch, write_to_file
+from ..utils import write_to_file
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
@@ -68,8 +68,6 @@ def validate_graphql(
 ) -> None:
     """Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint"""
 
-    branch = get_branch(branch)
-
     try:
         query_str = find_graphql_query(query)
     except QueryNotFoundError:
@@ -81,6 +79,10 @@ def validate_graphql(
     variables_dict = parse_cli_vars(variables)
 
     client = initialize_client_sync()
+
+    if not branch:
+        branch = client.config.default_infrahub_branch
+
     try:
         response = client.execute_graphql(
             query=query_str,
