@@ -107,10 +107,10 @@ const config: Config = {
     },
     prism: {
       theme: prismThemes.oneDark,
-      additionalLanguages: ["bash", "python", "markup-templating", "django", "json", "yaml"],
+      additionalLanguages: ["bash", "python", "markup-templating", "django", "json", "toml", "yaml"],
     },
   } satisfies Preset.ThemeConfig,
-  
+
   markdown: {
     format: "mdx",
     preprocessor: ({ filePath, fileContent }) => {

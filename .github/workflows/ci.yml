@@ -176,7 +176,7 @@ jobs:
       - name: "Install dependencies"
         run: "poetry install --no-interaction --no-ansi --extras ctl"
       - name: "Setup environment"
-        run: "pip install invoke"
+        run: "poetry run pip install invoke"
       - name: "Validate generated documentation"
         run: "poetry run invoke docs-validate"
 
