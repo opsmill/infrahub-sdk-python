@@ -29,5 +29,4 @@ class GitRepoManager:
 
     @property
     def active_branch(self) -> str | None:
-        active_branch = porcelain.active_branch(self.root_directory).decode("utf-8")
-        return active_branch
+        return porcelain.active_branch(self.root_directory).decode("utf-8")

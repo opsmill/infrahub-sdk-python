@@ -73,3 +73,44 @@ def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HT
         output = runner.invoke(app, ["render", test_case.template, "name=red"])
         assert test_case.error in strip_color(output.stdout)
         assert output.exit_code == 1
+
+
+@pytest.mark.parametrize(
+    "cli_branch,env_branch,from_git,expected_branch",
+    [
+        ("cli-branch", None, False, "cli-branch"),
+        (None, "env-branch", False, "env-branch"),
+        (None, None, True, "git-branch"),
+    ],
+)
+@requires_python_310
+def test_render_branch_selection(monkeypatch, httpx_mock: HTTPXMock, cli_branch, env_branch, from_git, expected_branch):
+    """Test that the render command uses the correct branch source."""
+
+    if from_git:
+        monkeypatch.setattr("dulwich.porcelain.active_branch", lambda _: b"git-branch")
+
+    httpx_mock.add_response(
+        method="POST",
+        url=f"http://mock/graphql/{expected_branch}",
+        json=json.loads(
+            read_fixture(
+                "red_tag.json",
+                "unit/test_infrahubctl/red_tags_query",
+            )
+        ),
+    )
+
+    with temp_repo_and_cd(source_dir=FIXTURE_BASE_DIR / "ctl_integration"):
+        args = ["render", "tags", "name=red"]
+        env = {}
+        # Add test-specific variables
+        if cli_branch:
+            args.extend(["--branch", cli_branch])
+        if env_branch:
+            env["INFRAHUB_DEFAULT_BRANCH"] = env_branch
+            env["INFRAHUB_DEFAULT_BRANCH_FROM_GIT"] = "false"
+        if from_git:
+            env["INFRAHUB_DEFAULT_BRANCH_FROM_GIT"] = "true"
+        output = runner.invoke(app, args, env=env)
+        assert output.exit_code == 0

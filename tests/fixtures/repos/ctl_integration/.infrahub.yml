@@ -26,7 +26,13 @@ generator_definitions:
     parameters:
       name: "name__value"
 
+jinja2_transforms:
+  - name: tags
+    query: "tags_query"
+    template_path: "templates/tags.j2"
 
 queries:
   - name: animal_person
     file_path: queries/animal_person.gql
+  - name: tags_query
+    file_path: templates/tags_query.gql
