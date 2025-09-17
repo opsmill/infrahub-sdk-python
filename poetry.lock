@@ -3724,11 +3724,11 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 type = ["pytest-mypy"]
 
 [extras]
-all = ["Jinja2", "click", "copier", "numpy", "numpy", "pyarrow", "pytest", "pyyaml", "rich", "typer"]
-ctl = ["Jinja2", "click", "copier", "numpy", "numpy", "pyarrow", "pyyaml", "rich", "typer"]
+all = ["Jinja2", "click", "copier", "numpy", "numpy", "pyarrow", "pytest", "pyyaml", "rich", "tomli", "typer"]
+ctl = ["Jinja2", "click", "copier", "numpy", "numpy", "pyarrow", "pyyaml", "rich", "tomli", "typer"]
 tests = ["Jinja2", "pytest", "pyyaml", "rich"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9, <3.14"
-content-hash = "fd4756084afd0791093952d80632feff79fa0f3767748fd9c36cfbf0373c4f67"
+content-hash = "95a903d6668a2aca0f6cb12b295d472b2b3855e51392d1b59d06cccace87d99d"
