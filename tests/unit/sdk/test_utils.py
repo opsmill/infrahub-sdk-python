@@ -1,11 +1,14 @@
+import json
 import tempfile
 import uuid
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from graphql import parse
 from whenever import Instant
 
+from infrahub_sdk.exceptions import JsonDecodeError
 from infrahub_sdk.utils import (
     base16decode,
     base16encode,
@@ -13,6 +16,7 @@ from infrahub_sdk.utils import (
     base36encode,
     calculate_time_diff,
     compare_lists,
+    decode_json,
     deep_merge_dict,
     dict_hash,
     duplicates,
@@ -227,3 +231,53 @@ def test_calculate_time_diff() -> None:
 
     time5 = Instant.now().subtract(hours=77, minutes=12, seconds=34).format_common_iso()
     assert calculate_time_diff(time5) == "3d and 5h ago"
+
+
+def test_decode_json_success() -> None:
+    """Test decode_json with valid JSON response."""
+    mock_response = Mock()
+    mock_response.json.return_value = {"status": "ok", "data": {"key": "value"}}
+
+    result = decode_json(mock_response)
+    assert result == {"status": "ok", "data": {"key": "value"}}
+
+
+def test_decode_json_failure_with_content() -> None:
+    """Test decode_json with invalid JSON response includes server content in error message."""
+    mock_response = Mock()
+    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.text = "Internal Server Error: Database connection failed"
+    mock_response.url = "https://example.com/api/graphql"
+
+    with pytest.raises(JsonDecodeError) as exc_info:
+        decode_json(mock_response)
+
+    error_message = str(exc_info.value)
+    assert "Unable to decode response as JSON data from https://example.com/api/graphql" in error_message
+    assert "Server response: Internal Server Error: Database connection failed" in error_message
+
+
+def test_decode_json_failure_without_content() -> None:
+    """Test decode_json with invalid JSON response and no content."""
+    mock_response = Mock()
+    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.text = ""
+    mock_response.url = "https://example.com/api/graphql"
+
+    with pytest.raises(JsonDecodeError) as exc_info:
+        decode_json(mock_response)
+
+    error_message = str(exc_info.value)
+    assert "Unable to decode response as JSON data from https://example.com/api/graphql" in error_message
+    # Should not include server response part when content is empty
+    assert "Server response:" not in error_message
+
+
+def test_json_decode_error_custom_message() -> None:
+    """Test JsonDecodeError with custom message does not override custom message."""
+    custom_message = "Custom error message"
+    error = JsonDecodeError(message=custom_message, content="server error", url="https://example.com")
+
+    assert str(error) == custom_message
+    assert error.content == "server error"
+    assert error.url == "https://example.com"
