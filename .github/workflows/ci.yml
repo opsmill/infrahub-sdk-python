@@ -146,7 +146,7 @@ jobs:
       - name: "Install dependencies"
         run: npm install
       - name: "Setup Python environment"
-        run: "pip install invoke toml"
+        run: "pip install invoke"
       - name: "Build docs website"
         run: "invoke docs"
 
@@ -176,7 +176,7 @@ jobs:
       - name: "Install dependencies"
         run: "poetry install --no-interaction --no-ansi --extras ctl"
       - name: "Setup environment"
-        run: "pip install invoke toml"
+        run: "pip install invoke"
       - name: "Validate generated documentation"
         run: "poetry run invoke docs-validate"
 
@@ -236,7 +236,11 @@ jobs:
         run: |
           pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }} --python python${{ matrix.python-version }}
           poetry config virtualenvs.create true --local
-          pip install invoke toml codecov
+          pip install invoke codecov
+      - name: "Install tomli for Python < 3.11"
+        if: matrix.python-version == '3.9' || matrix.python-version == '3.10'
+        run: |
+          pip install tomli
       - name: "Install Package"
         run: "poetry install --all-extras"
       - name: "Mypy Tests"
@@ -289,7 +293,7 @@ jobs:
         run: |
           pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
           poetry config virtualenvs.create true --local
-          pip install invoke toml codecov
+          pip install invoke codecov
       - name: "Install Package"
         run: "poetry install --all-extras"
       - name: "Integration Tests"
@@ -362,7 +366,7 @@ jobs:
   #       run: |
   #         pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
   #         poetry config virtualenvs.create true --local
-  #         pip install invoke toml codecov
+  #         pip install invoke codecov
 
   #     - name: "Install Package"
   #       run: "poetry install --all-extras"

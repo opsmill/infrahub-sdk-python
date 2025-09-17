@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import toml
 import typer
 from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 DEFAULT_CONFIG_FILE = "infrahubctl.toml"
 ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
@@ -59,7 +63,7 @@ class ConfiguredSettings:
 
         if config_file.is_file():
             config_string = config_file.read_text(encoding="utf-8")
-            config_tmp = toml.loads(config_string)
+            config_tmp = tomllib.loads(config_string)
 
             self._settings = Settings(**config_tmp)
             return
