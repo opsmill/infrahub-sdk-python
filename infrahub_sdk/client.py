@@ -33,6 +33,7 @@ from .branch import (
 )
 from .config import Config
 from .constants import InfrahubClientMode
+from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
 from .data import RepositoryBranchInfo, RepositoryData
 from .diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
 from .exceptions import (
@@ -1670,6 +1671,37 @@ class InfrahubClient(BaseClient):
 
         self.mode = InfrahubClientMode.DEFAULT
 
+    async def convert_object_type(
+        self,
+        node_id: str,
+        target_kind: str,
+        branch: str | None = None,
+        fields_mapping: dict[str, ConversionFieldInput] | None = None,
+    ) -> InfrahubNode:
+        """
+        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
+        and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
+        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-convert-type
+        for more information.
+        """
+
+        if fields_mapping is None:
+            mapping_dict = {}
+        else:
+            mapping_dict = {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+
+        branch_name = branch or self.default_branch
+        response = await self.execute_graphql(
+            query=CONVERT_OBJECT_MUTATION,
+            variables={
+                "node_id": node_id,
+                "fields_mapping": mapping_dict,
+                "target_kind": target_kind,
+            },
+            branch_name=branch_name,
+        )
+        return await InfrahubNode.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
+
 
 class InfrahubClientSync(BaseClient):
     schema: InfrahubSchemaSync
@@ -2984,3 +3016,34 @@ class InfrahubClientSync(BaseClient):
             self.group_context.update_group()
 
         self.mode = InfrahubClientMode.DEFAULT
+
+    def convert_object_type(
+        self,
+        node_id: str,
+        target_kind: str,
+        branch: str | None = None,
+        fields_mapping: dict[str, ConversionFieldInput] | None = None,
+    ) -> InfrahubNodeSync:
+        """
+        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
+        and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
+        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-convert-type
+        for more information.
+        """
+
+        if fields_mapping is None:
+            mapping_dict = {}
+        else:
+            mapping_dict = {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+
+        branch_name = branch or self.default_branch
+        response = self.execute_graphql(
+            query=CONVERT_OBJECT_MUTATION,
+            variables={
+                "node_id": node_id,
+                "fields_mapping": mapping_dict,
+                "target_kind": target_kind,
+            },
+            branch_name=branch_name,
+        )
+        return InfrahubNodeSync.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
