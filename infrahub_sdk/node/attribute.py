@@ -76,7 +76,7 @@ class Attribute:
         variables: dict[str, Any] = {}
 
         if self.value is None:
-            if self._schema.kind == "Dropdown" and self._schema.optional:
+            if self._schema.optional and self.value_has_been_mutated:
                 data["value"] = None
             return data
 
