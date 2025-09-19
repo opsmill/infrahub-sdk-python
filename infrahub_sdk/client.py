@@ -1699,6 +1699,7 @@ class InfrahubClient(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
+            raise_for_error=True,
         )
         return await InfrahubNode.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
 
@@ -3045,5 +3046,6 @@ class InfrahubClientSync(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
+            raise_for_error=True,
         )
         return InfrahubNodeSync.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])

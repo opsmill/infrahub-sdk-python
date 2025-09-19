@@ -23,7 +23,7 @@ class ConversionFieldValue(BaseModel):  # Only one of these fields can be not No
     Holds the new value of the destination field during an object conversion.
     Use `attribute_value` to specify the new raw value of an attribute.
     Use `peer_id` to specify new peer of a cardinality one relationship.
-    Use `peer_ids` to specify new peers of a cardinality many relationship.
+    Use `peers_ids` to specify new peers of a cardinality many relationship.
     Only one of `attribute_value`, `peer_id` and `peers_ids` can be specified.
     """
 

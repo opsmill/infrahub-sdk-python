@@ -36,7 +36,7 @@ SCHEMA: dict[str, Any] = {
             ],
             "relationships": [
                 {
-                    "name": "my_car",
+                    "name": "worst_car",
                     "peer": "TestconvCar",
                     "cardinality": "one",
                     "identifier": "person__mandatory_owner",
@@ -98,3 +98,11 @@ class TestConvertObjectType(TestInfrahubDockerClient):
         assert person_2.get_kind() == "TestconvPerson2"
         assert person_2.name.value == person_1.name.value
         assert person_2.age.value == new_age
+
+        # Fetch relationships of new node
+        person_2 = await client.get(
+            kind="TestconvPerson2", id=person_2.id, branch=client.default_branch, prefetch_relationships=True
+        )
+        assert person_2.worst_car.peer.id == car_1.id
+        await person_2.fastest_cars.fetch()
+        assert {related_node.peer.id for related_node in person_2.fastest_cars.peers} == {car_1.id}
