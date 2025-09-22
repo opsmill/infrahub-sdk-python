@@ -1371,6 +1371,34 @@ async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_create_input_data_with_dropdown(client, location_schema_with_dropdown, client_type) -> None:
+    """Validate input data including dropdown field"""
+    data = {
+        "name": {"value": "JFK1"},
+        "description": {"value": "JFK Airport"},
+        "type": {"value": "SITE"},
+        "status": {"value": "active"},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema_with_dropdown, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema_with_dropdown, data=data)
+
+    assert node.status.value == "active"
+    node.status = None
+    assert node._generate_input_data()["data"] == {
+        "data": {
+            "name": {"value": "JFK1"},
+            "description": {"value": "JFK Airport"},
+            "type": {"value": "SITE"},
+            "status": {"value": None},
+            "primary_tag": None,
+        }
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data__with_relationships_02(client, location_schema, client_type) -> None:
     """Validate input data with variables that needs replacements"""
     data = {
