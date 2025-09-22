@@ -178,6 +178,48 @@ async def location_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
+async def location_schema_with_dropdown() -> NodeSchemaAPI:
+    data = {
+        "name": "Location",
+        "namespace": "Builtin",
+        "default_filter": "name__value",
+        "attributes": [
+            {"name": "name", "kind": "String", "unique": True},
+            {"name": "description", "kind": "String", "optional": True},
+            {"name": "type", "kind": "String"},
+            {
+                "name": "status",
+                "kind": "Dropdown",
+                "optional": True,
+                "choices": [{"name": "active", "label": "Active"}, {"name": "planning", "label": "Planning"}],
+            },
+        ],
+        "relationships": [
+            {
+                "name": "tags",
+                "peer": "BuiltinTag",
+                "optional": True,
+                "cardinality": "many",
+            },
+            {
+                "name": "primary_tag",
+                "peer": "BuiltinTag",
+                "optional": True,
+                "cardinality": "one",
+            },
+            {
+                "name": "member_of_groups",
+                "peer": "CoreGroup",
+                "optional": True,
+                "cardinality": "many",
+                "kind": "Group",
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()  # type: ignore
+
+
+@pytest.fixture
 async def schema_with_hfid() -> dict[str, NodeSchemaAPI]:
     data = {
         "location": {
