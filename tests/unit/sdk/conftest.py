@@ -820,7 +820,7 @@ async def rfile_schema() -> NodeSchemaAPI:
         "name": "TransformJinja2",
         "namespace": "Core",
         "default_filter": "name__value",
-        "display_label": ["label__value"],
+        "display_labels": ["label__value"],
         "branch": BranchSupportType.AWARE.value,
         "attributes": [
             {"name": "name", "kind": "String", "unique": True},
