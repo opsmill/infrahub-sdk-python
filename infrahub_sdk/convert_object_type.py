@@ -45,7 +45,8 @@ class ConversionFieldInput(BaseModel):
     Indicates how to fill in the value of the destination field during an object conversion.
     Use `source_field` to reuse the value of the corresponding field of the object being converted.
     Use `data` to specify the new value for the field.
-    Only one of `source_field` or `data` can be specified.
+    Use `use_default_value` to set the destination field to its schema default.
+    Only one of `source_field`, `data`, or `use_default_value` can be specified.
     """
 
     source_field: str | None = None
