@@ -348,8 +348,8 @@ class InfrahubObjectFileData(BaseModel):
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
 
-            extended_data = expand_data_with_ranges(data=data["data"])
-            for idx, peer_data in enumerate(extended_data):
+            expanded_data = expand_data_with_ranges(data=data["data"])
+            for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 errors.extend(
                     await cls.validate_object(
@@ -566,7 +566,6 @@ class InfrahubObjectFileData(BaseModel):
                 context.update(rel_info.get_context(value=parent_node.id))
 
             expanded_data = expand_data_with_ranges(data=data["data"])
-
             for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 if isinstance(peer_data, dict):
