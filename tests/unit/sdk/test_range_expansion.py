@@ -64,7 +64,7 @@ def test_single_value_in_brackets() -> None:
 
 
 def test_empty_brackets() -> None:
-    assert range_expansion("Device[]") == ["Device[]"]  # or raise, depending on implementation
+    assert range_expansion("Device[]") == ["Device[]"]
 
 
 def test_no_brackets() -> None:
@@ -72,7 +72,6 @@ def test_no_brackets() -> None:
 
 
 def test_malformed_ranges() -> None:
-    # These should either return the original or raise, depending on implementation
     assert range_expansion("Device[1-]") == ["Device[1-]"]
     assert range_expansion("Device[-3]") == ["Device[-3]"]
     assert range_expansion("Device[a-]") == ["Device[a-]"]
@@ -84,13 +83,11 @@ def test_duplicate_and_overlapping_values() -> None:
 
 
 def test_whitespace_handling() -> None:
-    assert range_expansion("Device[ 1 - 3 ]") == [
-        "Device[ 1 - 3 ]"
-    ]  # or ["Device1", "Device2", "Device3"] if whitespace is handled
+    assert range_expansion("Device[ 1 - 3 ]") == ["Device[ 1 - 3 ]"]
 
 
 def test_descending_ranges() -> None:
-    assert range_expansion("Device[3-1]") == ["Device3", "Device2", "Device1"]  # or error, depending on implementation
+    assert range_expansion("Device[3-1]") == ["Device3", "Device2", "Device1"]
 
 
 def test_multiple_bracketed_ranges_in_a_row() -> None:
@@ -102,7 +99,6 @@ def test_non_alphanumeric_ranges() -> None:
 
 
 def test_unicode_ranges() -> None:
-    # Only if supported by implementation
     assert range_expansion("Dev[α-γ]") == ["Devα", "Devβ", "Devγ"]  # noqa: RUF001
 
 
