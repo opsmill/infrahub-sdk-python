@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import re
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -8,6 +10,7 @@ from pydantic import BaseModel, Field
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
 from ..yaml import InfrahubFile, InfrahubFileKind
+from .range_expansion import MATCH_PATTERN, range_expansion
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient
@@ -165,13 +168,45 @@ async def get_relationship_info(
 
 
 class InfrahubObjectFileData(BaseModel):
+    def expand_data_with_ranges(self) -> list[dict[str, Any]]:
+        """Expand any item in self.data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
+        range_pattern = re.compile(MATCH_PATTERN)
+        expanded = []
+        for item in self.data:
+            # Find all fields to expand
+            expand_fields = {}
+            for key, value in item.items():
+                if isinstance(value, str) and range_pattern.search(value):
+                    try:
+                        expand_fields[key] = range_expansion(value)
+                    except Exception:
+                        # If expansion fails, treat as no expansion
+                        expand_fields[key] = [value]
+            if not expand_fields:
+                expanded.append(item)
+                continue
+            # Check all expanded lists have the same length
+            lengths = [len(v) for v in expand_fields.values()]
+            if len(set(lengths)) > 1:
+                raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
+            n = lengths[0]
+            # Zip expanded values and produce new items
+            for i in range(n):
+                new_item = copy.deepcopy(item)
+                for key, values in expand_fields.items():
+                    new_item[key] = values[i]
+                expanded.append(new_item)
+        return expanded
+
     kind: str
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        for idx, item in enumerate(self.data):
+        expanded_data = self.expand_data_with_ranges()
+        self.data = expanded_data
+        for idx, item in enumerate(expanded_data):
             errors.extend(
                 await self.validate_object(
                     client=client,
@@ -186,7 +221,8 @@ class InfrahubObjectFileData(BaseModel):
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        for idx, item in enumerate(self.data):
+        expanded_data = self.expand_data_with_ranges()
+        for idx, item in enumerate(expanded_data):
             await self.create_node(
                 client=client,
                 schema=schema,
