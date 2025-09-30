@@ -167,44 +167,45 @@ async def get_relationship_info(
     return info
 
 
-class InfrahubObjectFileData(BaseModel):
-    def expand_data_with_ranges(self) -> list[dict[str, Any]]:
-        """Expand any item in self.data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
-        range_pattern = re.compile(MATCH_PATTERN)
-        expanded = []
-        for item in self.data:
-            # Find all fields to expand
-            expand_fields = {}
-            for key, value in item.items():
-                if isinstance(value, str) and range_pattern.search(value):
-                    try:
-                        expand_fields[key] = range_expansion(value)
-                    except Exception:
-                        # If expansion fails, treat as no expansion
-                        expand_fields[key] = [value]
-            if not expand_fields:
-                expanded.append(item)
-                continue
-            # Check all expanded lists have the same length
-            lengths = [len(v) for v in expand_fields.values()]
-            if len(set(lengths)) > 1:
-                raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
-            n = lengths[0]
-            # Zip expanded values and produce new items
-            for i in range(n):
-                new_item = copy.deepcopy(item)
-                for key, values in expand_fields.items():
-                    new_item[key] = values[i]
-                expanded.append(new_item)
-        return expanded
+def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Expand any item in self.data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
+    range_pattern = re.compile(MATCH_PATTERN)
+    expanded = []
+    for item in data:
+        # Find all fields to expand
+        expand_fields = {}
+        for key, value in item.items():
+            if isinstance(value, str) and range_pattern.search(value):
+                try:
+                    expand_fields[key] = range_expansion(value)
+                except Exception:
+                    # If expansion fails, treat as no expansion
+                    expand_fields[key] = [value]
+        if not expand_fields:
+            expanded.append(item)
+            continue
+        # Check all expanded lists have the same length
+        lengths = [len(v) for v in expand_fields.values()]
+        if len(set(lengths)) > 1:
+            raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
+        n = lengths[0]
+        # Zip expanded values and produce new items
+        for i in range(n):
+            new_item = copy.deepcopy(item)
+            for key, values in expand_fields.items():
+                new_item[key] = values[i]
+            expanded.append(new_item)
+    return expanded
 
+
+class InfrahubObjectFileData(BaseModel):
     kind: str
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        expanded_data = self.expand_data_with_ranges()
+        expanded_data = expand_data_with_ranges(self.data)
         self.data = expanded_data
         for idx, item in enumerate(expanded_data):
             errors.extend(
@@ -221,7 +222,7 @@ class InfrahubObjectFileData(BaseModel):
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        expanded_data = self.expand_data_with_ranges()
+        expanded_data = expand_data_with_ranges(self.data)
         for idx, item in enumerate(expanded_data):
             await self.create_node(
                 client=client,
@@ -347,7 +348,8 @@ class InfrahubObjectFileData(BaseModel):
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
 
-            for idx, peer_data in enumerate(data["data"]):
+            extended_data = expand_data_with_ranges(data=data["data"])
+            for idx, peer_data in enumerate(extended_data):
                 context["list_index"] = idx
                 errors.extend(
                     await cls.validate_object(
@@ -457,22 +459,24 @@ class InfrahubObjectFileData(BaseModel):
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
                     if rel_info.format == RelationshipDataFormat.ONE_OBJ:
+                        expanded_data = expand_data_with_ranges(data=[value])
                         nodes = await cls.create_related_nodes(
                             client=client,
                             position=position,
                             rel_info=rel_info,
-                            data=value,
+                            data=expanded_data,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
                         )
                         clean_data[key] = nodes[0]
 
                     else:
+                        expanded_data = expand_data_with_ranges(data=value)
                         nodes = await cls.create_related_nodes(
                             client=client,
                             position=position,
                             rel_info=rel_info,
-                            data=value,
+                            data=expanded_data,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
                         )
@@ -561,7 +565,9 @@ class InfrahubObjectFileData(BaseModel):
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
                 context.update(rel_info.get_context(value=parent_node.id))
 
-            for idx, peer_data in enumerate(data["data"]):
+            expanded_data = expand_data_with_ranges(data=data["data"])
+
+            for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 if isinstance(peer_data, dict):
                     node = await cls.create_node(
