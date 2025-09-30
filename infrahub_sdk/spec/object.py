@@ -459,24 +459,22 @@ class InfrahubObjectFileData(BaseModel):
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
                     if rel_info.format == RelationshipDataFormat.ONE_OBJ:
-                        expanded_data = expand_data_with_ranges(data=[value])
                         nodes = await cls.create_related_nodes(
                             client=client,
                             position=position,
                             rel_info=rel_info,
-                            data=expanded_data,
+                            data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
                         )
                         clean_data[key] = nodes[0]
 
                     else:
-                        expanded_data = expand_data_with_ranges(data=value)
                         nodes = await cls.create_related_nodes(
                             client=client,
                             position=position,
                             rel_info=rel_info,
-                            data=expanded_data,
+                            data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
                         )
