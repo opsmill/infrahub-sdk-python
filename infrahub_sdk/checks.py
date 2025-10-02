@@ -33,7 +33,7 @@ class InfrahubCheckInitializer(BaseModel):
 class InfrahubCheck:
     name: str | None = None
     query: str = ""
-    timeout: int = 10
+    timeout: int = 60
 
     def __init__(
         self,
