@@ -18,7 +18,6 @@ const config: Config = {
   organizationName: 'opsmill',
   projectName: 'infrahub-sdk-python',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
   onDuplicateRoutes: "throw",
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -122,6 +121,9 @@ const config: Config = {
         return globalVars[variableName] || match;
       });
       return transformedContent;
+    },
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
     },
   },
 };
