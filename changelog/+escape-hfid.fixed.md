@@ -1,0 +1,1 @@
+- Fixed issue with improperly escaped special characters in `hfid` fields and other string values in GraphQL mutations by implementing proper JSON-style string escaping

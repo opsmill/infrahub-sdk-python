@@ -43,6 +43,47 @@ def location_bad_syntax02(root_location: dict) -> dict:
     return location
 
 
+@pytest.fixture
+def location_expansion(root_location: dict) -> dict:
+    data = [
+        {
+            "name": "AMS[1-5]",
+            "type": "Country",
+        }
+    ]
+    location = root_location.copy()
+    location["spec"]["data"] = data
+    return location
+
+
+@pytest.fixture
+def location_expansion_multiple_ranges(root_location: dict) -> dict:
+    data = [
+        {
+            "name": "AMS[1-5]",
+            "type": "Country",
+            "description": "Amsterdam datacenter [a,e,i,o,u]",
+        }
+    ]
+    location = root_location.copy()
+    location["spec"]["data"] = data
+    return location
+
+
+@pytest.fixture
+def location_expansion_multiple_ranges_bad_syntax(root_location: dict) -> dict:
+    data = [
+        {
+            "name": "AMS[1-5]",
+            "type": "Country",
+            "description": "Amsterdam datacenter [10-15]",
+        }
+    ]
+    location = root_location.copy()
+    location["spec"]["data"] = data
+    return location
+
+
 async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_mexico_01) -> None:
     obj = ObjectFile(location="some/path", content=location_mexico_01)
     await obj.validate_format(client=client)
@@ -68,6 +109,42 @@ async def test_validate_object_bad_syntax02(
         await obj.validate_format(client=client)
 
     assert "notvalidattribute" in str(exc.value)
+
+
+async def test_validate_object_expansion(
+    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
+) -> None:
+    obj = ObjectFile(location="some/path", content=location_expansion)
+    await obj.validate_format(client=client)
+
+    assert obj.spec.kind == "BuiltinLocation"
+    assert len(obj.spec.data) == 5
+    assert obj.spec.data[0]["name"] == "AMS1"
+    assert obj.spec.data[4]["name"] == "AMS5"
+
+
+async def test_validate_object_expansion_multiple_ranges(
+    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion_multiple_ranges
+) -> None:
+    obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges)
+    await obj.validate_format(client=client)
+
+    assert obj.spec.kind == "BuiltinLocation"
+    assert len(obj.spec.data) == 5
+    assert obj.spec.data[0]["name"] == "AMS1"
+    assert obj.spec.data[0]["description"] == "Amsterdam datacenter a"
+    assert obj.spec.data[4]["name"] == "AMS5"
+    assert obj.spec.data[4]["description"] == "Amsterdam datacenter u"
+
+
+async def test_validate_object_expansion_multiple_ranges_bad_syntax(
+    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion_multiple_ranges_bad_syntax
+) -> None:
+    obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges_bad_syntax)
+    with pytest.raises(ValidationError) as exc:
+        await obj.validate_format(client=client)
+
+    assert "Range expansion mismatch" in str(exc.value)
 
 
 get_relationship_info_testdata = [

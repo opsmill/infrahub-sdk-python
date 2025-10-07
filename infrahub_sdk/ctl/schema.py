@@ -77,7 +77,18 @@ def display_schema_load_errors(response: dict[str, Any], schemas_data: list[Sche
 
         elif len(loc_path) > 6:
             loc_type = loc_path[5]
-            input_label = node[loc_type][loc_path[6]].get("name", None)
+            error_data = node[loc_type]
+            attribute = loc_path[6]
+
+            if isinstance(attribute, str):
+                input_label = None
+                for data in error_data:
+                    if data.get(attribute) is not None:
+                        input_label = data.get("name", None)
+                        break
+            else:
+                input_label = error_data[attribute].get("name", None)
+
             input_str = error.get("input", None)
             error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {error['msg']} ({error['type']})"
             console.print(f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}")

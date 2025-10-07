@@ -579,8 +579,7 @@ class InfrahubNode(InfrahubNodeBase):
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        content = await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
-        return content
+        return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -1208,8 +1207,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
-        content = self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
-        return content
+        return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
