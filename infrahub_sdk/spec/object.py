@@ -290,7 +290,6 @@ class InfrahubObjectFileData(BaseModel):
                 position=[idx + 1],
                 branch=branch,
                 default_schema_kind=self.kind,
-                strategy=self.strategy,
             )
 
     @classmethod
