@@ -17,7 +17,7 @@ INFRAHUB_TRANSFORM_VARIABLE_TO_IMPORT = "INFRAHUB_TRANSFORMS"
 class InfrahubTransform(InfrahubOperation):
     name: str | None = None
     query: str
-    timeout: int = 10
+    timeout: int = 60
 
     def __init__(
         self,
