@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import copy
 import re
+from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -43,6 +44,11 @@ class RelationshipDataFormat(str, Enum):
     MANY_OBJ_DICT_LIST = "many_obj_dict_list"
     MANY_OBJ_LIST_DICT = "many_obj_list_dict"
     MANY_REF = "many_ref_list"
+
+
+class ObjectStrategy(str, Enum):
+    NORMAL = "normal"
+    RANGE_EXPAND = "range_expand"
 
 
 class RelationshipInfo(BaseModel):
@@ -168,7 +174,7 @@ async def get_relationship_info(
 
 
 def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Expand any item in self.data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
+    """Expand any item in data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
     range_pattern = re.compile(MATCH_PATTERN)
     expanded = []
     for item in data:
@@ -198,16 +204,67 @@ def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return expanded
 
 
+class DataProcessor(ABC):
+    """Abstract base class for data processing strategies"""
+
+    @abstractmethod
+    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Process the data according to the strategy"""
+
+
+class SingleDataProcessor(DataProcessor):
+    """Process data without any expansion"""
+
+    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return data
+
+
+class RangeExpandDataProcessor(DataProcessor):
+    """Process data with range expansion"""
+
+    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return expand_data_with_ranges(data)
+
+
+class DataProcessorFactory:
+    """Factory to create appropriate data processor based on strategy"""
+
+    _processors: ClassVar[dict[ObjectStrategy, type[DataProcessor]]] = {
+        ObjectStrategy.NORMAL: SingleDataProcessor,
+        ObjectStrategy.RANGE_EXPAND: RangeExpandDataProcessor,
+    }
+
+    @classmethod
+    def get_processor(cls, strategy: ObjectStrategy) -> DataProcessor:
+        processor_class = cls._processors.get(strategy)
+        if not processor_class:
+            raise ValueError(f"Unknown strategy: {strategy}")
+        return processor_class()
+
+    @classmethod
+    def register_processor(cls, strategy: ObjectStrategy, processor_class: type[DataProcessor]) -> None:
+        """Register a new processor for a strategy - useful for future extensions"""
+        cls._processors[strategy] = processor_class
+
+
 class InfrahubObjectFileData(BaseModel):
     kind: str
+    strategy: ObjectStrategy = ObjectStrategy.NORMAL
     data: list[dict[str, Any]] = Field(default_factory=list)
+
+    def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Get data processed according to the strategy"""
+        processor = DataProcessorFactory.get_processor(self.strategy)
+        return processor.process_data(data)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        expanded_data = expand_data_with_ranges(self.data)
-        self.data = expanded_data
-        for idx, item in enumerate(expanded_data):
+
+        processed_data = self._get_processed_data(data=self.data)
+        self.data = processed_data
+
+        for idx, item in enumerate(processed_data):
             errors.extend(
                 await self.validate_object(
                     client=client,
@@ -216,14 +273,16 @@ class InfrahubObjectFileData(BaseModel):
                     data=item,
                     branch=branch,
                     default_schema_kind=self.kind,
+                    strategy=self.strategy,  # Pass strategy down
                 )
             )
         return errors
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        expanded_data = expand_data_with_ranges(self.data)
-        for idx, item in enumerate(expanded_data):
+        processed_data = self._get_processed_data(data=self.data)
+
+        for idx, item in enumerate(processed_data):
             await self.create_node(
                 client=client,
                 schema=schema,
@@ -231,6 +290,7 @@ class InfrahubObjectFileData(BaseModel):
                 position=[idx + 1],
                 branch=branch,
                 default_schema_kind=self.kind,
+                strategy=self.strategy,
             )
 
     @classmethod
@@ -243,6 +303,7 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        strategy: ObjectStrategy = ObjectStrategy.NORMAL,
     ) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         context = context.copy() if context else {}
@@ -292,6 +353,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        strategy=strategy,
                     )
                 )
 
@@ -307,6 +369,7 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        strategy: ObjectStrategy = ObjectStrategy.NORMAL,
     ) -> list[ObjectValidationError]:
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
@@ -348,7 +411,10 @@ class InfrahubObjectFileData(BaseModel):
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
 
-            expanded_data = expand_data_with_ranges(data=data["data"])
+            # Use strategy-aware data processing
+            processor = DataProcessorFactory.get_processor(strategy)
+            expanded_data = processor.process_data(data["data"])
+
             for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 errors.extend(
@@ -360,6 +426,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        strategy=strategy,
                     )
                 )
             return errors

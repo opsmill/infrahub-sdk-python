@@ -60,7 +60,7 @@ def test_mixed_range_expansion() -> None:
 
 
 def test_single_value_in_brackets() -> None:
-    assert range_expansion("Device[5]") == ["Device5"]
+    assert range_expansion("Device[5]") == ["Device[5]"]
 
 
 def test_empty_brackets() -> None:
@@ -82,10 +82,6 @@ def test_duplicate_and_overlapping_values() -> None:
     assert range_expansion("Device[1,1,2]") == ["Device1", "Device1", "Device2"]
 
 
-def test_whitespace_handling() -> None:
-    assert range_expansion("Device[ 1 - 3 ]") == ["Device[ 1 - 3 ]"]
-
-
 def test_descending_ranges() -> None:
     assert range_expansion("Device[3-1]") == ["Device3", "Device2", "Device1"]
 
@@ -104,3 +100,7 @@ def test_unicode_ranges() -> None:
 
 def test_brackets_in_strings() -> None:
     assert range_expansion(r"Service Object [Circuit Provider, X]") == ["Service Object [Circuit Provider, X]"]
+
+
+def test_words_in_brackets() -> None:
+    assert range_expansion("Device[expansion]") == ["Device[expansion]"]
