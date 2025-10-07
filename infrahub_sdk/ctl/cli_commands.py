@@ -45,7 +45,7 @@ from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
-from ..utils import get_branch, write_to_file
+from ..utils import write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
 from .importer import load
@@ -207,7 +207,6 @@ async def _run_transform(
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
     """
-    branch = get_branch(branch)
 
     try:
         response = execute_graphql_query(

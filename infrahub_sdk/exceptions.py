@@ -17,6 +17,8 @@ class JsonDecodeError(Error):
         self.url = url
         if not self.message and self.url:
             self.message = f"Unable to decode response as JSON data from {self.url}"
+            if self.content:
+                self.message += f". Server response: {self.content}"
         super().__init__(self.message)
 
 

@@ -51,8 +51,7 @@ class Timestamp:
     @classmethod
     def _parse_string(cls, value: str) -> ZonedDateTime:
         try:
-            zoned_date = ZonedDateTime.parse_common_iso(value)
-            return zoned_date
+            return ZonedDateTime.parse_common_iso(value)
         except ValueError:
             pass
 

@@ -118,6 +118,10 @@ def execute_graphql_query(
     query_str = query_object.load_query()
 
     client = initialize_client_sync()
+
+    if not branch:
+        branch = client.config.default_infrahub_branch
+
     response = client.execute_graphql(
         query=query_str,
         branch_name=branch,
