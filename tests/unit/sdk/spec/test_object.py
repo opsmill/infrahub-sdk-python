@@ -228,3 +228,21 @@ async def test_get_relationship_info_tags(
     rel_info = await get_relationship_info(client, location_schema, "tags", data)
     assert rel_info.is_valid == is_valid
     assert rel_info.format == format
+
+
+async def test_invalid_object_expansion_strategy(
+    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
+) -> None:
+    obj = ObjectFile(location="some/path", content=location_expansion)
+
+    from infrahub_sdk.spec.object import DataProcessorFactory, ObjectStrategy  # noqa: PLC0415
+
+    # Patch _processors to remove the invalid strategy
+    original_processors = DataProcessorFactory._processors.copy()
+    try:
+        DataProcessorFactory._processors[ObjectStrategy.RANGE_EXPAND] = None
+        with pytest.raises(ValueError) as exc:
+            await obj.validate_format(client=client)
+        assert "Unknown strategy" in str(exc.value)
+    finally:
+        DataProcessorFactory._processors = original_processors

@@ -238,7 +238,9 @@ class DataProcessorFactory:
     def get_processor(cls, strategy: ObjectStrategy) -> DataProcessor:
         processor_class = cls._processors.get(strategy)
         if not processor_class:
-            raise ValueError(f"Unknown strategy: {strategy}")
+            raise ValueError(
+                f"Unknown strategy: {strategy} - no processor found. Valid strategies are: {list(cls._processors.keys())}"
+            )
         return processor_class()
 
     @classmethod
@@ -699,14 +701,20 @@ class ObjectFile(InfrahubFile):
     @property
     def spec(self) -> InfrahubObjectFileData:
         if not self._spec:
-            self._spec = InfrahubObjectFileData(**self.data.spec)
+            try:
+                self._spec = InfrahubObjectFileData(**self.data.spec)
+            except Exception as exc:
+                raise ValidationError(identifier=str(self.location), message=str(exc))
         return self._spec
 
     def validate_content(self) -> None:
         super().validate_content()
         if self.kind != InfrahubFileKind.OBJECT:
             raise ValueError("File is not an Infrahub Object file")
-        self._spec = InfrahubObjectFileData(**self.data.spec)
+        try:
+            self._spec = InfrahubObjectFileData(**self.data.spec)
+        except Exception as exc:
+            raise ValidationError(identifier=str(self.location), message=str(exc))
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()
