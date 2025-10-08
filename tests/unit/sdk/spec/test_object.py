@@ -230,7 +230,7 @@ async def test_get_relationship_info_tags(
     assert rel_info.format == format
 
 
-async def test_invalid_object_expansion_strategy(
+async def test_invalid_object_expansion_processor(
     client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
 ) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion)
@@ -246,3 +246,12 @@ async def test_invalid_object_expansion_strategy(
         assert "Unknown strategy" in str(exc.value)
     finally:
         DataProcessorFactory._processors = original_processors
+
+
+async def test_invalid_object_expansion_strategy(client: InfrahubClient, location_expansion) -> None:
+    location_expansion["spec"]["strategy"] = "InvalidStrategy"
+    obj = ObjectFile(location="some/path", content=location_expansion)
+
+    with pytest.raises(ValidationError) as exc:
+        await obj.validate_format(client=client)
+    assert "Input should be" in str(exc.value)
