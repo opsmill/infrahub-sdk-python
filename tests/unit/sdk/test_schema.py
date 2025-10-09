@@ -389,7 +389,7 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node) -> No
         mock_get_node.assert_called_once()
         output = console.file.getvalue()
         expected_console = """Unable to load the schema:
-  Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z]+$' (string_pattern_mismatch)
+  Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z][a-z0-9]+$' (string_pattern_mismatch)
 """
         assert output == expected_console
 
