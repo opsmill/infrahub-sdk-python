@@ -73,7 +73,9 @@ def display_schema_load_errors(response: dict[str, Any], schemas_data: list[Sche
             loc_type = loc_path[-1]
             input_str = error.get("input", None)
             error_message = f"{loc_type} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}")
+            console.print(
+                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
+            )
 
         elif len(loc_path) > 6:
             loc_type = loc_path[5]
@@ -91,7 +93,9 @@ def display_schema_load_errors(response: dict[str, Any], schemas_data: list[Sche
 
             input_str = error.get("input", None)
             error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}")
+            console.print(
+                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
+            )
 
 
 def handle_non_detail_errors(response: dict[str, Any]) -> None:
