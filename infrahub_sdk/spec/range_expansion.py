@@ -1,7 +1,7 @@
 import itertools
 import re
 
-MATCH_PATTERN = r"(\[[\w,-]+\])"
+MATCH_PATTERN = r"(\[[\w,-]*[-,][\w,-]*\])"
 
 
 def _escape_brackets(s: str) -> str:

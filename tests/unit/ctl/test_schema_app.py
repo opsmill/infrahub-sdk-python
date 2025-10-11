@@ -116,7 +116,7 @@ def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock) -> None:
     clean_output = remove_ansi_color(result.stdout.replace("\n", ""))
     expected_result = (
         "Unable to load the schema:  Node: OuTDevice | "
-        "namespace (OuT) | String should match pattern '^[A-Z]+$' (string_pattern_mismatch) "
+        "namespace (OuT) | String should match pattern '^[A-Z][a-z0-9]+$' (string_pattern_mismatch) "
         " Node: OuTDevice | Attribute: name (NotValid) | Value error, Only valid Attribute Kind "
         "are : ['ID', 'Dropdown']  (value_error)"
     )
