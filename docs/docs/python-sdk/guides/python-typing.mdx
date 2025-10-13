@@ -100,4 +100,52 @@ from lib.protocols import MyOwnObject
 my_object = client.get(MyOwnObject, name__value="example")
 ```
 
-> if you don't have your own Python module, it's possible to use relative path by having the `procotols.py` in the same directory as your script/transform/generator
+> if you don't have your own Python module, it's possible to use relative path by having the `protocols.py` in the same directory as your script/transform/generator
+
+## Generating Pydantic models from GraphQL queries
+
+When working with GraphQL queries, you can generate type-safe Pydantic models that correspond to your query return types. This provides excellent type safety and IDE support for your GraphQL operations.
+
+### Why use generated return types?
+
+Generated Pydantic models from GraphQL queries offer several important benefits:
+
+- **Type Safety**: Catch type errors during development time instead of at runtime
+- **IDE Support**: Get autocomplete, type hints, and better IntelliSense in your IDE  
+- **Documentation**: Generated models serve as living documentation of your GraphQL API
+- **Validation**: Automatic validation of query responses against the expected schema
+
+### Generating return types
+
+Use the `infrahubctl graphql generate-return-types` command to create Pydantic models from your GraphQL queries:
+
+```shell
+# Generate models for queries in current directory
+infrahubctl graphql generate-return-types
+
+# Generate models for specific query files
+infrahubctl graphql generate-return-types queries/get_devices.gql
+```
+
+> You can also export the GraphQL schema first using the `infrahubctl graphql export-schema` command:
+
+### Example workflow
+
+1. **Create your GraphQL queries** in `.gql` files:
+
+2. **Generate the Pydantic models**:
+
+   ```shell
+   infrahubctl graphql generate-return-types queries/
+   ```
+
+   The command will generate the Python file per query based on the name of the query.
+
+3. **Use the generated models** in your Python code
+
+   ```python
+   from .queries.get_devices import GetDevicesQuery
+
+   response = await client.execute_graphql(query=MY_QUERY)
+   data = GetDevicesQuery(**response)
+   ```
