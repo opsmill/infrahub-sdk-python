@@ -6,10 +6,35 @@ from typing import Any
 
 from pydantic import BaseModel
 
-VARIABLE_TYPE_MAPPING = ((str, "String!"), (int, "Int!"), (float, "Float!"), (bool, "Boolean!"))
+from .constants import VARIABLE_TYPE_MAPPING
 
 
 def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:  # noqa: PLR0911
+    """Convert a Python value to its GraphQL string representation.
+
+    This function handles various Python types and converts them to their appropriate
+    GraphQL string format, including proper quoting, formatting, and special handling
+    for different data types.
+
+    Args:
+        value: The value to convert to GraphQL string format. Can be None, str, bool,
+            int, float, Enum, list, BaseModel, or any other type.
+        convert_enum: If True, converts Enum values to their underlying value instead
+            of their name. Defaults to False.
+
+    Returns:
+        str: The GraphQL string representation of the value.
+
+    Examples:
+        >>> convert_to_graphql_as_string("hello")
+        '"hello"'
+        >>> convert_to_graphql_as_string(True)
+        'true'
+        >>> convert_to_graphql_as_string([1, 2, 3])
+        '[1, 2, 3]'
+        >>> convert_to_graphql_as_string(None)
+        'null'
+    """
     if value is None:
         return "null"
     if isinstance(value, str) and value.startswith("$"):
@@ -56,6 +81,34 @@ def render_variables_to_string(data: dict[str, type[str | int | float | bool]]) 
 
 
 def render_query_block(data: dict, offset: int = 4, indentation: int = 4, convert_enum: bool = False) -> list[str]:
+    """Render a dictionary structure as a GraphQL query block with proper formatting.
+
+    This function recursively processes a dictionary to generate GraphQL query syntax
+    with proper indentation, handling of aliases, filters, and nested structures.
+    Special keys like "@filters" and "@alias" are processed for GraphQL-specific
+    formatting.
+
+    Args:
+        data: Dictionary representing the GraphQL query structure. Can contain
+            nested dictionaries, special keys like "@filters" and "@alias", and
+            various value types.
+        offset: Number of spaces to use for initial indentation. Defaults to 4.
+        indentation: Number of spaces to add for each nesting level. Defaults to 4.
+        convert_enum: If True, converts Enum values to their underlying value.
+            Defaults to False.
+
+    Returns:
+        list[str]: List of formatted lines representing the GraphQL query block.
+
+    Examples:
+        >>> data = {"user": {"name": None, "email": None}}
+        >>> render_query_block(data)
+        ['    user {', '        name', '        email', '    }']
+
+        >>> data = {"user": {"@alias": "u", "@filters": {"id": 123}, "name": None}}
+        >>> render_query_block(data)
+        ['    u: user(id: 123) {', '        name', '    }']
+    """
     FILTERS_KEY = "@filters"
     ALIAS_KEY = "@alias"
     KEYWORDS_TO_SKIP = [FILTERS_KEY, ALIAS_KEY]
@@ -97,6 +150,33 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
 
 
 def render_input_block(data: dict, offset: int = 4, indentation: int = 4, convert_enum: bool = False) -> list[str]:
+    """Render a dictionary structure as a GraphQL input block with proper formatting.
+
+    This function recursively processes a dictionary to generate GraphQL input syntax
+    with proper indentation, handling nested objects, arrays, and various data types.
+    Unlike query blocks, input blocks don't handle special keys like "@filters" or
+    "@alias" and focus on data structure representation.
+
+    Args:
+        data: Dictionary representing the GraphQL input structure. Can contain
+            nested dictionaries, lists, and various value types.
+        offset: Number of spaces to use for initial indentation. Defaults to 4.
+        indentation: Number of spaces to add for each nesting level. Defaults to 4.
+        convert_enum: If True, converts Enum values to their underlying value.
+            Defaults to False.
+
+    Returns:
+        list[str]: List of formatted lines representing the GraphQL input block.
+
+    Examples:
+        >>> data = {"name": "John", "age": 30}
+        >>> render_input_block(data)
+        ['    name: "John"', '    age: 30']
+
+        >>> data = {"user": {"name": "John", "hobbies": ["reading", "coding"]}}
+        >>> render_input_block(data)
+        ['    user: {', '        name: "John"', '        hobbies: [', '            "reading",', '            "coding",', '        ]', '    }']
+    """
     offset_str = " " * offset
     lines = []
     for key, value in data.items():
@@ -130,75 +210,3 @@ def render_input_block(data: dict, offset: int = 4, indentation: int = 4, conver
         else:
             lines.append(f"{offset_str}{key}: {convert_to_graphql_as_string(value=value, convert_enum=convert_enum)}")
     return lines
-
-
-class BaseGraphQLQuery:
-    query_type: str = "not-defined"
-    indentation: int = 4
-
-    def __init__(self, query: dict, variables: dict | None = None, name: str | None = None):
-        self.query = query
-        self.variables = variables
-        self.name = name or ""
-
-    def render_first_line(self) -> str:
-        first_line = self.query_type
-
-        if self.name:
-            first_line += " " + self.name
-
-        if self.variables:
-            first_line += f" ({render_variables_to_string(self.variables)})"
-
-        first_line += " {"
-
-        return first_line
-
-
-class Query(BaseGraphQLQuery):
-    query_type = "query"
-
-    def render(self, convert_enum: bool = False) -> str:
-        lines = [self.render_first_line()]
-        lines.extend(
-            render_query_block(
-                data=self.query, indentation=self.indentation, offset=self.indentation, convert_enum=convert_enum
-            )
-        )
-        lines.append("}")
-
-        return "\n" + "\n".join(lines) + "\n"
-
-
-class Mutation(BaseGraphQLQuery):
-    query_type = "mutation"
-
-    def __init__(self, *args: Any, mutation: str, input_data: dict, **kwargs: Any):
-        self.input_data = input_data
-        self.mutation = mutation
-        super().__init__(*args, **kwargs)
-
-    def render(self, convert_enum: bool = False) -> str:
-        lines = [self.render_first_line()]
-        lines.append(" " * self.indentation + f"{self.mutation}(")
-        lines.extend(
-            render_input_block(
-                data=self.input_data,
-                indentation=self.indentation,
-                offset=self.indentation * 2,
-                convert_enum=convert_enum,
-            )
-        )
-        lines.append(" " * self.indentation + "){")
-        lines.extend(
-            render_query_block(
-                data=self.query,
-                indentation=self.indentation,
-                offset=self.indentation * 2,
-                convert_enum=convert_enum,
-            )
-        )
-        lines.append(" " * self.indentation + "}")
-        lines.append("}")
-
-        return "\n" + "\n".join(lines) + "\n"

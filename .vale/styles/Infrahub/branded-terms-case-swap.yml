@@ -13,7 +13,6 @@ swap:
   (?:[Gg]itlab): GitLab
   (?:gitpod): GitPod
   (?:grafana): Grafana
-  (?:[^/][Gg]raphql): GraphQL
   (?:[Ii]nflux[Dd]b): InfluxDB
   infrahub(?:\s|$): Infrahub
   (?:jinja2): Jinja2
