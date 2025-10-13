@@ -1,0 +1,56 @@
+# `infrahubctl graphql`
+
+Various GraphQL related commands.
+
+**Usage**:
+
+```console
+$ infrahubctl graphql [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `export-schema`: Export the GraphQL schema to a file.
+* `generate-return-types`: Create Pydantic Models for GraphQL query...
+
+## `infrahubctl graphql export-schema`
+
+Export the GraphQL schema to a file.
+
+**Usage**:
+
+```console
+$ infrahubctl graphql export-schema [OPTIONS]
+```
+
+**Options**:
+
+* `--destination PATH`: Path to the GraphQL schema file.  [default: schema.graphql]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl graphql generate-return-types`
+
+Create Pydantic Models for GraphQL query return types
+
+**Usage**:
+
+```console
+$ infrahubctl graphql generate-return-types [OPTIONS] [QUERY]
+```
+
+**Arguments**:
+
+* `[QUERY]`: Location of the GraphQL query file(s). Defaults to current directory if not specified.
+
+**Options**:
+
+* `--schema PATH`: Path to the GraphQL schema file.  [default: schema.graphql]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.

@@ -474,6 +474,25 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         return branch_schema.nodes
 
+    async def get_graphql_schema(self, branch: str | None = None) -> str:
+        """Get the GraphQL schema as a string.
+
+        Args:
+            branch: The branch to get the schema for. Defaults to default_branch.
+
+        Returns:
+            The GraphQL schema as a string.
+        """
+        branch = branch or self.client.default_branch
+        url = f"{self.client.address}/schema.graphql?branch={branch}"
+
+        response = await self.client._get(url=url)
+
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch GraphQL schema: HTTP {response.status_code} - {response.text}")
+
+        return response.text
+
     async def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
         if namespaces:
@@ -696,6 +715,25 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             self.cache[branch] = branch_schema
 
         return branch_schema.nodes
+
+    def get_graphql_schema(self, branch: str | None = None) -> str:
+        """Get the GraphQL schema as a string.
+
+        Args:
+            branch: The branch to get the schema for. Defaults to default_branch.
+
+        Returns:
+            The GraphQL schema as a string.
+        """
+        branch = branch or self.client.default_branch
+        url = f"{self.client.address}/schema.graphql?branch={branch}"
+
+        response = self.client._get(url=url)
+
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch GraphQL schema: HTTP {response.status_code} - {response.text}")
+
+        return response.text
 
     def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
