@@ -726,7 +726,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             The GraphQL schema as a string.
         """
         branch = branch or self.client.default_branch
-        url = f"{self.client.address}/schema.graphql"
+        url = f"{self.client.address}/schema.graphql?branch={branch}"
 
         response = self.client._get(url=url)
 
