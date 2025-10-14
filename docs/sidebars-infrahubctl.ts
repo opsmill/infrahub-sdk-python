@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'infrahubctl-repository',
         'infrahubctl-run',
         'infrahubctl-schema',
+        'infrahubctl-task',
         'infrahubctl-transform',
         'infrahubctl-validate',
         'infrahubctl-version'
