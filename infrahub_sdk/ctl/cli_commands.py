@@ -32,6 +32,7 @@ from ..ctl.render import list_jinja2_transforms, print_template_errors
 from ..ctl.repository import app as repository_app
 from ..ctl.repository import get_repository_config
 from ..ctl.schema import app as schema_app
+from ..ctl.task import app as task_app
 from ..ctl.transform import list_transforms
 from ..ctl.utils import (
     catch_exception,
@@ -63,6 +64,7 @@ app.add_typer(validate_app, name="validate")
 app.add_typer(repository_app, name="repository")
 app.add_typer(menu_app, name="menu")
 app.add_typer(object_app, name="object")
+app.add_typer(task_app, name="task")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
