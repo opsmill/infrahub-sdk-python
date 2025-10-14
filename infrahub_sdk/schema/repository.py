@@ -96,6 +96,14 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
         default=False,
         description="Decide if the generator should convert the result of the GraphQL query to SDK InfrahubNode objects.",
     )
+    execute_in_proposed_change: bool = Field(
+        default=True,
+        description="Decide if the generator should execute in a proposed change.",
+    )
+    execute_after_merge: bool = Field(
+        default=True,
+        description="Decide if the generator should execute after a merge.",
+    )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
