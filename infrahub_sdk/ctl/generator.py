@@ -64,6 +64,8 @@ async def run(
             branch=branch or "",
             params=variables_dict,
             convert_query_response=generator_config.convert_query_response,
+            execute_in_proposed_change=generator_config.execute_in_proposed_change,
+            execute_after_merge=generator_config.execute_after_merge,
             infrahub_node=InfrahubNode,
         )
         await generator._init_client.schema.all(branch=generator.branch_name)
@@ -93,6 +95,8 @@ async def run(
                 branch=branch or "",
                 params=params,
                 convert_query_response=generator_config.convert_query_response,
+                execute_in_proposed_change=generator_config.execute_in_proposed_change,
+                execute_after_merge=generator_config.execute_after_merge,
                 infrahub_node=InfrahubNode,
             )
             data = execute_graphql_query(

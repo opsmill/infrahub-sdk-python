@@ -131,6 +131,7 @@ class CoreGenericRepository(CoreNode):
     queries: RelationshipManager
     checks: RelationshipManager
     generators: RelationshipManager
+    groups_objects: RelationshipManager
 
 
 class CoreGroup(CoreNode):
@@ -355,6 +356,10 @@ class CoreGeneratorAction(CoreAction):
     generator: RelatedNode
 
 
+class CoreGeneratorAwareGroup(CoreGroup):
+    pass
+
+
 class CoreGeneratorCheck(CoreCheck):
     instance: String
 
@@ -366,6 +371,8 @@ class CoreGeneratorDefinition(CoreTaskTarget):
     file_path: String
     class_name: String
     convert_query_response: BooleanOptional
+    execute_in_proposed_change: BooleanOptional
+    execute_after_merge: BooleanOptional
     query: RelatedNode
     repository: RelatedNode
     targets: RelatedNode
@@ -681,6 +688,7 @@ class CoreGenericRepositorySync(CoreNodeSync):
     queries: RelationshipManagerSync
     checks: RelationshipManagerSync
     generators: RelationshipManagerSync
+    groups_objects: RelationshipManagerSync
 
 
 class CoreGroupSync(CoreNodeSync):
@@ -905,6 +913,10 @@ class CoreGeneratorActionSync(CoreActionSync):
     generator: RelatedNodeSync
 
 
+class CoreGeneratorAwareGroupSync(CoreGroupSync):
+    pass
+
+
 class CoreGeneratorCheckSync(CoreCheckSync):
     instance: String
 
@@ -916,6 +928,8 @@ class CoreGeneratorDefinitionSync(CoreTaskTargetSync):
     file_path: String
     class_name: String
     convert_query_response: BooleanOptional
+    execute_in_proposed_change: BooleanOptional
+    execute_after_merge: BooleanOptional
     query: RelatedNodeSync
     repository: RelatedNodeSync
     targets: RelatedNodeSync
