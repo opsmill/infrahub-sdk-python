@@ -31,6 +31,8 @@ The `infrahubctl` command line utility is installed as a part of the [Infrahub S
 | `INFRAHUB_ADDRESS`        | http://localhost:8000                  |
 | `INFRAHUB_API_TOKEN`      | `06438eb2-8019-4776-878c-0941b1f1d1ec` |
 | `INFRAHUB_DEFAULT_BRANCH` | main                                   |
+| `INFRAHUB_TLS_CA_FILE`    | /path/to/ca.crt                        |
+| `INFRAHUB_TLS_INSECURE`   | true                                   |
 
 > You can also provide the location of a configuration file via the environment variable `INFRAHUBCTL_CONFIG`.
 
@@ -39,4 +41,7 @@ The `infrahubctl` command line utility is installed as a part of the [Infrahub S
 ```toml title="infrahubctl.toml"
 server_address="http://localhost:8000"
 api_token="06438eb2-8019-4776-878c-0941b1f1d1ec"
+default_branch="main"
+tls_ca_file="/path/to/ca.crt"
+tls_insecure=true
 ```
