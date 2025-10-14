@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     server_address: str = Field(default="http://localhost:8000", validation_alias="infrahub_address")
     api_token: str | None = Field(default=None)
     default_branch: str = Field(default="main")
+    tls_insecure: bool = Field(
+        default=False,
+        description="""
+    Indicates if TLS certificates are verified.
+    Enabling this option will disable: CA verification, expiry date verification, hostname verification).
+    Can be useful to test with self-signed certificates.""",
+    )
+    tls_ca_file: str | None = Field(default=None, description="File path to CA cert or bundle in PEM format")
 
     @field_validator("server_address")
     @classmethod
