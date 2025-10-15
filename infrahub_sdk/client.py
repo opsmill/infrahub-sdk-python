@@ -146,6 +146,7 @@ class BaseClient:
         self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
         self._request_context: RequestContext | None = None
+        _ = self.config.tls_context  # Early load of the TLS context to catch errors
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client"""
@@ -1024,7 +1025,7 @@ class InfrahubClient(BaseClient):
 
         async with httpx.AsyncClient(
             **proxy_config,  # type: ignore[arg-type]
-            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
+            verify=self.config.tls_context,
         ) as client:
             try:
                 response = await client.request(
@@ -2748,7 +2749,7 @@ class InfrahubClientSync(BaseClient):
 
         with httpx.Client(
             **proxy_config,  # type: ignore[arg-type]
-            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
+            verify=self.config.tls_context,
         ) as client:
             try:
                 response = client.request(
