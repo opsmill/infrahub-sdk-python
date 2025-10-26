@@ -1879,6 +1879,12 @@ async def mock_schema_query_01(httpx_mock: HTTPXMock, schema_query_01_data: dict
 
 
 @pytest.fixture
+async def client_with_schema_01(client: InfrahubClient, schema_query_01_data: dict) -> InfrahubClient:
+    client.schema.set_cache(schema=schema_query_01_data, branch="main")
+    return client
+
+
+@pytest.fixture
 async def mock_schema_query_02(httpx_mock: HTTPXMock, schema_query_02_data: dict) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
