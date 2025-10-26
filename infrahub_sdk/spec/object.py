@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import copy
-import re
-from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar
-
+from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing_extensions import Self
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
 from ..yaml import InfrahubFile, InfrahubFileKind
-from .range_expansion import MATCH_PATTERN, range_expansion
+from .models import InfrahubObjectContext, InfrahubObjectParameters
+from .processors.factory import DataProcessorFactory
+from .processors.range_expand_processor import RangeExpandDataProcessor
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient
@@ -44,11 +44,6 @@ class RelationshipDataFormat(str, Enum):
     MANY_OBJ_DICT_LIST = "many_obj_dict_list"
     MANY_OBJ_LIST_DICT = "many_obj_list_dict"
     MANY_REF = "many_ref_list"
-
-
-class ObjectStrategy(str, Enum):
-    NORMAL = "normal"
-    RANGE_EXPAND = "range_expand"
 
 
 class RelationshipInfo(BaseModel):
@@ -173,97 +168,25 @@ async def get_relationship_info(
     return info
 
 
-def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Expand any item in data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
-    range_pattern = re.compile(MATCH_PATTERN)
-    expanded = []
-    for item in data:
-        # Find all fields to expand
-        expand_fields = {}
-        for key, value in item.items():
-            if isinstance(value, str) and range_pattern.search(value):
-                try:
-                    expand_fields[key] = range_expansion(value)
-                except Exception:
-                    # If expansion fails, treat as no expansion
-                    expand_fields[key] = [value]
-        if not expand_fields:
-            expanded.append(item)
-            continue
-        # Check all expanded lists have the same length
-        lengths = [len(v) for v in expand_fields.values()]
-        if len(set(lengths)) > 1:
-            raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
-        n = lengths[0]
-        # Zip expanded values and produce new items
-        for i in range(n):
-            new_item = copy.deepcopy(item)
-            for key, values in expand_fields.items():
-                new_item[key] = values[i]
-            expanded.append(new_item)
-    return expanded
-
-
-class DataProcessor(ABC):
-    """Abstract base class for data processing strategies"""
-
-    @abstractmethod
-    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Process the data according to the strategy"""
-
-
-class SingleDataProcessor(DataProcessor):
-    """Process data without any expansion"""
-
-    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return data
-
-
-class RangeExpandDataProcessor(DataProcessor):
-    """Process data with range expansion"""
-
-    def process_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return expand_data_with_ranges(data)
-
-
-class DataProcessorFactory:
-    """Factory to create appropriate data processor based on strategy"""
-
-    _processors: ClassVar[dict[ObjectStrategy, type[DataProcessor]]] = {
-        ObjectStrategy.NORMAL: SingleDataProcessor,
-        ObjectStrategy.RANGE_EXPAND: RangeExpandDataProcessor,
-    }
-
-    @classmethod
-    def get_processor(cls, strategy: ObjectStrategy) -> DataProcessor:
-        processor_class = cls._processors.get(strategy)
-        if not processor_class:
-            raise ValueError(
-                f"Unknown strategy: {strategy} - no processor found. Valid strategies are: {list(cls._processors.keys())}"
-            )
-        return processor_class()
-
-    @classmethod
-    def register_processor(cls, strategy: ObjectStrategy, processor_class: type[DataProcessor]) -> None:
-        """Register a new processor for a strategy - useful for future extensions"""
-        cls._processors[strategy] = processor_class
-
-
 class InfrahubObjectFileData(BaseModel):
     kind: str
-    strategy: ObjectStrategy = ObjectStrategy.NORMAL
+    parameters: InfrahubObjectParameters = InfrahubObjectParameters()
     data: list[dict[str, Any]] = Field(default_factory=list)
 
-    def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    _context: InfrahubObjectContext = InfrahubObjectContext()
+
+    async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Get data processed according to the strategy"""
-        processor = DataProcessorFactory.get_processor(self.strategy)
-        return processor.process_data(data)
+
+        return await DataProcessorFactory.process_data(
+            kind=self.kind, context=self._context, parameters=self.parameters, data=data
+        )
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         schema = await client.schema.get(kind=self.kind, branch=branch)
 
-        processed_data = self._get_processed_data(data=self.data)
+        processed_data = await self._get_processed_data(data=self.data)
         self.data = processed_data
 
         for idx, item in enumerate(processed_data):
@@ -275,14 +198,15 @@ class InfrahubObjectFileData(BaseModel):
                     data=item,
                     branch=branch,
                     default_schema_kind=self.kind,
-                    strategy=self.strategy,  # Pass strategy down
+                    parameters=self.parameters,
+                    global_context=self._context,
                 )
             )
         return errors
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        processed_data = self._get_processed_data(data=self.data)
+        processed_data = await self._get_processed_data(data=self.data)
 
         for idx, item in enumerate(processed_data):
             await self.create_node(
@@ -292,6 +216,7 @@ class InfrahubObjectFileData(BaseModel):
                 position=[idx + 1],
                 branch=branch,
                 default_schema_kind=self.kind,
+                global_context=self._context,
             )
 
     @classmethod
@@ -301,17 +226,18 @@ class InfrahubObjectFileData(BaseModel):
         schema: MainSchemaTypesAPI,
         data: dict,
         position: list[int | str],
-        context: dict | None = None,
+        global_context: InfrahubObjectContext,
+        node_context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
-        strategy: ObjectStrategy = ObjectStrategy.NORMAL,
+        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
     ) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
-        context = context.copy() if context else {}
+        node_context = node_context.copy() if node_context else {}
 
         # First validate if all mandatory fields are present
         for element in schema.mandatory_input_names:
-            if not any([element in data.keys(), element in context.keys()]):
+            if not any([element in data.keys(), element in node_context.keys()]):
                 errors.append(ObjectValidationError(position=position + [element], message=f"{element} is mandatory"))
 
         # Validate if all attributes are valid
@@ -351,10 +277,11 @@ class InfrahubObjectFileData(BaseModel):
                         position=position + [key],
                         rel_info=rel_info,
                         data=value,
-                        context=context,
+                        node_context=node_context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
-                        strategy=strategy,
+                        parameters=parameters,
+                        global_context=global_context,
                     )
                 )
 
@@ -367,12 +294,13 @@ class InfrahubObjectFileData(BaseModel):
         position: list[int | str],
         rel_info: RelationshipInfo,
         data: dict | list[dict],
-        context: dict | None = None,
+        global_context: InfrahubObjectContext,
+        node_context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
-        strategy: ObjectStrategy = ObjectStrategy.NORMAL,
+        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
     ) -> list[ObjectValidationError]:
-        context = context.copy() if context else {}
+        node_context = node_context.copy() if node_context else {}
         errors: list[ObjectValidationError] = []
 
         if isinstance(data, (list, str)) and rel_info.format == RelationshipDataFormat.ONE_REF:
@@ -388,7 +316,7 @@ class InfrahubObjectFileData(BaseModel):
             )
 
             rel_info.find_matching_relationship(peer_schema=peer_schema)
-            context.update(rel_info.get_context(value="placeholder"))
+            node_context.update(rel_info.get_context(value="placeholder"))
 
             errors.extend(
                 await cls.validate_object(
@@ -396,9 +324,11 @@ class InfrahubObjectFileData(BaseModel):
                     position=position,
                     schema=peer_schema,
                     data=data["data"],
-                    context=context,
+                    node_context=node_context,
+                    global_context=global_context,
                     branch=branch,
                     default_schema_kind=default_schema_kind,
+                    parameters=parameters,
                 )
             )
             return errors
@@ -410,38 +340,39 @@ class InfrahubObjectFileData(BaseModel):
             )
 
             rel_info.find_matching_relationship(peer_schema=peer_schema)
-            context.update(rel_info.get_context(value="placeholder"))
+            node_context.update(rel_info.get_context(value="placeholder"))
 
-            # Use strategy-aware data processing
-            processor = DataProcessorFactory.get_processor(strategy)
-            expanded_data = processor.process_data(data["data"])
+            processed_data = await DataProcessorFactory.process_data(
+                kind=peer_kind, data=data["data"], parameters=parameters, context=global_context
+            )
 
-            for idx, peer_data in enumerate(expanded_data):
-                context["list_index"] = idx
+            for idx, peer_data in enumerate(processed_data):
+                node_context["list_index"] = idx
                 errors.extend(
                     await cls.validate_object(
                         client=client,
                         position=position + [idx + 1],
                         schema=peer_schema,
                         data=peer_data,
-                        context=context,
+                        node_context=node_context,
+                        global_context=global_context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
-                        strategy=strategy,
+                        parameters=parameters,
                     )
                 )
             return errors
 
         if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_OBJ_LIST_DICT:
             for idx, item in enumerate(data):
-                context["list_index"] = idx
+                node_context["list_index"] = idx
                 peer_kind = item.get("kind") or rel_info.peer_kind
                 peer_schema = await cls.get_peer_schema(
                     client=client, peer_kind=peer_kind, branch=branch, default_schema_kind=default_schema_kind
                 )
 
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
-                context.update(rel_info.get_context(value="placeholder"))
+                node_context.update(rel_info.get_context(value="placeholder"))
 
                 errors.extend(
                     await cls.validate_object(
@@ -449,9 +380,11 @@ class InfrahubObjectFileData(BaseModel):
                         position=position + [idx + 1],
                         schema=peer_schema,
                         data=item["data"],
-                        context=context,
+                        node_context=node_context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        parameters=parameters,
+                        global_context=global_context,
                     )
                 )
             return errors
@@ -475,20 +408,24 @@ class InfrahubObjectFileData(BaseModel):
         schema: MainSchemaTypesAPI,
         data: dict,
         position: list[int | str],
-        context: dict | None = None,
+        global_context: InfrahubObjectContext,
+        node_context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
     ) -> InfrahubNode:
-        context = context.copy() if context else {}
+        node_context = node_context.copy() if node_context else {}
 
         errors = await cls.validate_object(
             client=client,
             position=position,
             schema=schema,
             data=data,
-            context=context,
+            node_context=node_context,
             branch=branch,
             default_schema_kind=default_schema_kind,
+            parameters=parameters,
+            global_context=global_context,
         )
         if errors:
             messages = [str(error) for error in errors]
@@ -534,6 +471,7 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
+                            global_context=global_context,
                         )
                         clean_data[key] = nodes[0]
 
@@ -545,21 +483,22 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
+                            global_context=global_context,
                         )
                         clean_data[key] = nodes
 
                 else:
                     raise ValueError(f"Situation unaccounted for: {rel_info}")
 
-        if context:
+        if node_context:
             clean_context = {
                 ckey: cvalue
-                for ckey, cvalue in context.items()
+                for ckey, cvalue in node_context.items()
                 if ckey in schema.relationship_names + schema.attribute_names
             }
             clean_data.update(clean_context)
 
-        clean_data = cls.enrich_node(data=clean_data, context=context or {})
+        clean_data = cls.enrich_node(data=clean_data, context=node_context or {})
 
         node = await client.create(kind=schema.kind, branch=branch, data=clean_data)
         await node.save(allow_upsert=True)
@@ -568,11 +507,11 @@ class InfrahubObjectFileData(BaseModel):
         client.log.info(f"Created node: {display_label}")
 
         for rel in remaining_rels:
-            context = {}
+            node_context = {}
 
             # If there is a peer relationship, we add the node id to the context
             rel_info = rels_info[rel]
-            context.update(rel_info.get_context(value=node.id))
+            node_context.update(rel_info.get_context(value=node.id))
 
             await cls.create_related_nodes(
                 client=client,
@@ -580,9 +519,11 @@ class InfrahubObjectFileData(BaseModel):
                 rel_info=rel_info,
                 position=position,
                 data=data[rel],
-                context=context,
+                node_context=node_context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
+                global_context=global_context,
+                parameters=parameters,
             )
 
         return node
@@ -594,13 +535,15 @@ class InfrahubObjectFileData(BaseModel):
         rel_info: RelationshipInfo,
         position: list[int | str],
         data: dict | list[dict],
+        global_context: InfrahubObjectContext,
         parent_node: InfrahubNode | None = None,
-        context: dict | None = None,
+        node_context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
     ) -> list[InfrahubNode]:
         nodes: list[InfrahubNode] = []
-        context = context.copy() if context else {}
+        node_context = node_context.copy() if node_context else {}
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
             peer_kind = data.get("kind") or rel_info.peer_kind
@@ -608,16 +551,18 @@ class InfrahubObjectFileData(BaseModel):
 
             if parent_node:
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
-                context.update(rel_info.get_context(value=parent_node.id))
+                node_context.update(rel_info.get_context(value=parent_node.id))
 
             new_node = await cls.create_node(
                 client=client,
                 schema=peer_schema,
                 position=position,
                 data=data["data"],
-                context=context,
+                node_context=node_context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
+                global_context=global_context,
+                parameters=parameters,
             )
             return [new_node]
 
@@ -629,27 +574,29 @@ class InfrahubObjectFileData(BaseModel):
 
             if parent_node:
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
-                context.update(rel_info.get_context(value=parent_node.id))
+                node_context.update(rel_info.get_context(value=parent_node.id))
 
-            expanded_data = expand_data_with_ranges(data=data["data"])
+            expanded_data = RangeExpandDataProcessor.expand_data_with_ranges(data=data["data"])
             for idx, peer_data in enumerate(expanded_data):
-                context["list_index"] = idx
+                node_context["list_index"] = idx
                 if isinstance(peer_data, dict):
                     node = await cls.create_node(
                         client=client,
                         schema=peer_schema,
                         position=position + [rel_info.name, idx + 1],
                         data=peer_data,
-                        context=context,
+                        node_context=node_context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        global_context=global_context,
+                        parameters=parameters,
                     )
                     nodes.append(node)
             return nodes
 
         if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_OBJ_LIST_DICT:
             for idx, item in enumerate(data):
-                context["list_index"] = idx
+                node_context["list_index"] = idx
 
                 peer_kind = item.get("kind") or rel_info.peer_kind
                 peer_schema = await cls.get_peer_schema(
@@ -658,16 +605,18 @@ class InfrahubObjectFileData(BaseModel):
 
                 if parent_node:
                     rel_info.find_matching_relationship(peer_schema=peer_schema)
-                    context.update(rel_info.get_context(value=parent_node.id))
+                    node_context.update(rel_info.get_context(value=parent_node.id))
 
                 node = await cls.create_node(
                     client=client,
                     schema=peer_schema,
                     position=position + [rel_info.name, idx + 1],
                     data=item["data"],
-                    context=context,
+                    node_context=node_context,
                     branch=branch,
                     default_schema_kind=default_schema_kind,
+                    global_context=global_context,
+                    parameters=parameters,
                 )
                 nodes.append(node)
 
@@ -698,11 +647,19 @@ class InfrahubObjectFileData(BaseModel):
 class ObjectFile(InfrahubFile):
     _spec: InfrahubObjectFileData | None = None
 
+    # @classmethod
+    # def init(cls, location: Path, multiple_documents: bool, content: dict | None) -> Self:
+    #     obj = super().init(location=location, multiple_documents=multiple_documents, content=content)
+    #     breakpoint()
+    #     obj.spec._context = InfrahubObjectContext(location=location)
+    #     return obj
+
     @property
     def spec(self) -> InfrahubObjectFileData:
         if not self._spec:
             try:
                 self._spec = InfrahubObjectFileData(**self.data.spec)
+                self._spec._context = self.get_context()
             except Exception as exc:
                 raise ValidationError(identifier=str(self.location), message=str(exc))
         return self._spec
@@ -713,8 +670,12 @@ class ObjectFile(InfrahubFile):
             raise ValueError("File is not an Infrahub Object file")
         try:
             self._spec = InfrahubObjectFileData(**self.data.spec)
+            self._spec._context = self.get_context()
         except Exception as exc:
             raise ValidationError(identifier=str(self.location), message=str(exc))
+
+    def get_context(self) -> InfrahubObjectContext:
+        return InfrahubObjectContext(location=self.location)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

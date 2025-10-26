@@ -115,6 +115,7 @@ class Jinja2Template:
         except jinja2.TemplateSyntaxError as exc:
             self._raise_template_syntax_error(error=exc)
         except jinja2.UndefinedError as exc:
+            breakpoint()
             traceback = Traceback(show_locals=False)
             errors = _identify_faulty_jinja_code(traceback=traceback)
             raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)

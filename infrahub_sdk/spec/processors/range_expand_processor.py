@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import copy
+import re
+from typing import TYPE_CHECKING, Any
+
+from ...exceptions import ValidationError
+from ..range_expansion import MATCH_PATTERN, range_expansion
+from .data_processor import DataProcessor
+
+if TYPE_CHECKING:
+    from ..models import InfrahubObjectContext
+
+
+class RangeExpandDataProcessor(DataProcessor):
+    """Process data with range expansion"""
+
+    @staticmethod
+    def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Expand any item in data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
+        range_pattern = re.compile(MATCH_PATTERN)
+        expanded = []
+        for item in data:
+            # Find all fields to expand
+            expand_fields = {}
+            for key, value in item.items():
+                if isinstance(value, str) and range_pattern.search(value):
+                    try:
+                        expand_fields[key] = range_expansion(value)
+                    except Exception:
+                        # If expansion fails, treat as no expansion
+                        expand_fields[key] = [value]
+            if not expand_fields:
+                expanded.append(item)
+                continue
+            # Check all expanded lists have the same length
+            lengths = [len(v) for v in expand_fields.values()]
+            if len(set(lengths)) > 1:
+                raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
+            n = lengths[0]
+            # Zip expanded values and produce new items
+            for i in range(n):
+                new_item = copy.deepcopy(item)
+                for key, values in expand_fields.items():
+                    new_item[key] = values[i]
+                expanded.append(new_item)
+        return expanded
+
+    @classmethod
+    async def process_data(
+        cls,
+        data: list[dict[str, Any]],
+        context: InfrahubObjectContext | None = None,  # noqa: ARG003
+    ) -> list[dict[str, Any]]:
+        return cls.expand_data_with_ranges(data)

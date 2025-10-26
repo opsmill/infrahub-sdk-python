@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk.exceptions import ValidationError
-from infrahub_sdk.spec.object import ObjectFile, ObjectStrategy, RelationshipDataFormat, get_relationship_info
+from infrahub_sdk.spec.object import ObjectFile, RelationshipDataFormat, get_relationship_info
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -40,7 +40,7 @@ def location_bad_syntax02(root_location: dict) -> dict:
     data = [{"name": "Mexico", "notvalidattribute": "notvalidattribute", "type": "Country"}]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"]["expand_range"] = True
     return location
 
 
@@ -54,7 +54,7 @@ def location_expansion(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"]["expand_range"] = True
     return location
 
 
@@ -68,7 +68,7 @@ def no_location_expansion(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.NORMAL
+    location["spec"]["parameters"]["expand_range"] = True
     return location
 
 
@@ -83,7 +83,7 @@ def location_expansion_multiple_ranges(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"]["expand_range"] = True
     return location
 
 
@@ -98,7 +98,7 @@ def location_expansion_multiple_ranges_bad_syntax(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"]["expand_range"] = True
     return location
 
 
@@ -147,7 +147,7 @@ async def test_validate_no_object_expansion(
     obj = ObjectFile(location="some/path", content=no_location_expansion)
     await obj.validate_format(client=client)
     assert obj.spec.kind == "BuiltinLocation"
-    assert obj.spec.strategy == ObjectStrategy.NORMAL
+    assert not obj.spec.parameters.expand_range
     assert len(obj.spec.data) == 1
     assert obj.spec.data[0]["name"] == "AMS[1-5]"
 
@@ -228,30 +228,3 @@ async def test_get_relationship_info_tags(
     rel_info = await get_relationship_info(client, location_schema, "tags", data)
     assert rel_info.is_valid == is_valid
     assert rel_info.format == format
-
-
-async def test_invalid_object_expansion_processor(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
-) -> None:
-    obj = ObjectFile(location="some/path", content=location_expansion)
-
-    from infrahub_sdk.spec.object import DataProcessorFactory, ObjectStrategy  # noqa: PLC0415
-
-    # Patch _processors to remove the invalid strategy
-    original_processors = DataProcessorFactory._processors.copy()
-    try:
-        DataProcessorFactory._processors[ObjectStrategy.RANGE_EXPAND] = None
-        with pytest.raises(ValueError) as exc:
-            await obj.validate_format(client=client)
-        assert "Unknown strategy" in str(exc.value)
-    finally:
-        DataProcessorFactory._processors = original_processors
-
-
-async def test_invalid_object_expansion_strategy(client: InfrahubClient, location_expansion) -> None:
-    location_expansion["spec"]["strategy"] = "InvalidStrategy"
-    obj = ObjectFile(location="some/path", content=location_expansion)
-
-    with pytest.raises(ValidationError) as exc:
-        await obj.validate_format(client=client)
-    assert "Input should be" in str(exc.value)

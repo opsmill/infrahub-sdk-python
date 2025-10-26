@@ -28,3 +28,8 @@ def identify_faulty_jinja_code(traceback: Traceback, nbr_context_lines: int = 3)
         response.append((frame, syntax))
 
     return response
+
+
+def is_jinja2_template(value: str) -> bool:
+    """Check if the value is a valid Jinja2 template."""
+    return value.startswith("{{") and value.endswith("}}")

@@ -60,7 +60,9 @@ apiVersion: infrahub.app/v1
 kind: Object
 spec:
   kind: <NamespaceName>
-  strategy: <normal|range_expand>  # Optional, defaults to normal
+  parameters:
+    expand_range: <boolean>  # Optional, defaults to false
+    render_jinja2: <boolean>  # Optional, defaults to true
   data:
     - [...]
 ```
