@@ -9,7 +9,7 @@ from rich.console import Console
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
-from infrahub_sdk.protocols import BuiltinIPAddressSync, BuiltinTagSync
+from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
 from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
 from infrahub_sdk.schema.repository import (
     InfrahubCheckDefinitionConfig,
@@ -457,4 +457,8 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
 
 def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols():
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTagSync) == "BuiltinTag"
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTag) == "BuiltinTag"
+    assert InfrahubSchemaBase._get_schema_name(schema="BuiltinTag") == "BuiltinTag"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddressSync) == "BuiltinIPAddress"
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddress) == "BuiltinIPAddress"
+    assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"
