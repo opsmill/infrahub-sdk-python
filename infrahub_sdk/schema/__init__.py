@@ -186,7 +186,7 @@ class InfrahubSchemaBase:
     @staticmethod
     def _get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str) -> str:
         if hasattr(schema, "_is_runtime_protocol") and schema._is_runtime_protocol:  # type: ignore[union-attr]
-            return schema.__name__  # type: ignore[union-attr]
+            return schema.__name__.replace("Sync", "")  # type: ignore[union-attr]
 
         if isinstance(schema, str):
             return schema
