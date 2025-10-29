@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import warnings
 from collections.abc import MutableMapping
@@ -185,11 +186,15 @@ class InfrahubSchemaBase:
 
     @staticmethod
     def _get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str) -> str:
-        if hasattr(schema, "_is_runtime_protocol") and schema._is_runtime_protocol:  # type: ignore[union-attr]
-            return schema.__name__  # type: ignore[union-attr]
-
         if isinstance(schema, str):
             return schema
+
+        if hasattr(schema, "_is_runtime_protocol") and getattr(schema, "_is_runtime_protocol", None):
+            if inspect.iscoroutinefunction(schema.save):
+                return schema.__name__
+            if schema.__name__[-4:] == "Sync":
+                return schema.__name__[:-4]
+            return schema.__name__
 
         raise ValueError("schema must be a protocol or a string")
 
