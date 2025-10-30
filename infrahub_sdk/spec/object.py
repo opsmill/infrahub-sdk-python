@@ -287,8 +287,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
-        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
+        parameters: InfrahubObjectParameters | None = None,
     ) -> list[ObjectValidationError]:
+        parameters = parameters or InfrahubObjectParameters()
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
@@ -397,8 +398,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
-        parameters: InfrahubObjectParameters = InfrahubObjectParameters(),
+        parameters: InfrahubObjectParameters | None = None,
     ) -> InfrahubNode:
+        parameters = parameters or InfrahubObjectParameters()
         context = context.copy() if context else {}
 
         errors = await cls.validate_object(
