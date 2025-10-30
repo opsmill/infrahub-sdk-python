@@ -15,8 +15,11 @@ log = logging.getLogger("infrahub_sdk")
 class RangeExpandDataProcessor(DataProcessor):
     """Process data with range expansion"""
 
-    @staticmethod
-    def expand_data_with_ranges(data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    @classmethod
+    async def process_data(
+        cls,
+        data: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Expand any item in data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
         range_pattern = re.compile(MATCH_PATTERN)
         expanded = []
@@ -51,10 +54,3 @@ class RangeExpandDataProcessor(DataProcessor):
                     new_item[key] = values[i]
                 expanded.append(new_item)
         return expanded
-
-    @classmethod
-    async def process_data(
-        cls,
-        data: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        return cls.expand_data_with_ranges(data)
