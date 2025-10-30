@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import copy
+import logging
 import re
 from typing import Any
 
 from ...exceptions import ValidationError
 from ..range_expansion import MATCH_PATTERN, range_expansion
 from .data_processor import DataProcessor
+
+log = logging.getLogger("infrahub_sdk")
 
 
 class RangeExpandDataProcessor(DataProcessor):
@@ -24,8 +27,11 @@ class RangeExpandDataProcessor(DataProcessor):
                 if isinstance(value, str) and range_pattern.search(value):
                     try:
                         expand_fields[key] = range_expansion(value)
-                    except Exception:
+                    except (ValueError, TypeError, KeyError):
                         # If expansion fails, treat as no expansion
+                        log.debug(
+                            f"Range expansion failed for value '{value}' in key '{key}'. Treating as no expansion."
+                        )
                         expand_fields[key] = [value]
             if not expand_fields:
                 expanded.append(item)
@@ -33,7 +39,10 @@ class RangeExpandDataProcessor(DataProcessor):
             # Check all expanded lists have the same length
             lengths = [len(v) for v in expand_fields.values()]
             if len(set(lengths)) > 1:
-                raise ValidationError(f"Range expansion mismatch: fields expanded to different lengths: {lengths}")
+                raise ValidationError(
+                    identifier="range_expansion",
+                    message=f"Range expansion mismatch: fields expanded to different lengths: {lengths}",
+                )
             n = lengths[0]
             # Zip expanded values and produce new items
             for i in range(n):

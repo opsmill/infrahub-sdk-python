@@ -10,7 +10,6 @@ from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
 from .processors.factory import DataProcessorFactory
-from .processors.range_expand_processor import RangeExpandDataProcessor
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient
@@ -558,7 +557,10 @@ class InfrahubObjectFileData(BaseModel):
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
                 context.update(rel_info.get_context(value=parent_node.id))
 
-            expanded_data = RangeExpandDataProcessor.expand_data_with_ranges(data=data["data"])
+            expanded_data = await DataProcessorFactory.process_data(
+                kind=peer_kind, data=data["data"], parameters=parameters
+            )
+
             for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 if isinstance(peer_data, dict):
