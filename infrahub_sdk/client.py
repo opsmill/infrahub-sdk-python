@@ -79,7 +79,9 @@ class ProcessRelationsNodeSync(TypedDict):
     related_nodes: list[InfrahubNodeSync]
 
 
-def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  # type: ignore[no-untyped-def]
+def handle_relogin(
+    func: Callable[..., Coroutine[Any, Any, httpx.Response]],
+) -> Callable[..., Coroutine[Any, Any, httpx.Response]]:
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
@@ -93,7 +95,7 @@ def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  #
     return wrapper
 
 
-def handle_relogin_sync(func: Callable[..., httpx.Response]):  # type: ignore[no-untyped-def]
+def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]:
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
