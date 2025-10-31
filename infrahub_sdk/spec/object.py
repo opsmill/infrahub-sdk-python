@@ -168,7 +168,7 @@ async def get_relationship_info(
 
 class InfrahubObjectFileData(BaseModel):
     kind: str
-    parameters: InfrahubObjectParameters = InfrahubObjectParameters()
+    parameters: InfrahubObjectParameters = Field(default_factory=InfrahubObjectParameters)
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
