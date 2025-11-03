@@ -5,11 +5,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk.exceptions import ValidationError
-from infrahub_sdk.spec.object import ObjectFile, ObjectStrategy, RelationshipDataFormat, get_relationship_info
+from infrahub_sdk.spec.object import ObjectFile, RelationshipDataFormat, get_relationship_info
 
 if TYPE_CHECKING:
-    from pytest_httpx import HTTPXMock
-
     from infrahub_sdk.client import InfrahubClient
 
 
@@ -40,7 +38,7 @@ def location_bad_syntax02(root_location: dict) -> dict:
     data = [{"name": "Mexico", "notvalidattribute": "notvalidattribute", "type": "Country"}]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"] = {"expand_range": True}
     return location
 
 
@@ -54,7 +52,7 @@ def location_expansion(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"] = {"expand_range": True}
     return location
 
 
@@ -68,7 +66,7 @@ def no_location_expansion(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.NORMAL
+    location["spec"]["parameters"] = {"expand_range": False}
     return location
 
 
@@ -83,7 +81,7 @@ def location_expansion_multiple_ranges(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"] = {"expand_range": True}
     return location
 
 
@@ -98,11 +96,12 @@ def location_expansion_multiple_ranges_bad_syntax(root_location: dict) -> dict:
     ]
     location = root_location.copy()
     location["spec"]["data"] = data
-    location["spec"]["strategy"] = ObjectStrategy.RANGE_EXPAND
+    location["spec"]["parameters"] = {"expand_range": True}
     return location
 
 
-async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_mexico_01) -> None:
+async def test_validate_object(client: InfrahubClient, schema_query_01_data: dict, location_mexico_01) -> None:
+    client.schema.set_cache(schema=schema_query_01_data, branch="main")
     obj = ObjectFile(location="some/path", content=location_mexico_01)
     await obj.validate_format(client=client)
 
@@ -110,8 +109,9 @@ async def test_validate_object(client: InfrahubClient, mock_schema_query_01: HTT
 
 
 async def test_validate_object_bad_syntax01(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_bad_syntax01
+    client: InfrahubClient, schema_query_01_data: dict, location_bad_syntax01
 ) -> None:
+    client.schema.set_cache(schema=schema_query_01_data, branch="main")
     obj = ObjectFile(location="some/path", content=location_bad_syntax01)
     with pytest.raises(ValidationError) as exc:
         await obj.validate_format(client=client)
@@ -119,21 +119,17 @@ async def test_validate_object_bad_syntax01(
     assert "name" in str(exc.value)
 
 
-async def test_validate_object_bad_syntax02(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_bad_syntax02
-) -> None:
+async def test_validate_object_bad_syntax02(client_with_schema_01: InfrahubClient, location_bad_syntax02) -> None:
     obj = ObjectFile(location="some/path", content=location_bad_syntax02)
     with pytest.raises(ValidationError) as exc:
-        await obj.validate_format(client=client)
+        await obj.validate_format(client=client_with_schema_01)
 
     assert "notvalidattribute" in str(exc.value)
 
 
-async def test_validate_object_expansion(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
-) -> None:
+async def test_validate_object_expansion(client_with_schema_01: InfrahubClient, location_expansion) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion)
-    await obj.validate_format(client=client)
+    await obj.validate_format(client=client_with_schema_01)
 
     assert obj.spec.kind == "BuiltinLocation"
     assert len(obj.spec.data) == 5
@@ -141,22 +137,20 @@ async def test_validate_object_expansion(
     assert obj.spec.data[4]["name"] == "AMS5"
 
 
-async def test_validate_no_object_expansion(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, no_location_expansion
-) -> None:
+async def test_validate_no_object_expansion(client_with_schema_01: InfrahubClient, no_location_expansion) -> None:
     obj = ObjectFile(location="some/path", content=no_location_expansion)
-    await obj.validate_format(client=client)
+    await obj.validate_format(client=client_with_schema_01)
     assert obj.spec.kind == "BuiltinLocation"
-    assert obj.spec.strategy == ObjectStrategy.NORMAL
+    assert not obj.spec.parameters.expand_range
     assert len(obj.spec.data) == 1
     assert obj.spec.data[0]["name"] == "AMS[1-5]"
 
 
 async def test_validate_object_expansion_multiple_ranges(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion_multiple_ranges
+    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges
 ) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges)
-    await obj.validate_format(client=client)
+    await obj.validate_format(client=client_with_schema_01)
 
     assert obj.spec.kind == "BuiltinLocation"
     assert len(obj.spec.data) == 5
@@ -167,11 +161,11 @@ async def test_validate_object_expansion_multiple_ranges(
 
 
 async def test_validate_object_expansion_multiple_ranges_bad_syntax(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion_multiple_ranges_bad_syntax
+    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges_bad_syntax
 ) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges_bad_syntax)
     with pytest.raises(ValidationError) as exc:
-        await obj.validate_format(client=client)
+        await obj.validate_format(client=client_with_schema_01)
 
     assert "Range expansion mismatch" in str(exc.value)
 
@@ -217,41 +211,13 @@ get_relationship_info_testdata = [
 
 @pytest.mark.parametrize("data,is_valid,format", get_relationship_info_testdata)
 async def test_get_relationship_info_tags(
-    client: InfrahubClient,
-    mock_schema_query_01: HTTPXMock,
+    client_with_schema_01: InfrahubClient,
     data: dict | list,
     is_valid: bool,
     format: RelationshipDataFormat,
 ) -> None:
-    location_schema = await client.schema.get(kind="BuiltinLocation")
+    location_schema = await client_with_schema_01.schema.get(kind="BuiltinLocation")
 
-    rel_info = await get_relationship_info(client, location_schema, "tags", data)
+    rel_info = await get_relationship_info(client_with_schema_01, location_schema, "tags", data)
     assert rel_info.is_valid == is_valid
     assert rel_info.format == format
-
-
-async def test_invalid_object_expansion_processor(
-    client: InfrahubClient, mock_schema_query_01: HTTPXMock, location_expansion
-) -> None:
-    obj = ObjectFile(location="some/path", content=location_expansion)
-
-    from infrahub_sdk.spec.object import DataProcessorFactory, ObjectStrategy  # noqa: PLC0415
-
-    # Patch _processors to remove the invalid strategy
-    original_processors = DataProcessorFactory._processors.copy()
-    try:
-        DataProcessorFactory._processors[ObjectStrategy.RANGE_EXPAND] = None
-        with pytest.raises(ValueError) as exc:
-            await obj.validate_format(client=client)
-        assert "Unknown strategy" in str(exc.value)
-    finally:
-        DataProcessorFactory._processors = original_processors
-
-
-async def test_invalid_object_expansion_strategy(client: InfrahubClient, location_expansion) -> None:
-    location_expansion["spec"]["strategy"] = "InvalidStrategy"
-    obj = ObjectFile(location="some/path", content=location_expansion)
-
-    with pytest.raises(ValidationError) as exc:
-        await obj.validate_format(client=client)
-    assert "Input should be" in str(exc.value)
