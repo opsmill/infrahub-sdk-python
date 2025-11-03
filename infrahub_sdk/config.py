@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import ssl
 from copy import deepcopy
 from typing import Any
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
@@ -78,6 +79,7 @@ class ConfigBase(BaseSettings):
     Can be useful to test with self-signed certificates.""",
     )
     tls_ca_file: str | None = Field(default=None, description="File path to CA cert or bundle in PEM format")
+    _ssl_context: ssl.SSLContext | None = PrivateAttr(default=None)
 
     @model_validator(mode="before")
     @classmethod
@@ -133,6 +135,28 @@ class ConfigBase(BaseSettings):
     def password_authentication(self) -> bool:
         return bool(self.username)
 
+    @property
+    def tls_context(self) -> ssl.SSLContext:
+        if self._ssl_context:
+            return self._ssl_context
+
+        if self.tls_insecure:
+            self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            self._ssl_context.check_hostname = False
+            self._ssl_context.verify_mode = ssl.CERT_NONE
+            return self._ssl_context
+
+        if self.tls_ca_file:
+            self._ssl_context = ssl.create_default_context(cafile=self.tls_ca_file)
+
+        if self._ssl_context is None:
+            self._ssl_context = ssl.create_default_context()
+
+        return self._ssl_context
+
+    def set_ssl_context(self, context: ssl.SSLContext) -> None:
+        self._ssl_context = context
+
 
 class Config(ConfigBase):
     recorder: RecorderType = Field(default=RecorderType.NONE, description="Select builtin recorder for later replay.")
@@ -174,4 +198,7 @@ class Config(ConfigBase):
             if field not in covered_keys:
                 config[field] = deepcopy(getattr(self, field))
 
-        return Config(**config)
+        new_config = Config(**config)
+        if self._ssl_context:
+            new_config.set_ssl_context(self._ssl_context)
+        return new_config

@@ -1,9 +1,11 @@
 import inspect
+import ssl
+from pathlib import Path
 
 import pytest
 from pytest_httpx import HTTPXMock
 
-from infrahub_sdk import InfrahubClient, InfrahubClientSync
+from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from tests.unit.sdk.conftest import BothClients
@@ -27,6 +29,88 @@ batch_client_types = [
 ]
 
 client_types = ["standard", "sync"]
+
+CURRENT_DIRECTORY = Path(__file__).parent
+
+
+async def test_verify_config_caches_default_ssl_context(monkeypatch) -> None:
+    contexts: list[tuple[str | None, object]] = []
+
+    def fake_create_default_context(*args: object, **kwargs: object) -> object:
+        context = object()
+        contexts.append((kwargs.get("cafile"), context))
+        return context
+
+    monkeypatch.setattr("ssl.create_default_context", fake_create_default_context)
+
+    client = InfrahubClient(config=Config(address="http://mock"))
+
+    first = client.config.tls_context
+    second = client.config.tls_context
+
+    assert first is second
+    assert contexts == [(None, first)]
+
+
+async def test_verify_config_caches_tls_ca_file_context(monkeypatch) -> None:
+    contexts: list[tuple[str | None, object]] = []
+
+    def fake_create_default_context(*args: object, **kwargs: object) -> object:
+        context = object()
+        contexts.append((kwargs.get("cafile"), context))
+        return context
+
+    monkeypatch.setattr("ssl.create_default_context", fake_create_default_context)
+
+    client = InfrahubClient(
+        config=Config(address="http://mock", tls_ca_file=str(CURRENT_DIRECTORY / "test_data/path-1.pem"))
+    )
+
+    first = client.config.tls_context
+    second = client.config.tls_context
+
+    assert first is second
+    assert contexts == [(str(CURRENT_DIRECTORY / "test_data/path-1.pem"), first)]
+
+    client.config.tls_ca_file = str(CURRENT_DIRECTORY / "test_data/path-2.pem")
+    third = client.config.tls_context
+
+    assert third is first
+    assert contexts == [
+        (str(CURRENT_DIRECTORY / "test_data/path-1.pem"), first),
+    ]
+
+
+async def test_verify_config_respects_tls_insecure(monkeypatch) -> None:
+    def fake_create_default_context(*args: object, **kwargs: object) -> object:
+        raise AssertionError("create_default_context should not be called when TLS is insecure")
+
+    monkeypatch.setattr("ssl.create_default_context", fake_create_default_context)
+
+    client = InfrahubClient(config=Config(address="http://mock", tls_insecure=True))
+
+    verify_value = client.config.tls_context
+
+    assert verify_value.check_hostname is False
+    assert verify_value.verify_mode == ssl.CERT_NONE
+
+
+async def test_verify_config_uses_custom_tls_context(monkeypatch) -> None:
+    def fake_create_default_context(*args: object, **kwargs: object) -> object:
+        raise AssertionError("create_default_context should not be called when custom context is provided")
+
+    monkeypatch.setattr("ssl.create_default_context", fake_create_default_context)
+
+    config = Config(address="http://mock")
+    custom_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+    config.set_ssl_context(custom_context)
+
+    client = InfrahubClient(config=config)
+
+    clone_client = client.clone()
+
+    assert client.config.tls_context is custom_context
+    assert clone_client.config.tls_context is custom_context
 
 
 async def test_method_sanity() -> None:
