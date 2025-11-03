@@ -94,7 +94,9 @@ class ProcessRelationsNodeSync(TypedDict):
     related_nodes: list[InfrahubNodeSync]
 
 
-def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  # type: ignore[no-untyped-def]
+def handle_relogin(
+    func: Callable[..., Coroutine[Any, Any, httpx.Response]],
+) -> Callable[..., Coroutine[Any, Any, httpx.Response]]:
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
@@ -108,7 +110,7 @@ def handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]):  #
     return wrapper
 
 
-def handle_relogin_sync(func: Callable[..., httpx.Response]):  # type: ignore[no-untyped-def]
+def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]:
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
@@ -170,6 +172,7 @@ class BaseClient:
         self.group_context: InfrahubGroupContext | InfrahubGroupContextSync
         self._initialize()
         self._request_context: RequestContext | None = None
+        _ = self.config.tls_context  # Early load of the TLS context to catch errors
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client"""
@@ -590,7 +593,7 @@ class InfrahubClient(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -710,7 +713,7 @@ class InfrahubClient(BaseClient):
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -807,7 +810,7 @@ class InfrahubClient(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -1089,7 +1092,7 @@ class InfrahubClient(BaseClient):
 
         async with httpx.AsyncClient(
             **proxy_config,
-            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
+            verify=self.config.tls_context,
         ) as client:
             try:
                 response = await client.request(
@@ -1961,7 +1964,7 @@ class InfrahubClientSync(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -2008,7 +2011,7 @@ class InfrahubClientSync(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -2100,7 +2103,7 @@ class InfrahubClientSync(BaseClient):
             kind (str): kind of the nodes to query
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
-            timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -2929,7 +2932,7 @@ class InfrahubClientSync(BaseClient):
 
         with httpx.Client(
             **proxy_config,
-            verify=self.config.tls_ca_file if self.config.tls_ca_file else not self.config.tls_insecure,
+            verify=self.config.tls_context,
         ) as client:
             try:
                 response = client.request(
