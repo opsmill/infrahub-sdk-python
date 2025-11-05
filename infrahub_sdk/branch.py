@@ -21,6 +21,7 @@ class BranchData(BaseModel):
     sync_with_git: bool
     is_default: bool
     has_schema_changes: bool
+    graph_version: int | None = None
     origin_branch: str | None = None
     branched_from: str
 
@@ -34,6 +35,7 @@ BRANCH_DATA = {
     "is_default": None,
     "sync_with_git": None,
     "has_schema_changes": None,
+    "graph_version": None,
 }
 
 BRANCH_DATA_FILTER = {"@filters": {"name": "$branch_name"}}
