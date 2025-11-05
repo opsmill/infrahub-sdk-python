@@ -1,0 +1,1 @@
+Add `graph_version` property to `Branch`
