@@ -59,7 +59,7 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
         "[green]True" if default_branch.sync_with_git else "[#FF7F50]False",
         "[green]True" if default_branch.has_schema_changes else "[#FF7F50]False",
         "[green]True" if default_branch.is_default else "[#FF7F50]False",
-        str(default_branch.graph_version),
+        str(default_branch.graph_version) if default_branch.graph_version else "",
         default_branch.status,
     )
 
@@ -75,7 +75,7 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
             "[green]True" if branch.sync_with_git else "[#FF7F50]False",
             "[green]True" if default_branch.has_schema_changes else "[#FF7F50]False",
             "[green]True" if branch.is_default else "[#FF7F50]False",
-            str(branch.graph_version),
+            str(branch.graph_version) if default_branch.graph_version else "",
             branch.status,
         )
 
