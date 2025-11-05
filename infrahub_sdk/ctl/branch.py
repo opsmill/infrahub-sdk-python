@@ -46,6 +46,8 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
     table.add_column("Sync with Git")
     table.add_column("Has Schema Changes")
     table.add_column("Is Default")
+    table.add_column("Graph Version")
+    table.add_column("Status")
 
     # identify the default branch and always print it first
     default_branch = [branch for branch in branches.values() if branch.is_default][0]
@@ -57,6 +59,8 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
         "[green]True" if default_branch.sync_with_git else "[#FF7F50]False",
         "[green]True" if default_branch.has_schema_changes else "[#FF7F50]False",
         "[green]True" if default_branch.is_default else "[#FF7F50]False",
+        str(default_branch.graph_version),
+        default_branch.status,
     )
 
     for branch in branches.values():
@@ -71,6 +75,8 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
             "[green]True" if branch.sync_with_git else "[#FF7F50]False",
             "[green]True" if default_branch.has_schema_changes else "[#FF7F50]False",
             "[green]True" if branch.is_default else "[#FF7F50]False",
+            str(branch.graph_version),
+            branch.status,
         )
 
     console.print(table)
