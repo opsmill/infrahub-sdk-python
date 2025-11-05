@@ -30,7 +30,7 @@ class BranchData(BaseModel):
     is_default: bool
     has_schema_changes: bool
     graph_version: int | None = None
-    status: BranchStatus
+    status: BranchStatus = BranchStatus.OPEN
     origin_branch: str | None = None
     branched_from: str
 
