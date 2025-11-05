@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from enum import StrEnum
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import urlencode
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
 
 
-class BranchStatus(StrEnum):
+class BranchStatus(str, Enum):
     OPEN = "OPEN"
     NEED_REBASE = "NEED_REBASE"
     NEED_UPGRADE_REBASE = "NEED_UPGRADE_REBASE"
