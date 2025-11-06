@@ -1498,6 +1498,8 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
                     "origin_branch": "main",
                     "branched_from": "2023-02-17T09:30:17.811719Z",
                     "has_schema_changes": False,
+                    "graph_version": 99,
+                    "status": "OPEN",
                 },
                 {
                     "id": "7d9f817a-b958-4e76-8528-8afd0c689ada",
@@ -1507,6 +1509,8 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
                     "origin_branch": "main",
                     "branched_from": "2023-02-17T09:30:17.811719Z",
                     "has_schema_changes": True,
+                    "graph_version": None,
+                    "status": "NEED_UPGRADE_REBASE",
                 },
             ]
         }

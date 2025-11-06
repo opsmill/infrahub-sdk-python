@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import urlencode
 
@@ -14,6 +15,13 @@ if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
 
 
+class BranchStatus(str, Enum):
+    OPEN = "OPEN"
+    NEED_REBASE = "NEED_REBASE"
+    NEED_UPGRADE_REBASE = "NEED_UPGRADE_REBASE"
+    DELETING = "DELETING"
+
+
 class BranchData(BaseModel):
     id: str
     name: str
@@ -21,6 +29,8 @@ class BranchData(BaseModel):
     sync_with_git: bool
     is_default: bool
     has_schema_changes: bool
+    graph_version: int | None = None
+    status: BranchStatus = BranchStatus.OPEN
     origin_branch: str | None = None
     branched_from: str
 
@@ -34,6 +44,8 @@ BRANCH_DATA = {
     "is_default": None,
     "sync_with_git": None,
     "has_schema_changes": None,
+    "graph_version": None,
+    "status": None,
 }
 
 BRANCH_DATA_FILTER = {"@filters": {"name": "$branch_name"}}
