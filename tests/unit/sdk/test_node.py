@@ -315,7 +315,6 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -332,7 +331,6 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -349,7 +347,6 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -365,7 +362,6 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                     "primary_tag": {
                         "properties": {
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -450,7 +446,6 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -459,7 +454,6 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -468,7 +462,6 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -476,7 +469,6 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
         "primary_tag": {
             "properties": {
                 "is_protected": None,
-                "is_visible": None,
                 "owner": {
                     "__typename": None,
                     "display_label": None,
@@ -557,7 +549,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -574,7 +565,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -591,7 +581,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -607,7 +596,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                     "primary_tag": {
                         "properties": {
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -628,7 +616,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                                 "is_default": None,
                                 "is_from_profile": None,
                                 "is_protected": None,
-                                "is_visible": None,
                                 "owner": {
                                     "__typename": None,
                                     "display_label": None,
@@ -645,7 +632,6 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                                 "is_default": None,
                                 "is_from_profile": None,
                                 "is_protected": None,
-                                "is_visible": None,
                                 "owner": {
                                     "__typename": None,
                                     "display_label": None,
@@ -736,7 +722,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -745,7 +730,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -757,7 +741,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
                     "is_default": None,
                     "is_from_profile": None,
                     "is_protected": None,
-                    "is_visible": None,
                     "owner": {"__typename": None, "display_label": None, "id": None},
                     "source": {"__typename": None, "display_label": None, "id": None},
                     "value": None,
@@ -769,7 +752,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
                     "is_default": None,
                     "is_from_profile": None,
                     "is_protected": None,
-                    "is_visible": None,
                     "owner": {"__typename": None, "display_label": None, "id": None},
                     "source": {"__typename": None, "display_label": None, "id": None},
                     "value": None,
@@ -777,7 +759,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             },
             "properties": {
                 "is_protected": None,
-                "is_visible": None,
                 "owner": {"__typename": None, "display_label": None, "id": None},
                 "source": {"__typename": None, "display_label": None, "id": None},
             },
@@ -786,7 +767,6 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_default": None,
             "is_from_profile": None,
             "is_protected": None,
-            "is_visible": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
             "value": None,
@@ -889,7 +869,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             "is_default": None,
                             "is_from_profile": None,
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -907,7 +886,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             "is_default": None,
                             "is_from_profile": None,
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -930,7 +908,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             },
                             "properties": {
                                 "is_protected": None,
-                                "is_visible": None,
                                 "owner": {
                                     "__typename": None,
                                     "display_label": None,
@@ -948,7 +925,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             "is_default": None,
                             "is_from_profile": None,
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -968,7 +944,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             "is_default": None,
                             "is_from_profile": None,
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -986,7 +961,6 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                             "is_default": None,
                             "is_from_profile": None,
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -1101,7 +1075,6 @@ async def test_query_data_include_property(
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -1118,7 +1091,6 @@ async def test_query_data_include_property(
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -1135,7 +1107,6 @@ async def test_query_data_include_property(
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -1151,7 +1122,6 @@ async def test_query_data_include_property(
                     "primary_tag": {
                         "properties": {
                             "is_protected": None,
-                            "is_visible": None,
                             "owner": {
                                 "__typename": None,
                                 "display_label": None,
@@ -1175,7 +1145,6 @@ async def test_query_data_include_property(
                         "edges": {
                             "properties": {
                                 "is_protected": None,
-                                "is_visible": None,
                                 "owner": {
                                     "__typename": None,
                                     "display_label": None,
@@ -1284,7 +1253,6 @@ async def test_query_data_exclude_property(client, location_schema: NodeSchemaAP
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -1301,7 +1269,6 @@ async def test_query_data_exclude_property(client, location_schema: NodeSchemaAP
                         "is_default": None,
                         "is_from_profile": None,
                         "is_protected": None,
-                        "is_visible": None,
                         "owner": {
                             "__typename": None,
                             "display_label": None,
@@ -1702,10 +1669,10 @@ async def test_update_input_data__with_relationships_01(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "is_visible": True, "value": "DFW"},
+            "name": {"is_protected": True, "value": "DFW"},
             "primary_tag": {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
             "tags": [{"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"}, {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"}],
-            "type": {"is_protected": True, "is_visible": True, "value": "SITE"},
+            "type": {"is_protected": True, "value": "SITE"},
         },
     }
 
@@ -1752,27 +1719,23 @@ async def test_update_input_data_with_relationships_02(
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {
                 "is_protected": True,
-                "is_visible": True,
                 "source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "value": "dfw1",
             },
             "primary_tag": {
                 "_relation__is_protected": True,
-                "_relation__is_visible": True,
                 "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
             },
             "tags": [
                 {
                     "_relation__is_protected": True,
-                    "_relation__is_visible": True,
                     "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                     "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                 },
             ],
             "type": {
                 "is_protected": True,
-                "is_visible": True,
                 "source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "value": "SITE",
             },
@@ -1810,7 +1773,6 @@ async def test_update_input_data_with_relationships_02_exclude_unmodified(
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "primary_tag": {
                 "_relation__is_protected": True,
-                "_relation__is_visible": True,
                 "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
             },
@@ -1861,10 +1823,10 @@ async def test_update_input_data_empty_relationship(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "is_visible": True, "value": "DFW"},
+            "name": {"is_protected": True, "value": "DFW"},
             "primary_tag": None,
             "tags": [],
-            "type": {"is_protected": True, "is_visible": True, "value": "SITE"},
+            "type": {"is_protected": True, "value": "SITE"},
         },
     }
 
@@ -2087,9 +2049,9 @@ async def test_read_only_attr(
     assert address._generate_input_data()["data"] == {
         "data": {
             "id": "d5994b18-b25e-4261-9e63-17c2844a0b45",
-            "street_number": {"is_protected": False, "is_visible": True, "value": "1234"},
-            "street_name": {"is_protected": False, "is_visible": True, "value": "Fake Street"},
-            "postal_code": {"is_protected": False, "is_visible": True, "value": "123ABC"},
+            "street_number": {"is_protected": False, "value": "1234"},
+            "street_name": {"is_protected": False, "value": "Fake Street"},
+            "postal_code": {"is_protected": False, "value": "123ABC"},
         },
     }
     assert address.computed_address.value == "1234 Fake Street 123ABC"
