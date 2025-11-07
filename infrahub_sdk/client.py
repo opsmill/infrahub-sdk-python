@@ -327,7 +327,6 @@ class InfrahubClient(BaseClient):
         self.object_store = ObjectStore(self)
         self.store = NodeStore(default_branch=self.default_branch)
         self.task = InfrahubTaskManager(self)
-        self.concurrent_execution_limit = asyncio.Semaphore(self.max_concurrent_execution)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
 
@@ -1583,8 +1582,7 @@ class InfrahubClient(BaseClient):
 
     async def create_batch(self, return_exceptions: bool = False) -> InfrahubBatch:
         return InfrahubBatch(
-            semaphore=self.concurrent_execution_limit,
-            return_exceptions=return_exceptions,
+            max_concurrent_execution=self.max_concurrent_execution, return_exceptions=return_exceptions
         )
 
     async def get_list_repositories(
