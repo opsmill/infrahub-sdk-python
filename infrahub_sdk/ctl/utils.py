@@ -46,7 +46,7 @@ def init_logging(debug: bool = False) -> None:
 
     log_level = "DEBUG" if debug else "INFO"
     FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
     logging.getLogger("infrahubctl")
 
 
