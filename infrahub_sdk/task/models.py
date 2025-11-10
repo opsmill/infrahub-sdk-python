@@ -49,14 +49,12 @@ class Task(BaseModel):
         related_nodes: list[TaskRelatedNode] = []
         logs: list[TaskLog] = []
 
-        if "related_nodes" in data:
-            if data.get("related_nodes"):
-                related_nodes = [TaskRelatedNode(**item) for item in data["related_nodes"]]
+        if data.get("related_nodes"):
+            related_nodes = [TaskRelatedNode(**item) for item in data["related_nodes"]]
             del data["related_nodes"]
 
-        if "logs" in data:
-            if data.get("logs"):
-                logs = [TaskLog(**item["node"]) for item in data["logs"]["edges"]]
+        if data.get("logs"):
+            logs = [TaskLog(**item["node"]) for item in data["logs"]["edges"]]
             del data["logs"]
 
         return cls(**data, related_nodes=related_nodes, logs=logs)
