@@ -14,6 +14,7 @@ from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
+from ..schema import SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
@@ -73,14 +74,29 @@ def display_schema_load_errors(response: dict[str, Any], schemas_data: list[Sche
             loc_type = loc_path[-1]
             input_str = error.get("input", None)
             error_message = f"{loc_type} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}")
+            console.print(
+                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
+            )
 
         elif len(loc_path) > 6:
             loc_type = loc_path[5]
-            input_label = node[loc_type][loc_path[6]].get("name", None)
+            error_data = node[loc_type]
+            attribute = loc_path[6]
+
+            if isinstance(attribute, str):
+                input_label = None
+                for data in error_data:
+                    if data.get(attribute) is not None:
+                        input_label = data.get("name", None)
+                        break
+            else:
+                input_label = error_data[attribute].get("name", None)
+
             input_str = error.get("input", None)
             error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}")
+            console.print(
+                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
+            )
 
 
 def handle_non_detail_errors(response: dict[str, Any]) -> None:
@@ -137,6 +153,8 @@ async def load(
 
     console.print(f"[green] {len(schemas_data)} {schema_definition} processed in {loading_time:.3f} seconds.")
 
+    _display_schema_warnings(console=console, warnings=response.warnings)
+
     if response.schema_updated and wait:
         waited = 0
         continue_waiting = True
@@ -172,12 +190,24 @@ async def check(
 
     success, response = await client.schema.check(schemas=[item.payload for item in schemas_data], branch=branch)
 
-    if not success:
+    if not success or not response:
         display_schema_load_errors(response=response or {}, schemas_data=schemas_data)
+        return
+
+    for schema_file in schemas_data:
+        console.print(f"[green] schema '{schema_file.location}' is Valid!")
+
+    warnings = response.pop("warnings", [])
+    schema_warnings = [SchemaWarning.model_validate(warning) for warning in warnings]
+    _display_schema_warnings(console=console, warnings=schema_warnings)
+    if response == {"diff": {"added": {}, "changed": {}, "removed": {}}}:
+        print("No diff")
     else:
-        for schema_file in schemas_data:
-            console.print(f"[green] schema '{schema_file.location}' is Valid!")
-        if response == {"diff": {"added": {}, "changed": {}, "removed": {}}}:
-            print("No diff")
-        else:
-            print(yaml.safe_dump(data=response, indent=4))
+        print(yaml.safe_dump(data=response, indent=4))
+
+
+def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) -> None:
+    for warning in warnings:
+        console.print(
+            f"[yellow] {warning.type.value}: {warning.message} [{', '.join([kind.display for kind in warning.kinds])}]"
+        )

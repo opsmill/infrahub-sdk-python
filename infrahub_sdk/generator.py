@@ -26,6 +26,8 @@ class InfrahubGenerator(InfrahubOperation):
         generator_instance: str = "",
         params: dict | None = None,
         convert_query_response: bool = False,
+        execute_in_proposed_change: bool = True,
+        execute_after_merge: bool = True,
         logger: logging.Logger | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
@@ -44,6 +46,8 @@ class InfrahubGenerator(InfrahubOperation):
         self._client: InfrahubClient | None = None
         self.logger = logger if logger else logging.getLogger("infrahub.tasks")
         self.request_context = request_context
+        self.execute_in_proposed_change = execute_in_proposed_change
+        self.execute_after_merge = execute_after_merge
 
     @property
     def subscribers(self) -> list[str] | None:
@@ -81,8 +85,10 @@ class InfrahubGenerator(InfrahubOperation):
         unpacked = data.get("data") or data
         await self.process_nodes(data=unpacked)
 
+        group_type = "CoreGeneratorGroup" if self.execute_after_merge else "CoreGeneratorAwareGroup"
+
         async with self._init_client.start_tracking(
-            identifier=identifier, params=self.params, delete_unused_nodes=True, group_type="CoreGeneratorGroup"
+            identifier=identifier, params=self.params, delete_unused_nodes=True, group_type=group_type
         ) as self.client:
             await self.generate(data=unpacked)
 

@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
 from ..yaml import InfrahubFile, InfrahubFileKind
+from .models import InfrahubObjectParameters
+from .processors.factory import DataProcessorFactory
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient
@@ -166,12 +168,22 @@ async def get_relationship_info(
 
 class InfrahubObjectFileData(BaseModel):
     kind: str
+    parameters: InfrahubObjectParameters = Field(default_factory=InfrahubObjectParameters)
     data: list[dict[str, Any]] = Field(default_factory=list)
+
+    async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Get data processed according to the strategy"""
+
+        return await DataProcessorFactory.process_data(kind=self.kind, parameters=self.parameters, data=data)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
         errors: list[ObjectValidationError] = []
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        for idx, item in enumerate(self.data):
+
+        processed_data = await self._get_processed_data(data=self.data)
+        self.data = processed_data
+
+        for idx, item in enumerate(processed_data):
             errors.extend(
                 await self.validate_object(
                     client=client,
@@ -180,13 +192,16 @@ class InfrahubObjectFileData(BaseModel):
                     data=item,
                     branch=branch,
                     default_schema_kind=self.kind,
+                    parameters=self.parameters,
                 )
             )
         return errors
 
     async def process(self, client: InfrahubClient, branch: str | None = None) -> None:
         schema = await client.schema.get(kind=self.kind, branch=branch)
-        for idx, item in enumerate(self.data):
+        processed_data = await self._get_processed_data(data=self.data)
+
+        for idx, item in enumerate(processed_data):
             await self.create_node(
                 client=client,
                 schema=schema,
@@ -206,7 +221,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters | None = None,
     ) -> list[ObjectValidationError]:
+        parameters = parameters or InfrahubObjectParameters()
         errors: list[ObjectValidationError] = []
         context = context.copy() if context else {}
 
@@ -255,6 +272,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        parameters=parameters,
                     )
                 )
 
@@ -270,7 +288,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters | None = None,
     ) -> list[ObjectValidationError]:
+        parameters = parameters or InfrahubObjectParameters()
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
@@ -298,6 +318,7 @@ class InfrahubObjectFileData(BaseModel):
                     context=context,
                     branch=branch,
                     default_schema_kind=default_schema_kind,
+                    parameters=parameters,
                 )
             )
             return errors
@@ -311,7 +332,11 @@ class InfrahubObjectFileData(BaseModel):
             rel_info.find_matching_relationship(peer_schema=peer_schema)
             context.update(rel_info.get_context(value="placeholder"))
 
-            for idx, peer_data in enumerate(data["data"]):
+            processed_data = await DataProcessorFactory.process_data(
+                kind=peer_kind, data=data["data"], parameters=parameters
+            )
+
+            for idx, peer_data in enumerate(processed_data):
                 context["list_index"] = idx
                 errors.extend(
                     await cls.validate_object(
@@ -322,6 +347,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        parameters=parameters,
                     )
                 )
             return errors
@@ -346,6 +372,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        parameters=parameters,
                     )
                 )
             return errors
@@ -372,7 +399,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters | None = None,
     ) -> InfrahubNode:
+        parameters = parameters or InfrahubObjectParameters()
         context = context.copy() if context else {}
 
         errors = await cls.validate_object(
@@ -383,6 +412,7 @@ class InfrahubObjectFileData(BaseModel):
             context=context,
             branch=branch,
             default_schema_kind=default_schema_kind,
+            parameters=parameters,
         )
         if errors:
             messages = [str(error) for error in errors]
@@ -428,6 +458,7 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
+                            parameters=parameters,
                         )
                         clean_data[key] = nodes[0]
 
@@ -439,6 +470,7 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
+                            parameters=parameters,
                         )
                         clean_data[key] = nodes
 
@@ -477,6 +509,7 @@ class InfrahubObjectFileData(BaseModel):
                 context=context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
+                parameters=parameters,
             )
 
         return node
@@ -492,7 +525,9 @@ class InfrahubObjectFileData(BaseModel):
         context: dict | None = None,
         branch: str | None = None,
         default_schema_kind: str | None = None,
+        parameters: InfrahubObjectParameters | None = None,
     ) -> list[InfrahubNode]:
+        parameters = parameters or InfrahubObjectParameters()
         nodes: list[InfrahubNode] = []
         context = context.copy() if context else {}
 
@@ -512,6 +547,7 @@ class InfrahubObjectFileData(BaseModel):
                 context=context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
+                parameters=parameters,
             )
             return [new_node]
 
@@ -525,7 +561,11 @@ class InfrahubObjectFileData(BaseModel):
                 rel_info.find_matching_relationship(peer_schema=peer_schema)
                 context.update(rel_info.get_context(value=parent_node.id))
 
-            for idx, peer_data in enumerate(data["data"]):
+            expanded_data = await DataProcessorFactory.process_data(
+                kind=peer_kind, data=data["data"], parameters=parameters
+            )
+
+            for idx, peer_data in enumerate(expanded_data):
                 context["list_index"] = idx
                 if isinstance(peer_data, dict):
                     node = await cls.create_node(
@@ -536,6 +576,7 @@ class InfrahubObjectFileData(BaseModel):
                         context=context,
                         branch=branch,
                         default_schema_kind=default_schema_kind,
+                        parameters=parameters,
                     )
                     nodes.append(node)
             return nodes
@@ -561,6 +602,7 @@ class InfrahubObjectFileData(BaseModel):
                     context=context,
                     branch=branch,
                     default_schema_kind=default_schema_kind,
+                    parameters=parameters,
                 )
                 nodes.append(node)
 
@@ -594,14 +636,20 @@ class ObjectFile(InfrahubFile):
     @property
     def spec(self) -> InfrahubObjectFileData:
         if not self._spec:
-            self._spec = InfrahubObjectFileData(**self.data.spec)
+            try:
+                self._spec = InfrahubObjectFileData(**self.data.spec)
+            except Exception as exc:
+                raise ValidationError(identifier=str(self.location), message=str(exc))
         return self._spec
 
     def validate_content(self) -> None:
         super().validate_content()
         if self.kind != InfrahubFileKind.OBJECT:
             raise ValueError("File is not an Infrahub Object file")
-        self._spec = InfrahubObjectFileData(**self.data.spec)
+        try:
+            self._spec = InfrahubObjectFileData(**self.data.spec)
+        except Exception as exc:
+            raise ValidationError(identifier=str(self.location), message=str(exc))
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

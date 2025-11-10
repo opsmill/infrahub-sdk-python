@@ -6,9 +6,8 @@ from typing import TYPE_CHECKING, Optional
 import typer
 from rich.console import Console
 
-from ..ctl import config
 from ..ctl.client import initialize_client
-from ..ctl.repository import get_repository_config
+from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.utils import execute_graphql_query, init_logging, parse_cli_vars
 from ..exceptions import ModuleImportError
 from ..node import InfrahubNode
@@ -26,7 +25,7 @@ async def run(
     variables: Optional[list[str]] = None,
 ) -> None:
     init_logging(debug=debug)
-    repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
+    repository_config = get_repository_config(find_repository_config_file())
 
     if list_available or not generator_name:
         list_generators(repository_config=repository_config)
@@ -65,6 +64,8 @@ async def run(
             branch=branch or "",
             params=variables_dict,
             convert_query_response=generator_config.convert_query_response,
+            execute_in_proposed_change=generator_config.execute_in_proposed_change,
+            execute_after_merge=generator_config.execute_after_merge,
             infrahub_node=InfrahubNode,
         )
         await generator._init_client.schema.all(branch=generator.branch_name)
@@ -94,6 +95,8 @@ async def run(
                 branch=branch or "",
                 params=params,
                 convert_query_response=generator_config.convert_query_response,
+                execute_in_proposed_change=generator_config.execute_in_proposed_change,
+                execute_after_merge=generator_config.execute_after_merge,
                 infrahub_node=InfrahubNode,
             )
             data = execute_graphql_query(

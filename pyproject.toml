@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.14.0"
+version = "1.15.0b1"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -36,7 +36,6 @@ numpy = [
 ]
 pyarrow = { version = ">=14", optional = true }
 rich = { version = ">=12, <14", optional = true }
-toml = { version = "^0.10", optional = true }
 typer = { version = "^0.12.3", optional = true }
 pytest = { version = "*", optional = true }
 pyyaml = { version = "^6", optional = true }
@@ -46,6 +45,8 @@ whenever = ">=0.7.2,<0.8.0"
 netutils = "^1.0.0"
 click = { version = "8.1.*", optional = true }
 copier = { version = "^9.8.0", optional = true }
+tomli = { version = ">=1.1.0", python = "<3.11", optional = true }
+ariadne-codegen = {version = "0.15.3", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -58,7 +59,6 @@ mypy = "*"
 ipython = "*"
 requests = "*"
 pre-commit = "^2.20.0"
-types-toml = "*"
 types-ujson = "*"
 types-pyyaml = "*"
 ruff = "0.11.0"
@@ -66,11 +66,11 @@ pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
 towncrier = "^24.8.0"
-infrahub-testcontainers = { version = "^1.4.0", python = ">=3.10" }
+infrahub-testcontainers = { version = "1.5.0b2", python = ">=3.12" }
 astroid = "~3.1"
 
 [tool.poetry.extras]
-ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "toml", "typer", "click", "copier"]
+ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "tomli", "typer", "click", "copier", "ariadne-codegen"]
 tests = ["Jinja2", "pytest", "pyyaml", "rich"]
 all = [
     "Jinja2",
@@ -79,10 +79,11 @@ all = [
     "pytest",
     "pyyaml",
     "rich",
-    "toml",
+    "tomli",
     "typer",
     "click",
     "copier",
+    "ariadne-codegen",
 ]
 
 [tool.poetry.scripts]
@@ -131,6 +132,7 @@ exclude = [
     "build",
     "dist",
     "examples",
+    "tests/fixtures/unit/test_graphql_plugin",
 ]
 
 
@@ -256,7 +258,6 @@ max-complexity = 17
     "S105", # 'PASS' is not a password but a state
 ]
 
-
 "tests/**/*.py" = [
     "PLR2004", # Magic value used in comparison
     "S101",    # Use of assert detected
@@ -270,14 +271,17 @@ max-complexity = 17
     ##################################################################################################
     "ANN001", # Missing type annotation for function argument
     "ANN201", # ANN201 Missing return type annotation for public function
-    "ANN202", # Missing return type annotation for private function
-    "ANN204", # Missing return type annotation for special method
     "RET504",  # Unnecessary assignment to `data` before `return` statement
 ]
 
 "tests/unit/sdk/test_client.py" = [
     "W293", # Blank line contains whitespace (used within output check)
 ]
+
+"tests/fixtures/unit/test_graphql_plugin/*.py" = [
+    "FA100", # Add `from __future__ import annotations` to simplify `typing.Optional`
+]
+
 "tasks.py" = [
     "PLC0415", # `import` should be at the top-level of a file
 ]

@@ -9,7 +9,8 @@ from rich.console import Console
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.ctl.schema import display_schema_load_errors
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
-from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
+from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
+from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
 from infrahub_sdk.schema.repository import (
     InfrahubCheckDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -389,6 +390,75 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node) -> No
         mock_get_node.assert_called_once()
         output = console.file.getvalue()
         expected_console = """Unable to load the schema:
-  Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z]+$' (string_pattern_mismatch)
+  Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z][a-z0-9]+$' (string_pattern_mismatch)
 """
         assert output == expected_console
+
+
+@mock.patch(
+    "infrahub_sdk.ctl.schema.get_node",
+    return_value={
+        "name": "TailscaleSSHRule",
+        "namespace": "Security",
+        "icon": "mdi:security",
+        "inherit_from": ["SecurityRule"],
+        "attributes": [
+            {
+                "name": "check_period",
+                "kind": "Number",
+                "optional": True,
+                "default_value": 720,
+                "min_value": 0,
+                "max_value": 10080,
+            },
+            {"name": "accept_env", "kind": "List", "optional": True},
+            {
+                "name": "action",
+                "optional": True,
+                "kind": "Dropdown",
+                "default_value": "allow",
+                "choices": [
+                    {"label": "allow", "name": "allow"},
+                    {"label": "check", "name": "check"},
+                ],
+            },
+        ],
+    },
+)
+async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_relationship(mock_get_node) -> None:
+    """Validate error message with details when loading schema and errors are in attribute or relationship."""
+    error = {
+        "detail": [
+            {
+                "type": "extra_forbidden",
+                "loc": ["body", "schemas", 0, "nodes", 4, "attributes", "min_value"],
+                "msg": "Extra inputs are not permitted",
+                "input": 0,
+            },
+            {
+                "type": "extra_forbidden",
+                "loc": ["body", "schemas", 0, "nodes", 4, "attributes", "max_value"],
+                "msg": "Extra inputs are not permitted",
+                "input": 10080,
+            },
+        ]
+    }
+
+    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+        display_schema_load_errors(response=error, schemas_data=[])
+        assert mock_get_node.call_count == 2
+        output = console.file.getvalue()
+        expected_console = """Unable to load the schema:
+  Node: SecurityTailscaleSSHRule | Attribute: check_period (0) | Extra inputs are not permitted (extra_forbidden)
+  Node: SecurityTailscaleSSHRule | Attribute: check_period (10080) | Extra inputs are not permitted (extra_forbidden)
+"""
+        assert output == expected_console
+
+
+def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols():
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTagSync) == "BuiltinTag"
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTag) == "BuiltinTag"
+    assert InfrahubSchemaBase._get_schema_name(schema="BuiltinTag") == "BuiltinTag"
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddressSync) == "BuiltinIPAddress"
+    assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddress) == "BuiltinIPAddress"
+    assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"

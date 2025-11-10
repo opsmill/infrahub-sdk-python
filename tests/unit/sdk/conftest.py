@@ -862,7 +862,7 @@ async def rfile_schema() -> NodeSchemaAPI:
         "name": "TransformJinja2",
         "namespace": "Core",
         "default_filter": "name__value",
-        "display_label": ["label__value"],
+        "display_labels": ["label__value"],
         "branch": BranchSupportType.AWARE.value,
         "attributes": [
             {"name": "name", "kind": "String", "unique": True},
@@ -1498,6 +1498,8 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
                     "origin_branch": "main",
                     "branched_from": "2023-02-17T09:30:17.811719Z",
                     "has_schema_changes": False,
+                    "graph_version": 99,
+                    "status": "OPEN",
                 },
                 {
                     "id": "7d9f817a-b958-4e76-8528-8afd0c689ada",
@@ -1507,6 +1509,8 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
                     "origin_branch": "main",
                     "branched_from": "2023-02-17T09:30:17.811719Z",
                     "has_schema_changes": True,
+                    "graph_version": None,
+                    "status": "NEED_UPGRADE_REBASE",
                 },
             ]
         }
@@ -1876,6 +1880,12 @@ async def mock_schema_query_01(httpx_mock: HTTPXMock, schema_query_01_data: dict
         is_reusable=True,
     )
     return httpx_mock
+
+
+@pytest.fixture
+async def client_with_schema_01(client: InfrahubClient, schema_query_01_data: dict) -> InfrahubClient:
+    client.schema.set_cache(schema=schema_query_01_data, branch="main")
+    return client
 
 
 @pytest.fixture

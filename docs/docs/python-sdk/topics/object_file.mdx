@@ -60,11 +60,23 @@ apiVersion: infrahub.app/v1
 kind: Object
 spec:
   kind: <NamespaceName>
+  parameters:
+    expand_range: <boolean>  # Optional, defaults to false
   data:
     - [...]
 ```
 
 > Multiple documents in a single YAML file are also supported, each document will be loaded separately. Documents are separated by `---`
+
+### Data Processing Parameters
+
+The `parameters` field controls how the data in the object file is processed before loading into Infrahub:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `expand_range` | When set to `true`, range patterns (e.g., `[1-5]`) in string fields are expanded into multiple objects. | `false` |
+
+When `expand_range` is not specified, it defaults to `false`.
 
 ### Relationship of cardinality one
 
@@ -195,3 +207,105 @@ Metadata support is planned for future releases. Currently, the Object file does
 2. Keep object files organized by model type or purpose.
 3. Validate object files before loading them into production environments.
 4. Use comments in your YAML files to document complex relationships or dependencies.
+
+## Range Expansion in Object Files
+
+The Infrahub Python SDK supports **range expansion** for string fields in object files when the `parameters > expand_range` is set to `true`. This feature allows you to specify a range pattern (e.g., `[1-5]`) in any string value, and the SDK will automatically expand it into multiple objects during validation and processing.
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: BuiltinLocation
+  parameters:
+    expand_range: true  # Enable range expansion
+  data:
+    - name: AMS[1-3]
+      type: Country
+```
+
+### How Range Expansion Works
+
+- Any string field containing a pattern like `[1-5]`, `[10-15]`, or `[1,3,5]` will be expanded into multiple objects.
+- If multiple fields in the same object use range expansion, **all expanded lists must have the same length**. If not, validation will fail.
+- The expansion is performed before validation and processing, so all downstream logic works on the expanded data.
+
+### Examples
+
+#### Single Field Expansion
+
+```yaml
+spec:
+  kind: BuiltinLocation
+  parameters:
+    expand_range: true
+  data:
+    - name: AMS[1-3]
+      type: Country
+```
+
+This will expand to:
+
+```yaml
+- name: AMS1
+  type: Country
+- name: AMS2
+  type: Country
+- name: AMS3
+  type: Country
+```
+
+#### Multiple Field Expansion (Matching Lengths)
+
+```yaml
+spec:
+  kind: BuiltinLocation
+  parameters:
+    expand_range: true
+  data:
+    - name: AMS[1-3]
+      description: Datacenter [A-C]
+      type: Country
+```
+
+This will expand to:
+
+```yaml
+- name: AMS1
+  description: Datacenter A
+  type: Country
+- name: AMS2
+  description: Datacenter B
+  type: Country
+- name: AMS3
+  description: Datacenter C
+  type: Country
+```
+
+#### Error: Mismatched Range Lengths
+
+If you use ranges of different lengths in multiple fields:
+
+```yaml
+spec:
+  kind: BuiltinLocation
+  parameters:
+    expand_range: true
+  data:
+    - name: AMS[1-3]
+      description: "Datacenter [10-15]"
+      type: Country
+```
+
+This will **fail validation** with an error like:
+
+```bash
+Range expansion mismatch: fields expanded to different lengths: [3, 6]
+```
+
+### Notes
+
+- Range expansion is supported for any string field in the `data` section.
+- If no range pattern is present, the field is left unchanged.
+- If expansion fails for any field, validation will fail with an error message.

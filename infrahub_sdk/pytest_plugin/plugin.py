@@ -9,7 +9,7 @@ from pytest import exit as exit_test
 from .. import InfrahubClientSync
 from ..utils import is_valid_url
 from .loader import InfrahubYamlFile
-from .utils import load_repository_config
+from .utils import find_repository_config_file, load_repository_config
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -18,9 +18,9 @@ def pytest_addoption(parser: Parser) -> None:
         "--infrahub-repo-config",
         action="store",
         dest="infrahub_repo_config",
-        default=".infrahub.yml",
+        default=None,
         metavar="INFRAHUB_REPO_CONFIG_FILE",
-        help="Infrahub configuration file for the repository (default: %(default)s)",
+        help="Infrahub configuration file for the repository (.infrahub.yml or .infrahub.yaml)",
     )
     group.addoption(
         "--infrahub-address",
@@ -63,7 +63,10 @@ def pytest_addoption(parser: Parser) -> None:
 
 
 def pytest_sessionstart(session: Session) -> None:
-    session.infrahub_config_path = Path(session.config.option.infrahub_repo_config)  # type: ignore[attr-defined]
+    if session.config.option.infrahub_repo_config:
+        session.infrahub_config_path = Path(session.config.option.infrahub_repo_config)  # type: ignore[attr-defined]
+    else:
+        session.infrahub_config_path = find_repository_config_file()  # type: ignore[attr-defined]
 
     if session.infrahub_config_path.is_file():  # type: ignore[attr-defined]
         session.infrahub_repo_config = load_repository_config(repo_config_file=session.infrahub_config_path)  # type: ignore[attr-defined]

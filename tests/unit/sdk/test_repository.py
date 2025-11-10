@@ -50,7 +50,7 @@ def test_active_branch_returns_correct_branch(temp_dir) -> None:
 def test_initialize_repo_raises_error_on_failure(monkeypatch, temp_dir) -> None:
     """Test that an error is raised if the repository cannot be initialized."""
 
-    def mock_init(*args, **kwargs):  # noqa: ANN002, ANN003
+    def mock_init(*args, **kwargs) -> None:  # noqa: ANN002, ANN003
         return None  # Simulate failure
 
     monkeypatch.setattr(Repo, "init", mock_init)

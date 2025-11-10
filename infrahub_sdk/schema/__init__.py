@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import warnings
 from collections.abc import MutableMapping
@@ -90,6 +91,26 @@ MainSchemaTypesAll: TypeAlias = Union[
 ]
 
 
+class SchemaWarningType(Enum):
+    DEPRECATION = "deprecation"
+
+
+class SchemaWarningKind(BaseModel):
+    kind: str = Field(..., description="The kind impacted by the warning")
+    field: str | None = Field(default=None, description="The attribute or relationship impacted by the warning")
+
+    @property
+    def display(self) -> str:
+        suffix = f".{self.field}" if self.field else ""
+        return f"{self.kind}{suffix}"
+
+
+class SchemaWarning(BaseModel):
+    type: SchemaWarningType = Field(..., description="The type of warning")
+    kinds: list[SchemaWarningKind] = Field(default_factory=list, description="The kinds impacted by the warning")
+    message: str = Field(..., description="The message that describes the warning")
+
+
 class InfrahubSchemaBase:
     client: InfrahubClient | InfrahubClientSync
     cache: dict[str, BranchSchema]
@@ -169,7 +190,9 @@ class InfrahubSchemaBase:
     def _validate_load_schema_response(response: httpx.Response) -> SchemaLoadResponse:
         if response.status_code == httpx.codes.OK:
             status = response.json()
-            return SchemaLoadResponse(hash=status["hash"], previous_hash=status["previous_hash"])
+            return SchemaLoadResponse(
+                hash=status["hash"], previous_hash=status["previous_hash"], warnings=status.get("warnings") or []
+            )
 
         if response.status_code in [
             httpx.codes.BAD_REQUEST,
@@ -185,11 +208,15 @@ class InfrahubSchemaBase:
 
     @staticmethod
     def _get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str) -> str:
-        if hasattr(schema, "_is_runtime_protocol") and schema._is_runtime_protocol:  # type: ignore[union-attr]
-            return schema.__name__  # type: ignore[union-attr]
-
         if isinstance(schema, str):
             return schema
+
+        if hasattr(schema, "_is_runtime_protocol") and getattr(schema, "_is_runtime_protocol", None):
+            if inspect.iscoroutinefunction(schema.save):
+                return schema.__name__
+            if schema.__name__[-4:] == "Sync":
+                return schema.__name__[:-4]
+            return schema.__name__
 
         raise ValueError("schema must be a protocol or a string")
 
@@ -474,6 +501,25 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         return branch_schema.nodes
 
+    async def get_graphql_schema(self, branch: str | None = None) -> str:
+        """Get the GraphQL schema as a string.
+
+        Args:
+            branch: The branch to get the schema for. Defaults to default_branch.
+
+        Returns:
+            The GraphQL schema as a string.
+        """
+        branch = branch or self.client.default_branch
+        url = f"{self.client.address}/schema.graphql?branch={branch}"
+
+        response = await self.client._get(url=url)
+
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch GraphQL schema: HTTP {response.status_code} - {response.text}")
+
+        return response.text
+
     async def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
         if namespaces:
@@ -697,6 +743,25 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         return branch_schema.nodes
 
+    def get_graphql_schema(self, branch: str | None = None) -> str:
+        """Get the GraphQL schema as a string.
+
+        Args:
+            branch: The branch to get the schema for. Defaults to default_branch.
+
+        Returns:
+            The GraphQL schema as a string.
+        """
+        branch = branch or self.client.default_branch
+        url = f"{self.client.address}/schema.graphql?branch={branch}"
+
+        response = self.client._get(url=url)
+
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch GraphQL schema: HTTP {response.status_code} - {response.text}")
+
+        return response.text
+
     def _fetch(self, branch: str, namespaces: list[str] | None = None) -> BranchSchema:
         url_parts = [("branch", branch)]
         if namespaces:
@@ -764,6 +829,7 @@ class SchemaLoadResponse(BaseModel):
     hash: str = Field(default="", description="The new hash for the entire schema")
     previous_hash: str = Field(default="", description="The previous hash for the entire schema")
     errors: dict = Field(default_factory=dict, description="Errors reported by the server")
+    warnings: list[SchemaWarning] = Field(default_factory=list, description="Warnings reported by the server")
 
     @property
     def schema_updated(self) -> bool:

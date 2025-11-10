@@ -46,13 +46,13 @@ async def test_validate_sync_async(mock_gql_query_my_query) -> None:
     class IFCheckAsync(InfrahubCheck):
         query = "my_query"
 
-        async def validate(self, data: dict):
+        async def validate(self, data: dict) -> None:
             self.log_error("Not valid")
 
     class IFCheckSync(InfrahubCheck):
         query = "my_query"
 
-        def validate(self, data: dict):
+        def validate(self, data: dict) -> None:
             self.log_error("Not valid")
 
     check = await IFCheckAsync.init(branch="main")
