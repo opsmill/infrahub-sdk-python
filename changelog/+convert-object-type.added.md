@@ -1,1 +1,0 @@
-Add `convert_object_type` method to allow converting an object to another type.

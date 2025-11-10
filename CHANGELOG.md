@@ -11,6 +11,41 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.15.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.0) - 2025-11-10
+
+### Added
+
+- Add `create_diff` method to create a diff summary between two timestamps
+  Update `get_diff_summary` to accept optional time range parameters ([#529](https://github.com/opsmill/infrahub-sdk-python/issues/529))
+- Add the ability to perform range expansions in object files. This feature allows users to define patterns in string fields that will be expanded into multiple objects, facilitating bulk object creation and management. The implementation includes validation to ensure that all expanded lists have the same length, preventing inconsistencies. Documentation has been updated to explain how to use this feature, including examples of valid and invalid configurations. ([#560](https://github.com/opsmill/infrahub-sdk-python/issues/560))
+- Add `convert_object_type` method to allow converting an object to another type.
+- Add `graph_version` and `status` properties to `Branch`
+- Add `infrahubctl graphql` commands to export schema and generate Pydantic types from GraphQL queries
+- Added deprecation warnings when loading or checking schemas
+
+### Changed
+
+- Deprecate the use of `raise_for_error=False` across several methods, using a try/except pattern is preferred. ([#493](https://github.com/opsmill/infrahub-sdk-python/issues/493))
+
+### Fixed
+
+- Respect default branch for client.query_gql_query() and client.set_context_properties() ([#236](https://github.com/opsmill/infrahub-sdk-python/issues/236))
+- Fix branch creation with the sync client while setting `wait_until_completion=False` ([#374](https://github.com/opsmill/infrahub-sdk-python/issues/374))
+- Replaced the `Sync` word in the protocol schema name so that the correct kind can be gotten from the cache ([#380](https://github.com/opsmill/infrahub-sdk-python/issues/380))
+- Fix `infrahubctl info` command when run as an anonymous user ([#398](https://github.com/opsmill/infrahub-sdk-python/issues/398))
+- JsonDecodeError now includes server response content in error message when JSON decoding fails, providing better debugging information for non-JSON server responses. ([#473](https://github.com/opsmill/infrahub-sdk-python/issues/473))
+- Allow unsetting optional relationship of cardinality one by setting its value to `None` ([#479](https://github.com/opsmill/infrahub-sdk-python/issues/479))
+- Bump docs dependencies ([#519](https://github.com/opsmill/infrahub-sdk-python/issues/519))
+- Fix branch handling in `_run_transform` and `execute_graphql_query` functions in Infrahubctl to use environment variables for branch management. ([#535](https://github.com/opsmill/infrahub-sdk-python/issues/535))
+- Allow the ability to clear optional attributes by setting them to None if they have been mutated by the user. ([#549](https://github.com/opsmill/infrahub-sdk-python/issues/549))
+- Disable rich console print markup causing regex reformatting ([#565](https://github.com/opsmill/infrahub-sdk-python/issues/565))
+- - Fixed issue with improperly escaped special characters in `hfid` fields and other string values in GraphQL mutations by implementing proper JSON-style string escaping
+
+### Housekeeping
+
+- Handle error gracefully when loading schema instead of failing with an exception ([#464](https://github.com/opsmill/infrahub-sdk-python/issues/464))
+- Replace toml package with tomllib and tomli optionally for when Python version is less than 3.11 ([#528](https://github.com/opsmill/infrahub-sdk-python/issues/528))
+
 ## [1.14.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.14.0) - 2025-08-26
 
 ### Added
