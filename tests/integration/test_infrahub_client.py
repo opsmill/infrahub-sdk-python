@@ -187,7 +187,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         # Query Tasks using Parallel mode
         tasks_parallel = await client.task.filter(filter=TaskFilter(state=[TaskState.COMPLETED]), parallel=True)
         assert tasks_parallel
-        assert len(tasks_parallel) == len(tasks)
+        task_parallel_ids = [task.id for task in tasks_parallel]
+
+        # Additional tasks might have been completed between the two queries
+        # validate that we get at least as many tasks as in the first query
+        # and that all task IDs from the first query are present in the second one
+        assert len(tasks_parallel) >= len(tasks)
+        assert set(task_ids).issubset(set(task_parallel_ids))
 
         # Query Tasks by ID
         tasks_parallel_filtered = await client.task.filter(filter=TaskFilter(ids=task_ids[:2]), parallel=True)
