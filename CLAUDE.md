@@ -8,39 +8,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Install dependencies
-poetry install --with dev --all-extras
+uv sync --all-groups --all-extras
+
+# Install specific groups
+uv sync --group tests               # Testing dependencies only
+uv sync --group lint                # Linting dependencies only
+uv sync --extra ctl                 # CLI dependencies only
+uv sync --all-groups --all-extras   # All optional dependencies
 
 # Format code
-poetry run invoke format
+uv run invoke format
 
 # Run linting (ruff + mypy + yamllint + markdownlint)
-poetry run invoke lint
+uv run invoke lint
 
 # Run unit tests with coverage
-poetry run pytest --cov infrahub_sdk tests/unit/
+uv run pytest --cov infrahub_sdk tests/unit/
 
 # Run integration tests
-poetry run pytest tests/integration/
+uv run pytest tests/integration/
 
 # Generate documentation
-poetry run invoke docs
+uv run invoke docs
 
 # Validate documentation
-poetry run invoke docs-validate
+uv run invoke docs-validate
 ```
 
 ### Testing Specific Components
 
 ```bash
 # Run tests for specific modules
-poetry run pytest tests/unit/test_client.py
-poetry run pytest tests/unit/test_node.py
+uv run pytest tests/unit/test_client.py
+uv run pytest tests/unit/test_node.py
 
 # Run with verbose output
-poetry run pytest -v tests/unit/
+uv run pytest -v tests/unit/
 
 # Run with parallel execution
-poetry run pytest -n 4 tests/unit/
+uv run pytest -n 4 tests/unit/
 ```
 
 ## Architecture Overview
@@ -148,7 +154,7 @@ CLI commands are auto-documented and organized in `infrahub_sdk/ctl/`.
 
 ```bash
 # Generate all docs
-poetry run invoke docs
+uv run invoke docs
 
 # Start development server (requires Node.js)
 cd docs && npm start
@@ -168,7 +174,7 @@ cd docs && npm start
 
 GitHub Actions workflow runs:
 
-1. Multi-version Python testing (3.9-3.13)
+1. Multi-version Python testing (3.10-3.13)
 2. Comprehensive linting pipeline
 3. Documentation generation and validation
 4. Integration testing with Infrahub containers

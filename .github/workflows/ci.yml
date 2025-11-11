@@ -42,7 +42,7 @@ jobs:
       helm: ${{ steps.changes.outputs.helm_all }}
       python: ${{ steps.changes.outputs.python_all }}
       yaml: ${{ steps.changes.outputs.yaml_all }}
-      poetry_files: ${{ steps.changes.outputs.poetry_files }}
+      uv_files: ${{ steps.changes.outputs.uv_files }}
       github_workflows: ${{ steps.changes.outputs.github_workflows }}
     steps:
       - name: "Check out repository code"
@@ -129,7 +129,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.files-changed.outputs.documentation == 'true'
-    needs: ["files-changed", "yaml-lint", "python-lint"]
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on: "ubuntu-22.04"
     timeout-minutes: 5
     steps:
@@ -145,10 +145,18 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - name: "Install dependencies"
         run: npm install
-      - name: "Setup Python environment"
-        run: "pip install invoke"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
       - name: "Build docs website"
-        run: "invoke docs"
+        run: "uv run invoke docs"
 
   validate-generated-documentation:
     if: |
@@ -168,17 +176,14 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: "Setup Python environment"
-        run: |
-          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
-          poetry config virtualenvs.create true --local
-          poetry env use 3.12
-      - name: "Install dependencies"
-        run: "poetry install --no-interaction --no-ansi --extras ctl"
-      - name: "Setup environment"
-        run: "poetry run pip install invoke"
-      - name: "Validate generated documentation"
-        run: "poetry run invoke docs-validate"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+      - name: Validate generated documentation
+        run: uv run invoke docs-validate
 
   validate-documentation-style:
     if: |
@@ -232,24 +237,19 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: "Setup environment"
-        run: |
-          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }} --python python${{ matrix.python-version }}
-          poetry config virtualenvs.create true --local
-          pip install invoke codecov
-      - name: "Install tomli for Python < 3.11"
-        if: matrix.python-version == '3.9' || matrix.python-version == '3.10'
-        run: |
-          pip install tomli
-      - name: "Install Package"
-        run: "poetry install --all-extras"
-      - name: "Mypy Tests"
-        run: "poetry run mypy --show-error-codes infrahub_sdk/"
-      - name: "Unit Tests"
-        run: "poetry run pytest --cov infrahub_sdk tests/unit/"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+      - name: Mypy Tests
+        run: uv run mypy --show-error-codes infrahub_sdk/
+      - name: Unit Tests
+        run: uv run pytest --cov infrahub_sdk tests/unit/
       - name: "Upload coverage to Codecov"
         run: |
-          codecov --flags python-${{ matrix.python-version }}
+          uv run codecov --flags python-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -259,11 +259,10 @@ jobs:
       - name: "Report coverage for pytest-plugin"
         if: matrix.python-version == '3.12'
         run: |
-          source $(poetry env info --path)/bin/activate
-          coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
-          coverage report -m
-          coverage xml
-          codecov --flags python-filler-${{ matrix.python-version }}
+          uv run coverage run --source=infrahub_sdk -m pytest tests/unit/pytest_plugin
+          uv run coverage report -m
+          uv run coverage xml
+          uv run codecov --flags python-filler-${{ matrix.python-version }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -289,19 +288,17 @@ jobs:
         run: |
           RUNNER_NAME=$(echo "${{ runner.name }}" | grep -o 'ghrunner[0-9]\+' | sed 's/ghrunner\([0-9]\+\)/ghrunner_\1/')
           echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
-      - name: "Setup environment"
-        run: |
-          pipx install poetry==${{ needs.prepare-environment.outputs.POETRY_VERSION }}
-          poetry config virtualenvs.create true --local
-          pip install invoke codecov
-      - name: "Install Package"
-        run: "poetry install --all-extras"
-      - name: "Integration Tests"
-        run: |
-          poetry run pytest --cov infrahub_sdk tests/integration/
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+      - name: Integration Tests
+        run: uv run pytest --cov infrahub_sdk tests/integration/
       - name: "Upload coverage to Codecov"
         run: |
-          codecov --flags integration-tests
+          uv run codecov --flags integration-tests
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 

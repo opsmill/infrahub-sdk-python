@@ -30,28 +30,22 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: "Install Poetry"
-        uses: "snok/install-poetry@v1"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
         with:
-          version: ${{ needs.prepare-environment.outputs.POETRY_VERSION }}
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
 
-      - name: "Setup Python environment"
-        run: |
-          poetry config virtualenvs.create true --local
-          poetry env use 3.12
-      - name: "Install dependencies"
-        run: "poetry install --no-interaction --no-ansi"
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
 
-      - name: "Check prerelease type"
+      - name: Check prerelease type
         id: release
         run: |
-          echo is_prerelease=$(poetry run python -c "from packaging.version import Version; print(int(Version('$(poetry version -s)').is_prerelease))") >> "$GITHUB_OUTPUT"
-          echo is_devrelease=$(poetry run python -c "from packaging.version import Version; print(int(Version('$(poetry version -s)').is_devrelease))") >> "$GITHUB_OUTPUT"
-          echo "version=$(poetry version -s)" >> "$GITHUB_OUTPUT"
-          echo major_minor_version=$(poetry run python -c "from packaging.version import Version; print(f\"{Version('$(poetry version -s)').major}.{Version('$(poetry version -s)').minor}\")") >> "$GITHUB_OUTPUT"
+          VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          echo is_prerelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$VERSION').is_prerelease))") >> "$GITHUB_OUTPUT"
+          echo is_devrelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$VERSION').is_devrelease))") >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo major_minor_version=$(uv run python -c "from packaging.version import Version; v = Version('$VERSION'); print(f'{v.major}.{v.minor}')") >> "$GITHUB_OUTPUT"
           echo latest_tag=$(curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ github.token }}" \
@@ -60,10 +54,14 @@ jobs:
               | jq -r '.tag_name') >> "$GITHUB_OUTPUT"
 
       - name: Check tag version
-        if: github.event.release.tag_name != format('v{0}', steps.release.outputs.version)
         run: |
-          echo "Tag version does not match python project version"
-          exit 1
+          EXPECTED_TAG="v${{ steps.release.outputs.version }}"
+          if [ "${{ github.event.release.tag_name }}" != "$EXPECTED_TAG" ]; then
+            echo "Tag version does not match python project version"
+            echo "Expected: $EXPECTED_TAG"
+            echo "Got: ${{ github.event.release.tag_name }}"
+            exit 1
+          fi
 
       - name: Check prerelease and project version
         if: github.event.release.prerelease == true && steps.release.outputs.is_prerelease == 0 && steps.release.outputs.is_devrelease == 0
