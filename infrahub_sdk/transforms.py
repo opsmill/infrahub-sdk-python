@@ -27,7 +27,7 @@ class InfrahubTransform(InfrahubOperation):
         branch: str = "",
         root_directory: str = "",
         server_url: str = "",
-    ):
+    ) -> None:
         super().__init__(
             client=client,
             infrahub_node=infrahub_node,

@@ -237,9 +237,7 @@ max-complexity = 17
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "ANN201", # ANN201 Missing return type annotation for public function
     "ANN202", # Missing return type annotation for private function
-    "ANN204", # Missing return type annotation for special method
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
 ]
 

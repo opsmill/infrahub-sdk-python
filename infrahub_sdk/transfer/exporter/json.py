@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class LineDelimitedJSONExporter(ExporterInterface):
-    def __init__(self, client: InfrahubClient, console: Console | None = None):
+    def __init__(self, client: InfrahubClient, console: Console | None = None) -> None:
         self.client = client
         self.console = console
 

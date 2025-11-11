@@ -30,7 +30,7 @@ class GraphQLOperation(BaseModel):
 
 
 class GraphQLQueryAnalyzer:
-    def __init__(self, query: str, schema: GraphQLSchema | None = None):
+    def __init__(self, query: str, schema: GraphQLSchema | None = None) -> None:
         self.query: str = query
         self.schema: GraphQLSchema | None = schema
         self.document: DocumentNode = parse(self.query)
