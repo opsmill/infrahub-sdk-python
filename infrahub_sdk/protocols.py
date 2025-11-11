@@ -131,6 +131,7 @@ class CoreGenericRepository(CoreNode):
     queries: RelationshipManager
     checks: RelationshipManager
     generators: RelationshipManager
+    groups_objects: RelationshipManager
 
 
 class CoreGroup(CoreNode):
@@ -233,6 +234,10 @@ class CoreWebhook(CoreNode):
     validate_certificates: BooleanOptional
 
 
+class CoreWeightedPoolResource(CoreNode):
+    allocation_weight: IntegerOptional
+
+
 class LineageOwner(CoreNode):
     pass
 
@@ -321,6 +326,7 @@ class CoreCheckDefinition(CoreTaskTarget):
 
 
 class CoreCustomWebhook(CoreWebhook, CoreTaskTarget):
+    shared_key: StringOptional
     transformation: RelatedNode
 
 
@@ -350,6 +356,10 @@ class CoreGeneratorAction(CoreAction):
     generator: RelatedNode
 
 
+class CoreGeneratorAwareGroup(CoreGroup):
+    pass
+
+
 class CoreGeneratorCheck(CoreCheck):
     instance: String
 
@@ -361,6 +371,8 @@ class CoreGeneratorDefinition(CoreTaskTarget):
     file_path: String
     class_name: String
     convert_query_response: BooleanOptional
+    execute_in_proposed_change: BooleanOptional
+    execute_after_merge: BooleanOptional
     query: RelatedNode
     repository: RelatedNode
     targets: RelatedNode
@@ -405,12 +417,12 @@ class CoreGraphQLQueryGroup(CoreGroup):
 
 
 class CoreGroupAction(CoreAction):
-    add_members: Boolean
+    member_action: Dropdown
     group: RelatedNode
 
 
 class CoreGroupTriggerRule(CoreTriggerRule):
-    members_added: Boolean
+    member_update: Dropdown
     group: RelatedNode
 
 
@@ -442,7 +454,7 @@ class CoreNodeTriggerAttributeMatch(CoreNodeTriggerMatch):
 
 class CoreNodeTriggerRelationshipMatch(CoreNodeTriggerMatch):
     relationship_name: String
-    added: Boolean
+    modification_type: Dropdown
     peer: StringOptional
 
 
@@ -457,6 +469,7 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+    pool_type: Enum
 
 
 class CoreObjectPermission(CoreBasePermission):
@@ -481,7 +494,10 @@ class CoreProposedChange(CoreTaskTarget):
     source_branch: String
     destination_branch: String
     state: Enum
+    is_draft: Boolean
+    total_comments: IntegerOptional
     approved_by: RelationshipManager
+    rejected_by: RelationshipManager
     reviewers: RelationshipManager
     created_by: RelatedNode
     comments: RelationshipManager
@@ -553,6 +569,14 @@ class InternalAccountToken(CoreNode):
     token: String
     expiration: DateTimeOptional
     account: RelatedNode
+
+
+class InternalIPPrefixAvailable(BuiltinIPPrefix):
+    pass
+
+
+class InternalIPRangeAvailable(BuiltinIPAddress):
+    last_address: IPHost
 
 
 class InternalRefreshToken(CoreNode):
@@ -664,6 +688,7 @@ class CoreGenericRepositorySync(CoreNodeSync):
     queries: RelationshipManagerSync
     checks: RelationshipManagerSync
     generators: RelationshipManagerSync
+    groups_objects: RelationshipManagerSync
 
 
 class CoreGroupSync(CoreNodeSync):
@@ -766,6 +791,10 @@ class CoreWebhookSync(CoreNodeSync):
     validate_certificates: BooleanOptional
 
 
+class CoreWeightedPoolResourceSync(CoreNodeSync):
+    allocation_weight: IntegerOptional
+
+
 class LineageOwnerSync(CoreNodeSync):
     pass
 
@@ -854,6 +883,7 @@ class CoreCheckDefinitionSync(CoreTaskTargetSync):
 
 
 class CoreCustomWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
+    shared_key: StringOptional
     transformation: RelatedNodeSync
 
 
@@ -883,6 +913,10 @@ class CoreGeneratorActionSync(CoreActionSync):
     generator: RelatedNodeSync
 
 
+class CoreGeneratorAwareGroupSync(CoreGroupSync):
+    pass
+
+
 class CoreGeneratorCheckSync(CoreCheckSync):
     instance: String
 
@@ -894,6 +928,8 @@ class CoreGeneratorDefinitionSync(CoreTaskTargetSync):
     file_path: String
     class_name: String
     convert_query_response: BooleanOptional
+    execute_in_proposed_change: BooleanOptional
+    execute_after_merge: BooleanOptional
     query: RelatedNodeSync
     repository: RelatedNodeSync
     targets: RelatedNodeSync
@@ -938,12 +974,12 @@ class CoreGraphQLQueryGroupSync(CoreGroupSync):
 
 
 class CoreGroupActionSync(CoreActionSync):
-    add_members: Boolean
+    member_action: Dropdown
     group: RelatedNodeSync
 
 
 class CoreGroupTriggerRuleSync(CoreTriggerRuleSync):
-    members_added: Boolean
+    member_update: Dropdown
     group: RelatedNodeSync
 
 
@@ -975,7 +1011,7 @@ class CoreNodeTriggerAttributeMatchSync(CoreNodeTriggerMatchSync):
 
 class CoreNodeTriggerRelationshipMatchSync(CoreNodeTriggerMatchSync):
     relationship_name: String
-    added: Boolean
+    modification_type: Dropdown
     peer: StringOptional
 
 
@@ -990,6 +1026,7 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
     node_attribute: String
     start_range: Integer
     end_range: Integer
+    pool_type: Enum
 
 
 class CoreObjectPermissionSync(CoreBasePermissionSync):
@@ -1014,7 +1051,10 @@ class CoreProposedChangeSync(CoreTaskTargetSync):
     source_branch: String
     destination_branch: String
     state: Enum
+    is_draft: Boolean
+    total_comments: IntegerOptional
     approved_by: RelationshipManagerSync
+    rejected_by: RelationshipManagerSync
     reviewers: RelationshipManagerSync
     created_by: RelatedNodeSync
     comments: RelationshipManagerSync
@@ -1086,6 +1126,14 @@ class InternalAccountTokenSync(CoreNodeSync):
     token: String
     expiration: DateTimeOptional
     account: RelatedNodeSync
+
+
+class InternalIPPrefixAvailableSync(BuiltinIPPrefixSync):
+    pass
+
+
+class InternalIPRangeAvailableSync(BuiltinIPAddressSync):
+    last_address: IPHost
 
 
 class InternalRefreshTokenSync(CoreNodeSync):

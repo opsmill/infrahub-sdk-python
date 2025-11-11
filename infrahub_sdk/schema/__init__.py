@@ -91,6 +91,26 @@ MainSchemaTypesAll: TypeAlias = Union[
 ]
 
 
+class SchemaWarningType(Enum):
+    DEPRECATION = "deprecation"
+
+
+class SchemaWarningKind(BaseModel):
+    kind: str = Field(..., description="The kind impacted by the warning")
+    field: str | None = Field(default=None, description="The attribute or relationship impacted by the warning")
+
+    @property
+    def display(self) -> str:
+        suffix = f".{self.field}" if self.field else ""
+        return f"{self.kind}{suffix}"
+
+
+class SchemaWarning(BaseModel):
+    type: SchemaWarningType = Field(..., description="The type of warning")
+    kinds: list[SchemaWarningKind] = Field(default_factory=list, description="The kinds impacted by the warning")
+    message: str = Field(..., description="The message that describes the warning")
+
+
 class InfrahubSchemaBase:
     client: InfrahubClient | InfrahubClientSync
     cache: dict[str, BranchSchema]
@@ -170,7 +190,9 @@ class InfrahubSchemaBase:
     def _validate_load_schema_response(response: httpx.Response) -> SchemaLoadResponse:
         if response.status_code == httpx.codes.OK:
             status = response.json()
-            return SchemaLoadResponse(hash=status["hash"], previous_hash=status["previous_hash"])
+            return SchemaLoadResponse(
+                hash=status["hash"], previous_hash=status["previous_hash"], warnings=status.get("warnings") or []
+            )
 
         if response.status_code in [
             httpx.codes.BAD_REQUEST,
@@ -807,6 +829,7 @@ class SchemaLoadResponse(BaseModel):
     hash: str = Field(default="", description="The new hash for the entire schema")
     previous_hash: str = Field(default="", description="The previous hash for the entire schema")
     errors: dict = Field(default_factory=dict, description="Errors reported by the server")
+    warnings: list[SchemaWarning] = Field(default_factory=list, description="Warnings reported by the server")
 
     @property
     def schema_updated(self) -> bool:

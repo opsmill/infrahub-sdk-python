@@ -17,6 +17,7 @@ else:
 DEFAULT_CONFIG_FILE = "infrahubctl.toml"
 ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
 INFRAHUB_REPO_CONFIG_FILE = ".infrahub.yml"
+INFRAHUB_REPO_CONFIG_FILE_ALT = ".infrahub.yaml"
 
 
 class Settings(BaseSettings):

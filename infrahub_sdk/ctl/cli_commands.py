@@ -20,7 +20,6 @@ from rich.table import Table
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
-from ..ctl import config
 from ..ctl.branch import app as branch_app
 from ..ctl.check import run as run_check
 from ..ctl.client import initialize_client, initialize_client_sync
@@ -31,7 +30,7 @@ from ..ctl.menu import app as menu_app
 from ..ctl.object import app as object_app
 from ..ctl.render import list_jinja2_transforms, print_template_errors
 from ..ctl.repository import app as repository_app
-from ..ctl.repository import get_repository_config
+from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.schema import app as schema_app
 from ..ctl.task import app as task_app
 from ..ctl.transform import list_transforms
@@ -263,7 +262,7 @@ async def render(
     """Render a local Jinja2 Transform for debugging purpose."""
 
     variables_dict = parse_cli_vars(variables)
-    repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
+    repository_config = get_repository_config(find_repository_config_file())
 
     if list_available or not transform_name:
         list_jinja2_transforms(config=repository_config)
@@ -273,7 +272,7 @@ async def render(
     try:
         transform_config = repository_config.get_jinja2_transform(name=transform_name)
     except KeyError as exc:
-        console.print(f'[red]Unable to find "{transform_name}" in {config.INFRAHUB_REPO_CONFIG_FILE}')
+        console.print(f'[red]Unable to find "{transform_name}" in repository config file')
         list_jinja2_transforms(config=repository_config)
         raise typer.Exit(1) from exc
 
@@ -313,7 +312,7 @@ def transform(
     """Render a local transform (TransformPython) for debugging purpose."""
 
     variables_dict = parse_cli_vars(variables)
-    repository_config = get_repository_config(Path(config.INFRAHUB_REPO_CONFIG_FILE))
+    repository_config = get_repository_config(find_repository_config_file())
 
     if list_available or not transform_name:
         list_transforms(config=repository_config)

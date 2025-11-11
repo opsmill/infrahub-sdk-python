@@ -14,6 +14,7 @@ from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
+from ..schema import SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
@@ -152,6 +153,8 @@ async def load(
 
     console.print(f"[green] {len(schemas_data)} {schema_definition} processed in {loading_time:.3f} seconds.")
 
+    _display_schema_warnings(console=console, warnings=response.warnings)
+
     if response.schema_updated and wait:
         waited = 0
         continue_waiting = True
@@ -187,12 +190,24 @@ async def check(
 
     success, response = await client.schema.check(schemas=[item.payload for item in schemas_data], branch=branch)
 
-    if not success:
+    if not success or not response:
         display_schema_load_errors(response=response or {}, schemas_data=schemas_data)
+        return
+
+    for schema_file in schemas_data:
+        console.print(f"[green] schema '{schema_file.location}' is Valid!")
+
+    warnings = response.pop("warnings", [])
+    schema_warnings = [SchemaWarning.model_validate(warning) for warning in warnings]
+    _display_schema_warnings(console=console, warnings=schema_warnings)
+    if response == {"diff": {"added": {}, "changed": {}, "removed": {}}}:
+        print("No diff")
     else:
-        for schema_file in schemas_data:
-            console.print(f"[green] schema '{schema_file.location}' is Valid!")
-        if response == {"diff": {"added": {}, "changed": {}, "removed": {}}}:
-            print("No diff")
-        else:
-            print(yaml.safe_dump(data=response, indent=4))
+        print(yaml.safe_dump(data=response, indent=4))
+
+
+def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) -> None:
+    for warning in warnings:
+        console.print(
+            f"[yellow] {warning.type.value}: {warning.message} [{', '.join([kind.display for kind in warning.kinds])}]"
+        )

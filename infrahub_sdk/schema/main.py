@@ -267,6 +267,7 @@ class BaseSchema(BaseModel):
     description: str | None = None
     include_in_menu: bool | None = None
     menu_placement: str | None = None
+    display_label: str | None = None
     display_labels: list[str] | None = None
     human_friendly_id: list[str] | None = None
     icon: str | None = None

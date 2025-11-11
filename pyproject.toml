@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "infrahub-sdk"
-version = "1.14.0"
+version = "1.15.0"
 description = "Python Client to interact with Infrahub"
 authors = ["OpsMill <info@opsmill.com>"]
 readme = "README.md"
@@ -66,7 +66,7 @@ pytest-xdist = "^3.3.1"
 types-python-slugify = "^8.0.0.3"
 invoke = "^2.2.0"
 towncrier = "^24.8.0"
-infrahub-testcontainers = { version = "^1.4.0", python = ">=3.10" }
+infrahub-testcontainers = { version = "1.5.0b2", python = ">=3.12" }
 astroid = "~3.1"
 
 [tool.poetry.extras]

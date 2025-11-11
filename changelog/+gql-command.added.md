@@ -1,1 +1,0 @@
-Add `infrahubctl graphql` commands to export schema and generate Pydantic types from GraphQL queries
