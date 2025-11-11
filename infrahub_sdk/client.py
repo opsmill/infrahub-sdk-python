@@ -140,7 +140,7 @@ class BaseClient:
         self,
         address: str = "",
         config: Config | dict[str, Any] | None = None,
-    ):
+    ) -> None:
         self.client = None
         self.headers = {"content-type": "application/json"}
         self.access_token: str = ""

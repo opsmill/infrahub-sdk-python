@@ -25,7 +25,7 @@ class InfrahubItem(pytest.Item):
         resource_config: InfrahubRepositoryConfigElement,
         test: InfrahubTest,
         **kwargs: dict[str, Any],
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self.resource_name: str = resource_name
         self.resource_config: InfrahubRepositoryConfigElement = resource_config

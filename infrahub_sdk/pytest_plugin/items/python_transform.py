@@ -28,7 +28,7 @@ class InfrahubPythonTransformItem(InfrahubItem):
         resource_config: InfrahubRepositoryConfigElement,
         test: InfrahubTest,
         **kwargs: dict[str, Any],
-    ):
+    ) -> None:
         super().__init__(*args, resource_name=resource_name, resource_config=resource_config, test=test, **kwargs)
 
         self.transform_instance: InfrahubTransform

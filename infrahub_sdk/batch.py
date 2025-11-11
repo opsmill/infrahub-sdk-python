@@ -58,7 +58,7 @@ class InfrahubBatch:
         semaphore: asyncio.Semaphore | None = None,
         max_concurrent_execution: int = 5,
         return_exceptions: bool = False,
-    ):
+    ) -> None:
         self._tasks: list[BatchTask] = []
         self.semaphore = semaphore or asyncio.Semaphore(value=max_concurrent_execution)
         self.return_exceptions = return_exceptions
@@ -90,7 +90,7 @@ class InfrahubBatch:
 
 
 class InfrahubBatchSync:
-    def __init__(self, max_concurrent_execution: int = 5, return_exceptions: bool = False):
+    def __init__(self, max_concurrent_execution: int = 5, return_exceptions: bool = False) -> None:
         self._tasks: list[BatchTaskSync] = []
         self.max_concurrent_execution = max_concurrent_execution
         self.return_exceptions = return_exceptions

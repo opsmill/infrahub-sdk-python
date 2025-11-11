@@ -3,6 +3,6 @@ class Error(Exception):
 
 
 class QueryNotFoundError(Error):
-    def __init__(self, name: str, message: str = ""):
+    def __init__(self, name: str, message: str = "") -> None:
         self.message = message or f"The requested query '{name}' was not found."
         super().__init__(self.message)

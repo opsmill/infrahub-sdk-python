@@ -16,7 +16,7 @@ class ObjectStoreBase:
 
 
 class ObjectStore(ObjectStoreBase):
-    def __init__(self, client: InfrahubClient):
+    def __init__(self, client: InfrahubClient) -> None:
         self.client = client
 
     async def get(self, identifier: str, tracker: str | None = None) -> str:
@@ -64,7 +64,7 @@ class ObjectStore(ObjectStoreBase):
 
 
 class ObjectStoreSync(ObjectStoreBase):
-    def __init__(self, client: InfrahubClientSync):
+    def __init__(self, client: InfrahubClientSync) -> None:
         self.client = client
 
     def get(self, identifier: str, tracker: str | None = None) -> str:

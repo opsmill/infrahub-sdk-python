@@ -83,7 +83,7 @@ class InfraHubBranchManagerBase:
 
 
 class InfrahubBranchManager(InfraHubBranchManagerBase):
-    def __init__(self, client: InfrahubClient):
+    def __init__(self, client: InfrahubClient) -> None:
         self.client = client
 
     @overload
@@ -233,7 +233,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
 
 
 class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
-    def __init__(self, client: InfrahubClientSync):
+    def __init__(self, client: InfrahubClientSync) -> None:
         self.client = client
 
     def all(self) -> dict[str, BranchData]:

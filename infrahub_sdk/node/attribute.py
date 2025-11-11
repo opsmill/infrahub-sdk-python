@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class Attribute:
     """Represents an attribute of a Node, including its schema, value, and properties."""
 
-    def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict):
+    def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
         """
         Args:
             name (str): The name of the attribute.
