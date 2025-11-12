@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class RelationshipManagerBase:
     """Base class for RelationshipManager and RelationshipManagerSync"""
 
-    def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI):
+    def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
         """
         Args:
             name (str): The name of the relationship.
@@ -107,7 +107,7 @@ class RelationshipManager(RelationshipManagerBase):
         branch: str,
         schema: RelationshipSchemaAPI,
         data: Any | dict,
-    ):
+    ) -> None:
         """
         Args:
             name (str): The name of the relationship.
@@ -230,7 +230,7 @@ class RelationshipManagerSync(RelationshipManagerBase):
         branch: str,
         schema: RelationshipSchemaAPI,
         data: Any | dict,
-    ):
+    ) -> None:
         """
         Args:
             name (str): The name of the relationship.

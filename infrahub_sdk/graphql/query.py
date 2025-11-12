@@ -9,7 +9,7 @@ class BaseGraphQLQuery:
     query_type: str = "not-defined"
     indentation: int = 4
 
-    def __init__(self, query: dict, variables: dict | None = None, name: str | None = None):
+    def __init__(self, query: dict, variables: dict | None = None, name: str | None = None) -> None:
         self.query = query
         self.variables = variables
         self.name = name or ""
@@ -46,7 +46,7 @@ class Query(BaseGraphQLQuery):
 class Mutation(BaseGraphQLQuery):
     query_type = "mutation"
 
-    def __init__(self, *args: Any, mutation: str, input_data: dict, **kwargs: Any):
+    def __init__(self, *args: Any, mutation: str, input_data: dict, **kwargs: Any) -> None:
         self.input_data = input_data
         self.mutation = mutation
         super().__init__(*args, **kwargs)

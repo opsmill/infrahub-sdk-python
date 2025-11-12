@@ -29,7 +29,7 @@ REGEX_MAPPING = {
 class Timestamp:
     _obj: ZonedDateTime
 
-    def __init__(self, value: str | ZonedDateTime | Timestamp | None = None):
+    def __init__(self, value: str | ZonedDateTime | Timestamp | None = None) -> None:
         if value and isinstance(value, ZonedDateTime):
             self._obj = value
         elif value and isinstance(value, self.__class__):

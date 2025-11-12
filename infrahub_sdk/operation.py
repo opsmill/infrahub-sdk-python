@@ -19,7 +19,7 @@ class InfrahubOperation:
         convert_query_response: bool,
         branch: str,
         root_directory: str,
-    ):
+    ) -> None:
         self.branch = branch
         self.convert_query_response = convert_query_response
         self.root_directory = root_directory or os.getcwd()

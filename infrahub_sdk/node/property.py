@@ -4,7 +4,7 @@ from __future__ import annotations
 class NodeProperty:
     """Represents a property of a node, typically used for metadata like display labels."""
 
-    def __init__(self, data: dict | str):
+    def __init__(self, data: dict | str) -> None:
         """
         Args:
             data (Union[dict, str]): Data representing the node property.
