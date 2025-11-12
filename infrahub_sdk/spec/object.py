@@ -510,7 +510,7 @@ class InfrahubObjectFileData(BaseModel):
                 context=context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
-                parameters=InfrahubObjectParameters(**data[rel].get("parameters")),
+                parameters=InfrahubObjectParameters(**data[rel].get("parameters")) if "parameters" in data[rel] else None,
             )
 
         return node
