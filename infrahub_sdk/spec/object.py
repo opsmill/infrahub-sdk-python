@@ -209,6 +209,7 @@ class InfrahubObjectFileData(BaseModel):
                 position=[idx + 1],
                 branch=branch,
                 default_schema_kind=self.kind,
+                parameters=self.parameters,
             )
 
     @classmethod
@@ -509,7 +510,7 @@ class InfrahubObjectFileData(BaseModel):
                 context=context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
-                parameters=parameters,
+                parameters=InfrahubObjectParameters(**data[rel].get("parameters")),
             )
 
         return node
