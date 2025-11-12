@@ -41,7 +41,7 @@ jobs:
       - name: Check prerelease type
         id: release
         run: |
-          VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          VERSION=$(uv version --short)
           echo is_prerelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$VERSION').is_prerelease))") >> "$GITHUB_OUTPUT"
           echo is_devrelease=$(uv run python -c "from packaging.version import Version; print(int(Version('$VERSION').is_devrelease))") >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
