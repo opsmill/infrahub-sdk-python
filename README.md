@@ -56,3 +56,18 @@ Installs infrahub-sdk together with all the extras.
 ```bash
 pip install 'infrahub-sdk[all]'
 ```
+
+### Development setup with UV
+
+If you're developing the SDK and using UV for dependency management, you can install specific dependency groups:
+
+```bash
+# Install development dependencies
+uv sync --all-groups --all-extras
+
+# Install specific groups
+uv sync --group tests               # Testing dependencies only
+uv sync --group lint                # Linting dependencies only
+uv sync --group ctl                 # CLI dependencies only
+uv sync --all-groups --all-extras   # All optional dependencies
+```
