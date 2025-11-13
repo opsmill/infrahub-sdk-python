@@ -43,7 +43,7 @@ class InfrahubCheck:
         initializer: InfrahubCheckInitializer | None = None,
         params: dict | None = None,
         client: InfrahubClient | None = None,
-    ):
+    ) -> None:
         self.git: GitRepoManager | None = None
         self.initializer = initializer or InfrahubCheckInitializer()
 

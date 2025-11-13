@@ -34,7 +34,7 @@ def move_to_end_of_list(lst: list, item: str) -> list:
 
 
 class CodeGenerator:
-    def __init__(self, schema: dict[str, MainSchemaTypesAll]):
+    def __init__(self, schema: dict[str, MainSchemaTypesAll]) -> None:
         self.generics: dict[str, GenericSchemaAPI | GenericSchema] = {}
         self.nodes: dict[str, NodeSchemaAPI | NodeSchema] = {}
         self.profiles: dict[str, ProfileSchemaAPI] = {}

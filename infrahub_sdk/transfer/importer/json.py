@@ -31,7 +31,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         topological_sorter: InfrahubSchemaTopologicalSorter,
         continue_on_error: bool = False,
         console: Console | None = None,
-    ):
+    ) -> None:
         self.client = client
         self.topological_sorter = topological_sorter
         self.continue_on_error = continue_on_error

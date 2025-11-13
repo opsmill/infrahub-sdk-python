@@ -7,7 +7,7 @@ from dulwich.repo import Repo
 
 
 class GitRepoManager:
-    def __init__(self, root_directory: str, branch: str = "main"):
+    def __init__(self, root_directory: str, branch: str = "main") -> None:
         self.root_directory = root_directory
         self.branch = branch
         self.git: Repo = self.initialize_repo()

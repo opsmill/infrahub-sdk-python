@@ -1,14 +1,13 @@
-[tool.poetry]
+[project]
 name = "infrahub-sdk"
 version = "1.15.0"
 description = "Python Client to interact with Infrahub"
-authors = ["OpsMill <info@opsmill.com>"]
+authors = [
+    {name = "OpsMill", email = "info@opsmill.com"}
+]
 readme = "README.md"
-license = "Apache-2.0"
-homepage = "https://opsmill.com"
-repository = "https://github.com/opsmill/infrahub-sdk-python"
-documentation = "https://docs.infrahub.app/python-sdk/introduction"
-packages = [{ include = "infrahub_sdk" }]
+license = {text = "Apache-2.0"}
+requires-python = ">=3.9,<3.14"
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
@@ -18,79 +17,91 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-
-[tool.poetry.dependencies]
-python = "^3.9, <3.14"
-pydantic = ">=2.0.0,!=2.0.1,!=2.1.0,<3.0.0"
-pydantic-settings = ">=2.0"
-graphql-core = ">=3.1,<3.3"
-httpx = [
-    { version = ">=0.20", python = ">=3.9,<3.11" },
-    { version = ">=0.23", python = ">=3.11" },
-]
-ujson = "^5"
-Jinja2 = { version = "^3", optional = true }
-numpy = [
-    { version = "^1.24.2", optional = true, python = ">=3.9,<3.12" },
-    { version = "^1.26.2", optional = true, python = ">=3.12" },
-]
-pyarrow = { version = ">=14", optional = true }
-rich = { version = ">=12, <14", optional = true }
-typer = { version = "^0.12.3", optional = true }
-pytest = { version = "*", optional = true }
-pyyaml = { version = "^6", optional = true }
-eval-type-backport = { version = "^0.2.2", python = "~3.9" }
-dulwich = "^0.21.4"
-whenever = ">=0.7.2,<0.8.0"
-netutils = "^1.0.0"
-click = { version = "8.1.*", optional = true }
-copier = { version = "^9.8.0", optional = true }
-tomli = { version = ">=1.1.0", python = "<3.11", optional = true }
-ariadne-codegen = {version = "0.15.3", optional = true}
-
-[tool.poetry.group.dev.dependencies]
-pytest = "*"
-pytest-asyncio = "<0.23"
-pytest-clarity = "^1.0.1"
-pytest-cov = "^4.0.0"
-pytest-httpx = ">=0.30"
-yamllint = "*"
-mypy = "*"
-ipython = "*"
-requests = "*"
-pre-commit = "^2.20.0"
-types-ujson = "*"
-types-pyyaml = "*"
-ruff = "0.11.0"
-pytest-xdist = "^3.3.1"
-types-python-slugify = "^8.0.0.3"
-invoke = "^2.2.0"
-towncrier = "^24.8.0"
-infrahub-testcontainers = { version = "1.5.0b2", python = ">=3.12" }
-astroid = "~3.1"
-
-[tool.poetry.extras]
-ctl = ["Jinja2", "numpy", "pyarrow", "pyyaml", "rich", "tomli", "typer", "click", "copier", "ariadne-codegen"]
-tests = ["Jinja2", "pytest", "pyyaml", "rich"]
-all = [
-    "Jinja2",
-    "numpy",
-    "pyarrow",
-    "pytest",
-    "pyyaml",
-    "rich",
-    "tomli",
-    "typer",
-    "click",
-    "copier",
-    "ariadne-codegen",
+dependencies = [
+    "pydantic>=2.0.0,!=2.0.1,!=2.1.0,<3.0.0",
+    "pydantic-settings>=2.0",
+    "graphql-core>=3.1,<3.3",
+    "httpx>=0.20",
+    "ujson>=5",
+    "dulwich>=0.21.4",
+    "whenever>=0.7.2,<0.8.0",
+    "netutils>=1.0.0",
+    "eval-type-backport>=0.2.2; python_version>='3.9' and python_version<'3.10'",
+    "tomli>=1.1.0; python_version<'3.11'",
 ]
 
-[tool.poetry.scripts]
+[project.urls]
+Homepage = "https://opsmill.com"
+Repository = "https://github.com/opsmill/infrahub-sdk-python"
+Documentation = "https://docs.infrahub.app/python-sdk/introduction"
+
+[project.scripts]
 infrahubctl = "infrahub_sdk.ctl.cli:app"
 
-[tool.poetry.plugins."pytest11"]
+[project.entry-points."pytest11"]
 "pytest-infrahub" = "infrahub_sdk.pytest_plugin.plugin"
+
+[project.optional-dependencies]
+ctl = [
+    "Jinja2>=3",
+    "numpy>=1.24.2; python_version<'3.12'",
+    "numpy>=1.26.2; python_version>='3.12'",
+    "pyarrow>=14",
+    "pyyaml>=6",
+    "rich>=12,<14",
+    "typer>=0.12.5",
+    "click==8.1.*",
+    "copier>=9.8.0",
+    "ariadne-codegen==0.15.3",
+]
+
+all = [
+    "Jinja2>=3",
+    "numpy>=1.24.2; python_version<'3.12'",
+    "numpy>=1.26.2; python_version>='3.12'",
+    "pyarrow>=14",
+    "pytest",
+    "pyyaml>=6",
+    "rich>=12,<14",
+    "typer>=0.12.5",
+    "click==8.1.*",
+    "copier>=9.8.0",
+    "ariadne-codegen==0.15.3",
+]
+
+[dependency-groups]
+# Core optional dependencies
+tests = [
+    "pytest",
+    "pytest-asyncio<0.23",
+    "pytest-clarity>=1.0.1",
+    "pytest-cov>=4.0.0",
+    "pytest-httpx>=0.30",
+    "pytest-xdist>=3.3.1",
+    "infrahub-testcontainers>=1.5.0; python_version>='3.12'",
+]
+lint = [
+    "yamllint",
+    "mypy==1.11.2",
+    "ruff==0.11.0",
+    "astroid>=3.1,<4.0",
+]
+types = [
+    "types-ujson",
+    "types-pyyaml",
+    "types-python-slugify>=8.0.0.3",
+]
+dev = [
+    {include-group = "tests"},
+    {include-group = "lint"},
+    {include-group = "types"},
+    "ipython",
+    "requests",
+    "pre-commit>=2.20.0",
+    "codecov",
+    "invoke>=2.2.0",
+    "towncrier>=24.8.0",
+]
 
 [tool.coverage.run]
 branch = true
@@ -237,9 +248,7 @@ max-complexity = 17
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "ANN201", # ANN201 Missing return type annotation for public function
     "ANN202", # Missing return type annotation for private function
-    "ANN204", # Missing return type annotation for special method
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
 ]
 
@@ -334,5 +343,8 @@ name = "Housekeeping"
 showcontent = true
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["infrahub_sdk"]

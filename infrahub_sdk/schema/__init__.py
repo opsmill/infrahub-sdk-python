@@ -115,7 +115,7 @@ class InfrahubSchemaBase:
     client: InfrahubClient | InfrahubClientSync
     cache: dict[str, BranchSchema]
 
-    def __init__(self, client: InfrahubClient | InfrahubClientSync):
+    def __init__(self, client: InfrahubClient | InfrahubClientSync) -> None:
         self.client = client
         self.cache = {}
 

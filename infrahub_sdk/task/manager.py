@@ -86,7 +86,7 @@ class InfraHubTaskManagerBase:
 class InfrahubTaskManager(InfraHubTaskManagerBase):
     client: InfrahubClient
 
-    def __init__(self, client: InfrahubClient):
+    def __init__(self, client: InfrahubClient) -> None:
         self.client = client
 
     async def count(self, filters: TaskFilter | None = None) -> int:
@@ -321,7 +321,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
     client: InfrahubClientSync
 
-    def __init__(self, client: InfrahubClientSync):
+    def __init__(self, client: InfrahubClientSync) -> None:
         self.client = client
 
     def count(self, filters: TaskFilter | None = None) -> int:
