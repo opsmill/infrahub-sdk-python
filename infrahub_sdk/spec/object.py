@@ -459,7 +459,6 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
-                            parameters=parameters,
                         )
                         clean_data[key] = nodes[0]
 
@@ -471,7 +470,9 @@ class InfrahubObjectFileData(BaseModel):
                             data=value,
                             branch=branch,
                             default_schema_kind=default_schema_kind,
-                            parameters=parameters,
+                            parameters=InfrahubObjectParameters(**value.get("parameters"))
+                            if "parameters" in value
+                            else None,
                         )
                         clean_data[key] = nodes
 
@@ -510,7 +511,9 @@ class InfrahubObjectFileData(BaseModel):
                 context=context,
                 branch=branch,
                 default_schema_kind=default_schema_kind,
-                parameters=InfrahubObjectParameters(**data[rel].get("parameters")) if "parameters" in data[rel] else None,
+                parameters=InfrahubObjectParameters(**data[rel].get("parameters"))
+                if "parameters" in data[rel]
+                else None,
             )
 
         return node
