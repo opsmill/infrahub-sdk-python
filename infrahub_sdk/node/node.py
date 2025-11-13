@@ -235,7 +235,6 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                data[item_name] = None
                 continue
 
             if rel is None or not rel.initialized:

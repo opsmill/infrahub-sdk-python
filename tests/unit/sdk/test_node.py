@@ -1365,7 +1365,6 @@ async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_
             "name": {"value": "JFK1"},
             "description": {"value": "JFK Airport"},
             "type": {"value": "SITE"},
-            "primary_tag": None,
         }
     }
 
@@ -1393,7 +1392,6 @@ async def test_create_input_data_with_dropdown(client, location_schema_with_drop
             "description": {"value": "JFK Airport"},
             "type": {"value": "SITE"},
             "status": {"value": None},
-            "primary_tag": None,
         }
     }
 
@@ -1641,7 +1639,7 @@ async def test_create_input_data_with_IPHost_attribute(client, ipaddress_schema,
         ip_address = InfrahubNodeSync(client=client, schema=ipaddress_schema, data=data)
 
     assert ip_address._generate_input_data()["data"] == {
-        "data": {"address": {"value": "1.1.1.1/24", "is_protected": True}, "interface": None}
+        "data": {"address": {"value": "1.1.1.1/24", "is_protected": True}}
     }
 
 
@@ -1655,7 +1653,7 @@ async def test_create_input_data_with_IPNetwork_attribute(client, ipnetwork_sche
         ip_network = InfrahubNodeSync(client=client, schema=ipnetwork_schema, data=data)
 
     assert ip_network._generate_input_data()["data"] == {
-        "data": {"network": {"value": "1.1.1.0/24", "is_protected": True}, "site": None}
+        "data": {"network": {"value": "1.1.1.0/24", "is_protected": True}}
     }
 
 
@@ -1853,7 +1851,7 @@ async def test_update_input_data_empty_relationship(
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {"value": "DFW"},
-            "primary_tag": None,
+            # "primary_tag": None,
             "tags": [],
             "type": {"value": "SITE"},
         },
@@ -1862,7 +1860,7 @@ async def test_update_input_data_empty_relationship(
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
             "name": {"is_protected": True, "is_visible": True, "value": "DFW"},
-            "primary_tag": None,
+            # "primary_tag": None,
             "tags": [],
             "type": {"is_protected": True, "is_visible": True, "value": "SITE"},
         },
