@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.15.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.1) - 2025-11-13
+
+### Fixed
+
+- Fixed nested object template range expansion. ([#624](https://github.com/opsmill/infrahub-sdk-python/issues/624))
+
 ## [1.15.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.0) - 2025-11-10
 
 ### Added
