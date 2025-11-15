@@ -192,7 +192,7 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(  # noqa: C901
+    def _generate_input_data(  # noqa: C901, PLR0915
         self,
         exclude_unmodified: bool = False,
         exclude_hfid: bool = False,
@@ -235,7 +235,10 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                data[item_name] = None
+                # Only include None for existing nodes to allow clearing relationships
+                # For new nodes, omit the field to allow object template defaults to be applied
+                if self._existing:
+                    data[item_name] = None
                 continue
 
             if rel is None or not rel.initialized:
