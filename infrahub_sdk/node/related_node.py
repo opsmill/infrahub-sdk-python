@@ -64,7 +64,7 @@ class RelatedNodeBase:
                 self._display_label = node_data.get("display_label", None)
                 self._typename = node_data.get("__typename", None)
 
-            self.updated_at: str | None = data.get("updated_at", data.get("_relation__updated_at"))
+            self.updated_at: str | None = data.get("updated_at", properties_data.get("updated_at", None))
 
             # FIXME, we won't need that once we are only supporting paginated results
             if self._typename and self._typename.startswith("Related"):
@@ -163,7 +163,7 @@ class RelatedNodeBase:
                 and typename. The method also includes additional properties and any peer_data provided.
         """
         data: dict[str, Any] = {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}}
-        properties: dict[str, Any] = {}
+        properties: dict[str, Any] = {"updated_at": None}
 
         if property:
             for prop_name in PROPERTIES_FLAG:

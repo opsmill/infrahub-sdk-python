@@ -106,7 +106,7 @@ class Attribute:
         return {"data": data, "variables": variables}
 
     def _generate_query_data(self, property: bool = False) -> dict | None:
-        data: dict[str, Any] = {"value": None}
+        data: dict[str, Any] = {"value": None, "updated_at": None}
 
         if property:
             data.update({"is_default": None, "is_from_profile": None})
