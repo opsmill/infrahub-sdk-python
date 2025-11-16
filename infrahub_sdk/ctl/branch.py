@@ -1,14 +1,19 @@
 import logging
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from ..async_typer import AsyncTyper
-from ..utils import calculate_time_diff
+from ..utils import calculate_time_diff, decode_json
 from .client import initialize_client
 from .parameters import CONFIG_PARAM
 from .utils import catch_exception
+
+if TYPE_CHECKING:
+    from ..client import InfrahubClient
 
 app = AsyncTyper()
 console = Console()
@@ -16,6 +21,42 @@ console = Console()
 
 DEFAULT_CONFIG_FILE = "infrahubctl.toml"
 ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
+
+
+def format_timestamp(timestamp: str) -> str:
+    """Format ISO timestamp to 'YYYY-MM-DD HH:MM:SS'."""
+    try:
+        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except (ValueError, AttributeError):
+        return timestamp
+
+
+async def check_git_files_changed(client: "InfrahubClient", branch: str) -> bool:
+    """Check if there are any Git file changes in a branch.
+
+    Args:
+        client: Infrahub client instance
+        branch: Branch name to check
+
+    Returns:
+        True if files have changed, False otherwise
+
+    Raises:
+        Any exceptions from the API call are propagated to the caller
+    """
+    url = f"{client.address}/api/diff/files?branch={branch}"
+    resp = await client._get(url=url, timeout=client.default_timeout)
+    resp.raise_for_status()
+    data = decode_json(response=resp)
+
+    # Check if any repository has files
+    if branch in data:
+        for repo_data in data[branch].values():
+            if isinstance(repo_data, dict) and "files" in repo_data and len(repo_data["files"]) > 0:
+                return True
+
+    return False
 
 
 @app.callback()
@@ -143,3 +184,111 @@ async def validate(branch_name: str, _: str = CONFIG_PARAM) -> None:
     client = initialize_client()
     await client.branch.validate(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' is valid.")
+
+
+@app.command()
+@catch_exception(console=console)
+async def report(  # noqa: PLR0915
+    branch_name: str = typer.Argument(..., help="Branch name to generate report for"),
+    update_diff: bool = typer.Option(False, "--update-diff", help="Update diff before generating report"),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Generate branch cleanup status report."""
+
+    client = initialize_client()
+
+    # Fetch branch metadata first (needed for diff creation)
+    branch = await client.branch.get(branch_name=branch_name)
+
+    # Update diff if requested
+    if update_diff:
+        console.print("Updating diff...")
+        # Create diff from branch creation to now
+        from_time = datetime.fromisoformat(branch.branched_from.replace("Z", "+00:00"))
+        to_time = datetime.now(timezone.utc)
+        await client.create_diff(
+            branch=branch_name,
+            name=f"report-{branch_name}",
+            from_time=from_time,
+            to_time=to_time,
+        )
+        console.print("Diff updated\n")
+
+    # Fetch diff tree (with metadata)
+    diff_tree = await client.get_diff_tree(branch=branch_name)
+
+    # Check if Git files have changed
+    git_files_changed = None
+    git_files_changed = await check_git_files_changed(client, branch=branch_name)
+
+    # Print branch title
+    console.print()
+    console.print(f"[bold]Branch: {branch_name}[/bold]")
+
+    # Create branch metadata table
+    branch_table = Table(show_header=False, box=None)
+    branch_table.add_column(justify="left")
+    branch_table.add_column(justify="right")
+
+    # Add branch metadata rows
+    branch_table.add_row("Created at", format_timestamp(branch.branched_from))
+
+    # Add status
+    status_value = branch.status.value if hasattr(branch.status, "value") else str(branch.status)
+    branch_table.add_row("Status", status_value)
+
+    branch_table.add_row("Synced with Git", "Yes" if branch.sync_with_git else "No")
+
+    # Add Git files changed
+    if git_files_changed is not None:
+        branch_table.add_row("Git files changed", "Yes" if git_files_changed else "No")
+    else:
+        branch_table.add_row("Git files changed", "N/A")
+
+    branch_table.add_row("Has schema changes", "Yes" if branch.has_schema_changes else "No")
+
+    # Add diff information
+    if diff_tree:
+        branch_table.add_row("Diff last updated", format_timestamp(diff_tree["to_time"]))
+        branch_table.add_row("Amount of additions", str(diff_tree["num_added"]))
+        branch_table.add_row("Amount of deletions", str(diff_tree["num_removed"]))
+        branch_table.add_row("Amount of updates", str(diff_tree["num_updated"]))
+        branch_table.add_row("Amount of conflicts", str(diff_tree["num_conflicts"]))
+    else:
+        branch_table.add_row("Diff last updated", "No diff available")
+        branch_table.add_row("Amount of additions", "-")
+        branch_table.add_row("Amount of deletions", "-")
+        branch_table.add_row("Amount of updates", "-")
+        branch_table.add_row("Amount of conflicts", "-")
+
+    console.print(branch_table)
+    console.print()
+
+    # Fetch proposed changes for the branch
+    proposed_changes = await client.filters(
+        kind="CoreProposedChange", source_branch__value=branch_name, include=["created_by"], prefetch_relationships=True
+    )
+
+    # Print proposed changes section
+    if proposed_changes:
+        for pc in proposed_changes:
+            # Create proposal table
+            proposal_table = Table(show_header=False, box=None)
+            proposal_table.add_column(justify="left")
+            proposal_table.add_column(justify="right")
+
+            # Extract data from node
+            proposal_table.add_row("Name", pc.name.value)  # type: ignore[union-attr]
+            proposal_table.add_row("State", str(pc.state.value))  # type: ignore[union-attr]
+            proposal_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")  # type: ignore[union-attr]
+            proposal_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[union-attr]
+            proposal_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))  # type: ignore[union-attr]
+            proposal_table.add_row("Approvals", str(len(pc.approved_by.peers)))  # type: ignore[union-attr]
+            proposal_table.add_row("Rejections", str(len(pc.rejected_by.peers)))  # type: ignore[union-attr]
+
+            console.print(f"Proposed change: {pc.name.value}")  # type: ignore[union-attr]
+            console.print(proposal_table)
+            console.print()
+    else:
+        console.print("No proposed changes for this branch")
+        console.print()
