@@ -67,18 +67,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
     return str(value)
 
 
-GRAPHQL_VARIABLE_TYPES = type[
-    str
-    | type[str | None]
-    | int
-    | type[int | None]
-    | float
-    | type[float | None]
-    | bool
-    | type[bool | None]
-    | datetime
-    | type[datetime | None]
-]
+GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | None]
 
 
 def render_variables_to_string(data: dict[str, GRAPHQL_VARIABLE_TYPES]) -> str:
