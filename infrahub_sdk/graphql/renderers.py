@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 
 from pydantic import BaseModel
 
@@ -67,7 +67,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
     return str(value)
 
 
-GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | None]
+GRAPHQL_VARIABLE_TYPES = type[Union[str, int, float, bool, datetime, None]]
 
 
 def render_variables_to_string(data: dict[str, GRAPHQL_VARIABLE_TYPES]) -> str:
