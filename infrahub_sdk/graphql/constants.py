@@ -1,14 +1,15 @@
 from datetime import datetime
+from typing import Union
 
 VARIABLE_TYPE_MAPPING = (
     (str, "String!"),
-    (str | None, "String"),
+    (Union[str, None], "String"),
     (int, "Int!"),
-    (int | None, "Int"),
+    (Union[int, None], "Int"),
     (float, "Float!"),
-    (float | None, "Float"),
+    (Union[float, None], "Float"),
     (bool, "Boolean!"),
-    (bool | None, "Boolean"),
+    (Union[bool, None], "Boolean"),
     (datetime, "DateTime!"),
-    (datetime | None, "DateTime"),
+    (Union[datetime, None], "DateTime"),
 )

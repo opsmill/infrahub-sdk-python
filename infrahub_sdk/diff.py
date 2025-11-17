@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import (
     Any,
+    Union,
 )
 
 from typing_extensions import NotRequired, TypedDict
@@ -199,8 +200,8 @@ def get_diff_tree_query() -> Query:
         },
         variables={
             "branch_name": str,
-            "name": str | None,
-            "from_time": datetime | None,
-            "to_time": datetime | None,
+            "name": Union[str, None],
+            "from_time": Union[datetime, None],
+            "to_time": Union[datetime, None],
         },
     )
