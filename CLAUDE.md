@@ -164,7 +164,7 @@ cd docs && npm start
 
 ### Code Quality
 
-- **Ruff**: Comprehensive linting and formatting (0.11.0)
+- **Ruff**: Comprehensive linting and formatting (0.14.5)
 - **mypy**: Type checking with strict configuration
 - **yamllint**: YAML file validation
 - **markdownlint**: Documentation consistency
