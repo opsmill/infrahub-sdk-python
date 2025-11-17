@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import traceback
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, Optional, TypeVar
 
 import typer
 from click.exceptions import Exit

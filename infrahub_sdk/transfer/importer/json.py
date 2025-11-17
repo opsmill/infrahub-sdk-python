@@ -62,7 +62,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
 
         with self.wrapped_task_output("Analyzing import"):
             import_nodes_by_kind = defaultdict(list)
-            for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind")):
+            for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind"), strict=False):
                 node = await InfrahubNode.from_graphql(self.client, branch, ujson.loads(str(graphql_data)))
                 import_nodes_by_kind[str(kind)].append(node)
                 self.all_nodes[node.id] = node

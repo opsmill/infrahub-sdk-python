@@ -7,12 +7,11 @@ import warnings
 from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
-from typing import TYPE_CHECKING, Any, TypedDict, Union
+from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
 from urllib.parse import urlencode
 
 import httpx
 from pydantic import BaseModel, Field
-from typing_extensions import TypeAlias
 
 from ..exceptions import (
     BranchNotFoundError,
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
     from ..node import InfrahubNode, InfrahubNodeSync
 
-    InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
+    InfrahubNodeTypes: TypeAlias = InfrahubNode | InfrahubNodeSync
 
 
 __all__ = [
@@ -84,11 +83,11 @@ class EnumMutation(str, Enum):
     remove = "SchemaEnumRemove"
 
 
-MainSchemaTypes: TypeAlias = Union[NodeSchema, GenericSchema]
-MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI]
-MainSchemaTypesAll: TypeAlias = Union[
-    NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI
-]
+MainSchemaTypes: TypeAlias = NodeSchema | GenericSchema
+MainSchemaTypesAPI: TypeAlias = NodeSchemaAPI | GenericSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI
+MainSchemaTypesAll: TypeAlias = (
+    NodeSchema | GenericSchema | NodeSchemaAPI | GenericSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI
+)
 
 
 class SchemaWarningType(Enum):

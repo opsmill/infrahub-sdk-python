@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import ipaddress
-from typing import TYPE_CHECKING, Any, Callable, get_args
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, get_args
 
 from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
