@@ -7,11 +7,10 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.14"
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -26,7 +25,6 @@ dependencies = [
     "dulwich>=0.21.4",
     "whenever>=0.7.2,<0.8.0",
     "netutils>=1.0.0",
-    "eval-type-backport>=0.2.2; python_version>='3.9' and python_version<'3.10'",
     "tomli>=1.1.0; python_version<'3.11'",
 ]
 
@@ -250,10 +248,6 @@ max-complexity = 17
     ##################################################################################################
     "ANN202", # Missing return type annotation for private function
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
-]
-
-"infrahub_sdk/ctl/**/*.py" = [
-    "UP007", # Use `X | Y` for type annotations | Required for Typer until we can drop the support for Python 3.9
 ]
 
 "infrahub_sdk/client.py" = [

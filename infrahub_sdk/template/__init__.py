@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import linecache
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, NoReturn
+from typing import Any, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes

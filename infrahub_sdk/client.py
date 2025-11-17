@@ -5,14 +5,13 @@ import copy
 import logging
 import time
 import warnings
-from collections.abc import Coroutine, Mapping, MutableMapping
+from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from datetime import datetime
 from functools import wraps
 from time import sleep
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
     TypedDict,
     TypeVar,

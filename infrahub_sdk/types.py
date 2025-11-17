@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -65,7 +65,7 @@ class InfrahubLogger(Protocol):
         """Send an exception event."""
 
 
-InfrahubLoggers = Union[InfrahubLogger, Logger]
+InfrahubLoggers = InfrahubLogger | Logger
 
 
 class Order(BaseModel):

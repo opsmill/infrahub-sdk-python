@@ -6,8 +6,9 @@ import importlib
 import logging
 import platform
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import typer
 import ujson
