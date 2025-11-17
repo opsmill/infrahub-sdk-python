@@ -64,7 +64,7 @@ class RelatedNodeBase:
                 self._display_label = node_data.get("display_label", None)
                 self._typename = node_data.get("__typename", None)
 
-            self.updated_at: str | None = data.get("updated_at", data.get("_relation__updated_at", None))
+            self.updated_at: str | None = data.get("updated_at", data.get("_relation__updated_at"))
 
             # FIXME, we won't need that once we are only supporting paginated results
             if self._typename and self._typename.startswith("Related"):

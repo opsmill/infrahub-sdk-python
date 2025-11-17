@@ -81,7 +81,7 @@ tests = [
 lint = [
     "yamllint",
     "mypy==1.11.2",
-    "ruff==0.11.0",
+    "ruff==0.14.5",
     "astroid>=3.1,<4.0",
 ]
 types = [
@@ -246,8 +246,9 @@ max-complexity = 17
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
-    "ANN202", # Missing return type annotation for private function
-    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "ANN202",   # Missing return type annotation for private function
+    "ANN401",   # Dynamically typed expressions (typing.Any) are disallowed
+    "ASYNC240", # Async functions should not use pathlib.Path methods, use trio.Path or anyio.path
 ]
 
 "infrahub_sdk/client.py" = [

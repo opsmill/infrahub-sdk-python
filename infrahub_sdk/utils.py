@@ -318,7 +318,7 @@ def write_to_file(path: Path, value: Any) -> bool:
         raise FileExistsError(f"{path} is a directory")
 
     to_write = str(value)
-    written = path.write_text(to_write)
+    written = path.write_text(to_write, encoding="utf-8")
 
     return written is not None
 

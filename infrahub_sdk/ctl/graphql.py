@@ -108,7 +108,7 @@ async def export_schema(
     schema_text = await client.schema.get_graphql_schema()
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(schema_text)
+    destination.write_text(schema_text, encoding="utf-8")
     console.print(f"[green]Schema exported to {destination}")
 
 
