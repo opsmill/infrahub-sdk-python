@@ -293,11 +293,7 @@ async def test_get_diff_tree(clients: BothClients, mock_diff_tree_with_metadata,
 @pytest.fixture
 async def mock_diff_tree_none(httpx_mock: HTTPXMock, client: InfrahubClient) -> HTTPXMock:
     """Mock diff tree response when no diff exists."""
-    response = {
-        "data": {
-            "DiffTree": None
-        }
-    }
+    response = {"data": {"DiffTree": None}}
 
     httpx_mock.add_response(
         method="POST",
@@ -353,9 +349,7 @@ async def mock_diff_tree_with_params(httpx_mock: HTTPXMock, client: InfrahubClie
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_diff_tree_with_parameters(
-    clients: BothClients, mock_diff_tree_with_params, client_type
-) -> None:
+async def test_get_diff_tree_with_parameters(clients: BothClients, mock_diff_tree_with_params, client_type) -> None:
     """Test get_diff_tree with name and time range parameters."""
     from_time = datetime(2025, 11, 14, 12, 0, 0, tzinfo=timezone.utc)
     to_time = datetime(2025, 11, 14, 18, 0, 0, tzinfo=timezone.utc)
