@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -22,7 +22,7 @@ async def run(
     debug: bool,
     list_available: bool,
     branch: str | None = None,
-    variables: Optional[list[str]] = None,
+    variables: list[str] | None = None,
 ) -> None:
     init_logging(debug=debug)
     repository_config = get_repository_config(find_repository_config_file())

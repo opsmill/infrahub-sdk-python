@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from asyncio import run as aiorun
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -27,7 +26,7 @@ def load(
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
     branch: str = typer.Option(None, help="Branch from which to export"),
-    concurrent: Optional[int] = typer.Option(
+    concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
         envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",

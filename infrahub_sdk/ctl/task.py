@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -75,8 +73,8 @@ async def list_tasks(
     state: list[str] = typer.Option(
         None, "--state", "-s", help="Filter by task state. Can be provided multiple times."
     ),
-    limit: Optional[int] = typer.Option(None, help="Maximum number of tasks to retrieve."),
-    offset: Optional[int] = typer.Option(None, help="Offset for pagination."),
+    limit: int | None = typer.Option(None, help="Maximum number of tasks to retrieve."),
+    offset: int | None = typer.Option(None, help="Offset for pagination."),
     include_related_nodes: bool = typer.Option(False, help="Include related nodes in the output."),
     include_logs: bool = typer.Option(False, help="Include task logs in the output."),
     json_output: bool = typer.Option(False, "--json", help="Output the result as JSON."),

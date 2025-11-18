@@ -6,7 +6,7 @@ import traceback
 from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import typer
 from click.exceptions import Exit
@@ -149,7 +149,7 @@ def print_graphql_errors(console: Console, errors: list) -> None:
             console.print(f"[red]{escape(str(error))}")
 
 
-def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
+def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:
     if not variables:
         return {}
 
