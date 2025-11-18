@@ -205,7 +205,6 @@ ignore = [
     "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
     "PTH109",  # `os.getcwd()` should be replaced by `Path.cwd()`
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
-    "RUF015",  # Prefer `next(iter(input_data["variables"].keys()))` over single element slice
     "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
     "S108",    # Probable insecure usage of temporary file or directory
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
