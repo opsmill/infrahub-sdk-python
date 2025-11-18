@@ -173,7 +173,7 @@ class Config(ConfigBase):
         # When using structlog the logger doesn't expose the expected methods by looking at the
         # object to pydantic rejects them. This is a workaround to allow structlog to be used
         # as a logger
-        return self.log  # type: ignore
+        return self.log  # type: ignore[return-value]
 
     @model_validator(mode="before")
     @classmethod

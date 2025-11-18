@@ -174,7 +174,7 @@ async def location_schema() -> NodeSchemaAPI:
             },
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -216,7 +216,7 @@ async def location_schema_with_dropdown() -> NodeSchemaAPI:
             },
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -281,7 +281,7 @@ async def schema_with_hfid() -> dict[str, NodeSchemaAPI]:
             ],
         },
     }
-    return {k: NodeSchema(**v).convert_api() for k, v in data.items()}  # type: ignore
+    return {k: NodeSchema(**v).convert_api() for k, v in data.items()}
 
 
 @pytest.fixture
@@ -295,7 +295,7 @@ async def std_group_schema() -> NodeSchemaAPI:
             {"name": "description", "kind": "String", "optional": True},
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -679,7 +679,7 @@ async def tag_schema() -> NodeSchemaAPI:
             {"name": "description", "kind": "Text", "optional": True},
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -917,7 +917,7 @@ async def ipaddress_schema() -> NodeSchemaAPI:
             }
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -941,7 +941,7 @@ async def ipnetwork_schema() -> NodeSchemaAPI:
             }
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -954,7 +954,7 @@ async def ipam_ipprefix_schema() -> NodeSchemaAPI:
         "order_by": ["prefix_value"],
         "inherit_from": ["BuiltinIPAddress"],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -986,7 +986,7 @@ async def simple_device_schema() -> NodeSchemaAPI:
             },
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -1106,7 +1106,7 @@ async def ipaddress_pool_schema() -> NodeSchemaAPI:
             },
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -1165,7 +1165,7 @@ async def ipprefix_pool_schema() -> NodeSchemaAPI:
             },
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -1274,7 +1274,7 @@ async def device_schema() -> NodeSchemaAPI:
             {"name": "artifacts", "peer": "CoreArtifact", "optional": True, "cardinality": "many", "kind": "Generic"},
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
@@ -1448,7 +1448,7 @@ async def artifact_definition_schema() -> NodeSchemaAPI:
             {"name": "artifact_name", "kind": "Text"},
         ],
     }
-    return NodeSchema(**data).convert_api()  # type: ignore
+    return NodeSchema(**data).convert_api()
 
 
 @pytest.fixture
