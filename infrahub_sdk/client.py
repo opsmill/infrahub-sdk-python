@@ -299,7 +299,7 @@ class BaseClient:
         if prefix_length:
             input_data["prefix_length"] = prefix_length
         if member_type:
-            if member_type not in ("prefix", "address"):
+            if member_type not in {"prefix", "address"}:
                 raise ValueError("member_type possible values are 'prefix' or 'address'")
             input_data["member_type"] = member_type
         if prefix_type:
@@ -956,7 +956,7 @@ class InfrahubClient(BaseClient):
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error in (None, True):
+                if raise_for_error in {None, True}:
                     resp.raise_for_status()
 
                 retry = False
@@ -970,7 +970,7 @@ class InfrahubClient(BaseClient):
                     self.log.error(f"Unable to connect to {self.address} .. ")
                     raise
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in [401, 403]:
+                if exc.response.status_code in {401, 403}:
                     response = decode_json(response=exc.response)
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
@@ -1208,7 +1208,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in (None, True):
+        if raise_for_error in {None, True}:
             resp.raise_for_status()
 
         return decode_json(response=resp)
@@ -1817,7 +1817,7 @@ class InfrahubClientSync(BaseClient):
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error in (None, True):
+                if raise_for_error in {None, True}:
                     resp.raise_for_status()
 
                 retry = False
@@ -1831,7 +1831,7 @@ class InfrahubClientSync(BaseClient):
                     self.log.error(f"Unable to connect to {self.address} .. ")
                     raise
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in [401, 403]:
+                if exc.response.status_code in {401, 403}:
                     response = decode_json(response=exc.response)
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
@@ -2446,7 +2446,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in (None, True):
+        if raise_for_error in {None, True}:
             resp.raise_for_status()
 
         return decode_json(response=resp)

@@ -74,7 +74,7 @@ class RelationshipInfo(BaseModel):
 
     @property
     def is_reference(self) -> bool:
-        return self.format in [RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF]
+        return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
 
     def get_context(self, value: Any) -> dict:
         """Return a dict to insert to the context if the relationship is mandatory"""

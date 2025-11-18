@@ -56,7 +56,7 @@ class CodeGenerator:
             if not e.startswith("__")
             and not e.endswith("__")
             and e
-            not in ("TYPE_CHECKING", "CoreNode", "Optional", "Protocol", "Union", "annotations", "runtime_checkable")
+            not in {"TYPE_CHECKING", "CoreNode", "Optional", "Protocol", "Union", "annotations", "runtime_checkable"}
         ]
 
         self.sorted_generics = self._sort_and_filter_models(self.generics, filters=["CoreNode"] + self.base_protocols)
