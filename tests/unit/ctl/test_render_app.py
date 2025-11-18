@@ -79,7 +79,9 @@ def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HT
         (None, None, True, "git-branch"),
     ],
 )
-def test_render_branch_selection(monkeypatch, httpx_mock: HTTPXMock, cli_branch, env_branch, from_git, expected_branch):
+def test_render_branch_selection(
+    monkeypatch, httpx_mock: HTTPXMock, cli_branch, env_branch, from_git, expected_branch
+) -> None:
     """Test that the render command uses the correct branch source."""
 
     if from_git:

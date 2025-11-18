@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Callable, Mapping
 from dataclasses import dataclass
 from inspect import Parameter
 from io import StringIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import ujson
@@ -93,7 +93,7 @@ def return_annotation_map() -> dict[str, str]:
 
 
 @pytest.fixture
-def replace_async_return_annotation(return_annotation_map: dict[str, str]):
+def replace_async_return_annotation(return_annotation_map: dict[str, str]) -> Callable[[str], str]:
     """Allows for comparison between sync and async return annotations."""
 
     def replace_annotation(annotation: str) -> str:
@@ -103,11 +103,13 @@ def replace_async_return_annotation(return_annotation_map: dict[str, str]):
 
 
 @pytest.fixture
-def replace_async_parameter_annotations(replace_async_return_annotation):
+def replace_async_parameter_annotations(
+    replace_async_return_annotation,
+) -> Callable[[Mapping[str, Parameter]], list[tuple[str, str]]]:
     """Allows for comparison between sync and async parameter annotations."""
 
-    def replace_annotations(parameters: Mapping[str, Parameter]) -> tuple[str, str]:
-        parameter_tuples = []
+    def replace_annotations(parameters: Mapping[str, Parameter]) -> list[tuple[str, str]]:
+        parameter_tuples: list[tuple[str, str]] = []
         for name, parameter in parameters.items():
             parameter_tuples.append((name, replace_async_return_annotation(parameter.annotation)))
 
@@ -117,7 +119,7 @@ def replace_async_parameter_annotations(replace_async_return_annotation):
 
 
 @pytest.fixture
-def replace_sync_return_annotation(return_annotation_map: dict[str, str]) -> str:
+def replace_sync_return_annotation(return_annotation_map: dict[str, str]) -> Callable[[str], str]:
     """Allows for comparison between sync and async return annotations."""
 
     def replace_annotation(annotation: str) -> str:
@@ -128,11 +130,13 @@ def replace_sync_return_annotation(return_annotation_map: dict[str, str]) -> str
 
 
 @pytest.fixture
-def replace_sync_parameter_annotations(replace_sync_return_annotation):
+def replace_sync_parameter_annotations(
+    replace_sync_return_annotation,
+) -> Callable[[Mapping[str, Parameter]], list[tuple[str, str]]]:
     """Allows for comparison between sync and async parameter annotations."""
 
-    def replace_annotations(parameters: Mapping[str, Parameter]) -> tuple[str, str]:
-        parameter_tuples = []
+    def replace_annotations(parameters: Mapping[str, Parameter]) -> list[tuple[str, str]]:
+        parameter_tuples: list[tuple[str, str]] = []
         for name, parameter in parameters.items():
             parameter_tuples.append((name, replace_sync_return_annotation(parameter.annotation)))
 
@@ -299,8 +303,8 @@ async def std_group_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def location_data01_no_pagination():
-    data = {
+async def location_data01_no_pagination() -> dict[str, Any]:
+    return {
         "__typename": "BuiltinLocation",
         "id": "llllllll-llll-llll-llll-llllllllllll",
         "display_label": "dfw1",
@@ -347,12 +351,10 @@ async def location_data01_no_pagination():
         ],
     }
 
-    return data
-
 
 @pytest.fixture
-async def location_data02_no_pagination():
-    data = {
+async def location_data02_no_pagination() -> dict[str, Any]:
+    return {
         "__typename": "BuiltinLocation",
         "id": "llllllll-llll-llll-llll-llllllllllll",
         "display_label": "dfw1",
@@ -415,12 +417,10 @@ async def location_data02_no_pagination():
         ],
     }
 
-    return data
-
 
 @pytest.fixture
-async def location_data01():
-    data = {
+async def location_data01() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinLocation",
             "id": "llllllll-llll-llll-llll-llllllllllll",
@@ -456,12 +456,10 @@ async def location_data01():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-async def location_data01_property():
-    data = {
+async def location_data01_property() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinLocation",
             "id": "llllllll-llll-llll-llll-llllllllllll",
@@ -521,12 +519,10 @@ async def location_data01_property():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-async def location_data02():
-    data = {
+async def location_data02() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinLocation",
             "id": "llllllll-llll-llll-llll-llllllllllll",
@@ -562,12 +558,10 @@ async def location_data02():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-async def location_data02_property():
-    data = {
+async def location_data02_property() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinLocation",
             "id": "llllllll-llll-llll-llll-llllllllllll",
@@ -643,11 +637,9 @@ async def location_data02_property():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-async def rfile_userdata01():
+async def rfile_userdata01() -> dict[str, Any]:
     return {
         "name": {"value": "rfile01"},
         "template_path": {"value": "mytemplate.j2"},
@@ -658,7 +650,7 @@ async def rfile_userdata01():
 
 
 @pytest.fixture
-async def rfile_userdata01_property():
+async def rfile_userdata01_property() -> dict[str, Any]:
     return {
         "name": {"value": "rfile01", "is_protected": True, "source": "ffffffff"},
         "template_path": {"value": "mytemplate.j2"},
@@ -683,8 +675,8 @@ async def tag_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def tag_blue_data_no_pagination():
-    data = {
+async def tag_blue_data_no_pagination() -> dict[str, Any]:
+    return {
         "__typename": "BuiltinTag",
         "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         "display_label": "blue",
@@ -707,12 +699,11 @@ async def tag_blue_data_no_pagination():
             "value": None,
         },
     }
-    return data
 
 
 @pytest.fixture
-async def tag_red_data_no_pagination():
-    data = {
+async def tag_red_data_no_pagination() -> dict[str, Any]:
+    return {
         "__typename": "BuiltinTag",
         "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
         "display_label": "red",
@@ -735,12 +726,11 @@ async def tag_red_data_no_pagination():
             "value": None,
         },
     }
-    return data
 
 
 @pytest.fixture
-async def tag_green_data_no_pagination():
-    data = {
+async def tag_green_data_no_pagination() -> dict[str, Any]:
+    return {
         "__typename": "BuiltinTag",
         "id": "gggggggg-gggg-gggg-gggg-gggggggggggg",
         "display_label": "green",
@@ -763,12 +753,11 @@ async def tag_green_data_no_pagination():
             "value": None,
         },
     }
-    return data
 
 
 @pytest.fixture
-async def tag_blue_data():
-    data = {
+async def tag_blue_data() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinTag",
             "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -793,12 +782,11 @@ async def tag_blue_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
-async def tag_red_data():
-    data = {
+async def tag_red_data() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinTag",
             "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
@@ -823,12 +811,11 @@ async def tag_red_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
-async def tag_green_data():
-    data = {
+async def tag_green_data() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "BuiltinTag",
             "id": "gggggggg-gggg-gggg-gggg-gggggggggggg",
@@ -853,7 +840,6 @@ async def tag_green_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
@@ -990,8 +976,8 @@ async def simple_device_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def ipam_ipprefix_data():
-    data = {
+async def ipam_ipprefix_data() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "IpamIPPrefix",
             "id": "llllllll-llll-llll-llll-llllllllllll",
@@ -1055,8 +1041,6 @@ async def ipam_ipprefix_data():
             },
         }
     }
-
-    return data
 
 
 @pytest.fixture
@@ -1188,8 +1172,8 @@ async def address_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def address_data():
-    data = {
+async def address_data() -> dict[str, Any]:
+    return {
         "node": {
             "__typename": "Address",
             "id": "d5994b18-b25e-4261-9e63-17c2844a0b45",
@@ -1224,7 +1208,6 @@ async def address_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
@@ -1278,8 +1261,8 @@ async def device_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def device_data():
-    data = {
+async def device_data() -> dict[str, Any]:
+    return {
         "node": {
             "id": "1799f647-203c-cd41-3409-c51d55097213",
             "display_label": "atl1-edge1",
@@ -1431,7 +1414,6 @@ async def device_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
@@ -1452,8 +1434,8 @@ async def artifact_definition_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
-async def artifact_definition_data():
-    data = {
+async def artifact_definition_data() -> dict[str, Any]:
+    return {
         "node": {
             "id": "1799fd6e-cc5d-219f-3371-c514ed70bf23",
             "display_label": "Startup Config for Edge devices",
@@ -1482,7 +1464,6 @@ async def artifact_definition_data():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
