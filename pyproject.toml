@@ -216,7 +216,6 @@ ignore = [
     "SIM110",  # Use `return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))` instead of `for` loop
     "SIM114",  # Combine `if` branches using logical `or` operator
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
-    "SIM118",  # Use `key in dict` instead of `key in dict.keys)
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
     "UP045",   # Use `X | None` for type annotations

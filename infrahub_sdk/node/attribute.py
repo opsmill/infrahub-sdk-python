@@ -26,7 +26,7 @@ class Attribute:
         self.name = name
         self._schema = schema
 
-        if not isinstance(data, dict) or "value" not in data.keys():
+        if not isinstance(data, dict) or "value" not in data:
             data = {"value": data}
 
         self._properties_flag = PROPERTIES_FLAG

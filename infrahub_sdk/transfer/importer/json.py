@@ -109,7 +109,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
                         relationship_schema
                     )
 
-            for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind].keys():
+            for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind]:
                 relationship_value = getattr(node, relationship_name)
                 if isinstance(relationship_value, RelationshipManager):
                     if relationship_value.peer_ids:

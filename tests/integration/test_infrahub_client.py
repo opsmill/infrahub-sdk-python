@@ -56,8 +56,8 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         pre_delete = await client.branch.all()
         await client.branch.delete(async_branch)
         post_delete = await client.branch.all()
-        assert async_branch in pre_delete.keys()
-        assert async_branch not in post_delete.keys()
+        assert async_branch in pre_delete
+        assert async_branch not in post_delete
 
     async def test_get_all(self, client: InfrahubClient, base_dataset) -> None:
         nodes = await client.all(kind=TESTING_CAT)

@@ -122,7 +122,7 @@ class InfrahubSchemaBase:
         SchemaRoot(**data)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
-        for key in data.keys():
+        for key in data:
             if key not in schema.relationship_names + schema.attribute_names:
                 identifier = f"{schema.kind}"
                 raise ValidationError(

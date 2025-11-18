@@ -180,5 +180,5 @@ async def generate_return_types(
 
             generate_result_types(directory=directory, package=package_generator, fragment=module_fragment)
 
-            for file_name in package_generator._result_types_files.keys():
+            for file_name in package_generator._result_types_files:
                 console.print(f"[green]Generated {file_name} in {directory}")
