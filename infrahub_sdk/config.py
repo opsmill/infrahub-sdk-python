@@ -194,7 +194,7 @@ class Config(ConfigBase):
             "log": self.log,
         }
         covered_keys = list(config.keys())
-        for field in Config.model_fields.keys():
+        for field in Config.model_fields:
             if field not in covered_keys:
                 config[field] = deepcopy(getattr(self, field))
 

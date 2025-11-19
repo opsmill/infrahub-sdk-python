@@ -65,7 +65,7 @@ class InfrahubOperation:
         await self._init_client.schema.all(branch=self.branch_name)
 
         for kind in data:
-            if kind in self._init_client.schema.cache[self.branch_name].nodes.keys():
+            if kind in self._init_client.schema.cache[self.branch_name].nodes:
                 for result in data[kind].get("edges", []):
                     node = await self.infrahub_node.from_graphql(
                         client=self._init_client, branch=self.branch_name, data=result
