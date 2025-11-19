@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -16,8 +15,6 @@ runner = CliRunner()
 
 
 FIXTURE_BASE_DIR = Path(Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "repos")
-
-requires_python_310 = pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10 or higher")
 
 
 @dataclass
@@ -55,7 +52,6 @@ RENDER_APP_FAIL_TEST_CASES = [
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in RENDER_APP_FAIL_TEST_CASES],
 )
-@requires_python_310
 def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HTTPXMock) -> None:
     """Ensure that the correct errors are caught"""
     httpx_mock.add_response(
@@ -83,7 +79,6 @@ def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HT
         (None, None, True, "git-branch"),
     ],
 )
-@requires_python_310
 def test_render_branch_selection(monkeypatch, httpx_mock: HTTPXMock, cli_branch, env_branch, from_git, expected_branch):
     """Test that the render command uses the correct branch source."""
 
