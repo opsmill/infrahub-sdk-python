@@ -105,7 +105,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_get_generic_fragment(self, client: InfrahubClient, base_dataset) -> None:
         nodes = await client.all(kind=TESTING_ANIMAL, fragment=True)
         assert len(nodes)
-        assert nodes[0].typename in [TESTING_DOG, TESTING_CAT]
+        assert nodes[0].typename in {TESTING_DOG, TESTING_CAT}
         assert nodes[0].breed.value is not None
 
     async def test_get_related_nodes(self, client: InfrahubClient, base_dataset, person_ethan) -> None:

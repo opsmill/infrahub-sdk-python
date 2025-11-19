@@ -25,10 +25,10 @@ if TYPE_CHECKING:
 # type: ignore[attr-defined]
 
 async_node_methods = [
-    method for method in dir(InfrahubNode) if not method.startswith("_") and method not in ("hfid", "hfid_str")
+    method for method in dir(InfrahubNode) if not method.startswith("_") and method not in {"hfid", "hfid_str"}
 ]
 sync_node_methods = [
-    method for method in dir(InfrahubNodeSync) if not method.startswith("_") and method not in ("hfid", "hfid_str")
+    method for method in dir(InfrahubNodeSync) if not method.startswith("_") and method not in {"hfid", "hfid_str"}
 ]
 
 client_types = ["standard", "sync"]

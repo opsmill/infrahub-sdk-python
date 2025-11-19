@@ -193,12 +193,12 @@ class InfrahubSchemaBase:
                 hash=status["hash"], previous_hash=status["previous_hash"], warnings=status.get("warnings") or []
             )
 
-        if response.status_code in [
+        if response.status_code in {
             httpx.codes.BAD_REQUEST,
             httpx.codes.UNPROCESSABLE_ENTITY,
             httpx.codes.UNAUTHORIZED,
             httpx.codes.FORBIDDEN,
-        ]:
+        }:
             return SchemaLoadResponse(errors=response.json())
 
         response.raise_for_status()

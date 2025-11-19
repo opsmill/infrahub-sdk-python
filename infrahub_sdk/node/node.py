@@ -741,7 +741,7 @@ class InfrahubNode(InfrahubNodeBase):
 
             if (
                 rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in [RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT]  # type: ignore[union-attr]
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
                 and not (include and rel_name in include)
             ):
                 continue
@@ -1386,7 +1386,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if (
                 rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in [RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT]  # type: ignore[union-attr]
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
                 and not (include and rel_name in include)
             ):
                 continue
