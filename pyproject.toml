@@ -280,7 +280,6 @@ max-complexity = 17
     # Review and change the below later                                                              #
     ##################################################################################################
     "ANN001", # Missing type annotation for function argument
-    "RET504",  # Unnecessary assignment to `data` before `return` statement
 ]
 
 "tasks.py" = [
