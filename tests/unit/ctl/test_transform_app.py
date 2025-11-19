@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,7 @@ FIXTURE_BASE_DIR = Path(
 
 
 @pytest.fixture
-def tags_transform_dir():
+def tags_transform_dir() -> Generator[str]:
     temp_dir = tempfile.mkdtemp()
 
     try:

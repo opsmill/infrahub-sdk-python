@@ -5,7 +5,7 @@ class TagsTransform(InfrahubTransform):
     query = "tags_query"
     url = "my-tags"
 
-    async def transform(self, data):
+    async def transform(self, data) -> dict[str, str]:
         tag = data["BuiltinTag"]["edges"][0]["node"]
         tag_name = tag["name"]["value"]
         tag_description = tag["description"]["value"]

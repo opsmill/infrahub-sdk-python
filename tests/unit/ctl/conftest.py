@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 import ujson
 from pytest_httpx import HTTPXMock
@@ -63,8 +65,8 @@ async def mock_branches_list_query(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 
 @pytest.fixture
-async def authentication_error_payload():
-    response = {
+async def authentication_error_payload() -> dict[str, Any]:
+    return {
         "data": None,
         "errors": [
             {
@@ -73,8 +75,6 @@ async def authentication_error_payload():
             }
         ],
     }
-
-    return response
 
 
 @pytest.fixture

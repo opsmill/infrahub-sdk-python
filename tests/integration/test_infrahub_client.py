@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import pytest
@@ -33,7 +34,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         await client.branch.create(branch_name="branch01")
 
     @pytest.fixture
-    async def set_pagination_size3(self, client: InfrahubClient):
+    async def set_pagination_size3(self, client: InfrahubClient) -> AsyncGenerator:
         original_pagination_size = client.pagination_size
         client.pagination_size = 3
         yield
