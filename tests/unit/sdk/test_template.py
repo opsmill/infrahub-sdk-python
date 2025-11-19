@@ -220,7 +220,7 @@ FAILING_FILE_TEST_CASES = [
                         name="top-level template code",
                     ),
                     syntax=Syntax(
-                        code="<html>\n<body>\n<ul>\n{% for server in servers %}\n    <li>{{server.name}}: {{ server.ip.primary }}</li>\n{% endfor %}\n</ul>\n\n</body>\n\n</html>\n",  # noqa E501
+                        code="<html>\n<body>\n<ul>\n{% for server in servers %}\n    <li>{{server.name}}: {{ server.ip.primary }}</li>\n{% endfor %}\n</ul>\n\n</body>\n\n</html>\n",  # noqa: E501
                         lexer="",
                     ),
                 )

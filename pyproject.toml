@@ -164,7 +164,6 @@ ignore = [
     # Rules below needs to be Investigated                                                           #
     ##################################################################################################
     "PT",     # flake8-pytest-style
-    "PGH",    # pygrep-hooks
     "ERA",    # eradicate commented-out code
     "SLF001", # flake8-self
     "EM",     # flake8-errmsg
