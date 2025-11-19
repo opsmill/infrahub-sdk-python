@@ -157,7 +157,6 @@ ignore = [
     "DOC",    # pydoclint
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
-    "ISC",    # flake8-implicit-str-concat
     "COM812", # missing-trailing-comma
 
     ##################################################################################################
@@ -211,7 +210,6 @@ ignore = [
     "SIM108",  # Use ternary operator `key_str = f"{value[ALIAS_KEY]}: {key}" if ALIAS_KEY in value and value[ALIAS_KEY] else key` instead of `if`-`else`-block
     "SIM110",  # Use `return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))` instead of `for` loop
     "SIM114",  # Combine `if` branches using logical `or` operator
-    "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
     "UP045",   # Use `X | None` for type annotations
@@ -283,14 +281,6 @@ max-complexity = 17
     ##################################################################################################
     "ANN001", # Missing type annotation for function argument
     "RET504",  # Unnecessary assignment to `data` before `return` statement
-]
-
-"tests/unit/sdk/test_client.py" = [
-    "W293", # Blank line contains whitespace (used within output check)
-]
-
-"tests/fixtures/unit/test_graphql_plugin/*.py" = [
-    "FA100", # Add `from __future__ import annotations` to simplify `typing.Optional`
 ]
 
 "tasks.py" = [
