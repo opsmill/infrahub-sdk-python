@@ -49,7 +49,7 @@ async def list_branch(_: str = CONFIG_PARAM) -> None:
     table.add_column("Status")
 
     # identify the default branch and always print it first
-    default_branch = [branch for branch in branches.values() if branch.is_default][0]
+    default_branch = next(branch for branch in branches.values() if branch.is_default)
     table.add_row(
         default_branch.name,
         default_branch.description or " - ",

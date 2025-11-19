@@ -1417,7 +1417,7 @@ async def test_create_input_data__with_relationships_02(client, location_schema,
 
     input_data = node._generate_input_data()
     assert len(input_data["variables"].keys()) == 1
-    key = list(input_data["variables"].keys())[0]
+    key = next(iter(input_data["variables"].keys()))
     value = input_data["variables"][key]
 
     expected = {
