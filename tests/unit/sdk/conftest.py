@@ -2698,3 +2698,31 @@ async def mock_query_tasks_05(httpx_mock: HTTPXMock) -> HTTPXMock:
         is_reusable=True,
     )
     return httpx_mock
+
+
+@pytest.fixture
+async def nested_device_with_interfaces_schema() -> NodeSchemaAPI:
+    """Schema for Device with interfaces relationship for deep nesting tests."""
+    data = {
+        "name": "Device",
+        "namespace": "Infra",
+        "label": "Device",
+        "default_filter": "name__value",
+        "order_by": ["name__value"],
+        "display_labels": ["name__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+        ],
+        "relationships": [
+            {
+                "name": "interfaces",
+                "peer": "InfraInterfaceL3",
+                "identifier": "device__interface",
+                "optional": True,
+                "cardinality": "many",
+                "kind": "Component",
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()

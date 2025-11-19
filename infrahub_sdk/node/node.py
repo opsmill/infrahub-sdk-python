@@ -895,6 +895,7 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str,
         related_nodes: list[InfrahubNode],
         timeout: int | None = None,
+        recursive: bool = False,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -903,6 +904,7 @@ class InfrahubNode(InfrahubNodeBase):
             branch (str): The branch name.
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            recursive:(bool): Whether to recursively process relationships of related nodes.
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -910,17 +912,37 @@ class InfrahubNode(InfrahubNodeBase):
                 relation = node_data["node"].get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = await InfrahubNode.from_graphql(
-                        client=self._client, branch=branch, data=relation, timeout=timeout
+                        client=self._client,
+                        branch=branch,
+                        data=relation,
+                        timeout=timeout,
                     )
                     related_nodes.append(related_node)
+                    if recursive:
+                        await related_node._process_relationships(
+                            node_data=relation,
+                            branch=branch,
+                            related_nodes=related_nodes,
+                            recursive=recursive,
+                        )
             elif rel and isinstance(rel, RelationshipManager):
                 peers = node_data["node"].get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = await InfrahubNode.from_graphql(
-                            client=self._client, branch=branch, data=peer, timeout=timeout
+                            client=self._client,
+                            branch=branch,
+                            data=peer,
+                            timeout=timeout,
                         )
                         related_nodes.append(related_node)
+                        if recursive:
+                            await related_node._process_relationships(
+                                node_data=peer,
+                                branch=branch,
+                                related_nodes=related_nodes,
+                                recursive=recursive,
+                            )
 
     async def get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]:
         """Fetch all nodes that were allocated for the pool and a given resource.
@@ -1520,6 +1542,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         branch: str,
         related_nodes: list[InfrahubNodeSync],
         timeout: int | None = None,
+        recursive: bool = False,
     ) -> None:
         """Processes the Relationships of a InfrahubNodeSync and add Related Nodes to a list.
 
@@ -1528,7 +1551,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             branch (str): The branch name.
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-
+            recursive:(bool): Whether to recursively process relationships of related nodes.
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1536,17 +1559,37 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 relation = node_data["node"].get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
-                        client=self._client, branch=branch, data=relation, timeout=timeout
+                        client=self._client,
+                        branch=branch,
+                        data=relation,
+                        timeout=timeout,
                     )
                     related_nodes.append(related_node)
+                    if recursive:
+                        related_node._process_relationships(
+                            node_data=relation,
+                            branch=branch,
+                            related_nodes=related_nodes,
+                            recursive=recursive,
+                        )
             elif rel and isinstance(rel, RelationshipManagerSync):
                 peers = node_data["node"].get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
-                            client=self._client, branch=branch, data=peer, timeout=timeout
+                            client=self._client,
+                            branch=branch,
+                            data=peer,
+                            timeout=timeout,
                         )
                         related_nodes.append(related_node)
+                        if recursive:
+                            related_node._process_relationships(
+                                node_data=peer,
+                                branch=branch,
+                                related_nodes=related_nodes,
+                                recursive=recursive,
+                            )
 
     def get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubNodeSync]:
         """Fetch all nodes that were allocated for the pool and a given resource.
