@@ -40,11 +40,10 @@ async def client_sync() -> InfrahubClientSync:
 
 @pytest.fixture
 async def clients() -> BothClients:
-    both = BothClients(
+    return BothClients(
         standard=InfrahubClient(config=Config(address="http://mock", insert_tracker=True, pagination_size=3)),
         sync=InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True, pagination_size=3)),
     )
-    return both
 
 
 @pytest.fixture
@@ -2244,7 +2243,7 @@ async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
 @pytest.fixture
 def query_01() -> str:
     """Simple query with one document"""
-    query = """
+    return """
     query {
         TestPerson {
             edges {
@@ -2266,12 +2265,11 @@ def query_01() -> str:
         }
     }
     """
-    return query
 
 
 @pytest.fixture
 def query_02() -> str:
-    query = """
+    return """
     query {
         TestPerson {
             edges {
@@ -2312,13 +2310,12 @@ def query_02() -> str:
         }
     }
     """
-    return query
 
 
 @pytest.fixture
 def query_03() -> str:
     """Advanced Query with 2 documents"""
-    query = """
+    return """
     query FirstQuery {
         TestPerson {
             edges {
@@ -2352,13 +2349,12 @@ def query_03() -> str:
         }
     }
     """
-    return query
 
 
 @pytest.fixture
 def query_04() -> str:
     """Simple query with variables"""
-    query = """
+    return """
     query ($person: String!){
         TestPerson(name__value: $person) {
             edges {
@@ -2371,12 +2367,11 @@ def query_04() -> str:
         }
     }
     """
-    return query
 
 
 @pytest.fixture
 def query_05() -> str:
-    query = """
+    return """
     query MyQuery {
         CoreRepository {
             edges {
@@ -2405,13 +2400,11 @@ def query_05() -> str:
     }
     """
 
-    return query
-
 
 @pytest.fixture
 def query_06() -> str:
     """Simple query with variables"""
-    query = """
+    return """
     query (
         $str1: String,
         $str2: String = "default2",
@@ -2434,12 +2427,11 @@ def query_06() -> str:
         }
     }
     """
-    return query
 
 
 @pytest.fixture
 def bad_query_01() -> str:
-    query = """
+    return """
     query {
         TestPerson {
             edges {
@@ -2459,12 +2451,11 @@ def bad_query_01() -> str:
                 }
             }
     """
-    return query
 
 
 @pytest.fixture
 def query_introspection() -> str:
-    query = """
+    return """
         query IntrospectionQuery {
             __schema {
                 queryType {
@@ -2565,7 +2556,6 @@ def query_introspection() -> str:
             }
         }
     """
-    return query
 
 
 @pytest.fixture

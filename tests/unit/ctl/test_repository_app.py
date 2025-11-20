@@ -19,8 +19,7 @@ runner = CliRunner()
 @pytest.fixture
 def mock_client() -> mock.Mock:
     """Fixture for a mocked InfrahubClient."""
-    client = mock.create_autospec(InfrahubClient)
-    return client
+    return mock.create_autospec(InfrahubClient)
 
 
 # ---------------------------------------------------------
