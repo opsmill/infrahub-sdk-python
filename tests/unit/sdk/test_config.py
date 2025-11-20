@@ -57,3 +57,19 @@ def test_password_auth_overrides_env_token(monkeypatch) -> None:
     assert config.password == "testpass"
     assert config.api_token is None
     assert config.password_authentication is True
+
+
+def test_token_auth_overrides_env_password(monkeypatch) -> None:
+    """Test that explicit api_token overrides INFRAHUB_USERNAME and INFRAHUB_PASSWORD from environment"""
+    # Set environment variables for username/password
+    monkeypatch.setenv("INFRAHUB_USERNAME", "user-from-env")
+    monkeypatch.setenv("INFRAHUB_PASSWORD", "pass-from-env")
+
+    # Create config with explicit api_token
+    config = Config(address="https://sandbox.infrahub.app", api_token="explicit-token")
+
+    # Token auth should be active and username/password should be cleared
+    assert config.api_token == "explicit-token"
+    assert config.username is None
+    assert config.password is None
+    assert config.password_authentication is False
