@@ -5,7 +5,7 @@ from copy import deepcopy
 from typing import Any
 
 from pydantic import Field, PrivateAttr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, InitSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
 from .constants import InfrahubClientMode
@@ -81,6 +81,39 @@ class ConfigBase(BaseSettings):
     tls_ca_file: str | None = Field(default=None, description="File path to CA cert or bundle in PEM format")
     _ssl_context: ssl.SSLContext | None = PrivateAttr(default=None)
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """
+        Customize settings sources to track which fields were explicitly provided.
+        This allows us to properly handle authentication method precedence.
+        """
+
+        class TrackingInitSource(InitSettingsSource):
+            """Wrapper around InitSettingsSource that tracks explicitly provided fields."""
+
+            def __call__(self) -> dict[str, Any]:
+                init_data = super().__call__()
+                # Store which fields were explicitly provided in constructor
+                if init_data:
+                    return {**init_data, "_explicit_fields": set(init_data.keys())}
+                return init_data
+
+        # Create tracking wrapper with proper initialization
+        init_kwargs: dict[str, Any] = {}
+        if isinstance(init_settings, InitSettingsSource):
+            init_kwargs = init_settings.init_kwargs
+        tracking_init = TrackingInitSource(settings_cls=settings_cls, init_kwargs=init_kwargs)
+
+        # Return sources in priority order: explicit init values, env vars, dotenv, file secrets
+        return tracking_init, env_settings, dotenv_settings, file_secret_settings
+
     @model_validator(mode="before")
     @classmethod
     def validate_credentials_input(cls, values: dict[str, Any]) -> dict[str, Any]:
@@ -105,11 +138,43 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_mix_authentication_schemes(cls, values: dict[str, Any]) -> dict[str, Any]:
-        # When username/password are provided, clear any api_token from environment
-        # This allows explicit password authentication to override environment token
-        if values.get("password") and values.get("username") and values.get("api_token"):
-            # Clear api_token to allow password authentication to take precedence
-            values["api_token"] = None
+        """
+        Handle conflicts between token and password authentication methods.
+
+        When both methods are present (from explicit args or environment variables),
+        we prioritize the explicitly provided method. If we can determine which fields
+        were explicitly set, we use that; otherwise, we prefer password auth when both
+        username and password are present.
+        """
+        # Extract tracking information about explicitly provided fields
+        explicit_fields = values.pop("_explicit_fields", set())
+
+        has_password = values.get("password") and values.get("username")
+        has_token = values.get("api_token")
+
+        # If both auth methods are present, decide which to use
+        if has_password and has_token:
+            # Check if one method was explicitly provided
+            token_explicit = "api_token" in explicit_fields
+            password_explicit = "username" in explicit_fields or "password" in explicit_fields
+
+            if token_explicit and not password_explicit:
+                # User explicitly provided token, password came from env - use token
+                values["username"] = None
+                values["password"] = None
+            elif password_explicit and not token_explicit:
+                # User explicitly provided password, token came from env - use password
+                values["api_token"] = None
+            else:
+                # Both explicitly provided, or both from environment - ambiguous, raise error
+                raise ValueError(
+                    "Cannot use both 'api_token' and 'username'/'password' authentication simultaneously"
+                )
+        elif has_token and not has_password:
+            # Only token auth present - clear any partial password credentials
+            values["username"] = None
+            values["password"] = None
+
         return values
 
     @field_validator("address")
