@@ -5,10 +5,13 @@ from infrahub_sdk.config import Config
 
 
 def test_combine_authentications() -> None:
-    with pytest.raises(ValidationError) as exc:
-        Config(api_token="testing", username="test", password="testpassword")
-
-    assert "Unable to combine password with token based authentication" in str(exc.value)
+    # When both username/password and api_token are provided,
+    # password authentication takes precedence and api_token is cleared
+    config = Config(api_token="testing", username="test", password="testpassword")
+    assert config.username == "test"
+    assert config.password == "testpassword"
+    assert config.api_token is None
+    assert config.password_authentication is True
 
 
 def test_missing_password() -> None:
@@ -39,3 +42,18 @@ def test_config_address() -> None:
 
     config = Config(address=address)
     assert config.address == address
+
+
+def test_password_auth_overrides_env_token(monkeypatch) -> None:
+    """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment"""
+    # Set environment variable for api_token
+    monkeypatch.setenv("INFRAHUB_API_TOKEN", "token-from-env")
+
+    # Create config with explicit username/password
+    config = Config(address="https://sandbox.infrahub.app", username="testuser", password="testpass")
+
+    # Password auth should be active and api_token should be cleared
+    assert config.username == "testuser"
+    assert config.password == "testpass"
+    assert config.api_token is None
+    assert config.password_authentication is True

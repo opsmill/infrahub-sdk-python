@@ -105,8 +105,11 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_mix_authentication_schemes(cls, values: dict[str, Any]) -> dict[str, Any]:
-        if values.get("password") and values.get("api_token"):
-            raise ValueError("Unable to combine password with token based authentication")
+        # When username/password are provided, clear any api_token from environment
+        # This allows explicit password authentication to override environment token
+        if values.get("password") and values.get("username") and values.get("api_token"):
+            # Clear api_token to allow password authentication to take precedence
+            values["api_token"] = None
         return values
 
     @field_validator("address")
