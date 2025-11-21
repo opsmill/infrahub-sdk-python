@@ -1,7 +1,7 @@
 import ipaddress
 import re
 
-PROPERTIES_FLAG = ["is_visible", "is_protected"]
+PROPERTIES_FLAG = ["is_visible", "is_protected", "updated_at"]
 PROPERTIES_OBJECT = ["source", "owner"]
 SAFE_VALUE = re.compile(r"(^[\. /:a-zA-Z0-9_-]+$)|(^$)")
 

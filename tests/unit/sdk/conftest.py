@@ -468,6 +468,7 @@ async def location_data01_property() -> dict[str, Any]:
                 "is_visible": True,
                 "owner": None,
                 "source": None,
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": "DFW",
             },
             "description": {
@@ -475,6 +476,7 @@ async def location_data01_property() -> dict[str, Any]:
                 "is_visible": True,
                 "owner": None,
                 "source": None,
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": None,
             },
             "type": {
@@ -482,6 +484,7 @@ async def location_data01_property() -> dict[str, Any]:
                 "is_visible": True,
                 "owner": None,
                 "source": None,
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": "SITE",
             },
             "primary_tag": {
@@ -490,6 +493,7 @@ async def location_data01_property() -> dict[str, Any]:
                     "is_visible": True,
                     "owner": None,
                     "source": None,
+                    "updated_at": "2024-01-15T10:30:00.000000Z",
                 },
                 "node": {
                     "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
@@ -506,6 +510,7 @@ async def location_data01_property() -> dict[str, Any]:
                             "is_visible": True,
                             "owner": None,
                             "source": None,
+                            "updated_at": "2024-01-15T10:30:00.000000Z",
                         },
                         "node": {
                             "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -574,6 +579,7 @@ async def location_data02_property() -> dict[str, Any]:
                     "display_label": "CRM",
                     "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 },
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": "dfw1",
             },
             "description": {
@@ -581,6 +587,7 @@ async def location_data02_property() -> dict[str, Any]:
                 "is_visible": True,
                 "owner": None,
                 "source": None,
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": None,
             },
             "type": {
@@ -592,6 +599,7 @@ async def location_data02_property() -> dict[str, Any]:
                     "display_label": "CRM",
                     "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 },
+                "updated_at": "2024-01-15T10:30:00.000000Z",
                 "value": "SITE",
             },
             "primary_tag": {
@@ -604,6 +612,7 @@ async def location_data02_property() -> dict[str, Any]:
                         "display_label": "CRM",
                         "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                     },
+                    "updated_at": "2024-01-15T10:30:00.000000Z",
                 },
                 "node": {
                     "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
@@ -624,6 +633,7 @@ async def location_data02_property() -> dict[str, Any]:
                                 "display_label": "CRM",
                                 "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                             },
+                            "updated_at": "2024-01-15T10:30:00.000000Z",
                         },
                         "node": {
                             "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
