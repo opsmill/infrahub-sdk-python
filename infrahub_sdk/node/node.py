@@ -58,6 +58,9 @@ class InfrahubNodeBase:
 
         self._artifact_support = hasattr(schema, "inherit_from") and "CoreArtifactTarget" in schema.inherit_from
         self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
+        
+        # Check if this node is hierarchical (supports ancestors/descendants)
+        self._hierarchy_support = hasattr(schema, "hierarchy") and schema.hierarchy is not None
 
         if not self.id:
             self._existing = False
@@ -479,6 +482,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         self._relationship_cardinality_many_data: dict[str, RelationshipManager] = {}
         self._relationship_cardinality_one_data: dict[str, RelatedNode] = {}
+        self._hierarchical_data: dict[str, RelationshipManager] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
 
@@ -532,6 +536,46 @@ class InfrahubNode(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+        
+        # Initialize ancestors and descendants for hierarchical nodes
+        if self._hierarchy_support:
+            from ..schema import RelationshipSchemaAPI
+            
+            # Create pseudo-schema for ancestors (read-only, many cardinality)
+            ancestors_schema = RelationshipSchemaAPI(
+                name="ancestors",
+                peer=self._schema.hierarchy,  # type: ignore[attr-defined]
+                cardinality="many",
+                read_only=True,
+                optional=True,
+            )
+            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
+            self._hierarchical_data["ancestors"] = RelationshipManager(
+                name="ancestors",
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=ancestors_schema,
+                data=ancestors_data,
+            )
+            
+            # Create pseudo-schema for descendants (read-only, many cardinality)
+            descendants_schema = RelationshipSchemaAPI(
+                name="descendants",
+                peer=self._schema.hierarchy,  # type: ignore[attr-defined]
+                cardinality="many",
+                read_only=True,
+                optional=True,
+            )
+            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
+            self._hierarchical_data["descendants"] = RelationshipManager(
+                name="descendants",
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=descendants_schema,
+                data=descendants_data,
+            )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -540,6 +584,8 @@ class InfrahubNode(InfrahubNodeBase):
             return self._relationship_cardinality_many_data[name]
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             return self._relationship_cardinality_one_data[name]
+        if "_hierarchical_data" in self.__dict__ and name in self._hierarchical_data:
+            return self._hierarchical_data[name]
 
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
@@ -772,6 +818,36 @@ class InfrahubNode(InfrahubNodeBase):
 
             if insert_alias:
                 data[rel_name]["@alias"] = f"__alias__{self._schema.kind}__{rel_name}"
+        
+        # Add ancestors and descendants for hierarchical nodes if included or if prefetch_relationships is True
+        if self._hierarchy_support:
+            for hierarchical_name in ["ancestors", "descendants"]:
+                if exclude and hierarchical_name in exclude:
+                    continue
+                
+                # Only include if explicitly requested or if prefetch_relationships is True
+                should_fetch = prefetch_relationships or (include is not None and hierarchical_name in include)
+                if not should_fetch:
+                    continue
+                
+                peer_data: dict[str, Any] = {}
+                if should_fetch:
+                    peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
+                    peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
+                    peer_data = await peer_node.generate_query_data_node(
+                        property=property,
+                    )
+                
+                hierarchical_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
+                # Use fragment for hierarchical fields similar to hierarchy relationships
+                data_node = hierarchical_data["edges"]["node"]
+                hierarchical_data["edges"]["node"] = {}
+                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[attr-defined]
+                
+                data[hierarchical_name] = hierarchical_data
+                
+                if insert_alias:
+                    data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
 
         return data
 
@@ -1110,6 +1186,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         self._relationship_cardinality_many_data: dict[str, RelationshipManagerSync] = {}
         self._relationship_cardinality_one_data: dict[str, RelatedNodeSync] = {}
+        self._hierarchical_data: dict[str, RelationshipManagerSync] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
 
@@ -1163,6 +1240,46 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+        
+        # Initialize ancestors and descendants for hierarchical nodes
+        if self._hierarchy_support:
+            from ..schema import RelationshipSchemaAPI
+            
+            # Create pseudo-schema for ancestors (read-only, many cardinality)
+            ancestors_schema = RelationshipSchemaAPI(
+                name="ancestors",
+                peer=self._schema.hierarchy,  # type: ignore[attr-defined]
+                cardinality="many",
+                read_only=True,
+                optional=True,
+            )
+            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
+            self._hierarchical_data["ancestors"] = RelationshipManagerSync(
+                name="ancestors",
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=ancestors_schema,
+                data=ancestors_data,
+            )
+            
+            # Create pseudo-schema for descendants (read-only, many cardinality)
+            descendants_schema = RelationshipSchemaAPI(
+                name="descendants",
+                peer=self._schema.hierarchy,  # type: ignore[attr-defined]
+                cardinality="many",
+                read_only=True,
+                optional=True,
+            )
+            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
+            self._hierarchical_data["descendants"] = RelationshipManagerSync(
+                name="descendants",
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=descendants_schema,
+                data=descendants_data,
+            )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -1171,6 +1288,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             return self._relationship_cardinality_many_data[name]
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             return self._relationship_cardinality_one_data[name]
+        if "_hierarchical_data" in self.__dict__ and name in self._hierarchical_data:
+            return self._hierarchical_data[name]
 
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
@@ -1393,6 +1512,36 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if insert_alias:
                 data[rel_name]["@alias"] = f"__alias__{self._schema.kind}__{rel_name}"
+        
+        # Add ancestors and descendants for hierarchical nodes if included or if prefetch_relationships is True
+        if self._hierarchy_support:
+            for hierarchical_name in ["ancestors", "descendants"]:
+                if exclude and hierarchical_name in exclude:
+                    continue
+                
+                # Only include if explicitly requested or if prefetch_relationships is True
+                should_fetch = prefetch_relationships or (include is not None and hierarchical_name in include)
+                if not should_fetch:
+                    continue
+                
+                peer_data: dict[str, Any] = {}
+                if should_fetch:
+                    peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
+                    peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
+                    peer_data = peer_node.generate_query_data_node(
+                        property=property,
+                    )
+                
+                hierarchical_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
+                # Use fragment for hierarchical fields similar to hierarchy relationships
+                data_node = hierarchical_data["edges"]["node"]
+                hierarchical_data["edges"]["node"] = {}
+                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[attr-defined]
+                
+                data[hierarchical_name] = hierarchical_data
+                
+                if insert_alias:
+                    data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
 
         return data
 
