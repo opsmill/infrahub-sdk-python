@@ -830,13 +830,11 @@ class InfrahubNode(InfrahubNodeBase):
                 if not should_fetch:
                     continue
                 
-                peer_data: dict[str, Any] = {}
-                if should_fetch:
-                    peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
-                    peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
-                    peer_data = await peer_node.generate_query_data_node(
-                        property=property,
-                    )
+                peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
+                peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
+                peer_data = await peer_node.generate_query_data_node(
+                    property=property,
+                )
                 
                 hierarchical_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
                 # Use fragment for hierarchical fields similar to hierarchy relationships
@@ -1524,13 +1522,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 if not should_fetch:
                     continue
                 
-                peer_data: dict[str, Any] = {}
-                if should_fetch:
-                    peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
-                    peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
-                    peer_data = peer_node.generate_query_data_node(
-                        property=property,
-                    )
+                peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[attr-defined]
+                peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
+                peer_data = peer_node.generate_query_data_node(
+                    property=property,
+                )
                 
                 hierarchical_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
                 # Use fragment for hierarchical fields similar to hierarchy relationships
