@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import (
-    Any,
-    Union,
-)
+from typing import Any
 
 from typing_extensions import NotRequired, TypedDict
 

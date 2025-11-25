@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Union
 
 VARIABLE_TYPE_MAPPING = (
     (str, "String!"),
