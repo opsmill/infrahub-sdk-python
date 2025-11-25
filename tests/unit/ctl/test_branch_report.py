@@ -199,6 +199,15 @@ def test_branch_report_command_without_proposed_change(
     assert "No proposed changes for this branch" in result.stdout
 
 
+def test_branch_report_command_main_branch() -> None:
+    """Test branch report CLI command on main branch."""
+    runner = CliRunner()
+    result = runner.invoke(app, ["report", "main"])
+
+    assert result.exit_code == 1
+    assert "Cannot create a report for the main branch!" in result.stdout
+
+
 @pytest.fixture
 async def schema_with_proposed_change() -> dict:
     """Schema fixture that includes CoreProposedChange with is_draft."""

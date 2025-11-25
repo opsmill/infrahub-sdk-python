@@ -1,4 +1,5 @@
 import logging
+import sys
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -194,6 +195,10 @@ async def report(  # noqa: PLR0915
     _: str = CONFIG_PARAM,
 ) -> None:
     """Generate branch cleanup status report."""
+
+    if branch_name == "main":
+        console.print("[red]Cannot create a report for the main branch!")
+        sys.exit(1)
 
     client = initialize_client()
 

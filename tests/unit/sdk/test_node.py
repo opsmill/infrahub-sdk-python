@@ -1736,10 +1736,20 @@ async def test_update_input_data__with_relationships_01(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "is_visible": True, "value": "DFW", "updated_at": "2024-01-15T10:30:00.000000Z"},
+            "name": {
+                "is_protected": True,
+                "is_visible": True,
+                "value": "DFW",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
             "primary_tag": {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
             "tags": [{"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"}, {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"}],
-            "type": {"is_protected": True, "is_visible": True, "value": "SITE","updated_at": "2024-01-15T10:30:00.000000Z"},
+            "type": {
+                "is_protected": True,
+                "is_visible": True,
+                "value": "SITE",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
         },
     }
 
@@ -1900,10 +1910,20 @@ async def test_update_input_data_empty_relationship(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "is_visible": True, "value": "DFW", "updated_at": "2024-01-15T10:30:00.000000Z"},
+            "name": {
+                "is_protected": True,
+                "is_visible": True,
+                "value": "DFW",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
             "primary_tag": None,
             "tags": [],
-            "type": {"is_protected": True, "is_visible": True, "value": "SITE", "updated_at": "2024-01-15T10:30:00.000000Z"},
+            "type": {
+                "is_protected": True,
+                "is_visible": True,
+                "value": "SITE",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
         },
     }
 
