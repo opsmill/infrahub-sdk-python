@@ -3,13 +3,13 @@ from typing import Union
 
 VARIABLE_TYPE_MAPPING = (
     (str, "String!"),
-    (Union[str, None], "String"),
+    (str | None, "String"),
     (int, "Int!"),
-    (Union[int, None], "Int"),
+    (int | None, "Int"),
     (float, "Float!"),
-    (Union[float, None], "Float"),
+    (float | None, "Float"),
     (bool, "Boolean!"),
-    (Union[bool, None], "Boolean"),
+    (bool | None, "Boolean"),
     (datetime, "DateTime!"),
-    (Union[datetime, None], "DateTime"),
+    (datetime | None, "DateTime"),
 )

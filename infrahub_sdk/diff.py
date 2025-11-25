@@ -200,8 +200,8 @@ def get_diff_tree_query() -> Query:
         },
         variables={
             "branch_name": str,
-            "name": Union[str, None],
-            "from_time": Union[datetime, None],
-            "to_time": Union[datetime, None],
+            "name": str | None,
+            "from_time": datetime | None,
+            "to_time": datetime | None,
         },
     )
