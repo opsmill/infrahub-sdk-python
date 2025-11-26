@@ -1290,7 +1290,6 @@ class InfrahubClient(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
 
@@ -1312,7 +1311,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
         )
 
@@ -2586,7 +2584,6 @@ class InfrahubClientSync(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
 
@@ -2608,7 +2605,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
         )
 
