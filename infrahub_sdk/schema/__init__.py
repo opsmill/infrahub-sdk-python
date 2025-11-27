@@ -154,7 +154,6 @@ class InfrahubSchemaBase:
         source: str | None = None,
         owner: str | None = None,
         is_protected: bool | None = None,
-        is_visible: bool | None = None,
     ) -> dict[str, Any]:
         obj_data: dict[str, Any] = {}
         item_metadata: dict[str, Any] = {}
@@ -164,8 +163,6 @@ class InfrahubSchemaBase:
             item_metadata["owner"] = str(owner)
         if is_protected is not None:
             item_metadata["is_protected"] = is_protected
-        if is_visible is not None:
-            item_metadata["is_visible"] = is_visible
 
         for key, value in data.items():
             obj_data[key] = {}
