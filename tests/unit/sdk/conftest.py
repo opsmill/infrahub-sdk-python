@@ -306,21 +306,18 @@ async def location_data01_no_pagination():
         "display_label": "dfw1",
         "name": {
             "is_protected": True,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": "DFW",
         },
         "description": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": None,
         },
         "type": {
             "is_protected": True,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": "SITE",
@@ -330,7 +327,6 @@ async def location_data01_no_pagination():
             "display_label": "red",
             "__typename": "RelatedTag",
             "_relation__is_protected": True,
-            "_relation__is_visible": True,
             "_relation__owner": None,
             "_relation__source": None,
         },
@@ -340,7 +336,6 @@ async def location_data01_no_pagination():
                 "display_label": "blue",
                 "__typename": "RelatedTag",
                 "_relation__is_protected": True,
-                "_relation__is_visible": True,
                 "_relation__owner": None,
                 "_relation__source": None,
             }
@@ -358,7 +353,6 @@ async def location_data02_no_pagination():
         "display_label": "dfw1",
         "name": {
             "is_protected": True,
-            "is_visible": True,
             "owner": None,
             "source": {
                 "__typename": "Account",
@@ -369,14 +363,12 @@ async def location_data02_no_pagination():
         },
         "description": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": None,
         },
         "type": {
             "is_protected": True,
-            "is_visible": True,
             "owner": None,
             "source": {
                 "__typename": "Account",
@@ -390,7 +382,6 @@ async def location_data02_no_pagination():
             "display_label": "red",
             "__typename": "RelatedTag",
             "_relation__is_protected": True,
-            "_relation__is_visible": True,
             "_relation__owner": None,
             "_relation__source": {
                 "__typename": "Account",
@@ -404,7 +395,6 @@ async def location_data02_no_pagination():
                 "display_label": "blue",
                 "__typename": "RelatedTag",
                 "_relation__is_protected": True,
-                "_relation__is_visible": True,
                 "_relation__owner": None,
                 "_relation__source": {
                     "__typename": "Account",
@@ -468,21 +458,18 @@ async def location_data01_property():
             "display_label": "dfw1",
             "name": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "DFW",
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
             },
             "type": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "SITE",
@@ -490,7 +477,6 @@ async def location_data01_property():
             "primary_tag": {
                 "properties": {
                     "is_protected": True,
-                    "is_visible": True,
                     "owner": None,
                     "source": None,
                 },
@@ -506,7 +492,6 @@ async def location_data01_property():
                     {
                         "properties": {
                             "is_protected": True,
-                            "is_visible": True,
                             "owner": None,
                             "source": None,
                         },
@@ -574,7 +559,6 @@ async def location_data02_property():
             "display_label": "dfw1",
             "name": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -585,14 +569,12 @@ async def location_data02_property():
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
             },
             "type": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -604,7 +586,6 @@ async def location_data02_property():
             "primary_tag": {
                 "properties": {
                     "is_protected": True,
-                    "is_visible": True,
                     "owner": None,
                     "source": {
                         "__typename": "Account",
@@ -624,7 +605,6 @@ async def location_data02_property():
                     {
                         "properties": {
                             "is_protected": True,
-                            "is_visible": True,
                             "owner": None,
                             "source": {
                                 "__typename": "Account",
@@ -690,7 +670,6 @@ async def tag_blue_data_no_pagination():
         "display_label": "blue",
         "name": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": {
                 "__typename": "Account",
@@ -701,7 +680,6 @@ async def tag_blue_data_no_pagination():
         },
         "description": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": None,
@@ -718,7 +696,6 @@ async def tag_red_data_no_pagination():
         "display_label": "red",
         "name": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": {
                 "__typename": "Account",
@@ -729,7 +706,6 @@ async def tag_red_data_no_pagination():
         },
         "description": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": None,
@@ -746,7 +722,6 @@ async def tag_green_data_no_pagination():
         "display_label": "green",
         "name": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": {
                 "__typename": "Account",
@@ -757,7 +732,6 @@ async def tag_green_data_no_pagination():
         },
         "description": {
             "is_protected": False,
-            "is_visible": True,
             "owner": None,
             "source": None,
             "value": None,
@@ -775,7 +749,6 @@ async def tag_blue_data():
             "display_label": "blue",
             "name": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -786,7 +759,6 @@ async def tag_blue_data():
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
@@ -805,7 +777,6 @@ async def tag_red_data():
             "display_label": "red",
             "name": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -816,7 +787,6 @@ async def tag_red_data():
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
@@ -835,7 +805,6 @@ async def tag_green_data():
             "display_label": "green",
             "name": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -846,7 +815,6 @@ async def tag_green_data():
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
@@ -998,7 +966,6 @@ async def ipam_ipprefix_data():
             "display_label": "192.0.2.0/24",
             "prefix": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -1009,14 +976,12 @@ async def ipam_ipprefix_data():
             },
             "description": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": None,
             },
             "member_type": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -1027,7 +992,6 @@ async def ipam_ipprefix_data():
             },
             "is_pool": {
                 "is_protected": True,
-                "is_visible": True,
                 "owner": None,
                 "source": {
                     "__typename": "Account",
@@ -1039,7 +1003,6 @@ async def ipam_ipprefix_data():
             "ip_namespace": {
                 "properties": {
                     "is_protected": True,
-                    "is_visible": True,
                     "owner": None,
                     "source": {
                         "__typename": "Account",
@@ -1196,28 +1159,24 @@ async def address_data():
             "display_label": "test_address",
             "street_number": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "1234",
             },
             "street_name": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "Fake Street",
             },
             "postal_code": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "123ABC",
             },
             "computed_address": {
                 "is_protected": False,
-                "is_visible": True,
                 "owner": None,
                 "source": None,
                 "value": "1234 Fake Street 123ABC",
@@ -1286,7 +1245,6 @@ async def device_data():
             "__typename": "InfraDevice",
             "name": {
                 "value": "atl1-edge1",
-                "is_visible": True,
                 "is_protected": True,
                 "source": {
                     "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1295,10 +1253,9 @@ async def device_data():
                 },
                 "owner": None,
             },
-            "description": {"value": None, "is_visible": True, "is_protected": False, "source": None, "owner": None},
+            "description": {"value": None, "is_protected": False, "source": None, "owner": None},
             "type": {
                 "value": "7280R3",
-                "is_visible": True,
                 "is_protected": False,
                 "source": {
                     "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1314,7 +1271,6 @@ async def device_data():
                     "__typename": "BuiltinLocation",
                 },
                 "properties": {
-                    "is_visible": True,
                     "is_protected": True,
                     "source": {
                         "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1331,7 +1287,6 @@ async def device_data():
                     "__typename": "BuiltinStatus",
                 },
                 "properties": {
-                    "is_visible": True,
                     "is_protected": None,
                     "source": None,
                     "owner": {
@@ -1348,7 +1303,6 @@ async def device_data():
                     "__typename": "BuiltinRole",
                 },
                 "properties": {
-                    "is_visible": True,
                     "is_protected": True,
                     "source": {
                         "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1369,7 +1323,6 @@ async def device_data():
                     "__typename": "InfraAutonomousSystem",
                 },
                 "properties": {
-                    "is_visible": True,
                     "is_protected": True,
                     "source": {
                         "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1392,7 +1345,7 @@ async def device_data():
                             "display_label": "green",
                             "__typename": "BuiltinTag",
                         },
-                        "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                        "properties": {"is_protected": None, "source": None, "owner": None},
                     },
                     {
                         "node": {
@@ -1400,7 +1353,7 @@ async def device_data():
                             "display_label": "red",
                             "__typename": "BuiltinTag",
                         },
-                        "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                        "properties": {"is_protected": None, "source": None, "owner": None},
                     },
                 ],
             },
@@ -1410,7 +1363,7 @@ async def device_data():
                     "display_label": "172.20.20.20/24",
                     "__typename": "InfraIPAddress",
                 },
-                "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                "properties": {"is_protected": None, "source": None, "owner": None},
             },
             "platform": {
                 "node": {
@@ -1419,7 +1372,6 @@ async def device_data():
                     "__typename": "InfraPlatform",
                 },
                 "properties": {
-                    "is_visible": True,
                     "is_protected": True,
                     "source": {
                         "id": "1799f644-d5eb-8e37-3403-c512518ae06a",
@@ -1460,7 +1412,6 @@ async def artifact_definition_data():
             "__typename": "CoreArtifactDefinition",
             "name": {
                 "value": "Startup Config for Edge devices",
-                "is_visible": True,
                 "is_protected": True,
                 "source": {
                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -1471,7 +1422,6 @@ async def artifact_definition_data():
             },
             "artifact_name": {
                 "value": "startup-config",
-                "is_visible": True,
                 "is_protected": True,
                 "source": {
                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -1937,42 +1887,36 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
                         "__typename": "CoreArtifact",
                         "name": {
                             "value": "Startup Config for Edge devices",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "status": {
                             "value": "Ready",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "content_type": {
                             "value": "text/plain",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "checksum": {
                             "value": "58d949c1a1c0fcd06e79bc032be8373a",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "storage_id": {
                             "value": "1799fd71-950c-5a85-3041-c515082800ff",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "parameters": {
                             "value": None,
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
@@ -1983,7 +1927,7 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
                                 "display_label": "atl1-edge1",
                                 "__typename": "InfraDevice",
                             },
-                            "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                            "properties": {"is_protected": None, "source": None, "owner": None},
                         },
                         "definition": {
                             "node": {
@@ -1991,7 +1935,7 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
                                 "display_label": "Startup Config for Edge devices",
                                 "__typename": "CoreArtifactDefinition",
                             },
-                            "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                            "properties": {"is_protected": None, "source": None, "owner": None},
                         },
                     },
                 ]
@@ -2030,42 +1974,36 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                         "__typename": "CoreArtifact",
                         "name": {
                             "value": "Startup Config for Edge devices",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "status": {
                             "value": "Ready",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "content_type": {
                             "value": "text/plain",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "checksum": {
                             "value": "58d949c1a1c0fcd06e79bc032be8373a",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "storage_id": {
                             "value": "1799fd71-950c-5a85-3041-c515082800ff",
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
                         },
                         "parameters": {
                             "value": None,
-                            "is_visible": True,
                             "is_protected": False,
                             "source": None,
                             "owner": None,
@@ -2076,7 +2014,7 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                                 "display_label": "atl1-edge1",
                                 "__typename": "InfraDevice",
                             },
-                            "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                            "properties": {"is_protected": None, "source": None, "owner": None},
                         },
                         "definition": {
                             "node": {
@@ -2084,7 +2022,7 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                                 "display_label": "Startup Config for Edge devices",
                                 "__typename": "CoreArtifactDefinition",
                             },
-                            "properties": {"is_visible": True, "is_protected": None, "source": None, "owner": None},
+                            "properties": {"is_protected": None, "source": None, "owner": None},
                         },
                     },
                 ]
@@ -2107,7 +2045,6 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                             "__typename": "CoreArtifactDefinition",
                             "name": {
                                 "value": "Startup Config for Edge devices",
-                                "is_visible": True,
                                 "is_protected": True,
                                 "source": {
                                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -2118,7 +2055,6 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                             },
                             "artifact_name": {
                                 "value": "startup-config",
-                                "is_visible": True,
                                 "is_protected": True,
                                 "source": {
                                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -2129,14 +2065,12 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                             },
                             "description": {
                                 "value": None,
-                                "is_visible": True,
                                 "is_protected": False,
                                 "source": None,
                                 "owner": None,
                             },
                             "parameters": {
                                 "value": {"device": "name__value"},
-                                "is_visible": True,
                                 "is_protected": True,
                                 "source": {
                                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -2147,7 +2081,6 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                             },
                             "content_type": {
                                 "value": "text/plain",
-                                "is_visible": True,
                                 "is_protected": True,
                                 "source": {
                                     "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -2163,7 +2096,6 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                                     "__typename": "CoreStandardGroup",
                                 },
                                 "properties": {
-                                    "is_visible": True,
                                     "is_protected": True,
                                     "source": {
                                         "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",
@@ -2180,7 +2112,6 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
                                     "__typename": "CoreRFile",
                                 },
                                 "properties": {
-                                    "is_visible": True,
                                     "is_protected": True,
                                     "source": {
                                         "id": "1799fd6b-f0a9-9d23-304d-c51b05d142c5",

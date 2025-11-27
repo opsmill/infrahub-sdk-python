@@ -2,7 +2,7 @@ import ipaddress
 import re
 from typing import Union
 
-PROPERTIES_FLAG = ["is_visible", "is_protected"]
+PROPERTIES_FLAG = ["is_protected"]
 PROPERTIES_OBJECT = ["source", "owner"]
 SAFE_VALUE = re.compile(r"(^[\. /:a-zA-Z0-9_-]+$)|(^$)")
 

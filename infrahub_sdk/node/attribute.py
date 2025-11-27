@@ -52,7 +52,6 @@ class Attribute:
         self.is_inherited: bool | None = data.get("is_inherited", None)
         self.updated_at: str | None = data.get("updated_at", None)
 
-        self.is_visible: bool | None = data.get("is_visible", None)
         self.is_protected: bool | None = data.get("is_protected", None)
 
         self.source: NodeProperty | None = None
