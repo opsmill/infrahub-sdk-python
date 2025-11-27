@@ -53,7 +53,7 @@ class Attribute:
         self.is_inherited: bool | None = data.get("is_inherited")
         self.updated_at: str | None = data.get("updated_at")
 
-        self.is_protected: bool | None = data.get("is_protected", None)
+        self.is_protected: bool | None = data.get("is_protected")
 
         self.source: NodeProperty | None = None
         self.owner: NodeProperty | None = None
