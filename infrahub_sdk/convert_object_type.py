@@ -33,9 +33,7 @@ class ConversionFieldValue(BaseModel):  # Only one of these fields can be not No
 
     @model_validator(mode="after")
     def check_only_one_field(self) -> ConversionFieldValue:
-        fields = [self.attribute_value, self.peer_id, self.peers_ids]
-        set_fields = [f for f in fields if f is not None]
-        if len(set_fields) != 1:
+        if len(self.model_fields_set) != 1:
             raise ValueError("Exactly one of `attribute_value`, `peer_id`, or `peers_ids` must be set")
         return self
 
