@@ -210,7 +210,6 @@ ignore = [
     "SIM114",  # Combine `if` branches using logical `or` operator
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
-    "UP045",   # Use `X | None` for type annotations
 ]
 
 
