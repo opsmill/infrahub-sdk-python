@@ -736,7 +736,8 @@ class InfrahubNode(InfrahubNodeBase):
         property: bool = False,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
-        self._validate_hierarchy_support(HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
+        if not self._hierarchy_support:
+            return
 
         for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
             if exclude and hierarchical_name in exclude:
@@ -1499,7 +1500,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
         property: bool = False,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
-        self._validate_hierarchy_support(HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
+        if not self._hierarchy_support:
+            return
 
         for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
             if exclude and hierarchical_name in exclude:
