@@ -63,11 +63,12 @@ class InfrahubNodeBase:
         self._attributes = [item.name for item in self._schema.attributes]
         self._relationships = [item.name for item in self._schema.relationships]
 
-        self._artifact_support = hasattr(schema, "inherit_from") and "CoreArtifactTarget" in schema.inherit_from
-        if not isinstance(schema, GenericSchemaAPI):
-            self._artifact_support = getattr(schema, "inherit_from", None) is not None
-        else:
+        # GenericSchemaAPI doesn't have inherit_from, so we need to check the type first
+        if isinstance(schema, GenericSchemaAPI):
             self._artifact_support = False
+        else:
+            inherit_from = getattr(schema, "inherit_from", None) or []
+            self._artifact_support = "CoreArtifactTarget" in inherit_from
         self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
 
         # Check if this node is hierarchical (supports parent/children and ancestors/descendants)
