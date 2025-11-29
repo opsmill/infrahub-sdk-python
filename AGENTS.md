@@ -14,7 +14,7 @@ uv run pytest tests/integration/    # Integration tests
 
 ## Tech Stack
 
-Python 3.9-3.13, UV, pydantic >=2.0, httpx, graphql-core
+Python 3.10-3.13, UV, pydantic >=2.0, httpx, graphql-core
 
 ## Code Pattern
 
