@@ -40,7 +40,7 @@ infrahub_sdk/
 
 ## Markdown Style
 
-When editing `.md` files, run `uv run invoke lint-docs` before committing.
+When editing `.md` or `.mdx` files, run `uv run invoke lint-docs` before committing.
 
 Key rules:
 
