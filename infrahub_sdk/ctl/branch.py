@@ -25,12 +25,18 @@ ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
 
 
 def format_timestamp(timestamp: str) -> str:
-    """Format ISO timestamp to 'YYYY-MM-DD HH:MM:SS'."""
-    try:
-        dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except (ValueError, AttributeError):
-        return timestamp
+    """Format ISO timestamp to 'YYYY-MM-DD HH:MM:SS'.
+    Args:
+        timestamp (str): ISO fromatted timestamp
+
+    Returns:
+        (str): the datetime as string formatted as 'YYYY-MM-DD HH:MM:SS'
+
+    Raises:
+        Any execptions returned from formatting the timestamp are propogated to the caller
+    """
+    dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 async def check_git_files_changed(client: "InfrahubClient", branch: str) -> bool:
