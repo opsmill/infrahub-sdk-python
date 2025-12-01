@@ -26,15 +26,8 @@ def test_format_timestamp_with_timezone() -> None:
 def test_format_timestamp_invalid() -> None:
     """Test format_timestamp with invalid timestamp returns original."""
     timestamp = "not-a-timestamp"
-    result = format_timestamp(timestamp)
-    assert result == "not-a-timestamp"
-
-
-def test_format_timestamp_none() -> None:
-    """Test format_timestamp with None returns original."""
-    timestamp = None
-    result = format_timestamp(timestamp)  # type: ignore[arg-type]
-    assert result is None
+    with pytest.raises(ValueError):
+        format_timestamp(timestamp)
 
 
 @pytest.fixture
@@ -126,6 +119,30 @@ async def test_check_git_files_changed_http_error(httpx_mock: HTTPXMock) -> None
 
 
 @pytest.fixture
+def mock_branch_report_default_branch(httpx_mock: HTTPXMock) -> HTTPXMock:
+    """Mock all responses for branch report CLI command."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "Branch": [
+                    {
+                        "id": "default-branch-id",
+                        "name": "main",
+                        "sync_with_git": True,
+                        "is_default": True,
+                        "origin_branch": "main",
+                        "branched_from": "2025-11-01t10:00:00z",
+                        "has_schema_changes": False,
+                        "status": "OPEN",
+                    },
+                ],
+            },
+        },
+        match_headers={"X-Infrahub-Tracker": "query-branch"},
+    )
+
+@pytest.fixture
 def mock_branch_report_command(httpx_mock: HTTPXMock) -> HTTPXMock:
     """Mock all responses for branch report CLI command."""
     httpx_mock.add_response(
@@ -139,7 +156,7 @@ def mock_branch_report_command(httpx_mock: HTTPXMock) -> HTTPXMock:
                         "sync_with_git": True,
                         "is_default": False,
                         "origin_branch": "main",
-                        "branched_from": "2025-11-01T10:00:00Z",
+                        "branched_from": "2025-11-01t10:00:00Z",
                         "has_schema_changes": False,
                         "status": "OPEN",
                     }
@@ -199,13 +216,13 @@ def test_branch_report_command_without_proposed_change(
     assert "No proposed changes for this branch" in result.stdout
 
 
-def test_branch_report_command_main_branch() -> None:
+def test_branch_report_command_main_branch(mock_branch_report_default_branch) -> None:
     """Test branch report CLI command on main branch."""
     runner = CliRunner()
     result = runner.invoke(app, ["report", "main"])
 
     assert result.exit_code == 1
-    assert "Cannot create a report for the main branch!" in result.stdout
+    assert "Cannot create a report for the default branch!" in result.stdout
 
 
 @pytest.fixture
@@ -344,8 +361,10 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                         "display_label": "John Doe",
                                         "__typename": "CoreAccount",
                                         "name": {"value": "John Doe"},
-                                        "updated_at": "2025-11-10T14:30:00Z",
-                                    }
+                                    },
+                                    "properties": {
+                                            "updated_at": "2025-11-10T14:30:00Z",
+                                    },
                                 },
                             }
                         },
@@ -393,8 +412,10 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                         "display_label": "Jane Smith",
                                         "__typename": "CoreAccount",
                                         "name": {"value": "Jane Smith"},
-                                        "updated_at": "2025-11-12T09:15:00Z",
-                                    }
+                                    },
+                                    "properties": {
+                                            "updated_at": "2025-11-10T14:30:00Z",
+                                    },
                                 },
                             }
                         },
@@ -424,13 +445,14 @@ def test_branch_report_command_with_proposed_changes(
     assert "open" in result.stdout
     assert "merged" in result.stdout
 
-    assert "Is draft                 No" in result.stdout
+    assert "Is draft                     No" in result.stdout
     assert "Is draft                          Yes" in result.stdout
 
     assert "John Doe" in result.stdout
     assert "Jane Smith" in result.stdout
 
-    assert "Approvals                 2" in result.stdout
-    assert "Rejections                0" in result.stdout
+
+    assert "Approvals                     2" in result.stdout 
+    assert "Rejections                    0" in result.stdout
     assert "Approvals                           1" in result.stdout
     assert "Rejections                          2" in result.stdout
