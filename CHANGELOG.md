@@ -27,8 +27,6 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 - Remove `is_visible` property from infrahub
 - Removed support for Python 3.9 (end of life)
 
-
-
 ## [1.15.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.1) - 2025-11-13
 
 ### Fixed
