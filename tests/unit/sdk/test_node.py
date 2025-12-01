@@ -326,6 +326,7 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "description": {
@@ -342,6 +343,7 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "type": {
@@ -358,6 +360,7 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "primary_tag": {
@@ -373,6 +376,7 @@ async def test_query_data_no_filters_property(clients, location_schema: NodeSche
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                         },
                         "node": {
                             "id": None,
@@ -449,6 +453,7 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
         "description": {
@@ -457,6 +462,7 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
         "type": {
@@ -465,6 +471,7 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
         "primary_tag": {
@@ -480,6 +487,7 @@ async def test_query_data_node_property(clients, location_schema: NodeSchemaAPI,
                     "display_label": None,
                     "id": None,
                 },
+                "updated_at": None,
             },
             "node": {
                 "id": None,
@@ -560,6 +568,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "description": {
@@ -576,6 +585,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "type": {
@@ -592,6 +602,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "primary_tag": {
@@ -607,6 +618,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                         },
                         "node": {
                             "id": None,
@@ -627,6 +639,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                                     "display_label": None,
                                     "id": None,
                                 },
+                                "updated_at": None,
                                 "value": None,
                             },
                             "name": {
@@ -643,6 +656,7 @@ async def test_query_data_with_prefetch_relationships_property(clients, mock_sch
                                     "display_label": None,
                                     "id": None,
                                 },
+                                "updated_at": None,
                                 "value": None,
                             },
                         },
@@ -725,6 +739,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
         "name": {
@@ -733,6 +748,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
         "primary_tag": {
@@ -744,6 +760,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
                     "is_protected": None,
                     "owner": {"__typename": None, "display_label": None, "id": None},
                     "source": {"__typename": None, "display_label": None, "id": None},
+                    "updated_at": None,
                     "value": None,
                 },
                 "display_label": None,
@@ -755,6 +772,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
                     "is_protected": None,
                     "owner": {"__typename": None, "display_label": None, "id": None},
                     "source": {"__typename": None, "display_label": None, "id": None},
+                    "updated_at": None,
                     "value": None,
                 },
             },
@@ -762,6 +780,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
                 "is_protected": None,
                 "owner": {"__typename": None, "display_label": None, "id": None},
                 "source": {"__typename": None, "display_label": None, "id": None},
+                "updated_at": None,
             },
         },
         "type": {
@@ -770,6 +789,7 @@ async def test_query_data_node_with_prefetch_relationships_property(clients, moc
             "is_protected": None,
             "owner": {"__typename": None, "display_label": None, "id": None},
             "source": {"__typename": None, "display_label": None, "id": None},
+            "updated_at": None,
             "value": None,
         },
     }
@@ -880,6 +900,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                             "value": None,
                         },
                         "name": {
@@ -897,6 +918,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                             "value": None,
                         },
                         "primary_tag": {
@@ -919,6 +941,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                     "display_label": None,
                                     "id": None,
                                 },
+                                "updated_at": None,
                             },
                         },
                         "type": {
@@ -936,6 +959,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                             "value": None,
                         },
                     },
@@ -955,6 +979,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                             "value": None,
                         },
                         "name": {
@@ -972,6 +997,7 @@ async def test_query_data_generic_fragment_property(clients, mock_schema_query_0
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                             "value": None,
                         },
                     },
@@ -1086,6 +1112,7 @@ async def test_query_data_include_property(
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "description": {
@@ -1102,6 +1129,7 @@ async def test_query_data_include_property(
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "type": {
@@ -1118,6 +1146,7 @@ async def test_query_data_include_property(
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "primary_tag": {
@@ -1133,6 +1162,7 @@ async def test_query_data_include_property(
                                 "display_label": None,
                                 "id": None,
                             },
+                            "updated_at": None,
                         },
                         "node": {
                             "id": None,
@@ -1156,6 +1186,7 @@ async def test_query_data_include_property(
                                     "display_label": None,
                                     "id": None,
                                 },
+                                "updated_at": None,
                             },
                             "node": {
                                 "id": None,
@@ -1264,6 +1295,7 @@ async def test_query_data_exclude_property(client, location_schema: NodeSchemaAP
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                     "type": {
@@ -1280,6 +1312,7 @@ async def test_query_data_exclude_property(client, location_schema: NodeSchemaAP
                             "display_label": None,
                             "id": None,
                         },
+                        "updated_at": None,
                         "value": None,
                     },
                 },
@@ -1670,10 +1703,18 @@ async def test_update_input_data__with_relationships_01(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "value": "DFW"},
+            "name": {
+                "is_protected": True,
+                "value": "DFW",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
             "primary_tag": {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
             "tags": [{"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"}, {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"}],
-            "type": {"is_protected": True, "value": "SITE"},
+            "type": {
+                "is_protected": True,
+                "value": "SITE",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
         },
     }
 
@@ -1722,14 +1763,17 @@ async def test_update_input_data_with_relationships_02(
                 "is_protected": True,
                 "source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "value": "dfw1",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
             },
             "primary_tag": {
+                "_relation__updated_at": "2024-01-15T10:30:00.000000Z",
                 "_relation__is_protected": True,
                 "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
             },
             "tags": [
                 {
+                    "_relation__updated_at": "2024-01-15T10:30:00.000000Z",
                     "_relation__is_protected": True,
                     "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                     "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -1739,6 +1783,7 @@ async def test_update_input_data_with_relationships_02(
                 "is_protected": True,
                 "source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
                 "value": "SITE",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
             },
         },
     }
@@ -1775,6 +1820,7 @@ async def test_update_input_data_with_relationships_02_exclude_unmodified(
             "primary_tag": {
                 "_relation__is_protected": True,
                 "_relation__source": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+                "_relation__updated_at": "2024-01-15T10:30:00.000000Z",
                 "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
             },
         },
@@ -1824,10 +1870,18 @@ async def test_update_input_data_empty_relationship(
     expected_result_with_property = {
         "data": {
             "id": "llllllll-llll-llll-llll-llllllllllll",
-            "name": {"is_protected": True, "value": "DFW"},
+            "name": {
+                "is_protected": True,
+                "value": "DFW",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
             "primary_tag": None,
             "tags": [],
-            "type": {"is_protected": True, "value": "SITE"},
+            "type": {
+                "is_protected": True,
+                "value": "SITE",
+                "updated_at": "2024-01-15T10:30:00.000000Z",
+            },
         },
     }
 

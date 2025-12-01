@@ -34,7 +34,7 @@ from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
 from .data import RepositoryBranchInfo, RepositoryData
-from .diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
+from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
     Error,
@@ -1282,6 +1282,62 @@ class InfrahubClient(BaseClient):
 
         return node_diffs
 
+    async def get_diff_tree(
+        self,
+        branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> DiffTreeData | None:
+        """Get complete diff tree with metadata and nodes.
+
+        Returns None if no diff exists.
+        """
+        query = get_diff_tree_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
+
+        response = await self.execute_graphql(
+            query=query.render(),
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            variables=input_data,
+        )
+
+        diff_tree = response["DiffTree"]
+        if diff_tree is None:
+            return None
+
+        # Convert nodes to NodeDiff objects
+        node_diffs: list[NodeDiff] = []
+        if "nodes" in diff_tree:
+            for node_dict in diff_tree["nodes"]:
+                node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+                node_diffs.append(node_diff)
+
+        return DiffTreeData(
+            num_added=diff_tree.get("num_added") or 0,
+            num_updated=diff_tree.get("num_updated") or 0,
+            num_removed=diff_tree.get("num_removed") or 0,
+            num_conflicts=diff_tree.get("num_conflicts") or 0,
+            to_time=diff_tree["to_time"],
+            from_time=diff_tree["from_time"],
+            base_branch=diff_tree["base_branch"],
+            diff_branch=diff_tree["diff_branch"],
+            name=diff_tree.get("name"),
+            nodes=node_diffs,
+        )
+
     @overload
     async def allocate_next_ip_address(
         self,
@@ -2519,6 +2575,62 @@ class InfrahubClientSync(BaseClient):
             node_diffs.append(node_diff)
 
         return node_diffs
+
+    def get_diff_tree(
+        self,
+        branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> DiffTreeData | None:
+        """Get complete diff tree with metadata and nodes.
+
+        Returns None if no diff exists.
+        """
+        query = get_diff_tree_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
+
+        response = self.execute_graphql(
+            query=query.render(),
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            variables=input_data,
+        )
+
+        diff_tree = response["DiffTree"]
+        if diff_tree is None:
+            return None
+
+        # Convert nodes to NodeDiff objects
+        node_diffs: list[NodeDiff] = []
+        if "nodes" in diff_tree:
+            for node_dict in diff_tree["nodes"]:
+                node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+                node_diffs.append(node_diff)
+
+        return DiffTreeData(
+            num_added=diff_tree.get("num_added") or 0,
+            num_updated=diff_tree.get("num_updated") or 0,
+            num_removed=diff_tree.get("num_removed") or 0,
+            num_conflicts=diff_tree.get("num_conflicts") or 0,
+            to_time=diff_tree["to_time"],
+            from_time=diff_tree["from_time"],
+            base_branch=diff_tree["base_branch"],
+            diff_branch=diff_tree["diff_branch"],
+            name=diff_tree.get("name"),
+            nodes=node_diffs,
+        )
 
     @overload
     def allocate_next_ip_address(

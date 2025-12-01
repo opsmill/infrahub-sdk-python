@@ -23,6 +23,7 @@ $ infrahubctl branch [OPTIONS] COMMAND [ARGS]...
 * `list`: List all existing branches.
 * `merge`: Merge a Branch with main.
 * `rebase`: Rebase a Branch with main.
+* `report`: Generate branch cleanup status report.
 * `validate`: Validate if a branch has some conflict and...
 
 ## `infrahubctl branch create`
@@ -115,6 +116,26 @@ $ infrahubctl branch rebase [OPTIONS] BRANCH_NAME
 
 **Options**:
 
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl branch report`
+
+Generate branch cleanup status report.
+
+**Usage**:
+
+```console
+$ infrahubctl branch report [OPTIONS] BRANCH_NAME
+```
+
+**Arguments**:
+
+* `BRANCH_NAME`: Branch name to generate report for  [required]
+
+**Options**:
+
+* `--update-diff`: Update diff before generating report
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
