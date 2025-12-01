@@ -297,6 +297,7 @@ async def report(
         source_branch__value=branch_name,
         include=["created_by"],
         prefetch_relationships=True,
+        property=True,
     )
 
     branch_table = generate_branch_report_table(branch=branch, diff_tree=diff_tree, git_files_changed=git_files_changed)
@@ -306,6 +307,7 @@ async def report(
     console.print(f"[bold]Branch: {branch_name}[/bold]")
 
     console.print(branch_table)
+    console.print()
 
     if not proposed_changes:
         console.print("No proposed changes for this branch")
