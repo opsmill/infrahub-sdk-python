@@ -52,32 +52,6 @@ async def mock_git_files_changed_yes(httpx_mock: HTTPXMock) -> HTTPXMock:
     return httpx_mock
 
 
-@pytest.fixture
-async def mock_git_files_changed_no(httpx_mock: HTTPXMock) -> HTTPXMock:
-    """Mock REST API response with no files changed."""
-    response = {"test-branch": {"repo-id-1": {"files": []}}}
-
-    httpx_mock.add_response(
-        method="GET",
-        url="http://mock/api/diff/files?branch=test-branch",
-        json=response,
-    )
-    return httpx_mock
-
-
-@pytest.fixture
-async def mock_git_files_empty_response(httpx_mock: HTTPXMock) -> HTTPXMock:
-    """Mock REST API response with empty data."""
-    response = {}
-
-    httpx_mock.add_response(
-        method="GET",
-        url="http://mock/api/diff/files?branch=test-branch",
-        json=response,
-    )
-    return httpx_mock
-
-
 async def test_check_git_files_changed_with_files(
     mock_git_files_changed_yes: HTTPXMock,
 ) -> None:
@@ -87,18 +61,29 @@ async def test_check_git_files_changed_with_files(
     assert result is True
 
 
-async def test_check_git_files_changed_no_files(
-    mock_git_files_changed_no: HTTPXMock,
-) -> None:
+async def test_check_git_files_changed_no_files(httpx_mock: HTTPXMock) -> None:
     """Test check_git_files_changed returns False when no files."""
+    response = {"test-branch": {"repo-id-1": {"files": []}}}
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/diff/files?branch=test-branch",
+        json=response,
+    )
     client = InfrahubClient(config=Config(address="http://mock"))
     result = await check_git_files_changed(client, branch="test-branch")
     assert result is False
 
 
-async def test_check_git_files_changed_empty_response(
-    mock_git_files_empty_response: HTTPXMock,
-) -> None:
+async def test_check_git_files_changed_empty_response(httpx_mock: HTTPXMock) -> None:
+    response = {}
+
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/diff/files?branch=test-branch",
+        json=response,
+    )
+
     """Test check_git_files_changed returns False when branch not in response."""
     client = InfrahubClient(config=Config(address="http://mock"))
     result = await check_git_files_changed(client, branch="test-branch")
@@ -201,7 +186,7 @@ def mock_branch_report_command(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 def test_branch_report_command_without_proposed_change(
     mock_branch_report_command: HTTPXMock,
-    mock_schema_query_05,  # type: ignore[misc]
+    mock_schema_query_05: HTTPXMock,
 ) -> None:
     """Test branch report CLI command with no proposed changes."""
     runner = CliRunner()

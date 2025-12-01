@@ -167,14 +167,8 @@ def test_get_diff_tree_query_structure() -> None:
     """Test that get_diff_tree_query returns proper Query object."""
     query = get_diff_tree_query()
 
-    # Verify it's a Query object
-    assert hasattr(query, "render")
-    assert hasattr(query, "name")
-
-    # Verify query name
     assert query.name == "GetDiffTree"
 
-    # Render and verify structure
     rendered = query.render()
     assert "query GetDiffTree" in rendered
     assert "$branch_name: String!" in rendered
