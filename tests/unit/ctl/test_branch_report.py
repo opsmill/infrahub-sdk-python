@@ -127,6 +127,7 @@ def mock_branch_report_default_branch(httpx_mock: HTTPXMock) -> HTTPXMock:
         match_headers={"X-Infrahub-Tracker": "query-branch"},
     )
 
+
 @pytest.fixture
 def mock_branch_report_command(httpx_mock: HTTPXMock) -> HTTPXMock:
     """Mock all responses for branch report CLI command."""
@@ -348,7 +349,7 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                         "name": {"value": "John Doe"},
                                     },
                                     "properties": {
-                                            "updated_at": "2025-11-10T14:30:00Z",
+                                        "updated_at": "2025-11-10T14:30:00Z",
                                     },
                                 },
                             }
@@ -399,7 +400,7 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                         "name": {"value": "Jane Smith"},
                                     },
                                     "properties": {
-                                            "updated_at": "2025-11-10T14:30:00Z",
+                                        "updated_at": "2025-11-10T14:30:00Z",
                                     },
                                 },
                             }
@@ -436,8 +437,7 @@ def test_branch_report_command_with_proposed_changes(
     assert "John Doe" in result.stdout
     assert "Jane Smith" in result.stdout
 
-
-    assert "Approvals                     2" in result.stdout 
+    assert "Approvals                     2" in result.stdout
     assert "Rejections                    0" in result.stdout
     assert "Approvals                           1" in result.stdout
     assert "Rejections                          2" in result.stdout
