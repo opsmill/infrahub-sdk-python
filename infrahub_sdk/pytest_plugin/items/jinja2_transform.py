@@ -83,7 +83,7 @@ class InfrahubJinja2Item(InfrahubItem):
 class InfrahubJinja2TransformSmokeItem(InfrahubJinja2Item):
     def runtest(self) -> None:
         file_path: Path = self.session.infrahub_config_path.parent / self.resource_config.template_path  # type: ignore[attr-defined]
-        self.get_jinja2_environment().parse(file_path.read_text(), filename=file_path.name)
+        self.get_jinja2_environment().parse(file_path.read_text(encoding="utf-8"), filename=file_path.name)
 
 
 class InfrahubJinja2TransformUnitRenderItem(InfrahubJinja2Item):

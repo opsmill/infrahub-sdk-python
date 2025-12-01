@@ -1,12 +1,11 @@
 import ipaddress
 import re
-from typing import Union
 
-PROPERTIES_FLAG = ["is_visible", "is_protected"]
+PROPERTIES_FLAG = ["is_protected", "updated_at"]
 PROPERTIES_OBJECT = ["source", "owner"]
 SAFE_VALUE = re.compile(r"(^[\. /:a-zA-Z0-9_-]+$)|(^$)")
 
-IP_TYPES = Union[ipaddress.IPv4Interface, ipaddress.IPv6Interface, ipaddress.IPv4Network, ipaddress.IPv6Network]
+IP_TYPES = ipaddress.IPv4Interface | ipaddress.IPv6Interface | ipaddress.IPv4Network | ipaddress.IPv6Network
 
 ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling artifact_fetch is only supported for nodes that are Artifact Definition target"

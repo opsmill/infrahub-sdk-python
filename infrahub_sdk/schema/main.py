@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import MutableMapping
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Self
@@ -11,7 +11,7 @@ from typing_extensions import Self
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
 
-    InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
+    InfrahubNodeTypes = InfrahubNode | InfrahubNodeSync
 
 
 class RelationshipCardinality(str, Enum):

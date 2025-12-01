@@ -33,7 +33,7 @@ class ObjectStore(ObjectStoreBase):
             self.client.log.error(f"Unable to connect to {self.client.address} .. ")
             raise
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in [401, 403]:
+            if exc.response.status_code in {401, 403}:
                 response = exc.response.json()
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
@@ -54,7 +54,7 @@ class ObjectStore(ObjectStoreBase):
             self.client.log.error(f"Unable to connect to {self.client.address} .. ")
             raise
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in [401, 403]:
+            if exc.response.status_code in {401, 403}:
                 response = exc.response.json()
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
@@ -81,7 +81,7 @@ class ObjectStoreSync(ObjectStoreBase):
             self.client.log.error(f"Unable to connect to {self.client.address} .. ")
             raise
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in [401, 403]:
+            if exc.response.status_code in {401, 403}:
                 response = exc.response.json()
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
@@ -102,7 +102,7 @@ class ObjectStoreSync(ObjectStoreBase):
             self.client.log.error(f"Unable to connect to {self.client.address} .. ")
             raise
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in [401, 403]:
+            if exc.response.status_code in {401, 403}:
                 response = exc.response.json()
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]

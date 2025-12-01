@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Optional
 
 import typer
 import yaml
@@ -109,7 +108,7 @@ async def add(
     name: str,
     location: str,
     description: str = "",
-    username: Optional[str] = None,
+    username: str | None = None,
     password: str = "",
     ref: str = "",
     read_only: bool = False,
@@ -155,7 +154,7 @@ async def add(
 
 @app.command()
 async def list(
-    branch: Optional[str] = typer.Option(None, help="Branch on which to list repositories."),
+    branch: str | None = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
@@ -214,12 +213,12 @@ async def init(
         default="https://github.com/opsmill/infrahub-template.git",
         help="Template to use for the new repository. Can be a local path or a git repository URL.",
     ),
-    data: Optional[Path] = typer.Option(default=None, help="Path to YAML file containing answers to CLI prompt."),
-    vcs_ref: Optional[str] = typer.Option(
+    data: Path | None = typer.Option(default=None, help="Path to YAML file containing answers to CLI prompt."),
+    vcs_ref: str | None = typer.Option(
         default="HEAD",
         help="VCS reference to use for the template. Defaults to HEAD.",
     ),
-    trust: Optional[bool] = typer.Option(
+    trust: bool | None = typer.Option(
         default=False,
         help="Trust the template repository. If set, the template will be cloned without verification.",
     ),

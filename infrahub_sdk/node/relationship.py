@@ -87,9 +87,8 @@ class RelationshipManagerBase:
                 properties[prop_name] = None
             for prop_name in PROPERTIES_OBJECT:
                 properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
-
-        if properties:
             data["edges"]["properties"] = properties
+
         if peer_data:
             data["edges"]["node"].update(peer_data)
 

@@ -1,4 +1,5 @@
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,7 @@ from infrahub_sdk.utils import get_fixtures_dir
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir() -> Generator[str]:
     """Fixture to create a temporary directory for testing."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         yield tmp_dir

@@ -168,7 +168,7 @@ def str_to_bool(value: str) -> bool:
     if isinstance(value, bool):
         return value
 
-    if isinstance(value, int) and value in [0, 1]:
+    if isinstance(value, int) and value in {0, 1}:
         return bool(value)
 
     if not isinstance(value, str):
@@ -318,7 +318,7 @@ def write_to_file(path: Path, value: Any) -> bool:
         raise FileExistsError(f"{path} is a directory")
 
     to_write = str(value)
-    written = path.write_text(to_write)
+    written = path.write_text(to_write, encoding="utf-8")
 
     return written is not None
 

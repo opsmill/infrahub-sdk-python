@@ -13,9 +13,9 @@ development_files: &development_files
   - "development/**"
   - "tasks/**"
 
-poetry_files: &poetry_files
+uv_files: &uv_files
   - "pyproject.toml"
-  - "poetry.lock"
+  - "uv.lock"
 
 doc_files: &doc_files
   - "docs/**"
@@ -24,7 +24,7 @@ doc_files: &doc_files
 
 python_all: &python_all
   - "**/*.py"
-  - *poetry_files
+  - *uv_files
   - *ci_config
   - *coverage_config
 

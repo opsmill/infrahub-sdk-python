@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import ipaddress
-from typing import TYPE_CHECKING, Any, Callable, get_args
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, get_args
 
 from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
@@ -25,7 +26,7 @@ class Attribute:
         self.name = name
         self._schema = schema
 
-        if not isinstance(data, dict) or "value" not in data.keys():
+        if not isinstance(data, dict) or "value" not in data:
             data = {"value": data}
 
         self._properties_flag = PROPERTIES_FLAG
@@ -34,12 +35,12 @@ class Attribute:
 
         self._read_only = ["updated_at", "is_inherited"]
 
-        self.id: str | None = data.get("id", None)
+        self.id: str | None = data.get("id")
 
-        self._value: Any | None = data.get("value", None)
+        self._value: Any | None = data.get("value")
         self.value_has_been_mutated = False
-        self.is_default: bool | None = data.get("is_default", None)
-        self.is_from_profile: bool | None = data.get("is_from_profile", None)
+        self.is_default: bool | None = data.get("is_default")
+        self.is_from_profile: bool | None = data.get("is_from_profile")
 
         if self._value:
             value_mapper: dict[str, Callable] = {
@@ -49,11 +50,10 @@ class Attribute:
             mapper = value_mapper.get(schema.kind, lambda value: value)
             self._value = mapper(data.get("value"))
 
-        self.is_inherited: bool | None = data.get("is_inherited", None)
-        self.updated_at: str | None = data.get("updated_at", None)
+        self.is_inherited: bool | None = data.get("is_inherited")
+        self.updated_at: str | None = data.get("updated_at")
 
-        self.is_visible: bool | None = data.get("is_visible", None)
-        self.is_protected: bool | None = data.get("is_protected", None)
+        self.is_protected: bool | None = data.get("is_protected")
 
         self.source: NodeProperty | None = None
         self.owner: NodeProperty | None = None

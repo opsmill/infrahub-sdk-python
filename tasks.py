@@ -39,7 +39,9 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
     for cmd in app.registered_commands:
         if cmd.hidden:
             continue
-        exec_cmd = f'poetry run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
+        exec_cmd = (
+            f'uv run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
+        )
         exec_cmd += f" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx"
         with context.cd(MAIN_DIRECTORY_PATH):
             context.run(exec_cmd)
@@ -47,7 +49,7 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
     for cmd in app.registered_groups:
         if cmd.hidden:
             continue
-        exec_cmd = f"poetry run typer infrahub_sdk.ctl.{cmd.name} utils docs"
+        exec_cmd = f"uv run typer infrahub_sdk.ctl.{cmd.name} utils docs"
         exec_cmd += f' --name "infrahubctl {cmd.name}" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx'
         with context.cd(MAIN_DIRECTORY_PATH):
             context.run(exec_cmd)

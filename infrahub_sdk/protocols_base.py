@@ -56,7 +56,6 @@ class Attribute(Protocol):
     is_from_profile: bool | None
     is_inherited: bool | None
     updated_at: str | None
-    is_visible: bool | None
     is_protected: bool | None
 
 
