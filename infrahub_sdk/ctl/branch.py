@@ -11,6 +11,7 @@ from ..async_typer import AsyncTyper
 from ..utils import calculate_time_diff, decode_json
 from .client import initialize_client
 from .parameters import CONFIG_PARAM
+from ..protocols import CoreProposedChange
 from .utils import catch_exception
 
 if TYPE_CHECKING:
@@ -277,7 +278,10 @@ async def report(  # noqa: PLR0915
 
     # Fetch proposed changes for the branch
     proposed_changes = await client.filters(
-        kind="CoreProposedChange", source_branch__value=branch_name, include=["created_by"], prefetch_relationships=True
+        kind=CoreProposedChange,  # type: ignore[type-abstract]
+        source_branch__value=branch_name,
+        include=["created_by"],
+        prefetch_relationships=True
     )
 
     # Print proposed changes section
@@ -289,15 +293,15 @@ async def report(  # noqa: PLR0915
             proposal_table.add_column(justify="right")
 
             # Extract data from node
-            proposal_table.add_row("Name", pc.name.value)  # type: ignore[union-attr]
-            proposal_table.add_row("State", str(pc.state.value))  # type: ignore[union-attr]
-            proposal_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")  # type: ignore[union-attr]
+            proposal_table.add_row("Name", pc.name.value)
+            proposal_table.add_row("State", str(pc.state.value))
+            proposal_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")
             proposal_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[union-attr]
-            proposal_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))  # type: ignore[union-attr]
-            proposal_table.add_row("Approvals", str(len(pc.approved_by.peers)))  # type: ignore[union-attr]
-            proposal_table.add_row("Rejections", str(len(pc.rejected_by.peers)))  # type: ignore[union-attr]
+            proposal_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))
+            proposal_table.add_row("Approvals", str(len(pc.approved_by.peers)))
+            proposal_table.add_row("Rejections", str(len(pc.rejected_by.peers)))
 
-            console.print(f"Proposed change: {pc.name.value}")  # type: ignore[union-attr]
+            console.print(f"Proposed change: {pc.name.value}")
             console.print(proposal_table)
             console.print()
     else:
