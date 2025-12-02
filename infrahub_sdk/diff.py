@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-)
+from datetime import datetime
+from typing import Any
 
 from typing_extensions import NotRequired, TypedDict
+
+from infrahub_sdk.graphql.query import Query
 
 
 class NodeDiff(TypedDict):
@@ -33,6 +34,19 @@ class NodeDiffSummary(TypedDict):
 class NodeDiffPeer(TypedDict):
     action: str
     summary: NodeDiffSummary
+
+
+class DiffTreeData(TypedDict):
+    num_added: int
+    num_updated: int
+    num_removed: int
+    num_conflicts: int
+    to_time: str
+    from_time: str
+    base_branch: str
+    diff_branch: str
+    name: NotRequired[str | None]
+    nodes: list[NodeDiff]
 
 
 def get_diff_summary_query() -> str:
@@ -124,4 +138,67 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
         action=str(node_dict.get("status")),
         display_label=str(node_dict.get("label")),
         elements=element_diffs,
+    )
+
+
+def get_diff_tree_query() -> Query:
+    node_structure = {
+        "uuid": None,
+        "kind": None,
+        "status": None,
+        "label": None,
+        "num_added": None,
+        "num_updated": None,
+        "num_removed": None,
+        "attributes": {
+            "name": None,
+            "status": None,
+            "num_added": None,
+            "num_updated": None,
+            "num_removed": None,
+        },
+        "relationships": {
+            "name": None,
+            "status": None,
+            "cardinality": None,
+            "num_added": None,
+            "num_updated": None,
+            "num_removed": None,
+            "elements": {
+                "status": None,
+                "num_added": None,
+                "num_updated": None,
+                "num_removed": None,
+            },
+        },
+    }
+
+    return Query(
+        name="GetDiffTree",
+        query={
+            "DiffTree": {
+                "@filters": {
+                    "branch": "$branch_name",
+                    "name": "$name",
+                    "from_time": "$from_time",
+                    "to_time": "$to_time",
+                },
+                "name": None,
+                "to_time": None,
+                "from_time": None,
+                "base_branch": None,
+                "diff_branch": None,
+                "num_added": None,
+                "num_updated": None,
+                "num_removed": None,
+                "num_conflicts": None,
+                "nodes": node_structure,
+            },
+        },
+        variables={
+            "branch_name": str,
+            "name": str | None,
+            "from_time": datetime | None,
+            "to_time": datetime | None,
+        },
     )

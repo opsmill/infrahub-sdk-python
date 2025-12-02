@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from asyncio import run as aiorun
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -16,7 +15,7 @@ from .parameters import CONFIG_PARAM
 
 def local_directory() -> Path:
     # We use a function here to avoid failure when generating the documentation due to directory name
-    return Path().resolve()
+    return Path.cwd()
 
 
 def load(
@@ -27,7 +26,7 @@ def load(
     quiet: bool = typer.Option(False, help="No console output"),
     _: str = CONFIG_PARAM,
     branch: str = typer.Option(None, help="Branch from which to export"),
-    concurrent: Optional[int] = typer.Option(
+    concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
         envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",

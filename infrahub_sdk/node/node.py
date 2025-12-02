@@ -306,12 +306,12 @@ class InfrahubNodeBase:
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
         data_item = data.get(item)
         if item in original_data and isinstance(original_data[item], dict) and isinstance(data_item, dict):
-            for item_key in original_data[item].keys():
+            for item_key in original_data[item]:
                 for property_name in PROPERTIES_OBJECT:
                     if item_key == property_name and isinstance(original_data[item][property_name], dict):
                         if original_data[item][property_name].get("id"):
                             original_data[item][property_name] = original_data[item][property_name]["id"]
-                if item_key in data[item].keys():
+                if item_key in data[item]:
                     if item_key == "id" and len(data[item].keys()) > 1:
                         # Related nodes typically require an ID. So the ID is only
                         # removed if it's the last key in the current context
@@ -357,8 +357,8 @@ class InfrahubNodeBase:
             elif isinstance(relationship_property, RelationshipManagerBase) and not relationship_property.has_update:
                 data.pop(relationship)
 
-        for item in original_data.keys():
-            if item in data.keys():
+        for item in original_data:
+            if item in data:
                 if data[item] == original_data[item]:
                     if attr := getattr(self, item, None):  # this should never be None, just a safety default value
                         if not isinstance(attr, Attribute) or not attr.value_has_been_mutated:
@@ -890,7 +890,7 @@ class InfrahubNode(InfrahubNodeBase):
 
             if (
                 rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in [RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT]  # type: ignore[union-attr]
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
                 and not (include and rel_name in include)
             ):
                 continue
@@ -1057,6 +1057,7 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str,
         related_nodes: list[InfrahubNode],
         timeout: int | None = None,
+        recursive: bool = False,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1065,6 +1066,7 @@ class InfrahubNode(InfrahubNodeBase):
             branch (str): The branch name.
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
+            recursive:(bool): Whether to recursively process relationships of related nodes.
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1072,17 +1074,37 @@ class InfrahubNode(InfrahubNodeBase):
                 relation = node_data["node"].get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = await InfrahubNode.from_graphql(
-                        client=self._client, branch=branch, data=relation, timeout=timeout
+                        client=self._client,
+                        branch=branch,
+                        data=relation,
+                        timeout=timeout,
                     )
                     related_nodes.append(related_node)
+                    if recursive:
+                        await related_node._process_relationships(
+                            node_data=relation,
+                            branch=branch,
+                            related_nodes=related_nodes,
+                            recursive=recursive,
+                        )
             elif rel and isinstance(rel, RelationshipManager):
                 peers = node_data["node"].get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = await InfrahubNode.from_graphql(
-                            client=self._client, branch=branch, data=peer, timeout=timeout
+                            client=self._client,
+                            branch=branch,
+                            data=peer,
+                            timeout=timeout,
                         )
                         related_nodes.append(related_node)
+                        if recursive:
+                            await related_node._process_relationships(
+                                node_data=peer,
+                                branch=branch,
+                                related_nodes=related_nodes,
+                                recursive=recursive,
+                            )
 
     async def get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]:
         """Fetch all nodes that were allocated for the pool and a given resource.
@@ -1653,7 +1675,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             if (
                 rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in [RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT]  # type: ignore[union-attr]
+                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
                 and not (include and rel_name in include)
             ):
                 continue
@@ -1824,6 +1846,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         branch: str,
         related_nodes: list[InfrahubNodeSync],
         timeout: int | None = None,
+        recursive: bool = False,
     ) -> None:
         """Processes the Relationships of a InfrahubNodeSync and add Related Nodes to a list.
 
@@ -1832,7 +1855,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             branch (str): The branch name.
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
-
+            recursive:(bool): Whether to recursively process relationships of related nodes.
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1840,17 +1863,37 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 relation = node_data["node"].get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
-                        client=self._client, branch=branch, data=relation, timeout=timeout
+                        client=self._client,
+                        branch=branch,
+                        data=relation,
+                        timeout=timeout,
                     )
                     related_nodes.append(related_node)
+                    if recursive:
+                        related_node._process_relationships(
+                            node_data=relation,
+                            branch=branch,
+                            related_nodes=related_nodes,
+                            recursive=recursive,
+                        )
             elif rel and isinstance(rel, RelationshipManagerSync):
                 peers = node_data["node"].get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
-                            client=self._client, branch=branch, data=peer, timeout=timeout
+                            client=self._client,
+                            branch=branch,
+                            data=peer,
+                            timeout=timeout,
                         )
                         related_nodes.append(related_node)
+                        if recursive:
+                            related_node._process_relationships(
+                                node_data=peer,
+                                branch=branch,
+                                related_nodes=related_nodes,
+                                recursive=recursive,
+                            )
 
     def get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubNodeSync]:
         """Fetch all nodes that were allocated for the pool and a given resource.

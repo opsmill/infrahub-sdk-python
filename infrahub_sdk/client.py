@@ -5,14 +5,13 @@ import copy
 import logging
 import time
 import warnings
-from collections.abc import Coroutine, Mapping, MutableMapping
+from collections.abc import Callable, Coroutine, Mapping, MutableMapping
 from datetime import datetime
 from functools import wraps
 from time import sleep
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Literal,
     TypedDict,
     TypeVar,
@@ -35,7 +34,7 @@ from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
 from .data import RepositoryBranchInfo, RepositoryData
-from .diff import NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query
+from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
     Error,
@@ -300,7 +299,7 @@ class BaseClient:
         if prefix_length:
             input_data["prefix_length"] = prefix_length
         if member_type:
-            if member_type not in ("prefix", "address"):
+            if member_type not in {"prefix", "address"}:
                 raise ValueError("member_type possible values are 'prefix' or 'address'")
             input_data["member_type"] = member_type
         if prefix_type:
@@ -957,7 +956,7 @@ class InfrahubClient(BaseClient):
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error in (None, True):
+                if raise_for_error in {None, True}:
                     resp.raise_for_status()
 
                 retry = False
@@ -971,7 +970,7 @@ class InfrahubClient(BaseClient):
                     self.log.error(f"Unable to connect to {self.address} .. ")
                     raise
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in [401, 403]:
+                if exc.response.status_code in {401, 403}:
                     response = decode_json(response=exc.response)
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
@@ -1209,7 +1208,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in (None, True):
+        if raise_for_error in {None, True}:
             resp.raise_for_status()
 
         return decode_json(response=resp)
@@ -1282,6 +1281,62 @@ class InfrahubClient(BaseClient):
             node_diffs.append(node_diff)
 
         return node_diffs
+
+    async def get_diff_tree(
+        self,
+        branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> DiffTreeData | None:
+        """Get complete diff tree with metadata and nodes.
+
+        Returns None if no diff exists.
+        """
+        query = get_diff_tree_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
+
+        response = await self.execute_graphql(
+            query=query.render(),
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            variables=input_data,
+        )
+
+        diff_tree = response["DiffTree"]
+        if diff_tree is None:
+            return None
+
+        # Convert nodes to NodeDiff objects
+        node_diffs: list[NodeDiff] = []
+        if "nodes" in diff_tree:
+            for node_dict in diff_tree["nodes"]:
+                node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+                node_diffs.append(node_diff)
+
+        return DiffTreeData(
+            num_added=diff_tree.get("num_added") or 0,
+            num_updated=diff_tree.get("num_updated") or 0,
+            num_removed=diff_tree.get("num_removed") or 0,
+            num_conflicts=diff_tree.get("num_conflicts") or 0,
+            to_time=diff_tree["to_time"],
+            from_time=diff_tree["from_time"],
+            base_branch=diff_tree["base_branch"],
+            diff_branch=diff_tree["diff_branch"],
+            name=diff_tree.get("name"),
+            nodes=node_diffs,
+        )
 
     @overload
     async def allocate_next_ip_address(
@@ -1818,7 +1873,7 @@ class InfrahubClientSync(BaseClient):
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
 
-                if raise_for_error in (None, True):
+                if raise_for_error in {None, True}:
                     resp.raise_for_status()
 
                 retry = False
@@ -1832,7 +1887,7 @@ class InfrahubClientSync(BaseClient):
                     self.log.error(f"Unable to connect to {self.address} .. ")
                     raise
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code in [401, 403]:
+                if exc.response.status_code in {401, 403}:
                     response = decode_json(response=exc.response)
                     errors = response.get("errors", [])
                     messages = [error.get("message") for error in errors]
@@ -2447,7 +2502,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in (None, True):
+        if raise_for_error in {None, True}:
             resp.raise_for_status()
 
         return decode_json(response=resp)
@@ -2520,6 +2575,62 @@ class InfrahubClientSync(BaseClient):
             node_diffs.append(node_diff)
 
         return node_diffs
+
+    def get_diff_tree(
+        self,
+        branch: str,
+        name: str | None = None,
+        from_time: datetime | None = None,
+        to_time: datetime | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> DiffTreeData | None:
+        """Get complete diff tree with metadata and nodes.
+
+        Returns None if no diff exists.
+        """
+        query = get_diff_tree_query()
+        input_data = {"branch_name": branch}
+        if name:
+            input_data["name"] = name
+        if from_time and to_time and from_time > to_time:
+            raise ValueError("from_time must be <= to_time")
+        if from_time:
+            input_data["from_time"] = from_time.isoformat()
+        if to_time:
+            input_data["to_time"] = to_time.isoformat()
+
+        response = self.execute_graphql(
+            query=query.render(),
+            branch_name=branch,
+            timeout=timeout,
+            tracker=tracker,
+            variables=input_data,
+        )
+
+        diff_tree = response["DiffTree"]
+        if diff_tree is None:
+            return None
+
+        # Convert nodes to NodeDiff objects
+        node_diffs: list[NodeDiff] = []
+        if "nodes" in diff_tree:
+            for node_dict in diff_tree["nodes"]:
+                node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name=branch)
+                node_diffs.append(node_diff)
+
+        return DiffTreeData(
+            num_added=diff_tree.get("num_added") or 0,
+            num_updated=diff_tree.get("num_updated") or 0,
+            num_removed=diff_tree.get("num_removed") or 0,
+            num_conflicts=diff_tree.get("num_conflicts") or 0,
+            to_time=diff_tree["to_time"],
+            from_time=diff_tree["from_time"],
+            base_branch=diff_tree["base_branch"],
+            diff_branch=diff_tree["diff_branch"],
+            name=diff_tree.get("name"),
+            nodes=node_diffs,
+        )
 
     @overload
     def allocate_next_ip_address(

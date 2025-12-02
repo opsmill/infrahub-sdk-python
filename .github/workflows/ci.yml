@@ -46,7 +46,7 @@ jobs:
       github_workflows: ${{ steps.changes.outputs.github_workflows }}
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: Check for file changes
         uses: dorny/paths-filter@v3
         id: changes
@@ -63,7 +63,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: "Setup environment"
         run: "pip install yamllint==1.35.1"
       - name: "Linting: yamllint"
@@ -71,18 +71,26 @@ jobs:
 
   python-lint:
     if: needs.files-changed.outputs.python == 'true'
-    needs: ["files-changed"]
+    needs: ["files-changed", "prepare-environment"]
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v5"
-      - name: "Setup environment"
-        run: "pip install ruff==0.11.0"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+      - name: Install dependencies
+        run: uv sync --group lint
       - name: "Linting: ruff check"
-        run: "ruff check ."
+        run: "uv run ruff check ."
       - name: "Linting: ruff format"
-        run: "ruff format --check --diff ."
+        run: "uv run ruff format --check --diff ."
 
 
   markdown-lint:
@@ -94,9 +102,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: "Linting: markdownlint"
-        uses: DavidAnson/markdownlint-cli2-action@v20
+        uses: DavidAnson/markdownlint-cli2-action@v21
         with:
           config: .markdownlint.yaml
           globs: |
@@ -110,7 +118,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: Check workflow files
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
@@ -156,7 +164,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
         with:
           submodules: true
       - name: Install NodeJS
@@ -172,7 +180,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
       - name: Install dependencies
@@ -191,7 +199,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
         with:
           submodules: true
       - name: Set up Python
@@ -199,7 +207,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
       - name: Install dependencies
@@ -217,7 +225,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
         with:
           submodules: true
 
@@ -239,7 +247,6 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
@@ -254,15 +261,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: uv sync --all-groups --all-extras
       - name: Mypy Tests
@@ -301,7 +309,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v6"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -311,7 +319,7 @@ jobs:
           RUNNER_NAME=$(echo "${{ runner.name }}" | grep -o 'ghrunner[0-9]\+' | sed 's/ghrunner\([0-9]\+\)/ghrunner_\1/')
           echo "PYTEST_DEBUG_TEMPROOT=/var/lib/github/${RUNNER_NAME}/_temp" >> $GITHUB_ENV
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
       - name: Install dependencies
@@ -339,14 +347,14 @@ jobs:
   #   timeout-minutes: 30
   #   steps:
   #     - name: "Check out repository code"
-  #       uses: "actions/checkout@v5"
+  #       uses: "actions/checkout@v6"
 
   #     - name: "Extract target branch name"
   #       id: extract_branch
   #       run: echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
 
   #     - name: "Checkout infrahub repository"
-  #       uses: "actions/checkout@v5"
+  #       uses: "actions/checkout@v6"
   #       with:
   #         repository: "opsmill/infrahub"
   #         path: "infrahub-server"

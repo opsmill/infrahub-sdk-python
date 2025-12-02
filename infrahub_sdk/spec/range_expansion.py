@@ -69,7 +69,7 @@ def _extract_constants(pattern: str, re_compiled: re.Pattern) -> tuple[list[int]
 def _expand_interfaces(pattern: str, interface_constant: list[int], cartesian_list: list[list[str]]) -> list[str]:
     def _pairwise(lst: list[int]) -> list[tuple[int, int]]:
         it = iter(lst)
-        return list(zip(it, it))
+        return list(zip(it, it, strict=False))
 
     if interface_constant[-1] < len(pattern):
         interface_constant.append(len(pattern))

@@ -7,12 +7,11 @@ import warnings
 from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
-from typing import TYPE_CHECKING, Any, TypedDict, Union
+from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
 from urllib.parse import urlencode
 
 import httpx
 from pydantic import BaseModel, Field
-from typing_extensions import TypeAlias
 
 from ..exceptions import (
     BranchNotFoundError,
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
     from ..node import InfrahubNode, InfrahubNodeSync
 
-    InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
+    InfrahubNodeTypes: TypeAlias = InfrahubNode | InfrahubNodeSync
 
 
 __all__ = [
@@ -84,11 +83,11 @@ class EnumMutation(str, Enum):
     remove = "SchemaEnumRemove"
 
 
-MainSchemaTypes: TypeAlias = Union[NodeSchema, GenericSchema]
-MainSchemaTypesAPI: TypeAlias = Union[NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI]
-MainSchemaTypesAll: TypeAlias = Union[
-    NodeSchema, GenericSchema, NodeSchemaAPI, GenericSchemaAPI, ProfileSchemaAPI, TemplateSchemaAPI
-]
+MainSchemaTypes: TypeAlias = NodeSchema | GenericSchema
+MainSchemaTypesAPI: TypeAlias = NodeSchemaAPI | GenericSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI
+MainSchemaTypesAll: TypeAlias = (
+    NodeSchema | GenericSchema | NodeSchemaAPI | GenericSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI
+)
 
 
 class SchemaWarningType(Enum):
@@ -123,7 +122,7 @@ class InfrahubSchemaBase:
         SchemaRoot(**data)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
-        for key in data.keys():
+        for key in data:
             if key not in schema.relationship_names + schema.attribute_names:
                 identifier = f"{schema.kind}"
                 raise ValidationError(
@@ -191,12 +190,12 @@ class InfrahubSchemaBase:
                 hash=status["hash"], previous_hash=status["previous_hash"], warnings=status.get("warnings") or []
             )
 
-        if response.status_code in [
+        if response.status_code in {
             httpx.codes.BAD_REQUEST,
             httpx.codes.UNPROCESSABLE_ENTITY,
             httpx.codes.UNAUTHORIZED,
             httpx.codes.FORBIDDEN,
-        ]:
+        }:
             return SchemaLoadResponse(errors=response.json())
 
         response.raise_for_status()

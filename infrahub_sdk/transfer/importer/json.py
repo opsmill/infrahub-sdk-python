@@ -62,7 +62,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
 
         with self.wrapped_task_output("Analyzing import"):
             import_nodes_by_kind = defaultdict(list)
-            for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind")):
+            for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind"), strict=False):
                 node = await InfrahubNode.from_graphql(self.client, branch, ujson.loads(str(graphql_data)))
                 import_nodes_by_kind[str(kind)].append(node)
                 self.all_nodes[node.id] = node
@@ -109,7 +109,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
                         relationship_schema
                     )
 
-            for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind].keys():
+            for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind]:
                 relationship_value = getattr(node, relationship_name)
                 if isinstance(relationship_value, RelationshipManager):
                     if relationship_value.peer_ids:
@@ -144,7 +144,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         await self.execute_batches([update_batch], "Adding optional relationships to nodes")
 
     async def update_many_to_many_relationships(self, file: Path) -> None:
-        relationships = ujson.loads(file.read_text())
+        relationships = ujson.loads(file.read_text(encoding="utf-8"))
         update_batch = await self.client.create_batch(return_exceptions=True)
 
         for relationship in relationships:

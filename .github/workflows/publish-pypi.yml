@@ -46,8 +46,8 @@ jobs:
         with:
           version: ${{ needs.prepare-environment.outputs.UV_VERSION }}
 
-      - name: Check out repository code
-        uses: "actions/checkout@v5"
+      - name: "Check out repository code"
+        uses: "actions/checkout@v6"
         with:
           submodules: true
 

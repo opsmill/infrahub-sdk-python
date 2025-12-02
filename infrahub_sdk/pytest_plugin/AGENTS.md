@@ -21,7 +21,7 @@ infrahub_tests:
 ## Test Kinds
 
 | Resource | Smoke | Unit | Integration |
-|----------|-------|------|-------------|
+| -------- | ----- | ---- | ----------- |
 | Check | `check-smoke` | `check-unit-process` | `check-integration` |
 | GraphQL | `graphql-query-smoke` | - | `graphql-query-integration` |
 | Jinja2 | `jinja2-transform-smoke` | `jinja2-transform-unit-render` | `jinja2-transform-integration` |

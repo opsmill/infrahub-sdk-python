@@ -74,7 +74,7 @@ class RelationshipInfo(BaseModel):
 
     @property
     def is_reference(self) -> bool:
-        return self.format in [RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF]
+        return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
 
     def get_context(self, value: Any) -> dict:
         """Return a dict to insert to the context if the relationship is mandatory"""
@@ -230,7 +230,7 @@ class InfrahubObjectFileData(BaseModel):
 
         # First validate if all mandatory fields are present
         for element in schema.mandatory_input_names:
-            if not any([element in data.keys(), element in context.keys()]):
+            if not any([element in data, element in context]):
                 errors.append(ObjectValidationError(position=position + [element], message=f"{element} is mandatory"))
 
         # Validate if all attributes are valid
