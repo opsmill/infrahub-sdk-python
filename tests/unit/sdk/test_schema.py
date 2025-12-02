@@ -455,7 +455,7 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         assert output == expected_console
 
 
-def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols():
+def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols() -> None:
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTagSync) == "BuiltinTag"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTag) == "BuiltinTag"
     assert InfrahubSchemaBase._get_schema_name(schema="BuiltinTag") == "BuiltinTag"

@@ -11,6 +11,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.16.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.16.0) - 2025-12-01
+
+### Added
+
+- Added infrahubctl branch report command to help with cleaning up branches in Infrahub.
+
+### Changed
+
+- Updated behaviour for recursive lookups for the conversion of nested relationships. Note that this change could cause issues in transforms or generators that use the convert_query_response feature if "id" or "__typename" isn't requested for nested related objects. ([#389](https://github.com/opsmill/infrahub-sdk-python/issues/389))
+- The project now uses `uv` instead of `poetry` for package and dependency management.
+
+### Removed
+
+- Remove `is_visible` property from infrahub
+- Removed support for Python 3.9 (end of life)
+
 ## [1.15.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.1) - 2025-11-13
 
 ### Fixed

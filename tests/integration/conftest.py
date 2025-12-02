@@ -248,7 +248,7 @@ TEST_IN_DOCKER = str_to_bool(os.environ.get("INFRAHUB_TEST_IN_DOCKER", "false"))
 #             },
 #         ],
 #     }
-#     return NodeSchema(**data)  # type: ignore
+#     return NodeSchema(**data)
 
 
 # @pytest.fixture

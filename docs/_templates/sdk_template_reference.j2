@@ -9,7 +9,7 @@ The following filters are those that are [shipped with Jinja2](https://jinja.pal
 
 <!-- vale off -->
 | Name | Trusted |
-|----------|----------|
+| ---- | ------- |
 {% for filter in builtin %}
 | {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
 {% endfor %}
@@ -20,7 +20,7 @@ The following filters are those that are [shipped with Jinja2](https://jinja.pal
 The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netutils</a> are included within Infrahub.
 <!-- vale off -->
 | Name | Trusted |
-|----------|----------|
+| ---- | ------- |
 {% for filter in netutils %}
 | {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
 {% endfor %}

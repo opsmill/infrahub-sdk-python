@@ -90,7 +90,7 @@ def pytest_sessionstart(session: Session) -> None:
 
 
 def pytest_collect_file(parent: Collector | Item, file_path: Path) -> InfrahubYamlFile | None:
-    if file_path.suffix in [".yml", ".yaml"] and file_path.name.startswith("test_"):
+    if file_path.suffix in {".yml", ".yaml"} and file_path.name.startswith("test_"):
         return InfrahubYamlFile.from_parent(parent, path=file_path)
     return None
 

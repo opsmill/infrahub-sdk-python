@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from infrahub_sdk import InfrahubClient
@@ -6,7 +8,7 @@ from infrahub_sdk.checks import InfrahubCheck
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
 
-async def test_class_init() -> None:
+async def test_class_init(tmp_path: Path) -> None:
     class IFCheckNoQuery(InfrahubCheck):
         pass
 
@@ -29,9 +31,9 @@ async def test_class_init() -> None:
     check = IFCheckNoName()
     assert check.name == "IFCheckNoName"
 
-    check = IFCheckWithName(root_directory="/tmp")
+    check = IFCheckWithName(root_directory=str(tmp_path))
     assert check.name == "my_check"
-    assert check.root_directory == "/tmp"
+    assert check.root_directory == str(tmp_path)
 
 
 async def test_async_init(client) -> None:

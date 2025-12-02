@@ -55,7 +55,7 @@ class InfrahubInputOutputTest(InfrahubBaseTest):
 
         if suffix and suffix == "json":
             return ujson.loads(text)
-        if suffix in ("yml", "yaml"):
+        if suffix in {"yml", "yaml"}:
             return yaml.safe_load(text)
 
         return text

@@ -1,5 +1,6 @@
 import asyncio
 import os
+from collections.abc import Generator
 
 import pytest
 
@@ -11,7 +12,7 @@ ENV_VARS_TO_CLEAN = ["INFRAHUB_ADDRESS", "INFRAHUB_TOKEN", "INFRAHUB_BRANCH", "I
 
 
 @pytest.fixture(scope="session")
-def event_loop():
+def event_loop() -> Generator[asyncio.AbstractEventLoop]:
     """Overrides pytest default function scoped event loop"""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
@@ -26,7 +27,7 @@ def execute_before_any_test() -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clean_env_vars():
+def clean_env_vars() -> Generator:
     """Cleans the environment variables before any test is run."""
     original_values = {}
     for name in ENV_VARS_TO_CLEAN:
