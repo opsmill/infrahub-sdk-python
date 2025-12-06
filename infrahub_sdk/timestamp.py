@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Literal, TypedDict
 
 from typing_extensions import NotRequired
-from whenever import Date, Instant, LocalDateTime, OffsetDateTime, Time, ZonedDateTime
+from whenever import Date, Instant, OffsetDateTime, PlainDateTime, Time, ZonedDateTime
 
 from .exceptions import TimestampFormatError
 
@@ -51,30 +51,30 @@ class Timestamp:
     @classmethod
     def _parse_string(cls, value: str) -> ZonedDateTime:
         try:
-            return ZonedDateTime.parse_common_iso(value)
+            return ZonedDateTime.parse_iso(value)
         except ValueError:
             pass
 
         try:
-            instant_date = Instant.parse_common_iso(value)
+            instant_date = Instant.parse_iso(value)
             return instant_date.to_tz("UTC")
         except ValueError:
             pass
 
         try:
-            local_date_time = LocalDateTime.parse_common_iso(value)
-            return local_date_time.assume_utc().to_tz("UTC")
+            plain_date_time = PlainDateTime.parse_iso(value)
+            return plain_date_time.assume_utc().to_tz("UTC")
         except ValueError:
             pass
 
         try:
-            offset_date_time = OffsetDateTime.parse_common_iso(value)
+            offset_date_time = OffsetDateTime.parse_iso(value)
             return offset_date_time.to_tz("UTC")
         except ValueError:
             pass
 
         try:
-            date = Date.parse_common_iso(value)
+            date = Date.parse_iso(value)
             local_date = date.at(Time(12, 00))
             return local_date.assume_tz("UTC", disambiguate="compatible")
         except ValueError:
