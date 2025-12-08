@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import typer
 import yaml
-from copier import run_copy
 from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
@@ -207,49 +205,9 @@ async def list(
 
 
 @app.command()
-async def init(
-    directory: Path = typer.Argument(help="Directory path for the new project."),
-    template: str = typer.Option(
-        default="https://github.com/opsmill/infrahub-template.git",
-        help="Template to use for the new repository. Can be a local path or a git repository URL.",
-    ),
-    data: Path | None = typer.Option(default=None, help="Path to YAML file containing answers to CLI prompt."),
-    vcs_ref: str | None = typer.Option(
-        default="HEAD",
-        help="VCS reference to use for the template. Defaults to HEAD.",
-    ),
-    trust: bool | None = typer.Option(
-        default=False,
-        help="Trust the template repository. If set, the template will be cloned without verification.",
-    ),
-    _: str = CONFIG_PARAM,
-) -> None:
+async def init() -> None:
     """Initialize a new Infrahub repository."""
 
-    config_data = None
-    if data:
-        try:
-            with Path.open(data, encoding="utf-8") as file:
-                config_data = yaml.safe_load(file)
-            typer.echo(f"Loaded config: {config_data}")
-        except Exception as exc:
-            typer.echo(f"Error loading YAML file: {exc}", err=True)
-            raise typer.Exit(code=1)
-
-    # Allow template to be a local path or a URL
-    template_source = template or ""
-    if template and Path(template).exists():
-        template_source = str(Path(template).resolve())
-
-    try:
-        await asyncio.to_thread(
-            run_copy,
-            template_source,
-            str(directory),
-            data=config_data,
-            vcs_ref=vcs_ref,
-            unsafe=trust,
-        )
-    except Exception as e:
-        typer.echo(f"Error running copier: {e}", err=True)
-        raise typer.Exit(code=1)
+    console.print("The copier tool is not included in the Infrahub SDK CLI due to license restrictions,")
+    console.print("please run the following command to create a new Infrahub repository project:\n")
+    console.print("uv tool run --from 'copier' copier copy https://github.com/opsmill/infrahub-template <project-name>")
