@@ -56,6 +56,14 @@ class RelationshipManagerBase:
     def has_update(self) -> bool:
         return self._has_update
 
+    @property
+    def is_from_profile(self) -> bool:
+        """Return whether this relationship was set from a profile. All its peers must be from a profile."""
+        if not self.peers:
+            return False
+        all_profiles = [p.is_from_profile for p in self.peers]
+        return bool(all_profiles) and all(all_profiles)
+
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
 
