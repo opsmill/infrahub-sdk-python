@@ -11,9 +11,9 @@ from infrahub_sdk.node import (
     InfrahubNodeBase,
     InfrahubNodeSync,
     RelatedNodeBase,
+    RelationshipManager,
     RelationshipManagerBase,
     parse_human_friendly_id,
-    RelationshipManager,
 )
 from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
