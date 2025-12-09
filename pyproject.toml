@@ -49,7 +49,6 @@ ctl = [
     "rich>=12,<14",
     "typer>=0.12.5",
     "click==8.1.*",
-    "copier>=9.8.0",
     "ariadne-codegen==0.15.3",
 ]
 
@@ -63,7 +62,6 @@ all = [
     "rich>=12,<14",
     "typer>=0.12.5",
     "click==8.1.*",
-    "copier>=9.8.0",
     "ariadne-codegen==0.15.3",
 ]
 
