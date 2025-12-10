@@ -42,7 +42,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install UV
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: ${{ needs.prepare-environment.outputs.UV_VERSION }}
 
