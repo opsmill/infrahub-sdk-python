@@ -72,11 +72,7 @@ class InfrahubNodeBase:
         self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
 
         # Check if this node is hierarchical (supports parent/children and ancestors/descendants)
-        if (
-            not isinstance(schema, ProfileSchemaAPI)
-            or not isinstance(schema, GenericSchemaAPI)
-            or not isinstance(schema, TemplateSchemaAPI)
-        ):
+        if not isinstance(schema, (ProfileSchemaAPI, GenericSchemaAPI, TemplateSchemaAPI)):
             self._hierarchy_support = getattr(schema, "hierarchy", None) is not None
         else:
             self._hierarchy_support = False
