@@ -17,4 +17,6 @@ ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling generate is only supported for CoreArtifactDefinition nodes"
 )
 
+HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
+
 HFID_STR_SEPARATOR = "__"

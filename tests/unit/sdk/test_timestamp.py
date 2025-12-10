@@ -30,7 +30,7 @@ def test_init_timestamp() -> None:
 def test_parse_string() -> None:
     REF = "2022-01-01T10:00:00.000000Z"
 
-    assert Timestamp._parse_string(REF).instant() == Instant.parse_common_iso(REF)
+    assert Timestamp._parse_string(REF).to_instant() == Instant.parse_iso(REF)
     assert Timestamp._parse_string("5m")
     assert Timestamp._parse_string("10min")
     assert Timestamp._parse_string("2h")

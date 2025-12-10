@@ -217,19 +217,19 @@ def test_write_to_file() -> None:
 
 
 def test_calculate_time_diff() -> None:
-    time1 = Instant.now().subtract(seconds=98).format_common_iso()
+    time1 = Instant.now().subtract(seconds=98).format_iso()
     assert calculate_time_diff(time1) == "1m and 38s ago"
 
-    time2 = Instant.now().subtract(hours=1, minutes=12, seconds=34).format_common_iso()
+    time2 = Instant.now().subtract(hours=1, minutes=12, seconds=34).format_iso()
     assert calculate_time_diff(time2) == "1h 12m and 34s ago"
 
-    time3 = Instant.now().format_common_iso()
+    time3 = Instant.now().format_iso()
     assert calculate_time_diff(time3) == "now"
 
-    time4 = Instant.now().subtract(seconds=23).format_common_iso()
+    time4 = Instant.now().subtract(seconds=23).format_iso()
     assert calculate_time_diff(time4) == "23s ago"
 
-    time5 = Instant.now().subtract(hours=77, minutes=12, seconds=34).format_common_iso()
+    time5 = Instant.now().subtract(hours=77, minutes=12, seconds=34).format_iso()
     assert calculate_time_diff(time5) == "3d and 5h ago"
 
 

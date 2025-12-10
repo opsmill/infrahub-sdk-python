@@ -20,9 +20,11 @@ Containerlab
 content_type
 convert_query_response
 coroutine
+callouts
 cypher
 Dagster
 datastore
+Diataxis
 default_branch
 default_filter
 deserialized
@@ -42,6 +44,7 @@ eslint
 excalidraw
 fanout
 file_path
+frontmatter
 generator_definition
 generator_definitions
 github
@@ -114,6 +117,7 @@ template_path
 toml
 Towncrier
 towncrier
+Typer
 uncheck
 uniqueness_constraints
 userinfo

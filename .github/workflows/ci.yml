@@ -127,6 +127,28 @@ jobs:
         env:
           SHELLCHECK_OPTS: --exclude=SC2086 --exclude=SC2046 --exclude=SC2004 --exclude=SC2129
 
+  uv-lock-check:
+    if: |
+      needs.files-changed.outputs.uv_files == 'true' ||
+      needs.files-changed.outputs.github_workflows == 'true'
+    needs:
+      - files-changed
+      - prepare-environment
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v5"
+      - name: "Set up Python"
+        uses: "actions/setup-python@v6"
+        with:
+          python-version: "3.12"
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ needs.prepare-environment.outputs.UV_VERSION }}
+      - name: "Validate pyproject.toml and consistency with uv.lock"
+        run: uv lock --locked --offline
 
   documentation:
     defaults:
@@ -229,6 +251,7 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
     if: |
       always() && !cancelled() &&
       !contains(needs.*.result, 'failure') &&
