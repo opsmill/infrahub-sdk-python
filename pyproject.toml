@@ -7,7 +7,7 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 classifiers = [
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "pydantic>=2.0.0,!=2.0.1,!=2.1.0,<3.0.0",
@@ -23,7 +24,7 @@ dependencies = [
     "httpx>=0.20",
     "ujson>=5",
     "dulwich>=0.21.4",
-    "whenever>=0.7.2,<0.8.0",
+    "whenever>=0.9.3,<0.10.0",
     "netutils>=1.0.0",
     "tomli>=1.1.0; python_version<'3.11'",
 ]
@@ -49,7 +50,6 @@ ctl = [
     "rich>=12,<14",
     "typer>=0.12.5",
     "click==8.1.*",
-    "copier>=9.8.0",
     "ariadne-codegen==0.15.3",
 ]
 
@@ -63,7 +63,6 @@ all = [
     "rich>=12,<14",
     "typer>=0.12.5",
     "click==8.1.*",
-    "copier>=9.8.0",
     "ariadne-codegen==0.15.3",
 ]
 

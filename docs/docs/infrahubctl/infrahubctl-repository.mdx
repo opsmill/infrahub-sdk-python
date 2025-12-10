@@ -55,20 +55,11 @@ Initialize a new Infrahub repository.
 **Usage**:
 
 ```console
-$ infrahubctl repository init [OPTIONS] DIRECTORY
+$ infrahubctl repository init [OPTIONS]
 ```
-
-**Arguments**:
-
-* `DIRECTORY`: Directory path for the new project.  [required]
 
 **Options**:
 
-* `--template TEXT`: Template to use for the new repository. Can be a local path or a git repository URL.  [default: https://github.com/opsmill/infrahub-template.git]
-* `--data PATH`: Path to YAML file containing answers to CLI prompt.
-* `--vcs-ref TEXT`: VCS reference to use for the template. Defaults to HEAD.  [default: HEAD]
-* `--trust / --no-trust`: Trust the template repository. If set, the template will be cloned without verification.  [default: no-trust]
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
 ## `infrahubctl repository list`
