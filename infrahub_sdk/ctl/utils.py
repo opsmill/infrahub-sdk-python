@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import inspect
 import logging
 import traceback
 from collections.abc import Callable, Coroutine
@@ -83,7 +83,7 @@ def catch_exception(
         console = Console()
 
     def decorator(func: Callable[..., T]) -> Callable[..., T | Coroutine[Any, Any, T]]:
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
