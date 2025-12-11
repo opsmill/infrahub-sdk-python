@@ -11,6 +11,7 @@ from infrahub_sdk.node import (
     InfrahubNodeBase,
     InfrahubNodeSync,
     RelatedNodeBase,
+    RelationshipManager,
     RelationshipManagerBase,
     parse_human_friendly_id,
 )
@@ -2623,3 +2624,125 @@ async def test_process_relationships_recursive_deep_nesting(
     assert "ip-2" in recursive_ids  # From interface-1
     assert "ip-3" in recursive_ids  # From interface-2
     assert len(related_nodes_recursive) == 5  # 2 interfaces + 3 IP addresses
+
+
+class TestRelatedNodeIsFromProfile:
+    def test_is_from_profile_when_source_is_profile(self, location_schema) -> None:
+        data = {
+            "node": {"id": "test-id", "display_label": "test-tag", "__typename": "BuiltinTag"},
+            "properties": {
+                "is_protected": False,
+                "owner": None,
+                "source": {"__typename": "ProfileInfraDevice", "display_label": "default-profile", "id": "profile-id"},
+            },
+        }
+        related_node = RelatedNodeBase(branch="main", schema=location_schema.relationships[0], data=data)
+        assert related_node.is_from_profile
+
+    def test_is_from_profile_when_source_is_not_profile(self, location_schema) -> None:
+        data = {
+            "node": {"id": "test-id", "display_label": "test-tag", "__typename": "BuiltinTag"},
+            "properties": {
+                "is_protected": False,
+                "owner": None,
+                "source": {"__typename": "CoreAccount", "display_label": "admin", "id": "account-id"},
+            },
+        }
+        related_node = RelatedNodeBase(branch="main", schema=location_schema.relationships[0], data=data)
+        assert not related_node.is_from_profile
+
+    def test_is_from_profile_when_source_not_queried(self, location_schema) -> None:
+        data = {
+            "node": {"id": "test-id", "display_label": "test-tag", "__typename": "BuiltinTag"},
+            "properties": {"is_protected": False, "owner": None, "source": None},
+        }
+        related_node = RelatedNodeBase(branch="main", schema=location_schema.relationships[0], data=data)
+        assert not related_node.is_from_profile
+
+    def test_is_from_profile_when_no_properties(self, location_schema) -> None:
+        data = {"node": {"id": "test-id", "display_label": "test-tag", "__typename": "BuiltinTag"}}
+        related_node = RelatedNodeBase(branch="main", schema=location_schema.relationships[0], data=data)
+        assert not related_node.is_from_profile
+
+
+class TestRelationshipManagerIsFromProfile:
+    def test_is_from_profile_when_no_peers(self, location_schema) -> None:
+        manager = RelationshipManagerBase(name="tags", branch="main", schema=location_schema.relationships[0])
+        assert not manager.is_from_profile
+
+    def test_is_from_profile_when_all_peers_from_profile(self, client, location_schema) -> None:
+        data = {
+            "count": 2,
+            "edges": [
+                {
+                    "node": {"id": "tag-1", "display_label": "tag1", "__typename": "BuiltinTag"},
+                    "properties": {
+                        "is_protected": False,
+                        "owner": None,
+                        "source": {"__typename": "ProfileInfraDevice", "display_label": "profile1", "id": "profile-1"},
+                    },
+                },
+                {
+                    "node": {"id": "tag-2", "display_label": "tag2", "__typename": "BuiltinTag"},
+                    "properties": {
+                        "is_protected": False,
+                        "owner": None,
+                        "source": {"__typename": "ProfileInfraDevice", "display_label": "profile1", "id": "profile-1"},
+                    },
+                },
+            ],
+        }
+        manager = RelationshipManager(
+            name="tags", client=client, node=None, branch="main", schema=location_schema.relationships[0], data=data
+        )
+        assert manager.is_from_profile
+
+    def test_is_from_profile_when_any_peer_not_from_profile(self, client, location_schema) -> None:
+        data = {
+            "count": 2,
+            "edges": [
+                {
+                    "node": {"id": "tag-1", "display_label": "tag1", "__typename": "BuiltinTag"},
+                    "properties": {
+                        "is_protected": False,
+                        "owner": None,
+                        "source": {"__typename": "ProfileInfraDevice", "display_label": "profile1", "id": "profile-1"},
+                    },
+                },
+                {
+                    "node": {"id": "tag-2", "display_label": "tag2", "__typename": "BuiltinTag"},
+                    "properties": {
+                        "is_protected": False,
+                        "owner": None,
+                        "source": {"__typename": "CoreAccount", "display_label": "admin", "id": "account-1"},
+                    },
+                },
+            ],
+        }
+        manager = RelationshipManager(
+            name="tags", client=client, node=None, branch="main", schema=location_schema.relationships[0], data=data
+        )
+        assert not manager.is_from_profile
+
+    def test_is_from_profile_when_any_peer_has_unknown_source(self, client, location_schema) -> None:
+        data = {
+            "count": 2,
+            "edges": [
+                {
+                    "node": {"id": "tag-1", "display_label": "tag1", "__typename": "BuiltinTag"},
+                    "properties": {
+                        "is_protected": False,
+                        "owner": None,
+                        "source": {"__typename": "ProfileInfraDevice", "display_label": "profile1", "id": "profile-1"},
+                    },
+                },
+                {
+                    "node": {"id": "tag-2", "display_label": "tag2", "__typename": "BuiltinTag"},
+                    "properties": {"is_protected": False, "owner": None, "source": None},
+                },
+            ],
+        }
+        manager = RelationshipManager(
+            name="tags", client=client, node=None, branch="main", schema=location_schema.relationships[0], data=data
+        )
+        assert not manager.is_from_profile

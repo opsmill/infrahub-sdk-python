@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
-from ..exceptions import (
-    Error,
-)
+from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
-from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -40,6 +39,7 @@ class RelatedNodeBase:
         self._display_label: str | None = None
         self._typename: str | None = None
         self._kind: str | None = None
+        self._source_typename: str | None = None
 
         if isinstance(data, (CoreNodeBase)):
             self._peer = data
@@ -74,6 +74,8 @@ class RelatedNodeBase:
                 prop_data = properties_data.get(prop, properties_data.get(f"_relation__{prop}", None))
                 if prop_data and isinstance(prop_data, dict) and "id" in prop_data:
                     setattr(self, prop, prop_data["id"])
+                    if prop == "source" and "__typename" in prop_data:
+                        self._source_typename = prop_data["__typename"]
                 elif prop_data and isinstance(prop_data, (str, bool)):
                     setattr(self, prop, prop_data)
                 else:
@@ -124,6 +126,13 @@ class RelatedNodeBase:
         if self._peer:
             return self._peer.get_kind()
         return self._kind
+
+    @property
+    def is_from_profile(self) -> bool:
+        """Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind."""
+        if not self._source_typename:
+            return False
+        return bool(re.match(rf"^{PROFILE_KIND_PREFIX}[A-Z]", self._source_typename))
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
