@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from ..exceptions import Error
@@ -131,7 +132,7 @@ class RelatedNodeBase:
         """Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind."""
         if not self._source_typename:
             return False
-        return self._source_typename.startswith(PROFILE_KIND_PREFIX)
+        return bool(re.match(rf"^{PROFILE_KIND_PREFIX}[A-Z]", self._source_typename))
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
