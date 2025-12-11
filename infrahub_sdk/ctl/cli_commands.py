@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import importlib
+import inspect
 import logging
 import platform
 import sys
@@ -240,7 +241,7 @@ async def _run_transform(
                 console.print("[yellow]   you can specify a different branch with --branch")
         raise typer.Abort()
 
-    if asyncio.iscoroutinefunction(transform_func):
+    if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)
     else:
         output = transform_func(response)
