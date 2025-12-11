@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import importlib
+import inspect
 import os
 import warnings
 from abc import abstractmethod
@@ -160,7 +160,7 @@ class InfrahubCheck:
             data = await self.collect_data()
         unpacked = data.get("data") or data
 
-        if asyncio.iscoroutinefunction(self.validate):
+        if inspect.iscoroutinefunction(self.validate):
             await self.validate(data=unpacked)
         else:
             self.validate(data=unpacked)
