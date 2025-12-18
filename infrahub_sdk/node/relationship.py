@@ -10,6 +10,7 @@ from ..exceptions import (
 )
 from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
@@ -72,12 +73,16 @@ class RelationshipManagerBase:
         return {}
 
     @classmethod
-    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None, property: bool = False) -> dict:
+    def _generate_query_data(
+        cls, peer_data: dict[str, Any] | None = None, property: bool = False, include_metadata: bool = False
+    ) -> dict:
         """Generates the basic structure of a GraphQL query for relationships with multiple nodes.
 
         Args:
             peer_data (dict[str, Union[Any, Dict]], optional): Additional data to be included in the query for each node.
                 This is used to add extra fields when prefetching related node data in many-to-many relationships.
+            property (bool, optional): If True, includes property fields (is_protected, source, owner, etc.).
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata fields.
 
         Returns:
             Dict: A dictionary representing the basic structure of a GraphQL query for multiple related nodes.
@@ -96,6 +101,10 @@ class RelationshipManagerBase:
             for prop_name in PROPERTIES_OBJECT:
                 properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
             data["edges"]["properties"] = properties
+
+        if include_metadata:
+            data["edges"]["node_metadata"] = NodeMetadata._generate_query_data()
+            data["edges"]["relationship_metadata"] = RelationshipMetadata._generate_query_data()
 
         if peer_data:
             data["edges"]["node"].update(peer_data)

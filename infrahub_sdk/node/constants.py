@@ -3,6 +3,17 @@ import re
 
 PROPERTIES_FLAG = ["is_protected", "updated_at"]
 PROPERTIES_OBJECT = ["source", "owner"]
+
+# Attribute-level metadata object fields (in addition to PROPERTIES_OBJECT)
+ATTRIBUTE_METADATA_OBJECT = ["updated_by"]
+
+# Node metadata fields (for node_metadata in GraphQL response)
+NODE_METADATA_FIELDS_FLAG = ["created_at", "updated_at"]
+NODE_METADATA_FIELDS_OBJECT = ["created_by", "updated_by"]
+
+# Relationship metadata fields (for relationship_metadata in GraphQL response)
+RELATIONSHIP_METADATA_FIELDS_FLAG = ["updated_at"]
+RELATIONSHIP_METADATA_FIELDS_OBJECT = ["updated_by"]
 SAFE_VALUE = re.compile(r"(^[\. /:a-zA-Z0-9_-]+$)|(^$)")
 
 IP_TYPES = ipaddress.IPv4Interface | ipaddress.IPv6Interface | ipaddress.IPv4Network | ipaddress.IPv6Network

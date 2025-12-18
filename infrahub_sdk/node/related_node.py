@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
 from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -40,11 +41,13 @@ class RelatedNodeBase:
         self._typename: str | None = None
         self._kind: str | None = None
         self._source_typename: str | None = None
+        self._relationship_metadata: RelationshipMetadata | None = None
 
         if isinstance(data, (CoreNodeBase)):
             self._peer = data
             for prop in self._properties:
                 setattr(self, prop, None)
+            self._relationship_metadata = None
 
         elif isinstance(data, list):
             data = {"hfid": data}
@@ -80,6 +83,10 @@ class RelatedNodeBase:
                     setattr(self, prop, prop_data)
                 else:
                     setattr(self, prop, None)
+
+            # Parse relationship metadata (at edge level)
+            if data.get("relationship_metadata"):
+                self._relationship_metadata = RelationshipMetadata(data["relationship_metadata"])
 
     @property
     def id(self) -> str | None:
@@ -134,6 +141,10 @@ class RelatedNodeBase:
             return False
         return bool(re.match(rf"^{PROFILE_KIND_PREFIX}[A-Z]", self._source_typename))
 
+    def get_relationship_metadata(self) -> RelationshipMetadata | None:
+        """Returns the relationship metadata (updated_at, updated_by) if fetched."""
+        return self._relationship_metadata
+
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
 
@@ -160,12 +171,17 @@ class RelatedNodeBase:
         return {}
 
     @classmethod
-    def _generate_query_data(cls, peer_data: dict[str, Any] | None = None, property: bool = False) -> dict:
+    def _generate_query_data(
+        cls, peer_data: dict[str, Any] | None = None, property: bool = False, include_metadata: bool = False
+    ) -> dict:
         """Generates the basic structure of a GraphQL query for a single relationship.
 
         Args:
             peer_data (dict[str, Union[Any, Dict]], optional): Additional data to be included in the query for the node.
                 This is used to add extra fields when prefetching related node data.
+            property (bool, optional): If True, includes property fields (is_protected, source, owner, etc.).
+            include_metadata (bool, optional): If True, includes node_metadata (for the peer node) and
+                relationship_metadata (for the relationship edge) fields.
 
         Returns:
             Dict: A dictionary representing the basic structure of a GraphQL query, including the node's ID, display label,
@@ -181,6 +197,13 @@ class RelatedNodeBase:
                 properties[prop_name] = {"id": None, "display_label": None, "__typename": None}
 
             data["properties"] = properties
+
+        if include_metadata:
+            # node_metadata is for the peer InfrahubNode (populated via from_graphql)
+            data["node_metadata"] = NodeMetadata._generate_query_data()
+            # relationship_metadata is for the relationship edge itself
+            data["relationship_metadata"] = RelationshipMetadata._generate_query_data()
+
         if peer_data:
             data["node"].update(peer_data)
 

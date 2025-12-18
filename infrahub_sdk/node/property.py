@@ -20,5 +20,8 @@ class NodeProperty:
             self.display_label = data.get("display_label", None)
             self.typename = data.get("__typename", None)
 
+    def __repr__(self) -> str:
+        return f"NodeProperty({{'id': {self.id!r}, 'display_label': {self.display_label!r}, '__typename': {self.typename!r}}})"
+
     def _generate_input_data(self) -> str | None:
         return self.id

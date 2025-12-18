@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import inspect
 import ipaddress
 from typing import TYPE_CHECKING
 
 import pytest
-from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.node import (
@@ -16,12 +17,16 @@ from infrahub_sdk.node import (
     parse_human_friendly_id,
 )
 from infrahub_sdk.node.constants import SAFE_VALUE
+from infrahub_sdk.node.metadata import NodeMetadata, RelationshipMetadata
+from infrahub_sdk.node.property import NodeProperty
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
-from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
-from tests.unit.sdk.conftest import BothClients
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
+    from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
+    from tests.unit.sdk.conftest import BothClients
 
 # type: ignore[attr-defined]
 
@@ -2746,3 +2751,426 @@ class TestRelationshipManagerIsFromProfile:
             name="tags", client=client, node=None, branch="main", schema=location_schema.relationships[0], data=data
         )
         assert not manager.is_from_profile
+
+
+def test_node_property_repr_with_dict_data() -> None:
+    data = {"id": "account-123", "display_label": "Admin User", "__typename": "CoreAccount"}
+    prop = NodeProperty(data)
+    result = repr(prop)
+    assert result == "NodeProperty({'id': 'account-123', 'display_label': 'Admin User', '__typename': 'CoreAccount'})"
+
+
+def test_node_metadata_repr_with_full_data() -> None:
+    data = {
+        "created_at": "2024-01-15T10:30:00Z",
+        "created_by": {"id": "account-1", "display_label": "Admin", "__typename": "CoreAccount"},
+        "updated_at": "2024-01-16T14:45:00Z",
+        "updated_by": {"id": "account-2", "display_label": "Editor", "__typename": "CoreAccount"},
+    }
+    metadata = NodeMetadata(data)
+    result = repr(metadata)
+    assert "NodeMetadata(created_at='2024-01-15T10:30:00Z'" in result
+    assert "created_by=NodeProperty({'id': 'account-1'" in result
+    assert "updated_at='2024-01-16T14:45:00Z'" in result
+    assert "updated_by=NodeProperty({'id': 'account-2'" in result
+
+
+def test_relationship_metadata_repr_with_full_data() -> None:
+    data = {
+        "updated_at": "2024-01-16T14:45:00Z",
+        "updated_by": {"id": "account-1", "display_label": "Admin", "__typename": "CoreAccount"},
+    }
+    metadata = RelationshipMetadata(data)
+    result = repr(metadata)
+    assert "RelationshipMetadata(updated_at='2024-01-16T14:45:00Z'" in result
+    assert "updated_by=NodeProperty({'id': 'account-1'" in result
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_data_with_include_metadata(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that include_metadata=True adds node_metadata and attribute-level updated_by to the query."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema)
+        data = await node.generate_query_data(include_metadata=True)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema)
+        data = node.generate_query_data(include_metadata=True)
+
+    edges = data["BuiltinLocation"]["edges"]
+
+    # Verify node_metadata is present at the edge level
+    assert "node_metadata" in edges
+    assert edges["node_metadata"] == {
+        "created_at": None,
+        "created_by": {"id": None, "__typename": None, "display_label": None},
+        "updated_at": None,
+        "updated_by": {"id": None, "__typename": None, "display_label": None},
+    }
+
+    # Verify attribute-level metadata fields
+    node_data = edges["node"]
+    assert node_data["name"]["updated_at"] is None
+    assert node_data["name"]["updated_by"] == {"id": None, "display_label": None, "__typename": None}
+    assert node_data["description"]["updated_at"] is None
+    assert node_data["description"]["updated_by"] == {"id": None, "display_label": None, "__typename": None}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_data_with_include_metadata_and_property(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that include_metadata=True combined with property=True produces expected query structure."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema)
+        data = await node.generate_query_data(property=True, include_metadata=True)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema)
+        data = node.generate_query_data(property=True, include_metadata=True)
+
+    edges = data["BuiltinLocation"]["edges"]
+
+    # Verify node_metadata is present
+    assert "node_metadata" in edges
+
+    # Verify attribute has both property fields and metadata fields
+    node_data = edges["node"]
+    name_attr = node_data["name"]
+
+    # Property fields
+    assert "is_protected" in name_attr
+    assert "source" in name_attr
+    assert "owner" in name_attr
+    assert "is_default" in name_attr
+    assert "is_from_profile" in name_attr
+
+    # Metadata fields
+    assert "updated_at" in name_attr
+    assert "updated_by" in name_attr
+    assert name_attr["updated_by"] == {"id": None, "display_label": None, "__typename": None}
+
+    # Verify relationship also has relationship_metadata
+    primary_tag = node_data["primary_tag"]
+    assert "relationship_metadata" in primary_tag
+    assert primary_tag["relationship_metadata"] == {
+        "updated_at": None,
+        "updated_by": {"id": None, "__typename": None, "display_label": None},
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_data_without_include_metadata(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that include_metadata=False (default) does not add metadata fields."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema)
+        data = await node.generate_query_data(include_metadata=False)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema)
+        data = node.generate_query_data(include_metadata=False)
+
+    edges = data["BuiltinLocation"]["edges"]
+
+    # Verify node_metadata is NOT present
+    assert "node_metadata" not in edges
+
+    # Verify attribute-level metadata fields are NOT present
+    node_data = edges["node"]
+    assert "updated_by" not in node_data["name"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_metadata_from_graphql_response(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that NodeMetadata is correctly parsed from GraphQL response data."""
+    location_data = {
+        "node": {
+            "__typename": "BuiltinLocation",
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "display_label": "dfw1",
+            "name": {"value": "DFW"},
+            "description": {"value": None},
+            "type": {"value": "SITE"},
+            "primary_tag": {
+                "node": {
+                    "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+                    "display_label": "red",
+                    "__typename": "BuiltinTag",
+                },
+            },
+            "tags": {
+                "count": 0,
+                "edges": [],
+            },
+        },
+        "node_metadata": {
+            "created_at": "2024-01-15T10:30:00Z",
+            "created_by": {"id": "account-1", "display_label": "Admin", "__typename": "CoreAccount"},
+            "updated_at": "2024-01-16T14:45:00Z",
+            "updated_by": {"id": "account-2", "display_label": "Editor", "__typename": "CoreAccount"},
+        },
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data)
+
+    metadata = node.get_node_metadata()
+
+    assert metadata is not None
+    assert metadata.created_at == "2024-01-15T10:30:00Z"
+    assert metadata.created_by.id == "account-1"
+    assert metadata.created_by.display_label == "Admin"
+    assert metadata.updated_at == "2024-01-16T14:45:00Z"
+    assert metadata.updated_by.id == "account-2"
+    assert metadata.updated_by.display_label == "Editor"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_relationship_metadata_from_graphql_response(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that RelationshipMetadata is correctly parsed from GraphQL response data."""
+    location_data = {
+        "node": {
+            "__typename": "BuiltinLocation",
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "display_label": "dfw1",
+            "name": {"value": "DFW"},
+            "description": {"value": None},
+            "type": {"value": "SITE"},
+            "primary_tag": {
+                "node": {
+                    "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+                    "display_label": "red",
+                    "__typename": "BuiltinTag",
+                },
+                "relationship_metadata": {
+                    "updated_at": "2024-01-17T08:00:00Z",
+                    "updated_by": {"id": "account-3", "display_label": "Updater", "__typename": "CoreAccount"},
+                },
+            },
+            "tags": {
+                "count": 0,
+                "edges": [],
+            },
+        },
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data)
+
+    rel_metadata = node.primary_tag.get_relationship_metadata()
+
+    assert rel_metadata is not None
+    assert rel_metadata.updated_at == "2024-01-17T08:00:00Z"
+    assert rel_metadata.updated_by.id == "account-3"
+    assert rel_metadata.updated_by.display_label == "Updater"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_attribute_metadata_from_graphql_response(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that attribute-level metadata (updated_at, updated_by) is correctly parsed."""
+    location_data = {
+        "node": {
+            "__typename": "BuiltinLocation",
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "display_label": "dfw1",
+            "name": {
+                "value": "DFW",
+                "updated_at": "2024-01-18T09:00:00Z",
+                "updated_by": {"id": "account-4", "display_label": "NameUpdater", "__typename": "CoreAccount"},
+            },
+            "description": {
+                "value": None,
+                "updated_at": "2024-01-19T10:00:00Z",
+                "updated_by": None,
+            },
+            "type": {"value": "SITE"},
+            "primary_tag": {
+                "node": {
+                    "id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+                    "display_label": "red",
+                    "__typename": "BuiltinTag",
+                },
+            },
+            "tags": {
+                "count": 0,
+                "edges": [],
+            },
+        },
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=location_data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=location_data)
+
+    assert node.name.updated_at == "2024-01-18T09:00:00Z"
+    assert node.name.updated_by is not None
+    assert node.name.updated_by.id == "account-4"
+    assert node.name.updated_by.display_label == "NameUpdater"
+
+    assert node.description.updated_at == "2024-01-19T10:00:00Z"
+    assert node.description.updated_by is None
+
+
+def test_node_metadata_with_no_data() -> None:
+    """Test NodeMetadata initialization with no data argument."""
+    metadata = NodeMetadata()
+
+    assert metadata.created_at is None
+    assert metadata.created_by is None
+    assert metadata.updated_at is None
+    assert metadata.updated_by is None
+
+
+def test_node_metadata_with_none_data() -> None:
+    """Test NodeMetadata initialization with explicit None data."""
+    metadata = NodeMetadata(data=None)
+
+    assert metadata.created_at is None
+    assert metadata.created_by is None
+    assert metadata.updated_at is None
+    assert metadata.updated_by is None
+
+
+def test_node_metadata_with_partial_data_missing_created_by() -> None:
+    """Test NodeMetadata with data that has created_by as None."""
+    data = {
+        "created_at": "2024-01-15T10:30:00Z",
+        "created_by": None,
+        "updated_at": "2024-01-16T14:45:00Z",
+        "updated_by": {"id": "account-2", "display_label": "Editor", "__typename": "CoreAccount"},
+    }
+    metadata = NodeMetadata(data=data)
+
+    assert metadata.created_at == "2024-01-15T10:30:00Z"
+    assert metadata.created_by is None
+    assert metadata.updated_at == "2024-01-16T14:45:00Z"
+    assert metadata.updated_by is not None
+    assert metadata.updated_by.id == "account-2"
+
+
+def test_node_metadata_with_partial_data_missing_updated_by() -> None:
+    """Test NodeMetadata with data that has updated_by as None."""
+    data = {
+        "created_at": "2024-01-15T10:30:00Z",
+        "created_by": {"id": "account-1", "display_label": "Admin", "__typename": "CoreAccount"},
+        "updated_at": "2024-01-16T14:45:00Z",
+        "updated_by": None,
+    }
+    metadata = NodeMetadata(data=data)
+
+    assert metadata.created_at == "2024-01-15T10:30:00Z"
+    assert metadata.created_by is not None
+    assert metadata.created_by.id == "account-1"
+    assert metadata.updated_at == "2024-01-16T14:45:00Z"
+    assert metadata.updated_by is None
+
+
+def test_node_metadata_with_partial_data_missing_both() -> None:
+    """Test NodeMetadata with data that has both created_by and updated_by as None."""
+    data = {
+        "created_at": "2024-01-15T10:30:00Z",
+        "created_by": None,
+        "updated_at": "2024-01-16T14:45:00Z",
+        "updated_by": None,
+    }
+    metadata = NodeMetadata(data=data)
+
+    assert metadata.created_at == "2024-01-15T10:30:00Z"
+    assert metadata.created_by is None
+    assert metadata.updated_at == "2024-01-16T14:45:00Z"
+    assert metadata.updated_by is None
+
+
+def test_relationship_metadata_with_no_data() -> None:
+    """Test RelationshipMetadata initialization with no data argument."""
+    metadata = RelationshipMetadata()
+
+    assert metadata.updated_at is None
+    assert metadata.updated_by is None
+
+
+def test_relationship_metadata_with_none_data() -> None:
+    """Test RelationshipMetadata initialization with explicit None data."""
+    metadata = RelationshipMetadata(data=None)
+
+    assert metadata.updated_at is None
+    assert metadata.updated_by is None
+
+
+def test_relationship_metadata_with_partial_data_missing_updated_by() -> None:
+    """Test RelationshipMetadata with data that has updated_by as None."""
+    data = {
+        "updated_at": "2024-01-17T08:00:00Z",
+        "updated_by": None,
+    }
+    metadata = RelationshipMetadata(data=data)
+
+    assert metadata.updated_at == "2024-01-17T08:00:00Z"
+    assert metadata.updated_by is None
+
+
+def test_relationship_manager_generate_query_data_with_include_metadata() -> None:
+    """Test that RelationshipManagerBase._generate_query_data includes metadata when include_metadata=True."""
+    data = RelationshipManagerBase._generate_query_data(include_metadata=True)
+
+    assert "count" in data
+    assert "edges" in data
+    assert "node" in data["edges"]
+    assert data["edges"]["node"]["id"] is None
+    assert data["edges"]["node"]["hfid"] is None
+    assert data["edges"]["node"]["display_label"] is None
+    assert data["edges"]["node"]["__typename"] is None
+
+    assert "node_metadata" in data["edges"]
+    node_metadata = data["edges"]["node_metadata"]
+    assert "created_at" in node_metadata
+    assert "created_by" in node_metadata
+    assert "updated_at" in node_metadata
+    assert "updated_by" in node_metadata
+    assert node_metadata["created_by"] == {"id": None, "__typename": None, "display_label": None}
+    assert node_metadata["updated_by"] == {"id": None, "__typename": None, "display_label": None}
+
+    assert "relationship_metadata" in data["edges"]
+    rel_metadata = data["edges"]["relationship_metadata"]
+    assert "updated_at" in rel_metadata
+    assert "updated_by" in rel_metadata
+    assert rel_metadata["updated_by"] == {"id": None, "__typename": None, "display_label": None}
+
+
+def test_relationship_manager_generate_query_data_with_include_metadata_and_property() -> None:
+    """Test RelationshipManagerBase._generate_query_data with both include_metadata=True and property=True."""
+    data = RelationshipManagerBase._generate_query_data(include_metadata=True, property=True)
+
+    assert "node_metadata" in data["edges"]
+    assert "relationship_metadata" in data["edges"]
+    assert "properties" in data["edges"]
+
+    properties = data["edges"]["properties"]
+    assert "is_protected" in properties
+    assert "updated_at" in properties
+    assert "source" in properties
+    assert "owner" in properties
+
+
+def test_relationship_manager_generate_query_data_without_include_metadata() -> None:
+    """Test that RelationshipManagerBase._generate_query_data excludes metadata when include_metadata=False."""
+    data = RelationshipManagerBase._generate_query_data(include_metadata=False)
+
+    assert "node_metadata" not in data["edges"]
+    assert "relationship_metadata" not in data["edges"]
+
+    assert "count" in data
+    assert "edges" in data
+    assert "node" in data["edges"]
