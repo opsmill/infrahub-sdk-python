@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
-from .constants import IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
+from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
 from .property import NodeProperty
 
 if TYPE_CHECKING:
@@ -57,8 +57,13 @@ class Attribute:
 
         self.source: NodeProperty | None = None
         self.owner: NodeProperty | None = None
+        self.updated_by: NodeProperty | None = None
 
         for prop_name in self._properties_object:
+            if data.get(prop_name):
+                setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+
+        for prop_name in ATTRIBUTE_METADATA_OBJECT:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
 
@@ -104,7 +109,7 @@ class Attribute:
 
         return {"data": data, "variables": variables}
 
-    def _generate_query_data(self, property: bool = False) -> dict | None:
+    def _generate_query_data(self, property: bool = False, include_metadata: bool = False) -> dict | None:
         data: dict[str, Any] = {"value": None}
 
         if property:
@@ -113,6 +118,11 @@ class Attribute:
             for prop_name in self._properties_flag:
                 data[prop_name] = None
             for prop_name in self._properties_object:
+                data[prop_name] = {"id": None, "display_label": None, "__typename": None}
+
+        if include_metadata:
+            data["updated_at"] = None
+            for prop_name in ATTRIBUTE_METADATA_OBJECT:
                 data[prop_name] = {"id": None, "display_label": None, "__typename": None}
 
         return data

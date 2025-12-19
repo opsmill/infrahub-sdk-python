@@ -23,6 +23,7 @@ from .constants import (
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
 )
+from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
 
@@ -50,6 +51,7 @@ class InfrahubNodeBase:
         self._branch = branch
         self._existing: bool = True
         self._attribute_data: dict[str, Attribute] = {}
+        self._metadata: NodeMetadata | None = None
 
         # Generate a unique ID only to be used inside the SDK
         # The format if this ID is purposely different from the ID used by the API
@@ -151,6 +153,10 @@ class InfrahubNodeBase:
     @property
     def hfid_str(self) -> str | None:
         return self.get_human_friendly_id_as_string(include_kind=True)
+
+    def get_node_metadata(self) -> NodeMetadata | None:
+        """Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched."""
+        return self._metadata
 
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
@@ -419,11 +425,15 @@ class InfrahubNodeBase:
         exclude: list[str] | None = None,
         partial_match: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
         data: dict[str, Any] = {
             "count": None,
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
         }
+
+        if include_metadata:
+            data["edges"]["node_metadata"] = NodeMetadata._generate_query_data()
 
         data["@filters"] = deepcopy(filters) if filters is not None else {}
 
@@ -496,14 +506,22 @@ class InfrahubNode(InfrahubNodeBase):
         """
         self._client = client
 
-        if isinstance(data, dict) and isinstance(data.get("node"), dict):
-            data = data.get("node")
+        # Extract node_metadata before extracting node data (node_metadata is sibling to node in edges)
+        node_metadata_data: dict | None = None
+        if isinstance(data, dict):
+            node_metadata_data = data.get("node_metadata")
+            if isinstance(data.get("node"), dict):
+                data = data.get("node")
 
         self._relationship_cardinality_many_data: dict[str, RelationshipManager] = {}
         self._relationship_cardinality_one_data: dict[str, RelatedNode] = {}
         self._hierarchical_data: dict[str, RelatedNode | RelationshipManager] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
+
+        # Initialize metadata after base class init
+        if node_metadata_data:
+            self._metadata = NodeMetadata(node_metadata_data)
 
     @classmethod
     async def from_graphql(
@@ -785,6 +803,7 @@ class InfrahubNode(InfrahubNodeBase):
         partial_match: bool = False,
         property: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
             filters=filters,
@@ -794,6 +813,7 @@ class InfrahubNode(InfrahubNodeBase):
             exclude=exclude,
             partial_match=partial_match,
             order=order,
+            include_metadata=include_metadata,
         )
         data["edges"]["node"].update(
             await self.generate_query_data_node(
@@ -802,6 +822,7 @@ class InfrahubNode(InfrahubNodeBase):
                 prefetch_relationships=prefetch_relationships,
                 inherited=True,
                 property=property,
+                include_metadata=include_metadata,
             )
         )
 
@@ -825,6 +846,7 @@ class InfrahubNode(InfrahubNodeBase):
                     inherited=False,
                     insert_alias=True,
                     property=property,
+                    include_metadata=include_metadata,
                 )
 
                 if child_data:
@@ -840,6 +862,7 @@ class InfrahubNode(InfrahubNodeBase):
         insert_alias: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -850,6 +873,7 @@ class InfrahubNode(InfrahubNodeBase):
                                         Defaults to True.
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
@@ -866,7 +890,7 @@ class InfrahubNode(InfrahubNodeBase):
             if not inherited and attr._schema.inherited:
                 continue
 
-            attr_data = attr._generate_query_data(property=property)
+            attr_data = attr._generate_query_data(property=property, include_metadata=include_metadata)
             if attr_data:
                 data[attr_name] = attr_data
                 if insert_alias:
@@ -898,11 +922,14 @@ class InfrahubNode(InfrahubNodeBase):
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = await peer_node.generate_query_data_node(
                     property=property,
+                    include_metadata=include_metadata,
                 )
 
             rel_data: dict[str, Any]
             if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
+                rel_data = RelatedNode._generate_query_data(
+                    peer_data=peer_data, property=property, include_metadata=include_metadata
+                )
                 # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
                 # tries to resolve attributes in this ancestor instead of actual node. To avoid
                 # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
@@ -912,7 +939,9 @@ class InfrahubNode(InfrahubNodeBase):
                     rel_data["node"] = {}
                     rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
+                rel_data = RelationshipManager._generate_query_data(
+                    peer_data=peer_data, property=property, include_metadata=include_metadata
+                )
             else:
                 continue
 
@@ -1285,14 +1314,22 @@ class InfrahubNodeSync(InfrahubNodeBase):
         """
         self._client = client
 
-        if isinstance(data, dict) and isinstance(data.get("node"), dict):
-            data = data.get("node")
+        # Extract node_metadata before extracting node data (node_metadata is sibling to node in edges)
+        node_metadata_data: dict | None = None
+        if isinstance(data, dict):
+            node_metadata_data = data.get("node_metadata")
+            if isinstance(data.get("node"), dict):
+                data = data.get("node")
 
         self._relationship_cardinality_many_data: dict[str, RelationshipManagerSync] = {}
         self._relationship_cardinality_one_data: dict[str, RelatedNodeSync] = {}
         self._hierarchical_data: dict[str, RelatedNodeSync | RelationshipManagerSync] = {}
 
         super().__init__(schema=schema, branch=branch or client.default_branch, data=data)
+
+        # Initialize metadata after base class init
+        if node_metadata_data:
+            self._metadata = NodeMetadata(node_metadata_data)
 
     @classmethod
     def from_graphql(
@@ -1571,6 +1608,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         partial_match: bool = False,
         property: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
         data = self.generate_query_data_init(
             filters=filters,
@@ -1580,6 +1618,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             exclude=exclude,
             partial_match=partial_match,
             order=order,
+            include_metadata=include_metadata,
         )
         data["edges"]["node"].update(
             self.generate_query_data_node(
@@ -1588,6 +1627,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 prefetch_relationships=prefetch_relationships,
                 inherited=True,
                 property=property,
+                include_metadata=include_metadata,
             )
         )
 
@@ -1610,6 +1650,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     inherited=False,
                     insert_alias=True,
                     property=property,
+                    include_metadata=include_metadata,
                 )
 
                 if child_data:
@@ -1625,6 +1666,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         insert_alias: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -1635,6 +1677,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                                         Defaults to True.
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
@@ -1651,7 +1694,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if not inherited and attr._schema.inherited:
                 continue
 
-            attr_data = attr._generate_query_data(property=property)
+            attr_data = attr._generate_query_data(property=property, include_metadata=include_metadata)
             if attr_data:
                 data[attr_name] = attr_data
                 if insert_alias:
@@ -1683,11 +1726,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = peer_node.generate_query_data_node(
                     property=property,
+                    include_metadata=include_metadata,
                 )
 
             rel_data: dict[str, Any]
             if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNodeSync._generate_query_data(peer_data=peer_data, property=property)
+                rel_data = RelatedNodeSync._generate_query_data(
+                    peer_data=peer_data, property=property, include_metadata=include_metadata
+                )
                 # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
                 # tries to resolve attributes in this ancestor instead of actual node. To avoid
                 # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
@@ -1697,7 +1743,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     rel_data["node"] = {}
                     rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
+                rel_data = RelationshipManagerSync._generate_query_data(
+                    peer_data=peer_data, property=property, include_metadata=include_metadata
+                )
             else:
                 continue
 
