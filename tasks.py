@@ -174,6 +174,15 @@ def lint_mypy(context: Context) -> None:
 
 
 @task
+def lint_ty(context: Context) -> None:
+    """Run ty type checker against all Python files."""
+    print(" - Check code with ty")
+    exec_cmd = "uv run ty check ."
+    with context.cd(MAIN_DIRECTORY_PATH):
+        context.run(exec_cmd)
+
+
+@task
 def lint_ruff(context: Context) -> None:
     """Run Linter to check all Python files."""
     print(" - Check code with ruff")
@@ -220,6 +229,7 @@ def lint_all(context: Context) -> None:
     """Run all linters."""
     lint_yaml(context)
     lint_ruff(context)
+    lint_ty(context)
     lint_mypy(context)
     lint_docs(context)
 
