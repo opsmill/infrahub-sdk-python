@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import ipaddress
 from typing import TYPE_CHECKING
@@ -16,10 +18,12 @@ from infrahub_sdk.node import (
 )
 from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
-from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
+    from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
     from .conftest import BothClients
 
@@ -1400,7 +1404,7 @@ async def test_create_input_data_with_dropdown(client, location_schema_with_drop
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data_existing_node_with_optional_relationship(
-    clients: "BothClients", location_schema: NodeSchemaAPI, client_type: str
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Validate that existing nodes include None for uninitialized optional relationships.
 
