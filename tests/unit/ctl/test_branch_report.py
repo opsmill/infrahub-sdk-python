@@ -126,6 +126,7 @@ def mock_branch_report_default_branch(httpx_mock: HTTPXMock) -> HTTPXMock:
         },
         match_headers={"X-Infrahub-Tracker": "query-branch"},
     )
+    return httpx_mock
 
 
 @pytest.fixture
