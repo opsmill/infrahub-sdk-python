@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
     from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 
-    from tests.unit.sdk.conftest import BothClients
+    from .conftest import BothClients
 
 # type: ignore[attr-defined]
 
