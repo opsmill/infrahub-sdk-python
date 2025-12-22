@@ -82,7 +82,7 @@ lint = [
     "mypy==1.11.2",
     "ruff==0.14.5",
     "astroid>=3.1,<4.0",
-    "ty==0.0.4",
+    "ty==0.0.5",
 ]
 types = [
     "types-ujson",
@@ -130,22 +130,19 @@ include = ["infrahub_sdk/**"]
 # The ignored rules below should be removed once the code has been updated, they are included    #
 # like this so that we can reactivate them one by one.                                           #
 ##################################################################################################
-division-by-zero = "ignore"
 invalid-argument-type = "ignore"
 invalid-assignment = "ignore"
 invalid-await = "ignore"
-invalid-return-type = "ignore"
 invalid-type-form = "ignore"
-missing-argument = "ignore"
 no-matching-overload = "ignore"
-possibly-unresolved-reference = "ignore"
-redundant-cast = "ignore"
-too-many-positional-arguments = "ignore"
-type-assertion-failure = "ignore"
-unknown-argument = "ignore"
 unresolved-attribute = "ignore"
-unresolved-import = "ignore"
 unsupported-operator = "ignore"
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/ctl/config.py"]
+
+[tool.ty.overrides.rules]
+unresolved-import = "ignore" # import tomli as tomllib when running on later versions of Python
 
 
 [[tool.ty.overrides]]
@@ -165,7 +162,6 @@ non-subscriptable = "ignore"
 not-iterable = "ignore"
 possibly-missing-attribute = "ignore"
 unresolved-attribute = "ignore"
-unresolved-import = "ignore"
 
 
 [[tool.ty.overrides]]
