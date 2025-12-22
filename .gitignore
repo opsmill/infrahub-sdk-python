@@ -8,6 +8,8 @@ script.py
 .vscode/settings.json
 .DS_Store
 .python-version
+.venv/
+.venv
 .ruff_cache
 **/.ruff_cache
 **/.idea/**

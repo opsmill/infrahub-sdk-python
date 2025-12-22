@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -18,7 +18,7 @@ from ..utils import duplicates
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
 
-    InfrahubNodeTypes = Union[InfrahubNode, InfrahubNodeSync]
+    InfrahubNodeTypes = InfrahubNode | InfrahubNodeSync
 
 ResourceClass = TypeVar("ResourceClass")
 

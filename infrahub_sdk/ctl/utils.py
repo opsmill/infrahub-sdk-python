@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import asyncio
+import inspect
 import logging
 import traceback
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import typer
 from click.exceptions import Exit
@@ -46,7 +46,7 @@ def init_logging(debug: bool = False) -> None:
 
     log_level = "DEBUG" if debug else "INFO"
     FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
     logging.getLogger("infrahubctl")
 
 
@@ -83,7 +83,7 @@ def catch_exception(
         console = Console()
 
     def decorator(func: Callable[..., T]) -> Callable[..., T | Coroutine[Any, Any, T]]:
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
@@ -149,7 +149,7 @@ def print_graphql_errors(console: Console, errors: list) -> None:
             console.print(f"[red]{escape(str(error))}")
 
 
-def parse_cli_vars(variables: Optional[list[str]]) -> dict[str, str]:
+def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:
     if not variables:
         return {}
 

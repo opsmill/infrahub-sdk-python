@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 import typer
 from ariadne_codegen.client_generators.package import PackageGenerator, get_package_generator
@@ -108,14 +107,14 @@ async def export_schema(
     schema_text = await client.schema.get_graphql_schema()
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(schema_text)
+    destination.write_text(schema_text, encoding="utf-8")
     console.print(f"[green]Schema exported to {destination}")
 
 
 @app.command()
 @catch_exception(console=console)
 async def generate_return_types(
-    query: Optional[Path] = typer.Argument(
+    query: Path | None = typer.Argument(
         None, help="Location of the GraphQL query file(s). Defaults to current directory if not specified."
     ),
     schema: Path = typer.Option("schema.graphql", help="Path to the GraphQL schema file."),
@@ -180,5 +179,5 @@ async def generate_return_types(
 
             generate_result_types(directory=directory, package=package_generator, fragment=module_fragment)
 
-            for file_name in package_generator._result_types_files.keys():
+            for file_name in package_generator._result_types_files:
                 console.print(f"[green]Generated {file_name} in {directory}")

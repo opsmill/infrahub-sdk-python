@@ -39,7 +39,9 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
     for cmd in app.registered_commands:
         if cmd.hidden:
             continue
-        exec_cmd = f'poetry run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
+        exec_cmd = (
+            f'uv run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
+        )
         exec_cmd += f" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx"
         with context.cd(MAIN_DIRECTORY_PATH):
             context.run(exec_cmd)
@@ -47,7 +49,7 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
     for cmd in app.registered_groups:
         if cmd.hidden:
             continue
-        exec_cmd = f"poetry run typer infrahub_sdk.ctl.{cmd.name} utils docs"
+        exec_cmd = f"uv run typer infrahub_sdk.ctl.{cmd.name} utils docs"
         exec_cmd += f' --name "infrahubctl {cmd.name}" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx'
         with context.cd(MAIN_DIRECTORY_PATH):
             context.run(exec_cmd)
@@ -172,6 +174,15 @@ def lint_mypy(context: Context) -> None:
 
 
 @task
+def lint_ty(context: Context) -> None:
+    """Run ty type checker against all Python files."""
+    print(" - Check code with ty")
+    exec_cmd = "uv run ty check ."
+    with context.cd(MAIN_DIRECTORY_PATH):
+        context.run(exec_cmd)
+
+
+@task
 def lint_ruff(context: Context) -> None:
     """Run Linter to check all Python files."""
     print(" - Check code with ruff")
@@ -218,6 +229,7 @@ def lint_all(context: Context) -> None:
     """Run all linters."""
     lint_yaml(context)
     lint_ruff(context)
+    lint_ty(context)
     lint_mypy(context)
     lint_docs(context)
 

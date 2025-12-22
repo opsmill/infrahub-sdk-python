@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 import functools
 import importlib
+import inspect
 import logging
 import platform
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any
 
 import typer
 import ujson
@@ -77,13 +79,13 @@ console = Console()
 @catch_exception(console=console)
 def check(
     check_name: str = typer.Argument(default="", help="Name of the Python check"),
-    branch: Optional[str] = None,
+    branch: str | None = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     format_json: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Python checks"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -105,12 +107,12 @@ def check(
 @catch_exception(console=console)
 async def generator(
     generator_name: str = typer.Argument(default="", help="Name of the Generator"),
-    branch: Optional[str] = None,
+    branch: str | None = None,
     path: str = typer.Option(".", help="Root directory"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
     list_available: bool = typer.Option(False, "--list", help="Show available Generators"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -133,13 +135,13 @@ async def run(
     debug: bool = False,
     _: str = CONFIG_PARAM,
     branch: str = typer.Option(None, help="Branch on which to run the script."),
-    concurrent: Optional[int] = typer.Option(
+    concurrent: int | None = typer.Option(
         None,
         help="Maximum number of requests to execute at the same time.",
         envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
     timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
 ) -> None:
@@ -239,7 +241,7 @@ async def _run_transform(
                 console.print("[yellow]   you can specify a different branch with --branch")
         raise typer.Abort()
 
-    if asyncio.iscoroutinefunction(transform_func):
+    if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)
     else:
         output = transform_func(response)
@@ -250,7 +252,7 @@ async def _run_transform(
 @catch_exception(console=console)
 async def render(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to render the transform."),
@@ -300,7 +302,7 @@ async def render(
 @catch_exception(console=console)
 def transform(
     transform_name: str = typer.Argument(default="", help="Name of the Python transformation", show_default=False),
-    variables: Optional[list[str]] = typer.Argument(
+    variables: list[str] | None = typer.Argument(
         None, help="Variables to pass along with the query. Format key=value key=value."
     ),
     branch: str = typer.Option(None, help="Branch on which to run the transformation"),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import pytest
@@ -33,7 +34,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         await client.branch.create(branch_name="branch01")
 
     @pytest.fixture
-    async def set_pagination_size3(self, client: InfrahubClient):
+    async def set_pagination_size3(self, client: InfrahubClient) -> AsyncGenerator:
         original_pagination_size = client.pagination_size
         client.pagination_size = 3
         yield
@@ -56,8 +57,8 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         pre_delete = await client.branch.all()
         await client.branch.delete(async_branch)
         post_delete = await client.branch.all()
-        assert async_branch in pre_delete.keys()
-        assert async_branch not in post_delete.keys()
+        assert async_branch in pre_delete
+        assert async_branch not in post_delete
 
     async def test_get_all(self, client: InfrahubClient, base_dataset) -> None:
         nodes = await client.all(kind=TESTING_CAT)
@@ -105,7 +106,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_get_generic_fragment(self, client: InfrahubClient, base_dataset) -> None:
         nodes = await client.all(kind=TESTING_ANIMAL, fragment=True)
         assert len(nodes)
-        assert nodes[0].typename in [TESTING_DOG, TESTING_CAT]
+        assert nodes[0].typename in {TESTING_DOG, TESTING_CAT}
         assert nodes[0].breed.value is not None
 
     async def test_get_related_nodes(self, client: InfrahubClient, base_dataset, person_ethan) -> None:

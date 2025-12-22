@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import inspect
 import os
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
@@ -75,7 +75,7 @@ class InfrahubTransform(InfrahubOperation):
         unpacked = data.get("data") or data
         await self.process_nodes(data=unpacked)
 
-        if asyncio.iscoroutinefunction(self.transform):
+        if inspect.iscoroutinefunction(self.transform):
             return await self.transform(data=unpacked)
 
         return self.transform(data=unpacked)

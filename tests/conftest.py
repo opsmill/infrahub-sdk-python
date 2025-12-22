@@ -1,7 +1,8 @@
-import asyncio
 import os
+from collections.abc import Generator
 
 import pytest
+import pytest_asyncio
 
 from infrahub_sdk.ctl import config
 
@@ -10,13 +11,11 @@ pytest_plugins = ["pytester"]
 ENV_VARS_TO_CLEAN = ["INFRAHUB_ADDRESS", "INFRAHUB_TOKEN", "INFRAHUB_BRANCH", "INFRAHUB_USERNAME", "INFRAHUB_PASSWORD"]
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Overrides pytest default function scoped event loop"""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
+def pytest_collection_modifyitems(items) -> None:
+    pytest_asyncio_tests = (item for item in items if pytest_asyncio.is_async_test(item))
+    session_scope_marker = pytest.mark.asyncio(loop_scope="session")
+    for async_test in pytest_asyncio_tests:
+        async_test.add_marker(session_scope_marker, append=False)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -26,7 +25,7 @@ def execute_before_any_test() -> None:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clean_env_vars():
+def clean_env_vars() -> Generator:
     """Cleans the environment variables before any test is run."""
     original_values = {}
     for name in ENV_VARS_TO_CLEAN:

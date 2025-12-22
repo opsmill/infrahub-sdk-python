@@ -1,11 +1,8 @@
 """Integration tests for infrahubctl commands."""
 
-import tempfile
-from pathlib import Path
 from unittest import mock
 
 import pytest
-import yaml
 from typer.testing import CliRunner
 
 from infrahub_sdk.client import InfrahubClient
@@ -19,8 +16,7 @@ runner = CliRunner()
 @pytest.fixture
 def mock_client() -> mock.Mock:
     """Fixture for a mocked InfrahubClient."""
-    client = mock.create_autospec(InfrahubClient)
-    return client
+    return mock.create_autospec(InfrahubClient)
 
 
 # ---------------------------------------------------------
@@ -328,70 +324,6 @@ mutation {
 
     def test_repo_init(self) -> None:
         """Test the repository init command."""
-        with (
-            tempfile.TemporaryDirectory() as temp_dst,
-            tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False, encoding="utf-8") as temp_yaml,
-        ):
-            dst = Path(temp_dst)
-            yaml_path = Path(temp_yaml.name)
-            commit = "v0.0.1"
-
-            answers = {
-                "generators": True,
-                "menus": True,
-                "project_name": "test",
-                "queries": True,
-                "scripts": True,
-                "tests": True,
-                "transforms": True,
-                "package_mode": False,
-                "_commit": commit,
-            }
-
-            yaml.safe_dump(answers, temp_yaml)
-            temp_yaml.close()
-            runner.invoke(app, ["repository", "init", str(dst), "--data", str(yaml_path), "--vcs-ref", commit])
-            coppied_answers = yaml.safe_load((dst / ".copier-answers.yml").read_text())
-            coppied_answers.pop("_src_path")
-
-            assert coppied_answers == answers
-            assert (dst / "generators").is_dir()
-            assert (dst / "queries").is_dir()
-            assert (dst / "scripts").is_dir()
-            assert (dst / "pyproject.toml").is_file()
-
-    def test_repo_init_local_template(self) -> None:
-        """Test the repository init command with a local template."""
-        with (
-            tempfile.TemporaryDirectory() as temp_src,
-            tempfile.TemporaryDirectory() as temp_dst,
-            tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False, encoding="utf-8") as temp_yaml,
-        ):
-            src = Path(temp_src)
-            dst = Path(temp_dst)
-
-            # Create a simple copier template
-            (src / "copier.yml").write_text("project_name:\n  type: str")
-            template_dir = src / "{{project_name}}"
-            template_dir.mkdir()
-            (template_dir / "file.txt.jinja").write_text("Hello {{ project_name }}")
-
-            # Create answers file
-            yaml_path = Path(temp_yaml.name)
-            answers = {"project_name": "local-test"}
-            yaml.safe_dump(answers, temp_yaml)
-            temp_yaml.close()
-
-            # Run the command
-            result = runner.invoke(
-                app, ["repository", "init", str(dst), "--template", str(src), "--data", str(yaml_path)]
-            )
-
-            assert result.exit_code == 0, result.stdout
-
-            # Check the output
-            project_dir = dst / "local-test"
-            assert project_dir.is_dir()
-            output_file = project_dir / "file.txt"
-            assert output_file.is_file()
-            assert output_file.read_text() == "Hello local-test"
+        output = runner.invoke(app, ["repository", "init"])
+        raw = strip_color(output.stdout)
+        assert "uv tool run --from 'copier' copier copy https://github.com/opsmill/infrahub-template" in raw

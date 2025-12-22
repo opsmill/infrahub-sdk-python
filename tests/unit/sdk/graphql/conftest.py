@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 import pytest
 
@@ -14,8 +15,8 @@ class MyIntEnum(int, Enum):
 
 
 @pytest.fixture
-def query_data_no_filter():
-    data = {
+def query_data_no_filter() -> dict[str, Any]:
+    return {
         "device": {
             "name": {"value": None},
             "description": {"value": None},
@@ -23,12 +24,10 @@ def query_data_no_filter():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-def query_data_alias():
-    data = {
+def query_data_alias() -> dict[str, Any]:
+    return {
         "device": {
             "name": {"@alias": "new_name", "value": None},
             "description": {"value": {"@alias": "myvalue"}},
@@ -36,12 +35,10 @@ def query_data_alias():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-def query_data_fragment():
-    data = {
+def query_data_fragment() -> dict[str, Any]:
+    return {
         "device": {
             "name": {"value": None},
             "...on Builtin": {
@@ -51,12 +48,10 @@ def query_data_fragment():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-def query_data_empty_filter():
-    data = {
+def query_data_empty_filter() -> dict[str, Any]:
+    return {
         "device": {
             "@filters": {},
             "name": {"value": None},
@@ -65,12 +60,10 @@ def query_data_empty_filter():
         }
     }
 
-    return data
-
 
 @pytest.fixture
-def query_data_filters_01():
-    data = {
+def query_data_filters_01() -> dict[str, Any]:
+    return {
         "device": {
             "@filters": {"name__value": "$name"},
             "name": {"value": None},
@@ -81,12 +74,11 @@ def query_data_filters_01():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
-def query_data_filters_02():
-    data = {
+def query_data_filters_02() -> dict[str, Any]:
+    return {
         "device": {
             "@filters": {"name__value": "myname", "integer__value": 44, "enumstr__value": MyStrEnum.VALUE2},
             "name": {"value": None},
@@ -96,12 +88,11 @@ def query_data_filters_02():
             },
         }
     }
-    return data
 
 
 @pytest.fixture
-def input_data_01():
-    data = {
+def input_data_01() -> dict[str, Any]:
+    return {
         "data": {
             "name": {"value": "$name"},
             "some_number": {"value": 88},
@@ -110,4 +101,3 @@ def input_data_01():
             "query": {"value": "my_query"},
         }
     }
-    return data
