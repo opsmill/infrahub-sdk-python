@@ -21,6 +21,8 @@ from infrahub_sdk.schema import GenericSchema, NodeSchemaAPI
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient, InfrahubClientSync
 
+    from .conftest import BothClients
+
 # type: ignore[attr-defined]
 
 async_node_methods = [
@@ -1398,7 +1400,7 @@ async def test_create_input_data_with_dropdown(client, location_schema_with_drop
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_input_data_existing_node_with_optional_relationship(
-    client, location_schema: NodeSchemaAPI, client_type
+    clients: "BothClients", location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Validate that existing nodes include None for uninitialized optional relationships.
 
@@ -1413,9 +1415,9 @@ async def test_update_input_data_existing_node_with_optional_relationship(
     }
 
     if client_type == "standard":
-        node = InfrahubNode(client=client, schema=location_schema, data=data)
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
 
     # For existing nodes, optional uninitialized relationships should include None
     assert node._generate_input_data()["data"] == {
