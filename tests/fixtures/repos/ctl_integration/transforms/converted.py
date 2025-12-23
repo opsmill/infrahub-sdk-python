@@ -7,7 +7,7 @@ from infrahub_sdk.transforms import InfrahubTransform
 class ConvertedAnimalPerson(InfrahubTransform):
     query = "animal_person"
 
-    async def transform(self, data) -> dict[str, Any]:
+    async def transform(self, data: dict[str, Any]) -> dict[str, Any]:
         response_person = data["TestingPerson"]["edges"][0]["node"]
         name: str = response_person["name"]["value"]
         person = self.store.get(key=name, kind="TestingPerson")
