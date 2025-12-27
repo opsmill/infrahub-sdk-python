@@ -16,13 +16,15 @@ from ariadne_codegen.schema import (
 )
 from ariadne_codegen.settings import ClientSettings, CommentsStrategy
 from ariadne_codegen.utils import ast_to_str
-from graphql import DefinitionNode, GraphQLSchema, NoUnusedFragmentsRule, parse, specified_rules, validate
+from graphql import DefinitionNode, GraphQLSchema, NoUnusedFragmentsRule, build_schema, parse, specified_rules, validate
 from rich.console import Console
 
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception
 from ..graphql.utils import insert_fragments_inline, remove_fragment_import
+from ..query_analyzer import InfrahubQueryAnalyzer
+from ..schema import BranchSchema
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -181,3 +183,100 @@ async def generate_return_types(
 
             for file_name in package_generator._result_types_files:
                 console.print(f"[green]Generated {file_name} in {directory}")
+
+
+@app.command()
+@catch_exception(console=console)
+async def check(
+    query: Path | None = typer.Argument(
+        None, help="Path to the GraphQL query file or directory. Defaults to current directory if not specified."
+    ),
+    branch: str = typer.Option(None, help="Branch to use for schema."),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Check if GraphQL queries target single or multiple objects.
+
+    A single-target query is one that will return at most one object per query operation.
+    This is determined by checking if the query uses uniqueness constraints (like filtering by ID or name).
+
+    Multi-target queries may return multiple objects and should be used with caution in artifact definitions.
+    """
+    query = Path.cwd() if query is None else query
+
+    try:
+        gql_files = find_gql_files(query)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}")
+        raise typer.Exit(1) from exc
+
+    if not gql_files:
+        console.print(f"[red]No .gql files found in: {query}")
+        raise typer.Exit(1)
+
+    client = initialize_client()
+
+    schema_data = await client.schema.all(branch=branch)
+    branch_schema = BranchSchema(hash="", nodes=schema_data)
+
+    graphql_schema_text = await client.schema.get_graphql_schema()
+    graphql_schema = build_schema(graphql_schema_text)
+
+    total_files = len(gql_files)
+    console.print(f"[bold]Checking {total_files} GraphQL file{'s' if total_files > 1 else ''}...[/bold]")
+    console.print()
+
+    single_target_count = 0
+    multi_target_count = 0
+    error_count = 0
+
+    for idx, query_file in enumerate(gql_files, 1):
+        query_content = query_file.read_text(encoding="utf-8")
+
+        analyzer = InfrahubQueryAnalyzer(
+            query=query_content,
+            schema_branch=branch_schema,
+            schema=graphql_schema,
+        )
+
+        console.print(f"[dim]{'─' * 60}[/dim]")
+        console.print(f"[bold cyan][{idx}/{total_files}][/bold cyan] {query_file}")
+
+        is_valid, errors = analyzer.is_valid
+        if not is_valid:
+            console.print("[red]  Validation failed:[/red]")
+            for error in errors or []:
+                console.print(f"    - {error.message}")
+            error_count += 1
+            continue
+
+        report = analyzer.query_report
+        console.print(f"[bold]  Top-level kinds:[/bold] {', '.join(report.top_level_kinds) or 'None'}")
+
+        if not report.top_level_kinds:
+            console.print("[yellow]  Warning: No Infrahub models found in query.[/yellow]")
+            console.print("    The query may reference types not in the schema, or only use non-model fields.")
+            error_count += 1
+            continue
+
+        if report.only_has_unique_targets:
+            console.print("[green]  Result: Single-target query (good)[/green]")
+            console.print("    This query targets unique nodes, enabling selective artifact regeneration.")
+            single_target_count += 1
+        else:
+            console.print("[yellow]  Result: Multi-target query[/yellow]")
+            console.print("    May cause excessive artifact regeneration. Fix: filter by ID or unique attribute.")
+            multi_target_count += 1
+
+    console.print(f"[dim]{'─' * 60}[/dim]")
+    console.print()
+    console.print("[bold]Summary:[/bold]")
+    if single_target_count:
+        console.print(f"  [green]{single_target_count} single-target[/green]")
+    if multi_target_count:
+        console.print(f"  [yellow]{multi_target_count} multi-target[/yellow]")
+        console.print("    See: https://docs.infrahub.app/topics/graphql")
+    if error_count:
+        console.print(f"  [red]{error_count} errors[/red]")
+
+    if error_count:
+        raise typer.Exit(1)

@@ -364,6 +364,72 @@ class BranchSchema(BaseModel):
         default_factory=dict
     )
 
+    @property
+    def node_names(self) -> list[str]:
+        """Return names of all NodeSchema objects."""
+        return [k for k, v in self.nodes.items() if isinstance(v, NodeSchemaAPI)]
+
+    @property
+    def generic_names(self) -> list[str]:
+        """Return names of all GenericSchema objects."""
+        return [k for k, v in self.nodes.items() if isinstance(v, GenericSchemaAPI)]
+
+    @property
+    def profile_names(self) -> list[str]:
+        """Return names of all ProfileSchema objects."""
+        return [k for k, v in self.nodes.items() if isinstance(v, ProfileSchemaAPI)]
+
+    def get(
+        self,
+        name: str,
+        duplicate: bool = False,  # noqa: ARG002
+    ) -> GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI:
+        """Get a schema by name.
+
+        Args:
+            name: The schema kind name to look up.
+            duplicate: Unused, kept for API compatibility with backend SchemaBranch.
+        """
+        if name not in self.nodes:
+            raise KeyError(f"Schema '{name}' not found")
+        return self.nodes[name]
+
+    def get_node(self, name: str, duplicate: bool = False) -> NodeSchemaAPI:  # noqa: ARG002
+        """Get a NodeSchema by name.
+
+        Args:
+            name: The schema kind name to look up.
+            duplicate: Unused, kept for API compatibility with backend SchemaBranch.
+        """
+        schema = self.get(name)
+        if not isinstance(schema, NodeSchemaAPI):
+            raise TypeError(f"Schema '{name}' is not a NodeSchema")
+        return schema
+
+    def get_generic(self, name: str, duplicate: bool = False) -> GenericSchemaAPI:  # noqa: ARG002
+        """Get a GenericSchema by name.
+
+        Args:
+            name: The schema kind name to look up.
+            duplicate: Unused, kept for API compatibility with backend SchemaBranch.
+        """
+        schema = self.get(name)
+        if not isinstance(schema, GenericSchemaAPI):
+            raise TypeError(f"Schema '{name}' is not a GenericSchema")
+        return schema
+
+    def get_profile(self, name: str, duplicate: bool = False) -> ProfileSchemaAPI:  # noqa: ARG002
+        """Get a ProfileSchema by name.
+
+        Args:
+            name: The schema kind name to look up.
+            duplicate: Unused, kept for API compatibility with backend SchemaBranch.
+        """
+        schema = self.get(name)
+        if not isinstance(schema, ProfileSchemaAPI):
+            raise TypeError(f"Schema '{name}' is not a ProfileSchema")
+        return schema
+
     @classmethod
     def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
         """
