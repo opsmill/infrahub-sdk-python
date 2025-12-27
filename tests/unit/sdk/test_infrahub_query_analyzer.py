@@ -35,9 +35,7 @@ class TestGraphQLQueryReportOnlyHasUniqueTargets:
         report = GraphQLQueryReport(queries=[])
         assert report.only_has_unique_targets is False
 
-    def test_query_without_filter_returns_false(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_query_without_filter_returns_false(self, branch_schema_with_tag: BranchSchema) -> None:
         """A query without any filter should return False (multi-target)."""
         query = """
         query BuiltinTag {
@@ -55,9 +53,7 @@ class TestGraphQLQueryReportOnlyHasUniqueTargets:
         assert report.top_level_kinds == ["BuiltinTag"]
         assert report.only_has_unique_targets is False
 
-    def test_query_with_required_unique_filter_returns_true(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_query_with_required_unique_filter_returns_true(self, branch_schema_with_tag: BranchSchema) -> None:
         """A query with a required filter on a unique field should return True."""
         query = """
         query BuiltinTag($name: String!) {
@@ -75,9 +71,7 @@ class TestGraphQLQueryReportOnlyHasUniqueTargets:
         assert report.top_level_kinds == ["BuiltinTag"]
         assert report.only_has_unique_targets is True
 
-    def test_query_with_optional_unique_filter_returns_false(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_query_with_optional_unique_filter_returns_false(self, branch_schema_with_tag: BranchSchema) -> None:
         """A query with an optional filter should return False (variable might not be provided)."""
         query = """
         query BuiltinTag($name: String) {
@@ -95,9 +89,7 @@ class TestGraphQLQueryReportOnlyHasUniqueTargets:
         assert report.top_level_kinds == ["BuiltinTag"]
         assert report.only_has_unique_targets is False
 
-    def test_query_with_static_unique_filter_returns_true(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_query_with_static_unique_filter_returns_true(self, branch_schema_with_tag: BranchSchema) -> None:
         """A query with a static (non-variable) filter on unique field should return True."""
         query = """
         query {
@@ -115,9 +107,7 @@ class TestGraphQLQueryReportOnlyHasUniqueTargets:
         assert report.top_level_kinds == ["BuiltinTag"]
         assert report.only_has_unique_targets is True
 
-    def test_query_with_required_ids_filter_returns_true(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_query_with_required_ids_filter_returns_true(self, branch_schema_with_tag: BranchSchema) -> None:
         """A query filtering by ids with a required variable should return True."""
         query = """
         query BuiltinTag($ids: [ID]!) {
@@ -144,9 +134,7 @@ class TestGraphQLQueryReportTopLevelKinds:
         report = GraphQLQueryReport(queries=[])
         assert report.top_level_kinds == []
 
-    def test_single_query_returns_kind(
-        self, branch_schema_with_tag: BranchSchema
-    ) -> None:
+    def test_single_query_returns_kind(self, branch_schema_with_tag: BranchSchema) -> None:
         """A single query should return its kind in top_level_kinds."""
         query = """
         query {
