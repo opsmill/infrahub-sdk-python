@@ -27,6 +27,83 @@ from ..query_analyzer import InfrahubQueryAnalyzer
 from ..schema import BranchSchema
 from .parameters import CONFIG_PARAM
 
+
+class CheckResults:
+    """Container for check command results."""
+
+    def __init__(self) -> None:
+        self.single_target_count = 0
+        self.multi_target_count = 0
+        self.error_count = 0
+
+
+def _print_query_result(console: Console, report: object, results: CheckResults) -> None:
+    """Print the result for a single query analysis."""
+    if report.only_has_unique_targets:
+        console.print("[green]  Result: Single-target query (good)[/green]")
+        console.print("    This query targets unique nodes, enabling selective artifact regeneration.")
+        results.single_target_count += 1
+    else:
+        console.print("[yellow]  Result: Multi-target query[/yellow]")
+        console.print("    May cause excessive artifact regeneration. Fix: filter by ID or unique attribute.")
+        results.multi_target_count += 1
+
+
+def _analyze_query_file(
+    console: Console,
+    query_file: Path,
+    branch_schema: BranchSchema,
+    graphql_schema: GraphQLSchema,
+    idx: int,
+    total_files: int,
+    results: CheckResults,
+) -> None:
+    """Analyze a single GraphQL query file and print results."""
+    query_content = query_file.read_text(encoding="utf-8")
+
+    analyzer = InfrahubQueryAnalyzer(
+        query=query_content,
+        schema_branch=branch_schema,
+        schema=graphql_schema,
+    )
+
+    console.print(f"[dim]{'─' * 60}[/dim]")
+    console.print(f"[bold cyan][{idx}/{total_files}][/bold cyan] {query_file}")
+
+    is_valid, errors = analyzer.is_valid
+    if not is_valid:
+        console.print("[red]  Validation failed:[/red]")
+        for error in errors or []:
+            console.print(f"    - {error.message}")
+        results.error_count += 1
+        return
+
+    report = analyzer.query_report
+    console.print(f"[bold]  Top-level kinds:[/bold] {', '.join(report.top_level_kinds) or 'None'}")
+
+    if not report.top_level_kinds:
+        console.print("[yellow]  Warning: No Infrahub models found in query.[/yellow]")
+        console.print("    The query may reference types not in the schema, or only use non-model fields.")
+        results.error_count += 1
+        return
+
+    _print_query_result(console, report, results)
+
+
+def _print_summary(console: Console, results: CheckResults) -> None:
+    """Print the summary of check results."""
+    console.print(f"[dim]{'─' * 60}[/dim]")
+    console.print()
+    console.print("[bold]Summary:[/bold]")
+    if results.single_target_count:
+        console.print(f"  [green]{results.single_target_count} single-target[/green]")
+    if results.multi_target_count:
+        console.print(f"  [yellow]{results.multi_target_count} multi-target[/yellow]")
+        console.print("    See: https://docs.infrahub.app/topics/graphql")
+    if results.error_count:
+        console.print(f"  [red]{results.error_count} errors[/red]")
+
+
 app = AsyncTyper()
 console = Console()
 
@@ -225,58 +302,12 @@ async def check(
     console.print(f"[bold]Checking {total_files} GraphQL file{'s' if total_files > 1 else ''}...[/bold]")
     console.print()
 
-    single_target_count = 0
-    multi_target_count = 0
-    error_count = 0
+    results = CheckResults()
 
     for idx, query_file in enumerate(gql_files, 1):
-        query_content = query_file.read_text(encoding="utf-8")
+        _analyze_query_file(console, query_file, branch_schema, graphql_schema, idx, total_files, results)
 
-        analyzer = InfrahubQueryAnalyzer(
-            query=query_content,
-            schema_branch=branch_schema,
-            schema=graphql_schema,
-        )
+    _print_summary(console, results)
 
-        console.print(f"[dim]{'─' * 60}[/dim]")
-        console.print(f"[bold cyan][{idx}/{total_files}][/bold cyan] {query_file}")
-
-        is_valid, errors = analyzer.is_valid
-        if not is_valid:
-            console.print("[red]  Validation failed:[/red]")
-            for error in errors or []:
-                console.print(f"    - {error.message}")
-            error_count += 1
-            continue
-
-        report = analyzer.query_report
-        console.print(f"[bold]  Top-level kinds:[/bold] {', '.join(report.top_level_kinds) or 'None'}")
-
-        if not report.top_level_kinds:
-            console.print("[yellow]  Warning: No Infrahub models found in query.[/yellow]")
-            console.print("    The query may reference types not in the schema, or only use non-model fields.")
-            error_count += 1
-            continue
-
-        if report.only_has_unique_targets:
-            console.print("[green]  Result: Single-target query (good)[/green]")
-            console.print("    This query targets unique nodes, enabling selective artifact regeneration.")
-            single_target_count += 1
-        else:
-            console.print("[yellow]  Result: Multi-target query[/yellow]")
-            console.print("    May cause excessive artifact regeneration. Fix: filter by ID or unique attribute.")
-            multi_target_count += 1
-
-    console.print(f"[dim]{'─' * 60}[/dim]")
-    console.print()
-    console.print("[bold]Summary:[/bold]")
-    if single_target_count:
-        console.print(f"  [green]{single_target_count} single-target[/green]")
-    if multi_target_count:
-        console.print(f"  [yellow]{multi_target_count} multi-target[/yellow]")
-        console.print("    See: https://docs.infrahub.app/topics/graphql")
-    if error_count:
-        console.print(f"  [red]{error_count} errors[/red]")
-
-    if error_count:
+    if results.error_count:
         raise typer.Exit(1)
