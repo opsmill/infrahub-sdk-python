@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.15.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.2) - 2025-12-29
+
+### Fixed
+
+- Fixed SDK including explicit `null` values for uninitialized optional relationships when creating nodes with object templates, which prevented the backend from applying template defaults. ([#630](https://github.com/opsmill/infrahub-sdk-python/issues/630))
+
 ## [1.15.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.15.1) - 2025-11-13
 
 ### Fixed
