@@ -50,6 +50,8 @@ def strip_typename_from_selection_set(selection_set: SelectionSetNode | None) ->
         elif isinstance(selection, FragmentSpreadNode):
             # FragmentSpread references a named fragment - keep as-is
             new_selections.append(selection)
+        else:
+            raise TypeError(f"Unexpected GraphQL selection node type '{type(selection).__name__}'.")
 
     return SelectionSetNode(selections=tuple(new_selections))
 
