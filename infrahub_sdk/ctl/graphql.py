@@ -168,7 +168,7 @@ async def generate_return_types(
                 fragments=stripped_fragments,
                 settings=ClientSettings(
                     schema_path=str(schema),
-                    target_package_name=directory.name,
+                    target_package_name=directory.name or "graphql_client",
                     queries_path=str(directory),
                     include_comments=CommentsStrategy.NONE,
                 ),
