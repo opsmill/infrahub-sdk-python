@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from ariadne_codegen.client_generators.package import PackageGenerator, get_package_generator
@@ -23,9 +24,11 @@ from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception
 from ..graphql.utils import insert_fragments_inline, remove_fragment_import
-from ..query_analyzer import InfrahubQueryAnalyzer
-from ..schema import BranchSchema
+from ..query_analyzer import GraphQLQueryReport, InfrahubQueryAnalyzer
 from .parameters import CONFIG_PARAM
+
+if TYPE_CHECKING:
+    from ..schema import BranchSchema
 
 
 class CheckResults:
@@ -37,7 +40,7 @@ class CheckResults:
         self.error_count = 0
 
 
-def _print_query_result(console: Console, report: object, results: CheckResults) -> None:
+def _print_query_result(console: Console, report: GraphQLQueryReport, results: CheckResults) -> None:
     """Print the result for a single query analysis."""
     if report.only_has_unique_targets:
         console.print("[green]  Result: Single-target query (good)[/green]")
@@ -292,8 +295,8 @@ async def check(
 
     client = initialize_client()
 
-    schema_data = await client.schema.all(branch=branch)
-    branch_schema = BranchSchema(hash="", nodes=schema_data)
+    await client.schema.all(branch=branch)
+    branch_schema = client.schema.cache[branch or client.default_branch]
 
     graphql_schema_text = await client.schema.get_graphql_schema()
     graphql_schema = build_schema(graphql_schema_text)
