@@ -1,7 +1,6 @@
 """Integration tests for infrahubctl commands."""
 
 import json
-import os
 import shutil
 import tempfile
 from collections.abc import Generator
@@ -20,7 +19,7 @@ runner = CliRunner()
 
 
 FIXTURE_BASE_DIR = Path(
-    Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
+    Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
 )
 
 

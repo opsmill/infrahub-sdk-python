@@ -1,5 +1,4 @@
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,7 +13,7 @@ from tests.helpers.utils import strip_color, temp_repo_and_cd
 runner = CliRunner()
 
 
-FIXTURE_BASE_DIR = Path(Path(os.path.abspath(__file__)).parent / ".." / ".." / "fixtures" / "repos")
+FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "repos")
 
 
 @dataclass

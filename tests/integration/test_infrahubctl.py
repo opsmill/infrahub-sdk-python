@@ -22,7 +22,7 @@ from tests.helpers.utils import change_directory, strip_color
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
 
-FIXTURE_BASE_DIR = Path(Path(os.path.abspath(__file__)).parent / ".." / "fixtures")
+FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / "fixtures")
 
 
 runner = CliRunner()
