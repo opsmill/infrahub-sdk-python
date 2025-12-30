@@ -1,8 +1,10 @@
 import inspect
+from collections.abc import Callable
 
 import pytest
 
 from infrahub_sdk.query_groups import InfrahubGroupContext, InfrahubGroupContextBase, InfrahubGroupContextSync
+from infrahub_sdk.schema import NodeSchemaAPI
 
 async_methods = [method for method in dir(InfrahubGroupContext) if not method.startswith("_")]
 sync_methods = [method for method in dir(InfrahubGroupContextSync) if not method.startswith("_")]
@@ -18,7 +20,9 @@ async def test_method_sanity() -> None:
 
 @pytest.mark.parametrize("method", async_methods)
 async def test_validate_method_signature(
-    method, replace_sync_return_annotation, replace_async_return_annotation
+    method: str,
+    replace_sync_return_annotation: Callable[[str], str],
+    replace_async_return_annotation: Callable[[str], str],
 ) -> None:
     async_method = getattr(InfrahubGroupContext, method)
     sync_method = getattr(InfrahubGroupContextSync, method)
@@ -65,7 +69,7 @@ def test_generate_group_name() -> None:
     assert context._generate_group_name(suffix="xxx") == "MYID-xxx-11aaec5206c3dca37cbbcaaabf121550"
 
 
-def test_generate_group_description(std_group_schema) -> None:
+def test_generate_group_description(std_group_schema: NodeSchemaAPI) -> None:
     context = InfrahubGroupContextBase()
     context.set_properties(identifier="MYID")
     assert not context._generate_group_description(schema=std_group_schema)

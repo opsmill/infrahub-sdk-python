@@ -1,7 +1,9 @@
 import json
 import tempfile
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -47,22 +49,31 @@ def test_is_valid_uuid() -> None:
     assert is_valid_uuid(uuid.UUID) is False
 
 
+@dataclass
+class ValidURLTestCase:
+    input: Any
+    result: bool
+
+
+VALID_URL_TEST_CASES = [
+    ValidURLTestCase(input=55, result=False),
+    ValidURLTestCase(input="https://", result=False),
+    ValidURLTestCase(input="my-server", result=False),
+    ValidURLTestCase(input="http://my-server", result=True),
+    ValidURLTestCase(input="http://my-server:8080", result=True),
+    ValidURLTestCase(input="http://192.168.1.10", result=True),
+    ValidURLTestCase(input="/test", result=True),
+    ValidURLTestCase(input="/", result=True),
+    ValidURLTestCase(input="http:/192.168.1.10", result=False),
+]
+
+
 @pytest.mark.parametrize(
-    "input,result",
-    [
-        (55, False),
-        ("https://", False),
-        ("my-server", False),
-        ("http://my-server", True),
-        ("http://my-server:8080", True),
-        ("http://192.168.1.10", True),
-        ("/test", True),
-        ("/", True),
-        ("http:/192.168.1.10", False),
-    ],
+    "test_case",
+    [pytest.param(tc, id=str(tc.input)) for tc in VALID_URL_TEST_CASES],
 )
-def test_is_valid_url(input, result) -> None:
-    assert is_valid_url(input) is result
+def test_is_valid_url(test_case: ValidURLTestCase) -> None:
+    assert is_valid_url(test_case.input) is test_case.result
 
 
 def test_duplicates() -> None:
@@ -156,7 +167,7 @@ def test_dict_hash() -> None:
     assert dict_hash({}) == "99914b932bd37a50b983c5e7c90ae93b"
 
 
-async def test_extract_fields(query_01) -> None:
+async def test_extract_fields(query_01: str) -> None:
     document = parse(query_01)
     expected_response = {
         "TestPerson": {
@@ -171,7 +182,7 @@ async def test_extract_fields(query_01) -> None:
     assert await extract_fields(document.definitions[0].selection_set) == expected_response
 
 
-async def test_extract_fields_fragment(query_02) -> None:
+async def test_extract_fields_fragment(query_02: str) -> None:
     document = parse(query_02)
 
     expected_response = {

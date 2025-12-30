@@ -282,7 +282,6 @@ ignorelist = [
     # Review and update builtin shadowing below this line
     "filter",
     "format",
-    "input",
     "list",
     "property",
 ]
@@ -347,18 +346,6 @@ max-complexity = 17
 "tests/unit/sdk/test_diff_summary.py" = ["ANN001"]      # 9 errors
 "tests/unit/sdk/test_object_store.py" = ["ANN001"]      # 7 errors
 "tests/unit/sdk/graphql/test_query.py" = ["ANN001"]     # 7 errors
-"tests/unit/sdk/test_timestamp.py" = ["ANN001"]         # 6 errors
-"tests/unit/sdk/test_repository.py" = ["ANN001"]        # 6 errors
-"tests/unit/sdk/test_utils.py" = ["ANN001"]             # 4 errors
-"tests/unit/sdk/test_store_branch.py" = ["ANN001"]      # 4 errors
-"tests/unit/sdk/test_query_analyzer.py" = ["ANN001"]    # 4 errors
-"tests/unit/sdk/test_group_context.py" = ["ANN001"]     # 4 errors
-"tests/unit/sdk/test_branch.py" = ["ANN001"]            # 4 errors
-"tests/unit/sdk/test_batch.py" = ["ANN001"]             # 4 errors
-"tests/unit/sdk/graphql/test_renderer.py" = ["ANN001"]  # 4 errors
-"tests/unit/sdk/checks/test_checks.py" = ["ANN001"]     # 2 errors
-"tests/unit/sdk/test_schema_sorter.py" = ["ANN001"]     # 1 error
-"tests/unit/sdk/test_protocols_generator.py" = ["ANN001"] # 1 error
 
 # tests/integration/ - 60 errors total
 "tests/integration/test_infrahub_client.py" = ["ANN001"] # 32 errors
