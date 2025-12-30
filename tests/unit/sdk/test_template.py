@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +17,10 @@ from infrahub_sdk.template.exceptions import (
 )
 from infrahub_sdk.template.filters import (
     BUILTIN_FILTERS,
+    INFRAHUB_FILTER_DEFINITIONS,
     NETUTILS_FILTERS,
     FilterDefinition,
+    value_to_enum_name,
 )
 from infrahub_sdk.template.models import UndefinedJinja2Error
 
@@ -310,3 +313,109 @@ def _compare_errors(expected: JinjaTemplateError, received: JinjaTemplateError) 
 
     else:
         raise Exception("This should never happen")
+
+
+class SampleIntEnum(IntEnum):
+    DENY = 1
+    ALLOW_DEFAULT = 2
+    ALLOW_OTHER = 4
+    ALLOW_ALL = 6
+
+
+TEST_ENUM_PATH = "tests.unit.sdk.test_template.SampleIntEnum"
+
+
+def test_validate_infrahub_filter_sorting() -> None:
+    """Test to validate that infrahub-sdk-python filter names are in alphabetical order."""
+    names = [filter_definition.name for filter_definition in INFRAHUB_FILTER_DEFINITIONS]
+    assert names == sorted(names)
+
+
+def test_value_to_enum_name_with_full_import_path() -> None:
+    for enum_entry in SampleIntEnum:
+        assert value_to_enum_name(enum_entry.value, TEST_ENUM_PATH) == enum_entry.name
+
+
+def test_value_to_enum_name_with_enum_input() -> None:
+    assert value_to_enum_name(SampleIntEnum.DENY, TEST_ENUM_PATH) == "DENY"
+    assert value_to_enum_name(SampleIntEnum.ALLOW_ALL, TEST_ENUM_PATH) == "ALLOW_ALL"
+
+
+def test_value_to_enum_name_without_enum_path() -> None:
+    assert value_to_enum_name(6) == "6"
+    assert value_to_enum_name("test") == "test"
+
+
+def test_value_to_enum_name_with_invalid_module() -> None:
+    assert value_to_enum_name(6, "nonexistent.module.EnumClass") == "6"
+
+
+def test_value_to_enum_name_with_invalid_class() -> None:
+    assert value_to_enum_name(6, "enum.NonExistentEnum") == "6"
+
+
+def test_value_to_enum_name_with_non_enum_class() -> None:
+    assert value_to_enum_name(6, "dataclasses.dataclass") == "6"
+
+
+def test_value_to_enum_name_with_invalid_value() -> None:
+    assert value_to_enum_name("invalid", TEST_ENUM_PATH) == "invalid"
+
+
+def test_value_to_enum_name_with_zero() -> None:
+    assert value_to_enum_name(0, TEST_ENUM_PATH) == "0"
+
+
+def test_value_to_enum_name_with_invalid_path_format() -> None:
+    assert value_to_enum_name(6, "NoDotInPath") == "6"
+
+
+VALUE_TO_ENUM_NAME_FILTER_TEST_CASES = [
+    JinjaTestCase(
+        name="value-to-enum-name-with-full-path-deny",
+        template="{{ decision | value_to_enum_name('" + TEST_ENUM_PATH + "') }}",
+        variables={"decision": 1},
+        expected="DENY",
+        expected_variables=["decision"],
+    ),
+    JinjaTestCase(
+        name="value-to-enum-name-with-full-path-allow-all",
+        template="{{ decision | value_to_enum_name('" + TEST_ENUM_PATH + "') }}",
+        variables={"decision": 6},
+        expected="ALLOW_ALL",
+        expected_variables=["decision"],
+    ),
+    JinjaTestCase(
+        name="value-to-enum-name-global-permission-format",
+        template="global:{{ action }}:{{ decision | value_to_enum_name('" + TEST_ENUM_PATH + "') | lower }}",
+        variables={"action": "manage_accounts", "decision": 6},
+        expected="global:manage_accounts:allow_all",
+        expected_variables=["action", "decision"],
+    ),
+    JinjaTestCase(
+        name="value-to-enum-name-object-permission-format",
+        template="object:{{ ns }}:{{ nm }}:{{ action }}:{{ decision | value_to_enum_name('"
+        + TEST_ENUM_PATH
+        + "') | lower }}",
+        variables={"ns": "Infra", "nm": "Device", "action": "view", "decision": 2},
+        expected="object:Infra:Device:view:allow_default",
+        expected_variables=["action", "decision", "nm", "ns"],
+    ),
+    JinjaTestCase(
+        name="value-to-enum-name-with-invalid-path",
+        template="{{ decision | value_to_enum_name('invalid.path.Enum') }}",
+        variables={"decision": 6},
+        expected="6",
+        expected_variables=["decision"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in VALUE_TO_ENUM_NAME_FILTER_TEST_CASES],
+)
+async def test_value_to_enum_name_filter_in_templates(test_case: JinjaTestCase) -> None:
+    jinja = Jinja2Template(template=test_case.template)
+    assert test_case.expected == await jinja.render(variables=test_case.variables)
+    assert test_case.expected_variables == jinja.get_variables()
