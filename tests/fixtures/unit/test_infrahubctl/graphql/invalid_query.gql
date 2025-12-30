@@ -1,0 +1,9 @@
+query InvalidQuery {
+  NonExistentType {
+    edges {
+      node {
+        id
+      }
+    }
+  }
+}
