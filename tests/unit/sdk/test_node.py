@@ -1360,7 +1360,6 @@ async def test_create_input_data(client, location_schema: NodeSchemaAPI, client_
             "name": {"value": "JFK1"},
             "description": {"value": "JFK Airport"},
             "type": {"value": "SITE"},
-            "primary_tag": None,
         }
     }
 
@@ -1388,6 +1387,38 @@ async def test_create_input_data_with_dropdown(client, location_schema_with_drop
             "description": {"value": "JFK Airport"},
             "type": {"value": "SITE"},
             "status": {"value": None},
+        }
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_input_data_existing_node_with_optional_relationship(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Validate that existing nodes include None for uninitialized optional relationships.
+
+    This ensures that we can explicitly clear optional relationships when updating existing nodes.
+    """
+    # Simulate an existing node by including an id
+    data = {
+        "id": "existing-node-id",
+        "name": {"value": "JFK1"},
+        "description": {"value": "JFK Airport"},
+        "type": {"value": "SITE"},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
+
+    # For existing nodes, optional uninitialized relationships should include None
+    assert node._generate_input_data()["data"] == {
+        "data": {
+            "id": "existing-node-id",
+            "name": {"value": "JFK1"},
+            "description": {"value": "JFK Airport"},
+            "type": {"value": "SITE"},
             "primary_tag": None,
         }
     }
@@ -1636,7 +1667,7 @@ async def test_create_input_data_with_IPHost_attribute(client, ipaddress_schema,
         ip_address = InfrahubNodeSync(client=client, schema=ipaddress_schema, data=data)
 
     assert ip_address._generate_input_data()["data"] == {
-        "data": {"address": {"value": "1.1.1.1/24", "is_protected": True}, "interface": None}
+        "data": {"address": {"value": "1.1.1.1/24", "is_protected": True}}
     }
 
 
@@ -1650,7 +1681,7 @@ async def test_create_input_data_with_IPNetwork_attribute(client, ipnetwork_sche
         ip_network = InfrahubNodeSync(client=client, schema=ipnetwork_schema, data=data)
 
     assert ip_network._generate_input_data()["data"] == {
-        "data": {"network": {"value": "1.1.1.0/24", "is_protected": True}, "site": None}
+        "data": {"network": {"value": "1.1.1.0/24", "is_protected": True}}
     }
 
 
