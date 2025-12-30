@@ -50,8 +50,8 @@ async def test_batch_execution(clients: BothClients, client_type: str) -> None:
 @pytest.mark.parametrize("client_type", client_types)
 async def test_batch_return_exception(
     httpx_mock: HTTPXMock,
-    mock_query_mutation_location_create_failed,
-    mock_schema_query_01,
+    mock_query_mutation_location_create_failed: HTTPXMock,
+    mock_schema_query_01: HTTPXMock,
     clients: BothClients,
     client_type: str,
 ) -> None:
@@ -96,8 +96,8 @@ async def test_batch_return_exception(
 @pytest.mark.parametrize("client_type", client_types)
 async def test_batch_exception(
     httpx_mock: HTTPXMock,
-    mock_query_mutation_location_create_failed,
-    mock_schema_query_01,
+    mock_query_mutation_location_create_failed: HTTPXMock,
+    mock_schema_query_01: HTTPXMock,
     clients: BothClients,
     client_type: str,
 ) -> None:

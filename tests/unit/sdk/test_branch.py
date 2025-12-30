@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import inspect
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -7,6 +10,11 @@ from infrahub_sdk.branch import (
     InfrahubBranchManager,
     InfrahubBranchManagerSync,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+    from tests.unit.sdk.conftest import BothClients
 
 async_branch_methods = [method for method in dir(InfrahubBranchManager) if not method.startswith("_")]
 sync_branch_methods = [method for method in dir(InfrahubBranchManagerSync) if not method.startswith("_")]
@@ -21,7 +29,7 @@ def test_method_sanity() -> None:
 
 
 @pytest.mark.parametrize("method", async_branch_methods)
-def test_validate_method_signature(method) -> None:
+def test_validate_method_signature(method: str) -> None:
     async_method = getattr(InfrahubBranchManager, method)
     sync_method = getattr(InfrahubBranchManagerSync, method)
     async_sig = inspect.signature(async_method)
@@ -31,7 +39,7 @@ def test_validate_method_signature(method) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_branches(clients, mock_branches_list_query, client_type) -> None:
+async def test_get_branches(clients: BothClients, mock_branches_list_query: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         branches = await clients.standard.branch.all()
     else:
