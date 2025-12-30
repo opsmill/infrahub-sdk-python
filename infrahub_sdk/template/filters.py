@@ -17,34 +17,36 @@ def value_to_enum_name(value: Any, enum_path: str | None = None) -> str:
     This filter takes a raw value and converts it to the corresponding enum member name by dynamically importing the
     enum class.
 
-    For example, `{{ decision__value | value_to_enum_name("infrahub.permissions.constants.PermissionDecisionFlag") }}`
+    For example, `{{ decision__value | value_to_enum_name("infrahub.core.constants.PermissionDecision") }}`
     will return: `"ALLOW_ALL"` for value `6`.
     """
-    if isinstance(value, Enum):
+    if isinstance(value, Enum) and not enum_path:
         return value.name
 
+    raw_value = value.value if isinstance(value, Enum) else value
+
     if not enum_path:
-        return str(value)
+        return str(raw_value)
 
     try:
         module_path, class_name = enum_path.rsplit(".", 1)
         module = import_module(module_path)
         enum_type = getattr(module, class_name)
     except (ValueError, ImportError, AttributeError):
-        return str(value)
+        return str(raw_value)
 
     # Verify that we have a class and that this class is a valid Enum
     if not (isinstance(enum_type, type) and issubclass(enum_type, Enum)):
-        return str(value)
+        return str(raw_value)
 
     try:
-        enum_member = enum_type(value)
+        enum_member = enum_type(raw_value)
         if enum_member.name is not None:
             return enum_member.name
     except (ValueError, TypeError):
         pass
 
-    return str(value)
+    return str(raw_value)
 
 
 INFRAHUB_FILTERS = {"value_to_enum_name": value_to_enum_name}
