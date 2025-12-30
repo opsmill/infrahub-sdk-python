@@ -47,6 +47,12 @@ def value_to_enum_name(value: Any, enum_path: str | None = None) -> str:
     return str(value)
 
 
+INFRAHUB_FILTERS = {"value_to_enum_name": value_to_enum_name}
+INFRAHUB_FILTER_DEFINITIONS = [
+    FilterDefinition(name=name, trusted=True, source="infrahub-sdk-python") for name in sorted(INFRAHUB_FILTERS.keys())
+]
+
+
 BUILTIN_FILTERS = [
     FilterDefinition(name="abs", trusted=True, source="jinja2"),
     FilterDefinition(name="attr", trusted=False, source="jinja2"),
@@ -187,4 +193,4 @@ NETUTILS_FILTERS = [
 ]
 
 
-AVAILABLE_FILTERS = BUILTIN_FILTERS + NETUTILS_FILTERS
+AVAILABLE_FILTERS = BUILTIN_FILTERS + NETUTILS_FILTERS + INFRAHUB_FILTER_DEFINITIONS

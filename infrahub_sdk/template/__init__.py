@@ -19,7 +19,7 @@ from .exceptions import (
     JinjaTemplateSyntaxError,
     JinjaTemplateUndefinedError,
 )
-from .filters import AVAILABLE_FILTERS
+from .filters import AVAILABLE_FILTERS, INFRAHUB_FILTERS
 from .models import UndefinedJinja2Error
 
 netutils_filters = jinja2_convenience_function()
@@ -154,6 +154,10 @@ class Jinja2Template:
         # Add filters from netutils
         env.filters.update(
             {name: jinja_filter for name, jinja_filter in netutils_filters.items() if name in self._available_filters}
+        )
+        # Add filters from our own SDK
+        env.filters.update(
+            {name: jinja_filter for name, jinja_filter in INFRAHUB_FILTERS.items() if name in self._available_filters}
         )
         # Add user supplied filters
         env.filters.update(self._filters)
