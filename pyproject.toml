@@ -370,13 +370,6 @@ max-complexity = 17
 "tests/integration/test_convert_object_type.py" = ["ANN001"] # 3 errors
 "tests/integration/test_repository.py" = ["ANN001"]      # 1 error
 
-# tests/unit/ctl/ - 25 errors total
-"tests/unit/ctl/test_repository_app.py" = ["ANN001"]  # 11 errors
-"tests/unit/ctl/test_render_app.py" = ["ANN001"]      # 5 errors
-"tests/unit/ctl/test_cli.py" = ["ANN001"]             # 5 errors
-"tests/unit/ctl/test_branch_app.py" = ["ANN001"]      # 3 errors
-"tests/unit/ctl/test_branch_report.py" = ["ANN001"]   # 1 error
-
 "tasks.py" = [
     "PLC0415", # `import` should be at the top-level of a file
 ]
