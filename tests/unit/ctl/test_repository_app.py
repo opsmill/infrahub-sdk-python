@@ -3,6 +3,7 @@
 from unittest import mock
 
 import pytest
+from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.client import InfrahubClient
@@ -26,7 +27,7 @@ class TestInfrahubctlRepository:
     """Groups the 'infrahubctl repository' test cases."""
 
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
-    def test_repo_no_username_or_password(self, mock_init_client, mock_client) -> None:
+    def test_repo_no_username_or_password(self, mock_init_client: mock.Mock, mock_client: mock.Mock) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"
@@ -73,7 +74,7 @@ mutation {
         )
 
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
-    def test_repo_no_username(self, mock_init_client, mock_client) -> None:
+    def test_repo_no_username(self, mock_init_client: mock.Mock, mock_client: mock.Mock) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"
@@ -132,7 +133,7 @@ mutation {
         )
 
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
-    def test_repo_username(self, mock_init_client, mock_client) -> None:
+    def test_repo_username(self, mock_init_client: mock.Mock, mock_client: mock.Mock) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"
@@ -193,7 +194,7 @@ mutation {
         )
 
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
-    def test_repo_readonly_true(self, mock_init_client, mock_client) -> None:
+    def test_repo_readonly_true(self, mock_init_client: mock.Mock, mock_client: mock.Mock) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"
@@ -253,7 +254,7 @@ mutation {
         )
 
     @mock.patch("infrahub_sdk.ctl.repository.initialize_client")
-    def test_repo_description_commit_branch(self, mock_init_client, mock_client) -> None:
+    def test_repo_description_commit_branch(self, mock_init_client: mock.Mock, mock_client: mock.Mock) -> None:
         """Case allow no username to be passed in and set it as None rather than blank string that fails."""
         mock_cred = mock.AsyncMock()
         mock_cred.id = "1234"
@@ -317,7 +318,7 @@ mutation {
             tracker="mutation-repository-create",
         )
 
-    def test_repo_list(self, mock_repositories_list) -> None:
+    def test_repo_list(self, mock_repositories_list: HTTPXMock) -> None:
         result = runner.invoke(app, ["repository", "list"])
         assert result.exit_code == 0
         assert strip_color(result.stdout) == read_fixture("output.txt", "integration/test_infrahubctl/repository_list")

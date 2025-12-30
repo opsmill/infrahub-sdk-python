@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from pytest_httpx._httpx_mock import HTTPXMock
+from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
@@ -80,7 +80,12 @@ def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HT
     ],
 )
 def test_render_branch_selection(
-    monkeypatch, httpx_mock: HTTPXMock, cli_branch, env_branch, from_git, expected_branch
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+    cli_branch: str | None,
+    env_branch: str | None,
+    from_git: bool,
+    expected_branch: str,
 ) -> None:
     """Test that the render command uses the correct branch source."""
 

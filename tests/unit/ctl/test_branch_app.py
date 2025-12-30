@@ -1,3 +1,5 @@
+from typing import Any
+
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
@@ -6,13 +8,13 @@ from infrahub_sdk.ctl.branch import app
 runner = CliRunner()
 
 
-def test_branch_list(mock_branches_list_query) -> None:
+def test_branch_list(mock_branches_list_query: HTTPXMock) -> None:
     result = runner.invoke(app=app, args=["list"])
     assert result.exit_code == 0
     assert "cr1234" in result.stdout
 
 
-def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_payload) -> None:
+def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_payload: dict[str, Any]) -> None:
     httpx_mock.add_response(
         status_code=401,
         method="POST",
@@ -24,7 +26,7 @@ def test_branch_create_no_auth(httpx_mock: HTTPXMock, authentication_error_paylo
     assert "Authentication is required" in result.stdout
 
 
-def test_branch_create_wrong_name(mock_branch_create_error) -> None:
+def test_branch_create_wrong_name(mock_branch_create_error: HTTPXMock) -> None:
     result = runner.invoke(app=app, args=["create", "branch2"])
 
     assert result.exit_code == 1
