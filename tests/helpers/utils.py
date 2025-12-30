@@ -15,7 +15,7 @@ from infrahub_sdk.repository import GitRepoManager
 def change_directory(new_directory: str) -> Generator[None, None, None]:
     """Helper function used to change directories in a with block."""
     # Save the current working directory
-    original_directory = os.getcwd()
+    original_directory = Path.cwd()
 
     # Change to the new directory
     try:
@@ -30,7 +30,7 @@ def change_directory(new_directory: str) -> Generator[None, None, None]:
 @contextmanager
 def temp_repo_and_cd(source_dir: Path) -> Generator[Path, None, None]:
     temp_dir = tempfile.mkdtemp()
-    original_directory = os.getcwd()
+    original_directory = Path.cwd()
 
     try:
         shutil.copytree(source_dir, temp_dir, dirs_exist_ok=True)
