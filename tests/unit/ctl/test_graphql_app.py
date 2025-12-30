@@ -198,7 +198,7 @@ class TestGenerateReturnTypesCommand:
         shutil.copy(FIXTURES_DIR / "valid_query.gql", query_file)
 
         # Change to temp directory and run without specifying query path
-        original_dir = os.getcwd()
+        original_dir = Path.cwd()
         try:
             os.chdir(tmp_path)
             result = runner.invoke(app, ["generate-return-types", "--schema", str(schema_file)], catch_exceptions=False)
