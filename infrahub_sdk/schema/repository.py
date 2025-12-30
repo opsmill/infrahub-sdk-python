@@ -151,8 +151,7 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
 
     def load_query(self, relative_path: str = ".") -> str:
         file_name = Path(f"{relative_path}/{self.file_path}")
-        with file_name.open("r", encoding="UTF-8") as file:
-            return file.read()
+        return file_name.read_text(encoding="UTF-8")
 
 
 class InfrahubObjectConfig(InfrahubRepositoryConfigElement):

@@ -80,7 +80,7 @@ tests = [
 lint = [
     "yamllint",
     "mypy==1.11.2",
-    "ruff==0.14.5",
+    "ruff==0.14.10",
     "astroid>=3.1,<4.0",
     "ty==0.0.4",
 ]
