@@ -1,0 +1,16 @@
+query GetTagsWithTypename($name: String!) {
+  BuiltinTag(name__value: $name) {
+    __typename
+    edges {
+      __typename
+      node {
+        __typename
+        id
+        name {
+          __typename
+          value
+        }
+      }
+    }
+  }
+}

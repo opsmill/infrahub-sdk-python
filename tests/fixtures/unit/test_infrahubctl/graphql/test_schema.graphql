@@ -1,0 +1,47 @@
+"""Attribute of type Text"""
+type TextAttribute implements AttributeInterface {
+  is_default: Boolean
+  is_inherited: Boolean
+  is_protected: Boolean
+  is_visible: Boolean
+  updated_at: DateTime
+  id: String
+  value: String
+}
+
+interface AttributeInterface {
+  is_default: Boolean
+  is_inherited: Boolean
+  is_protected: Boolean
+  is_visible: Boolean
+  updated_at: DateTime
+}
+
+scalar DateTime
+
+type BuiltinTag implements CoreNode {
+  """Unique identifier"""
+  id: String!
+  display_label: String
+  """Description"""
+  description: TextAttribute
+  """Name (required)"""
+  name: TextAttribute
+}
+
+interface CoreNode {
+  id: String!
+}
+
+type EdgedBuiltinTag {
+  node: BuiltinTag
+}
+
+type PaginatedBuiltinTag {
+  count: Int!
+  edges: [EdgedBuiltinTag!]!
+}
+
+type Query {
+  BuiltinTag(name__value: String, ids: [ID]): PaginatedBuiltinTag
+}
