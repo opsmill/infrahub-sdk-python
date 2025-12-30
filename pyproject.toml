@@ -136,7 +136,6 @@ invalid-await = "ignore"
 invalid-type-form = "ignore"
 no-matching-overload = "ignore"
 unresolved-attribute = "ignore"
-unsupported-operator = "ignore"
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/ctl/config.py"]

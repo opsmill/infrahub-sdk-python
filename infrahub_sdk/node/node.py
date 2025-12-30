@@ -198,8 +198,8 @@ class InfrahubNodeBase:
         return self._schema.kind
 
     def get_all_kinds(self) -> list[str]:
-        if hasattr(self._schema, "inherit_from"):
-            return [self._schema.kind] + self._schema.inherit_from
+        if inherit_from := getattr(self._schema, "inherit_from", None):
+            return [self._schema.kind] + inherit_from
         return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
