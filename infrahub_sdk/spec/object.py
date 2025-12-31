@@ -34,17 +34,21 @@ def validate_list_of_objects(value: list[Any]) -> bool:
     return all(isinstance(item, dict) for item in value)
 
 
-def normalize_hfid_reference(value: str | list[str]) -> list[str]:
+def normalize_hfid_reference(value: str | list[str]) -> str | list[str]:
     """Normalize a reference value to HFID format.
 
-    If the value is a string and not a valid UUID, wrap it in a list to treat it as a single-component HFID.
-    If the value is already a list, return it as-is.
-    If the value is a UUID string, return it as-is (will be treated as an ID).
+    Args:
+        value: Either a string (ID or single-component HFID) or a list of strings (multi-component HFID).
+
+    Returns:
+        - If value is already a list: returns it unchanged as list[str]
+        - If value is a valid UUID string: returns it unchanged as str (will be treated as an ID)
+        - If value is a non-UUID string: wraps it in a list as list[str] (single-component HFID)
     """
     if isinstance(value, list):
         return value
     if is_valid_uuid(value):
-        return value  # type: ignore[return-value]
+        return value
     return [value]
 
 
