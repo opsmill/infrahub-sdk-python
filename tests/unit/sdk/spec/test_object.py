@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -9,6 +10,7 @@ from infrahub_sdk.spec.object import ObjectFile, RelationshipDataFormat, get_rel
 
 if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient
+    from infrahub_sdk.node import InfrahubNode
 
 
 @pytest.fixture
@@ -287,9 +289,7 @@ class TestHfidNormalizationInObjectLoading:
     @pytest.fixture
     def location_with_cardinality_one_uuid(self, root_location: dict) -> dict:
         """Location with a cardinality-one relationship using UUID."""
-        data = [
-            {"name": "Mexico", "type": "Country", "primary_tag": "550e8400-e29b-41d4-a716-446655440000"}
-        ]
+        data = [{"name": "Mexico", "type": "Country", "primary_tag": "550e8400-e29b-41d4-a716-446655440000"}]
         location = root_location.copy()
         location["spec"]["data"] = data
         return location
@@ -340,19 +340,19 @@ class TestHfidNormalizationInObjectLoading:
         await obj.validate_format(client=client_with_schema_01)
 
         # Track calls to client.create
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
         original_create = client_with_schema_01.create
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
-            # Return a mock node that has the required methods
-            node = await original_create(kind=kind, branch=branch, data=data, **kwargs)
-            return node
+            return await original_create(kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        # Mock the save method to avoid API calls
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -368,16 +368,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_one_list_hfid)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -392,16 +395,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_one_uuid)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -417,16 +423,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_many_string_hfids)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -441,16 +450,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_many_list_hfids)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -465,16 +477,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_many_mixed_hfids)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
@@ -490,16 +505,19 @@ class TestHfidNormalizationInObjectLoading:
         obj = ObjectFile(location="some/path", content=location_with_cardinality_many_uuids)
         await obj.validate_format(client=client_with_schema_01)
 
-        create_calls = []
+        create_calls: list[dict[str, Any]] = []
 
-        async def mock_create(kind, branch=None, data=None, **kwargs):
+        async def mock_create(
+            kind: str,
+            branch: str | None = None,
+            data: dict | None = None,
+            **kwargs: Any,  # noqa: ANN401
+        ) -> InfrahubNode:
             create_calls.append({"kind": kind, "data": data})
             original_create = client_with_schema_01.__class__.create
             return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
         client_with_schema_01.create = mock_create
-
-        from unittest.mock import AsyncMock, patch
 
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
