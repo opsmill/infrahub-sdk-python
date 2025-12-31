@@ -358,8 +358,9 @@ class TestHfidNormalizationInObjectLoading:
             await obj.process(client=client_with_schema_01)
 
         # Verify the data passed to create has the normalized HFID
+        # For cardinality-one, string "Important" becomes ["Important"] (list HFID format)
         assert len(create_calls) == 1
-        assert create_calls[0]["data"]["primary_tag"] == [["Important"]]
+        assert create_calls[0]["data"]["primary_tag"] == ["Important"]
 
     async def test_cardinality_one_list_hfid_unchanged(
         self, client_with_schema_01: InfrahubClient, location_with_cardinality_one_list_hfid: dict
@@ -385,8 +386,9 @@ class TestHfidNormalizationInObjectLoading:
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
 
+        # List HFID ["Important"] remains unchanged
         assert len(create_calls) == 1
-        assert create_calls[0]["data"]["primary_tag"] == [["Important"]]
+        assert create_calls[0]["data"]["primary_tag"] == ["Important"]
 
     async def test_cardinality_one_uuid_unchanged(
         self, client_with_schema_01: InfrahubClient, location_with_cardinality_one_uuid: dict
@@ -412,9 +414,9 @@ class TestHfidNormalizationInObjectLoading:
         with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
             await obj.process(client=client_with_schema_01)
 
+        # UUID should be passed as-is (string, not wrapped in a list)
         assert len(create_calls) == 1
-        # UUID should be passed as-is (not wrapped in a list)
-        assert create_calls[0]["data"]["primary_tag"] == ["550e8400-e29b-41d4-a716-446655440000"]
+        assert create_calls[0]["data"]["primary_tag"] == "550e8400-e29b-41d4-a716-446655440000"
 
     async def test_cardinality_many_string_hfids_normalized(
         self, client_with_schema_01: InfrahubClient, location_with_cardinality_many_string_hfids: dict
