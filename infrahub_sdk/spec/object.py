@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
+from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
 from .processors.factory import DataProcessorFactory
@@ -31,6 +32,28 @@ def validate_list_of_data_dicts(value: list[Any]) -> bool:
 
 def validate_list_of_objects(value: list[Any]) -> bool:
     return all(isinstance(item, dict) for item in value)
+
+
+def normalize_hfid_reference(value: str | list[str]) -> list[str]:
+    """Normalize a reference value to HFID format.
+
+    If the value is a string and not a valid UUID, wrap it in a list to treat it as a single-component HFID.
+    If the value is already a list, return it as-is.
+    If the value is a UUID string, return it as-is (will be treated as an ID).
+    """
+    if isinstance(value, list):
+        return value
+    if is_valid_uuid(value):
+        return value  # type: ignore[return-value]
+    return [value]
+
+
+def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[str]]:
+    """Normalize a list of reference values to HFID format.
+
+    Each string that is not a valid UUID will be wrapped in a list to treat it as a single-component HFID.
+    """
+    return [normalize_hfid_reference(v) for v in values]
 
 
 class RelationshipDataFormat(str, Enum):
@@ -445,9 +468,12 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is bidirectional and is not mandatory on the other side, then we need should create the related object First
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.is_reference and isinstance(value, list):
-                    clean_data[key] = value
+                    # Normalize string HFIDs to list format: "name" -> ["name"]
+                    # UUIDs are left as-is since they are treated as IDs
+                    clean_data[key] = normalize_hfid_references(value)
                 elif rel_info.format == RelationshipDataFormat.ONE_REF and isinstance(value, str):
-                    clean_data[key] = [value]
+                    # Normalize string to HFID format if not a UUID
+                    clean_data[key] = [normalize_hfid_reference(value)]
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
