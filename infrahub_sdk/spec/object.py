@@ -467,14 +467,15 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is bidirectional and is mandatory on the other side, then we need to create this object First
                 #  - if the relationship is bidirectional and is not mandatory on the other side, then we need should create the related object First
                 #  - if the relationship is not bidirectional, then we need to create the related object First
-                if rel_info.is_reference and isinstance(value, list):
-                    # Normalize string HFIDs to list format: "name" -> ["name"]
+                if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
+                    # Cardinality-many: normalize each string HFID to list format: "name" -> ["name"]
                     # UUIDs are left as-is since they are treated as IDs
                     clean_data[key] = normalize_hfid_references(value)
-                elif rel_info.format == RelationshipDataFormat.ONE_REF and isinstance(value, str):
-                    # Normalize string to HFID format if not a UUID
-                    # For cardinality-one, we pass the normalized value directly (not wrapped in a list)
+                elif rel_info.format == RelationshipDataFormat.ONE_REF:
+                    # Cardinality-one: normalize string to HFID format if not a UUID
+                    # For cardinality-one, we pass the normalized value directly
                     # The RelatedNode class will interpret a list as {"hfid": list} and a string as {"id": string}
+                    # Value can be either a string (e.g., "Jane Smith") or a list (e.g., ["Jane Smith"])
                     clean_data[key] = normalize_hfid_reference(value)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
