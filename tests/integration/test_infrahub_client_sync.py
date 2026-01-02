@@ -355,13 +355,11 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
 
 class TestHierarchicalSchema(TestInfrahubDockerClient):
     @pytest.fixture(scope="class")
-    async def load_hierarchical_schema(
-        self, client_sync: InfrahubClientSync, hierarchical_schema: dict[str, Any]
-    ) -> None:
+    def load_hierarchical_schema(self, client_sync: InfrahubClientSync, hierarchical_schema: dict[str, Any]) -> None:
         resp = client_sync.schema.load(schemas=[hierarchical_schema], wait_until_converged=True)
         assert resp.errors == {}
 
-    async def test_hierarchical(self, client_sync: InfrahubClientSync, load_hierarchical_schema: None) -> None:
+    def test_hierarchical(self, client_sync: InfrahubClientSync, load_hierarchical_schema: None) -> None:
         location_country = client_sync.create(
             kind="LocationCountry", name="country_name", shortname="country_shortname"
         )
