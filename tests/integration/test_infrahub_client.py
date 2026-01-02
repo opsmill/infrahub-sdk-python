@@ -12,6 +12,7 @@ from infrahub_sdk.schema import ProfileSchemaAPI
 from infrahub_sdk.task.models import Task, TaskFilter, TaskLog, TaskState
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
+from infrahub_sdk.types import Order
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
