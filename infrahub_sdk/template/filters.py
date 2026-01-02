@@ -32,19 +32,21 @@ def value_to_enum_name(value: Any, enum_path: str | None = None) -> str:
         module_path, class_name = enum_path.rsplit(".", 1)
         module = import_module(module_path)
         enum_type = getattr(module, class_name)
-    except (ValueError, ImportError, AttributeError):
-        return str(raw_value)
+    except (ValueError, ImportError, AttributeError) as exc:
+        msg = f"Failed to resolve enum '{enum_path}': {exc}"
+        raise ValueError(msg) from exc
 
     # Verify that we have a class and that this class is a valid Enum
     if not (isinstance(enum_type, type) and issubclass(enum_type, Enum)):
-        return str(raw_value)
+        raise ValueError(f"Resolved type '{enum_path}' is not a valid Enum")
 
     try:
         enum_member = enum_type(raw_value)
         if enum_member.name is not None:
             return enum_member.name
-    except (ValueError, TypeError):
-        pass
+    except (ValueError, TypeError) as exc:
+        msg = f"Value '{raw_value}' not found in enum '{enum_path}': {exc}"
+        raise ValueError(msg) from exc
 
     return str(raw_value)
 

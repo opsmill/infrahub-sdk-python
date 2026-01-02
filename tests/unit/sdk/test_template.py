@@ -331,43 +331,47 @@ def test_validate_infrahub_filter_sorting() -> None:
     assert names == sorted(names)
 
 
-def test_value_to_enum_name_with_full_import_path() -> None:
-    for enum_entry in SampleIntEnum:
-        assert value_to_enum_name(enum_entry.value, TEST_ENUM_PATH) == enum_entry.name
+@pytest.mark.parametrize(
+    ("value", "enum_path", "expected"),
+    [
+        pytest.param(1, TEST_ENUM_PATH, "DENY", id="int-value-deny"),
+        pytest.param(6, TEST_ENUM_PATH, "ALLOW_ALL", id="int-value-allow-all"),
+        pytest.param(SampleIntEnum.DENY, TEST_ENUM_PATH, "DENY", id="enum-input-deny"),
+        pytest.param(SampleIntEnum.ALLOW_ALL, TEST_ENUM_PATH, "ALLOW_ALL", id="enum-input-allow-all"),
+        pytest.param(6, None, "6", id="no-enum-path-int"),
+        pytest.param("test", None, "test", id="no-enum-path-str"),
+    ],
+)
+def test_value_to_enum_name_success(value: int | str | SampleIntEnum, enum_path: str | None, expected: str) -> None:
+    assert value_to_enum_name(value, enum_path) == expected
 
 
-def test_value_to_enum_name_with_enum_input() -> None:
-    assert value_to_enum_name(SampleIntEnum.DENY, TEST_ENUM_PATH) == "DENY"
-    assert value_to_enum_name(SampleIntEnum.ALLOW_ALL, TEST_ENUM_PATH) == "ALLOW_ALL"
-
-
-def test_value_to_enum_name_without_enum_path() -> None:
-    assert value_to_enum_name(6) == "6"
-    assert value_to_enum_name("test") == "test"
-
-
-def test_value_to_enum_name_with_invalid_module() -> None:
-    assert value_to_enum_name(6, "nonexistent.module.EnumClass") == "6"
-
-
-def test_value_to_enum_name_with_invalid_class() -> None:
-    assert value_to_enum_name(6, "enum.NonExistentEnum") == "6"
-
-
-def test_value_to_enum_name_with_non_enum_class() -> None:
-    assert value_to_enum_name(6, "dataclasses.dataclass") == "6"
-
-
-def test_value_to_enum_name_with_invalid_value() -> None:
-    assert value_to_enum_name("invalid", TEST_ENUM_PATH) == "invalid"
-
-
-def test_value_to_enum_name_with_zero() -> None:
-    assert value_to_enum_name(0, TEST_ENUM_PATH) == "0"
-
-
-def test_value_to_enum_name_with_invalid_path_format() -> None:
-    assert value_to_enum_name(6, "NoDotInPath") == "6"
+@pytest.mark.parametrize(
+    ("value", "enum_path", "error_pattern"),
+    [
+        pytest.param(
+            6,
+            "nonexistent.module.EnumClass",
+            r"Failed to resolve enum 'nonexistent\.module\.EnumClass'",
+            id="invalid-module",
+        ),
+        pytest.param(6, "enum.NonExistentEnum", r"Failed to resolve enum 'enum\.NonExistentEnum'", id="invalid-class"),
+        pytest.param(
+            "invalid", TEST_ENUM_PATH, f"Value 'invalid' not found in enum '{TEST_ENUM_PATH}'", id="invalid-value"
+        ),
+        pytest.param(0, TEST_ENUM_PATH, f"Value '0' not found in enum '{TEST_ENUM_PATH}'", id="zero-not-in-enum"),
+        pytest.param(6, "NoDotInPath", "Failed to resolve enum 'NoDotInPath'", id="invalid-path-format"),
+        pytest.param(
+            6,
+            "dataclasses.dataclass",
+            r"Resolved type 'dataclasses\.dataclass' is not a valid Enum",
+            id="non-enum-class",
+        ),
+    ],
+)
+def test_value_to_enum_name_errors(value: int | str, enum_path: str, error_pattern: str) -> None:
+    with pytest.raises(ValueError, match=error_pattern):
+        value_to_enum_name(value, enum_path)
 
 
 VALUE_TO_ENUM_NAME_FILTER_TEST_CASES = [
@@ -401,13 +405,6 @@ VALUE_TO_ENUM_NAME_FILTER_TEST_CASES = [
         expected="object:Infra:Device:view:allow_default",
         expected_variables=["action", "decision", "nm", "ns"],
     ),
-    JinjaTestCase(
-        name="value-to-enum-name-with-invalid-path",
-        template="{{ decision | value_to_enum_name('invalid.path.Enum') }}",
-        variables={"decision": 6},
-        expected="6",
-        expected_variables=["decision"],
-    ),
 ]
 
 
@@ -419,3 +416,9 @@ async def test_value_to_enum_name_filter_in_templates(test_case: JinjaTestCase) 
     jinja = Jinja2Template(template=test_case.template)
     assert test_case.expected == await jinja.render(variables=test_case.variables)
     assert test_case.expected_variables == jinja.get_variables()
+
+
+async def test_value_to_enum_name_filter_in_templates_with_invalid_path() -> None:
+    jinja = Jinja2Template(template="{{ decision | value_to_enum_name('invalid.path.Enum') }}")
+    with pytest.raises(JinjaTemplateError):
+        await jinja.render(variables={"decision": 6})
