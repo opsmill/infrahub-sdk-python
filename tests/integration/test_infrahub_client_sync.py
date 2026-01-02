@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -355,7 +355,9 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
 
 class TestHierarchicalSchema(TestInfrahubDockerClient):
     @pytest.fixture(scope="class")
-    async def load_hierarchical_schema(self, client_sync: InfrahubClientSync, hierarchical_schema: dict) -> None:
+    async def load_hierarchical_schema(
+        self, client_sync: InfrahubClientSync, hierarchical_schema: dict[str, Any]
+    ) -> None:
         resp = client_sync.schema.load(schemas=[hierarchical_schema], wait_until_converged=True)
         assert resp.errors == {}
 

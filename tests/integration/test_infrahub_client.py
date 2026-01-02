@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,14 +25,14 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def base_dataset(
         self,
         client: InfrahubClient,
-        load_schema,
-        person_liam,
-        person_ethan,
-        person_sophia,
-        cat_luna,
-        cat_bella,
-        dog_daisy,
-        dog_rocky,
+        load_schema: None,
+        person_liam: InfrahubNode,
+        person_ethan: InfrahubNode,
+        person_sophia: InfrahubNode,
+        cat_luna: InfrahubNode,
+        cat_bella: InfrahubNode,
+        dog_daisy: InfrahubNode,
+        dog_rocky: InfrahubNode,
     ) -> None:
         await client.branch.create(branch_name="branch01")
 
@@ -42,7 +43,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         yield
         client.pagination_size = original_pagination_size
 
-    async def test_query_branches(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_query_branches(self, client: InfrahubClient, base_dataset: None) -> None:
         branches = await client.branch.all()
         main = await client.branch.get(branch_name="main")
 
@@ -53,7 +54,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert "main" in branches
         assert "branch01" in branches
 
-    async def test_branch_delete(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_branch_delete(self, client: InfrahubClient, base_dataset: None) -> None:
         async_branch = "async-delete-branch"
         await client.branch.create(branch_name=async_branch)
         pre_delete = await client.branch.all()
@@ -62,25 +63,27 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert async_branch in pre_delete
         assert async_branch not in post_delete
 
-    async def test_get_all(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_get_all(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_CAT)
         assert len(nodes) == 2
         assert isinstance(nodes[0], InfrahubNode)
         assert [node.name.value for node in nodes] == ["Bella", "Luna"]
 
-    async def test_get_all_no_order(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_get_all_no_order(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_CAT, order=Order(disable=True))
         assert len(nodes) == 2
         assert isinstance(nodes[0], InfrahubNode)
         assert {node.name.value for node in nodes} == {"Bella", "Luna"}
 
-    async def test_get_filters_no_order(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_get_filters_no_order(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.filters(kind=TESTING_CAT, order=Order(disable=True))
         assert len(nodes) == 2
         assert isinstance(nodes[0], InfrahubNode)
         assert {node.name.value for node in nodes} == {"Bella", "Luna"}
 
-    async def test_get_one(self, client: InfrahubClient, base_dataset, cat_luna, person_sophia) -> None:
+    async def test_get_one(
+        self, client: InfrahubClient, base_dataset: None, cat_luna: InfrahubNode, person_sophia: InfrahubNode
+    ) -> None:
         node1 = await client.get(kind=TESTING_CAT, id=cat_luna.id)
         assert isinstance(node1, InfrahubNode)
         assert node1.name.value == "Luna"
@@ -89,7 +92,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert isinstance(node2, InfrahubNode)
         assert node2.name.value == "Sophia Walker"
 
-    async def test_filters_partial_match(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_filters_partial_match(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.filters(kind=TESTING_PERSON, name__value="Walker")
         assert not nodes
 
@@ -98,17 +101,19 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert isinstance(nodes[0], InfrahubNode)
         assert sorted([node.name.value for node in nodes]) == ["Liam Walker", "Sophia Walker"]
 
-    async def test_get_generic(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_get_generic(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_ANIMAL)
         assert len(nodes) == 4
 
-    async def test_get_generic_fragment(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_get_generic_fragment(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_ANIMAL, fragment=True)
         assert len(nodes)
         assert nodes[0].typename in {TESTING_DOG, TESTING_CAT}
         assert nodes[0].breed.value is not None
 
-    async def test_get_generic_filter_source(self, client: InfrahubClient, base_dataset, person_liam) -> None:
+    async def test_get_generic_filter_source(
+        self, client: InfrahubClient, base_dataset: None, person_liam: InfrahubNode
+    ) -> None:
         admin = await client.get(kind="CoreAccount", name__value="admin")
 
         obj = await client.create(
@@ -121,7 +126,9 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert nodes[0].typename == TESTING_CAT
         assert nodes[0].id == obj.id
 
-    async def test_get_related_nodes(self, client: InfrahubClient, base_dataset, person_ethan) -> None:
+    async def test_get_related_nodes(
+        self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
         ethan = await client.get(kind=TESTING_PERSON, id=person_ethan.id)
         assert ethan
 
@@ -129,15 +136,15 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         await ethan.animals.fetch()
         assert len(ethan.animals.peers) == 3
 
-    async def test_count(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_count(self, client: InfrahubClient, base_dataset: None) -> None:
         count = await client.count(kind=TESTING_PERSON)
         assert count == 3
 
-    async def test_count_with_filter(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_count_with_filter(self, client: InfrahubClient, base_dataset: None) -> None:
         count = await client.count(kind=TESTING_PERSON, name__values=["Liam Walker", "Ethan Carter"])
         assert count == 2
 
-    async def test_profile(self, client: InfrahubClient, base_dataset, person_liam) -> None:
+    async def test_profile(self, client: InfrahubClient, base_dataset: None, person_liam: InfrahubNode) -> None:
         profile_schema_kind = f"Profile{TESTING_DOG}"
         profile_schema = await client.schema.get(kind=profile_schema_kind)
         assert isinstance(profile_schema, ProfileSchemaAPI)
@@ -157,7 +164,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
 
     @pytest.mark.xfail(reason="Require Infrahub v1.7")
     async def test_profile_relationship_is_from_profile(
-        self, client: InfrahubClient, base_dataset, person_liam
+        self, client: InfrahubClient, base_dataset: None, person_liam: InfrahubNode
     ) -> None:
         tag = await client.create(kind="BuiltinTag", name="profile-tag-test")
         await tag.save()
@@ -178,12 +185,12 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert fetched_person.tags.peers[0].is_from_profile
         assert fetched_person.tags.is_from_profile
 
-    async def test_create_branch(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_create_branch(self, client: InfrahubClient, base_dataset: None) -> None:
         branch = await client.branch.create(branch_name="new-branch-1")
         assert isinstance(branch, BranchData)
         assert branch.id is not None
 
-    async def test_create_branch_async(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_create_branch_async(self, client: InfrahubClient, base_dataset: None) -> None:
         task_id = await client.branch.create(branch_name="new-branch-2", wait_until_completion=False)
         assert isinstance(task_id, str)
 
@@ -215,7 +222,9 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         person_sophia = await client.get(kind=TESTING_PERSON, id=person_sophia.id, prefetch_relationships=True)
         assert not person_sophia.favorite_animal.id
 
-    async def test_task_query(self, client: InfrahubClient, base_dataset, set_pagination_size3) -> None:
+    async def test_task_query(
+        self, client: InfrahubClient, base_dataset: None, set_pagination_size3: AsyncGenerator[None, None]
+    ) -> None:
         nbr_tasks = await client.task.count()
         assert nbr_tasks
 
@@ -259,7 +268,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert all_logs[0].timestamp
         assert all_logs[0].severity
 
-    async def test_tracking_mode(self, client: InfrahubClient, base_dataset) -> None:
+    async def test_tracking_mode(self, client: InfrahubClient, base_dataset: None) -> None:
         tag_names = ["BLUE", "RED", "YELLOW"]
         person_name = "TrackingTestPerson"
 
@@ -346,7 +355,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
 
 class TestHierarchicalSchema(TestInfrahubDockerClient):
     @pytest.fixture(scope="class")
-    async def load_hierarchical_schema(self, client: InfrahubClient, hierarchical_schema: dict) -> None:
+    async def load_hierarchical_schema(self, client: InfrahubClient, hierarchical_schema: dict[str, Any]) -> None:
         resp = await client.schema.load(schemas=[hierarchical_schema], wait_until_converged=True)
         assert resp.errors == {}
 

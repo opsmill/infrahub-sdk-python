@@ -50,10 +50,15 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
             await client.get(kind=TESTING_MANUFACTURER, id=obj.id)
 
     async def test_node_create_with_relationships(
-        self, default_branch: str, client: InfrahubClient, initial_schema: None, manufacturer_mercedes, person_joe
+        self,
+        default_branch: str,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
     ) -> None:
         node = await client.create(
-            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
+            kind=TESTING_CAR, name="CLS", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
         )
         await node.save()
         assert node.id is not None
@@ -67,13 +72,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        car_golf,
-        person_joe,
+        manufacturer_mercedes: InfrahubNode,
+        car_golf: InfrahubNode,
+        person_joe: InfrahubNode,
     ) -> None:
         related_node = car_golf.owner
         node = await client.create(
-            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
+            kind=TESTING_CAR, name="CLS", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
         )
         await node.save(allow_upsert=True)
         assert node.id is not None
@@ -89,13 +94,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        person_joe,
-        tag_red,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_red: InfrahubNode,
     ) -> None:
         car = await client.create(
             kind=TESTING_CAR,
-            name="Tiguan2",
+            name="CLS AMG",
             color="Black",
             manufacturer=manufacturer_mercedes,
             owner=person_joe,
@@ -191,13 +196,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        person_joe,
-        person_jane,
-        car_golf,
-        tag_blue,
-        tag_red,
-        tag_green,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        person_jane: InfrahubNode,
+        car_golf: InfrahubNode,
+        tag_blue: InfrahubNode,
+        tag_red: InfrahubNode,
+        tag_green: InfrahubNode,
     ) -> None:
         car_golf.color.value = "White"
         await car_golf.tags.fetch()
@@ -220,7 +225,12 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert sorted([tag.id for tag in car3.tags.peers]) == sorted([tag_green.id, tag_blue.id])
 
     async def test_relationship_manager_errors_without_fetch(
-        self, client: InfrahubClient, initial_schema: None, manufacturer_mercedes, person_joe, tag_blue
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
     ) -> None:
         car = await client.create(
             kind=TESTING_CAR, name="UnfetchedCar", color="Blue", manufacturer=manufacturer_mercedes, owner=person_joe
@@ -239,7 +249,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert {t.id for t in car.tags.peers} == {tag_blue.id}
 
     async def test_relationships_not_overwritten(
-        self, client: InfrahubClient, initial_schema: None, manufacturer_mercedes, person_joe, tag_blue, tag_red
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
+        tag_red: InfrahubNode,
     ) -> None:
         car = await client.create(
             kind=TESTING_CAR,
