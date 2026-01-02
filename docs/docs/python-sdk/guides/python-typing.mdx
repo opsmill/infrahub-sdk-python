@@ -111,7 +111,7 @@ When working with GraphQL queries, you can generate type-safe Pydantic models th
 Generated Pydantic models from GraphQL queries offer several important benefits:
 
 - **Type Safety**: Catch type errors during development time instead of at runtime
-- **IDE Support**: Get autocomplete, type hints, and better IntelliSense in your IDE  
+- **IDE Support**: Get autocomplete, type hints, and better IntelliSense in your IDE
 - **Documentation**: Generated models serve as living documentation of your GraphQL API
 - **Validation**: Automatic validation of query responses against the expected schema
 
@@ -120,32 +120,59 @@ Generated Pydantic models from GraphQL queries offer several important benefits:
 Use the `infrahubctl graphql generate-return-types` command to create Pydantic models from your GraphQL queries:
 
 ```shell
-# Generate models for queries in current directory
-infrahubctl graphql generate-return-types
+# Generate models for queries in a directory
+infrahubctl graphql generate-return-types queries/
 
 # Generate models for specific query files
-infrahubctl graphql generate-return-types queries/get_devices.gql
+infrahubctl graphql generate-return-types queries/get_tags.gql
 ```
 
-> You can also export the GraphQL schema first using the `infrahubctl graphql export-schema` command:
+> You can also export the GraphQL schema first using the `infrahubctl graphql export-schema` command.
 
 ### Example workflow
 
-1. **Create your GraphQL queries** in `.gql` files:
+1. **Create your GraphQL queries** in `.gql` files preferably in a directory (e.g., `queries/`):
 
-2. **Generate the Pydantic models**:
+   ```graphql
+   # queries/get_tags.gql
+   query GetAllTags {
+      BuiltinTag {
+         edges {
+            node {
+               __typename
+               name {
+                  value
+               }
+            }
+         }
+      }
+   }
+   ```
+
+2. **Export the GraphQL schema**:
+
+   ```shell
+   infrahubctl graphql export-schema
+   ```
+
+3. **Generate the Pydantic models**:
 
    ```shell
    infrahubctl graphql generate-return-types queries/
    ```
 
-   The command will generate the Python file per query based on the name of the query.
+   :::warning Query names
 
-3. **Use the generated models** in your Python code
+   Ensure each of your GraphQL queries has a unique name, as the generated Python files will be named based on these query names.
+   Two queries with the same name will land in the same file, leading to potential overrides.
+
+   :::
+
+4. **Use the generated models** in your Python code
 
    ```python
-   from .queries.get_devices import GetDevicesQuery
+   from .queries.get_tags import GetAllTagsQuery
 
    response = await client.execute_graphql(query=MY_QUERY)
-   data = GetDevicesQuery(**response)
+   data = GetAllTagsQuery(**response)
    ```

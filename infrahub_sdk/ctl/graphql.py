@@ -22,7 +22,12 @@ from rich.console import Console
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception
-from ..graphql.utils import insert_fragments_inline, remove_fragment_import
+from ..graphql.utils import (
+    insert_fragments_inline,
+    remove_fragment_import,
+    strip_typename_from_fragment,
+    strip_typename_from_operation,
+)
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -152,12 +157,18 @@ async def generate_return_types(
             queries = filter_operations_definitions(definitions)
             fragments = filter_fragments_definitions(definitions)
 
+            # Strip __typename fields from operations and fragments before code generation.
+            # __typename is a GraphQL introspection meta-field that isn't part of the schema's
+            # type definitions, causing ariadne-codegen to fail with "Redefinition of reserved type 'String'"
+            stripped_queries = [strip_typename_from_operation(q) for q in queries]
+            stripped_fragments = [strip_typename_from_fragment(f) for f in fragments]
+
             package_generator = get_package_generator(
                 schema=graphql_schema,
-                fragments=fragments,
+                fragments=stripped_fragments,
                 settings=ClientSettings(
                     schema_path=str(schema),
-                    target_package_name=directory.name,
+                    target_package_name=directory.name or "graphql_client",
                     queries_path=str(directory),
                     include_comments=CommentsStrategy.NONE,
                 ),
@@ -166,7 +177,7 @@ async def generate_return_types(
 
             parsing_failed = False
             try:
-                for query_operation in queries:
+                for query_operation in stripped_queries:
                     package_generator.add_operation(query_operation)
             except ParsingError as exc:
                 console.print(f"[red]Unable to process {gql_file.name}: {exc}")
