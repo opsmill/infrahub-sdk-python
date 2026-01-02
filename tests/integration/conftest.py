@@ -11,7 +11,7 @@ BUILD_NAME = os.environ.get("INFRAHUB_BUILD_NAME", "infrahub")
 TEST_IN_DOCKER = str_to_bool(os.environ.get("INFRAHUB_TEST_IN_DOCKER", "false"))
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def schema_extension_01() -> dict[str, Any]:
     return {
         "version": "1.0",
@@ -57,7 +57,7 @@ def schema_extension_01() -> dict[str, Any]:
     }
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def schema_extension_02() -> dict[str, Any]:
     return {
         "version": "1.0",
@@ -108,7 +108,7 @@ def schema_extension_02() -> dict[str, Any]:
     }
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def hierarchical_schema() -> dict[str, Any]:
     return {
         "version": "1.0",
@@ -155,7 +155,7 @@ def hierarchical_schema() -> dict[str, Any]:
     }
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def ipam_schema() -> dict[str, Any]:
     return {
         "version": "1.0",

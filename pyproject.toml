@@ -348,7 +348,8 @@ max-complexity = 17
 "tests/unit/sdk/graphql/test_query.py" = ["ANN001"]     # 7 errors
 
 # tests/integration/ - 60 errors total
-"tests/integration/test_infrahub_client.py" = ["ANN001"] # 32 errors
+"tests/integration/test_infrahub_client.py" = ["ANN001", "PLR0904"] # 32 errors
+"tests/integration/test_infrahub_client_sync.py" = ["ANN001", "PLR0904"] # 32 errors
 "tests/integration/test_node.py" = ["ANN001"]            # 15 errors
 "tests/integration/test_infrahubctl.py" = ["ANN001"]     # 9 errors
 "tests/integration/test_convert_object_type.py" = ["ANN001"] # 3 errors
