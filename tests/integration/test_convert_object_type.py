@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk.convert_object_type import ConversionFieldInput, ConversionFieldValue
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from tests.constants import CLIENT_TYPE_ASYNC, CLIENT_TYPES
+
+if TYPE_CHECKING:
+    from infrahub_sdk import InfrahubClient, InfrahubClientSync
 
 SCHEMA: dict[str, Any] = {
     "version": "1.0",
@@ -63,7 +66,9 @@ SCHEMA: dict[str, Any] = {
 
 class TestConvertObjectType(TestInfrahubDockerClient):
     @pytest.mark.parametrize("client_type", CLIENT_TYPES)
-    async def test_convert_object_type(self, client, client_sync, client_type) -> None:
+    async def test_convert_object_type(
+        self, client: InfrahubClient, client_sync: InfrahubClientSync, client_type: str
+    ) -> None:
         resp = await client.schema.load(schemas=[SCHEMA], wait_until_converged=True)
         assert not resp.errors
 
