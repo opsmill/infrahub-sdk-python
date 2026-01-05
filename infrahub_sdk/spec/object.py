@@ -476,10 +476,7 @@ class InfrahubObjectFileData(BaseModel):
                     # UUIDs are left as-is since they are treated as IDs
                     clean_data[key] = normalize_hfid_references(value)
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    # Cardinality-one: normalize string to HFID format if not a UUID
-                    # For cardinality-one, we pass the normalized value directly
-                    # The RelatedNode class will interpret a list as {"hfid": list} and a string as {"id": string}
-                    # Value can be either a string (e.g., "Jane Smith") or a list (e.g., ["Jane Smith"])
+                    # Cardinality-one: normalize string to HFID list format: "name" -> ["name"] or keep as string (UUID)
                     clean_data[key] = normalize_hfid_reference(value)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
 
@@ -267,266 +268,103 @@ async def test_parameters_non_dict(client_with_schema_01: InfrahubClient, locati
         await obj.validate_format(client=client_with_schema_01)
 
 
-class TestHfidNormalizationInObjectLoading:
-    """Tests to verify HFID normalization works correctly through the object loading code path."""
+@dataclass
+class HfidLoadTestCase:
+    """Test case for HFID normalization in object loading."""
 
-    @pytest.fixture
-    def location_with_cardinality_one_string_hfid(self, root_location: dict) -> dict:
-        """Location with a cardinality-one relationship using string HFID."""
-        data = [{"name": "Mexico", "type": "Country", "primary_tag": "Important"}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
+    name: str
+    data: list[dict[str, Any]]
+    expected_primary_tag: str | list[str] | None
+    expected_tags: list[str] | list[list[str]] | None
 
-    @pytest.fixture
-    def location_with_cardinality_one_list_hfid(self, root_location: dict) -> dict:
-        """Location with a cardinality-one relationship using list HFID."""
-        data = [{"name": "Mexico", "type": "Country", "primary_tag": ["Important"]}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
 
-    @pytest.fixture
-    def location_with_cardinality_one_uuid(self, root_location: dict) -> dict:
-        """Location with a cardinality-one relationship using UUID."""
-        data = [{"name": "Mexico", "type": "Country", "primary_tag": "550e8400-e29b-41d4-a716-446655440000"}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
-
-    @pytest.fixture
-    def location_with_cardinality_many_string_hfids(self, root_location: dict) -> dict:
-        """Location with a cardinality-many relationship using string HFIDs."""
-        data = [{"name": "Mexico", "type": "Country", "tags": ["Important", "Active"]}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
-
-    @pytest.fixture
-    def location_with_cardinality_many_list_hfids(self, root_location: dict) -> dict:
-        """Location with a cardinality-many relationship using list HFIDs."""
-        data = [{"name": "Mexico", "type": "Country", "tags": [["Important"], ["Active"]]}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
-
-    @pytest.fixture
-    def location_with_cardinality_many_mixed_hfids(self, root_location: dict) -> dict:
-        """Location with a cardinality-many relationship using mixed string and list HFIDs."""
-        data = [{"name": "Mexico", "type": "Country", "tags": ["Important", ["namespace", "name"]]}]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
-
-    @pytest.fixture
-    def location_with_cardinality_many_uuids(self, root_location: dict) -> dict:
-        """Location with a cardinality-many relationship using UUIDs."""
-        data = [
+HFID_NORMALIZATION_TEST_CASES = [
+    HfidLoadTestCase(
+        name="cardinality_one_string_hfid_normalized",
+        data=[{"name": "Mexico", "type": "Country", "primary_tag": "Important"}],
+        expected_primary_tag=["Important"],
+        expected_tags=None,
+    ),
+    HfidLoadTestCase(
+        name="cardinality_one_list_hfid_unchanged",
+        data=[{"name": "Mexico", "type": "Country", "primary_tag": ["Important"]}],
+        expected_primary_tag=["Important"],
+        expected_tags=None,
+    ),
+    HfidLoadTestCase(
+        name="cardinality_one_uuid_unchanged",
+        data=[{"name": "Mexico", "type": "Country", "primary_tag": "550e8400-e29b-41d4-a716-446655440000"}],
+        expected_primary_tag="550e8400-e29b-41d4-a716-446655440000",
+        expected_tags=None,
+    ),
+    HfidLoadTestCase(
+        name="cardinality_many_string_hfids_normalized",
+        data=[{"name": "Mexico", "type": "Country", "tags": ["Important", "Active"]}],
+        expected_primary_tag=None,
+        expected_tags=[["Important"], ["Active"]],
+    ),
+    HfidLoadTestCase(
+        name="cardinality_many_list_hfids_unchanged",
+        data=[{"name": "Mexico", "type": "Country", "tags": [["Important"], ["Active"]]}],
+        expected_primary_tag=None,
+        expected_tags=[["Important"], ["Active"]],
+    ),
+    HfidLoadTestCase(
+        name="cardinality_many_mixed_hfids_normalized",
+        data=[{"name": "Mexico", "type": "Country", "tags": ["Important", ["namespace", "name"]]}],
+        expected_primary_tag=None,
+        expected_tags=[["Important"], ["namespace", "name"]],
+    ),
+    HfidLoadTestCase(
+        name="cardinality_many_uuids_unchanged",
+        data=[
             {
                 "name": "Mexico",
                 "type": "Country",
                 "tags": ["550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"],
             }
-        ]
-        location = root_location.copy()
-        location["spec"]["data"] = data
-        return location
+        ],
+        expected_primary_tag=None,
+        expected_tags=["550e8400-e29b-41d4-a716-446655440000", "6ba7b810-9dad-11d1-80b4-00c04fd430c8"],
+    ),
+]
 
-    async def test_cardinality_one_string_hfid_normalized(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_one_string_hfid: dict
-    ) -> None:
-        """String HFID for cardinality-one should be wrapped in a list."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_one_string_hfid)
-        await obj.validate_format(client=client_with_schema_01)
 
-        # Track calls to client.create
-        create_calls: list[dict[str, Any]] = []
-        original_create = client_with_schema_01.create
+@pytest.mark.parametrize("test_case", HFID_NORMALIZATION_TEST_CASES, ids=lambda tc: tc.name)
+async def test_hfid_normalization_in_object_loading(
+    client_with_schema_01: InfrahubClient, test_case: HfidLoadTestCase
+) -> None:
+    """Test that HFIDs are normalized correctly based on cardinality and format."""
 
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            return await original_create(kind=kind, branch=branch, data=data, **kwargs)
+    root_location = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": "BuiltinLocation", "data": []}}
+    location = {
+        "apiVersion": root_location["apiVersion"],
+        "kind": root_location["kind"],
+        "spec": {"kind": root_location["spec"]["kind"], "data": test_case.data},
+    }
 
-        client_with_schema_01.create = mock_create
+    obj = ObjectFile(location="some/path", content=location)
+    await obj.validate_format(client=client_with_schema_01)
 
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
+    create_calls: list[dict[str, Any]] = []
 
-        # Verify the data passed to create has the normalized HFID
-        # For cardinality-one, string "Important" becomes ["Important"] (list HFID format)
-        assert len(create_calls) == 1
-        assert create_calls[0]["data"]["primary_tag"] == ["Important"]
+    async def mock_create(
+        kind: str,
+        branch: str | None = None,
+        data: dict | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> InfrahubNode:
+        create_calls.append({"kind": kind, "data": data})
+        original_create = client_with_schema_01.__class__.create
+        return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
 
-    async def test_cardinality_one_list_hfid_unchanged(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_one_list_hfid: dict
-    ) -> None:
-        """List HFID for cardinality-one should remain unchanged."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_one_list_hfid)
-        await obj.validate_format(client=client_with_schema_01)
+    client_with_schema_01.create = mock_create
 
-        create_calls: list[dict[str, Any]] = []
+    with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
+        await obj.process(client=client_with_schema_01)
 
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        # List HFID ["Important"] remains unchanged
-        assert len(create_calls) == 1
-        assert create_calls[0]["data"]["primary_tag"] == ["Important"]
-
-    async def test_cardinality_one_uuid_unchanged(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_one_uuid: dict
-    ) -> None:
-        """UUID for cardinality-one should remain as a string (not wrapped in list)."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_one_uuid)
-        await obj.validate_format(client=client_with_schema_01)
-
-        create_calls: list[dict[str, Any]] = []
-
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        # UUID should be passed as-is (string, not wrapped in a list)
-        assert len(create_calls) == 1
-        assert create_calls[0]["data"]["primary_tag"] == "550e8400-e29b-41d4-a716-446655440000"
-
-    async def test_cardinality_many_string_hfids_normalized(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_many_string_hfids: dict
-    ) -> None:
-        """String HFIDs for cardinality-many should each be wrapped in a list."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_many_string_hfids)
-        await obj.validate_format(client=client_with_schema_01)
-
-        create_calls: list[dict[str, Any]] = []
-
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        assert len(create_calls) == 1
-        assert create_calls[0]["data"]["tags"] == [["Important"], ["Active"]]
-
-    async def test_cardinality_many_list_hfids_unchanged(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_many_list_hfids: dict
-    ) -> None:
-        """List HFIDs for cardinality-many should remain unchanged."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_many_list_hfids)
-        await obj.validate_format(client=client_with_schema_01)
-
-        create_calls: list[dict[str, Any]] = []
-
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        assert len(create_calls) == 1
-        assert create_calls[0]["data"]["tags"] == [["Important"], ["Active"]]
-
-    async def test_cardinality_many_mixed_hfids_normalized(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_many_mixed_hfids: dict
-    ) -> None:
-        """Mixed string and list HFIDs for cardinality-many should be normalized correctly."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_many_mixed_hfids)
-        await obj.validate_format(client=client_with_schema_01)
-
-        create_calls: list[dict[str, Any]] = []
-
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        assert len(create_calls) == 1
-        # "Important" should be wrapped, ["namespace", "name"] should remain unchanged
-        assert create_calls[0]["data"]["tags"] == [["Important"], ["namespace", "name"]]
-
-    async def test_cardinality_many_uuids_unchanged(
-        self, client_with_schema_01: InfrahubClient, location_with_cardinality_many_uuids: dict
-    ) -> None:
-        """UUIDs for cardinality-many should remain as strings (not wrapped)."""
-        obj = ObjectFile(location="some/path", content=location_with_cardinality_many_uuids)
-        await obj.validate_format(client=client_with_schema_01)
-
-        create_calls: list[dict[str, Any]] = []
-
-        async def mock_create(
-            kind: str,
-            branch: str | None = None,
-            data: dict | None = None,
-            **kwargs: Any,  # noqa: ANN401
-        ) -> InfrahubNode:
-            create_calls.append({"kind": kind, "data": data})
-            original_create = client_with_schema_01.__class__.create
-            return await original_create(client_with_schema_01, kind=kind, branch=branch, data=data, **kwargs)
-
-        client_with_schema_01.create = mock_create
-
-        with patch("infrahub_sdk.node.InfrahubNode.save", new_callable=AsyncMock):
-            await obj.process(client=client_with_schema_01)
-
-        assert len(create_calls) == 1
-        # UUIDs should remain as-is
-        assert create_calls[0]["data"]["tags"] == [
-            "550e8400-e29b-41d4-a716-446655440000",
-            "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-        ]
+    assert len(create_calls) == 1
+    if test_case.expected_primary_tag is not None:
+        assert create_calls[0]["data"]["primary_tag"] == test_case.expected_primary_tag
+    if test_case.expected_tags is not None:
+        assert create_calls[0]["data"]["tags"] == test_case.expected_tags
