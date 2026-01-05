@@ -41,14 +41,10 @@ def value_to_enum_name(value: Any, enum_path: str | None = None) -> str:
         raise ValueError(f"Resolved type '{enum_path}' is not a valid Enum")
 
     try:
-        enum_member = enum_type(raw_value)
-        if enum_member.name is not None:
-            return enum_member.name
+        return enum_type(raw_value).name
     except (ValueError, TypeError) as exc:
         msg = f"Value '{raw_value}' not found in enum '{enum_path}': {exc}"
         raise ValueError(msg) from exc
-
-    return str(raw_value)
 
 
 INFRAHUB_FILTERS = {"value_to_enum_name": value_to_enum_name}
