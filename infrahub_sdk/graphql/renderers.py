@@ -7,6 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from infrahub_sdk.types import Order
+
 from .constants import VARIABLE_TYPE_MAPPING
 
 
@@ -53,6 +55,16 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
     if isinstance(value, list):
         values_as_string = [convert_to_graphql_as_string(value=item, convert_enum=convert_enum) for item in value]
         return "[" + ", ".join(values_as_string) + "]"
+    if isinstance(value, Order):
+        data = value.model_dump(exclude_none=True)
+        return (
+            "{ "
+            + ", ".join(
+                f"{key}: {convert_to_graphql_as_string(value=val, convert_enum=convert_enum)}"
+                for key, val in data.items()
+            )
+            + " }"
+        )
     if isinstance(value, BaseModel):
         data = value.model_dump()
         return (
@@ -60,6 +72,15 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
             + ", ".join(
                 f"{key}: {convert_to_graphql_as_string(value=val, convert_enum=convert_enum)}"
                 for key, val in data.items()
+            )
+            + " }"
+        )
+    if isinstance(value, dict):
+        return (
+            "{ "
+            + ", ".join(
+                f"{key}: {convert_to_graphql_as_string(value=val, convert_enum=convert_enum)}"
+                for key, val in value.items()
             )
             + " }"
         )
