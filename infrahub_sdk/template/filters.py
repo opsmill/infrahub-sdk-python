@@ -15,10 +15,12 @@ def value_to_enum_name(value: Any, enum_path: str | None = None) -> str:
     """Convert a value to its enum member name using the specified enum class.
 
     This filter takes a raw value and converts it to the corresponding enum member name by dynamically importing the
-    enum class.
+    enum class if provided. The enum class can be any valid enum as long as its full import path is given.
 
-    For example, `{{ decision__value | value_to_enum_name("infrahub.core.constants.PermissionDecision") }}`
-    will return: `"ALLOW_ALL"` for value `6`.
+    If the value is already an instance of `Enum` and no `enum_path` is provided, it simply returns the name of the
+    enum member which is equivalent to using `{{ value.name }}` in a Jinja2 template.
+
+    Usage example: `{{ decision__value | value_to_enum_name("infrahub.core.constants.PermissionDecision") }}` will return `"ALLOW_ALL"` for value `6`.
     """
     if isinstance(value, Enum) and not enum_path:
         return value.name
