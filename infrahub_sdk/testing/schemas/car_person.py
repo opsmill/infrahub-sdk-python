@@ -18,7 +18,7 @@ NAMESPACE = "Testing"
 TESTING_MANUFACTURER = f"{NAMESPACE}Manufacturer"
 TESTING_PERSON = f"{NAMESPACE}Person"
 TESTING_CAR = f"{NAMESPACE}Car"
-BUILTIN_TAG = "BuiltinTag"
+TESTING_TAG = f"{NAMESPACE}Tag"
 
 
 @dataclass
@@ -40,7 +40,7 @@ class TestingCarData:
     kind: str = TESTING_CAR
 
 
-class SchemaCarPerson:
+class SchemaCarPersonFixtures:
     @pytest.fixture(scope="class")
     def schema_person_base(self) -> NodeSchema:
         return NodeSchema(
@@ -94,7 +94,7 @@ class SchemaCarPerson:
                 Rel(
                     name="tags",
                     optional=True,
-                    peer=BUILTIN_TAG,
+                    peer=TESTING_TAG,
                     cardinality="many",
                 ),
             ],
@@ -133,13 +133,31 @@ class SchemaCarPerson:
         )
 
     @pytest.fixture(scope="class")
+    def testing_tag_base(self) -> NodeSchema:
+        return NodeSchema(
+            name="Tag",
+            namespace="Testing",
+            include_in_menu=True,
+            label="Tag",
+            default_filter="name__value",
+            display_labels=["name__value"],
+            attributes=[
+                Attr(name="name", kind=AttributeKind.TEXT, unique=True),
+                Attr(name="description", kind=AttributeKind.TEXT, optional=True),
+            ],
+        )
+
+    @pytest.fixture(scope="class")
     def schema_base(
         self,
         schema_car_base: NodeSchema,
         schema_person_base: NodeSchema,
         schema_manufacturer_base: NodeSchema,
+        testing_tag_base: NodeSchema,
     ) -> SchemaRoot:
-        return SchemaRoot(version="1.0", nodes=[schema_car_base, schema_person_base, schema_manufacturer_base])
+        return SchemaRoot(
+            version="1.0", nodes=[schema_car_base, schema_person_base, schema_manufacturer_base, testing_tag_base]
+        )
 
     @pytest.fixture(scope="class")
     async def person_joe_data(self) -> TestingPersonData:
@@ -199,22 +217,24 @@ class SchemaCarPerson:
 
     @pytest.fixture(scope="class")
     async def tag_blue(self, client: InfrahubClient) -> InfrahubNode:
-        obj = await client.create(kind=BUILTIN_TAG, name="Blue")
+        obj = await client.create(kind=TESTING_TAG, name="Blue")
         await obj.save()
         return obj
 
     @pytest.fixture(scope="class")
     async def tag_red(self, client: InfrahubClient) -> InfrahubNode:
-        obj = await client.create(kind=BUILTIN_TAG, name="Red")
+        obj = await client.create(kind=TESTING_TAG, name="Red")
         await obj.save()
         return obj
 
     @pytest.fixture(scope="class")
     async def tag_green(self, client: InfrahubClient) -> InfrahubNode:
-        obj = await client.create(kind=BUILTIN_TAG, name="Green")
+        obj = await client.create(kind=TESTING_TAG, name="Green")
         await obj.save()
         return obj
 
+
+class SchemaCarPerson(SchemaCarPersonFixtures):
     async def create_persons(self, client: InfrahubClient, branch: str) -> list[InfrahubNode]:
         john = await client.create(kind=TESTING_PERSON, name="John Doe", branch=branch)
         await john.save()
