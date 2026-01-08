@@ -527,6 +527,279 @@ By default, the [meta data or properties]($(base_url)topics/metadata) of attribu
   </TabItem>
 </Tabs>
 
+## Node metadata
+
+Node metadata provides information about when a node was created or last updated, and by whom. This includes timestamps and references to the accounts that made the changes.
+
+### Including node metadata in queries
+
+By default, node metadata is not included in query results. You can include it using the `include_metadata` argument of the SDK client's `all`, `filters`, or `get` method.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Accessing node metadata
+
+Once metadata is included in the query, you can access it using the `get_node_metadata()` method. The metadata object contains the following fields:
+
+- `created_at`: Timestamp when the node was created
+- `created_by`: Reference to the account that created the node
+- `updated_at`: Timestamp when the node was last updated
+- `updated_by`: Reference to the account that last updated the node
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+
+  # Get the metadata object
+  metadata = device.get_node_metadata()
+
+  # Access creation metadata
+  print(metadata.created_at)  # e.g., "2024-01-15T10:30:00Z"
+  print(metadata.created_by.display_label)  # e.g., "admin"
+
+  # Access update metadata
+  print(metadata.updated_at)  # e.g., "2024-01-20T14:45:00Z"
+  print(metadata.updated_by.display_label)  # e.g., "admin"
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+
+  # Get the metadata object
+  metadata = device.get_node_metadata()
+
+  # Access creation metadata
+  print(metadata.created_at)  # e.g., "2024-01-15T10:30:00Z"
+  print(metadata.created_by.display_label)  # e.g., "admin"
+
+  # Access update metadata
+  print(metadata.updated_at)  # e.g., "2024-01-20T14:45:00Z"
+  print(metadata.updated_by.display_label)  # e.g., "admin"
+  ```
+
+  </TabItem>
+</Tabs>
+
+The `created_by` and `updated_by` fields are `NodeProperty` objects that include:
+
+- `id`: The unique identifier of the account
+- `display_label`: A human-readable label for the account
+- `typename`: The GraphQL type name of the account
+
+## Relationship metadata
+
+When querying with `include_metadata=True`, you can also access metadata about relationship edges themselves. This tells you when a specific relationship (the connection between two nodes) was last modified and by whom.
+
+### Accessing relationship metadata
+
+Use the `get_relationship_metadata()` method on a related node to access the relationship edge metadata. This is different from node metadata - it describes when the relationship itself was created or modified, not the connected node.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+
+  # For a cardinality-one relationship
+  rel_metadata = device.site.get_relationship_metadata()
+  if rel_metadata:
+      print(rel_metadata.updated_at)  # e.g., "2024-01-17T08:00:00Z"
+      print(rel_metadata.updated_by.display_label)  # e.g., "admin"
+
+  # For a cardinality-many relationship
+  for tag in device.tags.peers:
+      rel_metadata = tag.get_relationship_metadata()
+      if rel_metadata:
+          print(f"Tag relationship updated at: {rel_metadata.updated_at}")
+          print(f"Updated by: {rel_metadata.updated_by.display_label}")
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", include_metadata=True)
+
+  # For a cardinality-one relationship
+  rel_metadata = device.site.get_relationship_metadata()
+  if rel_metadata:
+      print(rel_metadata.updated_at)  # e.g., "2024-01-17T08:00:00Z"
+      print(rel_metadata.updated_by.display_label)  # e.g., "admin"
+
+  # For a cardinality-many relationship
+  for tag in device.tags.peers:
+      rel_metadata = tag.get_relationship_metadata()
+      if rel_metadata:
+          print(f"Tag relationship updated at: {rel_metadata.updated_at}")
+          print(f"Updated by: {rel_metadata.updated_by.display_label}")
+  ```
+
+  </TabItem>
+</Tabs>
+
+The `RelationshipMetadata` object contains:
+
+- `updated_at`: Timestamp when the relationship was last updated
+- `updated_by`: Reference to the account that last updated the relationship (a `NodeProperty` object with `id`, `display_label`, and `typename`)
+
+:::note
+Relationship metadata tracks changes to the relationship edge itself (for example, when the relationship was created or when its properties were modified), not changes to the connected nodes. For node-level metadata, use `get_node_metadata()` on the node itself.
+:::
+
+## Ordering query results
+
+You can control the order in which query results are returned using the `order` argument. This is particularly useful when you need results sorted by metadata fields like creation or update timestamps.
+
+### Ordering by node metadata
+
+Use the `Order` and `NodeMetaOrder` classes along with `OrderDirection` to specify how results should be ordered.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk.enums import OrderDirection
+  from infrahub_sdk.types import NodeMetaOrder, Order
+
+  # Get devices ordered by creation time (oldest first)
+  devices = await client.all(
+      kind="TestDevice",
+      order=Order(node_metadata=NodeMetaOrder(created_at=OrderDirection.ASC))
+  )
+
+  # Get devices ordered by last update time (most recent first)
+  devices = await client.all(
+      kind="TestDevice",
+      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+  )
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk.enums import OrderDirection
+  from infrahub_sdk.types import NodeMetaOrder, Order
+
+  # Get devices ordered by creation time (oldest first)
+  devices = client.all(
+      kind="TestDevice",
+      order=Order(node_metadata=NodeMetaOrder(created_at=OrderDirection.ASC))
+  )
+
+  # Get devices ordered by last update time (most recent first)
+  devices = client.all(
+      kind="TestDevice",
+      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+  )
+  ```
+
+  </TabItem>
+</Tabs>
+
+The available order directions are:
+
+- `OrderDirection.ASC`: Ascending order (oldest/smallest first)
+- `OrderDirection.DESC`: Descending order (newest/largest first)
+
+:::note
+You can only order by one metadata field at a time. Specifying both `created_at` and `updated_at` in the same `NodeMetaOrder` will raise a validation error, as they are mutually exclusive.
+:::
+
+### Disabling default ordering
+
+For performance optimization, you can disable the default ordering behavior entirely:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk.types import Order
+
+  # Disable ordering to improve query performance
+  devices = await client.all(kind="TestDevice", order=Order(disable=True))
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk.types import Order
+
+  # Disable ordering to improve query performance
+  devices = client.all(kind="TestDevice", order=Order(disable=True))
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Combining metadata and ordering
+
+You can include metadata and order results in the same query:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk.enums import OrderDirection
+  from infrahub_sdk.types import NodeMetaOrder, Order
+
+  # Get the 10 most recently updated devices with their metadata
+  devices = await client.filters(
+      kind="TestDevice",
+      limit=10,
+      include_metadata=True,
+      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+  )
+
+  for device in devices:
+      metadata = device.get_node_metadata()
+      print(f"{device.name.value} - Last updated: {metadata.updated_at}")
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk.enums import OrderDirection
+  from infrahub_sdk.types import NodeMetaOrder, Order
+
+  # Get the 10 most recently updated devices with their metadata
+  devices = client.filters(
+      kind="TestDevice",
+      limit=10,
+      include_metadata=True,
+      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+  )
+
+  for device in devices:
+      metadata = device.get_node_metadata()
+      print(f"{device.name.value} - Last updated: {metadata.updated_at}")
+  ```
+
+  </TabItem>
+</Tabs>
+
 ## Query a node(s) in a different branch
 
 If you want to query a node(s) in a different branch than the default branch with which the SDK client was initiated, then you can use the `branch` argument of the query methods.
