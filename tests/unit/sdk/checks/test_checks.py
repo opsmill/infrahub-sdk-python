@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
@@ -36,7 +42,7 @@ async def test_class_init(tmp_path: Path) -> None:
     assert check.root_directory == str(tmp_path)
 
 
-async def test_async_init(client) -> None:
+async def test_async_init(client: InfrahubClient) -> None:
     class IFCheck(InfrahubCheck):
         query = "my_query"
 
@@ -44,7 +50,7 @@ async def test_async_init(client) -> None:
     assert isinstance(check.client, InfrahubClient)
 
 
-async def test_validate_sync_async(mock_gql_query_my_query) -> None:
+async def test_validate_sync_async(mock_gql_query_my_query: HTTPXMock) -> None:
     class IFCheckAsync(InfrahubCheck):
         query = "my_query"
 

@@ -401,6 +401,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -420,6 +421,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -439,6 +441,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -458,6 +461,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -477,6 +481,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -496,6 +501,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -514,6 +520,7 @@ class InfrahubClient(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        include_metadata: bool = False,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
@@ -547,6 +554,7 @@ class InfrahubClient(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
+            include_metadata=include_metadata,
             **filters,
         )
 
@@ -650,6 +658,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -669,6 +678,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -687,6 +697,7 @@ class InfrahubClient(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -704,6 +715,7 @@ class InfrahubClient(BaseClient):
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -723,6 +735,7 @@ class InfrahubClient(BaseClient):
             property=property,
             parallel=parallel,
             order=order,
+            include_metadata=include_metadata,
         )
 
     @overload
@@ -743,6 +756,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -764,6 +778,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -784,6 +799,7 @@ class InfrahubClient(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -803,6 +819,7 @@ class InfrahubClient(BaseClient):
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -829,6 +846,7 @@ class InfrahubClient(BaseClient):
                 partial_match=partial_match,
                 property=property,
                 order=order,
+                include_metadata=include_metadata,
             )
             query = Query(query=query_data)
             response = await self.execute_graphql(
@@ -1957,6 +1975,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -1976,6 +1995,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -1994,6 +2014,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -2011,6 +2032,7 @@ class InfrahubClientSync(BaseClient):
             prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
@@ -2030,6 +2052,7 @@ class InfrahubClientSync(BaseClient):
             property=property,
             parallel=parallel,
             order=order,
+            include_metadata=include_metadata,
         )
 
     def _process_nodes_and_relationships(
@@ -2091,6 +2114,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -2112,6 +2136,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         parallel: bool = ...,
         order: Order | None = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -2132,6 +2157,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = False,
         parallel: bool = False,
         order: Order | None = None,
+        include_metadata: bool = False,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -2151,6 +2177,7 @@ class InfrahubClientSync(BaseClient):
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -2177,6 +2204,7 @@ class InfrahubClientSync(BaseClient):
                 partial_match=partial_match,
                 property=property,
                 order=order,
+                include_metadata=include_metadata,
             )
             query = Query(query=query_data)
             response = self.execute_graphql(
@@ -2266,6 +2294,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -2285,6 +2314,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2304,6 +2334,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2323,6 +2354,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -2342,6 +2374,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2361,6 +2394,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
+        include_metadata: bool = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2379,6 +2413,7 @@ class InfrahubClientSync(BaseClient):
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
+        include_metadata: bool = False,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
@@ -2412,6 +2447,7 @@ class InfrahubClientSync(BaseClient):
             fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             property=property,
+            include_metadata=include_metadata,
             **filters,
         )
 

@@ -5,7 +5,7 @@ from graphql.error import GraphQLSyntaxError
 from infrahub_sdk.analyzer import GraphQLOperation, GraphQLQueryAnalyzer
 
 
-async def test_analyzer_init_query_only(query_01, bad_query_01) -> None:
+async def test_analyzer_init_query_only(query_01: str, bad_query_01: str) -> None:
     gqa = GraphQLQueryAnalyzer(query=query_01)
     assert isinstance(gqa.document, DocumentNode)
 
@@ -151,7 +151,7 @@ async def test_get_variables(query_01: str, query_04: str, query_05: str, query_
     "var_type,var_required",
     [("[ID]", False), ("[ID]!", True), ("[ID!]", False), ("[ID!]!", True)],
 )
-async def test_get_nested_variables(var_type, var_required) -> None:
+async def test_get_nested_variables(var_type: str, var_required: bool) -> None:
     query = (
         """
         query ($ids: %s){

@@ -4,7 +4,9 @@ import enum
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
+
+from infrahub_sdk.enums import OrderDirection  # noqa: TC001
 
 if TYPE_CHECKING:
     import httpx
@@ -68,5 +70,19 @@ class InfrahubLogger(Protocol):
 InfrahubLoggers = InfrahubLogger | Logger
 
 
+class NodeMetaOrder(BaseModel):
+    created_at: OrderDirection | None = None
+    updated_at: OrderDirection | None = None
+
+    @model_validator(mode="after")
+    def validate_selection(self) -> NodeMetaOrder:
+        if self.created_at and self.updated_at:
+            raise ValueError("'created_at' and 'updated_at' are mutually exclusive")
+        return self
+
+
 class Order(BaseModel):
-    disable: bool | None = None
+    disable: bool | None = Field(
+        default=None, description="Disable default ordering, can be used to improve performance"
+    )
+    node_metadata: NodeMetaOrder | None = Field(default=None, description="Order by node meta fields")

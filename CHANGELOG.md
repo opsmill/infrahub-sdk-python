@@ -11,6 +11,26 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.18.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.18.0) - 2026-01-08
+
+### Added
+
+- Add ability to query for metadata on nodes to include information such as creation and update timestamps, creator and last user to update an object.
+- Added ability to order nodes by metadata created_at or updated_at fields
+
+### Removed
+
+- The previously deprecated 'background_execution' parameter under client.branch.create() was removed.
+
+### Fixed
+
+- Rewrite and re-enable integration tests ([#187](https://github.com/opsmill/infrahub-sdk-python/issues/187))
+- Fixed SDK including explicit `null` values for uninitialized optional relationships when creating nodes with object templates, which prevented the backend from applying template defaults. ([#630](https://github.com/opsmill/infrahub-sdk-python/issues/630))
+
+### Housekeeping
+
+- Fixed Python 3.14 compatibility warnings. Testing now requires pytest>=9.
+
 ## [1.17.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.17.0) - 2025-12-11
 
 ### Added

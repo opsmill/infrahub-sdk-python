@@ -2121,6 +2121,7 @@ async def mock_rest_api_artifact_generate(httpx_mock: HTTPXMock, schema_query_04
         method="POST", url="http://mock/graphql/main", json=artifact_definition_graphql_response, is_reusable=True
     )
     httpx_mock.add_response(method="POST", url=re.compile(r"^http://mock/api/artifact/generate/.*"), is_reusable=True)
+    return httpx_mock
 
 
 @pytest.fixture
