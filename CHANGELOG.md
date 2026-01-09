@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the changes for the upcoming release can be found in <https://github.com/opsmill/infrahub/tree/develop/infrahub/python_sdk/changelog/>.
 
 <!-- towncrier release notes start -->
+## [1.18.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.18.1) - 2026-01-08
+
+### Fixed
+
+- Reverted #723 (Fix code for HFID casting of strings that aren't UUIDs)
 
 ## [1.18.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.18.0) - 2026-01-08
 
