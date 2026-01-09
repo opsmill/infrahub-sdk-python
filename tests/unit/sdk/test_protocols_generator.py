@@ -1,9 +1,13 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.protocols_generator.generator import CodeGenerator
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
 
 
 @dataclass
@@ -41,7 +45,7 @@ async def test_filter_syncify(test_case: SyncifyTestCase) -> None:
     assert CodeGenerator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
 
 
-async def test_generator(client: InfrahubClient, mock_schema_query_05) -> None:
+async def test_generator(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:
     schemas = await client.schema.fetch(branch="main")
 
     code_generator = CodeGenerator(schema=schemas)

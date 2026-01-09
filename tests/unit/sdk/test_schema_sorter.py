@@ -1,8 +1,13 @@
+from typing import TYPE_CHECKING
+
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
 
-async def test_schema_sorter(client: InfrahubClient, mock_schema_query_01) -> None:
+
+async def test_schema_sorter(client: InfrahubClient, mock_schema_query_01: "HTTPXMock") -> None:
     schemas = await client.schema.all()
     topological_sorter = InfrahubSchemaTopologicalSorter()
 

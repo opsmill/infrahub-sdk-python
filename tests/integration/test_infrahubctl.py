@@ -4,7 +4,6 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Generator
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,9 +19,12 @@ from infrahub_sdk.testing.schemas.animal import SchemaAnimal
 from tests.helpers.utils import change_directory, strip_color
 
 if TYPE_CHECKING:
-    from infrahub_sdk import InfrahubClient
+    from collections.abc import Generator
 
-FIXTURE_BASE_DIR = Path(Path(os.path.abspath(__file__)).parent / ".." / "fixtures")
+    from infrahub_sdk import InfrahubClient
+    from infrahub_sdk.node import InfrahubNode
+
+FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / "fixtures")
 
 
 runner = CliRunner()
@@ -33,20 +35,20 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
     async def base_dataset(
         self,
         client: InfrahubClient,
-        load_schema,
-        person_liam,
-        person_ethan,
-        person_sophia,
-        cat_luna,
-        cat_bella,
-        dog_daisy,
-        dog_rocky,
-        ctl_client_config,
+        load_schema: None,
+        person_liam: InfrahubNode,
+        person_ethan: InfrahubNode,
+        person_sophia: InfrahubNode,
+        cat_luna: InfrahubNode,
+        cat_bella: InfrahubNode,
+        dog_daisy: InfrahubNode,
+        dog_rocky: InfrahubNode,
+        ctl_client_config: Generator[None, None, None],
     ) -> None:
         await client.branch.create(branch_name="branch01")
 
     @pytest.fixture(scope="class")
-    def repository(self) -> Generator[str]:
+    def repository(self) -> Generator[str, None, None]:
         temp_dir = tempfile.mkdtemp()
 
         try:
@@ -61,7 +63,7 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
             shutil.rmtree(temp_dir)
 
     @pytest.fixture(scope="class")
-    def ctl_client_config(self, client: InfrahubClient) -> Generator:
+    def ctl_client_config(self, client: InfrahubClient) -> Generator[None, None, None]:
         load_configuration(value="infrahubctl.toml")
         assert config.SETTINGS._settings
         config.SETTINGS._settings.server_address = client.config.address

@@ -63,7 +63,7 @@ def test_parse_string() -> None:
         ),
     ],
 )
-def test_to_datetime(input_str, expected_datetime) -> None:
+def test_to_datetime(input_str: str, expected_datetime: datetime) -> None:
     assert isinstance(Timestamp(input_str).to_datetime(), datetime)
     assert Timestamp(input_str).to_datetime() == expected_datetime
 
@@ -85,7 +85,7 @@ def test_to_datetime(input_str, expected_datetime) -> None:
         ),
     ],
 )
-def test_to_string_default(input_str, expected_str, expected_str_no_z) -> None:
+def test_to_string_default(input_str: str, expected_str: str, expected_str_no_z: str) -> None:
     assert isinstance(Timestamp(input_str).to_string(), str)
     assert Timestamp(input_str).to_string() == expected_str
     assert Timestamp(input_str).to_string(with_z=False) == expected_str_no_z
@@ -129,6 +129,6 @@ def test_serialize() -> None:
 
 
 @pytest.mark.parametrize("invalid_str", ["blurple", "1122334455667788", "2023-45-99"])
-def test_invalid_raises_correct_error(invalid_str) -> None:
+def test_invalid_raises_correct_error(invalid_str: str) -> None:
     with pytest.raises(TimestampFormatError):
         Timestamp(invalid_str)

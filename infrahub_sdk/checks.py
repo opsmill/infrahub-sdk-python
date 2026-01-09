@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
-import os
+import pathlib
 import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
@@ -55,7 +55,7 @@ class InfrahubCheck:
         self.branch = branch
         self.params = params or {}
 
-        self.root_directory = root_directory or os.getcwd()
+        self.root_directory = root_directory or str(pathlib.Path.cwd())
 
         self._client = client
 

@@ -126,6 +126,7 @@ def mock_branch_report_default_branch(httpx_mock: HTTPXMock) -> HTTPXMock:
         },
         match_headers={"X-Infrahub-Tracker": "query-branch"},
     )
+    return httpx_mock
 
 
 @pytest.fixture
@@ -202,7 +203,7 @@ def test_branch_report_command_without_proposed_change(
     assert "No proposed changes for this branch" in result.stdout
 
 
-def test_branch_report_command_main_branch(mock_branch_report_default_branch) -> None:
+def test_branch_report_command_main_branch(mock_branch_report_default_branch: HTTPXMock) -> None:
     """Test branch report CLI command on main branch."""
     runner = CliRunner()
     result = runner.invoke(app, ["report", "main"])

@@ -1,11 +1,19 @@
+from __future__ import annotations
+
+import ipaddress
+from typing import TYPE_CHECKING, Any
+
 import pytest
 
-from infrahub_sdk import InfrahubClient
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import NodeNotFoundError, UninitializedError
 from infrahub_sdk.node import InfrahubNode
+from infrahub_sdk.protocols import IpamNamespace
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
+
+if TYPE_CHECKING:
+    from infrahub_sdk import InfrahubClient
 
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
@@ -30,11 +38,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         await node.save()
         assert node.id is not None
 
-    async def test_node_delete(
-        self,
-        client: InfrahubClient,
-        initial_schema: None,
-    ) -> None:
+    async def test_node_delete(self, client: InfrahubClient, initial_schema: None) -> None:
         obj = await client.create(kind=TESTING_MANUFACTURER, name="Dacia")
         await obj.save()
 
@@ -50,11 +54,11 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        person_joe,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
     ) -> None:
         node = await client.create(
-            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
+            kind=TESTING_CAR, name="CLS", color="Black", manufacturer=manufacturer_mercedes.id, owner=person_joe.id
         )
         await node.save()
         assert node.id is not None
@@ -68,13 +72,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        car_golf,
-        person_joe,
+        manufacturer_mercedes: InfrahubNode,
+        car_golf: InfrahubNode,
+        person_joe: InfrahubNode,
     ) -> None:
         related_node = car_golf.owner
         node = await client.create(
-            kind=TESTING_CAR, name="Tiguan", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
+            kind=TESTING_CAR, name="CLS", color="Black", manufacturer=manufacturer_mercedes, owner=related_node
         )
         await node.save(allow_upsert=True)
         assert node.id is not None
@@ -90,13 +94,13 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        person_joe,
-        tag_red,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_red: InfrahubNode,
     ) -> None:
         car = await client.create(
             kind=TESTING_CAR,
-            name="Tiguan2",
+            name="CLS AMG",
             color="Black",
             manufacturer=manufacturer_mercedes,
             owner=person_joe,
@@ -120,10 +124,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         assert node_after.owner.peer.id == person_joe.id, f"{person_joe.id=}"
 
     async def test_node_update_with_original_data(
-        self,
-        default_branch: str,
-        client: InfrahubClient,
-        initial_schema: None,
+        self, default_branch: str, client: InfrahubClient, initial_schema: None
     ) -> None:
         person_marina = await client.create(kind="TestingPerson", name="marina", age=20)
         await person_marina.save()
@@ -138,85 +139,70 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         node = await client.get(kind="TestingPerson", id=person_marina.id)
         assert node.age.value == 20, node.age.value
 
-    # async def test_node_update_payload_with_relationships(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_blue: Node,
-    #     tag_red: Node,
-    #     repo01: Node,
-    #     gqlquery01: Node,
-    # ):
-    #     data = {
-    #         "name": "rfile10",
-    #         "template_path": "mytemplate.j2",
-    #         "query": gqlquery01.id,
-    #         "repository": repo01.id,
-    #         "tags": [tag_blue.id, tag_red.id],
-    #     }
-    #     schema = await client.schema.get(kind="CoreTransformJinja2", branch="main")
-    #     create_payload = client.schema.generate_payload_create(
-    #         schema=schema, data=data, source=repo01.id, is_protected=True
-    #     )
-    #     obj = await client.create(kind="CoreTransformJinja2", branch="main", **create_payload)
-    #     await obj.save()
+    async def test_node_generate_input_data_with_relationships(
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
+        tag_red: InfrahubNode,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR,
+            name="InputDataCar",
+            color="Silver",
+            manufacturer=manufacturer_mercedes.id,
+            owner=person_joe.id,
+            tags=[tag_blue.id, tag_red.id],
+        )
+        await car.save()
+        assert car.id is not None
 
-    #     assert obj.id is not None
-    #     nodedb = await client.get(kind="CoreTransformJinja2", id=str(obj.id))
+        input_data = car._generate_input_data()["data"]["data"]
 
-    #     input_data = nodedb._generate_input_data()["data"]["data"]
-    #     assert input_data["name"]["value"] == "rfile10"
-    #     # Validate that the source isn't a dictionary bit a reference to the repo
-    #     assert input_data["name"]["source"] == repo01.id
+        assert input_data["name"]["value"] == "InputDataCar"
+        assert input_data["color"]["value"] == "Silver"
+        assert "manufacturer" in input_data
+        assert input_data["manufacturer"]["id"] == manufacturer_mercedes.id
 
-    # async def test_node_create_with_properties(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_blue: Node,
-    #     tag_red: Node,
-    #     repo01: Node,
-    #     gqlquery01: Node,
-    #     first_account: Node,
-    # ):
-    #     data = {
-    #         "name": {
-    #             "value": "rfile02",
-    #             "is_protected": True,
-    #             "source": first_account.id,
-    #             "owner": first_account.id,
-    #         },
-    #         "template_path": {"value": "mytemplate.j2"},
-    #         "query": {"id": gqlquery01.id},  # "source": first_account.id, "owner": first_account.id},
-    #         "repository": {"id": repo01.id},  # "source": first_account.id, "owner": first_account.id},
-    #         "tags": [tag_blue.id, tag_red.id],
-    #     }
+    async def test_node_create_with_properties(
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+    ) -> None:
+        data = {
+            "name": {"value": "ProtectedCar", "is_protected": True},
+            "color": {"value": "Gold"},
+            "manufacturer": {"id": manufacturer_mercedes.id},
+            "owner": {"id": person_joe.id},
+        }
 
-    #     node = await client.create(kind="CoreTransformJinja2", data=data)
-    #     await node.save()
+        node = await client.create(kind=TESTING_CAR, data=data)
+        await node.save()
 
-    #     assert node.id is not None
+        assert node.id is not None
+        assert node.name.value == "ProtectedCar"
+        assert node.name.is_protected
 
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
-    #     assert nodedb.name.value == node.name.value
-    #     assert nodedb.name.is_protected is True
+        node_fetched = await client.get(kind=TESTING_CAR, id=node.id, property=True)
+        assert node_fetched.name.value == "ProtectedCar"
+        assert node_fetched.name.is_protected
 
     async def test_node_update(
         self,
         default_branch: str,
         client: InfrahubClient,
         initial_schema: None,
-        manufacturer_mercedes,
-        person_joe,
-        person_jane,
-        car_golf,
-        tag_blue,
-        tag_red,
-        tag_green,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        person_jane: InfrahubNode,
+        car_golf: InfrahubNode,
+        tag_blue: InfrahubNode,
+        tag_red: InfrahubNode,
+        tag_green: InfrahubNode,
     ) -> None:
         car_golf.color.value = "White"
         await car_golf.tags.fetch()
@@ -238,149 +224,194 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         await car3.tags.fetch()
         assert sorted([tag.id for tag in car3.tags.peers]) == sorted([tag_green.id, tag_blue.id])
 
-    # async def test_node_update_3_idempotency(
-    #     self,
-    #     db: InfrahubDatabase,
-    #     client: InfrahubClient,
-    #     init_db_base,
-    #     load_builtin_schema,
-    #     tag_green: Node,
-    #     tag_red: Node,
-    #     tag_blue: Node,
-    #     gqlquery03: Node,
-    #     repo99: Node,
-    # ):
-    #     node = await client.get(kind="CoreGraphQLQuery", name__value="query03")
-    #     assert node.id is not None
+    async def test_relationship_manager_errors_without_fetch(
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR, name="UnfetchedCar", color="Blue", manufacturer=manufacturer_mercedes, owner=person_joe
+        )
+        await car.save()
 
-    #     updated_query = f"\n\n{node.query.value}"
-    #     node.name.value = "query031"
-    #     node.query.value = updated_query
-    #     first_update = node._generate_input_data(exclude_unmodified=True)
-    #     await node.save()
-    #     nodedb = await NodeManager.get_one(id=node.id, db=db, include_owner=True, include_source=True)
+        with pytest.raises(UninitializedError, match=r"Must call fetch"):
+            car.tags.add(tag_blue)
 
-    #     node = await client.get(kind="CoreGraphQLQuery", name__value="query031")
+        await car.tags.fetch()
+        car.tags.add(tag_blue)
+        await car.save()
 
-    #     node.name.value = "query031"
-    #     node.query.value = updated_query
+        car = await client.get(kind=TESTING_CAR, id=car.id)
+        await car.tags.fetch()
+        assert {t.id for t in car.tags.peers} == {tag_blue.id}
 
-    #     second_update = node._generate_input_data(exclude_unmodified=True)
+    async def test_relationships_not_overwritten(
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
+        tag_red: InfrahubNode,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR,
+            name="RelationshipTestCar",
+            color="Green",
+            manufacturer=manufacturer_mercedes,
+            owner=person_joe,
+        )
+        await car.save()
 
-    #     assert nodedb.query.value == updated_query
-    #     assert "query" in first_update["data"]["data"]
-    #     assert "value" in first_update["data"]["data"]["query"]
-    #     assert first_update["variables"]
-    #     assert "query" not in second_update["data"]["data"]
-    #     assert not second_update["variables"]
+        await car.tags.fetch()
+        car.tags.add(tag_blue)
+        await car.save()
 
-    # async def test_relationship_manager_errors_without_fetch(self, client: InfrahubClient, load_builtin_schema):
-    #     organization = await client.create("TestOrganization", name="organization-1")
-    #     await organization.save()
-    #     tag = await client.create("BuiltinTag", name="blurple")
-    #     await tag.save()
+        car_refetch = await client.get(kind=TESTING_CAR, id=car.id)
+        car_refetch.color.value = "Red"
+        await car_refetch.save()
 
-    #     with pytest.raises(UninitializedError, match=r"Must call fetch"):
-    #         organization.tags.add(tag)
+        # Verify the tag relationship was not overwritten
+        refreshed_car = await client.get(kind=TESTING_CAR, id=car.id)
+        await refreshed_car.tags.fetch()
+        assert [t.id for t in refreshed_car.tags.peers] == [tag_blue.id]
 
-    #     await organization.tags.fetch()
-    #     organization.tags.add(tag)
-    #     await organization.save()
+        # Check that we can purposefully remove a tag
+        refreshed_car.tags.remove(tag_blue.id)
+        await refreshed_car.save()
+        car_without_tag = await client.get(kind=TESTING_CAR, id=car.id)
+        await car_without_tag.tags.fetch()
+        assert car_without_tag.tags.peers == []
 
-    #     organization = await client.get("TestOrganization", name__value="organization-1")
-    #     assert [t.id for t in organization.tags.peers] == [tag.id]
+        # Check that we can purposefully add a tag
+        car_without_tag.tags.add(tag_red)
+        await car_without_tag.save()
+        car_with_new_tag = await client.get(kind=TESTING_CAR, id=car.id)
+        await car_with_new_tag.tags.fetch()
+        assert [t.id for t in car_with_new_tag.tags.peers] == [tag_red.id]
 
-    # async def test_relationships_not_overwritten(
-    #     self, client: InfrahubClient, load_builtin_schema, schema_extension_01
-    # ):
-    #     await client.schema.load(schemas=[schema_extension_01])
-    #     rack = await client.create("InfraRack", name="rack-1")
-    #     await rack.save()
-    #     tag = await client.create("BuiltinTag", name="blizzow")
-    #     # TODO: is it a bug that we need to save the object and fetch the tags before adding to a RelationshipManager now?
-    #     await tag.save()
-    #     await tag.racks.fetch()
-    #     tag.racks.add(rack)
-    #     await tag.save()
-    #     tag_2 = await client.create("BuiltinTag", name="blizzow2")
-    #     await tag_2.save()
+    async def test_node_update_idempotency(self, client: InfrahubClient, initial_schema: None) -> None:
+        original_query = "query { CoreRepository { edges { node { name { value }}}}}"
+        node = await client.create(kind="CoreGraphQLQuery", name="idempotency-query", query=original_query)
+        await node.save()
 
-    #     # the "rack" object has no link to the "tag" object here
-    #     # rack.tags.peers is empty
-    #     rack.name.value = "New Rack Name"
-    #     await rack.save()
+        node = await client.get(kind="CoreGraphQLQuery", name__value="idempotency-query")
+        assert node.id is not None
 
-    #     # assert that the above rack.save() did not overwrite the existing Rack-Tag relationship
-    #     refreshed_rack = await client.get("InfraRack", id=rack.id)
-    #     await refreshed_rack.tags.fetch()
-    #     assert [t.id for t in refreshed_rack.tags.peers] == [tag.id]
+        updated_query = f"\n\n{node.query.value}"
+        node.name.value = "idempotency-query-updated"
+        node.query.value = updated_query
+        first_update = node._generate_input_data(exclude_unmodified=True)
+        await node.save()
 
-    #     # check that we can purposefully remove a tag
-    #     refreshed_rack.tags.remove(tag.id)
-    #     await refreshed_rack.save()
-    #     rack_without_tag = await client.get("InfraRack", id=rack.id)
-    #     await rack_without_tag.tags.fetch()
-    #     assert rack_without_tag.tags.peers == []
+        # Verify the first update contains the changes
+        assert "query" in first_update["data"]["data"]
+        assert "value" in first_update["data"]["data"]["query"]
+        assert first_update["variables"]
 
-    #     # check that we can purposefully add a tag
-    #     rack_without_tag.tags.add(tag_2)
-    #     await rack_without_tag.save()
-    #     refreshed_rack_with_tag = await client.get("InfraRack", id=rack.id)
-    #     await refreshed_rack_with_tag.tags.fetch()
-    #     assert [t.id for t in refreshed_rack_with_tag.tags.peers] == [tag_2.id]
+        # Fetch the node again and set the same values
+        node = await client.get(kind="CoreGraphQLQuery", name__value="idempotency-query-updated")
+        node.name.value = "idempotency-query-updated"
+        node.query.value = updated_query
+        second_update = node._generate_input_data(exclude_unmodified=True)
 
-    # async def test_node_create_from_pool(
-    #     self, db: InfrahubDatabase, client: InfrahubClient, init_db_base, default_ipam_namespace, load_ipam_schema
-    # ):
-    #     ip_prefix = await client.create(kind="IpamIPPrefix", prefix="192.0.2.0/24")
-    #     await ip_prefix.save()
+        # Verify the second update doesn't contain any data (idempotent)
+        assert "query" not in second_update["data"]["data"]
+        assert not second_update["variables"]
 
-    #     ip_pool = await client.create(
-    #         kind="CoreIPAddressPool",
-    #         name="Core loopbacks 1",
-    #         default_address_type="IpamIPAddress",
-    #         default_prefix_length=32,
-    #         ip_namespace=default_ipam_namespace,
-    #         resources=[ip_prefix],
-    #     )
-    #     await ip_pool.save()
 
-    #     devices = []
-    #     for i in range(1, 5):
-    #         d = await client.create(kind="InfraDevice", name=f"core0{i}", primary_address=ip_pool)
-    #         await d.save()
-    #         devices.append(d)
+class TestNodeWithPools(TestInfrahubDockerClient):
+    @pytest.fixture(scope="class")
+    async def load_ipam_schema(self, default_branch: str, client: InfrahubClient, ipam_schema: dict[str, Any]) -> None:
+        await client.schema.wait_until_converged(branch=default_branch)
+        resp = await client.schema.load(schemas=[ipam_schema], branch=default_branch, wait_until_converged=True)
+        assert resp.errors == {}
 
-    #     assert [str(device.primary_address.peer.address.value) for device in devices] == [
-    #         "192.0.2.1/32",
-    #         "192.0.2.2/32",
-    #         "192.0.2.3/32",
-    #         "192.0.2.4/32",
-    #     ]
+    @pytest.fixture(scope="class")
+    async def default_ipam_namespace(self, client: InfrahubClient, load_ipam_schema: None) -> IpamNamespace:
+        return await client.get(kind=IpamNamespace, name__value="default")
 
-    # async def test_node_update_from_pool(
-    #     self, db: InfrahubDatabase, client: InfrahubClient, init_db_base, default_ipam_namespace, load_ipam_schema
-    # ):
-    #     starter_ip_address = await client.create(kind="IpamIPAddress", address="10.0.0.1/32")
-    #     await starter_ip_address.save()
+    @pytest.fixture(scope="class")
+    async def ip_prefix(self, client: InfrahubClient, load_ipam_schema: None) -> InfrahubNode:
+        prefix = await client.create(kind="IpamIPPrefix", prefix="192.0.2.0/24", member_type="address")
+        await prefix.save()
+        return prefix
 
-    #     ip_prefix = await client.create(kind="IpamIPPrefix", prefix="192.168.0.0/24")
-    #     await ip_prefix.save()
+    @pytest.fixture(scope="class")
+    async def ip_pool(
+        self, client: InfrahubClient, ip_prefix: InfrahubNode, default_ipam_namespace: IpamNamespace
+    ) -> InfrahubNode:
+        pool = await client.create(
+            kind="CoreIPAddressPool",
+            name="Test IP Pool",
+            default_address_type="IpamIPAddress",
+            default_prefix_length=32,
+            resources=[ip_prefix],
+            ip_namespace=default_ipam_namespace,
+        )
+        await pool.save()
+        return pool
 
-    #     ip_pool = await client.create(
-    #         kind="CoreIPAddressPool",
-    #         name="Core loopbacks 2",
-    #         default_address_type="IpamIPAddress",
-    #         default_prefix_length=32,
-    #         ip_namespace=default_ipam_namespace,
-    #         resources=[ip_prefix],
-    #     )
-    #     await ip_pool.save()
+    async def test_node_create_from_pool(
+        self, client: InfrahubClient, ip_pool: InfrahubNode, load_ipam_schema: None
+    ) -> None:
+        devices = []
+        for i in range(1, 4):
+            device = await client.create(kind="InfraDevice", name=f"device-{i:02d}", primary_address=ip_pool)
+            await device.save()
+            devices.append(device)
 
-    #     device = await client.create(kind="InfraDevice", name="core05", primary_address=starter_ip_address)
-    #     await device.save()
+        ip_addresses = []
+        devices = await client.all(kind="InfraDevice", prefetch_relationships=True)
+        for device in devices:
+            assert device.primary_address.peer is not None
+            ip_addresses.append(device.primary_address.peer.address.value)
 
-    #     device.primary_address = ip_pool
-    #     await device.save()
+        assert len(set(ip_addresses)) == len(devices)
 
-    #     assert str(device.primary_address.peer.address.value) == "192.168.0.1/32"
+        for ip in ip_addresses:
+            assert ip in ipaddress.ip_network("192.0.2.0/24")
+
+    async def test_allocate_next_ip_address_idempotent(
+        self, client: InfrahubClient, ip_pool: InfrahubNode, load_ipam_schema: None
+    ) -> None:
+        identifier = "idempotent-allocation-test"
+
+        # Allocate twice with the same identifier
+        ip1 = await client.allocate_next_ip_address(resource_pool=ip_pool, identifier=identifier)
+        ip2 = await client.allocate_next_ip_address(resource_pool=ip_pool, identifier=identifier)
+
+        assert ip1.id == ip2.id
+        assert ip1.address.value == ip2.address.value
+
+    async def test_node_update_from_pool(
+        self, client: InfrahubClient, load_ipam_schema: None, default_ipam_namespace: IpamNamespace
+    ) -> None:
+        starter_ip_address = await client.create(kind="IpamIPAddress", address="10.0.0.1/32")
+        await starter_ip_address.save()
+
+        ip_prefix = await client.create(kind="IpamIPPrefix", prefix="192.168.0.0/24", member_type="address")
+        await ip_prefix.save()
+
+        ip_pool = await client.create(
+            kind="CoreIPAddressPool",
+            name="Update Test Pool",
+            default_address_type="IpamIPAddress",
+            default_prefix_length=32,
+            resources=[ip_prefix],
+            ip_namespace=default_ipam_namespace,
+        )
+        await ip_pool.save()
+
+        device = await client.create(kind="InfraDevice", name="update-device", primary_address=starter_ip_address)
+        await device.save()
+
+        device.primary_address = ip_pool
+        await device.save()
+
+        fetched_device = await client.get(kind="InfraDevice", id=device.id, prefetch_relationships=True)
+        assert fetched_device.primary_address.peer is not None
+        assert fetched_device.primary_address.peer.address.value == ipaddress.ip_interface("192.168.0.1/32")

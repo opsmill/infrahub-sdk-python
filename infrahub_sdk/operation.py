@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import pathlib
 from typing import TYPE_CHECKING
 
 from .repository import GitRepoManager
@@ -22,7 +22,7 @@ class InfrahubOperation:
     ) -> None:
         self.branch = branch
         self.convert_query_response = convert_query_response
-        self.root_directory = root_directory or os.getcwd()
+        self.root_directory = root_directory or str(pathlib.Path.cwd())
         self.infrahub_node = infrahub_node
         self._nodes: list[InfrahubNode] = []
         self._related_nodes: list[InfrahubNode] = []
