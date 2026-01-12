@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
+from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
 from .processors.factory import DataProcessorFactory
@@ -33,6 +34,36 @@ def validate_list_of_objects(value: list[Any]) -> bool:
     return all(isinstance(item, dict) for item in value)
 
 
+def normalize_hfid_reference(value: str | list[str]) -> str | list[str]:
+    """Normalize a reference value to HFID format.
+
+    Only call this function when the peer schema has human_friendly_id defined.
+
+    Args:
+        value: Either a string (ID or single-component HFID) or a list of strings (multi-component HFID).
+
+    Returns:
+        - If value is already a list: returns it unchanged as list[str]
+        - If value is a valid UUID string: returns it unchanged as str (will be treated as an ID)
+        - If value is a non-UUID string: wraps it in a list as list[str] (single-component HFID)
+    """
+    if isinstance(value, list):
+        return value
+    if is_valid_uuid(value):
+        return value
+    return [value]
+
+
+def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[str]]:
+    """Normalize a list of reference values to HFID format.
+
+    Only call this function when the peer schema has human_friendly_id defined.
+
+    Each string that is not a valid UUID will be wrapped in a list to treat it as a single-component HFID.
+    """
+    return [normalize_hfid_reference(v) for v in values]
+
+
 class RelationshipDataFormat(str, Enum):
     UNKNOWN = "unknown"
 
@@ -51,6 +82,7 @@ class RelationshipInfo(BaseModel):
     peer_rel: RelationshipSchema | None = None
     reason_relationship_not_valid: str | None = None
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
+    peer_has_hfid: bool = False
 
     @property
     def is_bidirectional(self) -> bool:
@@ -119,6 +151,7 @@ async def get_relationship_info(
         info.peer_kind = value["kind"]
 
     peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
+    info.peer_has_hfid = bool(peer_schema.human_friendly_id)
 
     try:
         info.peer_rel = peer_schema.get_matching_relationship(
@@ -444,10 +477,19 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is bidirectional and is mandatory on the other side, then we need to create this object First
                 #  - if the relationship is bidirectional and is not mandatory on the other side, then we need should create the related object First
                 #  - if the relationship is not bidirectional, then we need to create the related object First
-                if rel_info.is_reference and isinstance(value, list):
-                    clean_data[key] = value
-                elif rel_info.format == RelationshipDataFormat.ONE_REF and isinstance(value, str):
-                    clean_data[key] = [value]
+                if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
+                    # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
+                    if rel_info.peer_has_hfid:
+                        clean_data[key] = normalize_hfid_references(value)
+                    else:
+                        clean_data[key] = value
+                elif rel_info.format == RelationshipDataFormat.ONE_REF:
+                    # Cardinality-one reference: normalize string to HFID list format only if peer has HFID defined
+                    if rel_info.peer_has_hfid:
+                        clean_data[key] = normalize_hfid_reference(value)
+                    else:
+                        # No HFID defined, pass value as-is (string becomes {"id": ...}, list stays as-is)
+                        clean_data[key] = value
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
