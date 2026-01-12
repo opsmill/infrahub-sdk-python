@@ -524,6 +524,4 @@ def test_related_node_graphql_payload(test_case: RelatedNodePayloadTestCase) -> 
     payload = related_node._generate_input_data()
 
     # Verify the payload structure
-    assert payload == test_case.expected_payload, (
-        f"Expected payload {test_case.expected_payload}, got {payload}"
-    )
+    assert payload == test_case.expected_payload, f"Expected payload {test_case.expected_payload}, got {payload}"
