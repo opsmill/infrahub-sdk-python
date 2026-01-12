@@ -479,17 +479,10 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
                     # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
-                    if rel_info.peer_has_hfid:
-                        clean_data[key] = normalize_hfid_references(value)
-                    else:
-                        clean_data[key] = value
+                    clean_data[key] = normalize_hfid_references(value) if rel_info.peer_has_hfid else value
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    # Cardinality-one reference: normalize string to HFID list format only if peer has HFID defined
-                    if rel_info.peer_has_hfid:
-                        clean_data[key] = normalize_hfid_reference(value)
-                    else:
-                        # No HFID defined, pass value as-is (string becomes {"id": ...}, list stays as-is)
-                        clean_data[key] = value
+                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
+                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
