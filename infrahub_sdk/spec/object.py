@@ -82,7 +82,12 @@ class RelationshipInfo(BaseModel):
     peer_rel: RelationshipSchema | None = None
     reason_relationship_not_valid: str | None = None
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
-    peer_has_hfid: bool = False
+    peer_human_friendly_id: list[str] | None = None
+
+    @property
+    def peer_has_hfid(self) -> bool:
+        """Indicate if the peer schema has a human-friendly ID defined."""
+        return bool(self.peer_human_friendly_id)
 
     @property
     def is_bidirectional(self) -> bool:
@@ -151,7 +156,7 @@ async def get_relationship_info(
         info.peer_kind = value["kind"]
 
     peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
-    info.peer_has_hfid = bool(peer_schema.human_friendly_id)
+    info.peer_human_friendly_id = peer_schema.human_friendly_id
 
     try:
         info.peer_rel = peer_schema.get_matching_relationship(

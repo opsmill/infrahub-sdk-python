@@ -8,6 +8,7 @@ import pytest
 
 from infrahub_sdk.exceptions import ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
+from infrahub_sdk.schema import RelationshipSchema
 from infrahub_sdk.spec.object import (
     ObjectFile,
     RelationshipDataFormat,
@@ -377,96 +378,99 @@ async def test_hfid_normalization_in_object_loading(
 
 
 @dataclass
-class GraphQLPayloadTestCase:
-    """Test case for verifying data format that leads to correct GraphQL payload.
-
-    The RelatedNode interprets data as follows:
-    - list → stored as hfid → GraphQL: {"hfid": [...]}
-    - string → stored as id → GraphQL: {"id": "..."}
-    """
+class PeerHfidTestCase:
+    """Test case for verifying peer_has_hfid property is correctly set from peer schema."""
 
     name: str
-    peer_has_hfid: bool
-    input_value: str | list[str]
-    expected_output_type: str  # "list" for hfid, "string" for id
-    expected_output_value: str | list[str]
+    peer_human_friendly_id: list[str] | None
+    expected_peer_has_hfid: bool
 
 
-GRAPHQL_PAYLOAD_TEST_CASES = [
-    # Peer HAS HFID - non-UUID string should become list (hfid)
-    GraphQLPayloadTestCase(
-        name="hfid_defined_string_becomes_list",
-        peer_has_hfid=True,
-        input_value="Important",
-        expected_output_type="list",
-        expected_output_value=["Important"],
+PEER_HFID_TEST_CASES = [
+    PeerHfidTestCase(
+        name="peer_has_hfid_when_defined",
+        peer_human_friendly_id=["name__value"],
+        expected_peer_has_hfid=True,
     ),
-    # Peer HAS HFID - UUID string should stay as string (id)
-    GraphQLPayloadTestCase(
-        name="hfid_defined_uuid_stays_string",
-        peer_has_hfid=True,
-        input_value="550e8400-e29b-41d4-a716-446655440000",
-        expected_output_type="string",
-        expected_output_value="550e8400-e29b-41d4-a716-446655440000",
+    PeerHfidTestCase(
+        name="peer_has_no_hfid_when_none",
+        peer_human_friendly_id=None,
+        expected_peer_has_hfid=False,
     ),
-    # Peer HAS HFID - list stays as list (hfid)
-    GraphQLPayloadTestCase(
-        name="hfid_defined_list_stays_list",
-        peer_has_hfid=True,
-        input_value=["namespace", "name"],
-        expected_output_type="list",
-        expected_output_value=["namespace", "name"],
-    ),
-    # Peer has NO HFID - non-UUID string stays as string (id lookup)
-    GraphQLPayloadTestCase(
-        name="no_hfid_string_stays_string",
-        peer_has_hfid=False,
-        input_value="some-string-value",
-        expected_output_type="string",
-        expected_output_value="some-string-value",
-    ),
-    # Peer has NO HFID - UUID stays as string (id)
-    GraphQLPayloadTestCase(
-        name="no_hfid_uuid_stays_string",
-        peer_has_hfid=False,
-        input_value="550e8400-e29b-41d4-a716-446655440000",
-        expected_output_type="string",
-        expected_output_value="550e8400-e29b-41d4-a716-446655440000",
+    PeerHfidTestCase(
+        name="peer_has_no_hfid_when_empty_list",
+        peer_human_friendly_id=[],
+        expected_peer_has_hfid=False,
     ),
 ]
 
 
-@pytest.mark.parametrize("test_case", GRAPHQL_PAYLOAD_TEST_CASES, ids=lambda tc: tc.name)
-def test_graphql_payload_format(test_case: GraphQLPayloadTestCase) -> None:
-    """Test that relationship data is formatted correctly for GraphQL payload.
+@pytest.mark.parametrize("test_case", PEER_HFID_TEST_CASES, ids=lambda tc: tc.name)
+async def test_peer_has_hfid_from_schema(test_case: PeerHfidTestCase) -> None:
+    """Test that get_relationship_info correctly sets peer_has_hfid from peer schema.
 
-    The RelatedNode class interprets:
-    - list input → {"hfid": [...]} in GraphQL
-    - string input → {"id": "..."} in GraphQL
-
-    This test verifies the normalization produces the correct format.
+    This test verifies that the peer_has_hfid property is correctly derived
+    from the peer schema's human_friendly_id field.
     """
-    if test_case.peer_has_hfid:
-        # When peer has HFID, use normalization
-        processed_value = normalize_hfid_reference(test_case.input_value)
-    else:
-        # When peer has no HFID, pass value as-is (no normalization)
-        processed_value = test_case.input_value
+    # Create mock client
+    mock_client = MagicMock()
 
-    # Verify the output type matches expected
-    if test_case.expected_output_type == "list":
-        assert isinstance(processed_value, list), (
-            f"Expected list output for hfid, got {type(processed_value).__name__}: {processed_value}"
-        )
-    else:
-        assert isinstance(processed_value, str), (
-            f"Expected string output for id, got {type(processed_value).__name__}: {processed_value}"
-        )
+    # Create mock peer schema with the test case's human_friendly_id
+    mock_peer_schema = MagicMock()
+    mock_peer_schema.human_friendly_id = test_case.peer_human_friendly_id
+    mock_peer_schema.get_matching_relationship.side_effect = ValueError("No matching relationship")
 
-    # Verify the actual value
-    assert processed_value == test_case.expected_output_value, (
-        f"Expected {test_case.expected_output_value}, got {processed_value}"
+    # Create a real RelationshipSchema (Pydantic model requires actual instance)
+    rel_schema = RelationshipSchema(
+        name="primary_tag",
+        peer="BuiltinTag",
+        cardinality="one",
+        identifier="test_rel",
     )
+
+    mock_schema = MagicMock()
+    mock_schema.get_relationship.return_value = rel_schema
+
+    # Configure client.schema.get to return the mock peer schema
+    mock_client.schema.get = AsyncMock(return_value=mock_peer_schema)
+
+    # Call get_relationship_info with a simple string value (reference)
+    rel_info = await get_relationship_info(
+        client=mock_client,
+        schema=mock_schema,
+        name="primary_tag",
+        value="some-tag-name",
+        branch="main",
+    )
+
+    # Verify peer_has_hfid matches expected value
+    assert rel_info.peer_has_hfid == test_case.expected_peer_has_hfid, (
+        f"Expected peer_has_hfid={test_case.expected_peer_has_hfid}, "
+        f"got {rel_info.peer_has_hfid} for peer_human_friendly_id={test_case.peer_human_friendly_id}"
+    )
+
+    # Also verify the underlying field is set correctly
+    assert rel_info.peer_human_friendly_id == test_case.peer_human_friendly_id
+
+
+def test_normalize_hfid_reference_function() -> None:
+    """Test the normalize_hfid_reference function directly.
+
+    This tests the normalization logic in isolation:
+    - Non-UUID strings get wrapped in a list (for HFID lookup)
+    - UUID strings stay as strings (for ID lookup)
+    - Lists stay unchanged
+    """
+    # Non-UUID string becomes list
+    assert normalize_hfid_reference("Important") == ["Important"]
+
+    # UUID string stays as string
+    uuid_value = "550e8400-e29b-41d4-a716-446655440000"
+    assert normalize_hfid_reference(uuid_value) == uuid_value
+
+    # List stays unchanged
+    assert normalize_hfid_reference(["namespace", "name"]) == ["namespace", "name"]
+    assert normalize_hfid_reference(["single"]) == ["single"]
 
 
 @dataclass
