@@ -242,7 +242,10 @@
             "label": null,
             "inherit_from": [],
             "branch": "aware",
-            "default_filter": "name__value"
+            "default_filter": "name__value",
+            "human_friendly_id": [
+                "name__value"
+            ]
         },
         {
             "name": "Location",
