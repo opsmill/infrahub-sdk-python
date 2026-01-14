@@ -8,7 +8,6 @@ import pytest
 
 from infrahub_sdk.exceptions import ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
-from infrahub_sdk.schema import RelationshipSchema
 from infrahub_sdk.spec.object import (
     ObjectFile,
     RelationshipDataFormat,
