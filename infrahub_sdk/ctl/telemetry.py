@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import typer
 from rich.console import Console
@@ -25,6 +26,25 @@ app = AsyncTyper()
 console = Console()
 
 
+def _sanitize_filename(name: str) -> str:
+    """Sanitize a string for use in a filename."""
+    # Replace spaces and special chars with underscores, keep alphanumeric and dashes
+    sanitized = re.sub(r"[^a-zA-Z0-9\-]", "_", name)
+    # Collapse multiple underscores
+    sanitized = re.sub(r"_+", "_", sanitized)
+    # Remove leading/trailing underscores
+    return sanitized.strip("_").lower()
+
+
+def _generate_export_filename(customer_name: str | None) -> Path:
+    """Generate a descriptive export filename with customer name and date."""
+    today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    if customer_name:
+        sanitized_name = _sanitize_filename(customer_name)
+        return Path(f"{sanitized_name}-telemetry-export-{today}.json")
+    return Path(f"telemetry-export-{today}.json")
+
+
 @app.callback()
 def callback() -> None:
     """Manage telemetry data export and operations.
@@ -37,11 +57,11 @@ def callback() -> None:
 @app.command(name="export")
 @catch_exception(console=console)
 async def export_telemetry(
-    output: Path = typer.Option(
-        Path("telemetry-export.json"),
+    output: Path | None = typer.Option(
+        None,
         "--output",
         "-o",
-        help="Output file path for the export",
+        help="Output file path for the export (default: {customer}-telemetry-export-{date}.json)",
     ),
     from_date: str | None = typer.Option(
         None,
@@ -81,23 +101,30 @@ async def export_telemetry(
     client = initialize_client()
 
     # Build query parameters for the REST API
-    params: dict[str, Any] = {}
+    query_parts: list[str] = []
     if from_date:
-        params["from_date"] = from_date
+        query_parts.append(f"from_date={from_date}")
     if to_date:
-        params["to_date"] = to_date
+        query_parts.append(f"to_date={to_date}")
     if export_all:
-        params["all"] = "true"
+        query_parts.append("all=true")
 
     # Query the REST API for telemetry export
     url = f"{client.address}/api/telemetry/export"
-    response = await client._get(url=url, params=params, timeout=client.default_timeout)
+    if query_parts:
+        url = f"{url}?{'&'.join(query_parts)}"
+    response = await client._get(url=url, timeout=client.default_timeout)
 
     if response.status_code != 200:
         console.print(f"[red]Error: {response.text}")
         raise typer.Exit(1)
 
     export_data = response.json()
+
+    # Generate filename with customer name and date if not specified
+    license_info = export_data.get("license", {})
+    if output is None:
+        output = _generate_export_filename(license_info.get("customer_name"))
 
     # Write to file (using Path.write_text for non-blocking file operations)
     output.write_text(json.dumps(export_data, indent=2, default=str), encoding="utf-8")
