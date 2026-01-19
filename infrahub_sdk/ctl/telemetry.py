@@ -26,8 +26,15 @@ app = AsyncTyper()
 console = Console()
 
 
-def _sanitize_filename(name: str) -> str:
-    """Sanitize a string for use in a filename."""
+def sanitize_filename(name: str) -> str:
+    """Sanitize a string for use in a filename.
+
+    Args:
+        name: The string to sanitize.
+
+    Returns:
+        A lowercase string safe for use in filenames.
+    """
     # Replace spaces and special chars with underscores, keep alphanumeric and dashes
     sanitized = re.sub(r"[^a-zA-Z0-9\-]", "_", name)
     # Collapse multiple underscores
@@ -36,11 +43,18 @@ def _sanitize_filename(name: str) -> str:
     return sanitized.strip("_").lower()
 
 
-def _generate_export_filename(customer_name: str | None) -> Path:
-    """Generate a descriptive export filename with customer name and date."""
+def generate_export_filename(customer_name: str | None) -> Path:
+    """Generate a descriptive export filename with customer name and date.
+
+    Args:
+        customer_name: The customer name to include in the filename, or None.
+
+    Returns:
+        A Path object with the generated filename.
+    """
     today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
     if customer_name:
-        sanitized_name = _sanitize_filename(customer_name)
+        sanitized_name = sanitize_filename(customer_name)
         return Path(f"{sanitized_name}-telemetry-export-{today}.json")
     return Path(f"telemetry-export-{today}.json")
 
@@ -123,11 +137,10 @@ async def export_telemetry(
 
     # Generate filename with customer name and date if not specified
     license_info = export_data.get("license", {})
-    if output is None:
-        output = _generate_export_filename(license_info.get("customer_name"))
+    output_path = output if output is not None else generate_export_filename(license_info.get("customer_name"))
 
     # Write to file (using Path.write_text for non-blocking file operations)
-    output.write_text(json.dumps(export_data, indent=2, default=str), encoding="utf-8")
+    output_path.write_text(json.dumps(export_data, indent=2, default=str), encoding="utf-8")
 
     # Show summary
     snapshots = export_data.get("snapshots", [])
@@ -146,12 +159,12 @@ async def export_telemetry(
         last_date = snapshots[-1].get("date", "N/A")
         table.add_row("Date Range", f"{first_date} to {last_date}")
 
-    table.add_row("Output File", str(output))
+    table.add_row("Output File", str(output_path))
 
     console.print()
     console.print(table)
     console.print()
-    console.print(Panel(f"[green]Export complete: {output}[/green]", border_style="green"))
+    console.print(Panel(f"[green]Export complete: {output_path}[/green]", border_style="green"))
 
 
 @app.command(name="list")
