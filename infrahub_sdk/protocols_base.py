@@ -171,8 +171,7 @@ class AnyAttributeOptional(Attribute):
     value: float | None
 
 
-@runtime_checkable
-class CoreNodeBase(Protocol):
+class CoreNodeBase:
     _schema: MainSchemaTypes
     _internal_id: str
     id: str  # NOTE this is incorrect, should be str | None
@@ -204,8 +203,7 @@ class CoreNodeBase(Protocol):
     def get_raw_graphql_data(self) -> dict | None: ...
 
 
-@runtime_checkable
-class CoreNode(CoreNodeBase, Protocol):
+class CoreNode(CoreNodeBase):
     async def save(
         self,
         allow_upsert: bool = False,
@@ -229,8 +227,7 @@ class CoreNode(CoreNodeBase, Protocol):
     async def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
 
 
-@runtime_checkable
-class CoreNodeSync(CoreNodeBase, Protocol):
+class CoreNodeSync(CoreNodeBase):
     def save(
         self,
         allow_upsert: bool = False,
