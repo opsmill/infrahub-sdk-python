@@ -177,7 +177,6 @@ invalid-assignment = "ignore"
 pretty = true
 ignore_missing_imports = true
 disallow_untyped_defs = true
-disable_error_code = ["empty-body"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.ctl.check"
