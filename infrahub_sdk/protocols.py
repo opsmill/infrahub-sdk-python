@@ -227,6 +227,7 @@ class CoreValidator(CoreNode):
 class CoreWebhook(CoreNode):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
@@ -499,7 +500,6 @@ class CoreProposedChange(CoreTaskTarget):
     approved_by: RelationshipManager
     rejected_by: RelationshipManager
     reviewers: RelationshipManager
-    created_by: RelatedNode
     comments: RelationshipManager
     threads: RelationshipManager
     validations: RelationshipManager
@@ -784,6 +784,7 @@ class CoreValidatorSync(CoreNodeSync):
 class CoreWebhookSync(CoreNodeSync):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
@@ -1056,7 +1057,6 @@ class CoreProposedChangeSync(CoreTaskTargetSync):
     approved_by: RelationshipManagerSync
     rejected_by: RelationshipManagerSync
     reviewers: RelationshipManagerSync
-    created_by: RelatedNodeSync
     comments: RelationshipManagerSync
     threads: RelationshipManagerSync
     validations: RelationshipManagerSync
