@@ -189,17 +189,23 @@ class CoreNodeBase:
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
-    def get_kind(self) -> str: ...
+    def get_kind(self) -> str:
+        return ""
 
-    def get_all_kinds(self) -> list[str]: ...
+    def get_all_kinds(self) -> list[str]:
+        return []
 
-    def get_branch(self) -> str: ...
+    def get_branch(self) -> str:
+        return ""
 
-    def is_ip_prefix(self) -> bool: ...
+    def is_ip_prefix(self) -> bool:
+        return False
 
-    def is_ip_address(self) -> bool: ...
+    def is_ip_address(self) -> bool:
+        return False
 
-    def is_resource_pool(self) -> bool: ...
+    def is_resource_pool(self) -> bool:
+        return False
 
     def get_raw_graphql_data(self) -> dict | None: ...
 
