@@ -21,7 +21,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..graphql import Mutation
-from ..protocols_base import CoreNode, CoreNodeSync
+from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
     AttributeSchema,
@@ -208,7 +208,7 @@ class InfrahubSchemaBase:
         if isinstance(schema, str):
             return schema
 
-        if isinstance(schema, type) and issubclass(schema, (CoreNode, CoreNodeSync)):
+        if issubclass(schema, CoreNodeBase):
             if inspect.iscoroutinefunction(schema.save):
                 return schema.__name__
             if schema.__name__[-4:] == "Sync":
