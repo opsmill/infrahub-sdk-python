@@ -189,22 +189,22 @@ class CoreNodeBase:
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
     def get_kind(self) -> str:
-        return ""
+        raise NotImplementedError()
 
     def get_all_kinds(self) -> list[str]:
-        return []
+        raise NotImplementedError()
 
     def get_branch(self) -> str:
-        return ""
+        raise NotImplementedError()
 
     def is_ip_prefix(self) -> bool:
-        return False
+        raise NotImplementedError()
 
     def is_ip_address(self) -> bool:
-        return False
+        raise NotImplementedError()
 
     def is_resource_pool(self) -> bool:
-        return False
+        raise NotImplementedError()
 
     def get_raw_graphql_data(self) -> dict | None: ...
 
