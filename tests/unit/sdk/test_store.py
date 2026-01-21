@@ -1,14 +1,23 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pytest
 
 from infrahub_sdk.exceptions import NodeInvalidError, NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.store import NodeStore, NodeStoreSync
 
+if TYPE_CHECKING:
+    from infrahub_sdk.schema import NodeSchemaAPI
+
+    from .conftest import BothClients
+
 client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_set(client_type, clients, schema_with_hfid) -> None:
+def test_node_store_set(client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -33,7 +42,7 @@ def test_node_store_set(client_type, clients, schema_with_hfid) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_set_no_hfid(client_type, clients, location_schema) -> None:
+def test_node_store_set_no_hfid(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -67,7 +76,7 @@ def test_node_store_set_no_hfid(client_type, clients, location_schema) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_get(client_type, clients, location_schema) -> None:
+def test_node_store_get(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")
@@ -111,7 +120,9 @@ def test_node_store_get(client_type, clients, location_schema) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_get_with_hfid(client_type, clients, schema_with_hfid) -> None:
+def test_node_store_get_with_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
     if client_type == "standard":
         client = clients.standard
         store = NodeStore(default_branch="main")

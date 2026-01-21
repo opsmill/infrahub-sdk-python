@@ -127,7 +127,7 @@ def location_with_empty_parameters(root_location: dict) -> dict:
     return location
 
 
-async def test_validate_object(client: InfrahubClient, schema_query_01_data: dict, location_mexico_01) -> None:
+async def test_validate_object(client: InfrahubClient, schema_query_01_data: dict, location_mexico_01: dict) -> None:
     client.schema.set_cache(schema=schema_query_01_data, branch="main")
     obj = ObjectFile(location="some/path", content=location_mexico_01)
     await obj.validate_format(client=client)
@@ -136,7 +136,7 @@ async def test_validate_object(client: InfrahubClient, schema_query_01_data: dic
 
 
 async def test_validate_object_bad_syntax01(
-    client: InfrahubClient, schema_query_01_data: dict, location_bad_syntax01
+    client: InfrahubClient, schema_query_01_data: dict, location_bad_syntax01: dict
 ) -> None:
     client.schema.set_cache(schema=schema_query_01_data, branch="main")
     obj = ObjectFile(location="some/path", content=location_bad_syntax01)
@@ -146,7 +146,7 @@ async def test_validate_object_bad_syntax01(
     assert "name" in str(exc.value)
 
 
-async def test_validate_object_bad_syntax02(client_with_schema_01: InfrahubClient, location_bad_syntax02) -> None:
+async def test_validate_object_bad_syntax02(client_with_schema_01: InfrahubClient, location_bad_syntax02: dict) -> None:
     obj = ObjectFile(location="some/path", content=location_bad_syntax02)
     with pytest.raises(ValidationError) as exc:
         await obj.validate_format(client=client_with_schema_01)
@@ -154,7 +154,7 @@ async def test_validate_object_bad_syntax02(client_with_schema_01: InfrahubClien
     assert "notvalidattribute" in str(exc.value)
 
 
-async def test_validate_object_expansion(client_with_schema_01: InfrahubClient, location_expansion) -> None:
+async def test_validate_object_expansion(client_with_schema_01: InfrahubClient, location_expansion: dict) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion)
     await obj.validate_format(client=client_with_schema_01)
 
@@ -164,7 +164,7 @@ async def test_validate_object_expansion(client_with_schema_01: InfrahubClient, 
     assert obj.spec.data[4]["name"] == "AMS5"
 
 
-async def test_validate_no_object_expansion(client_with_schema_01: InfrahubClient, no_location_expansion) -> None:
+async def test_validate_no_object_expansion(client_with_schema_01: InfrahubClient, no_location_expansion: dict) -> None:
     obj = ObjectFile(location="some/path", content=no_location_expansion)
     await obj.validate_format(client=client_with_schema_01)
     assert obj.spec.kind == "BuiltinLocation"
@@ -174,7 +174,7 @@ async def test_validate_no_object_expansion(client_with_schema_01: InfrahubClien
 
 
 async def test_validate_object_expansion_multiple_ranges(
-    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges
+    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges: dict
 ) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges)
     await obj.validate_format(client=client_with_schema_01)
@@ -188,7 +188,7 @@ async def test_validate_object_expansion_multiple_ranges(
 
 
 async def test_validate_object_expansion_multiple_ranges_bad_syntax(
-    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges_bad_syntax
+    client_with_schema_01: InfrahubClient, location_expansion_multiple_ranges_bad_syntax: dict
 ) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion_multiple_ranges_bad_syntax)
     with pytest.raises(ValidationError) as exc:
@@ -250,25 +250,29 @@ async def test_get_relationship_info_tags(
     assert rel_info.format == format
 
 
-async def test_parameters_top_level(client_with_schema_01: InfrahubClient, location_expansion) -> None:
+async def test_parameters_top_level(client_with_schema_01: InfrahubClient, location_expansion: dict) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion)
     await obj.validate_format(client=client_with_schema_01)
     assert obj.spec.parameters.expand_range is True
 
 
-async def test_parameters_missing(client_with_schema_01: InfrahubClient, location_mexico_01) -> None:
+async def test_parameters_missing(client_with_schema_01: InfrahubClient, location_mexico_01: dict) -> None:
     obj = ObjectFile(location="some/path", content=location_mexico_01)
     await obj.validate_format(client=client_with_schema_01)
     assert hasattr(obj.spec.parameters, "expand_range")
 
 
-async def test_parameters_empty_dict(client_with_schema_01: InfrahubClient, location_with_empty_parameters) -> None:
+async def test_parameters_empty_dict(
+    client_with_schema_01: InfrahubClient, location_with_empty_parameters: dict
+) -> None:
     obj = ObjectFile(location="some/path", content=location_with_empty_parameters)
     await obj.validate_format(client=client_with_schema_01)
     assert hasattr(obj.spec.parameters, "expand_range")
 
 
-async def test_parameters_non_dict(client_with_schema_01: InfrahubClient, location_with_non_dict_parameters) -> None:
+async def test_parameters_non_dict(
+    client_with_schema_01: InfrahubClient, location_with_non_dict_parameters: dict
+) -> None:
     obj = ObjectFile(location="some/path", content=location_with_non_dict_parameters)
     with pytest.raises(ValidationError):
         await obj.validate_format(client=client_with_schema_01)

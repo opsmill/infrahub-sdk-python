@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -6,11 +9,16 @@ from infrahub_sdk.task.exceptions import TaskNotFoundError, TooManyTasksError
 from infrahub_sdk.task.manager import InfraHubTaskManagerBase
 from infrahub_sdk.task.models import Task, TaskFilter, TaskState
 
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+    from tests.unit.sdk.conftest import BothClients
+
 client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all(clients, mock_query_tasks_01, client_type) -> None:
+async def test_method_all(clients: BothClients, mock_query_tasks_01: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.all()
     else:
@@ -21,7 +29,7 @@ async def test_method_all(clients, mock_query_tasks_01, client_type) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_full(clients, mock_query_tasks_01, client_type) -> None:
+async def test_method_all_full(clients: BothClients, mock_query_tasks_01: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.all(include_logs=True, include_related_nodes=True)
     else:
@@ -62,7 +70,7 @@ query {
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_filters(clients, mock_query_tasks_02_main, client_type) -> None:
+async def test_method_filters(clients: BothClients, mock_query_tasks_02_main: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         tasks = await clients.standard.task.filter(filter=TaskFilter(branch="main"))
     else:
@@ -73,7 +81,7 @@ async def test_method_filters(clients, mock_query_tasks_02_main, client_type) ->
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_too_many(clients, mock_query_tasks_02_main, client_type) -> None:
+async def test_method_get_too_many(clients: BothClients, mock_query_tasks_02_main: HTTPXMock, client_type: str) -> None:
     with pytest.raises(TooManyTasksError):
         if client_type == "standard":
             await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
@@ -82,7 +90,7 @@ async def test_method_get_too_many(clients, mock_query_tasks_02_main, client_typ
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_not_found(clients, mock_query_tasks_empty, client_type) -> None:
+async def test_method_get_not_found(clients: BothClients, mock_query_tasks_empty: HTTPXMock, client_type: str) -> None:
     with pytest.raises(TaskNotFoundError):
         if client_type == "standard":
             await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
@@ -91,7 +99,7 @@ async def test_method_get_not_found(clients, mock_query_tasks_empty, client_type
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get(clients, mock_query_tasks_03, client_type) -> None:
+async def test_method_get(clients: BothClients, mock_query_tasks_03: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         task = await clients.standard.task.get(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
     else:
@@ -102,7 +110,7 @@ async def test_method_get(clients, mock_query_tasks_03, client_type) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_full(clients, mock_query_tasks_05, client_type) -> None:
+async def test_method_get_full(clients: BothClients, mock_query_tasks_05: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         task = await clients.standard.task.get(id="32116fcd-9071-43a7-9f14-777901020b5b")
     else:
