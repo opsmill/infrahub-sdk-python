@@ -95,7 +95,7 @@ async def mock_diff_tree_query(httpx_mock: HTTPXMock, client: InfrahubClient) ->
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_diffsummary(clients: BothClients, mock_diff_tree_query, client_type) -> None:
+async def test_diffsummary(clients: BothClients, mock_diff_tree_query: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         node_diffs = await clients.standard.get_diff_summary(
             branch="branch2",
@@ -241,7 +241,7 @@ async def mock_diff_tree_with_metadata(httpx_mock: HTTPXMock, client: InfrahubCl
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_diff_tree(clients: BothClients, mock_diff_tree_with_metadata, client_type) -> None:
+async def test_get_diff_tree(clients: BothClients, mock_diff_tree_with_metadata: HTTPXMock, client_type: str) -> None:
     """Test get_diff_tree returns complete DiffTreeData with metadata."""
     if client_type == "standard":
         diff_tree = await clients.standard.get_diff_tree(
@@ -298,7 +298,7 @@ async def mock_diff_tree_none(httpx_mock: HTTPXMock, client: InfrahubClient) -> 
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_diff_tree_none(clients: BothClients, mock_diff_tree_none, client_type) -> None:
+async def test_get_diff_tree_none(clients: BothClients, mock_diff_tree_none: HTTPXMock, client_type: str) -> None:
     """Test get_diff_tree returns None when no diff exists."""
     if client_type == "standard":
         diff_tree = await clients.standard.get_diff_tree(
@@ -343,7 +343,9 @@ async def mock_diff_tree_with_params(httpx_mock: HTTPXMock, client: InfrahubClie
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_diff_tree_with_parameters(clients: BothClients, mock_diff_tree_with_params, client_type) -> None:
+async def test_get_diff_tree_with_parameters(
+    clients: BothClients, mock_diff_tree_with_params: HTTPXMock, client_type: str
+) -> None:
     """Test get_diff_tree with name and time range parameters."""
     from_time = datetime(2025, 11, 14, 12, 0, 0, tzinfo=timezone.utc)
     to_time = datetime(2025, 11, 14, 18, 0, 0, tzinfo=timezone.utc)
@@ -373,7 +375,7 @@ async def test_get_diff_tree_with_parameters(clients: BothClients, mock_diff_tre
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_get_diff_tree_time_validation(clients: BothClients, client_type) -> None:
+async def test_get_diff_tree_time_validation(clients: BothClients, client_type: str) -> None:
     """Test get_diff_tree raises error when from_time > to_time."""
     from_time = datetime(2025, 11, 14, 18, 0, 0, tzinfo=timezone.utc)
     to_time = datetime(2025, 11, 14, 12, 0, 0, tzinfo=timezone.utc)  # Earlier than from_time

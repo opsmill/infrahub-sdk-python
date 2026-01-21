@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 
 from infrahub_sdk.graphql.query import Mutation, Query
 
@@ -13,7 +14,7 @@ class MyIntEnum(int, Enum):
     VALUE2 = 24
 
 
-def test_query_rendering_no_vars(query_data_no_filter) -> None:
+def test_query_rendering_no_vars(query_data_no_filter: dict[str, Any]) -> None:
     query = Query(query=query_data_no_filter)
 
     expected_query = """
@@ -37,7 +38,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_empty_filter(query_data_empty_filter) -> None:
+def test_query_rendering_empty_filter(query_data_empty_filter: dict[str, Any]) -> None:
     query = Query(query=query_data_empty_filter)
 
     expected_query = """
@@ -61,7 +62,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters_and_vars(query_data_filters_01) -> None:
+def test_query_rendering_with_filters_and_vars(query_data_filters_01: dict[str, Any]) -> None:
     query = Query(query=query_data_filters_01, variables={"name": str, "enabled": bool})
 
     expected_query = """
@@ -85,7 +86,7 @@ query ($name: String!, $enabled: Boolean!) {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters(query_data_filters_02) -> None:
+def test_query_rendering_with_filters(query_data_filters_02: dict[str, Any]) -> None:
     query = Query(query=query_data_filters_02)
 
     expected_query = """
@@ -105,7 +106,7 @@ query {
     assert query.render() == expected_query
 
 
-def test_query_rendering_with_filters_convert_enum(query_data_filters_02) -> None:
+def test_query_rendering_with_filters_convert_enum(query_data_filters_02: dict[str, Any]) -> None:
     query = Query(query=query_data_filters_02)
 
     expected_query = """
@@ -125,7 +126,7 @@ query {
     assert query.render(convert_enum=True) == expected_query
 
 
-def test_mutation_rendering_no_vars(input_data_01) -> None:
+def test_mutation_rendering_no_vars(input_data_01: dict[str, Any]) -> None:
     query_data = {"ok": None, "object": {"id": None}}
 
     query = Mutation(mutation="myobject_create", query=query_data, input_data=input_data_01)
@@ -245,7 +246,7 @@ mutation {
     assert query.render() == expected_query
 
 
-def test_mutation_rendering_with_vars(input_data_01) -> None:
+def test_mutation_rendering_with_vars(input_data_01: dict[str, Any]) -> None:
     query_data = {"ok": None, "object": {"id": None}}
     variables = {"name": str, "description": str, "number": int}
     query = Mutation(
