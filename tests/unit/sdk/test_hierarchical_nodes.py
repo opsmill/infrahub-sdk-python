@@ -52,7 +52,7 @@ async def hierarchical_schema() -> NodeSchemaAPI:
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_has_hierarchy_support(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes are properly detected and support parent/children/ancestors/descendants."""
     if client_type == "standard":
@@ -67,7 +67,7 @@ async def test_hierarchical_node_has_hierarchy_support(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_has_all_hierarchical_fields(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes have parent, children, ancestors and descendants attributes."""
     if client_type == "standard":
@@ -110,7 +110,7 @@ async def test_hierarchical_node_has_all_hierarchical_fields(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_with_parent_data(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes can be initialized with parent data."""
     data = {
@@ -133,7 +133,7 @@ async def test_hierarchical_node_with_parent_data(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_with_children_data(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes can be initialized with children data."""
     data = {
@@ -164,7 +164,7 @@ async def test_hierarchical_node_with_children_data(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_with_ancestors_data(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes can be initialized with ancestors data."""
     data = {
@@ -195,7 +195,7 @@ async def test_hierarchical_node_with_ancestors_data(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_hierarchical_node_with_descendants_data(
-    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that hierarchical nodes can be initialized with descendants data."""
     data = {
@@ -229,7 +229,7 @@ async def test_hierarchical_node_with_descendants_data(
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
 async def test_non_hierarchical_node_no_hierarchical_fields(
-    client: InfrahubClient, client_sync: InfrahubClientSync, location_schema, client_type
+    client: InfrahubClient, client_sync: InfrahubClientSync, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     """Test that non-hierarchical nodes don't have parent/children/ancestors/descendants."""
     if client_type == "standard":
@@ -254,7 +254,9 @@ async def test_non_hierarchical_node_no_hierarchical_fields(
         _ = node.descendants
 
 
-async def test_hierarchical_node_query_generation_includes_parent(client: InfrahubClient, hierarchical_schema) -> None:
+async def test_hierarchical_node_query_generation_includes_parent(
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
+) -> None:
     """Test that query generation includes parent when requested."""
     # Pre-populate schema cache to avoid fetching from server
     cache_data = {
@@ -277,7 +279,7 @@ async def test_hierarchical_node_query_generation_includes_parent(client: Infrah
 
 
 async def test_hierarchical_node_query_generation_includes_children(
-    client: InfrahubClient, hierarchical_schema
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that query generation includes children when requested."""
     # Pre-populate schema cache to avoid fetching from server
@@ -302,7 +304,7 @@ async def test_hierarchical_node_query_generation_includes_children(
 
 
 async def test_hierarchical_node_query_generation_includes_ancestors(
-    client: InfrahubClient, hierarchical_schema
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that query generation includes ancestors when requested."""
     # Pre-populate schema cache to avoid fetching from server
@@ -327,7 +329,7 @@ async def test_hierarchical_node_query_generation_includes_ancestors(
 
 
 async def test_hierarchical_node_query_generation_includes_descendants(
-    client: InfrahubClient, hierarchical_schema
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that query generation includes descendants when requested."""
     # Pre-populate schema cache to avoid fetching from server
@@ -352,7 +354,7 @@ async def test_hierarchical_node_query_generation_includes_descendants(
 
 
 async def test_hierarchical_node_query_generation_prefetch_relationships(
-    client: InfrahubClient, hierarchical_schema
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that query generation includes all hierarchical fields with prefetch_relationships=True."""
     # Pre-populate schema cache to avoid fetching from server
@@ -374,7 +376,9 @@ async def test_hierarchical_node_query_generation_prefetch_relationships(
     assert "descendants" in query_data
 
 
-async def test_hierarchical_node_query_generation_exclude(client: InfrahubClient, hierarchical_schema) -> None:
+async def test_hierarchical_node_query_generation_exclude(
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
+) -> None:
     """Test that query generation respects exclude for hierarchical fields."""
     # Pre-populate schema cache to avoid fetching from server
     cache_data = {
@@ -396,7 +400,7 @@ async def test_hierarchical_node_query_generation_exclude(client: InfrahubClient
 
 
 def test_hierarchical_node_sync_query_generation_includes_parent(
-    client_sync: InfrahubClientSync, hierarchical_schema
+    client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that sync query generation includes parent when requested."""
     # Set schema in cache to avoid HTTP request
@@ -420,7 +424,7 @@ def test_hierarchical_node_sync_query_generation_includes_parent(
 
 
 def test_hierarchical_node_sync_query_generation_includes_children(
-    client_sync: InfrahubClientSync, hierarchical_schema
+    client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that sync query generation includes children when requested."""
     # Set schema in cache to avoid HTTP request
@@ -445,7 +449,7 @@ def test_hierarchical_node_sync_query_generation_includes_children(
 
 
 def test_hierarchical_node_sync_query_generation_includes_ancestors(
-    client_sync: InfrahubClientSync, hierarchical_schema
+    client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that sync query generation includes ancestors when requested."""
     # Set schema in cache to avoid HTTP request
@@ -470,7 +474,7 @@ def test_hierarchical_node_sync_query_generation_includes_ancestors(
 
 
 def test_hierarchical_node_sync_query_generation_includes_descendants(
-    client_sync: InfrahubClientSync, hierarchical_schema
+    client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that sync query generation includes descendants when requested."""
     # Set schema in cache to avoid HTTP request
@@ -495,7 +499,7 @@ def test_hierarchical_node_sync_query_generation_includes_descendants(
 
 
 async def test_hierarchical_node_no_infinite_recursion_with_children(
-    client: InfrahubClient, hierarchical_schema
+    client: InfrahubClient, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that including children does not cause infinite recursion."""
     # Pre-populate schema cache to avoid fetching from server
@@ -521,7 +525,7 @@ async def test_hierarchical_node_no_infinite_recursion_with_children(
 
 
 def test_hierarchical_node_sync_no_infinite_recursion_with_children(
-    client_sync: InfrahubClientSync, hierarchical_schema
+    client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI
 ) -> None:
     """Test that including children does not cause infinite recursion in sync mode."""
     # Set schema in cache to avoid HTTP request
