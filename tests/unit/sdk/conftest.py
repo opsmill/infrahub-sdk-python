@@ -103,7 +103,7 @@ def replace_async_return_annotation(return_annotation_map: dict[str, str]) -> Ca
 
 @pytest.fixture
 def replace_async_parameter_annotations(
-    replace_async_return_annotation,
+    replace_async_return_annotation: Callable[[str], str],
 ) -> Callable[[Mapping[str, Parameter]], list[tuple[str, str]]]:
     """Allows for comparison between sync and async parameter annotations."""
 
@@ -130,7 +130,7 @@ def replace_sync_return_annotation(return_annotation_map: dict[str, str]) -> Cal
 
 @pytest.fixture
 def replace_sync_parameter_annotations(
-    replace_sync_return_annotation,
+    replace_sync_return_annotation: Callable[[str], str],
 ) -> Callable[[Mapping[str, Parameter]], list[tuple[str, str]]]:
     """Allows for comparison between sync and async parameter annotations."""
 
@@ -1501,7 +1501,7 @@ async def mock_repositories_query_no_pagination(httpx_mock: HTTPXMock) -> HTTPXM
 
 @pytest.fixture
 async def mock_query_repository_all_01_no_pagination(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response = {
         "data": {
@@ -1601,7 +1601,7 @@ async def mock_repositories_query(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 @pytest.fixture
 async def mock_query_repository_page1_1(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response = {
         "data": {
@@ -1641,7 +1641,9 @@ async def mock_query_repository_page1_1(
 
 
 @pytest.fixture
-async def mock_query_corenode_page1_1(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_02) -> HTTPXMock:
+async def mock_query_corenode_page1_1(
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_02: HTTPXMock
+) -> HTTPXMock:
     response = {
         "data": {
             "CoreNode": {
@@ -1676,14 +1678,16 @@ async def mock_query_corenode_page1_1(httpx_mock: HTTPXMock, client: InfrahubCli
 
 
 @pytest.fixture
-async def mock_query_repository_count(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+async def mock_query_repository_count(
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
+) -> HTTPXMock:
     httpx_mock.add_response(method="POST", json={"data": {"CoreRepository": {"count": 5}}}, is_reusable=True)
     return httpx_mock
 
 
 @pytest.fixture
 async def mock_query_repository_page1_empty(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response: dict = {"data": {"CoreRepository": {"edges": []}}}
 
@@ -1698,7 +1702,7 @@ async def mock_query_repository_page1_empty(
 
 @pytest.fixture
 async def mock_query_repository_page1_2(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response = {
         "data": {
@@ -1748,7 +1752,7 @@ async def mock_query_repository_page1_2(
 
 @pytest.fixture
 async def mock_query_repository_page2_2(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response = {
         "data": {
@@ -2512,7 +2516,7 @@ async def mock_schema_query_ipam(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 @pytest.fixture
 async def mock_query_location_batch_count(
-    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
 ) -> HTTPXMock:
     response = {"data": {"BuiltinLocation": {"count": 30}}}
     httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=response, is_reusable=True)
@@ -2520,7 +2524,9 @@ async def mock_query_location_batch_count(
 
 
 @pytest.fixture
-async def mock_query_location_batch(httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01) -> HTTPXMock:
+async def mock_query_location_batch(
+    httpx_mock: HTTPXMock, client: InfrahubClient, mock_schema_query_01: HTTPXMock
+) -> HTTPXMock:
     for i in range(1, 11):
         filename = get_fixtures_dir() / "batch" / f"mock_query_location_page{i}.json"
         response_text = filename.read_text(encoding="UTF-8")

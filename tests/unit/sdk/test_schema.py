@@ -1,6 +1,7 @@
 import inspect
 from io import StringIO
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_httpx import HTTPXMock
@@ -33,7 +34,7 @@ async def test_method_sanity() -> None:
 
 
 @pytest.mark.parametrize("method", async_schema_methods)
-async def test_validate_method_signature(method) -> None:
+async def test_validate_method_signature(method: str) -> None:
     async_method = getattr(InfrahubSchema, method)
     sync_method = getattr(InfrahubSchemaSync, method)
     async_sig = inspect.signature(async_method)
@@ -43,7 +44,7 @@ async def test_validate_method_signature(method) -> None:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_fetch_schema(mock_schema_query_01, client_type) -> None:
+async def test_fetch_schema(mock_schema_query_01: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
         nodes = await client.schema.fetch(branch="main")
@@ -89,7 +90,7 @@ async def test_fetch_schema_conditional_refresh(mock_schema_query_01: HTTPXMock,
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_schema_data_validation(rfile_schema, client_type) -> None:
+async def test_schema_data_validation(rfile_schema: NodeSchemaAPI, client_type: str) -> None:
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
     else:
@@ -110,7 +111,10 @@ async def test_schema_data_validation(rfile_schema, client_type) -> None:
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_add_dropdown_option(
-    clients, client_type, mock_schema_query_01, mock_query_mutation_schema_dropdown_add
+    clients: BothClients,
+    client_type: str,
+    mock_schema_query_01: HTTPXMock,
+    mock_query_mutation_schema_dropdown_add: None,
 ) -> None:
     if client_type == "standard":
         await clients.standard.schema.add_dropdown_option("BuiltinTag", "status", "something")
@@ -120,7 +124,10 @@ async def test_add_dropdown_option(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_remove_dropdown_option(
-    clients, client_type, mock_schema_query_01, mock_query_mutation_schema_dropdown_remove
+    clients: BothClients,
+    client_type: str,
+    mock_schema_query_01: HTTPXMock,
+    mock_query_mutation_schema_dropdown_remove: None,
 ) -> None:
     if client_type == "standard":
         await clients.standard.schema.remove_dropdown_option("BuiltinTag", "status", "active")
@@ -129,7 +136,9 @@ async def test_remove_dropdown_option(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_add_enum_option(clients, client_type, mock_schema_query_01, mock_query_mutation_schema_enum_add) -> None:
+async def test_add_enum_option(
+    clients: BothClients, client_type: str, mock_schema_query_01: HTTPXMock, mock_query_mutation_schema_enum_add: None
+) -> None:
     if client_type == "standard":
         await clients.standard.schema.add_enum_option("BuiltinTag", "mode", "hard")
     else:
@@ -138,7 +147,10 @@ async def test_add_enum_option(clients, client_type, mock_schema_query_01, mock_
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_remove_enum_option(
-    clients, client_type, mock_schema_query_01, mock_query_mutation_schema_enum_remove
+    clients: BothClients,
+    client_type: str,
+    mock_schema_query_01: HTTPXMock,
+    mock_query_mutation_schema_enum_remove: None,
 ) -> None:
     if client_type == "standard":
         await clients.standard.schema.remove_enum_option("BuiltinTag", "mode", "easy")
@@ -147,7 +159,9 @@ async def test_remove_enum_option(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_add_dropdown_option_raises(clients, client_type, mock_schema_query_01) -> None:
+async def test_add_dropdown_option_raises(
+    clients: BothClients, client_type: str, mock_schema_query_01: HTTPXMock
+) -> None:
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.add_dropdown_option("DoesNotExist", "atribute", "option")
@@ -161,7 +175,7 @@ async def test_add_dropdown_option_raises(clients, client_type, mock_schema_quer
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_add_enum_option_raises(clients, client_type, mock_schema_query_01) -> None:
+async def test_add_enum_option_raises(clients: BothClients, client_type: str, mock_schema_query_01: HTTPXMock) -> None:
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.add_enum_option("DoesNotExist", "atribute", "option")
@@ -175,7 +189,9 @@ async def test_add_enum_option_raises(clients, client_type, mock_schema_query_01
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_remove_dropdown_option_raises(clients, client_type, mock_schema_query_01) -> None:
+async def test_remove_dropdown_option_raises(
+    clients: BothClients, client_type: str, mock_schema_query_01: HTTPXMock
+) -> None:
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.remove_dropdown_option("DoesNotExist", "atribute", "option")
@@ -189,7 +205,9 @@ async def test_remove_dropdown_option_raises(clients, client_type, mock_schema_q
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_remove_enum_option_raises(clients, client_type, mock_schema_query_01) -> None:
+async def test_remove_enum_option_raises(
+    clients: BothClients, client_type: str, mock_schema_query_01: HTTPXMock
+) -> None:
     if client_type == "standard":
         with pytest.raises(SchemaNotFoundError):
             await clients.standard.schema.remove_enum_option("DoesNotExist", "atribute", "option")
@@ -337,7 +355,7 @@ async def test_infrahub_repository_config_dups() -> None:
         "attributes": [{"name": "name", "kind": "Text"}, {"name": "status", "kind": "Dropdown"}],
     },
 )
-async def test_display_schema_load_errors_details_dropdown(mock_get_node) -> None:
+async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicMock) -> None:
     """Validate error message with details when loading schema."""
     error = {
         "detail": [
@@ -370,7 +388,7 @@ async def test_display_schema_load_errors_details_dropdown(mock_get_node) -> Non
         "attributes": [{"name": "name", "kind": "Text"}, {"name": "status", "kind": "Dropdown"}],
     },
 )
-async def test_display_schema_load_errors_details_namespace(mock_get_node) -> None:
+async def test_display_schema_load_errors_details_namespace(mock_get_node: MagicMock) -> None:
     """Validate error message with details when loading schema."""
     error = {
         "detail": [
@@ -425,7 +443,9 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node) -> No
         ],
     },
 )
-async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_relationship(mock_get_node) -> None:
+async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_relationship(
+    mock_get_node: MagicMock,
+) -> None:
     """Validate error message with details when loading schema and errors are in attribute or relationship."""
     error = {
         "detail": [

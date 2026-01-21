@@ -328,25 +328,6 @@ max-complexity = 17
     "ARG002",  # Unused method argument
 ]
 
-##################################################################################################
-# ANN001 ignores - broken down for incremental cleanup                                           #
-# Remove each section as type annotations are added to that directory                            #
-##################################################################################################
-
-# tests/unit/sdk/ - 478 errors total
-"tests/unit/sdk/test_node.py" = ["ANN001"]              # 206 errors
-"tests/unit/sdk/test_client.py" = ["ANN001"]            # 85 errors
-"tests/unit/sdk/test_schema.py" = ["ANN001"]            # 36 errors
-"tests/unit/sdk/test_artifact.py" = ["ANN001"]          # 27 errors
-"tests/unit/sdk/test_hierarchical_nodes.py" = ["ANN001"] # 26 errors
-"tests/unit/sdk/test_task.py" = ["ANN001"]              # 21 errors
-"tests/unit/sdk/test_store.py" = ["ANN001"]             # 12 errors
-"tests/unit/sdk/spec/test_object.py" = ["ANN001"]       # 11 errors
-"tests/unit/sdk/conftest.py" = ["ANN001"]               # 11 errors
-"tests/unit/sdk/test_diff_summary.py" = ["ANN001"]      # 9 errors
-"tests/unit/sdk/test_object_store.py" = ["ANN001"]      # 7 errors
-"tests/unit/sdk/graphql/test_query.py" = ["ANN001"]     # 7 errors
-
 # tests/integration/
 "tests/integration/test_infrahub_client.py" = ["PLR0904"]
 "tests/integration/test_infrahub_client_sync.py" = ["PLR0904"]
