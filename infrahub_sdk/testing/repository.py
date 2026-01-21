@@ -98,7 +98,7 @@ class GitRepo:
     ) -> bool:
         for _ in range(retries):
             repo = await client.get(
-                kind=CoreGenericRepository,  # type: ignore[type-abstract]
+                kind=CoreGenericRepository,
                 name__value=self.name,
                 branch=branch or self.initial_branch,
             )

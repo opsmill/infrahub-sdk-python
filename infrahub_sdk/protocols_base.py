@@ -171,8 +171,7 @@ class AnyAttributeOptional(Attribute):
     value: float | None
 
 
-@runtime_checkable
-class CoreNodeBase(Protocol):
+class CoreNodeBase:
     _schema: MainSchemaTypes
     _internal_id: str
     id: str  # NOTE this is incorrect, should be str | None
@@ -189,23 +188,28 @@ class CoreNodeBase(Protocol):
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
-    def get_kind(self) -> str: ...
+    def get_kind(self) -> str:
+        raise NotImplementedError()
 
-    def get_all_kinds(self) -> list[str]: ...
+    def get_all_kinds(self) -> list[str]:
+        raise NotImplementedError()
 
-    def get_branch(self) -> str: ...
+    def get_branch(self) -> str:
+        raise NotImplementedError()
 
-    def is_ip_prefix(self) -> bool: ...
+    def is_ip_prefix(self) -> bool:
+        raise NotImplementedError()
 
-    def is_ip_address(self) -> bool: ...
+    def is_ip_address(self) -> bool:
+        raise NotImplementedError()
 
-    def is_resource_pool(self) -> bool: ...
+    def is_resource_pool(self) -> bool:
+        raise NotImplementedError()
 
     def get_raw_graphql_data(self) -> dict | None: ...
 
 
-@runtime_checkable
-class CoreNode(CoreNodeBase, Protocol):
+class CoreNode(CoreNodeBase):
     async def save(
         self,
         allow_upsert: bool = False,
@@ -229,8 +233,7 @@ class CoreNode(CoreNodeBase, Protocol):
     async def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None: ...
 
 
-@runtime_checkable
-class CoreNodeSync(CoreNodeBase, Protocol):
+class CoreNodeSync(CoreNodeBase):
     def save(
         self,
         allow_upsert: bool = False,
