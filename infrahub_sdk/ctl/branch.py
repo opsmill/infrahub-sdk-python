@@ -293,7 +293,7 @@ async def report(
     git_files_changed = await check_git_files_changed(client, branch=branch_name)
 
     proposed_changes = await client.filters(
-        kind=CoreProposedChange,  # type: ignore[type-abstract]
+        kind=CoreProposedChange,
         source_branch__value=branch_name,
         include=["created_by"],
         prefetch_relationships=True,
