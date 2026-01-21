@@ -343,9 +343,6 @@ max-complexity = 17
 "tests/unit/sdk/test_store.py" = ["ANN001"]             # 12 errors
 "tests/unit/sdk/spec/test_object.py" = ["ANN001"]       # 11 errors
 "tests/unit/sdk/conftest.py" = ["ANN001"]               # 11 errors
-"tests/unit/sdk/test_diff_summary.py" = ["ANN001"]      # 9 errors
-"tests/unit/sdk/test_object_store.py" = ["ANN001"]      # 7 errors
-"tests/unit/sdk/graphql/test_query.py" = ["ANN001"]     # 7 errors
 
 # tests/integration/
 "tests/integration/test_infrahub_client.py" = ["PLR0904"]
