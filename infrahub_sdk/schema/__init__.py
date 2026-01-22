@@ -21,7 +21,6 @@ from ..exceptions import (
     ValidationError,
 )
 from ..graphql import Mutation
-from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .main import (
     AttributeSchema,
@@ -208,14 +207,14 @@ class InfrahubSchemaBase:
         if isinstance(schema, str):
             return schema
 
-        if issubclass(schema, CoreNodeBase):
+        if hasattr(schema, "_is_runtime_protocol") and getattr(schema, "_is_runtime_protocol", None):
             if inspect.iscoroutinefunction(schema.save):
                 return schema.__name__
             if schema.__name__[-4:] == "Sync":
                 return schema.__name__[:-4]
             return schema.__name__
 
-        raise ValueError("schema must be a CoreNode subclass or a string")
+        raise ValueError("schema must be a protocol or a string")
 
     @staticmethod
     def _parse_schema_response(response: httpx.Response, branch: str) -> MutableMapping[str, Any]:
