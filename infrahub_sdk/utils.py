@@ -162,7 +162,7 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     return dicta
 
 
-def str_to_bool(value: str) -> bool:
+def str_to_bool(value: str | bool | int) -> bool:
     """Convert a String to a Boolean"""
 
     if isinstance(value, bool):

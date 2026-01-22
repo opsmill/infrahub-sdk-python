@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from ariadne_codegen.schema import get_graphql_schema_from_path
+from graphql import OperationDefinitionNode
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.graphql import app, find_gql_files, get_graphql_query
@@ -76,7 +77,10 @@ class TestGetGraphqlQuery:
         definitions = get_graphql_query(query_file, schema)
 
         assert len(definitions) == 1
-        assert definitions[0].name.value == "GetTags"
+        definition = definitions[0]
+        assert isinstance(definition, OperationDefinitionNode)
+        assert definition.name is not None
+        assert definition.name.value == "GetTags"
 
     def test_get_graphql_query_invalid(self) -> None:
         """Test that invalid query raises ValueError."""
