@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import inspect
 import warnings
 from typing import TYPE_CHECKING, Literal, overload
+
+from infrahub_sdk.protocols_base import CoreNodeBase
 
 from .exceptions import NodeInvalidError, NodeNotFoundError
 from .node.parsers import parse_human_friendly_id
@@ -16,8 +19,15 @@ def get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str | None = Non
     if isinstance(schema, str):
         return schema
 
-    if hasattr(schema, "_is_runtime_protocol") and schema._is_runtime_protocol:  # type: ignore[union-attr]
-        return schema.__name__  # type: ignore[union-attr]
+    if schema is None:
+        return None
+
+    if issubclass(schema, CoreNodeBase):
+        if inspect.iscoroutinefunction(schema.save):
+            return schema.__name__
+        if schema.__name__[-4:] == "Sync":
+            return schema.__name__[:-4]
+        return schema.__name__
 
     return None
 
@@ -100,6 +110,8 @@ class NodeStoreBranch:
                 identifier={"key": [key] if isinstance(key, str) else key},
                 message=f"Found a node of a different kind instead of {kind} for key {key!r} in the store ({self.branch_name})",
             )
+
+        breakpoint()
 
         raise NodeNotFoundError(
             identifier={"key": [key] if isinstance(key, str) else key},
