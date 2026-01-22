@@ -281,14 +281,13 @@ class InfrahubObjectFileData(BaseModel):
                     )
                 )
 
-            if key in schema.attribute_names:
-                if not isinstance(value, (str, int, float, bool, list, dict)):
-                    errors.append(
-                        ObjectValidationError(
-                            position=position + [key],
-                            message=f"{key} must be a string, int, float, bool, list, or dict",
-                        )
+            if key in schema.attribute_names and not isinstance(value, (str, int, float, bool, list, dict)):
+                errors.append(
+                    ObjectValidationError(
+                        position=position + [key],
+                        message=f"{key} must be a string, int, float, bool, list, or dict",
                     )
+                )
 
             if key in schema.relationship_names:
                 rel_info = await get_relationship_info(
