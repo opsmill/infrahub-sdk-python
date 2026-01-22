@@ -86,6 +86,13 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
             + " }"
         )
 
+    # Defensive check: if value looks like a RelatedNode (has _generate_input_data method),
+    # extract its id to avoid serializing the object repr
+    if hasattr(value, "_generate_input_data") and hasattr(value, "id"):
+        node_id = getattr(value, "id", None)
+        if node_id is not None:
+            return convert_to_graphql_as_string(value=node_id, convert_enum=convert_enum)
+
     return str(value)
 
 

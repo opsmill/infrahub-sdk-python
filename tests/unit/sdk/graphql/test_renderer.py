@@ -1,6 +1,6 @@
 from typing import Any
 
-from infrahub_sdk.graphql.renderers import render_input_block, render_query_block
+from infrahub_sdk.graphql.renderers import convert_to_graphql_as_string, render_input_block, render_query_block
 
 
 def test_render_query_block(query_data_no_filter: dict[str, Any]) -> None:
@@ -145,3 +145,31 @@ def test_render_input_block(input_data_01: dict[str, Any]) -> None:
         "  }",
     ]
     assert lines == expected_lines
+
+
+class RelatedNodeLikeObject:
+    """Mock object that looks like a RelatedNode (has _generate_input_data and id)."""
+
+    def __init__(self, node_id: str) -> None:
+        self._id = node_id
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    def _generate_input_data(self) -> dict[str, Any]:
+        return {"id": self._id}
+
+
+def test_convert_to_graphql_as_string_handles_related_node_like_object() -> None:
+    """Test that convert_to_graphql_as_string handles objects with _generate_input_data and id."""
+    # This tests the defensive check added to handle cases where a RelatedNode-like
+    # object somehow gets passed to convert_to_graphql_as_string without being
+    # converted to a dict first
+    related_node_like = RelatedNodeLikeObject("test-uuid-789")
+
+    result = convert_to_graphql_as_string(related_node_like)
+
+    # Should extract the id and convert it properly, not produce the object repr
+    assert result == '"test-uuid-789"'
+    assert "RelatedNodeLikeObject" not in result

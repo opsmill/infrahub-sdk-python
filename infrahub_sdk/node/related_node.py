@@ -49,6 +49,10 @@ class RelatedNodeBase:
                 setattr(self, prop, None)
             self._relationship_metadata = None
 
+        elif isinstance(data, RelatedNodeBase):
+            # Handle when value is already a RelatedNode - extract its identifying data
+            data = {"id": data.id, "hfid": data.hfid, "__typename": data.typename}
+
         elif isinstance(data, list):
             data = {"hfid": data}
         elif not isinstance(data, dict):

@@ -31,11 +31,13 @@ class LineDelimitedJSONImporter(ImporterInterface):
         topological_sorter: InfrahubSchemaTopologicalSorter,
         continue_on_error: bool = False,
         console: Console | None = None,
+        allow_upsert: bool = False,
     ) -> None:
         self.client = client
         self.topological_sorter = topological_sorter
         self.continue_on_error = continue_on_error
         self.console = console
+        self.allow_upsert = allow_upsert
         self.all_nodes: dict[str, InfrahubNode] = {}
         self.schemas_by_kind: Mapping[str, NodeSchema] = {}
         # Map relationship schema by attribute of a node kind e.g. {"MyNodeKind": {"MyRelationship": RelationshipSchema}}
@@ -88,7 +90,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
                     if not schema_import_nodes:
                         continue
                     for node in schema_import_nodes:
-                        save_batch.add(task=node.create, node=node, allow_upsert=True)
+                        save_batch.add(task=node.create, node=node, allow_upsert=self.allow_upsert)
 
         await self.execute_batches([save_batch], "Creating and/or updating nodes")
 

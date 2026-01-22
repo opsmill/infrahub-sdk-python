@@ -3243,3 +3243,87 @@ async def test_node_generate_input_data_with_file(
     assert "file" not in input_data["data"]["data"], "file should not be inside nested data dict"
     assert "file" in input_data["mutation_variables"]
     assert input_data["mutation_variables"]["file"] is bytes
+
+
+class TestRelatedNodeAsData:
+    """Test that RelatedNodeBase correctly handles another RelatedNode as input data."""
+
+    def test_related_node_extracts_id_from_another_related_node(self, location_schema: NodeSchemaAPI) -> None:
+        """When passing a RelatedNode as data, the id should be extracted correctly."""
+        # First, create a RelatedNode with a string ID
+        original_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data={"id": "original-uuid-123", "__typename": "BuiltinTag"},
+        )
+        assert original_related_node.id == "original-uuid-123"
+
+        # Now create another RelatedNode passing the first one as data
+        # This simulates what happens when doing: node.parent = another_related_node
+        new_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data=original_related_node,
+        )
+
+        # The new RelatedNode should have extracted the ID from the original
+        assert new_related_node.id == "original-uuid-123"
+        assert isinstance(new_related_node.id, str)
+
+    def test_related_node_generate_input_data_returns_string_id(self, location_schema: NodeSchemaAPI) -> None:
+        """_generate_input_data should return string id, not a RelatedNode object."""
+        # Create a RelatedNode with a string ID
+        original_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data={"id": "original-uuid-456", "__typename": "BuiltinTag"},
+        )
+
+        # Create another RelatedNode passing the first one as data
+        new_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data=original_related_node,
+        )
+
+        # _generate_input_data should return a dict with string id
+        input_data = new_related_node._generate_input_data()
+        assert input_data == {"id": "original-uuid-456"}
+        assert isinstance(input_data["id"], str)
+
+    def test_related_node_extracts_hfid_from_another_related_node(self, location_schema: NodeSchemaAPI) -> None:
+        """When passing a RelatedNode with hfid as data, the hfid should be extracted correctly."""
+        # Create a RelatedNode with an hfid
+        original_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data={"hfid": ["Namespace", "Name"], "__typename": "BuiltinTag"},
+        )
+        assert original_related_node.hfid == ["Namespace", "Name"]
+
+        # Create another RelatedNode passing the first one as data
+        new_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data=original_related_node,
+        )
+
+        # The new RelatedNode should have extracted the hfid from the original
+        assert new_related_node.hfid == ["Namespace", "Name"]
+
+    def test_related_node_extracts_typename_from_another_related_node(self, location_schema: NodeSchemaAPI) -> None:
+        """When passing a RelatedNode as data, the typename should be extracted correctly."""
+        original_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data={"id": "test-id", "__typename": "BuiltinTag"},
+        )
+        assert original_related_node.typename == "BuiltinTag"
+
+        new_related_node = RelatedNodeBase(
+            branch="main",
+            schema=location_schema.relationships[0],
+            data=original_related_node,
+        )
+
+        assert new_related_node.typename == "BuiltinTag"

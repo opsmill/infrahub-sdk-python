@@ -32,6 +32,9 @@ def load(
         envvar="INFRAHUB_MAX_CONCURRENT_EXECUTION",
     ),
     timeout: int = typer.Option(60, help="Timeout in sec", envvar="INFRAHUB_TIMEOUT"),
+    allow_upsert: bool = typer.Option(
+        False, help="Use Upsert mutations instead of Create. Use when objects may already exist."
+    ),
 ) -> None:
     """Import nodes and their relationships into the database."""
     console = Console()
@@ -45,6 +48,7 @@ def load(
         InfrahubSchemaTopologicalSorter(),
         continue_on_error=continue_on_error,
         console=Console() if not quiet else None,
+        allow_upsert=allow_upsert,
     )
     try:
         aiorun(importer.import_data(import_directory=directory, branch=branch))

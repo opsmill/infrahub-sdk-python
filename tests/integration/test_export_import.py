@@ -170,7 +170,9 @@ class TestSchemaExportImportBase(TestInfrahubDockerClient, SchemaCarPerson):
             nodes = await client.all(kind=kind)
             counters[kind] = len(nodes)
 
-        importer = LineDelimitedJSONImporter(client=client, topological_sorter=InfrahubSchemaTopologicalSorter())
+        importer = LineDelimitedJSONImporter(
+            client=client, topological_sorter=InfrahubSchemaTopologicalSorter(), allow_upsert=True
+        )
         await importer.import_data(import_directory=temporary_directory, branch="main")
 
         for kind in (TESTING_PERSON, TESTING_CAR, TESTING_MANUFACTURER):
@@ -309,7 +311,9 @@ class TestSchemaExportImportManyRelationships(TestInfrahubDockerClient, SchemaCa
             await node.tags.fetch()
             relationship_count_before += len(node.tags.peers)
 
-        importer = LineDelimitedJSONImporter(client=client, topological_sorter=InfrahubSchemaTopologicalSorter())
+        importer = LineDelimitedJSONImporter(
+            client=client, topological_sorter=InfrahubSchemaTopologicalSorter(), allow_upsert=True
+        )
         await importer.import_data(import_directory=temporary_directory, branch="main")
 
         for kind in (TESTING_CAR, TESTING_MANUFACTURER):
