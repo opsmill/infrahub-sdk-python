@@ -6,21 +6,18 @@ async def group_add_subscriber(
     client: InfrahubClient, group: InfrahubNode, subscribers: list[str], branch: str
 ) -> dict:
     subscribers_str = ["{ id: " + f'"{subscriber}"' + " }" for subscriber in subscribers]
-    query = """
-    mutation {
+    query = f"""
+    mutation {{
         RelationshipAdd(
-            data: {
-                id: "%s",
+            data: {{
+                id: "{group.id}",
                 name: "subscribers",
-                nodes: [ %s ]
-            }
-        ) {
+                nodes: [ {", ".join(subscribers_str)} ]
+            }}
+        ) {{
             ok
-        }
-    }
-    """ % (
-        group.id,
-        ", ".join(subscribers_str),
-    )
+        }}
+    }}
+    """
 
     return await client.execute_graphql(query=query, branch_name=branch, tracker="mutation-relationshipadd")

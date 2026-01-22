@@ -152,22 +152,19 @@ async def test_get_variables(query_01: str, query_04: str, query_05: str, query_
     [("[ID]", False), ("[ID]!", True), ("[ID!]", False), ("[ID!]!", True)],
 )
 async def test_get_nested_variables(var_type: str, var_required: bool) -> None:
-    query = (
-        """
-        query ($ids: %s){
-            TestPerson(ids: $ids) {
-                edges {
-                    node {
-                        name {
+    query = f"""
+        query ($ids: {var_type}){{
+            TestPerson(ids: $ids) {{
+                edges {{
+                    node {{
+                        name {{
                             value
-                        }
-                    }
-                }
-            }
-        }
+                        }}
+                    }}
+                }}
+            }}
+        }}
         """
-        % var_type
-    )
 
     gqa = GraphQLQueryAnalyzer(query=query)
     assert [var.model_dump() for var in gqa.variables] == [

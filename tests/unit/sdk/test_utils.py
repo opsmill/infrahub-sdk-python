@@ -119,6 +119,30 @@ def test_deep_merge_dict() -> None:
     assert deep_merge_dict(f, g) == {"keyA": "foo", "keyB": "bar"}
 
 
+def test_deep_merge_dict_conflict_scalar_values() -> None:
+    """Test that conflicting scalar values raise ValueError."""
+    a = {"key": 1}
+    b = {"key": 2}
+    with pytest.raises(ValueError, match="Conflict at key"):
+        deep_merge_dict(a, b)
+
+
+def test_deep_merge_dict_conflict_nested() -> None:
+    """Test that nested conflicts include full path in error message."""
+    a = {"level1": {"level2": {"key": "value_a"}}}
+    b = {"level1": {"level2": {"key": "value_b"}}}
+    with pytest.raises(ValueError, match=r"Conflict at level1\.level2\.key"):
+        deep_merge_dict(a, b)
+
+
+def test_deep_merge_dict_conflict_type_mismatch() -> None:
+    """Test that type mismatches (non-dict/list) raise ValueError."""
+    a = {"key": "string"}
+    b = {"key": 123}
+    with pytest.raises(ValueError, match="Conflict at key"):
+        deep_merge_dict(a, b)
+
+
 def test_str_to_bool() -> None:
     assert str_to_bool(True) is True
     assert str_to_bool(False) is False

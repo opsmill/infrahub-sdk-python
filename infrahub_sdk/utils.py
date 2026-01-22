@@ -156,7 +156,7 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
             elif a_val == b_val or (a_val is not None and b_val is None):
                 continue
             else:
-                raise ValueError("Conflict at %s" % ".".join(path + [str(key)]))
+                raise ValueError(f"Conflict at {'.'.join(path + [str(key)])}")
         else:
             dicta[key] = dictb[key]
     return dicta
