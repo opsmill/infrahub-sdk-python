@@ -111,8 +111,6 @@ class NodeStoreBranch:
                 message=f"Found a node of a different kind instead of {kind} for key {key!r} in the store ({self.branch_name})",
             )
 
-        breakpoint()
-
         raise NodeNotFoundError(
             identifier={"key": [key] if isinstance(key, str) else key},
             message=f"Unable to find the node {key!r} in the store ({self.branch_name})",
