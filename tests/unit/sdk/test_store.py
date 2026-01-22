@@ -6,7 +6,7 @@ import pytest
 
 from infrahub_sdk.exceptions import NodeInvalidError, NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
-from infrahub_sdk.protocols import BuiltinIPPrefix
+from infrahub_sdk.protocols import BuiltinIPAddressSync, BuiltinIPPrefix
 from infrahub_sdk.store import NodeStore, NodeStoreSync, get_schema_name
 
 if TYPE_CHECKING:
@@ -162,3 +162,4 @@ def test_node_store_get_with_hfid(
 
 def test_store_get_schema_name() -> None:
     assert get_schema_name(schema=BuiltinIPPrefix) == BuiltinIPPrefix.__name__
+    assert get_schema_name(schema=BuiltinIPAddressSync) == BuiltinIPAddressSync.__name__[:-4]
