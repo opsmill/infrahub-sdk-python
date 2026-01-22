@@ -246,7 +246,6 @@ ignore = [
     "N806",    # Variable in function should be lowercase
     "PERF203", # `try`-`except` within a loop incurs performance overhead
     "PERF401", # Use a list comprehension to create a transformed list
-    "PLC0206", # Extracting value from dictionary without calling `.items()`
     "PLR0912", # Too many branches
     "PLR0913", # Too many arguments in function definition
     "PLR0917", # Too many positional arguments
