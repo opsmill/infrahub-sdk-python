@@ -358,11 +358,12 @@ class InfrahubNodeBase:
             relationship_property = getattr(self, relationship)
             if not relationship_property or relationship not in data:
                 continue
-            if not relationship_property.initialized and (
-                not isinstance(relationship_property, RelatedNodeBase) or not relationship_property.schema.optional
-            ):
-                data.pop(relationship)
-            elif isinstance(relationship_property, RelationshipManagerBase) and not relationship_property.has_update:
+            if (
+                not relationship_property.initialized
+                and (
+                    not isinstance(relationship_property, RelatedNodeBase) or not relationship_property.schema.optional
+                )
+            ) or (isinstance(relationship_property, RelationshipManagerBase) and not relationship_property.has_update):
                 data.pop(relationship)
 
         for item in original_data:
