@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from graphql import parse
+from graphql import OperationDefinitionNode, parse
 from whenever import Instant
 
 from infrahub_sdk.exceptions import JsonDecodeError
@@ -179,7 +179,9 @@ async def test_extract_fields(query_01: str) -> None:
             },
         },
     }
-    assert await extract_fields(document.definitions[0].selection_set) == expected_response
+    definition = document.definitions[0]
+    assert isinstance(definition, OperationDefinitionNode)
+    assert await extract_fields(definition.selection_set) == expected_response
 
 
 async def test_extract_fields_fragment(query_02: str) -> None:
@@ -207,7 +209,9 @@ async def test_extract_fields_fragment(query_02: str) -> None:
         },
     }
 
-    assert await extract_fields(document.definitions[0].selection_set) == expected_response
+    definition = document.definitions[0]
+    assert isinstance(definition, OperationDefinitionNode)
+    assert await extract_fields(definition.selection_set) == expected_response
 
 
 def test_write_to_file() -> None:
