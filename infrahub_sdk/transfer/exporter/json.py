@@ -34,31 +34,26 @@ class LineDelimitedJSONExporter(ExporterInterface):
         if self.console:
             self.console.print(f"{end}")
 
-    def identify_many_to_many_relationships(
-        self, node_schema_map: dict[str, MainSchemaTypesAPI]
-    ) -> dict[tuple[str, str], str]:
-        # Identify many to many relationships by src/dst couples
+    def identify_many_relationships(self, node_schema_map: dict[str, MainSchemaTypesAPI]) -> dict[tuple[str, str], str]:
+        # Identify many relationships (both one-way and bidirectional many-to-many)
         many_relationship_identifiers: dict[tuple[str, str], str] = {}
 
         for node_schema in node_schema_map.values():
             for relationship in node_schema.relationships:
                 if (
                     relationship.cardinality != "many"
-                    or not relationship.optional
                     or not relationship.identifier
                     or relationship.peer not in node_schema_map
                 ):
                     continue
-                for peer_relationship in node_schema_map[relationship.peer].relationships:
-                    if peer_relationship.cardinality != "many" or peer_relationship.peer != node_schema.kind:
-                        continue
 
-                    forward = many_relationship_identifiers.get((node_schema.kind, relationship.peer))
-                    backward = many_relationship_identifiers.get((relationship.peer, node_schema.kind))
+                forward = many_relationship_identifiers.get((node_schema.kind, relationship.peer))
+                backward = many_relationship_identifiers.get((relationship.peer, node_schema.kind))
 
-                    # Record the relationship only if it's not known in one way or another
-                    if not forward and not backward:
-                        many_relationship_identifiers[node_schema.kind, relationship.peer] = relationship.identifier
+                # Record the relationship only if it's not known in one way or another
+                # This avoids duplicating bidirectional many-to-many relationships
+                if not forward and not backward:
+                    many_relationship_identifiers[node_schema.kind, relationship.peer] = relationship.identifier
 
         return many_relationship_identifiers
 
@@ -69,7 +64,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
         page_number = 1
         page_size = 50
 
-        many_relationship_identifiers = list(self.identify_many_to_many_relationships(node_schema_map).values())
+        many_relationship_identifiers = list(self.identify_many_relationships(node_schema_map).values())
         many_relationships: list[dict[str, Any]] = []
 
         if not many_relationship_identifiers:
