@@ -60,8 +60,7 @@ def _extract_constants(pattern: str, re_compiled: re.Pattern) -> tuple[list[int]
     cartesian_list = []
     interface_constant = [0]
     for match in re_compiled.finditer(pattern):
-        interface_constant.append(match.start())
-        interface_constant.append(match.end())
+        interface_constant.extend((match.start(), match.end()))
         cartesian_list.append(_char_range_expand(match.group()[1:-1]))
     return interface_constant, cartesian_list
 

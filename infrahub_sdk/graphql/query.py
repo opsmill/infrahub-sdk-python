@@ -71,7 +71,6 @@ class Mutation(BaseGraphQLQuery):
                 convert_enum=convert_enum,
             )
         )
-        lines.append(" " * self.indentation + "}")
-        lines.append("}")
+        lines.extend((" " * self.indentation + "}", "}"))
 
         return "\n" + "\n".join(lines) + "\n"
