@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -128,12 +129,10 @@ class RelationshipInfo(BaseModel):
         if self.peer_rel and not force:
             return self.peer_rel
 
-        try:
+        with contextlib.suppress(ValueError):
             self.peer_rel = peer_schema.get_matching_relationship(
                 id=self.rel_schema.identifier or "", direction=self.rel_schema.direction
             )
-        except ValueError:
-            pass
 
         return self.peer_rel
 
@@ -158,12 +157,10 @@ async def get_relationship_info(
     peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
-    try:
+    with contextlib.suppress(ValueError):
         info.peer_rel = peer_schema.get_matching_relationship(
             id=rel_schema.identifier or "", direction=rel_schema.direction
         )
-    except ValueError:
-        pass
 
     if rel_schema.cardinality == "one" and isinstance(value, list):
         # validate the list is composed of string
