@@ -16,6 +16,7 @@ from infrahub_sdk.utils import (
     base16encode,
     base36decode,
     base36encode,
+    calculate_dict_height,
     calculate_time_diff,
     compare_lists,
     decode_json,
@@ -117,6 +118,17 @@ def test_deep_merge_dict() -> None:
     assert deep_merge_dict(c, b) == {"keyB": {"sub1": 10, "sub2": 20}}
     assert deep_merge_dict(d, e) == {"keyA": [10, 20, 30], "keyB": "foo"}
     assert deep_merge_dict(f, g) == {"keyA": "foo", "keyB": "bar"}
+
+
+def test_calculate_dict_height() -> None:
+    assert calculate_dict_height({}) == 0
+    assert calculate_dict_height({"a": 1}) == 1
+    assert calculate_dict_height({"a": 1, "b": 2}) == 2
+    assert calculate_dict_height({"a": 1, "b": 2, "c": 3}) == 3
+    assert calculate_dict_height({"a": {"b": 1}}) == 2
+    assert calculate_dict_height({"a": {"b": 1, "c": 2}}) == 3
+    assert calculate_dict_height({"a": {"b": {"c": 1}}}) == 3
+    assert calculate_dict_height({"a": 1, "b": {"c": 2, "d": {"e": 3}}}) == 5
 
 
 def test_str_to_bool() -> None:

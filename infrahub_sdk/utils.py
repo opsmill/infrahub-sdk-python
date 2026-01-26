@@ -141,8 +141,7 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     """
     if path is None:
         path = []
-    for key in dictb:
-        b_val = dictb[key]
+    for key, b_val in dictb.items():
         if key in dicta:
             a_val = dicta[key]
             if isinstance(a_val, dict) and isinstance(b_val, dict):
@@ -158,7 +157,7 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
             else:
                 raise ValueError("Conflict at %s" % ".".join(path + [str(key)]))
         else:
-            dicta[key] = dictb[key]
+            dicta[key] = b_val
     return dicta
 
 
@@ -254,9 +253,9 @@ def calculate_dict_depth(data: dict, level: int = 1) -> int:
 
 def calculate_dict_height(data: dict, cnt: int = 0) -> int:
     """Calculate the number of fields (height) in a nested Dictionary recursively."""
-    for key in data:
-        if isinstance(data[key], dict):
-            cnt = calculate_dict_height(data=data[key], cnt=cnt + 1)
+    for value in data.values():
+        if isinstance(value, dict):
+            cnt = calculate_dict_height(data=value, cnt=cnt + 1)
         else:
             cnt += 1
     return cnt
