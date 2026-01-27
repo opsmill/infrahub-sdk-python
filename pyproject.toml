@@ -255,7 +255,6 @@ ignore = [
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "S701",    # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True`
     "SIM108",  # Use ternary operator `key_str = f"{value[ALIAS_KEY]}: {key}" if ALIAS_KEY in value and value[ALIAS_KEY] else key` instead of `if`-`else`-block
-    "SIM110",  # Use `return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))` instead of `for` loop
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
 ]

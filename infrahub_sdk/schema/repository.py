@@ -216,10 +216,7 @@ class InfrahubRepositoryConfig(BaseModel):
         return v
 
     def _has_resource(self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name") -> bool:
-        for item in getattr(self, RESOURCE_MAP[resource_type]):
-            if getattr(item, resource_field) == resource_id:
-                return True
-        return False
+        return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))
 
     def _get_resource(
         self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name"
