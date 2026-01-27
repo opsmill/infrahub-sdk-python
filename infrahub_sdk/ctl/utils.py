@@ -45,8 +45,8 @@ def init_logging(debug: bool = False) -> None:
     logging.getLogger("httpcore").setLevel(logging.ERROR)
 
     log_level = "DEBUG" if debug else "INFO"
-    FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
+    format_str = "%(message)s"
+    logging.basicConfig(level=log_level, format=format_str, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
     logging.getLogger("infrahubctl")
 
 
