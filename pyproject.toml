@@ -242,7 +242,6 @@ ignore = [
     "INP001",  # File declares a package, but is nested under an implicit namespace package.
     "N802",    # Function name should be lowercase
     "PERF203", # `try`-`except` within a loop incurs performance overhead
-    "PERF401", # Use a list comprehension to create a transformed list
     "PLR0912", # Too many branches
     "PLR0913", # Too many arguments in function definition
     "PLR0917", # Too many positional arguments
