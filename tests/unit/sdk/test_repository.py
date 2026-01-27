@@ -3,6 +3,7 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from dulwich.objects import Commit
 from dulwich.repo import Repo
 
 from infrahub_sdk.repository import GitRepoManager
@@ -65,4 +66,5 @@ def test_gitrepo_init(temp_dir: str) -> None:
     repo = GitRepo(name="mock_repo", src_directory=src_directory, dst_directory=Path(temp_dir))
     assert len(list(repo._repo.git.get_walker())) == 1
     commit = repo._repo.git[repo._repo.git.head()]
+    assert isinstance(commit, Commit)
     assert commit.message.decode("utf-8") == "First commit"

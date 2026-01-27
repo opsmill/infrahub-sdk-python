@@ -115,10 +115,9 @@ class LineDelimitedJSONImporter(ImporterInterface):
                     if relationship_value.peer_ids:
                         self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
                         setattr(node, relationship_name, None)
-                elif isinstance(relationship_value, RelatedNode):
-                    if relationship_value.id:
-                        self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
-                        setattr(node, relationship_name, None)
+                elif isinstance(relationship_value, RelatedNode) and relationship_value.id:
+                    self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
+                    setattr(node, relationship_name, None)
 
     async def update_optional_relationships(self) -> None:
         update_batch = await self.client.create_batch(return_exceptions=True)
