@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import NodeNotFoundError
+from .exceptions import GraphQLError, NodeNotFoundError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -109,7 +109,13 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         if self.previous_members and self.unused_member_ids:
             for member in self.previous_members:
                 if member.id in self.unused_member_ids and member.typename:
-                    await self.client.delete(kind=member.typename, id=member.id)
+                    try:
+                        await self.client.delete(kind=member.typename, id=member.id)
+                    except GraphQLError as exc:
+                        if not exc.message or "Unable to find the node" not in exc.message:
+                            # If the node already has been deleted, skip the error as it would have been deleted
+                            # by the cascade delete of another node
+                            raise
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """
