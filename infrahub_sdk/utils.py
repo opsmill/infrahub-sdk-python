@@ -173,7 +173,7 @@ def str_to_bool(value: str | bool | int) -> bool:
     if not isinstance(value, str):
         raise TypeError(f"{value} must be a string")
 
-    MAP = {
+    str_to_bool_map = {
         "y": True,
         "yes": True,
         "t": True,
@@ -188,7 +188,7 @@ def str_to_bool(value: str | bool | int) -> bool:
         "0": False,
     }
     try:
-        return MAP[value.lower()]
+        return str_to_bool_map[value.lower()]
     except KeyError as exc:
         raise ValueError(f"{value} can not be converted into a boolean") from exc
 

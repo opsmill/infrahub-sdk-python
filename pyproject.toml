@@ -241,7 +241,6 @@ ignore = [
     "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "INP001",  # File declares a package, but is nested under an implicit namespace package.
     "N802",    # Function name should be lowercase
-    "N806",    # Variable in function should be lowercase
     "PERF203", # `try`-`except` within a loop incurs performance overhead
     "PERF401", # Use a list comprehension to create a transformed list
     "PLR0912", # Too many branches
