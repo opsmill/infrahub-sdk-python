@@ -106,7 +106,7 @@ async def test_validate_method_signature(
     replace_async_return_annotation: Callable[[str], str],
     replace_sync_return_annotation: Callable[[str], str],
 ) -> None:
-    EXCLUDE_PARAMETERS = ["client"]
+    exclude_parameters = ["client"]
     async_method = getattr(InfrahubNode, method)
     sync_method = getattr(InfrahubNodeSync, method)
     async_sig = inspect.signature(async_method)
@@ -115,8 +115,8 @@ async def test_validate_method_signature(
     # Extract names of parameters and exclude some from the comparaison like client
     async_params_name = async_sig.parameters.keys()
     sync_params_name = sync_sig.parameters.keys()
-    async_params = {key: value for key, value in async_sig.parameters.items() if key not in EXCLUDE_PARAMETERS}
-    sync_params = {key: value for key, value in sync_sig.parameters.items() if key not in EXCLUDE_PARAMETERS}
+    async_params = {key: value for key, value in async_sig.parameters.items() if key not in exclude_parameters}
+    sync_params = {key: value for key, value in sync_sig.parameters.items() if key not in exclude_parameters}
 
     assert async_params_name == sync_params_name
     assert replace_sync_parameter_annotations(async_params) == replace_sync_parameter_annotations(sync_params)

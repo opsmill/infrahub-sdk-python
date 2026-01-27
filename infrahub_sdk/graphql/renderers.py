@@ -134,30 +134,30 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
         >>> render_query_block(data)
         ['    u: user(id: 123) {', '        name', '    }']
     """
-    FILTERS_KEY = "@filters"
-    ALIAS_KEY = "@alias"
-    KEYWORDS_TO_SKIP = [FILTERS_KEY, ALIAS_KEY]
+    filters_key = "@filters"
+    alias_key = "@alias"
+    keywords_to_skip = [filters_key, alias_key]
 
     offset_str = " " * offset
     lines = []
     for key, value in data.items():
-        if key in KEYWORDS_TO_SKIP:
+        if key in keywords_to_skip:
             continue
         if value is None:
             lines.append(f"{offset_str}{key}")
-        elif isinstance(value, dict) and len(value) == 1 and ALIAS_KEY in value and value[ALIAS_KEY]:
-            lines.append(f"{offset_str}{value[ALIAS_KEY]}: {key}")
+        elif isinstance(value, dict) and len(value) == 1 and alias_key in value and value[alias_key]:
+            lines.append(f"{offset_str}{value[alias_key]}: {key}")
         elif isinstance(value, dict):
-            if value.get(ALIAS_KEY):
-                key_str = f"{value[ALIAS_KEY]}: {key}"
+            if value.get(alias_key):
+                key_str = f"{value[alias_key]}: {key}"
             else:
                 key_str = key
 
-            if value.get(FILTERS_KEY):
+            if value.get(filters_key):
                 filters_str = ", ".join(
                     [
                         f"{key2}: {convert_to_graphql_as_string(value=value2, convert_enum=convert_enum)}"
-                        for key2, value2 in value[FILTERS_KEY].items()
+                        for key2, value2 in value[filters_key].items()
                     ]
                 )
                 lines.append(f"{offset_str}{key_str}({filters_str}) " + "{")
