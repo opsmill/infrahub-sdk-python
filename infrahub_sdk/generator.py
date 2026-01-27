@@ -44,7 +44,7 @@ class InfrahubGenerator(InfrahubOperation):
         self.params = params or {}
         self.generator_instance = generator_instance
         self._client: InfrahubClient | None = None
-        self.logger = logger if logger else logging.getLogger("infrahub.tasks")
+        self.logger = logger or logging.getLogger("infrahub.tasks")
         self.request_context = request_context
         self.execute_in_proposed_change = execute_in_proposed_change
         self.execute_after_merge = execute_after_merge
