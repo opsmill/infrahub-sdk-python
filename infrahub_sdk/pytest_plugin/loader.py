@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterable
 from typing import Any
 
@@ -60,11 +61,8 @@ class InfrahubYamlFile(pytest.File):
         resource_config = None
         if resource_config_function is not None:
             func = getattr(self.session.infrahub_repo_config, resource_config_function)  # type:ignore[attr-defined]
-            try:
+            with contextlib.suppress(KeyError):
                 resource_config = func(group.resource_name)
-            except KeyError:
-                # Ignore error and just return None
-                pass
 
         return resource_config
 

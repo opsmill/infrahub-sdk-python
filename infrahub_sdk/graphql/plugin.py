@@ -14,9 +14,12 @@ class FutureAnnotationPlugin(Plugin):
     def insert_future_annotation(module: ast.Module) -> ast.Module:
         # First check if the future annotation is already present
         for item in module.body:
-            if isinstance(item, ast.ImportFrom) and item.module == "__future__":
-                if any(alias.name == "annotations" for alias in item.names):
-                    return module
+            if (
+                isinstance(item, ast.ImportFrom)
+                and item.module == "__future__"
+                and any(alias.name == "annotations" for alias in item.names)
+            ):
+                return module
 
         module.body.insert(0, ast.ImportFrom(module="__future__", names=[ast.alias(name="annotations")], level=0))
         return module

@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import Mock
 
 import pytest
-from graphql import parse
+from graphql import OperationDefinitionNode, parse
 from whenever import Instant
 
 from infrahub_sdk.exceptions import JsonDecodeError
@@ -16,6 +16,7 @@ from infrahub_sdk.utils import (
     base16encode,
     base36decode,
     base36encode,
+    calculate_dict_height,
     calculate_time_diff,
     compare_lists,
     decode_json,
@@ -119,6 +120,17 @@ def test_deep_merge_dict() -> None:
     assert deep_merge_dict(f, g) == {"keyA": "foo", "keyB": "bar"}
 
 
+def test_calculate_dict_height() -> None:
+    assert calculate_dict_height({}) == 0
+    assert calculate_dict_height({"a": 1}) == 1
+    assert calculate_dict_height({"a": 1, "b": 2}) == 2
+    assert calculate_dict_height({"a": 1, "b": 2, "c": 3}) == 3
+    assert calculate_dict_height({"a": {"b": 1}}) == 2
+    assert calculate_dict_height({"a": {"b": 1, "c": 2}}) == 3
+    assert calculate_dict_height({"a": {"b": {"c": 1}}}) == 3
+    assert calculate_dict_height({"a": 1, "b": {"c": 2, "d": {"e": 3}}}) == 5
+
+
 def test_str_to_bool() -> None:
     assert str_to_bool(True) is True
     assert str_to_bool(False) is False
@@ -179,7 +191,9 @@ async def test_extract_fields(query_01: str) -> None:
             },
         },
     }
-    assert await extract_fields(document.definitions[0].selection_set) == expected_response
+    definition = document.definitions[0]
+    assert isinstance(definition, OperationDefinitionNode)
+    assert await extract_fields(definition.selection_set) == expected_response
 
 
 async def test_extract_fields_fragment(query_02: str) -> None:
@@ -207,7 +221,9 @@ async def test_extract_fields_fragment(query_02: str) -> None:
         },
     }
 
-    assert await extract_fields(document.definitions[0].selection_set) == expected_response
+    definition = document.definitions[0]
+    assert isinstance(definition, OperationDefinitionNode)
+    assert await extract_fields(definition.selection_set) == expected_response
 
 
 def test_write_to_file() -> None:
