@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ipaddress
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, get_args
 
 from ..protocols_base import CoreNodeBase
@@ -10,6 +9,8 @@ from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PRO
 from .property import NodeProperty
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ..schema import AttributeSchemaAPI
 
 

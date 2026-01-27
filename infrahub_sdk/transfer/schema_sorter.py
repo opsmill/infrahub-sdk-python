@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from ..topological_sort import DependencyCycleExistsError, topological_sort
 from .exceptions import SchemaImportError
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ..schema import NodeSchema
 
 

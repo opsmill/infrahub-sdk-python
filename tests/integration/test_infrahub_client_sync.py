@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -19,6 +18,8 @@ from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TES
 from infrahub_sdk.types import Order
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
 

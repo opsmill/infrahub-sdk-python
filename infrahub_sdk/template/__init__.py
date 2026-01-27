@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import linecache
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes
@@ -21,6 +20,9 @@ from .exceptions import (
 )
 from .filters import AVAILABLE_FILTERS
 from .models import UndefinedJinja2Error
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 netutils_filters = jinja2_convenience_function()
 

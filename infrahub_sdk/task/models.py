@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime  # noqa: TC003 - Required at runtime for Pydantic field validation
 from enum import Enum
 
 from pydantic import BaseModel, Field

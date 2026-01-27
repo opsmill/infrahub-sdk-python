@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from collections.abc import Callable
 from functools import partial, wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from typer import Typer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class AsyncTyper(Typer):

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pyarrow.json as pa_json
@@ -16,6 +14,9 @@ from ..exceptions import TransferFileNotFoundError
 from .interface import ImporterInterface
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Mapping, Sequence
+    from pathlib import Path
+
     from rich.console import Console
 
     from ...batch import InfrahubBatch

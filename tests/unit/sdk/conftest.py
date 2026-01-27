@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import AsyncGenerator, Callable, Mapping
 from dataclasses import dataclass
-from inspect import Parameter
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
@@ -16,6 +14,9 @@ from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
 from infrahub_sdk.utils import get_fixtures_dir
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable, Mapping
+    from inspect import Parameter
+
     from pytest_httpx import HTTPXMock
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)

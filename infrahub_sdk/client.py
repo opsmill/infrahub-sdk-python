@@ -5,8 +5,6 @@ import copy
 import logging
 import time
 import warnings
-from collections.abc import Callable, Coroutine, Mapping, MutableMapping
-from datetime import datetime
 from functools import wraps
 from time import sleep
 from typing import (
@@ -61,6 +59,8 @@ from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine, Mapping, MutableMapping
+    from datetime import datetime
     from types import TracebackType
 
     from httpx._transports.base import AsyncBaseTransport, BaseTransport

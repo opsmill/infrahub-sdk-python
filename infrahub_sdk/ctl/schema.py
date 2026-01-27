@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, Any
 
 import typer

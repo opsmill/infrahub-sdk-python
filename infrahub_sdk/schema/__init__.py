@@ -4,7 +4,6 @@ import asyncio
 import inspect
 import json
 import warnings
-from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
 from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
@@ -42,6 +41,8 @@ from .main import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import MutableMapping
+
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
     from ..node import InfrahubNode, InfrahubNodeSync
 

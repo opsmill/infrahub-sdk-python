@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -9,6 +8,8 @@ from infrahub_sdk import InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_httpx import HTTPXMock
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import yaml
@@ -24,6 +23,9 @@ from .items import (
     InfrahubPythonTransformUnitProcessItem,
 )
 from .models import InfrahubTestFileV1, InfrahubTestGroup
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 MARKER_MAPPING = {
     "Check": pytest.mark.infrahub_check,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from ..exceptions import (
@@ -14,6 +13,8 @@ from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
     from .node import InfrahubNode, InfrahubNodeSync

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import ast
 from collections import defaultdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from ariadne_codegen.client_generators.package import PackageGenerator, get_package_generator
@@ -29,6 +29,9 @@ from ..graphql.utils import (
     strip_typename_from_operation,
 )
 from .parameters import CONFIG_PARAM
+
+if TYPE_CHECKING:
+    import ast
 
 app = AsyncTyper()
 console = Console()

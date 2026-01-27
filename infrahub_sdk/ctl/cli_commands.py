@@ -7,7 +7,6 @@ import inspect
 import logging
 import platform
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -56,6 +55,8 @@ from .importer import load
 from .parameters import CONFIG_PARAM
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ..schema.repository import InfrahubRepositoryConfig
 
 app = AsyncTyper(pretty_exceptions_show_locals=False)

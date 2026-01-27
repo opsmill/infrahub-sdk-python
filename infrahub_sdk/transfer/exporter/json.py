@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import ujson
@@ -15,6 +13,9 @@ from ..exceptions import FileAlreadyExistsError, InvalidNamespaceError
 from .interface import ExporterInterface
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from pathlib import Path
+
     from rich.console import Console
 
     from ...client import InfrahubClient

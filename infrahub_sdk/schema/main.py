@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping  # noqa: TC003 - Required at runtime for Pydantic field validation
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 

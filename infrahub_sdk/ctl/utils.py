@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 import logging
 import traceback
-from collections.abc import Callable, Coroutine
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
@@ -32,6 +31,8 @@ from .client import initialize_client_sync
 from .exceptions import QueryNotFoundError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Coroutine
+
     from ..schema.repository import InfrahubRepositoryConfig
     from ..spec.object import ObjectFile
 

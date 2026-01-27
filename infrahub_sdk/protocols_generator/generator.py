@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import jinja2
 
@@ -18,6 +18,9 @@ from ..schema import (
     TemplateSchemaAPI,
 )
 from .constants import ATTRIBUTE_KIND_MAP, CORE_BASE_CLASS_TO_SYNCIFY, TEMPLATE_FILE_NAME
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def load_template() -> str:

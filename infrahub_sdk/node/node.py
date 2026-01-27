@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from copy import copy, deepcopy
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +27,8 @@ from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from typing_extensions import Self
 
     from ..client import InfrahubClient, InfrahubClientSync

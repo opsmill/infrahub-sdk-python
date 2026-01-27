@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
@@ -8,6 +7,8 @@ from .exceptions import NodeNotFoundError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from .client import InfrahubClient, InfrahubClientSync
     from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
     from .schema import MainSchemaTypesAPI
