@@ -71,16 +71,14 @@ class InfrahubBatch:
         self._tasks.append(BatchTask(task=task, node=node, args=args, kwargs=kwargs))
 
     async def execute(self) -> AsyncGenerator:
-        tasks = []
-
-        for batch_task in self._tasks:
-            tasks.append(
-                asyncio.create_task(
-                    execute_batch_task_in_pool(
-                        task=batch_task, semaphore=self.semaphore, return_exceptions=self.return_exceptions
-                    )
+        tasks = [
+            asyncio.create_task(
+                execute_batch_task_in_pool(
+                    task=batch_task, semaphore=self.semaphore, return_exceptions=self.return_exceptions
                 )
             )
+            for batch_task in self._tasks
+        ]
 
         for completed_task in asyncio.as_completed(tasks):
             node, result = await completed_task

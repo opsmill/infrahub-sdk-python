@@ -264,9 +264,11 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
 
         # First validate if all mandatory fields are present
-        for element in schema.mandatory_input_names:
-            if not any([element in data, element in context]):
-                errors.append(ObjectValidationError(position=position + [element], message=f"{element} is mandatory"))
+        errors.extend(
+            ObjectValidationError(position=position + [element], message=f"{element} is mandatory")
+            for element in schema.mandatory_input_names
+            if not any([element in data, element in context])
+        )
 
         # Validate if all attributes are valid
         for key, value in data.items():
