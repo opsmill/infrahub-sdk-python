@@ -69,7 +69,12 @@ class CodeGenerator:
         )
 
     def render(self, sync: bool = True) -> str:
-        jinja2_env = jinja2.Environment(loader=jinja2.BaseLoader(), trim_blocks=True, lstrip_blocks=True)
+        jinja2_env = jinja2.Environment(
+            loader=jinja2.BaseLoader(),
+            trim_blocks=True,
+            lstrip_blocks=True,
+            autoescape=False,  # noqa: S701
+        )
         jinja2_env.filters["render_attribute"] = self._jinja2_filter_render_attribute
         jinja2_env.filters["render_relationship"] = self._jinja2_filter_render_relationship
         jinja2_env.filters["syncify"] = self._jinja2_filter_syncify

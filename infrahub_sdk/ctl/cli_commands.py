@@ -239,7 +239,7 @@ async def _run_transform(
             elif isinstance(error, str) and "Branch:" in error:
                 console.print(f"[yellow] - {error}")
                 console.print("[yellow]   you can specify a different branch with --branch")
-        raise typer.Abort()
+        raise typer.Abort
 
     if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)

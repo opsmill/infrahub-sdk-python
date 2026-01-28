@@ -338,13 +338,12 @@ def get_user_permissions(data: list[dict]) -> dict:
     groups = {}
     for group in data:
         group_name = group["node"]["display_label"]
-        permissions = []
+        permissions: list[str] = []
 
         roles = group["node"].get("roles", {}).get("edges", [])
         for role in roles:
             role_permissions = role["node"].get("permissions", {}).get("edges", [])
-            for permission in role_permissions:
-                permissions.append(permission["node"]["identifier"]["value"])
+            permissions.extend(permission["node"]["identifier"]["value"] for permission in role_permissions)
 
         groups[group_name] = permissions
 
