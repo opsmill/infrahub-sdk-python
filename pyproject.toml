@@ -251,7 +251,6 @@ ignore = [
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
     "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
-    "S701",    # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True`
     "SIM108",  # Use ternary operator `key_str = f"{value[ALIAS_KEY]}: {key}" if ALIAS_KEY in value and value[ALIAS_KEY] else key` instead of `if`-`else`-block
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
@@ -308,6 +307,14 @@ max-complexity = 17
 "infrahub_sdk/pytest_plugin/models.py" = [
     "S105", # 'PASS' is not a password but a state
 ]
+
+"infrahub_sdk/template/__init__.py" = [
+    ##################################################################################################
+    # Review and change the below later                                                              #
+    ##################################################################################################
+    "S701", # By default, jinja2 sets `autoescape` to `False`. Consider using `autoescape=True` or the `select_autoescape` function to mitigate XSS vulnerabilities.
+]
+
 
 "tests/**/*.py" = [
     "PLR2004", # Magic value used in comparison

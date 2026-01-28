@@ -100,7 +100,7 @@ def _generate_infrahub_sdk_configuration_documentation() -> None:
 
     template_text = template_file.read_text(encoding="utf-8")
 
-    environment = jinja2.Environment(trim_blocks=True)
+    environment = jinja2.Environment(trim_blocks=True, autoescape=jinja2.select_autoescape(default_for_string=False))
     template = environment.from_string(template_text)
     rendered_file = template.render(properties=properties)
 
