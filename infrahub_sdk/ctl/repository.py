@@ -150,8 +150,8 @@ async def add(
     await client.execute_graphql(query=query.render(), tracker="mutation-repository-create")
 
 
-@app.command()
-async def list(
+@app.command(name="list")
+async def list_repositories(
     branch: str | None = typer.Option(None, help="Branch on which to list repositories."),
     debug: bool = False,
     _: str = CONFIG_PARAM,

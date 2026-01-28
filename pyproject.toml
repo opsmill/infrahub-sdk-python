@@ -266,7 +266,6 @@ ignorelist = [
     # Review and update builtin shadowing below this line
     "filter",
     "format",
-    "list",
     "property",
 ]
 
