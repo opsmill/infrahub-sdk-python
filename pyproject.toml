@@ -229,7 +229,6 @@ ignore = [
     "TID",    # flake8-tidy-imports
     "FBT",    # flake8-boolean-trap
     "G",      # flake8-logging-format
-    "RSE",    # flake8-raise
     "BLE",    # flake8-blind-except (BLE)
 
     ##################################################################################################
