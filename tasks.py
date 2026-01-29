@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from pathlib import Path
 from shutil import which
@@ -266,3 +267,17 @@ def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
+
+
+@task
+def generate_repository_jsonschema(context: Context) -> None:
+    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema"""
+    from infrahub_sdk.schema.repository import InfrahubRepositoryConfig
+
+    repository_jsonschema = MAIN_DIRECTORY_PATH / "generated" / "repository-config" / "develop.json"
+
+    with context.cd(MAIN_DIRECTORY_PATH):
+        schema = json.dumps(InfrahubRepositoryConfig.model_json_schema(), indent=4)
+        repository_jsonschema.parent.mkdir(parents=True, exist_ok=True)
+        repository_jsonschema.write_text(schema)
+        print(f"Wrote to {repository_jsonschema}")
