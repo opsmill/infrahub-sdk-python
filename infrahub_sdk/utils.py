@@ -173,7 +173,7 @@ def str_to_bool(value: str | bool | int) -> bool:
     if not isinstance(value, str):
         raise TypeError(f"{value} must be a string")
 
-    MAP = {
+    str_to_bool_map = {
         "y": True,
         "yes": True,
         "t": True,
@@ -188,7 +188,7 @@ def str_to_bool(value: str | bool | int) -> bool:
         "0": False,
     }
     try:
-        return MAP[value.lower()]
+        return str_to_bool_map[value.lower()]
     except KeyError as exc:
         raise ValueError(f"{value} can not be converted into a boolean") from exc
 
@@ -338,13 +338,12 @@ def get_user_permissions(data: list[dict]) -> dict:
     groups = {}
     for group in data:
         group_name = group["node"]["display_label"]
-        permissions = []
+        permissions: list[str] = []
 
         roles = group["node"].get("roles", {}).get("edges", [])
         for role in roles:
             role_permissions = role["node"].get("permissions", {}).get("edges", [])
-            for permission in role_permissions:
-                permissions.append(permission["node"]["identifier"]["value"])
+            permissions.extend(permission["node"]["identifier"]["value"] for permission in role_permissions)
 
         groups[group_name] = permissions
 

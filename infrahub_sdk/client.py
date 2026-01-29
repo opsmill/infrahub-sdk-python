@@ -1200,12 +1200,11 @@ class InfrahubClient(BaseClient):
         url_params["update_group"] = str(update_group).lower()
 
         if url_params:
-            url_params_str = []
+            url_params_str: list[tuple[str, str]] = []
             url_params_dict = {}
             for key, value in url_params.items():
                 if isinstance(value, (list)):
-                    for item in value:
-                        url_params_str.append((key, item))
+                    url_params_str.extend((key, item) for item in value)
                 else:
                     url_params_dict[key] = value
 
@@ -2512,12 +2511,11 @@ class InfrahubClientSync(BaseClient):
         url_params["update_group"] = str(update_group).lower()
 
         if url_params:
-            url_params_str = []
+            url_params_str: list[tuple[str, str]] = []
             url_params_dict = {}
             for key, value in url_params.items():
                 if isinstance(value, (list)):
-                    for item in value:
-                        url_params_str.append((key, item))
+                    url_params_str.extend((key, item) for item in value)
                 else:
                     url_params_dict[key] = value
 

@@ -34,6 +34,9 @@ class NoRecorder:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, NoRecorder)
 
+    def __hash__(self) -> int:
+        return hash(self.__class__)
+
 
 class JSONRecorder(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="INFRAHUB_JSON_RECORDER_")

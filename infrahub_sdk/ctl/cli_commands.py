@@ -152,8 +152,8 @@ async def run(
     logging.getLogger("httpcore").setLevel(logging.ERROR)
 
     log_level = "DEBUG" if debug else "INFO"
-    FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+    format_str = "%(message)s"
+    logging.basicConfig(level=log_level, format=format_str, datefmt="[%X]", handlers=[RichHandler()])
     log = logging.getLogger("infrahubctl")
 
     variables_dict = parse_cli_vars(variables)
@@ -239,7 +239,7 @@ async def _run_transform(
             elif isinstance(error, str) and "Branch:" in error:
                 console.print(f"[yellow] - {error}")
                 console.print("[yellow]   you can specify a different branch with --branch")
-        raise typer.Abort()
+        raise typer.Abort
 
     if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)

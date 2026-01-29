@@ -117,18 +117,17 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                 },
             )
             if not is_cardinality_one and "elements" in relationship_dict:
-                peer_diffs = []
-                for element_dict in relationship_dict["elements"]:
-                    peer_diffs.append(
-                        NodeDiffPeer(
-                            action=str(element_dict.get("status")),
-                            summary={
-                                "added": int(element_dict.get("num_added") or 0),
-                                "removed": int(element_dict.get("num_removed") or 0),
-                                "updated": int(element_dict.get("num_updated") or 0),
-                            },
-                        )
+                peer_diffs = [
+                    NodeDiffPeer(
+                        action=str(element_dict.get("status")),
+                        summary={
+                            "added": int(element_dict.get("num_added") or 0),
+                            "removed": int(element_dict.get("num_removed") or 0),
+                            "updated": int(element_dict.get("num_updated") or 0),
+                        },
                     )
+                    for element_dict in relationship_dict["elements"]
+                ]
                 relationship_diff["peers"] = peer_diffs
             element_diffs.append(relationship_diff)
     return NodeDiff(

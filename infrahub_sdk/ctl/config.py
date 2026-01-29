@@ -44,7 +44,7 @@ class ConfiguredSettings:
             return self._settings
 
         print("Configuration not properly loaded")
-        raise typer.Abort()
+        raise typer.Abort
 
     def load(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
         """Load configuration.
@@ -90,7 +90,7 @@ class ConfiguredSettings:
             for error in exc.errors():
                 loc_str = [str(item) for item in error["loc"]]
                 print(f"  {'/'.join(loc_str)} | {error['msg']} ({error['type']})")
-            raise typer.Abort()
+            raise typer.Abort
 
 
 SETTINGS = ConfiguredSettings()
