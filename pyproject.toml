@@ -95,7 +95,7 @@ dev = [
     {include-group = "types"},
     "ipython",
     "requests",
-    "pre-commit>=2.20.0",
+    "prek>=0.3.0",
     "codecov",
     "invoke>=2.2.0",
     "towncrier>=24.8.0",
