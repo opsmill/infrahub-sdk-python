@@ -365,8 +365,9 @@ class InfrahubNodeBase:
             mutation_payload["context"] = context_data
 
         # Add file variable for FileObject nodes with pending file content
+        # file is a mutation argument at the same level as data, not inside data
         if self._file_object_support and self._file_content is not None:
-            data["file"] = "$file"
+            mutation_payload["file"] = "$file"
             mutation_variables["file"] = bytes
 
         return {
