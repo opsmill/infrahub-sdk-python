@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import inspect
 import ipaddress
+import tempfile
+from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
 from infrahub_sdk.node import (
     InfrahubNode,
     InfrahubNodeBase,
@@ -3271,3 +3274,213 @@ def test_relationship_manager_generate_query_data_without_include_metadata() -> 
     assert "count" in data
     assert "edges" in data
     assert "node" in data["edges"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_is_file_object_true(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that is_file_object returns True for nodes inheriting from CoreFileObject."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    assert node.is_file_object()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_is_file_object_false(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that is_file_object returns False for regular nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    assert not node.is_file_object()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_set_file_on_file_object(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that set_file works on FileObject nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"PDF content here"
+    node.set_file(content=file_content, name="contract.pdf")
+
+    assert node._file_content == file_content
+    assert node._file_name == "contract.pdf"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_set_file_with_path(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that set_file works with a Path object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from file path"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(file_content)
+        tmp_path = Path(tmp.name)
+
+    try:
+        node.set_file(content=tmp_path)
+        assert node._file_content == tmp_path
+        assert node._file_name == tmp_path.name
+    finally:
+        tmp_path.unlink()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_set_file_with_binary_io(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that set_file works with a BinaryIO object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from BinaryIO"
+    file_obj = BytesIO(file_content)
+
+    node.set_file(content=file_obj, name="uploaded.pdf")
+
+    assert node._file_content == file_obj
+    assert node._file_name == "uploaded.pdf"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_set_file_on_non_file_object_raises(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that set_file raises FeatureNotSupportedError on non-FileObject nodes."""
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    with pytest.raises(FeatureNotSupportedError, match=r"File upload is not supported"):
+        node.set_file(content=b"some content", name="file.txt")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_clear_file(client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI) -> None:
+    """Test that clear_file removes pending file content."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Test content"
+    file_name = "file.txt"
+
+    node.set_file(content=file_content, name=file_name)
+    assert node._file_content == file_content
+    assert node._file_name == file_name
+
+    node.clear_file()
+    assert node._file_content is None
+    assert node._file_name is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_bytes(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with bytes returns PreparedFile with BytesIO."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Test content"
+    file_name = "test.txt"
+    node.set_file(content=file_content, name=file_name)
+
+    prepared = node._get_file_for_upload()
+
+    assert prepared.file_object
+    assert prepared.filename == file_name
+    assert not prepared.should_close
+    assert prepared.file_object.read() == file_content
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_path(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with Path returns PreparedFile with opened file handle."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from path"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(file_content)
+        tmp_path = Path(tmp.name)
+
+    try:
+        node.set_file(content=tmp_path)
+
+        prepared = node._get_file_for_upload()
+
+        assert prepared.file_object
+        assert prepared.filename == tmp_path.name
+        assert prepared.should_close  # Path files should be closed after upload
+        assert prepared.file_object.read() == file_content
+        prepared.file_object.close()
+    finally:
+        tmp_path.unlink()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_binary_io(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with BinaryIO returns PreparedFile with the same object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from BinaryIO"
+    file_name = "test.bin"
+    file_obj_input = BytesIO(file_content)
+    node.set_file(content=file_obj_input, name=file_name)
+
+    prepared = node._get_file_for_upload()
+
+    assert prepared.file_object is file_obj_input  # Should be the same object
+    assert prepared.filename == file_name
+    assert not prepared.should_close  # BinaryIO provided by user shouldn't be closed
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_none(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with no file set returns PreparedFile with None values."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    prepared = node._get_file_for_upload()
+
+    assert prepared.file_object is None
+    assert prepared.filename is None
+    assert not prepared.should_close

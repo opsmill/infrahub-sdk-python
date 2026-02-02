@@ -304,6 +304,7 @@ max-complexity = 17
     # Review and change the below later                                                              #
     ##################################################################################################
     "PLR0912", # Too many branches
+    "PLR0904", # Too many public methods
 ]
 
 "infrahub_sdk/node/related_node.py" = [
@@ -351,7 +352,13 @@ max-complexity = 17
     "PT013",   # Incorrect import of `pytest`; use `import pytest` instead
 ]
 
+"tests/unit/sdk/test_node.py" = [
+    "ASYNC240", # Async functions should not use pathlib.Path methods, use trio.Path or anyio.path
+]
 "tests/unit/sdk/test_file_handler.py" = [
+    "ASYNC240", # Async functions should not use pathlib.Path methods, use trio.Path or anyio.path
+]
+"tests/unit/sdk/test_file_object.py" = [
     "ASYNC240", # Async functions should not use pathlib.Path methods, use trio.Path or anyio.path
 ]
 
