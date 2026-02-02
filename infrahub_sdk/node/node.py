@@ -360,7 +360,7 @@ class InfrahubNodeBase:
         elif self.hfid is not None and not exclude_hfid:
             data["hfid"] = self.hfid
 
-        mutation_payload = {"data": data}
+        mutation_payload: dict[str, Any] = {"data": data}
         if context_data := self._get_request_context(request_context=request_context):
             mutation_payload["context"] = context_data
 
