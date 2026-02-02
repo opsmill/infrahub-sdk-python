@@ -10,14 +10,7 @@ from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from functools import wraps
 from time import sleep
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Literal,
-    TypedDict,
-    TypeVar,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, overload
 from urllib.parse import urlencode
 
 import httpx
@@ -25,12 +18,7 @@ import ujson
 from typing_extensions import Self
 
 from .batch import InfrahubBatch, InfrahubBatchSync
-from .branch import (
-    MUTATION_QUERY_TASK,
-    BranchData,
-    InfrahubBranchManager,
-    InfrahubBranchManagerSync,
-)
+from .branch import MUTATION_QUERY_TASK, BranchData, InfrahubBranchManager, InfrahubBranchManagerSync
 from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
@@ -45,11 +33,8 @@ from .exceptions import (
     ServerNotResponsiveError,
     URLNotFoundError,
 )
-from .graphql import Mutation, Query
-from .node import (
-    InfrahubNode,
-    InfrahubNodeSync,
-)
+from .graphql import MultipartBuilder, Mutation, Query
+from .node import InfrahubNode, InfrahubNodeSync
 from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
@@ -1009,6 +994,103 @@ class InfrahubClient(BaseClient):
 
         # TODO add a special method to execute mutation that will check if the method returned OK
 
+    async def execute_graphql_with_file(
+        self,
+        query: str,
+        variables: dict | None = None,
+        file_content: BinaryIO | None = None,
+        file_name: str | None = None,
+        branch_name: str | None = None,
+        at: str | Timestamp | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> dict:
+        """Execute a GraphQL mutation with a file upload using multipart/form-data.
+
+        This method follows the GraphQL Multipart Request Spec for file uploads.
+        The file is attached to the 'file' variable in the mutation.
+
+        Args:
+            query: GraphQL mutation query that includes a $file variable of type Upload!
+            variables: Variables to pass along with the GraphQL query.
+            file_content: The file content as a file-like object (BinaryIO).
+            file_name: The name of the file being uploaded.
+            branch_name: Name of the branch on which the mutation will be executed.
+            at: Time when the query should be executed.
+            timeout: Timeout in seconds for the query.
+            tracker: Optional tracker for request tracing.
+
+        Raises:
+            GraphQLError: When the GraphQL response contains errors.
+
+        Returns:
+            dict: The GraphQL data payload (response["data"]).
+        """
+        branch_name = branch_name or self.default_branch
+        url = self._graphql_url(branch_name=branch_name, at=at)
+
+        # Prepare variables with file placeholder
+        variables = variables or {}
+        variables["file"] = None
+
+        headers = copy.copy(self.headers or {})
+        # Remove content-type header - httpx will set it for multipart
+        headers.pop("content-type", None)
+        if self.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+
+        self._echo(url=url, query=query, variables=variables)
+
+        resp = await self._post_multipart(
+            url=url,
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name or "upload",
+            headers=headers,
+            timeout=timeout,
+        )
+
+        resp.raise_for_status()
+        response = decode_json(response=resp)
+
+        if "errors" in response:
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+
+        return response["data"]
+
+    @handle_relogin
+    async def _post_multipart(
+        self,
+        url: str,
+        query: str,
+        variables: dict,
+        file_content: BinaryIO | None,
+        file_name: str,
+        headers: dict | None = None,
+        timeout: int | None = None,
+    ) -> httpx.Response:
+        """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
+
+        The file_content is streamed directly from the file-like object, avoiding loading the entire file into memory for large files.
+        """
+        await self.login()
+
+        headers = headers or {}
+        base_headers = copy.copy(self.headers or {})
+        # Remove content-type from base headers - httpx will set it for multipart
+        base_headers.pop("content-type", None)
+        headers.update(base_headers)
+
+        # Build the multipart form data according to GraphQL Multipart Request Spec
+        files = MultipartBuilder.build_payload(
+            query=query, variables=variables, file_content=file_content, file_name=file_name
+        )
+
+        return await self._request_multipart(
+            url=url, headers=headers, timeout=timeout or self.default_timeout, files=files
+        )
+
     def _build_proxy_config(self) -> ProxyConfig:
         """Build proxy configuration for httpx AsyncClient."""
         proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
@@ -1020,6 +1102,21 @@ class InfrahubClient(BaseClient):
                 for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
             }
         return proxy_config
+
+    async def _request_multipart(
+        self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
+    ) -> httpx.Response:
+        """Execute a multipart HTTP POST request."""
+        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            try:
+                response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
+            except httpx.NetworkError as exc:
+                raise ServerNotReachableError(address=self.address) from exc
+            except httpx.ReadTimeout as exc:
+                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        self._record(response)
+        return response
 
     @handle_relogin
     async def _post(
@@ -1955,6 +2052,101 @@ class InfrahubClientSync(BaseClient):
 
         # TODO add a special method to execute mutation that will check if the method returned OK
 
+    def execute_graphql_with_file(
+        self,
+        query: str,
+        variables: dict | None = None,
+        file_content: BinaryIO | None = None,
+        file_name: str | None = None,
+        branch_name: str | None = None,
+        at: str | Timestamp | None = None,
+        timeout: int | None = None,
+        tracker: str | None = None,
+    ) -> dict:
+        """Execute a GraphQL mutation with a file upload using multipart/form-data.
+
+        This method follows the GraphQL Multipart Request Spec for file uploads.
+        The file is attached to the 'file' variable in the mutation.
+
+        Args:
+            query: GraphQL mutation query that includes a $file variable of type Upload!
+            variables: Variables to pass along with the GraphQL query.
+            file_content: The file content as a file-like object (BinaryIO).
+            file_name: The name of the file being uploaded.
+            branch_name: Name of the branch on which the mutation will be executed.
+            at: Time when the query should be executed.
+            timeout: Timeout in seconds for the query.
+            tracker: Optional tracker for request tracing.
+
+        Raises:
+            GraphQLError: When the GraphQL response contains errors.
+
+        Returns:
+            dict: The GraphQL data payload (response["data"]).
+        """
+        branch_name = branch_name or self.default_branch
+        url = self._graphql_url(branch_name=branch_name, at=at)
+
+        # Prepare variables with file placeholder
+        variables = variables or {}
+        variables["file"] = None
+
+        headers = copy.copy(self.headers or {})
+        # Remove content-type header - httpx will set it for multipart
+        headers.pop("content-type", None)
+        if self.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+
+        self._echo(url=url, query=query, variables=variables)
+
+        resp = self._post_multipart(
+            url=url,
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name or "upload",
+            headers=headers,
+            timeout=timeout,
+        )
+
+        resp.raise_for_status()
+        response = decode_json(response=resp)
+
+        if "errors" in response:
+            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+
+        return response["data"]
+
+    @handle_relogin_sync
+    def _post_multipart(
+        self,
+        url: str,
+        query: str,
+        variables: dict,
+        file_content: BinaryIO | None,
+        file_name: str,
+        headers: dict | None = None,
+        timeout: int | None = None,
+    ) -> httpx.Response:
+        """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
+
+        The file_content is streamed directly from the file-like object, avoiding loading the entire file into memory for large files.
+        """
+        self.login()
+
+        headers = headers or {}
+        base_headers = copy.copy(self.headers or {})
+        # Remove content-type from base headers - httpx will set it for multipart
+        base_headers.pop("content-type", None)
+        headers.update(base_headers)
+
+        # Build the multipart form data according to GraphQL Multipart Request Spec
+        files = MultipartBuilder.build_payload(
+            query=query, variables=variables, file_content=file_content, file_name=file_name
+        )
+
+        return self._request_multipart(url=url, headers=headers, timeout=timeout or self.default_timeout, files=files)
+
     def _build_proxy_config(self) -> ProxyConfigSync:
         """Build proxy configuration for httpx Client."""
         proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
@@ -1966,6 +2158,21 @@ class InfrahubClientSync(BaseClient):
                 for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
             }
         return proxy_config
+
+    def _request_multipart(
+        self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
+    ) -> httpx.Response:
+        """Execute a multipart HTTP POST request."""
+        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            try:
+                response = client.post(url=url, headers=headers, timeout=timeout, files=files)
+            except httpx.NetworkError as exc:
+                raise ServerNotReachableError(address=self.address) from exc
+            except httpx.ReadTimeout as exc:
+                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        self._record(response)
+        return response
 
     def count(
         self,
