@@ -71,10 +71,9 @@ async def test_node_download_file_to_disk(
         node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
 
     node.id = "file-node-stream"
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        dest_path = Path(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        dest_path = Path(tmpdir) / "downloaded.bin"
 
-    try:
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest_path)
         else:
@@ -82,8 +81,6 @@ async def test_node_download_file_to_disk(
 
         assert bytes_written == len(FILE_CONTENT_BYTES)
         assert await anyio.Path(dest_path).read_bytes() == FILE_CONTENT_BYTES
-    finally:
-        await anyio.Path(dest_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)

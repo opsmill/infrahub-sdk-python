@@ -7,7 +7,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import anyio
 import pytest
 
 from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
@@ -3331,16 +3330,14 @@ async def test_node_set_file_with_path(
         node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
 
     file_content = b"Content from file path"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
         tmp.write(file_content)
+        tmp.flush()
         tmp_path = Path(tmp.name)
 
-    try:
         node.set_file(content=tmp_path)
         assert node._file_content == tmp_path
         assert node._file_name == tmp_path.name
-    finally:
-        await anyio.Path(tmp_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -3430,11 +3427,11 @@ async def test_node_get_file_for_upload_path(
         node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
 
     file_content = b"Content from path"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
         tmp.write(file_content)
+        tmp.flush()
         tmp_path = Path(tmp.name)
 
-    try:
         node.set_file(content=tmp_path)
 
         prepared = node._get_file_for_upload()
@@ -3444,8 +3441,6 @@ async def test_node_get_file_for_upload_path(
         assert prepared.should_close  # Path files should be closed after upload
         assert prepared.file_object.read() == file_content
         prepared.file_object.close()
-    finally:
-        await anyio.Path(tmp_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -3485,3 +3480,24 @@ async def test_node_get_file_for_upload_none(
     assert prepared.file_object is None
     assert prepared.filename is None
     assert not prepared.should_close
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_generate_input_data_with_file(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _generate_input_data places file at mutation level, not inside data."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    node.set_file(content=b"test content", name="test.txt")
+
+    input_data = node._generate_input_data()
+
+    assert "file" in input_data["data"], "file should be at mutation payload level"
+    assert input_data["data"]["file"] == "$file"
+    assert "file" not in input_data["data"]["data"], "file should not be inside nested data dict"
+    assert "file" in input_data["mutation_variables"]
+    assert input_data["mutation_variables"]["file"] is bytes

@@ -47,11 +47,11 @@ def test_prepare_upload_with_bytes_default_name() -> None:
 
 def test_prepare_upload_with_path() -> None:
     """Test preparing upload with Path content."""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
         tmp.write(b"test content from file")
+        tmp.flush()
         tmp_path = Path(tmp.name)
 
-    try:
         prepared = FileHandlerBase.prepare_upload(content=tmp_path)
 
         assert prepared.file_object is not None
@@ -59,24 +59,20 @@ def test_prepare_upload_with_path() -> None:
         assert prepared.should_close is True
         assert prepared.file_object.read() == b"test content from file"
         prepared.file_object.close()
-    finally:
-        tmp_path.unlink()
 
 
 def test_prepare_upload_with_path_custom_name() -> None:
     """Test preparing upload with Path content and custom name."""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
         tmp.write(b"test content")
+        tmp.flush()
         tmp_path = Path(tmp.name)
 
-    try:
         prepared = FileHandlerBase.prepare_upload(content=tmp_path, name="custom_name.txt")
 
         assert prepared.filename == "custom_name.txt"
         assert prepared.file_object
         prepared.file_object.close()
-    finally:
-        tmp_path.unlink()
 
 
 def test_prepare_upload_with_binary_io() -> None:
@@ -201,10 +197,9 @@ async def test_file_handler_download_to_disk(
     """Test streaming file download to disk via FileHandler."""
     client = getattr(clients, client_type)
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        dest_path = Path(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        dest_path = Path(tmpdir) / "downloaded.bin"
 
-    try:
         if client_type == "standard":
             handler = FileHandler(client=client)
             bytes_written = await handler.download(node_id="stream-node", branch="main", dest=dest_path)
@@ -214,8 +209,6 @@ async def test_file_handler_download_to_disk(
 
         assert bytes_written == len(FILE_CONTENT_BYTES)
         assert await anyio.Path(dest_path).read_bytes() == FILE_CONTENT_BYTES
-    finally:
-        await anyio.Path(dest_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)
