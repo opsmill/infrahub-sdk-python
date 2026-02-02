@@ -1009,6 +1009,18 @@ class InfrahubClient(BaseClient):
 
         # TODO add a special method to execute mutation that will check if the method returned OK
 
+    def _build_proxy_config(self) -> ProxyConfig:
+        """Build proxy configuration for httpx AsyncClient."""
+        proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
+        if self.config.proxy:
+            proxy_config["proxy"] = self.config.proxy
+        elif self.config.proxy_mounts.is_set:
+            proxy_config["mounts"] = {
+                key: httpx.AsyncHTTPTransport(proxy=value)
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
+            }
+        return proxy_config
+
     @handle_relogin
     async def _post(
         self,
@@ -1077,16 +1089,7 @@ class InfrahubClient(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
-        proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
-        if self.config.proxy:
-            proxy_config["proxy"] = self.config.proxy
-        elif self.config.proxy_mounts.is_set:
-            proxy_config["mounts"] = {
-                key: httpx.AsyncHTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
-            }
-
-        async with httpx.AsyncClient(**proxy_config, verify=self.config.tls_context) as client:
+        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 async with client.stream(
                     method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
@@ -1121,19 +1124,7 @@ class InfrahubClient(BaseClient):
         if payload:
             params["json"] = payload
 
-        proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
-        if self.config.proxy:
-            proxy_config["proxy"] = self.config.proxy
-        elif self.config.proxy_mounts.is_set:
-            proxy_config["mounts"] = {
-                key: httpx.AsyncHTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
-            }
-
-        async with httpx.AsyncClient(
-            **proxy_config,
-            verify=self.config.tls_context,
-        ) as client:
+        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 response = await client.request(
                     method=method.value,
@@ -1963,6 +1954,18 @@ class InfrahubClientSync(BaseClient):
         return response["data"]
 
         # TODO add a special method to execute mutation that will check if the method returned OK
+
+    def _build_proxy_config(self) -> ProxyConfigSync:
+        """Build proxy configuration for httpx Client."""
+        proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
+        if self.config.proxy:
+            proxy_config["proxy"] = self.config.proxy
+        elif self.config.proxy_mounts.is_set:
+            proxy_config["mounts"] = {
+                key: httpx.HTTPTransport(proxy=value)
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
+            }
+        return proxy_config
 
     def count(
         self,
@@ -3054,16 +3057,7 @@ class InfrahubClientSync(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
-        proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
-        if self.config.proxy:
-            proxy_config["proxy"] = self.config.proxy
-        elif self.config.proxy_mounts.is_set:
-            proxy_config["mounts"] = {
-                key: httpx.HTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
-            }
-
-        with httpx.Client(**proxy_config, verify=self.config.tls_context) as client:
+        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 with client.stream(
                     method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
@@ -3126,20 +3120,7 @@ class InfrahubClientSync(BaseClient):
         if payload:
             params["json"] = payload
 
-        proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
-
-        if self.config.proxy:
-            proxy_config["proxy"] = self.config.proxy
-        elif self.config.proxy_mounts.is_set:
-            proxy_config["mounts"] = {
-                key: httpx.HTTPTransport(proxy=value)
-                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
-            }
-
-        with httpx.Client(
-            **proxy_config,
-            verify=self.config.tls_context,
-        ) as client:
+        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 response = client.request(
                     method=method.value,
