@@ -351,6 +351,10 @@ max-complexity = 17
     "PT013",   # Incorrect import of `pytest`; use `import pytest` instead
 ]
 
+"tests/unit/sdk/test_file_handler.py" = [
+    "ASYNC240", # Async functions should not use pathlib.Path methods, use trio.Path or anyio.path
+]
+
 # tests/integration/
 "tests/integration/test_infrahub_client.py" = ["PLR0904"]
 "tests/integration/test_infrahub_client_sync.py" = ["PLR0904"]
