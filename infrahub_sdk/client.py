@@ -1057,6 +1057,45 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
+    @asynccontextmanager
+    async def _get_streaming(
+        self, url: str, headers: dict | None = None, timeout: int | None = None
+    ) -> AsyncIterator[httpx.Response]:
+        """Execute a streaming HTTP GET with HTTPX.
+
+        Returns an async context manager that yields the streaming response.
+        Use this for downloading large files without loading into memory.
+
+        Raises:
+            ServerNotReachableError if we are not able to connect to the server
+            ServerNotResponsiveError if the server didn't respond before the timeout expired
+        """
+        await self.login()
+
+        headers = headers or {}
+        base_headers = copy.copy(self.headers or {})
+        headers.update(base_headers)
+
+        proxy_config: ProxyConfig = {"proxy": None, "mounts": None}
+        if self.config.proxy:
+            proxy_config["proxy"] = self.config.proxy
+        elif self.config.proxy_mounts.is_set:
+            proxy_config["mounts"] = {
+                key: httpx.AsyncHTTPTransport(proxy=value)
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
+            }
+
+        async with httpx.AsyncClient(**proxy_config, verify=self.config.tls_context) as client:
+            try:
+                async with client.stream(
+                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
+                ) as response:
+                    yield response
+            except httpx.NetworkError as exc:
+                raise ServerNotReachableError(address=self.address) from exc
+            except httpx.ReadTimeout as exc:
+                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+
     async def _request(
         self,
         url: str,
@@ -2994,6 +3033,45 @@ class InfrahubClientSync(BaseClient):
             headers=headers,
             timeout=timeout or self.default_timeout,
         )
+
+    @contextmanager
+    def _get_streaming(
+        self, url: str, headers: dict | None = None, timeout: int | None = None
+    ) -> Iterator[httpx.Response]:
+        """Execute a streaming HTTP GET with HTTPX.
+
+        Returns a context manager that yields the streaming response.
+        Use this for downloading large files without loading into memory.
+
+        Raises:
+            ServerNotReachableError if we are not able to connect to the server
+            ServerNotResponsiveError if the server didn't respond before the timeout expired
+        """
+        self.login()
+
+        headers = headers or {}
+        base_headers = copy.copy(self.headers or {})
+        headers.update(base_headers)
+
+        proxy_config: ProxyConfigSync = {"proxy": None, "mounts": None}
+        if self.config.proxy:
+            proxy_config["proxy"] = self.config.proxy
+        elif self.config.proxy_mounts.is_set:
+            proxy_config["mounts"] = {
+                key: httpx.HTTPTransport(proxy=value)
+                for key, value in self.config.proxy_mounts.model_dump(by_alias=True).items()
+            }
+
+        with httpx.Client(**proxy_config, verify=self.config.tls_context) as client:
+            try:
+                with client.stream(
+                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
+                ) as response:
+                    yield response
+            except httpx.NetworkError as exc:
+                raise ServerNotReachableError(address=self.address) from exc
+            except httpx.ReadTimeout as exc:
+                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
 
     @handle_relogin_sync
     def _post(
