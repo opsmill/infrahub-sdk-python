@@ -5,7 +5,8 @@ import copy
 import logging
 import time
 import warnings
-from collections.abc import Callable, Coroutine, Mapping, MutableMapping
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterator, Mapping, MutableMapping
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from functools import wraps
 from time import sleep
