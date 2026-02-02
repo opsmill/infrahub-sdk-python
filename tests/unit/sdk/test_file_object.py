@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+import anyio
 import pytest
 from pytest_httpx import HTTPXMock
 
@@ -80,9 +81,9 @@ async def test_node_download_file_to_disk(
             bytes_written = node.download_file(dest=dest_path)
 
         assert bytes_written == len(FILE_CONTENT_BYTES)
-        assert dest_path.read_bytes() == FILE_CONTENT_BYTES
+        assert await anyio.Path(dest_path).read_bytes() == FILE_CONTENT_BYTES
     finally:
-        dest_path.unlink()
+        await anyio.Path(dest_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)

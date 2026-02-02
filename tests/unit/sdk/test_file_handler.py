@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio
 import httpx
 import pytest
 
@@ -212,9 +213,9 @@ async def test_file_handler_download_to_disk(
             bytes_written = handler.download(node_id="stream-node", branch="main", dest=dest_path)
 
         assert bytes_written == len(FILE_CONTENT_BYTES)
-        assert dest_path.read_bytes() == FILE_CONTENT_BYTES
+        assert await anyio.Path(dest_path).read_bytes() == FILE_CONTENT_BYTES
     finally:
-        dest_path.unlink()
+        await anyio.Path(dest_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)

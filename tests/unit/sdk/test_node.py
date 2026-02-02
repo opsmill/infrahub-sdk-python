@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import anyio
 import pytest
 
 from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
@@ -3339,7 +3340,7 @@ async def test_node_set_file_with_path(
         assert node._file_content == tmp_path
         assert node._file_name == tmp_path.name
     finally:
-        tmp_path.unlink()
+        await anyio.Path(tmp_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -3444,7 +3445,7 @@ async def test_node_get_file_for_upload_path(
         assert prepared.file_object.read() == file_content
         prepared.file_object.close()
     finally:
-        tmp_path.unlink()
+        await anyio.Path(tmp_path).unlink()
 
 
 @pytest.mark.parametrize("client_type", client_types)
