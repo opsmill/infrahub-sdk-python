@@ -1146,6 +1146,11 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        if self._file_object_support and self._file_content is None:
+            raise ValueError(
+                f"Cannot create {self._schema.kind} without file content. Use set_file() to provide file content before saving."
+            )
+
         mutation_query = self._generate_mutation_query()
 
         # Upserting means we may want to create, meaning payload contains all mandatory fields required for a creation,
@@ -2030,6 +2035,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        if self._file_object_support and self._file_content is None:
+            raise ValueError(
+                f"Cannot create {self._schema.kind} without file content. Use set_file() to provide file content before saving."
+            )
+
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
