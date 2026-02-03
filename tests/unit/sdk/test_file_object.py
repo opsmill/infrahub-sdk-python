@@ -20,8 +20,8 @@ FILE_MIME_TYPE = "application/pdf"
 
 
 @pytest.fixture
-def mock_node_save_with_file(httpx_mock: HTTPXMock) -> HTTPXMock:
-    """Mock the HTTP response for node.save() with file upload."""
+def mock_node_create_with_file(httpx_mock: HTTPXMock) -> HTTPXMock:
+    """Mock the HTTP response for node create with file upload."""
     httpx_mock.add_response(
         method="POST",
         json={
@@ -47,11 +47,39 @@ def mock_node_save_with_file(httpx_mock: HTTPXMock) -> HTTPXMock:
     return httpx_mock
 
 
+@pytest.fixture
+def mock_node_update_with_file(httpx_mock: HTTPXMock) -> HTTPXMock:
+    """Mock the HTTP response for node update with file upload."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "NetworkCircuitContractUpdate": {
+                    "ok": True,
+                    "object": {
+                        "id": "existing-file-node-456",
+                        "display_label": FILE_NAME,
+                        "file_name": {"value": FILE_NAME},
+                        "checksum": {"value": "updated123checksum"},
+                        "file_size": {"value": len(FILE_CONTENT)},
+                        "file_type": {"value": FILE_MIME_TYPE},
+                        "storage_id": {"value": "storage-updated-789"},
+                        "contract_start": {"value": "2024-01-01T00:00:00Z"},
+                        "contract_end": {"value": "2024-12-31T23:59:59Z"},
+                    },
+                }
+            }
+        },
+        is_reusable=True,
+    )
+    return httpx_mock
+
+
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_save_with_file_uses_multipart(
-    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI, mock_node_save_with_file: HTTPXMock
+async def test_node_create_with_file_uses_multipart(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI, mock_node_create_with_file: HTTPXMock
 ) -> None:
-    """Test that node.save() with file content sends a multipart request."""
+    """Test that node.save() for create with file content sends a multipart request."""
     client = getattr(clients, client_type)
 
     if client_type == "standard":
@@ -68,9 +96,41 @@ async def test_node_save_with_file_uses_multipart(
     else:
         node.save()
 
-    requests = mock_node_save_with_file.get_requests()
+    requests = mock_node_create_with_file.get_requests()
     assert len(requests) == 1
     assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-create"
+    assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
+    assert b"Content-Disposition: form-data" in requests[0].content
+    assert f'filename="{FILE_NAME}"'.encode() in requests[0].content
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_update_with_file_uses_multipart(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI, mock_node_update_with_file: HTTPXMock
+) -> None:
+    """Test that node.save() for update with file content sends a multipart request."""
+    client = getattr(clients, client_type)
+
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
+
+    # Simulate an existing node
+    node.id = "existing-file-node-456"
+    node._existing = True
+    node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
+    node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
+    node.set_file(content=FILE_CONTENT, name=FILE_NAME)
+
+    if isinstance(node, InfrahubNode):
+        await node.save()
+    else:
+        node.save()
+
+    requests = mock_node_update_with_file.get_requests()
+    assert len(requests) == 1
+    assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-update"
     assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
     assert b"Content-Disposition: form-data" in requests[0].content
     assert f'filename="{FILE_NAME}"'.encode() in requests[0].content
@@ -100,7 +160,7 @@ async def test_node_create_file_object_without_file_raises(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_node_save_clears_file_after_upload(
-    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI, mock_node_save_with_file: HTTPXMock
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI, mock_node_create_with_file: HTTPXMock
 ) -> None:
     """Test that file content is cleared after successful save."""
     client = getattr(clients, client_type)
