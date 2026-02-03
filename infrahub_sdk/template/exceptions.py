@@ -13,7 +13,7 @@ class JinjaTemplateError(Error):
         self.message = message
 
     def __str__(self) -> str:
-        return self.message
+        return str(self.message)
 
 
 class JinjaTemplateNotFoundError(JinjaTemplateError):
