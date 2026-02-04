@@ -162,7 +162,6 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         obj1 = await client.get(kind=TESTING_DOG, id=obj.id)
         assert obj1.color.value == "#111111"
 
-    @pytest.mark.xfail(reason="Require Infrahub v1.7")
     async def test_profile_relationship_is_from_profile(
         self, client: InfrahubClient, base_dataset: None, person_liam: InfrahubNode
     ) -> None:
