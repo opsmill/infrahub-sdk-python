@@ -225,46 +225,53 @@ class InfrahubNodeBase:
         """Check if this node inherits from CoreFileObject and supports file uploads."""
         return self._file_object_support
 
-    def set_file(self, content: bytes | Path | BinaryIO, name: str | None = None) -> None:
-        """Set file content to be uploaded when saving this FileObject node.
+    def select_file_for_upload(self, path: Path) -> None:
+        """Select a file from disk to be uploaded when saving this FileObject node.
 
-        The content can be provided in several forms for flexibility:
-        - bytes: The file content directly in memory
-        - Path: A path to a file on disk (will be streamed during upload)
-        - BinaryIO: An open file-like object (will be streamed during upload)
-
-        Using Path or BinaryIO is recommended for large files to avoid loading
-        the entire file into memory.
+        The file will be streamed during upload, avoiding loading the entire file into memory.
 
         Args:
-            content: The file content as bytes, a Path to a file, or a file-like object.
-            name: Optional filename. If not provided and content is a Path, the filename
-                  will be derived from the path. Otherwise, a default name will be used.
+            path: Path to the file on disk.
+
+        Raises:
+            FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
+
+        Example:
+            node.select_file_for_upload(path=Path("/path/to/large_file.pdf"))
+        """
+        if not self._file_object_support:
+            raise FeatureNotSupportedError(
+                f"File upload is not supported for {self._schema.kind}. Only nodes inheriting from CoreFileObject support file uploads."
+            )
+        self._file_content = path
+        self._file_name = path.name
+
+    def select_content_for_upload(self, content: bytes | BinaryIO, name: str) -> None:
+        """Select content to be uploaded when saving this FileObject node.
+
+        The content can be provided as bytes or a file-like object.
+        Using BinaryIO is recommended for large content to stream during upload.
+
+        Args:
+            content: The file content as bytes or a file-like object.
+            name: The filename to use for the uploaded file.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
 
         Examples:
             # Using bytes (for small files)
-            node.set_file(content=b"file content", name="example.txt")
+            node.select_content_for_upload(content=b"file content", name="example.txt")
 
-            # Using Path (recommended for large files)
-            node.set_file(content=Path("/path/to/large_file.pdf"))
-
-            # Using file-like object
+            # Using file-like object (for large files)
             with open("/path/to/file.bin", "rb") as f:
-                node.set_file(content=f, name="file.bin")
+                node.select_content_for_upload(content=f, name="file.bin")
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
                 f"File upload is not supported for {self._schema.kind}. Only nodes inheriting from CoreFileObject support file uploads."
             )
         self._file_content = content
-
-        # Derive filename from Path if not provided
-        if name is None and isinstance(content, Path):
-            name = content.name
-
         self._file_name = name
 
     def clear_file(self) -> None:

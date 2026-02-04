@@ -89,7 +89,7 @@ async def test_node_create_with_file_uses_multipart(
 
     node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
     node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
-    node.set_file(content=FILE_CONTENT, name=FILE_NAME)
+    node.select_content_for_upload(content=FILE_CONTENT, name=FILE_NAME)
 
     if isinstance(node, InfrahubNode):
         await node.save()
@@ -121,7 +121,7 @@ async def test_node_update_with_file_uses_multipart(
     node._existing = True
     node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
     node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
-    node.set_file(content=FILE_CONTENT, name=FILE_NAME)
+    node.select_content_for_upload(content=FILE_CONTENT, name=FILE_NAME)
 
     if isinstance(node, InfrahubNode):
         await node.save()
@@ -173,7 +173,7 @@ async def test_node_save_clears_file_after_upload(
     node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
     node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
 
-    node.set_file(content=FILE_CONTENT, name=FILE_NAME)
+    node.select_content_for_upload(content=FILE_CONTENT, name=FILE_NAME)
     assert node._file_content is not None
     assert node._file_name is not None
 

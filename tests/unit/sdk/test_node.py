@@ -3303,27 +3303,27 @@ async def test_node_is_file_object_false(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_set_file_on_file_object(
+async def test_node_select_content_for_upload_with_bytes(
     client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
 ) -> None:
-    """Test that set_file works on FileObject nodes."""
+    """Test that select_content_for_upload works with bytes on FileObject nodes."""
     if client_type == "standard":
         node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
 
     file_content = b"PDF content here"
-    node.set_file(content=file_content, name="contract.pdf")
+    node.select_content_for_upload(content=file_content, name="contract.pdf")
 
     assert node._file_content == file_content
     assert node._file_name == "contract.pdf"
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_set_file_with_path(
+async def test_node_select_file_for_upload(
     client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
 ) -> None:
-    """Test that set_file works with a Path object."""
+    """Test that select_file_for_upload works with a Path object."""
     if client_type == "standard":
         node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
     else:
@@ -3335,16 +3335,16 @@ async def test_node_set_file_with_path(
         tmp.flush()
         tmp_path = Path(tmp.name)
 
-        node.set_file(content=tmp_path)
+        node.select_file_for_upload(path=tmp_path)
         assert node._file_content == tmp_path
         assert node._file_name == tmp_path.name
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_set_file_with_binary_io(
+async def test_node_select_content_for_upload_with_binary_io(
     client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
 ) -> None:
-    """Test that set_file works with a BinaryIO object."""
+    """Test that select_content_for_upload works with a BinaryIO object."""
     if client_type == "standard":
         node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
     else:
@@ -3353,25 +3353,38 @@ async def test_node_set_file_with_binary_io(
     file_content = b"Content from BinaryIO"
     file_obj = BytesIO(file_content)
 
-    node.set_file(content=file_obj, name="uploaded.pdf")
+    node.select_content_for_upload(content=file_obj, name="uploaded.pdf")
 
     assert node._file_content == file_obj
     assert node._file_name == "uploaded.pdf"
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_set_file_on_non_file_object_raises(
+async def test_node_select_content_for_upload_on_non_file_object_raises(
     client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
 ) -> None:
-    """Test that set_file raises FeatureNotSupportedError on non-FileObject nodes."""
-
+    """Test that select_content_for_upload raises FeatureNotSupportedError on non-FileObject nodes."""
     if client_type == "standard":
         node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
 
     with pytest.raises(FeatureNotSupportedError, match=r"File upload is not supported"):
-        node.set_file(content=b"some content", name="file.txt")
+        node.select_content_for_upload(content=b"some content", name="file.txt")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_select_file_for_upload_on_non_file_object_raises(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that select_file_for_upload raises FeatureNotSupportedError on non-FileObject nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    with pytest.raises(FeatureNotSupportedError, match=r"File upload is not supported"):
+        node.select_file_for_upload(path=Path("/some/file.txt"))
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -3385,7 +3398,7 @@ async def test_node_clear_file(client_type: str, clients: BothClients, file_obje
     file_content = b"Test content"
     file_name = "file.txt"
 
-    node.set_file(content=file_content, name=file_name)
+    node.select_content_for_upload(content=file_content, name=file_name)
     assert node._file_content == file_content
     assert node._file_name == file_name
 
@@ -3406,7 +3419,7 @@ async def test_node_get_file_for_upload_bytes(
 
     file_content = b"Test content"
     file_name = "test.txt"
-    node.set_file(content=file_content, name=file_name)
+    node.select_content_for_upload(content=file_content, name=file_name)
 
     if isinstance(node, InfrahubNode):
         prepared = await node._get_file_for_upload()
@@ -3435,7 +3448,7 @@ async def test_node_get_file_for_upload_path(
         tmp.flush()
         tmp_path = Path(tmp.name)
 
-        node.set_file(content=tmp_path)
+        node.select_file_for_upload(path=tmp_path)
 
         if isinstance(node, InfrahubNode):
             prepared = await node._get_file_for_upload()
@@ -3462,7 +3475,7 @@ async def test_node_get_file_for_upload_binary_io(
     file_content = b"Content from BinaryIO"
     file_name = "test.bin"
     file_obj_input = BytesIO(file_content)
-    node.set_file(content=file_obj_input, name=file_name)
+    node.select_content_for_upload(content=file_obj_input, name=file_name)
 
     if isinstance(node, InfrahubNode):
         prepared = await node._get_file_for_upload()
@@ -3504,7 +3517,7 @@ async def test_node_generate_input_data_with_file(
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
 
-    node.set_file(content=b"test content", name="test.txt")
+    node.select_content_for_upload(content=b"test content", name="test.txt")
 
     input_data = node._generate_input_data()
 
