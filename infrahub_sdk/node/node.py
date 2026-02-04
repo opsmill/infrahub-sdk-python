@@ -1159,7 +1159,8 @@ class InfrahubNode(InfrahubNodeBase):
     ) -> None:
         if self._file_object_support and self._file_content is None:
             raise ValueError(
-                f"Cannot create {self._schema.kind} without file content. Use set_file() to provide file content before saving."
+                f"Cannot create {self._schema.kind} without file content. Use select_file_for_upload() or select_content_for_upload() to provide "
+                "file content before saving."
             )
 
         mutation_query = self._generate_mutation_query()
@@ -2048,7 +2049,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     ) -> None:
         if self._file_object_support and self._file_content is None:
             raise ValueError(
-                f"Cannot create {self._schema.kind} without file content. Use set_file() to provide file content before saving."
+                f"Cannot create {self._schema.kind} without file content. Use select_file_for_upload() or select_content_for_upload() to provide "
+                "file content before saving."
             )
 
         mutation_query = self._generate_mutation_query()
