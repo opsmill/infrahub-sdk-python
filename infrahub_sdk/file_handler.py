@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO, cast, overload
 
+import anyio
 import httpx
 
 from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachableError
@@ -27,8 +28,44 @@ class FileHandlerBase:
     """
 
     @staticmethod
-    def prepare_upload(content: bytes | Path | BinaryIO | None, name: str | None = None) -> PreparedFile:
-        """Prepare file content for upload.
+    async def prepare_upload(content: bytes | Path | BinaryIO | None, name: str | None = None) -> PreparedFile:
+        """Prepare file content for upload (async version).
+
+        Converts various content types to a consistent BinaryIO interface for streaming uploads.
+        For Path inputs, opens the file handle in a thread pool to avoid blocking the event loop.
+        The actual file reading is streamed by httpx during the HTTP request.
+
+        Args:
+            content: The file content as bytes, a Path to a file, or a file-like object.
+                     Can be None if no file is set.
+            name: Optional filename. If not provided and content is a Path,
+                  the filename will be derived from the path.
+
+        Returns:
+            A PreparedFile containing the file object, filename, and whether it should be closed.
+        """
+        if content is None:
+            return PreparedFile(file_object=None, filename=None, should_close=False)
+
+        if name is None and isinstance(content, Path):
+            name = content.name
+
+        filename = name or "uploaded_file"
+
+        if isinstance(content, bytes):
+            return PreparedFile(file_object=BytesIO(content), filename=filename, should_close=False)
+        if isinstance(content, Path):
+            # Open file in thread pool to avoid blocking the event loop
+            # Returns a sync file handle that httpx can stream from in chunks
+            file_obj = await anyio.to_thread.run_sync(content.open, "rb")
+            return PreparedFile(file_object=cast("BinaryIO", file_obj), filename=filename, should_close=True)
+
+        # At this point, content must be a BinaryIO (file-like object)
+        return PreparedFile(file_object=cast("BinaryIO", content), filename=filename, should_close=False)
+
+    @staticmethod
+    def prepare_upload_sync(content: bytes | Path | BinaryIO | None, name: str | None = None) -> PreparedFile:
+        """Prepare file content for upload (sync version).
 
         Converts various content types to a consistent BinaryIO interface for streaming uploads.
 
@@ -196,9 +233,9 @@ class FileHandler(FileHandlerBase):
                     self.handle_error_response(exc=exc)
 
                 bytes_written = 0
-                with dest.open("wb") as f:
-                    async for chunk in resp.aiter_bytes(chunk_size=8192):
-                        f.write(chunk)
+                async with await anyio.Path(dest).open("wb") as f:
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        await f.write(chunk)
                         bytes_written += len(chunk)
                 return bytes_written
         except ServerNotReachableError:
@@ -302,7 +339,7 @@ class FileHandlerSync(FileHandlerBase):
 
                 bytes_written = 0
                 with dest.open("wb") as f:
-                    for chunk in resp.iter_bytes(chunk_size=8192):
+                    for chunk in resp.iter_bytes(chunk_size=65536):
                         f.write(chunk)
                         bytes_written += len(chunk)
                 return bytes_written

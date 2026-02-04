@@ -272,9 +272,13 @@ class InfrahubNodeBase:
         self._file_content = None
         self._file_name = None
 
-    def _get_file_for_upload(self) -> PreparedFile:
-        """Get the file content as a file-like object for upload."""
-        return FileHandlerBase.prepare_upload(content=self._file_content, name=self._file_name)
+    async def _get_file_for_upload(self) -> PreparedFile:
+        """Get the file content as a file-like object for upload (async version)."""
+        return await FileHandlerBase.prepare_upload(content=self._file_content, name=self._file_name)
+
+    def _get_file_for_upload_sync(self) -> PreparedFile:
+        """Get the file content as a file-like object for upload (sync version)."""
+        return FileHandlerBase.prepare_upload_sync(content=self._file_content, name=self._file_name)
 
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
@@ -1172,7 +1176,7 @@ class InfrahubNode(InfrahubNodeBase):
         )
 
         if "file" in input_data["mutation_variables"]:
-            prepared = self._get_file_for_upload()
+            prepared = await self._get_file_for_upload()
             try:
                 response = await self._client.execute_graphql_with_file(
                     query=query.render(),
@@ -1214,7 +1218,7 @@ class InfrahubNode(InfrahubNodeBase):
         )
 
         if "file" in input_data["mutation_variables"]:
-            prepared = self._get_file_for_upload()
+            prepared = await self._get_file_for_upload()
             try:
                 response = await self._client.execute_graphql_with_file(
                     query=query.render(),
@@ -2059,7 +2063,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
         if "file" in input_data["mutation_variables"]:
-            prepared = self._get_file_for_upload()
+            prepared = self._get_file_for_upload_sync()
             try:
                 response = self._client.execute_graphql_with_file(
                     query=query.render(),
@@ -2101,7 +2105,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
         if "file" in input_data["mutation_variables"]:
-            prepared = self._get_file_for_upload()
+            prepared = self._get_file_for_upload_sync()
             try:
                 response = self._client.execute_graphql_with_file(
                     query=query.render(),

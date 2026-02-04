@@ -3408,7 +3408,10 @@ async def test_node_get_file_for_upload_bytes(
     file_name = "test.txt"
     node.set_file(content=file_content, name=file_name)
 
-    prepared = node._get_file_for_upload()
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
 
     assert prepared.file_object
     assert prepared.filename == file_name
@@ -3434,7 +3437,10 @@ async def test_node_get_file_for_upload_path(
 
         node.set_file(content=tmp_path)
 
-        prepared = node._get_file_for_upload()
+        if isinstance(node, InfrahubNode):
+            prepared = await node._get_file_for_upload()
+        else:
+            prepared = node._get_file_for_upload_sync()
 
         assert prepared.file_object
         assert prepared.filename == tmp_path.name
@@ -3458,7 +3464,10 @@ async def test_node_get_file_for_upload_binary_io(
     file_obj_input = BytesIO(file_content)
     node.set_file(content=file_obj_input, name=file_name)
 
-    prepared = node._get_file_for_upload()
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
 
     assert prepared.file_object is file_obj_input  # Should be the same object
     assert prepared.filename == file_name
@@ -3475,7 +3484,10 @@ async def test_node_get_file_for_upload_none(
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
 
-    prepared = node._get_file_for_upload()
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
 
     assert prepared.file_object is None
     assert prepared.filename is None
