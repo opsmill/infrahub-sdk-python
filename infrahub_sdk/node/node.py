@@ -225,8 +225,8 @@ class InfrahubNodeBase:
         """Check if this node inherits from CoreFileObject and supports file uploads."""
         return self._file_object_support
 
-    def select_file_for_upload(self, path: Path) -> None:
-        """Select a file from disk to be uploaded when saving this FileObject node.
+    def upload_from_path(self, path: Path) -> None:
+        """Set a file from disk to be uploaded when saving this FileObject node.
 
         The file will be streamed during upload, avoiding loading the entire file into memory.
 
@@ -237,7 +237,7 @@ class InfrahubNodeBase:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
 
         Example:
-            node.select_file_for_upload(path=Path("/path/to/large_file.pdf"))
+            node.upload_from_path(path=Path("/path/to/large_file.pdf"))
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -246,8 +246,8 @@ class InfrahubNodeBase:
         self._file_content = path
         self._file_name = path.name
 
-    def select_content_for_upload(self, content: bytes | BinaryIO, name: str) -> None:
-        """Select content to be uploaded when saving this FileObject node.
+    def upload_from_bytes(self, content: bytes | BinaryIO, name: str) -> None:
+        """Set content to be uploaded when saving this FileObject node.
 
         The content can be provided as bytes or a file-like object.
         Using BinaryIO is recommended for large content to stream during upload.
@@ -261,11 +261,11 @@ class InfrahubNodeBase:
 
         Examples:
             # Using bytes (for small files)
-            node.select_content_for_upload(content=b"file content", name="example.txt")
+            node.upload_from_bytes(content=b"file content", name="example.txt")
 
             # Using file-like object (for large files)
             with open("/path/to/file.bin", "rb") as f:
-                node.select_content_for_upload(content=f, name="file.bin")
+                node.upload_from_bytes(content=f, name="file.bin")
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -1159,7 +1159,7 @@ class InfrahubNode(InfrahubNodeBase):
     ) -> None:
         if self._file_object_support and self._file_content is None:
             raise ValueError(
-                f"Cannot create {self._schema.kind} without file content. Use select_file_for_upload() or select_content_for_upload() to provide "
+                f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
                 "file content before saving."
             )
 
@@ -2049,7 +2049,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
     ) -> None:
         if self._file_object_support and self._file_content is None:
             raise ValueError(
-                f"Cannot create {self._schema.kind} without file content. Use select_file_for_upload() or select_content_for_upload() to provide "
+                f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
                 "file content before saving."
             )
 
