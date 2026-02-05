@@ -289,7 +289,9 @@ class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
     """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
 
     hash: str | None = None
+    hierarchical: bool | None = None
     used_by: list[str] = Field(default_factory=list)
+    restricted_namespaces: list[str] | None = None
 
 
 class BaseNodeSchema(BaseSchema):
