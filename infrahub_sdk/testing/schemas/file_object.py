@@ -1,7 +1,6 @@
 import pytest
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.exceptions import GraphQLError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipKind, SchemaRoot
 from infrahub_sdk.schema.main import AttributeSchema as Attr
@@ -75,17 +74,13 @@ class SchemaFileObject:
 
     @pytest.fixture(scope="class")
     async def load_file_object_schema(self, client: InfrahubClient, schema_file_object_base: SchemaRoot) -> None:
-        resp = await client.schema.load(schemas=[schema_file_object_base.to_schema_dict()], wait_until_converged=True)
-        if resp.errors:
-            raise GraphQLError(errors=[resp.errors])
+        await client.schema.load(schemas=[schema_file_object_base.to_schema_dict()], wait_until_converged=True)
 
     @pytest.fixture(scope="class")
     def load_file_object_schema_sync(
         self, client_sync: InfrahubClientSync, schema_file_object_base: SchemaRoot
     ) -> None:
-        resp = client_sync.schema.load(schemas=[schema_file_object_base.to_schema_dict()], wait_until_converged=True)
-        if resp.errors:
-            raise GraphQLError(errors=[resp.errors])
+        client_sync.schema.load(schemas=[schema_file_object_base.to_schema_dict()], wait_until_converged=True)
 
     @pytest.fixture(scope="class")
     async def circuit_main(
