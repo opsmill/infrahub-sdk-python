@@ -68,14 +68,10 @@ class InfrahubNodeBase:
         self._attributes = [item.name for item in self._schema.attributes]
         self._relationships = [item.name for item in self._schema.relationships]
 
-        # GenericSchemaAPI doesn't have inherit_from, so we need to check the type first
-        if isinstance(schema, GenericSchemaAPI):
-            self._artifact_support = False
-            self._file_object_support = False
-        else:
-            inherit_from = getattr(schema, "inherit_from", None) or []
-            self._artifact_support = "CoreArtifactTarget" in inherit_from
-            self._file_object_support = "CoreFileObject" in inherit_from
+        # GenericSchemaAPI doesn't have inherit_from
+        inherit_from: list[str] = getattr(schema, "inherit_from", None) or []
+        self._artifact_support = "CoreArtifactTarget" in inherit_from
+        self._file_object_support = "CoreFileObject" in inherit_from
         self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
 
         self._file_content: bytes | Path | BinaryIO | None = None
