@@ -119,8 +119,8 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
         proposed_change_table.add_row("Name", pc.name.value)
         proposed_change_table.add_row("State", str(pc.state.value))
         proposed_change_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")
-        proposed_change_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[union-attr]
-        proposed_change_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))
+        proposed_change_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[attr-defined]
+        proposed_change_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))  # type: ignore[attr-defined]
         proposed_change_table.add_row("Approvals", str(len(pc.approved_by.peers)))
         proposed_change_table.add_row("Rejections", str(len(pc.rejected_by.peers)))
 

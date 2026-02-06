@@ -2645,3 +2645,49 @@ async def nested_device_with_interfaces_schema() -> NodeSchemaAPI:
         ],
     }
     return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def file_object_schema() -> NodeSchemaAPI:
+    """Schema for a node that inherits from CoreFileObject."""
+    data = {
+        "name": "CircuitContract",
+        "namespace": "Network",
+        "label": "Circuit Contract",
+        "default_filter": "file_name__value",
+        "inherit_from": ["CoreFileObject"],
+        "order_by": ["file_name__value"],
+        "display_labels": ["file_name__value"],
+        "attributes": [
+            # Simulate inherited attributes from CoreFileObject
+            {"name": "file_name", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "checksum", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "file_size", "kind": "Number", "read_only": True, "optional": False},
+            {"name": "file_type", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "storage_id", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "contract_start", "kind": "DateTime", "optional": False},
+            {"name": "contract_end", "kind": "DateTime", "optional": False},
+        ],
+        "relationships": [],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def non_file_object_schema() -> NodeSchemaAPI:
+    """Schema for a regular node that does not inherit from CoreFileObject."""
+    data = {
+        "name": "Device",
+        "namespace": "Infra",
+        "label": "Device",
+        "default_filter": "name__value",
+        "inherit_from": [],
+        "order_by": ["name__value"],
+        "display_labels": ["name__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+        ],
+        "relationships": [],
+    }
+    return NodeSchema(**data).convert_api()

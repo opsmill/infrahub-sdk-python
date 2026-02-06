@@ -29,7 +29,6 @@ if TYPE_CHECKING:
         StringOptional,
     )
 
-# pylint: disable=too-many-ancestors
 
 # ---------------------------------------------
 # ASYNC
@@ -106,6 +105,14 @@ class CoreCredential(CoreNode):
     name: String
     label: StringOptional
     description: StringOptional
+
+
+class CoreFileObject(CoreNode):
+    file_name: String
+    checksum: String
+    file_size: Integer
+    file_type: String
+    storage_id: String
 
 
 class CoreGenericAccount(CoreNode):
@@ -227,6 +234,7 @@ class CoreValidator(CoreNode):
 class CoreWebhook(CoreNode):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
@@ -499,7 +507,6 @@ class CoreProposedChange(CoreTaskTarget):
     approved_by: RelationshipManager
     rejected_by: RelationshipManager
     reviewers: RelationshipManager
-    created_by: RelatedNode
     comments: RelationshipManager
     threads: RelationshipManager
     validations: RelationshipManager
@@ -665,6 +672,14 @@ class CoreCredentialSync(CoreNodeSync):
     description: StringOptional
 
 
+class CoreFileObjectSync(CoreNodeSync):
+    file_name: String
+    checksum: String
+    file_size: Integer
+    file_type: String
+    storage_id: String
+
+
 class CoreGenericAccountSync(CoreNodeSync):
     name: String
     password: HashedPassword
@@ -784,6 +799,7 @@ class CoreValidatorSync(CoreNodeSync):
 class CoreWebhookSync(CoreNodeSync):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
@@ -1056,7 +1072,6 @@ class CoreProposedChangeSync(CoreTaskTargetSync):
     approved_by: RelationshipManagerSync
     rejected_by: RelationshipManagerSync
     reviewers: RelationshipManagerSync
-    created_by: RelatedNodeSync
     comments: RelationshipManagerSync
     threads: RelationshipManagerSync
     validations: RelationshipManagerSync
