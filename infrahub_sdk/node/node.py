@@ -1186,7 +1186,7 @@ class InfrahubNode(InfrahubNodeBase):
         if "file" in input_data["mutation_variables"]:
             prepared = await self._get_file_for_upload()
             try:
-                response = await self._client.execute_graphql_with_file(
+                response = await self._client._execute_graphql_with_file(
                     query=query.render(),
                     variables=input_data["variables"],
                     file_content=prepared.file_object,
@@ -1228,7 +1228,7 @@ class InfrahubNode(InfrahubNodeBase):
         if "file" in input_data["mutation_variables"]:
             prepared = await self._get_file_for_upload()
             try:
-                response = await self._client.execute_graphql_with_file(
+                response = await self._client._execute_graphql_with_file(
                     query=query.render(),
                     variables=input_data["variables"],
                     file_content=prepared.file_object,
@@ -2074,7 +2074,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if "file" in input_data["mutation_variables"]:
             prepared = self._get_file_for_upload_sync()
             try:
-                response = self._client.execute_graphql_with_file(
+                response = self._client._execute_graphql_with_file(
                     query=query.render(),
                     variables=input_data["variables"],
                     file_content=prepared.file_object,
@@ -2116,7 +2116,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if "file" in input_data["mutation_variables"]:
             prepared = self._get_file_for_upload_sync()
             try:
-                response = self._client.execute_graphql_with_file(
+                response = self._client._execute_graphql_with_file(
                     query=query.render(),
                     variables=input_data["variables"],
                     file_content=prepared.file_object,

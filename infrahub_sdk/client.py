@@ -994,14 +994,13 @@ class InfrahubClient(BaseClient):
 
         # TODO add a special method to execute mutation that will check if the method returned OK
 
-    async def execute_graphql_with_file(
+    async def _execute_graphql_with_file(
         self,
         query: str,
         variables: dict | None = None,
         file_content: BinaryIO | None = None,
         file_name: str | None = None,
         branch_name: str | None = None,
-        at: str | Timestamp | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
     ) -> dict:
@@ -1016,7 +1015,6 @@ class InfrahubClient(BaseClient):
             file_content: The file content as a file-like object (BinaryIO).
             file_name: The name of the file being uploaded.
             branch_name: Name of the branch on which the mutation will be executed.
-            at: Time when the query should be executed.
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
 
@@ -1027,7 +1025,7 @@ class InfrahubClient(BaseClient):
             dict: The GraphQL data payload (response["data"]).
         """
         branch_name = branch_name or self.default_branch
-        url = self._graphql_url(branch_name=branch_name, at=at)
+        url = self._graphql_url(branch_name=branch_name)
 
         # Prepare variables with file placeholder
         variables = variables or {}
@@ -2052,14 +2050,13 @@ class InfrahubClientSync(BaseClient):
 
         # TODO add a special method to execute mutation that will check if the method returned OK
 
-    def execute_graphql_with_file(
+    def _execute_graphql_with_file(
         self,
         query: str,
         variables: dict | None = None,
         file_content: BinaryIO | None = None,
         file_name: str | None = None,
         branch_name: str | None = None,
-        at: str | Timestamp | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
     ) -> dict:
@@ -2074,7 +2071,6 @@ class InfrahubClientSync(BaseClient):
             file_content: The file content as a file-like object (BinaryIO).
             file_name: The name of the file being uploaded.
             branch_name: Name of the branch on which the mutation will be executed.
-            at: Time when the query should be executed.
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
 
@@ -2085,7 +2081,7 @@ class InfrahubClientSync(BaseClient):
             dict: The GraphQL data payload (response["data"]).
         """
         branch_name = branch_name or self.default_branch
-        url = self._graphql_url(branch_name=branch_name, at=at)
+        url = self._graphql_url(branch_name=branch_name)
 
         # Prepare variables with file placeholder
         variables = variables or {}
