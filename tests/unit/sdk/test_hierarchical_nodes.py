@@ -47,6 +47,10 @@ async def hierarchical_schema() -> NodeSchemaAPI:
     # Set hierarchy field manually since it's not part of NodeSchema but only NodeSchemaAPI
     # This field would normally be set by the backend
     schema_api.hierarchy = "InfraLocation"
+    # Set hierarchical field on parent/children relationships to match server behavior
+    for rel in schema_api.relationships:
+        if rel.name in ("parent", "children"):
+            rel.hierarchical = "InfraLocation"
     return schema_api
 
 
@@ -548,3 +552,57 @@ def test_hierarchical_node_sync_no_infinite_recursion_with_children(
     assert "children" not in children_node_data
     assert "ancestors" not in children_node_data
     assert "descendants" not in children_node_data
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+async def test_hierarchical_node_generate_input_data_excludes_uninitialized_parent(
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that _generate_input_data excludes uninitialized hierarchy relationships.
+
+    When a hierarchical node (e.g. a top-level fabric with no parent) is saved with
+    allow_upsert=True, the SDK should not include 'parent: null' in the mutation data
+    because hierarchy relationships are not assignable via mutations.
+    """
+    # Simulate an existing node with no parent set
+    data = {
+        "id": "existing-node-id",
+        "name": {"value": "Location-A"},
+        "description": {"value": "A location"},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=hierarchical_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client_sync, schema=hierarchical_schema, data=data)
+
+    input_data = node._generate_input_data()
+
+    # parent and children should NOT be in the mutation data since they are
+    # hierarchy relationships that were not explicitly set
+    assert "parent" not in input_data["data"]["data"]
+    assert "children" not in input_data["data"]["data"]
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+async def test_hierarchical_node_generate_input_data_includes_initialized_parent(
+    client: InfrahubClient, client_sync: InfrahubClientSync, hierarchical_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Test that _generate_input_data includes hierarchy relationships when explicitly set."""
+    data = {
+        "id": "child-node-id",
+        "name": {"value": "Location-B"},
+        "description": {"value": "A child location"},
+        "parent": {"node": {"id": "parent-node-id"}},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=hierarchical_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client_sync, schema=hierarchical_schema, data=data)
+
+    input_data = node._generate_input_data()
+
+    # parent SHOULD be included since it was explicitly initialized with data
+    assert "parent" in input_data["data"]["data"]
+    assert input_data["data"]["data"]["parent"] == {"id": "parent-node-id"}

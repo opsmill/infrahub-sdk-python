@@ -258,6 +258,10 @@ class InfrahubNodeBase:
 
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
+            # Skip hierarchy relationships (parent/children) unless explicitly set
+            if rel_schema.hierarchical and not rel.initialized:
+                continue
+
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
                 # Only include None for existing nodes to allow clearing relationships
                 # For new nodes, omit the field to allow object template defaults to be applied
