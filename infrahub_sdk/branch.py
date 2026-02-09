@@ -19,6 +19,7 @@ class BranchStatus(str, Enum):
     NEED_REBASE = "NEED_REBASE"
     NEED_UPGRADE_REBASE = "NEED_UPGRADE_REBASE"
     DELETING = "DELETING"
+    MERGED = "MERGED"
 
 
 class BranchData(BaseModel):
