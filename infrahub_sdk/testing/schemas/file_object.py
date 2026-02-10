@@ -1,7 +1,6 @@
 import pytest
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipKind, SchemaRoot
 from infrahub_sdk.schema.main import AttributeSchema as Attr
 from infrahub_sdk.schema.main import RelationshipSchema as Rel
@@ -81,23 +80,3 @@ class SchemaFileObject:
         self, client_sync: InfrahubClientSync, schema_file_object_base: SchemaRoot
     ) -> None:
         client_sync.schema.load(schemas=[schema_file_object_base.to_schema_dict()], wait_until_converged=True)
-
-    @pytest.fixture(scope="class")
-    async def circuit_main(
-        self,
-        client: InfrahubClient,
-        load_file_object_schema: None,  # noqa: ARG002
-    ) -> InfrahubNode:
-        obj = await client.create(kind=TESTING_CIRCUIT, circuit_id="CIRCUIT-001", bandwidth=1000)
-        await obj.save()
-        return obj
-
-    @pytest.fixture(scope="class")
-    def circuit_main_sync(
-        self,
-        client_sync: InfrahubClientSync,
-        load_file_object_schema_sync: None,  # noqa: ARG002
-    ) -> InfrahubNodeSync:
-        obj = client_sync.create(kind=TESTING_CIRCUIT, circuit_id="CIRCUIT-SYNC-001", bandwidth=2000)
-        obj.save()
-        return obj

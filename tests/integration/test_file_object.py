@@ -27,6 +27,12 @@ if TYPE_CHECKING:
 class TestFileObjectAsync(TestInfrahubDockerClient, SchemaFileObject):
     """Async integration tests for FileObject functionality."""
 
+    @pytest.fixture(scope="class")
+    async def circuit_main(self, client: InfrahubClient, load_file_object_schema: None) -> InfrahubNode:
+        obj = await client.create(kind=TESTING_CIRCUIT, circuit_id="CIRCUIT-001", bandwidth=1000)
+        await obj.save()
+        return obj
+
     async def test_create_file_object_with_upload(
         self, client: InfrahubClient, load_file_object_schema: None, circuit_main: InfrahubNode
     ) -> None:
@@ -183,6 +189,14 @@ class TestFileObjectAsync(TestInfrahubDockerClient, SchemaFileObject):
 @pytest.mark.xfail(reason="Requires Infrahub 1.8+")
 class TestFileObjectSync(TestInfrahubDockerClient, SchemaFileObject):
     """Sync integration tests for FileObject functionality."""
+
+    @pytest.fixture(scope="class")
+    def circuit_main_sync(
+        self, client_sync: InfrahubClientSync, load_file_object_schema_sync: None
+    ) -> InfrahubNodeSync:
+        obj = client_sync.create(kind=TESTING_CIRCUIT, circuit_id="CIRCUIT-SYNC-001", bandwidth=2000)
+        obj.save()
+        return obj
 
     def test_create_file_object_with_upload_sync(
         self, client_sync: InfrahubClientSync, load_file_object_schema_sync: None, circuit_main_sync: InfrahubNodeSync
