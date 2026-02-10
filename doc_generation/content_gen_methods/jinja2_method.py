@@ -1,40 +1,39 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
-import jinja2
+import asyncio
+from typing import TYPE_CHECKING, Any
 
 from .base import ADocContentGenMethod
 
+if TYPE_CHECKING:
+    from infrahub_sdk.template.base import ATemplate
+
 
 class Jinja2DocContentGenMethod(ADocContentGenMethod):
-    """Render a Jinja2 template file with the provided variables.
+    """Render a template using an ``ATemplate`` implementation.
 
-    The template is loaded with ``trim_blocks=True`` and no auto-escaping.
+    The template engine is async; rendering is run synchronously via ``asyncio.run``.
 
     Args:
-        template_path: Absolute path to the ``.j2`` template file.
+        template: A template instance implementing ``ATemplate``.
         template_variables: Variables passed to the template during rendering.
 
     Example::
 
+        template = Jinja2Template(
+            template=Path("sdk_template_reference.j2"),
+            template_directory=docs_dir / "_templates",
+        )
         method = Jinja2DocContentGenMethod(
-            template_path=docs_dir / "_templates" / "sdk_config.j2",
-            template_variables={"properties": props},
+            template=template,
+            template_variables={"builtin": BUILTIN_FILTERS},
         )
         content = method.apply()
     """
 
-    def __init__(self, template_path: Path, template_variables: dict[str, Any]) -> None:
-        self.template_path = template_path
+    def __init__(self, template: ATemplate, template_variables: dict[str, Any]) -> None:
+        self.template = template
         self.template_variables = template_variables
 
     def apply(self) -> str:
-        template_text = self.template_path.read_text(encoding="utf-8")
-        environment = jinja2.Environment(
-            trim_blocks=True,
-            autoescape=jinja2.select_autoescape(default_for_string=False),
-        )
-        template = environment.from_string(template_text)
-        return template.render(**self.template_variables)
+        return asyncio.run(self.template.render(variables=self.template_variables))
