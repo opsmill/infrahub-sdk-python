@@ -8,6 +8,7 @@ Docusaurus documentation following Diataxis framework.
 cd docs && npm install              # Install deps
 cd docs && npm start                # Dev server at localhost:3000
 cd docs && npm run build            # Build static site
+cd docs && npm test                 # Run sidebar utility tests
 uv run invoke docs                  # Generate auto-docs
 uv run invoke docs-validate         # Validate docs are current
 ```
@@ -23,11 +24,19 @@ docs/docs/
 └── infrahubctl/     # CLI docs (auto-generated)
 ```
 
+## Sidebars
+
+Sidebar navigation is dynamic: `sidebars-*.ts` files read the filesystem at build time via utility functions in `sidebar-utils.ts`.
+
+- **infrahubctl**: all `.mdx` files are discovered automatically and sorted alphabetically.
+- **python-sdk**: guides, topics, and reference sections preserve a defined display order; new files are appended alphabetically at the end.
+
+No manual sidebar update is needed when adding a new `.mdx` file. However, to control the display order of a new page, add its doc ID to the ordered list in the corresponding `sidebars-*.ts` file.
+
 ## Adding Documentation
 
 1. Create MDX file in appropriate directory
 2. Add frontmatter with `title`
-3. Update `sidebars-*.ts` for navigation
 
 ## MDX Pattern
 
