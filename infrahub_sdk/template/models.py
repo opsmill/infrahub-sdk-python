@@ -1,10 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
-from rich.syntax import Syntax
-from rich.traceback import Frame
+from .jinja2.models import UndefinedJinja2Error
 
-
-@dataclass
-class UndefinedJinja2Error:
-    frame: Frame
-    syntax: Syntax
+__all__ = [
+    "UndefinedJinja2Error",
+]
