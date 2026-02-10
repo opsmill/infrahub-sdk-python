@@ -3,7 +3,7 @@ import {readdirSync} from 'fs';
 import {join} from 'path';
 import {getCommandItems} from './sidebar-utils';
 
-const docsDir = join(__dirname, 'docs', 'infrahubctl');
+const docsDir = join(__dirname, '..', 'docs', 'infrahubctl');
 const commandItems = getCommandItems(readdirSync(docsDir));
 
 const sidebars: SidebarsConfig = {

@@ -8,8 +8,8 @@ on:
       - stable
     paths:
       - 'docs/docs/**'
-      - 'docs/sidebars-infrahubctl.ts'
-      - 'docs/sidebars-python-sdk.ts'
+      - 'docs/sidebars/sidebars-infrahubctl.ts'
+      - 'docs/sidebars/sidebars-python-sdk.ts'
 
 jobs:
   sync:

@@ -3,7 +3,7 @@ import { readdirSync } from 'fs';
 import { join } from 'path';
 import { getItemsWithOrder } from './sidebar-utils';
 
-const pythonSdkDocsDir = join(__dirname, 'docs', 'python-sdk');
+const pythonSdkDocsDir = join(__dirname, '..', 'docs', 'python-sdk');
 
 const guidesItems = getItemsWithOrder(
   readdirSync(join(pythonSdkDocsDir, 'guides')),
