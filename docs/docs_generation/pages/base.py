@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from doc_generation.content_gen_methods import ADocContentGenMethod
+    from docs.docs_generation.content_gen_methods import ADocContentGenMethod
 
 
 class DocPage:

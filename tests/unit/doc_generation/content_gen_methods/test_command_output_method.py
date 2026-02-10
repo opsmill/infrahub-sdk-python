@@ -5,7 +5,7 @@ from pathlib import Path
 from invoke import Result
 from invoke.context import MockContext
 
-from doc_generation.content_gen_methods import ACommand, CommandOutputDocContentGenMethod
+from docs.docs_generation import ACommand, CommandOutputDocContentGenMethod
 
 
 class StubCommand(ACommand):

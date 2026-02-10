@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from doc_generation.content_gen_methods import TyperGroupCommand, TyperSingleCommand
+from docs.docs_generation.content_gen_methods import TyperGroupCommand, TyperSingleCommand
 
 
 class TestTyperSingleCommand:

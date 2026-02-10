@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from .base import ADocContentGenMethod
 
 if TYPE_CHECKING:
-    from doc_generation.content_gen_methods.mdx.mdx_code_doc import MdxFile
+    from docs.docs_generation.content_gen_methods.mdx.mdx_code_doc import MdxFile
 
 
 class FilePrintingDocContentGenMethod(ADocContentGenMethod):

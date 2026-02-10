@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doc_generation.content_gen_methods import Jinja2DocContentGenMethod
+from docs.docs_generation import Jinja2DocContentGenMethod
 from infrahub_sdk.template import Jinja2Template
 from tests.unit.sdk.dummy_template import DummyTemplate
 

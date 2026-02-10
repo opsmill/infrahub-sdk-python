@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doc_generation.content_gen_methods.file_printing_method import FilePrintingDocContentGenMethod
-from doc_generation.content_gen_methods.mdx.mdx_code_doc import MdxFile
+from docs.docs_generation.content_gen_methods.file_printing_method import FilePrintingDocContentGenMethod
+from docs.docs_generation.content_gen_methods.mdx import MdxFile
 
 
 class TestFilePrintingDocContentGenMethod:

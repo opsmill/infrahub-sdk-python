@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from doc_generation.content_gen_methods import ADocContentGenMethod
-from doc_generation.pages import DocPage, MDXDocPage
+from docs.docs_generation.content_gen_methods import ADocContentGenMethod
+from docs.docs_generation.pages import DocPage, MDXDocPage
 
 
 class StubContentGenMethod(ADocContentGenMethod):

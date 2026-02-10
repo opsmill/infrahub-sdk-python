@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from doc_generation.helpers import build_config_properties, get_env_vars
+from docs.docs_generation.helpers import build_config_properties, get_env_vars
 
 
 class TestGetEnvVars:

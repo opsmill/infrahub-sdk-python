@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 
-from doc_generation.content_gen_methods import ACommand
+from .command import ACommand
 
 
 class ATyperCommand(ACommand, ABC):

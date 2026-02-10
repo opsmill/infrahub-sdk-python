@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from invoke import Context, task
 
 if TYPE_CHECKING:
-    from doc_generation.content_gen_methods.command.typer_command import ATyperCommand
+    from docs.docs_generation.content_gen_methods.command.typer_command import ATyperCommand
 
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
@@ -33,12 +33,12 @@ def _generate(context: Context) -> None:
 
 def _generate_infrahubctl_documentation(context: Context) -> None:
     """Generate the documentation for infrahubctl CLI using typer-cli."""
-    from doc_generation.content_gen_methods import (
+    from docs.docs_generation.content_gen_methods import (
         CommandOutputDocContentGenMethod,
         TyperGroupCommand,
         TyperSingleCommand,
     )
-    from doc_generation.pages import DocPage, MDXDocPage
+    from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.ctl.cli import app
 
     output_dir = DOCUMENTATION_DIRECTORY / "docs" / "infrahubctl"
@@ -69,9 +69,9 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
 
 def _generate_infrahub_sdk_configuration_documentation() -> None:
     """Generate documentation for the Infrahub SDK configuration."""
-    from doc_generation.content_gen_methods import Jinja2DocContentGenMethod
-    from doc_generation.helpers import build_config_properties
-    from doc_generation.pages import DocPage, MDXDocPage
+    from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from docs.docs_generation.helpers import build_config_properties
+    from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
 
     print(" - Generate Infrahub SDK configuration documentation")
@@ -91,8 +91,8 @@ def _generate_infrahub_sdk_configuration_documentation() -> None:
 
 def _generate_infrahub_sdk_template_documentation() -> None:
     """Generate documentation for the Infrahub SDK template reference."""
-    from doc_generation.content_gen_methods import Jinja2DocContentGenMethod
-    from doc_generation.pages import DocPage, MDXDocPage
+    from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
     from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
 
@@ -168,8 +168,8 @@ def get_modules_to_document() -> list[str]:
 @task(name="generate-sdk-api-docs")
 def _generate_sdk_api_docs(context: Context) -> None:
     """Generate API documentation for the Python SDK."""
-    from doc_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
-    from doc_generation.pages import DocPage, MDXDocPage
+    from docs.docs_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
+    from docs.docs_generation.pages import DocPage, MDXDocPage
 
     modules_to_document = get_modules_to_document()
 
