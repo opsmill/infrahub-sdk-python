@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-import asyncio
 import json
+import operator
+import shutil
 import sys
+from functools import reduce
 from pathlib import Path
 from shutil import which
-from typing import Any
+from typing import TYPE_CHECKING
 
 from invoke import Context, task
+
+if TYPE_CHECKING:
+    from doc_generation.content_gen_methods.command.typer_command import ATyperCommand
 
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
@@ -23,12 +28,17 @@ def is_tool_installed(name: str) -> bool:
 def _generate(context: Context) -> None:
     """Generate documentation output from code."""
     _generate_infrahubctl_documentation(context=context)
-    _generate_infrahub_sdk_configuration_documentation()
-    _generate_infrahub_sdk_template_documentation()
+    generate_python_sdk(context)
 
 
 def _generate_infrahubctl_documentation(context: Context) -> None:
     """Generate the documentation for infrahubctl CLI using typer-cli."""
+    from doc_generation.content_gen_methods import (
+        CommandOutputDocContentGenMethod,
+        TyperGroupCommand,
+        TyperSingleCommand,
+    )
+    from doc_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.ctl.cli import app
 
     output_dir = DOCUMENTATION_DIRECTORY / "docs" / "infrahubctl"
@@ -39,113 +49,149 @@ def _generate_infrahubctl_documentation(context: Context) -> None:
         file.unlink()
 
     print(" - Generate infrahubctl CLI documentation")
-    for cmd in app.registered_commands:
-        if cmd.hidden:
-            continue
-        exec_cmd = (
-            f'uv run typer --func {cmd.name} infrahub_sdk.ctl.cli_commands utils docs --name "infrahubctl {cmd.name}"'
-        )
-        exec_cmd += f" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx"
-        with context.cd(MAIN_DIRECTORY_PATH):
-            context.run(exec_cmd)
+    commands: list[ATyperCommand] = [
+        TyperSingleCommand(name=cmd.name) for cmd in app.registered_commands if not cmd.hidden and cmd.name
+    ]
+    commands.extend(TyperGroupCommand(name=cmd.name) for cmd in app.registered_groups if not cmd.hidden and cmd.name)
 
-    for cmd in app.registered_groups:
-        if cmd.hidden:
-            continue
-        exec_cmd = f"uv run typer infrahub_sdk.ctl.{cmd.name} utils docs"
-        exec_cmd += f' --name "infrahubctl {cmd.name}" --output docs/docs/infrahubctl/infrahubctl-{cmd.name}.mdx'
-        with context.cd(MAIN_DIRECTORY_PATH):
-            context.run(exec_cmd)
+    for typer_cmd in commands:
+        # Generating one documentation page for one command
+        page = DocPage(
+            content_gen_method=CommandOutputDocContentGenMethod(
+                context=context,
+                working_directory=MAIN_DIRECTORY_PATH,
+                command=typer_cmd,
+            ),
+        )
+        output_path = output_dir / f"infrahubctl-{typer_cmd.name}.mdx"
+        MDXDocPage(page=page, output_path=output_path).to_mdx()
 
 
 def _generate_infrahub_sdk_configuration_documentation() -> None:
     """Generate documentation for the Infrahub SDK configuration."""
-    import jinja2
-
-    from infrahub_sdk.config import ConfigBase
-
-    schema = ConfigBase.model_json_schema()
-    env_vars = _get_env_vars()
-    definitions = schema.get("$defs", {})
-
-    properties = []
-    for name, prop in schema["properties"].items():
-        choices: list[dict[str, Any]] = []
-        kind = ""
-        composed_type = ""
-
-        if "allOf" in prop:
-            choices = definitions.get(prop["allOf"][0]["$ref"].split("/")[-1], {}).get("enum", [])
-            kind = definitions.get(prop["allOf"][0]["$ref"].split("/")[-1], {}).get("type", "")
-
-        if "anyOf" in prop:
-            composed_type = ", ".join(i["type"] for i in prop.get("anyOf", []) if "type" in i and i["type"] != "null")
-
-        properties.append(
-            {
-                "name": name,
-                "description": prop.get("description", ""),
-                "type": prop.get("type", kind) or composed_type or "object",
-                "choices": choices,
-                "default": prop.get("default", ""),
-                "env_vars": env_vars.get(name, []),
-            }
-        )
+    from doc_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from doc_generation.helpers import build_config_properties
+    from doc_generation.pages import DocPage, MDXDocPage
+    from infrahub_sdk.template import Jinja2Template
 
     print(" - Generate Infrahub SDK configuration documentation")
-
-    template_file = DOCUMENTATION_DIRECTORY / "_templates" / "sdk_config.j2"
-    output_file = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "config.mdx"
-
-    if not template_file.exists():
-        print(f"Unable to find the template file at {template_file}")
-        sys.exit(-1)
-
-    template_text = template_file.read_text(encoding="utf-8")
-
-    environment = jinja2.Environment(trim_blocks=True, autoescape=jinja2.select_autoescape(default_for_string=False))
-    template = environment.from_string(template_text)
-    rendered_file = template.render(properties=properties)
-
-    output_file.write_text(rendered_file, encoding="utf-8")
-    print(f"Docs saved to: {output_file}")
+    # Generating one documentation page for the ConfigBase.model_json_schema()
+    page = DocPage(
+        content_gen_method=Jinja2DocContentGenMethod(
+            template=Jinja2Template(
+                template=Path("sdk_config.j2"),
+                template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+            ),
+            template_variables={"properties": build_config_properties()},
+        ),
+    )
+    output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "config.mdx"
+    MDXDocPage(page=page, output_path=output_path).to_mdx()
 
 
 def _generate_infrahub_sdk_template_documentation() -> None:
     """Generate documentation for the Infrahub SDK template reference."""
+    from doc_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from doc_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
     from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
 
-    output_file = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"
-    jinja2_template = Jinja2Template(
-        template=Path("sdk_template_reference.j2"),
-        template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+    print(" - Generate Infrahub SDK template documentation")
+    # Generating one documentation page for template documentation
+    page = DocPage(
+        content_gen_method=Jinja2DocContentGenMethod(
+            template=Jinja2Template(
+                template=Path("sdk_template_reference.j2"),
+                template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+            ),
+            template_variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS},
+        ),
     )
-
-    rendered_file = asyncio.run(
-        jinja2_template.render(variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS})
-    )
-    output_file.write_text(rendered_file, encoding="utf-8")
-    print(f"Docs saved to: {output_file}")
+    output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"
+    MDXDocPage(page=page, output_path=output_path).to_mdx()
 
 
-def _get_env_vars() -> dict[str, list[str]]:
-    """Retrieve environment variables for Infrahub SDK configuration."""
-    from collections import defaultdict
+def get_modules_to_document() -> list[str]:
+    """Return the list of Python module paths to document with mdxify.
 
-    from pydantic_settings import EnvSettingsSource
+    Auto-discovers packages under ``infrahub_sdk/`` and validates that every
+    discovered package is explicitly categorised as either *to document* or
+    *to ignore*.  Individual ``.py`` modules can be added via
+    ``extra_modules_to_document``.
+    """
+    # Packages (sub-folders of infrahub_sdk/) to document.
+    # Passed to mdxify as "infrahub_sdk.<name>".
+    packages_to_document = [
+        "node",
+    ]
 
-    from infrahub_sdk.config import ConfigBase
+    # Packages explicitly ignored for API doc generation.
+    packages_to_ignore = [
+        "ctl",
+        "graphql",
+        "protocols_generator",
+        "pytest_plugin",
+        "schema",
+        "spec",
+        "task",
+        "template",
+        "testing",
+        "transfer",
+    ]
 
-    env_vars: dict[str, list[str]] = defaultdict(list)
-    settings = ConfigBase()
-    env_settings = EnvSettingsSource(settings.__class__, env_prefix=settings.model_config.get("env_prefix", ""))
+    # Extra modules (individual .py files, not packages) to document.
+    extra_modules_to_document = [
+        "infrahub_sdk.client",
+    ]
 
-    for field_name, field in settings.model_fields.items():
-        for field_key, field_env_name, _ in env_settings._extract_field_info(field, field_name):
-            env_vars[field_key].append(field_env_name.upper())
+    # Auto-discover all packages under infrahub_sdk/
+    sdk_dir = Path(__file__).parent / "infrahub_sdk"
+    discovered_packages = {d.name for d in sdk_dir.iterdir() if d.is_dir() and (d / "__init__.py").exists()}
 
-    return env_vars
+    # Validate that every discovered package is categorized and vice versa
+    declared = set(packages_to_document) | set(packages_to_ignore)
+    uncategorized = discovered_packages - declared
+    unknown = declared - discovered_packages
+
+    if uncategorized:
+        raise ValueError(
+            f"Uncategorized packages under infrahub_sdk/: {sorted(uncategorized)}. "
+            "Add them to packages_to_document or packages_to_ignore in tasks.py"
+        )
+
+    if unknown:
+        raise ValueError(f"Declared packages that no longer exist: {sorted(unknown)}")
+
+    return [f"infrahub_sdk.{pkg}" for pkg in packages_to_document] + extra_modules_to_document
+
+
+@task(name="generate-sdk-api-docs")
+def _generate_sdk_api_docs(context: Context) -> None:
+    """Generate API documentation for the Python SDK."""
+    from doc_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
+    from doc_generation.pages import DocPage, MDXDocPage
+
+    modules_to_document = get_modules_to_document()
+
+    output_dir = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
+
+    if not is_tool_installed("mdxify"):
+        print(" - mdxify is not installed, skipping documentation generation")
+        return
+
+    if (output_dir / "infrahub_sdk").exists():
+        shutil.rmtree(output_dir / "infrahub_sdk")
+
+    documentation = MdxCodeDocumentation()
+    generated_files = documentation.generate(context=context, modules_to_document=modules_to_document)
+
+    for file_key, mdxified_file in generated_files.items():
+        page = DocPage(content_gen_method=FilePrintingDocContentGenMethod(file=mdxified_file))
+        target_path = output_dir / reduce(operator.truediv, (Path(part) for part in file_key.split("-")))
+        MDXDocPage(page=page, output_path=target_path).to_mdx()
+
+    if is_tool_installed("markdownlint-cli2"):
+        context.run(f"markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml", pty=True)
 
 
 @task
@@ -265,10 +311,11 @@ def generate_infrahubctl(context: Context) -> None:
 
 
 @task(name="generate-sdk")
-def generate_python_sdk(context: Context) -> None:  # noqa: ARG001
+def generate_python_sdk(context: Context) -> None:
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
+    _generate_sdk_api_docs(context)
 
 
 @task
@@ -283,49 +330,3 @@ def generate_repository_jsonschema(context: Context) -> None:
         repository_jsonschema.parent.mkdir(parents=True, exist_ok=True)
         repository_jsonschema.write_text(schema)
         print(f"Wrote to {repository_jsonschema}")
-
-
-@task(name="generate-sdk-api-docs")
-def generate_sdk_api_docs(context: Context, output: str | None = None) -> None:
-    """Generate API documentation for the Python SDK."""
-
-    # This is the list of code modules to generate documentation for.
-    MODULES_LIST = [
-        "infrahub_sdk.client",
-        "infrahub_sdk.node.node",
-    ]
-
-    import operator
-    import shutil
-    import tempfile
-    from functools import reduce
-
-    output_dir = Path(output) if output else DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
-
-    # Create a temporary directory to store the generated documentation
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        # Generate the API documentation using mdxify and get flat file structure
-        exec_cmd = f"mdxify {' '.join(MODULES_LIST)} --output-dir {tmp_dir}"
-        context.run(exec_cmd, pty=True)
-
-        # Remove current obsolete documentation file structure
-        if (output_dir / "infrahub_sdk").exists():
-            shutil.rmtree(output_dir / "infrahub_sdk")
-
-        # Get all .mdx files in the generated doc folder and apply filters
-        filters = ["__init__"]
-        filtered_files = [
-            file
-            for file in list(Path(tmp_dir).glob("*.mdx"))
-            if all(filter.lower() not in file.name for filter in filters)
-        ]
-
-        # Reorganize the generated relevant files into the desired structure
-        for mdx_file in filtered_files:
-            target_path = output_dir / reduce(operator.truediv, (Path(part) for part in mdx_file.name.split("-")))
-
-            # Create the future parent directory if it doesn't exist
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Move the file to the new location
-            shutil.move(mdx_file, target_path)
