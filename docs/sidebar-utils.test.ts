@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCommandItems } from "./sidebar-utils";
+import { getCommandItems, getItemsWithOrder } from "./sidebar-utils";
 
 describe("getCommandItems", () => {
   it("should filter and sort mdx command files", () => {
@@ -54,5 +54,66 @@ describe("getCommandItems", () => {
     const result = getCommandItems(files, "index.mdx");
 
     expect(result).toStrictEqual(["command-a", "command-b"]);
+  });
+});
+
+describe("getItemsWithOrder", () => {
+  it("should preserve the defined order for known items", () => {
+    const files = ["client.mdx", "installation.mdx", "batch.mdx"];
+    const orderedIds = ["guides/installation", "guides/client", "guides/batch"];
+
+    const result = getItemsWithOrder(files, orderedIds, "guides");
+
+    expect(result).toStrictEqual(["guides/installation", "guides/client", "guides/batch"]);
+  });
+
+  it("should append new files sorted alphabetically after ordered items", () => {
+    const files = ["client.mdx", "installation.mdx", "batch.mdx", "new-guide.mdx", "advanced.mdx"];
+    const orderedIds = ["guides/installation", "guides/client", "guides/batch"];
+
+    const result = getItemsWithOrder(files, orderedIds, "guides");
+
+    expect(result).toStrictEqual([
+      "guides/installation",
+      "guides/client",
+      "guides/batch",
+      "guides/advanced",
+      "guides/new-guide",
+    ]);
+  });
+
+  it("should skip ordered items that no longer exist on disk", () => {
+    const files = ["installation.mdx", "batch.mdx"];
+    const orderedIds = ["guides/installation", "guides/client", "guides/batch"];
+
+    const result = getItemsWithOrder(files, orderedIds, "guides");
+
+    expect(result).toStrictEqual(["guides/installation", "guides/batch"]);
+  });
+
+  it("should ignore non-mdx files", () => {
+    const files = ["installation.mdx", "README.md", ".DS_Store"];
+    const orderedIds = ["guides/installation"];
+
+    const result = getItemsWithOrder(files, orderedIds, "guides");
+
+    expect(result).toStrictEqual(["guides/installation"]);
+  });
+
+  it("should work without a prefix", () => {
+    const files = ["tracking.mdx", "object_file.mdx", "new-topic.mdx"];
+    const orderedIds = ["tracking", "object_file"];
+
+    const result = getItemsWithOrder(files, orderedIds);
+
+    expect(result).toStrictEqual(["tracking", "object_file", "new-topic"]);
+  });
+
+  it("should return all files sorted when no ordered ids are provided", () => {
+    const files = ["batch.mdx", "installation.mdx", "client.mdx"];
+
+    const result = getItemsWithOrder(files, [], "guides");
+
+    expect(result).toStrictEqual(["guides/batch", "guides/client", "guides/installation"]);
   });
 });
