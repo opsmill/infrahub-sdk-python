@@ -1,13 +1,11 @@
 import pytest
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
-from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipKind, SchemaRoot
+from infrahub_sdk.schema.main import AttributeKind, NodeSchema, SchemaRoot
 from infrahub_sdk.schema.main import AttributeSchema as Attr
-from infrahub_sdk.schema.main import RelationshipSchema as Rel
 
 NAMESPACE = "Testing"
 TESTING_FILE_CONTRACT = f"{NAMESPACE}FileContract"
-TESTING_CIRCUIT = f"{NAMESPACE}Circuit"
 
 PDF_MAGIC_BYTES = b"%PDF-1.4 fake pdf content for testing"
 PNG_MAGIC_BYTES = b"\x89PNG\r\n\x1a\n fake png content for testing"
@@ -30,46 +28,11 @@ class SchemaFileObject:
                 Attr(name="description", kind=AttributeKind.TEXT, optional=True),
                 Attr(name="active", kind=AttributeKind.BOOLEAN, default_value=True, optional=True),
             ],
-            relationships=[
-                Rel(
-                    name="circuit",
-                    kind=RelationshipKind.ATTRIBUTE,
-                    optional=True,
-                    peer=TESTING_CIRCUIT,
-                    cardinality="one",
-                    identifier="circuit__contracts",
-                ),
-            ],
         )
 
     @pytest.fixture(scope="class")
-    def schema_circuit(self) -> NodeSchema:
-        return NodeSchema(
-            name="Circuit",
-            namespace=NAMESPACE,
-            include_in_menu=True,
-            display_label="circuit_id__value",
-            human_friendly_id=["circuit_id__value"],
-            order_by=["circuit_id__value"],
-            attributes=[
-                Attr(name="circuit_id", kind=AttributeKind.TEXT, unique=True),
-                Attr(name="bandwidth", kind=AttributeKind.NUMBER, optional=True),
-            ],
-            relationships=[
-                Rel(
-                    name="contracts",
-                    kind=RelationshipKind.GENERIC,
-                    optional=True,
-                    peer=TESTING_FILE_CONTRACT,
-                    cardinality="many",
-                    identifier="circuit__contracts",
-                ),
-            ],
-        )
-
-    @pytest.fixture(scope="class")
-    def schema_file_object_base(self, schema_file_contract: NodeSchema, schema_circuit: NodeSchema) -> SchemaRoot:
-        return SchemaRoot(version="1.0", nodes=[schema_file_contract, schema_circuit])
+    def schema_file_object_base(self, schema_file_contract: NodeSchema) -> SchemaRoot:
+        return SchemaRoot(version="1.0", nodes=[schema_file_contract])
 
     @pytest.fixture(scope="class")
     async def load_file_object_schema(self, client: InfrahubClient, schema_file_object_base: SchemaRoot) -> None:
