@@ -5,17 +5,18 @@ from doc_generation.content_gen_methods.command.typer_command import TyperGroupC
 
 from .base import ADocContentGenMethod
 from .command_output_method import CommandOutputDocContentGenMethod
+from .file_printing_method import FilePrintingDocContentGenMethod
 from .jinja2_method import Jinja2DocContentGenMethod
-from .mdxify_method import MdxifiedCodeDocumentation, MdxifyDocContentGenMethod
+from doc_generation.content_gen_methods.mdx.mdx_code_doc import MdxCodeDocumentation
 from .sdk_jinja2_method import SDKJinja2DocContentGenMethod
 
 __all__ = [
     "ACommand",
     "ADocContentGenMethod",
     "CommandOutputDocContentGenMethod",
+    "FilePrintingDocContentGenMethod",
     "Jinja2DocContentGenMethod",
-    "MdxifiedCodeDocumentation",
-    "MdxifyDocContentGenMethod",
+    "MdxCodeDocumentation",
     "SDKJinja2DocContentGenMethod",
     "TyperGroupCommand",
     "TyperSingleCommand",
