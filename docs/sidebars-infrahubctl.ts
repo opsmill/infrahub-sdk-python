@@ -1,4 +1,10 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+import {readdirSync} from 'fs';
+import {join} from 'path';
+import {getCommandItems} from './sidebar-utils';
+
+const docsDir = join(__dirname, 'docs', 'infrahubctl');
+const commandItems = getCommandItems(readdirSync(docsDir));
 
 const sidebars: SidebarsConfig = {
   infrahubctlSidebar: [
@@ -10,25 +16,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Commands',
-      items: [
-        'infrahubctl-branch',
-        'infrahubctl-check',
-        'infrahubctl-dump',
-        'infrahubctl-generator',
-        'infrahubctl-info',
-        'infrahubctl-load',
-        'infrahubctl-menu',
-        'infrahubctl-object',
-        'infrahubctl-protocols',
-        'infrahubctl-render',
-        'infrahubctl-repository',
-        'infrahubctl-run',
-        'infrahubctl-schema',
-        'infrahubctl-task',
-        'infrahubctl-transform',
-        'infrahubctl-validate',
-        'infrahubctl-version'
-      ],
+      items: commandItems,
     },
   ],
 };
