@@ -1868,10 +1868,11 @@ class InfrahubClient(BaseClient):
         for more information.
         """
 
-        if fields_mapping is None:
-            mapping_dict = {}
-        else:
-            mapping_dict = {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+        mapping_dict = (
+            {}
+            if fields_mapping is None
+            else {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+        )
 
         branch_name = branch or self.default_branch
         response = await self.execute_graphql(
@@ -3425,10 +3426,11 @@ class InfrahubClientSync(BaseClient):
         for more information.
         """
 
-        if fields_mapping is None:
-            mapping_dict = {}
-        else:
-            mapping_dict = {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+        mapping_dict = (
+            {}
+            if fields_mapping is None
+            else {field_name: model.model_dump(mode="json") for field_name, model in fields_mapping.items()}
+        )
 
         branch_name = branch or self.default_branch
         response = self.execute_graphql(

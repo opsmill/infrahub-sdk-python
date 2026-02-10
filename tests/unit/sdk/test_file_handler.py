@@ -288,10 +288,7 @@ async def test_file_handler_build_url_with_branch(client_type: str, clients: Bot
     """Test URL building with branch parameter."""
     client = getattr(clients, client_type)
 
-    if client_type == "standard":
-        handler = FileHandler(client=client)
-    else:
-        handler = FileHandlerSync(client=client)
+    handler = FileHandler(client=client) if client_type == "standard" else FileHandlerSync(client=client)
 
     url = handler._build_url(node_id="node-123", branch="feature-branch")
     assert url == "http://mock/api/storage/files/node-123?branch=feature-branch"
@@ -302,10 +299,7 @@ async def test_file_handler_build_url_without_branch(client_type: str, clients: 
     """Test URL building without branch parameter."""
     client = getattr(clients, client_type)
 
-    if client_type == "standard":
-        handler = FileHandler(client=client)
-    else:
-        handler = FileHandlerSync(client=client)
+    handler = FileHandler(client=client) if client_type == "standard" else FileHandlerSync(client=client)
 
     url = handler._build_url(node_id="node-456", branch=None)
     assert url == "http://mock/api/storage/files/node-456"

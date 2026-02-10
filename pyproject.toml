@@ -247,7 +247,6 @@ ignore = [
     "RUF005",  # Consider `[*path, str(key)]` instead of concatenation
     "RUF029",  # Function is declared `async`, but doesn't `await` or use `async` features.
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
-    "SIM108",  # Use ternary operator `key_str = f"{value[ALIAS_KEY]}: {key}" if ALIAS_KEY in value and value[ALIAS_KEY] else key` instead of `if`-`else`-block
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
 ]
