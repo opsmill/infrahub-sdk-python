@@ -82,7 +82,10 @@ class Jinja2Template:
         if self.is_file_based and env.loader:
             template_source = env.loader.get_source(env, self._template)[0]
 
-        template = env.parse(template_source)
+        try:
+            template = env.parse(template_source)
+        except jinja2.TemplateSyntaxError as exc:
+            self._raise_template_syntax_error(error=exc)
 
         return sorted(meta.find_undeclared_variables(template))
 
@@ -96,7 +99,11 @@ class Jinja2Template:
         if self.is_file_based and env.loader:
             template_source = env.loader.get_source(env, self._template)[0]
 
-        template = env.parse(template_source)
+        try:
+            template = env.parse(template_source)
+        except jinja2.TemplateSyntaxError as exc:
+            self._raise_template_syntax_error(error=exc)
+
         for node in template.find_all(nodes.Filter):
             if node.name not in allowed_list:
                 raise JinjaTemplateOperationViolationError(f"The '{node.name}' filter isn't allowed to be used")

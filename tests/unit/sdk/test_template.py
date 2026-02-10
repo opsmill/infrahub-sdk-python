@@ -42,6 +42,14 @@ class JinjaTestCaseFailing:
     error: JinjaTemplateError
 
 
+@dataclass
+class JinjaSyntaxErrorTestCase:
+    name: str
+    template: str
+    expected_message: str
+    expected_lineno: int
+
+
 SUCCESSFUL_STRING_TEST_CASES = [
     JinjaTestCase(
         name="hello-world",
@@ -251,6 +259,56 @@ async def test_manage_unhandled_error() -> None:
         await jinja.render(variables={"number": 1})
 
     assert exc.value.message == "division by zero"
+
+
+SYNTAX_ERROR_TEST_CASES = [
+    JinjaSyntaxErrorTestCase(
+        name="empty-expression",
+        template="{{ }} testing",
+        expected_message="Expected an expression, got 'end of print statement'",
+        expected_lineno=1,
+    ),
+    JinjaSyntaxErrorTestCase(
+        name="missing-closing-end-if",
+        template="Hello {% if name is undefined %}stranger{% else %}{{name}}{% endif",
+        expected_message="unexpected end of template, expected 'end of statement block'.",
+        expected_lineno=1,
+    ),
+    JinjaSyntaxErrorTestCase(
+        name="fail-on-line-2",
+        template="Hello \n{{ name }",
+        expected_message="unexpected '}'",
+        expected_lineno=2,
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in SYNTAX_ERROR_TEST_CASES],
+)
+def test_get_variables_syntax_error(test_case: JinjaSyntaxErrorTestCase) -> None:
+    """Test that get_variables() raises JinjaTemplateSyntaxError for invalid templates."""
+    jinja = Jinja2Template(template=test_case.template)
+    with pytest.raises(JinjaTemplateSyntaxError) as exc:
+        jinja.get_variables()
+
+    assert exc.value.message == test_case.expected_message
+    assert exc.value.lineno == test_case.expected_lineno
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in SYNTAX_ERROR_TEST_CASES],
+)
+def test_validate_syntax_error(test_case: JinjaSyntaxErrorTestCase) -> None:
+    """Test that validate() raises JinjaTemplateSyntaxError for invalid templates."""
+    jinja = Jinja2Template(template=test_case.template)
+    with pytest.raises(JinjaTemplateSyntaxError) as exc:
+        jinja.validate()
+
+    assert exc.value.message == test_case.expected_message
+    assert exc.value.lineno == test_case.expected_lineno
 
 
 async def test_validate_filter() -> None:
