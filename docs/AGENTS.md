@@ -9,8 +9,9 @@ cd docs && npm install              # Install deps
 cd docs && npm start                # Dev server at localhost:3000
 cd docs && npm run build            # Build static site
 cd docs && npm test                 # Run sidebar utility tests
-uv run invoke docs                  # Generate auto-docs
-uv run invoke docs-validate         # Validate docs are current
+uv run invoke docs                  # Build documentation website
+uv run invoke docs-generate         # Regenerate all docs (infrahubctl CLI + Python SDK)
+uv run invoke docs-validate         # Check that generated docs match committed files
 ```
 
 ## Structure
@@ -61,7 +62,7 @@ Use callouts for important notes.
 ✅ **Always**
 
 - Include both async/sync examples using Tabs
-- Run `uv run invoke docs-validate` after code changes
+- Run `uv run invoke docs-validate` after code changes to verify generated docs are up to date
 
 🚫 **Never**
 
