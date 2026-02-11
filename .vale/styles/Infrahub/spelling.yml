@@ -6,4 +6,5 @@ filters:
   - '[pP]y.*\b'
   - '\bimport_.*\b' # New filter to ignore variables starting with 'import_'
   - '\w+__value' # New filter to skip Infrahub filters in documentation (name__value)
+  - '\b\w+_\w+\b' # Ignore snake_case identifiers (Python parameter/attribute names)
 ignore: spelling-exceptions.txt

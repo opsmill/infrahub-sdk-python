@@ -582,7 +582,7 @@ class InfrahubClient(BaseClient):
             response (dict[str, Any]): The response from the GraphQL query.
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
-            prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
+            prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 
         Returns:
@@ -712,7 +712,7 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
@@ -815,7 +815,7 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
@@ -933,7 +933,7 @@ class InfrahubClient(BaseClient):
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
-        If retry_on_failure is True, the query will retry until the server becomes reacheable.
+        If retry_on_failure is True, the query will retry until the server becomes reachable.
 
         Args:
             query (_type_): GraphQL Query to execute, can be a query or a mutation
@@ -1848,7 +1848,7 @@ class InfrahubClientSync(BaseClient):
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
-        If retry_on_failure is True, the query will retry until the server becomes reacheable.
+        If retry_on_failure is True, the query will retry until the server becomes reachable.
 
         Args:
             query (str): GraphQL Query to execute, can be a query or a mutation
@@ -2028,7 +2028,7 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
@@ -2069,7 +2069,7 @@ class InfrahubClientSync(BaseClient):
             response (dict[str, Any]): The response from the GraphQL query.
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
-            prefetch_relationships (bool): Flag to indicate whether to prefetch relationship data.
+            prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 
         Returns:
@@ -2172,7 +2172,7 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
-            prefetch_relationships (bool, optional): Flag to indicate whether to prefetch related node data.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.

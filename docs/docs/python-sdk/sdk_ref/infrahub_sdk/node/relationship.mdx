@@ -1,0 +1,114 @@
+---
+title: relationship
+sidebarTitle: relationship
+---
+
+# `infrahub_sdk.node.relationship`
+
+## Classes
+
+### `RelationshipManagerBase`
+
+Base class for RelationshipManager and RelationshipManagerSync
+
+**Methods:**
+
+#### `peer_ids`
+
+```python
+peer_ids(self) -> list[str]
+```
+
+#### `peer_hfids`
+
+```python
+peer_hfids(self) -> list[list[Any]]
+```
+
+#### `peer_hfids_str`
+
+```python
+peer_hfids_str(self) -> list[str]
+```
+
+#### `has_update`
+
+```python
+has_update(self) -> bool
+```
+
+#### `is_from_profile`
+
+```python
+is_from_profile(self) -> bool
+```
+
+Return whether this relationship was set from a profile. All its peers must be from a profile.
+
+### `RelationshipManager`
+
+Manages relationships of a node in an asynchronous context.
+
+**Methods:**
+
+#### `fetch`
+
+```python
+fetch(self) -> None
+```
+
+#### `add`
+
+```python
+add(self, data: str | RelatedNode | dict) -> None
+```
+
+Add a new peer to this relationship.
+
+#### `extend`
+
+```python
+extend(self, data: Iterable[str | RelatedNode | dict]) -> None
+```
+
+Add new peers to this relationship.
+
+#### `remove`
+
+```python
+remove(self, data: str | RelatedNode | dict) -> None
+```
+
+### `RelationshipManagerSync`
+
+Manages relationships of a node in a synchronous context.
+
+**Methods:**
+
+#### `fetch`
+
+```python
+fetch(self) -> None
+```
+
+#### `add`
+
+```python
+add(self, data: str | RelatedNodeSync | dict) -> None
+```
+
+Add a new peer to this relationship.
+
+#### `extend`
+
+```python
+extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None
+```
+
+Add new peers to this relationship.
+
+#### `remove`
+
+```python
+remove(self, data: str | RelatedNodeSync | dict) -> None
+```

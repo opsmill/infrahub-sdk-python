@@ -9,9 +9,7 @@ sidebarTitle: node
 
 ### `InfrahubNodeBase`
 
-
 Base class for InfrahubNode and InfrahubNodeSync
-
 
 **Methods:**
 
@@ -59,7 +57,6 @@ get_node_metadata(self) -> NodeMetadata | None
 
 Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched.
 
-
 #### `get_kind`
 
 ```python
@@ -104,9 +101,7 @@ generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: in
 
 ### `InfrahubNode`
 
-
 Represents a Infrahub node in an asynchronous context.
-
 
 **Methods:**
 
@@ -161,6 +156,7 @@ generate_query_data_node(self, include: list[str] | None = None, exclude: list[s
 Generate the node part of a GraphQL Query with attributes and nodes.
 
 **Args:**
+
 - `include`: List of attributes or relationships to include. Defaults to None.
 - `exclude`: List of attributes or relationships to exclude. Defaults to None.
 - `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
@@ -170,8 +166,8 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
 
 **Returns:**
-- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
 #### `add_relationships`
 
@@ -206,11 +202,12 @@ get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]
 Fetch all nodes that were allocated for the pool and a given resource.
 
 **Args:**
+
 - `resource`: The resource from which the nodes were allocated.
 
 **Returns:**
-- list\[InfrahubNode]: The allocated nodes.
 
+- list\[InfrahubNode]: The allocated nodes.
 
 #### `get_pool_resources_utilization`
 
@@ -221,8 +218,8 @@ get_pool_resources_utilization(self) -> list[dict[str, Any]]
 Fetch the utilization of each resource for the pool.
 
 **Returns:**
-- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
 #### `get_flat_value`
 
@@ -237,21 +234,17 @@ Query recursively a value defined in a flat notation (string), on a hierarchy of
 name__value
 module.object.value
 
-
 #### `extract`
 
 ```python
 extract(self, params: dict[str, str]) -> dict[str, Any]
 ```
 
-Extract some datapoints defined in a flat notation.
-
+Extract some data points defined in a flat notation.
 
 ### `InfrahubNodeSync`
 
-
 Represents a Infrahub node in a synchronous context.
-
 
 **Methods:**
 
@@ -306,6 +299,7 @@ generate_query_data_node(self, include: list[str] | None = None, exclude: list[s
 Generate the node part of a GraphQL Query with attributes and nodes.
 
 **Args:**
+
 - `include`: List of attributes or relationships to include. Defaults to None.
 - `exclude`: List of attributes or relationships to exclude. Defaults to None.
 - `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
@@ -315,8 +309,8 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
 
 **Returns:**
-- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
 
 #### `add_relationships`
 
@@ -351,11 +345,12 @@ get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubN
 Fetch all nodes that were allocated for the pool and a given resource.
 
 **Args:**
+
 - `resource`: The resource from which the nodes were allocated.
 
 **Returns:**
-- list\[InfrahubNodeSync]: The allocated nodes.
 
+- list\[InfrahubNodeSync]: The allocated nodes.
 
 #### `get_pool_resources_utilization`
 
@@ -366,8 +361,8 @@ get_pool_resources_utilization(self) -> list[dict[str, Any]]
 Fetch the utilization of each resource for the pool.
 
 **Returns:**
-- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
 #### `get_flat_value`
 
@@ -382,12 +377,10 @@ Query recursively a value defined in a flat notation (string), on a hierarchy of
 name__value
 module.object.value
 
-
 #### `extract`
 
 ```python
 extract(self, params: dict[str, str]) -> dict[str, Any]
 ```
 
-Extract some datapoints defined in a flat notation.
-
+Extract some data points defined in a flat notation.
