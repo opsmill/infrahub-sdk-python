@@ -9,7 +9,7 @@ from pathlib import Path
 from shutil import which
 from typing import TYPE_CHECKING
 
-from invoke import Context, task
+from invoke import Context, Exit, task
 
 if TYPE_CHECKING:
     from docs.docs_generation.content_gen_methods.command.typer_command import ATyperCommand
@@ -20,13 +20,15 @@ DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
 MAIN_DIRECTORY_PATH = Path(__file__).parent
 
 
-def is_tool_installed(name: str) -> bool:
-    """Check whether `name` is on PATH and marked as executable."""
-    return which(name) is not None
+def require_tool(name: str, install_hint: str) -> None:
+    """Raise ``Exit`` if *name* is not found on PATH."""
+    if which(name) is None:
+        raise Exit(f" - {name} is not installed. {install_hint}", code=1)
 
 
-def _generate(context: Context) -> None:
-    """Generate documentation output from code."""
+@task(name="docs-generate")
+def docs_generate(context: Context) -> None:
+    """Generate all documentation (infrahubctl CLI + Python SDK)."""
     _generate_infrahubctl_documentation(context=context)
     generate_python_sdk(context)
 
@@ -171,13 +173,12 @@ def _generate_sdk_api_docs(context: Context) -> None:
     from docs.docs_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
     from docs.docs_generation.pages import DocPage, MDXDocPage
 
+    print(" - Generate Python SDK API documentation")
+    require_tool("mdxify", "Install it with: uv sync --all-groups --all-extras")
+
     modules_to_document = get_modules_to_document()
 
     output_dir = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "sdk_ref"
-
-    if not is_tool_installed("mdxify"):
-        print(" - mdxify is not installed, skipping documentation generation")
-        return
 
     if (output_dir / "infrahub_sdk").exists():
         shutil.rmtree(output_dir / "infrahub_sdk")
@@ -190,8 +191,8 @@ def _generate_sdk_api_docs(context: Context) -> None:
         target_path = output_dir / reduce(operator.truediv, (Path(part) for part in file_key.split("-")))
         MDXDocPage(page=page, output_path=target_path).to_mdx()
 
-    if is_tool_installed("markdownlint-cli2"):
-        context.run(f"markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml", pty=True)
+    with context.cd(DOCUMENTATION_DIRECTORY):
+        context.run(f"npx --no-install markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml", pty=True)
 
 
 @task
@@ -243,24 +244,18 @@ def lint_ruff(context: Context) -> None:
 @task
 def lint_markdownlint(context: Context) -> None:
     """Run markdownlint to check all markdown files."""
-    if not is_tool_installed("markdownlint-cli2"):
-        print(" - markdownlint-cli2 is not installed, skipping documentation linting")
-        return
-
     print(" - Check documentation with markdownlint-cli2")
-    exec_cmd = "markdownlint-cli2 **/*.{md,mdx} --config .markdownlint.yaml"
-    with context.cd(MAIN_DIRECTORY_PATH):
+    exec_cmd = "npx --no-install markdownlint-cli2 **/*.{md,mdx} !node_modules/** --config .markdownlint.yaml"
+    with context.cd(DOCUMENTATION_DIRECTORY):
         context.run(exec_cmd)
 
 
 @task
 def lint_vale(context: Context) -> None:
     """Run vale to check all documentation files."""
-    if not is_tool_installed("vale"):
-        print(" - vale is not installed, skipping documentation style linting")
-        return
-
     print(" - Check documentation style with vale")
+    require_tool("vale", "Install it from: https://vale.sh/docs/install")
+
     exec_cmd = r'vale $(find ./docs -type f \( -name "*.mdx" -o -name "*.md" \) -not -path "*/node_modules/*")'
     with context.cd(MAIN_DIRECTORY_PATH):
         context.run(exec_cmd)
@@ -285,11 +280,27 @@ def lint_all(context: Context) -> None:
 
 @task(name="docs-validate")
 def docs_validate(context: Context) -> None:
-    """Validate that the generated documentation is committed to Git."""
-    _generate(context=context)
-    exec_cmd = "git diff --exit-code docs"
-    with context.cd(MAIN_DIRECTORY_PATH):
-        context.run(exec_cmd)
+    """Validate that the generated documentation matches the committed version.
+
+    Regenerates all documentation and checks for modified, deleted, or new
+    untracked files under docs/. Exits with a non-zero code and a descriptive
+    message when the working tree diverges from what is committed.
+    """
+    docs_generate(context)
+    with context.cd(DOCUMENTATION_DIRECTORY):
+        diff_result = context.run("git diff --name-only docs", hide=True)
+        changed_files = diff_result.stdout.strip() if diff_result else ""
+        untracked_result = context.run("git ls-files --others --exclude-standard docs", hide=True)
+        untracked_files = untracked_result.stdout.strip() if untracked_result else ""
+
+        if changed_files or untracked_files:
+            message = "Generated documentation is out of sync with the committed version.\n"
+            message += "Run 'uv run invoke docs-generate' and commit the result.\n\n"
+            if changed_files:
+                message += f"Modified or deleted files:\n{changed_files}\n\n"
+            if untracked_files:
+                message += f"New untracked files:\n{untracked_files}\n"
+            raise Exit(message, code=1)
 
 
 @task(name="docs")
