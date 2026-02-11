@@ -73,7 +73,7 @@ class GitRepo:
         if files_to_add:
             porcelain.add(repo=self._repo.git.path, paths=files_to_add)
             porcelain.commit(repo=self._repo.git.path, message="First commit")
-            porcelain.checkout_branch(self._repo.git, self.initial_branch.encode("utf-8"))
+            porcelain.checkout(repo=self._repo.git, target=self.initial_branch)
 
     async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
         input_data = {
