@@ -219,6 +219,14 @@ def lint_vale(context: Context) -> None:
 
 
 @task
+def lint_code(context: Context) -> None:
+    """Run all code linters."""
+    lint_ruff(context)
+    lint_ty(context)
+    lint_mypy(context)
+
+
+@task
 def lint_docs(context: Context) -> None:
     """Run all documentation linters."""
     lint_markdownlint(context)
@@ -229,9 +237,7 @@ def lint_docs(context: Context) -> None:
 def lint_all(context: Context) -> None:
     """Run all linters."""
     lint_yaml(context)
-    lint_ruff(context)
-    lint_ty(context)
-    lint_mypy(context)
+    lint_code(context)
     lint_docs(context)
 
 
