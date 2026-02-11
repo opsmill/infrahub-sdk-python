@@ -149,10 +149,7 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
         elif isinstance(value, dict) and len(value) == 1 and alias_key in value and value[alias_key]:
             lines.append(f"{offset_str}{value[alias_key]}: {key}")
         elif isinstance(value, dict):
-            if value.get(alias_key):
-                key_str = f"{value[alias_key]}: {key}"
-            else:
-                key_str = key
+            key_str = f"{value[alias_key]}: {key}" if value.get(alias_key) else key
 
             if value.get(filters_key):
                 filters_str = ", ".join(

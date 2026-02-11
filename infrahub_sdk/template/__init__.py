@@ -64,10 +64,7 @@ class Jinja2Template:
             return self._template_definition
 
         try:
-            if self.is_string_based:
-                template = self._get_string_based_template()
-            else:
-                template = self._get_file_based_template()
+            template = self._get_string_based_template() if self.is_string_based else self._get_file_based_template()
         except jinja2.TemplateSyntaxError as exc:
             self._raise_template_syntax_error(error=exc)
         except jinja2.TemplateNotFound as exc:
@@ -127,10 +124,7 @@ class Jinja2Template:
             errors = _identify_faulty_jinja_code(traceback=traceback)
             raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)
         except Exception as exc:
-            if error_message := getattr(exc, "message", None):
-                message = error_message
-            else:
-                message = str(exc)
+            message = error_message if (error_message := getattr(exc, "message", None)) else str(exc)
             raise JinjaTemplateError(message=message or "Unknown template error")
 
         return output
@@ -195,10 +189,7 @@ def _identify_faulty_jinja_code(traceback: Traceback, nbr_context_lines: int = 3
     # Extract only the Jinja related exception
     for frame in [frame for frame in traceback.trace.stacks[0].frames if not frame.filename.endswith(".py")]:
         code = "".join(linecache.getlines(frame.filename))
-        if frame.filename == "<template>":
-            lexer_name = "text"
-        else:
-            lexer_name = Traceback._guess_lexer(frame.filename, code)
+        lexer_name = "text" if frame.filename == "<template>" else Traceback._guess_lexer(frame.filename, code)
         syntax = Syntax(
             code,
             lexer_name,

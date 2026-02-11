@@ -648,10 +648,7 @@ class InfrahubNode(InfrahubNodeBase):
                         )
                         if value is not None
                     }
-                    if peer_id_data:
-                        rel_data = peer_id_data
-                    else:
-                        rel_data = None
+                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
@@ -1538,10 +1535,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         )
                         if value is not None
                     }
-                    if peer_id_data:
-                        rel_data = peer_id_data
-                    else:
-                        rel_data = None
+                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )

@@ -243,10 +243,7 @@ async def test_schema_wait_happy_path(clients: BothClients, client_type: list[st
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_schema_set_cache_dict(clients: BothClients, client_type: list[str], schema_query_01_data: dict) -> None:
-    if client_type == "standard":
-        client = clients.standard
-    else:
-        client = clients.sync
+    client = clients.standard if client_type == "standard" else clients.sync
 
     client.schema.set_cache(schema_query_01_data, branch="branch1")
     assert "branch1" in client.schema.cache
@@ -257,10 +254,7 @@ async def test_schema_set_cache_dict(clients: BothClients, client_type: list[str
 async def test_schema_set_cache_branch_schema(
     clients: BothClients, client_type: list[str], schema_query_01_data: dict
 ) -> None:
-    if client_type == "standard":
-        client = clients.standard
-    else:
-        client = clients.sync
+    client = clients.standard if client_type == "standard" else clients.sync
 
     schema = BranchSchema.from_api_response(schema_query_01_data)
 

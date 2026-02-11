@@ -350,10 +350,7 @@ def transform(
     # Run Transform
     result = asyncio.run(transform.run(data=data))
 
-    if isinstance(result, str):
-        json_string = result
-    else:
-        json_string = ujson.dumps(result, indent=2, sort_keys=True)
+    json_string = result if isinstance(result, str) else ujson.dumps(result, indent=2, sort_keys=True)
 
     if out:
         write_to_file(Path(out), json_string)
