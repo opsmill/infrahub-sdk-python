@@ -9,6 +9,51 @@ if TYPE_CHECKING:
     from invoke import Context
 
 
+def _wrap_doctest_examples(content: str) -> str:
+    """Wrap bare ``>>>`` doctest blocks in fenced code blocks for MDX compatibility.
+
+    mdxify does not fence doctest examples, so curly braces and brackets
+    in those lines cause MDX/acorn parse errors.
+    """
+    lines = content.split("\n")
+    result: list[str] = []
+    in_fence = False
+    in_doctest = False
+
+    for line in lines:
+        if line.startswith("```"):
+            if in_doctest:
+                result.append("```")
+                in_doctest = False
+            in_fence = not in_fence
+            result.append(line)
+            continue
+
+        if in_fence:
+            result.append(line)
+            continue
+
+        if line.startswith(">>>"):
+            if not in_doctest:
+                result.append("```python")
+                in_doctest = True
+            result.append(line)
+        elif in_doctest:
+            if not line.strip() or line.startswith("#"):
+                result.append("```")
+                in_doctest = False
+                result.append(line)
+            else:
+                result.append(line)
+        else:
+            result.append(line)
+
+    if in_doctest:
+        result.append("```")
+
+    return "\n".join(result)
+
+
 @dataclass
 class MdxFile:
     """Content of a single ``.mdx`` file produced by mdxify."""
@@ -52,7 +97,7 @@ class MdxCodeDocumentation:
             for mdx_file in Path(tmp_dir).glob("*.mdx"):
                 if any(f.lower() in mdx_file.name for f in self.file_filters):
                     continue
-                content = mdx_file.read_text(encoding="utf-8")
+                content = _wrap_doctest_examples(mdx_file.read_text(encoding="utf-8"))
                 results[mdx_file.name] = MdxFile(path=mdx_file, content=content)
 
             return results
