@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from pytest import Collector, Config, Item, Parser, Session
-from pytest import exit as exit_test
+import pytest
 
 from .. import InfrahubClientSync
 from ..utils import is_valid_url
@@ -12,7 +11,7 @@ from .loader import InfrahubYamlFile
 from .utils import find_repository_config_file, load_repository_config
 
 
-def pytest_addoption(parser: Parser) -> None:
+def pytest_addoption(parser: pytest.Parser) -> None:
     group = parser.getgroup("pytest-infrahub")
     group.addoption(
         "--infrahub-repo-config",
@@ -62,7 +61,7 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
-def pytest_sessionstart(session: Session) -> None:
+def pytest_sessionstart(session: pytest.Session) -> None:
     if session.config.option.infrahub_repo_config:
         session.infrahub_config_path = Path(session.config.option.infrahub_repo_config)  # type: ignore[attr-defined]
     else:
@@ -72,7 +71,7 @@ def pytest_sessionstart(session: Session) -> None:
         session.infrahub_repo_config = load_repository_config(repo_config_file=session.infrahub_config_path)  # type: ignore[attr-defined]
 
     if not is_valid_url(session.config.option.infrahub_address):
-        exit_test("Infrahub test instance address is not a valid URL", returncode=1)
+        pytest.exit("Infrahub test instance address is not a valid URL", returncode=1)
 
     client_config = {
         "address": session.config.option.infrahub_address,
@@ -89,13 +88,13 @@ def pytest_sessionstart(session: Session) -> None:
     session.infrahub_client = infrahub_client  # type: ignore[attr-defined]
 
 
-def pytest_collect_file(parent: Collector | Item, file_path: Path) -> InfrahubYamlFile | None:
+def pytest_collect_file(parent: pytest.Collector | pytest.Item, file_path: Path) -> InfrahubYamlFile | None:
     if file_path.suffix in {".yml", ".yaml"} and file_path.name.startswith("test_"):
         return InfrahubYamlFile.from_parent(parent, path=file_path)
     return None
 
 
-def pytest_configure(config: Config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "infrahub: Infrahub test")
     config.addinivalue_line("markers", "infrahub_smoke: Smoke test for an Infrahub resource")
     config.addinivalue_line("markers", "infrahub_unit: Unit test for an Infrahub resource, works without dependencies")

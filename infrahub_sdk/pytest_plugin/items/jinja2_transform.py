@@ -16,7 +16,7 @@ from ..models import InfrahubInputOutputTest, InfrahubTestExpectedResult
 from .base import InfrahubItem
 
 if TYPE_CHECKING:
-    from pytest import ExceptionInfo
+    import pytest
 
 
 class InfrahubJinja2Item(InfrahubItem):
@@ -57,7 +57,7 @@ class InfrahubJinja2Item(InfrahubItem):
         )
         return "\n".join(differences)
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
+    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
                 response_content = ujson.dumps(excinfo.value.response.json(), indent=4, sort_keys=True)
@@ -94,7 +94,7 @@ class InfrahubJinja2TransformUnitRenderItem(InfrahubJinja2Item):
         if computed is not None and differences and self.test.expect == InfrahubTestExpectedResult.PASS:
             raise OutputMatchError(name=self.name, differences=differences)
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
+    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, (JinjaTemplateError)):
             return str(excinfo.value.message)
 
