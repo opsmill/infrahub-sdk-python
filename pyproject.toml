@@ -320,7 +320,7 @@ max-complexity = 17
     "S105", # 'PASS' is not a password but a state
 ]
 
-"infrahub_sdk/template/jinja2/__init__.py" = [
+"infrahub_sdk/template/__init__.py" = [
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################
