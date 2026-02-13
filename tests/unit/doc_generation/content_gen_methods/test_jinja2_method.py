@@ -4,18 +4,16 @@ from pathlib import Path
 
 from docs.docs_generation import Jinja2DocContentGenMethod
 from infrahub_sdk.template import Jinja2Template
-from tests.unit.sdk.dummy_template import DummyTemplate
 
 
 class TestJinja2DocContentGenMethod:
-    def test_apply_calls_template(self) -> None:
-        """Inject a DummyTemplate to verify the method renders
-        using the template engine correctly."""
+    def test_apply_renders_string_template(self) -> None:
+        """Verify the method renders a string-based Jinja2Template correctly."""
         # Arrange
-        template = DummyTemplate(content="rendered content")
+        template = Jinja2Template(template="rendered {{ key }}")
         method = Jinja2DocContentGenMethod(
             template=template,
-            template_variables={"key": "value"},
+            template_variables={"key": "content"},
         )
 
         # Act

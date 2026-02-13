@@ -6,16 +6,16 @@ from typing import TYPE_CHECKING, Any
 from .base import ADocContentGenMethod
 
 if TYPE_CHECKING:
-    from infrahub_sdk.template.base import ATemplate
+    from infrahub_sdk.template import Jinja2Template
 
 
 class Jinja2DocContentGenMethod(ADocContentGenMethod):
-    """Render a template using an ``ATemplate`` implementation.
+    """Render a template using a ``Jinja2Template``.
 
     The template engine is async; rendering is run synchronously via ``asyncio.run``.
 
     Args:
-        template: A template instance implementing ``ATemplate``.
+        template: A ``Jinja2Template`` instance.
         template_variables: Variables passed to the template during rendering.
 
     Example::
@@ -31,7 +31,7 @@ class Jinja2DocContentGenMethod(ADocContentGenMethod):
         content = method.apply()
     """
 
-    def __init__(self, template: ATemplate, template_variables: dict[str, Any]) -> None:
+    def __init__(self, template: Jinja2Template, template_variables: dict[str, Any]) -> None:
         self.template = template
         self.template_variables = template_variables
 
