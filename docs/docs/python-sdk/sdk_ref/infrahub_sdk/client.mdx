@@ -27,97 +27,11 @@ raise_for_error_deprecation_warning(value: bool | None) -> None
 
 ## Classes
 
-### `ProcessRelationsNode`
-
-### `ProxyConfig`
-
-### `ProxyConfigSync`
-
-### `ProcessRelationsNodeSync`
-
-### `BaseClient`
-
-Base class for InfrahubClient and InfrahubClientSync
-
-**Methods:**
-
-#### `request_context`
-
-```python
-request_context(self) -> RequestContext | None
-```
-
-#### `request_context`
-
-```python
-request_context(self, request_context: RequestContext) -> None
-```
-
-#### `start_tracking`
-
-```python
-start_tracking(self, identifier: str | None = None, params: dict[str, Any] | None = None, delete_unused_nodes: bool = False, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> Self
-```
-
-#### `set_context_properties`
-
-```python
-set_context_properties(self, identifier: str, params: dict[str, str] | None = None, delete_unused_nodes: bool = True, reset: bool = True, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> None
-```
-
 ### `InfrahubClient`
 
 GraphQL Client to interact with Infrahub.
 
 **Methods:**
-
-#### `get_version`
-
-```python
-get_version(self) -> str
-```
-
-Return the Infrahub version.
-
-#### `get_user`
-
-```python
-get_user(self) -> dict
-```
-
-Return user information
-
-#### `get_user_permissions`
-
-```python
-get_user_permissions(self) -> dict
-```
-
-Return user permissions
-
-#### `create`
-
-```python
-create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNode
-```
-
-#### `create`
-
-```python
-create(self, kind: type[SchemaType], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaType
-```
-
-#### `create`
-
-```python
-create(self, kind: str | type[SchemaType], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNode | SchemaType
-```
-
-#### `delete`
-
-```python
-delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None
-```
 
 #### `get`
 
@@ -160,6 +74,54 @@ get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ...,
 ```python
 get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, **kwargs: Any) -> InfrahubNode | SchemaType | None
 ```
+
+#### `delete`
+
+```python
+delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None
+```
+
+#### `create`
+
+```python
+create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNode
+```
+
+#### `create`
+
+```python
+create(self, kind: type[SchemaType], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaType
+```
+
+#### `create`
+
+```python
+create(self, kind: str | type[SchemaType], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNode | SchemaType
+```
+
+#### `get_version`
+
+```python
+get_version(self) -> str
+```
+
+Return the Infrahub version.
+
+#### `get_user`
+
+```python
+get_user(self) -> dict
+```
+
+Return user information
+
+#### `get_user_permissions`
+
+```python
+get_user_permissions(self) -> dict
+```
+
+Return user permissions
 
 #### `count`
 
@@ -481,6 +443,72 @@ for more information.
 
 **Methods:**
 
+#### `get`
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync | None
+```
+
+#### `get`
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `get`
+
+```python
+get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `get`
+
+```python
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync | None
+```
+
+#### `get`
+
+```python
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `get`
+
+```python
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `get`
+
+```python
+get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
+```
+
+#### `delete`
+
+```python
+delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None
+```
+
+#### `create`
+
+```python
+create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNodeSync
+```
+
+#### `create`
+
+```python
+create(self, kind: type[SchemaTypeSync], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaTypeSync
+```
+
+#### `create`
+
+```python
+create(self, kind: str | type[SchemaTypeSync], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync
+```
+
 #### `get_version`
 
 ```python
@@ -504,30 +532,6 @@ get_user_permissions(self) -> dict
 ```
 
 Return user permissions
-
-#### `create`
-
-```python
-create(self, kind: str, data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> InfrahubNodeSync
-```
-
-#### `create`
-
-```python
-create(self, kind: type[SchemaTypeSync], data: dict | None = ..., branch: str | None = ..., **kwargs: Any) -> SchemaTypeSync
-```
-
-#### `create`
-
-```python
-create(self, kind: str | type[SchemaTypeSync], data: dict | None = None, branch: str | None = None, timeout: int | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync
-```
-
-#### `delete`
-
-```python
-delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None
-```
 
 #### `clone`
 
@@ -657,48 +661,6 @@ Retrieve nodes of a given kind based on provided filters.
 **Returns:**
 
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
-
-#### `get`
-
-```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync | None
-```
-
-#### `get`
-
-```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
-```
-
-#### `get`
-
-```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
-```
-
-#### `get`
-
-```python
-get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync | None
-```
-
-#### `get`
-
-```python
-get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
-```
-
-#### `get`
-
-```python
-get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
-```
-
-#### `get`
-
-```python
-get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
-```
 
 #### `create_batch`
 
@@ -892,3 +854,41 @@ Convert a given node to another kind on a given branch. `fields_mapping` keys ar
 and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
 in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-convert-type
 for more information.
+
+### `ProcessRelationsNode`
+
+### `ProxyConfig`
+
+### `ProxyConfigSync`
+
+### `ProcessRelationsNodeSync`
+
+### `BaseClient`
+
+Base class for InfrahubClient and InfrahubClientSync
+
+**Methods:**
+
+#### `request_context`
+
+```python
+request_context(self) -> RequestContext | None
+```
+
+#### `request_context`
+
+```python
+request_context(self, request_context: RequestContext) -> None
+```
+
+#### `start_tracking`
+
+```python
+start_tracking(self, identifier: str | None = None, params: dict[str, Any] | None = None, delete_unused_nodes: bool = False, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> Self
+```
+
+#### `set_context_properties`
+
+```python
+set_context_properties(self, identifier: str, params: dict[str, str] | None = None, delete_unused_nodes: bool = True, reset: bool = True, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> None
+```
