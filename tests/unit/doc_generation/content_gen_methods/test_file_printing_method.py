@@ -8,13 +8,23 @@ from docs.docs_generation.content_gen_methods.mdx import MdxFile
 
 class TestFilePrintingDocContentGenMethod:
     def test_apply_returns_file_content(self) -> None:
-        file = MdxFile(path=Path("node.mdx"), content="# Node API\n\nSome content")
+        # Arrange
+        file = MdxFile(name="node.mdx", content="# Node API\n\nSome content", source_path=Path("node.py"))
         method = FilePrintingDocContentGenMethod(file=file)
 
-        assert method.apply() == "# Node API\n\nSome content"
+        # Act
+        result = method.apply()
+
+        # Assert
+        assert result == "# Node API\n\nSome content"
 
     def test_apply_returns_empty_string(self) -> None:
-        file = MdxFile(path=Path("empty.mdx"), content="")
+        # Arrange
+        file = MdxFile(name="empty.mdx", content="", source_path=Path("empty.py"))
         method = FilePrintingDocContentGenMethod(file=file)
 
-        assert not method.apply()
+        # Act
+        result = method.apply()
+
+        # Assert
+        assert not result

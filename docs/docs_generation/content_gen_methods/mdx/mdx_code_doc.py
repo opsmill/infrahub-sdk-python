@@ -54,12 +54,23 @@ def _wrap_doctest_examples(content: str) -> str:
     return "\n".join(result)
 
 
+def _source_path_from_mdx_name(mdx_filename: str) -> Path:
+    """Derive the Python source file path from an mdxify output filename.
+
+    mdxify names output files using ``-`` as a path separator, e.g.
+    ``infrahub_sdk-node-node.mdx`` comes from ``infrahub_sdk/node/node.py``.
+    """
+    stem = Path(mdx_filename).stem
+    return Path(stem.replace("-", "/")).with_suffix(".py")
+
+
 @dataclass
 class MdxFile:
     """Content of a single ``.mdx`` file produced by mdxify."""
 
-    path: Path
+    name: str
     content: str
+    source_path: Path
 
 
 class MdxCodeDocumentation:
@@ -80,13 +91,14 @@ class MdxCodeDocumentation:
         file_filters: list[str] | None = None,
     ) -> None:
         self.file_filters = file_filters or ["__init__"]
-        self._files: dict[str, MdxFile] | None = None
+        self._cache: dict[frozenset[str], dict[str, MdxFile]] = {}
 
     def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
-        """Return mdxify results, running the tool on first call only."""
-        if self._files is None:
-            self._files = self._execute_mdxify(context, modules_to_document)
-        return self._files
+        """Return mdxify results, re-running the tool when *modules_to_document* changes."""
+        key = frozenset(modules_to_document)
+        if key not in self._cache:
+            self._cache[key] = self._execute_mdxify(context, modules_to_document)
+        return self._cache[key]
 
     def _execute_mdxify(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -98,6 +110,10 @@ class MdxCodeDocumentation:
                 if any(f.lower() in mdx_file.name for f in self.file_filters):
                     continue
                 content = _wrap_doctest_examples(mdx_file.read_text(encoding="utf-8"))
-                results[mdx_file.name] = MdxFile(path=mdx_file, content=content)
+                results[mdx_file.name] = MdxFile(
+                    name=mdx_file.name,
+                    content=content,
+                    source_path=_source_path_from_mdx_name(mdx_file.name),
+                )
 
             return results
