@@ -27,8 +27,8 @@ PAGE_PRIORITIES: dict[str, PagePriority] = {
     "infrahub_sdk-client.mdx": PagePriority(
         classes=["InfrahubClient", "InfrahubClientSync"],
         methods={
-            "InfrahubClient": ["get", "save", "delete", "create"],
-            "InfrahubClientSync": ["get", "save", "delete", "create"],
+            "InfrahubClient": ["get", "delete", "create"],
+            "InfrahubClientSync": ["get", "delete", "create"],
         },
     ),
     "infrahub_sdk-node-node.mdx": PagePriority(

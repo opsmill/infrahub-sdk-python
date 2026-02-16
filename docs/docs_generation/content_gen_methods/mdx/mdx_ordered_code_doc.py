@@ -26,9 +26,84 @@ class OrderedMdxCodeDocumentation(ACodeDocumentation):
     documentation: ACodeDocumentation
     page_priorities: dict[str, PagePriority]
 
+    def __post_init__(self) -> None:
+        errors: list[str] = []
+        for file_key, priority in self.page_priorities.items():
+            errors.extend(self._find_duplicate_errors(file_key, priority))
+        if errors:
+            raise ValueError("Invalid priority configuration:\n" + "\n".join(f"  - {e}" for e in errors))
+
     def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
         files = self.documentation.generate(context, modules_to_document)
+        self._validate_references(files)
         return {name: self._apply_priority(name, mdx_file) for name, mdx_file in files.items()}
+
+    @staticmethod
+    def _find_duplicate_errors(file_key: str, priority: PagePriority) -> list[str]:
+        errors: list[str] = []
+
+        seen_classes: set[str] = set()
+        for cls in priority.classes:
+            if cls in seen_classes:
+                errors.append(f"Duplicate class '{cls}' in priority for '{file_key}'")
+            seen_classes.add(cls)
+
+        for cls_name, methods in priority.methods.items():
+            seen_methods: set[str] = set()
+            for method in methods:
+                if method in seen_methods:
+                    errors.append(f"Duplicate method '{method}' for class '{cls_name}' in priority for '{file_key}'")
+                seen_methods.add(method)
+
+        return errors
+
+    def _validate_references(self, files: dict[str, MdxFile]) -> None:
+        errors: list[str] = []
+        for file_key, priority in self.page_priorities.items():
+            if file_key not in files:
+                errors.append(f"Priority references unknown file key '{file_key}'")
+                continue
+            errors.extend(self._find_reference_errors(file_key, priority, files[file_key]))
+        if errors:
+            raise ValueError("Invalid priority configuration:\n" + "\n".join(f"  - {e}" for e in errors))
+
+    def _find_reference_errors(self, file_key: str, priority: PagePriority, mdx_file: MdxFile) -> list[str]:
+        errors: list[str] = []
+        h3_names, h3_to_h4_names = self._extract_headings(mdx_file)
+
+        errors.extend(
+            f"Priority class '{cls}' not found as heading in '{file_key}'"
+            for cls in priority.classes
+            if cls not in h3_names
+        )
+
+        for cls_name, methods in priority.methods.items():
+            if cls_name not in h3_names:
+                errors.append(f"Priority methods reference unknown class '{cls_name}' in '{file_key}'")
+                continue
+            errors.extend(
+                f"Priority method '{method}' not found under class '{cls_name}' in '{file_key}'"
+                for method in methods
+                if method not in h3_to_h4_names.get(cls_name, set())
+            )
+
+        return errors
+
+    @staticmethod
+    def _extract_headings(mdx_file: MdxFile) -> tuple[set[str], dict[str, set[str]]]:
+        lines = mdx_file.content.split("\n")
+        _, h2_sections = _parse_sections(lines, heading_level=2)
+
+        h3_names: set[str] = set()
+        h3_to_h4_names: dict[str, set[str]] = {}
+        for h2 in h2_sections:
+            _, h3_sections = _parse_sections(h2.content, heading_level=3)
+            for h3 in h3_sections:
+                h3_names.add(h3.name)
+                _, h4_sections = _parse_sections(h3.content, heading_level=4)
+                h3_to_h4_names[h3.name] = {h4.name for h4 in h4_sections}
+
+        return h3_names, h3_to_h4_names
 
     def _apply_priority(self, name: str, mdx_file: MdxFile) -> MdxFile:
         if name not in self.page_priorities:

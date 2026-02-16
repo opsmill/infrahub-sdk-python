@@ -82,17 +82,14 @@ class TestReorderClasses:
         # Assert
         assert result == sample_mdx
 
-    def test_nonexistent_class_name_ignored(self, sample_mdx: str) -> None:
+    def test_nonexistent_class_name_raises(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=["DoesNotExist"])
         doc = _build_ordered_doc(sample_mdx, priority)
 
-        # Act
-        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
-
-        # Assert
-        order = _class_order(result)
-        assert order == ["ProcessRelationsNode", "BaseClient", "InfrahubClient", "InfrahubClientSync"]
+        # Act / Assert
+        with pytest.raises(ValueError, match="DoesNotExist"):
+            doc.generate(MOCK_CONTEXT, MODULES)
 
     def test_reorder_page_without_methods(self, sample_mdx_no_methods: str) -> None:
         # Arrange
@@ -185,27 +182,23 @@ class TestReorderMethods:
         assert order[1] == "get"
         assert order[2:] == ["get_version", "create", "save", "delete"]
 
-    def test_nonexistent_method_name_ignored(self, sample_mdx: str) -> None:
+    def test_nonexistent_method_name_raises(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["nonexistent", "save"]})
         doc = _build_ordered_doc(sample_mdx, priority)
 
-        # Act
-        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+        # Act / Assert
+        with pytest.raises(ValueError, match="nonexistent"):
+            doc.generate(MOCK_CONTEXT, MODULES)
 
-        # Assert
-        assert _method_order(result, "InfrahubClient")[0] == "save"
-
-    def test_method_priority_for_nonexistent_class_ignored(self, sample_mdx: str) -> None:
+    def test_method_priority_for_nonexistent_class_raises(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"DoesNotExist": ["get"]})
         doc = _build_ordered_doc(sample_mdx, priority)
 
-        # Act
-        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
-
-        # Assert
-        assert result == sample_mdx
+        # Act / Assert
+        with pytest.raises(ValueError, match="DoesNotExist"):
+            doc.generate(MOCK_CONTEXT, MODULES)
 
 
 class TestNoMatchingPriority:
@@ -220,6 +213,80 @@ class TestNoMatchingPriority:
 
         # Assert
         assert result[FILE_KEY].content == content
+
+
+class TestValidatePriorities:
+    def test_nonexistent_file_key_raises(self) -> None:
+        # Arrange
+        content = "# some content"
+        inner = _StubDocumentation(
+            {"actual.mdx": MdxFile(name="actual.mdx", content=content, source_path=Path("a.py"))}
+        )
+        doc = OrderedMdxCodeDocumentation(
+            documentation=inner,
+            page_priorities={"missing.mdx": PagePriority(classes=["Foo"])},
+        )
+
+        # Act / Assert
+        with pytest.raises(ValueError, match=r"missing\.mdx"):
+            doc.generate(MOCK_CONTEXT, MODULES)
+
+    def test_nonexistent_class_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(classes=["NoSuchClass"])
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="NoSuchClass"):
+            doc.generate(MOCK_CONTEXT, MODULES)
+
+    def test_nonexistent_method_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["no_such_method"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="no_such_method"):
+            doc.generate(MOCK_CONTEXT, MODULES)
+
+    def test_valid_config_no_error(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(
+            classes=["InfrahubClient"],
+            methods={"InfrahubClient": ["save"]},
+        )
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)
+
+        # Assert
+        assert FILE_KEY in result
+
+    def test_duplicate_class_names_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(classes=["InfrahubClient", "InfrahubClient"])
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="Duplicate class 'InfrahubClient'"):
+            _build_ordered_doc(sample_mdx, priority)
+
+    def test_duplicate_method_names_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["save", "save"]})
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="Duplicate method 'save'"):
+            _build_ordered_doc(sample_mdx, priority)
+
+    def test_method_class_not_in_file_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"GhostClass": ["get"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="GhostClass"):
+            doc.generate(MOCK_CONTEXT, MODULES)
 
 
 # --- Helpers ---
