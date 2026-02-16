@@ -41,10 +41,11 @@ class CommandOutputDocContentGenMethod(ADocContentGenMethod):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".mdx", delete=False, encoding="utf-8") as tmp:
             tmp_path = Path(tmp.name)
 
-        full_cmd = f"{self.command.build()} --output {tmp_path}"
-        with self.context.cd(self.working_directory):
-            self.context.run(full_cmd)
+        try:
+            full_cmd = f"{self.command.build()} --output {tmp_path}"
+            with self.context.cd(self.working_directory):
+                self.context.run(full_cmd)
 
-        content = tmp_path.read_text(encoding="utf-8")
-        tmp_path.unlink(missing_ok=True)
-        return content
+            return tmp_path.read_text(encoding="utf-8")
+        finally:
+            tmp_path.unlink(missing_ok=True)
