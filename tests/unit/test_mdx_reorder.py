@@ -6,21 +6,8 @@ import re
 
 import pytest
 
-from docs.docs_generation.content_gen_methods.mdx.mdx_reorder import (
-    ASection,
-    MdxSection,
-    OrderedMdxSection,
-    PagePriority,
-    reorder_mdx_content,
-)
-
-
-def _class_order(content: str) -> list[str]:
-    """Extract the order of H3 class names under ``## Classes``."""
-    match = re.search(r"^## Classes\n(.*?)(?=^## |\Z)", content, re.MULTILINE | re.DOTALL)
-    if not match:
-        return []
-    return re.findall(r"^### `([^`]+)`", match.group(1), re.MULTILINE)
+from docs.docs_generation.content_gen_methods.mdx.mdx_priority import PagePriority
+from docs.docs_generation.content_gen_methods.mdx.mdx_reorder import reorder_mdx_content
 
 
 class TestReorderClasses:
@@ -102,71 +89,120 @@ class TestReorderClasses:
         assert order == ["InfrahubNodeMode", "RelatedNodeState"]
 
 
-class TestOrderedMdxSection:
-    def _make_ordered(
-        self,
-        name: str,
-        heading_level: int,
-        children_lines: list[str],
-        priority_names: list[str],
-        child_heading_level: int = 3,
-    ) -> OrderedMdxSection:
-        heading = "#" * heading_level + f" `{name}`"
-        section = MdxSection(name=name, heading_level=heading_level, _lines=[heading] + children_lines)
-        return OrderedMdxSection(
-            section=section,
-            priority_names=priority_names,
-            child_heading_level=child_heading_level,
+class TestReorderMethods:
+    def test_single_priority_method_moves_to_top(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["save"]})
+
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
+
+        # Assert
+        assert _method_order(result, "InfrahubClient")[0] == "save"
+
+    def test_multiple_priority_methods_in_specified_order(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["delete", "save"]})
+
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
+
+        # Assert
+        order = _method_order(result, "InfrahubClient")
+        assert order[0] == "delete"
+        assert order[1] == "save"
+
+    def test_non_priority_methods_retain_original_order(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["save"]})
+
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
+
+        # Assert
+        order = _method_order(result, "InfrahubClient")
+        assert order[0] == "save"
+        assert order[1:] == ["get_version", "create", "get", "get", "delete"]
+
+    def test_method_only_priority_no_class_reordering(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["save"]})
+
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
+
+        # Assert
+        assert _class_order(result) == ["ProcessRelationsNode", "BaseClient", "InfrahubClient", "InfrahubClientSync"]
+
+    def test_combined_class_and_method_reordering(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(
+            classes=["InfrahubClient"],
+            methods={"InfrahubClient": ["save"]},
         )
 
-    def test_content_returns_reordered_children(self) -> None:
-        children = [
-            "### `Alpha`\n",
-            "Alpha body\n",
-            "### `Bravo`\n",
-            "Bravo body\n",
-            "### `Charlie`\n",
-            "Charlie body",
-        ]
-        ordered = self._make_ordered("Classes", 2, children, priority_names=["Charlie", "Alpha"])
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
 
-        content = ordered.content
-        content_str = "\n".join(content)
-        names = re.findall(r"^### `([^`]+)`", content_str, re.MULTILINE)
-        assert names == ["Charlie", "Alpha", "Bravo"]
+        # Assert
+        assert _class_order(result)[0] == "InfrahubClient"
+        assert _method_order(result, "InfrahubClient")[0] == "save"
 
-    def test_lines_includes_heading_plus_ordered_content(self) -> None:
-        children = [
-            "### `A`\n",
-            "### `B`\n",
-        ]
-        ordered = self._make_ordered("Classes", 2, children, priority_names=["B"])
+    def test_overloaded_methods_move_together(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["get"]})
 
-        lines = ordered.lines
-        assert lines[0] == "## `Classes`"
-        names = re.findall(r"^### `([^`]+)`", "\n".join(lines), re.MULTILINE)
-        assert names == ["B", "A"]
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
 
-    def test_empty_priority_returns_original_content(self) -> None:
-        children = ["### `X`\n", "body"]
-        ordered = self._make_ordered("Sec", 2, children, priority_names=[])
-        base = MdxSection(name="Sec", heading_level=2, _lines=["## `Sec`"] + children)
+        # Assert
+        order = _method_order(result, "InfrahubClient")
+        assert order[0] == "get"
+        assert order[1] == "get"
+        assert order[2:] == ["get_version", "create", "save", "delete"]
 
-        assert ordered.content == base.content
+    def test_nonexistent_method_name_ignored(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"InfrahubClient": ["nonexistent", "save"]})
 
-    def test_no_children_returns_original_content(self) -> None:
-        ordered = self._make_ordered("Sec", 2, ["Just some text"], priority_names=["Anything"])
-        base = MdxSection(name="Sec", heading_level=2, _lines=["## `Sec`", "Just some text"])
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
 
-        assert ordered.content == base.content
+        # Assert
+        assert _method_order(result, "InfrahubClient")[0] == "save"
 
-    def test_is_asection_subclass(self) -> None:
-        section = MdxSection(name="MySection", heading_level=2, _lines=["## `MySection`"])
-        ordered = OrderedMdxSection(section=section, priority_names=[], child_heading_level=3)
+    def test_method_priority_for_nonexistent_class_ignored(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(methods={"DoesNotExist": ["get"]})
 
-        assert isinstance(ordered, ASection)
-        assert isinstance(section, ASection)
-        assert ordered.heading == "## `MySection`"
+        # Act
+        result = reorder_mdx_content(sample_mdx, priority)
+
+        # Assert
+        assert result == sample_mdx
+
+
+# --- Helpers ---
+
+
+def _class_order(content: str) -> list[str]:
+    """Extract the order of H3 class names under ``## Classes``."""
+    match = re.search(r"^## Classes\n(.*?)(?=^## |\Z)", content, re.MULTILINE | re.DOTALL)
+    if not match:
+        return []
+    return re.findall(r"^### `([^`]+)`", match.group(1), re.MULTILINE)
+
+
+def _method_order(content: str, class_name: str) -> list[str]:
+    """Extract the order of H4 method names under a given H3 class section."""
+    pattern = rf"^### `{re.escape(class_name)}`\n(.*?)(?=^### |\Z)"
+    match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+    if not match:
+        return []
+    return re.findall(r"^#### `([^`]+)`", match.group(1), re.MULTILINE)
+
+
+# --- Fixtures ---
 
 
 @pytest.fixture

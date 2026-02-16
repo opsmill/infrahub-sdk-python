@@ -14,7 +14,7 @@ from invoke import Context, Exit, task
 if TYPE_CHECKING:
     from docs.docs_generation.content_gen_methods.command.typer_command import ATyperCommand
 
-from docs.docs_generation.content_gen_methods.mdx.mdx_reorder import PagePriority
+from docs.docs_generation.content_gen_methods.mdx.mdx_priority import PagePriority
 
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
@@ -26,6 +26,10 @@ MAIN_DIRECTORY_PATH = Path(__file__).parent
 PAGE_PRIORITIES: dict[str, PagePriority] = {
     "infrahub_sdk-client.mdx": PagePriority(
         classes=["InfrahubClient", "InfrahubClientSync"],
+        methods={
+            "InfrahubClient": ["get", "save", "delete", "create"],
+            "InfrahubClientSync": ["get", "save", "delete", "create"],
+        },
     ),
     "infrahub_sdk-node-node.mdx": PagePriority(
         classes=["InfrahubNode", "InfrahubNodeSync"],

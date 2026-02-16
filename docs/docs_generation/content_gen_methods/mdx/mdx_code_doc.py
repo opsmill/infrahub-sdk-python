@@ -5,10 +5,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .mdx_reorder import PagePriority, reorder_mdx_content
+from .mdx_reorder import reorder_mdx_content
 
 if TYPE_CHECKING:
     from invoke import Context
+
+    from .mdx_priority import PagePriority
 
 
 def _wrap_doctest_examples(content: str) -> str:
