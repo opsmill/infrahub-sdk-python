@@ -89,6 +89,7 @@ class InfrahubPythonTransformUnitProcessItem(InfrahubPythonTransformItem):
 
 class InfrahubPythonTransformIntegrationItem(InfrahubPythonTransformItem):
     def runtest(self) -> None:
+        self.instantiate_transform()
         input_data = self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
             self.transform_instance.query,
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]

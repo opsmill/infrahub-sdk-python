@@ -101,7 +101,7 @@ class InfrahubYamlFile(pytest.File):
     def collect(self) -> Iterable[Item]:
         raw = yaml.safe_load(self.path.open(encoding="utf-8"))
 
-        if "infrahub_tests" not in raw:
+        if not raw or "infrahub_tests" not in raw:
             return
 
         content = InfrahubTestFileV1(**raw)
