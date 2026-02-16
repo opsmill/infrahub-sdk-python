@@ -5,26 +5,6 @@ sidebarTitle: client
 
 # `infrahub_sdk.client`
 
-## Functions
-
-### `handle_relogin`
-
-```python
-handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]) -> Callable[..., Coroutine[Any, Any, httpx.Response]]
-```
-
-### `handle_relogin_sync`
-
-```python
-handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]
-```
-
-### `raise_for_error_deprecation_warning`
-
-```python
-raise_for_error_deprecation_warning(value: bool | None) -> None
-```
-
 ## Classes
 
 ### `InfrahubClient`
@@ -891,4 +871,24 @@ start_tracking(self, identifier: str | None = None, params: dict[str, Any] | Non
 
 ```python
 set_context_properties(self, identifier: str, params: dict[str, str] | None = None, delete_unused_nodes: bool = True, reset: bool = True, group_type: str | None = None, group_params: dict[str, Any] | None = None, branch: str | None = None) -> None
+```
+
+## Functions
+
+### `handle_relogin`
+
+```python
+handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]) -> Callable[..., Coroutine[Any, Any, httpx.Response]]
+```
+
+### `handle_relogin_sync`
+
+```python
+handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]
+```
+
+### `raise_for_error_deprecation_warning`
+
+```python
+raise_for_error_deprecation_warning(value: bool | None) -> None
 ```
