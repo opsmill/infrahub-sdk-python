@@ -25,6 +25,7 @@ MAIN_DIRECTORY_PATH = Path(__file__).parent
 # Keys match the mdxify output filenames (same keys used in generated_files dict).
 PAGE_PRIORITIES: dict[str, PagePriority] = {
     "infrahub_sdk-client.mdx": PagePriority(
+        sections=["Classes"],
         classes=["InfrahubClient", "InfrahubClientSync"],
         methods={
             "InfrahubClient": ["get", "delete", "create"],

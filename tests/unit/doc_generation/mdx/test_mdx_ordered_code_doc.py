@@ -21,6 +21,47 @@ MOCK_CONTEXT = MagicMock(spec="Context")
 MODULES: list[str] = []
 
 
+class TestReorderSections:
+    def test_section_priority_moves_classes_before_functions(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(sections=["Classes"])
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert _section_order(result) == ["Classes", "Functions"]
+
+    def test_combined_section_class_and_method_reordering(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(
+            sections=["Classes"],
+            classes=["InfrahubClient"],
+            methods={"InfrahubClient": ["save"]},
+        )
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert _section_order(result) == ["Classes", "Functions"]
+        assert _class_order(result)[0] == "InfrahubClient"
+        assert _method_order(result, "InfrahubClient")[0] == "save"
+
+    def test_no_section_priority_retains_original_order(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(sections=[])
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert result == sample_mdx
+
+
 class TestReorderClasses:
     def test_single_priority_class_moves_to_top(self, sample_mdx: str) -> None:
         # Arrange
@@ -279,6 +320,23 @@ class TestValidatePriorities:
         with pytest.raises(ValueError, match="Duplicate method 'save'"):
             _build_ordered_doc(sample_mdx, priority)
 
+    def test_duplicate_section_names_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(sections=["Classes", "Classes"])
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="Duplicate section 'Classes'"):
+            _build_ordered_doc(sample_mdx, priority)
+
+    def test_nonexistent_section_raises(self, sample_mdx: str) -> None:
+        # Arrange
+        priority = PagePriority(sections=["NoSuchSection"])
+        doc = _build_ordered_doc(sample_mdx, priority)
+
+        # Act / Assert
+        with pytest.raises(ValueError, match="NoSuchSection"):
+            doc.generate(MOCK_CONTEXT, MODULES)
+
     def test_method_class_not_in_file_raises(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"GhostClass": ["get"]})
@@ -306,6 +364,11 @@ def _build_ordered_doc(content: str, priority: PagePriority) -> OrderedMdxCodeDo
     """Build an ``OrderedMdxCodeDocumentation`` with a stub inner documentation."""
     inner = _StubDocumentation({FILE_KEY: MdxFile(name=FILE_KEY, content=content, source_path=Path("test.py"))})
     return OrderedMdxCodeDocumentation(documentation=inner, page_priorities={FILE_KEY: priority})
+
+
+def _section_order(content: str) -> list[str]:
+    """Extract the order of H2 section names."""
+    return re.findall(r"^## (\w+)", content, re.MULTILINE)
 
 
 def _class_order(content: str) -> list[str]:

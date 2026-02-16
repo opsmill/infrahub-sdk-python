@@ -8,11 +8,13 @@ class PagePriority:
     """Priority ordering configuration for a single documentation page.
 
     Attributes:
+        sections: Ordered list of H2 section names to appear first (e.g. ``"Classes"``).
         classes: Ordered list of class/function names to appear first on the page.
         methods: Per-class ordered list of method names to appear first.
             Key is class name, value is ordered method name list.
     """
 
+    sections: list[str] = field(default_factory=list)
     classes: list[str] = field(default_factory=list)
     methods: dict[str, list[str]] = field(default_factory=dict)
 
