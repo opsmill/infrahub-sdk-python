@@ -1,22 +1,34 @@
-"""Tests for MDX content reordering."""
+"""Tests for OrderedMdxCodeDocumentation content reordering."""
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
+from docs.docs_generation.content_gen_methods.mdx.mdx_code_doc import ACodeDocumentation, MdxFile
+from docs.docs_generation.content_gen_methods.mdx.mdx_ordered_code_doc import OrderedMdxCodeDocumentation
 from docs.docs_generation.content_gen_methods.mdx.mdx_priority import PagePriority
-from docs.docs_generation.content_gen_methods.mdx.mdx_reorder import reorder_mdx_content
+
+if TYPE_CHECKING:
+    from invoke import Context
+
+FILE_KEY = "test.mdx"
+MOCK_CONTEXT = MagicMock(spec="Context")
+MODULES: list[str] = []
 
 
 class TestReorderClasses:
     def test_single_priority_class_moves_to_top(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=["InfrahubClient"])
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _class_order(result)
@@ -25,9 +37,10 @@ class TestReorderClasses:
     def test_multiple_priority_classes_in_specified_order(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=["InfrahubClientSync", "InfrahubClient"])
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _class_order(result)
@@ -37,9 +50,10 @@ class TestReorderClasses:
     def test_non_priority_classes_retain_original_order(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=["InfrahubClient"])
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _class_order(result)
@@ -49,9 +63,10 @@ class TestReorderClasses:
     def test_no_priority_config_returns_unchanged(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority()
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert result == sample_mdx
@@ -59,9 +74,10 @@ class TestReorderClasses:
     def test_empty_classes_list_returns_unchanged(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=[])
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert result == sample_mdx
@@ -69,9 +85,10 @@ class TestReorderClasses:
     def test_nonexistent_class_name_ignored(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(classes=["DoesNotExist"])
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _class_order(result)
@@ -80,9 +97,10 @@ class TestReorderClasses:
     def test_reorder_page_without_methods(self, sample_mdx_no_methods: str) -> None:
         # Arrange
         priority = PagePriority(classes=["InfrahubNodeMode"])
+        doc = _build_ordered_doc(sample_mdx_no_methods, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx_no_methods, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _class_order(result)
@@ -93,9 +111,10 @@ class TestReorderMethods:
     def test_single_priority_method_moves_to_top(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["save"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert _method_order(result, "InfrahubClient")[0] == "save"
@@ -103,9 +122,10 @@ class TestReorderMethods:
     def test_multiple_priority_methods_in_specified_order(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["delete", "save"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _method_order(result, "InfrahubClient")
@@ -115,9 +135,10 @@ class TestReorderMethods:
     def test_non_priority_methods_retain_original_order(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["save"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _method_order(result, "InfrahubClient")
@@ -127,9 +148,10 @@ class TestReorderMethods:
     def test_method_only_priority_no_class_reordering(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["save"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert _class_order(result) == ["ProcessRelationsNode", "BaseClient", "InfrahubClient", "InfrahubClientSync"]
@@ -140,9 +162,10 @@ class TestReorderMethods:
             classes=["InfrahubClient"],
             methods={"InfrahubClient": ["save"]},
         )
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert _class_order(result)[0] == "InfrahubClient"
@@ -151,9 +174,10 @@ class TestReorderMethods:
     def test_overloaded_methods_move_together(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["get"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         order = _method_order(result, "InfrahubClient")
@@ -164,9 +188,10 @@ class TestReorderMethods:
     def test_nonexistent_method_name_ignored(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"InfrahubClient": ["nonexistent", "save"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert _method_order(result, "InfrahubClient")[0] == "save"
@@ -174,15 +199,46 @@ class TestReorderMethods:
     def test_method_priority_for_nonexistent_class_ignored(self, sample_mdx: str) -> None:
         # Arrange
         priority = PagePriority(methods={"DoesNotExist": ["get"]})
+        doc = _build_ordered_doc(sample_mdx, priority)
 
         # Act
-        result = reorder_mdx_content(sample_mdx, priority)
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
 
         # Assert
         assert result == sample_mdx
 
 
+class TestNoMatchingPriority:
+    def test_file_without_priority_returned_unchanged(self) -> None:
+        # Arrange
+        content = "# unchanged"
+        inner = _StubDocumentation({FILE_KEY: MdxFile(name=FILE_KEY, content=content, source_path=Path("test.py"))})
+        doc = OrderedMdxCodeDocumentation(documentation=inner, page_priorities={})
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)
+
+        # Assert
+        assert result[FILE_KEY].content == content
+
+
 # --- Helpers ---
+
+
+class _StubDocumentation(ACodeDocumentation):
+    """Minimal stub returning pre-built MdxFile dicts."""
+
+    def __init__(self, files: dict[str, MdxFile]) -> None:
+        self._files = files
+
+    def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
+        return self._files
+
+
+def _build_ordered_doc(content: str, priority: PagePriority) -> OrderedMdxCodeDocumentation:
+    """Build an ``OrderedMdxCodeDocumentation`` with a stub inner documentation."""
+    inner = _StubDocumentation({FILE_KEY: MdxFile(name=FILE_KEY, content=content, source_path=Path("test.py"))})
+    return OrderedMdxCodeDocumentation(documentation=inner, page_priorities={FILE_KEY: priority})
 
 
 def _class_order(content: str) -> list[str]:

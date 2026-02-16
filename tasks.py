@@ -187,7 +187,11 @@ def get_modules_to_document() -> list[str]:
 @task(name="generate-sdk-api-docs")
 def _generate_sdk_api_docs(context: Context) -> None:
     """Generate API documentation for the Python SDK."""
-    from docs.docs_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
+    from docs.docs_generation.content_gen_methods import (
+        FilePrintingDocContentGenMethod,
+        MdxCodeDocumentation,
+        OrderedMdxCodeDocumentation,
+    )
     from docs.docs_generation.pages import DocPage, MDXDocPage
 
     print(" - Generate Python SDK API documentation")
@@ -200,7 +204,10 @@ def _generate_sdk_api_docs(context: Context) -> None:
     if (output_dir / "infrahub_sdk").exists():
         shutil.rmtree(output_dir / "infrahub_sdk")
 
-    documentation = MdxCodeDocumentation(page_priorities=PAGE_PRIORITIES)
+    documentation = OrderedMdxCodeDocumentation(
+        documentation=MdxCodeDocumentation(),
+        page_priorities=PAGE_PRIORITIES,
+    )
     generated_files = documentation.generate(context=context, modules_to_document=modules_to_document)
 
     for file_key, mdxified_file in generated_files.items():

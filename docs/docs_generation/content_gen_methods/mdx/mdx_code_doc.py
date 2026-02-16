@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import tempfile
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .mdx_reorder import reorder_mdx_content
-
 if TYPE_CHECKING:
     from invoke import Context
-
-    from .mdx_priority import PagePriority
 
 
 def _wrap_doctest_examples(content: str) -> str:
@@ -77,14 +74,19 @@ class MdxFile:
     source_path: Path
 
 
-class MdxCodeDocumentation:
+class ACodeDocumentation(ABC):
+    """Abstract base for code documentation generators."""
+
+    @abstractmethod
+    def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]: ...
+
+
+class MdxCodeDocumentation(ACodeDocumentation):
     """Run mdxify once and cache the resulting files.
 
     Args:
         file_filters: Substrings to exclude from output filenames.
             Defaults to ``["__init__"]``.
-        page_priorities: Optional mapping of file keys to
-            :class:`PagePriority` instances for reordering sections.
 
     Example::
 
@@ -95,10 +97,8 @@ class MdxCodeDocumentation:
     def __init__(
         self,
         file_filters: list[str] | None = None,
-        page_priorities: dict[str, PagePriority] | None = None,
     ) -> None:
         self.file_filters = file_filters or ["__init__"]
-        self.page_priorities = page_priorities or {}
         self._cache: dict[frozenset[str], dict[str, MdxFile]] = {}
 
     def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
@@ -118,8 +118,6 @@ class MdxCodeDocumentation:
                 if any(f.lower() in mdx_file.name for f in self.file_filters):
                     continue
                 content = _wrap_doctest_examples(mdx_file.read_text(encoding="utf-8"))
-                if mdx_file.name in self.page_priorities:
-                    content = reorder_mdx_content(content, self.page_priorities[mdx_file.name])
                 results[mdx_file.name] = MdxFile(
                     name=mdx_file.name,
                     content=content,
