@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import groupby
 from typing import TYPE_CHECKING
 
 from .mdx_code_doc import ACodeDocumentation, MdxFile
@@ -24,10 +25,12 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
     documentation: ACodeDocumentation
 
     def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
+        """Generate MDX files and collapse overloaded methods in each one."""
         files = self.documentation.generate(context, modules_to_document)
         return {name: self._collapse_overloads(mdx_file) for name, mdx_file in files.items()}
 
     def _collapse_overloads(self, mdx_file: MdxFile) -> MdxFile:
+        """Return a copy of *mdx_file* with overloaded methods collapsed."""
         lines = mdx_file.content.split("\n")
         parsed_h2 = _parse_sections(lines, heading_level=2)
 
@@ -35,6 +38,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
         for h2 in parsed_h2.sections:
             processed_h3 = self._process_class_sections(h2.content)
             if processed_h3 is None:
+                # No subsection means no method to manage
                 processed_h2.append(h2)
             else:
                 h3_parsed = _parse_sections(h2.content, heading_level=3)
@@ -47,6 +51,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
         return MdxFile(name=mdx_file.name, content=new_content, source_path=mdx_file.source_path)
 
     def _process_class_sections(self, h2_content: list[str]) -> list[ASection] | None:
+        """Collapse overloads inside each H3 class section, or return ``None`` if nothing changed."""
         h3_parsed = _parse_sections(h2_content, heading_level=3)
         if not h3_parsed.sections:
             return None
@@ -68,6 +73,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
         return processed if any_collapsed else None
 
     def _collapse_methods_in_class(self, h3_content: list[str]) -> list[ASection] | None:
+        """Collapse consecutive same-name H4 methods, or return ``None`` if no overloads found."""
         h4_parsed = _parse_sections(h3_content, heading_level=4)
         if not h4_parsed.sections:
             return None
@@ -85,12 +91,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
                 collapsed.append(CollapsedOverloadSection.from_overloads(group))
         return collapsed
 
-    def _group_consecutive_overloads(self, sections: list[MdxSection]) -> list[list[MdxSection]]:
+    @staticmethod
+    def _group_consecutive_overloads(sections: list[MdxSection]) -> list[list[MdxSection]]:
         """Group consecutive sections sharing the same name."""
-        groups: list[list[MdxSection]] = []
-        for section in sections:
-            if groups and groups[-1][0].name == section.name:
-                groups[-1].append(section)
-            else:
-                groups.append([section])
-        return groups
+        return [list(group) for _, group in groupby(sections, key=lambda s: s.name)]

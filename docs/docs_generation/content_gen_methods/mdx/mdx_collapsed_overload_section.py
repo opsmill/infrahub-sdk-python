@@ -7,72 +7,6 @@ from .mdx_section import ASection, MdxSection
 
 
 @dataclass
-class SignatureParameterCount:
-    """Number of parameters in a Python method signature, excluding ``self``.
-
-    Parses the raw signature text (as rendered in MDX code fences) and
-    counts comma-separated parameters at the top level, respecting
-    bracket nesting for generic types like ``dict[str, int]``.
-
-    Example::
-
-        >>> SignatureParameterCount("get(self, kind: str, id: int)").value()
-        2
-    """
-
-    signature: str
-
-    def value(self) -> int:
-        """Return the number of parameters excluding ``self``."""
-        params_text = self._extract_params_text()
-        if not params_text.strip():
-            return 0
-        tokens = self._split_top_level(params_text)
-        return len([t for t in tokens if t.strip() and t.strip() != "self"])
-
-    def _extract_params_text(self) -> str:
-        """Extract the text between the first ``(`` and its matching ``)``."""
-        start = self.signature.find("(")
-        if start == -1:
-            return ""
-        depth = 0
-        for i in range(start, len(self.signature)):
-            char = self.signature[i]
-            if char == "(":
-                depth += 1
-            elif char == ")":
-                depth -= 1
-                if depth == 0:
-                    return self.signature[start + 1 : i]
-        return self.signature[start + 1 :]
-
-    def _split_top_level(self, text: str) -> list[str]:
-        """Split *text* on commas that are not inside brackets."""
-        depth = 0
-        tokens: list[str] = []
-        current: list[str] = []
-        for char in text:
-            if char in {"[", "(", "{"}:
-                depth += 1
-                current.append(char)
-            elif char in {"]", ")", "}"}:
-                depth -= 1
-                current.append(char)
-            elif char == "," and depth == 0:
-                tokens.append("".join(current))
-                current = []
-            else:
-                current.append(char)
-        if current:
-            tokens.append("".join(current))
-        return tokens
-
-
-_CODE_FENCE_PATTERN = re.compile(r"^```python\s*$")
-_CODE_FENCE_END = re.compile(r"^```\s*$")
-
-
-@dataclass
 class CollapsedOverloadSection(ASection):
     """Collapses a group of overloaded method sections into one primary entry
     followed by a collapsible ``<details>`` block with the remaining overloads.
@@ -92,23 +26,20 @@ class CollapsedOverloadSection(ASection):
 
     @property
     def heading(self) -> str:
+        """Return the heading of the primary overload."""
         return self.primary.heading
 
     @property
     def content(self) -> list[str]:
+        """Return primary content followed by a ``<details>`` block for the other overloads."""
         if not self.others:
             return self.primary.content
 
         result = list(self.primary.content)
-
+        inner = [line for other in self.others for line in other.lines]
         count = len(self.others)
         noun = "overload" if count == 1 else "overloads"
-        result.extend(("", "<details>", f"<summary>Show {count} other {noun}</summary>", ""))
-
-        for other in self.others:
-            result.extend(other.lines)
-
-        result.extend(("", "</details>"))
+        result.extend(_HtmlDetailsBlock(f"Show {count} other {noun}", inner).lines())
         return result
 
     @classmethod
@@ -121,22 +52,32 @@ class CollapsedOverloadSection(ASection):
         if not sections:
             raise ValueError("Cannot create CollapsedOverloadSection from an empty list")
 
-        best_index = 0
-        best_count = -1
-        for i, section in enumerate(sections):
-            sig = _extract_signature(section)
-            count = SignatureParameterCount(sig).value() if sig else 0
-            if count > best_count:
-                best_count = count
-                best_index = i
-
-        primary = sections[best_index]
-        others = [s for i, s in enumerate(sections) if i != best_index]
+        primary = max(sections, key=lambda s: MethodSignature(s).param_count())
+        others = [s for s in sections if s is not primary]
         return cls(primary=primary, others=others)
 
 
-def _extract_signature(section: MdxSection) -> str:
-    """Extract the Python signature from the first code fence in *section*."""
+# --- Private collaborators ---
+
+
+@dataclass(frozen=True)
+class _HtmlDetailsBlock:
+    """A collapsible HTML ``<details>`` block."""
+
+    summary: str
+    inner_lines: list[str]
+
+    def lines(self) -> list[str]:
+        """Return the full block as a list of MDX lines."""
+        return ["", "<details>", f"<summary>{self.summary}</summary>", "", *self.inner_lines, "", "</details>"]
+
+
+_CODE_FENCE_PATTERN = re.compile(r"^```python\s*$")
+_CODE_FENCE_END = re.compile(r"^```\s*$")
+
+
+def _extract_text(section: MdxSection) -> str:
+    """Extract the signature from the first code fence in *section*."""
     in_fence = False
     sig_lines: list[str] = []
     for line in section.content:
@@ -148,3 +89,58 @@ def _extract_signature(section: MdxSection) -> str:
                 break
             sig_lines.append(line)
     return " ".join(sig_lines).strip()
+
+
+def _split_params(text: str) -> list[str]:
+    """Split *text* on commas that are not inside brackets."""
+    depth = 0
+    tokens: list[str] = []
+    current: list[str] = []
+    for char in text:
+        if char in {"[", "(", "{"}:
+            depth += 1
+            current.append(char)
+        elif char in {"]", ")", "}"}:
+            depth -= 1
+            current.append(char)
+        elif char == "," and depth == 0:
+            tokens.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
+class MethodSignature:
+    """A Python method signature extracted from an MDX code fence.
+
+    Parses the raw signature text and counts comma-separated parameters
+    at the top level, respecting bracket nesting for generic types
+    like ``dict[str, int]``.
+
+    Example::
+
+        >>> MethodSignature(section).param_count()
+        2
+    """
+
+    def __init__(self, section: MdxSection) -> None:
+        self._text = _extract_text(section)
+
+    def param_count(self) -> int:
+        """Return the number of parameters excluding ``self``."""
+        params_text = self._extract_params_text()
+        if not params_text.strip():
+            return 0
+        tokens = _split_params(params_text)
+        return len([t for t in tokens if t.strip() and t.strip() != "self"])
+
+    def _extract_params_text(self) -> str:
+        """Extract the text between the first ``(`` and its last ``)``."""
+        _, sep, after_open = self._text.partition("(")
+        if not sep:
+            return ""
+        params, _, _ = after_open.rpartition(")")
+        return params

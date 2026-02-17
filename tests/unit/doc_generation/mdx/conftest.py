@@ -1,4 +1,4 @@
-"""Shared fixtures and helpers for OrderedMdxCodeDocumentation tests."""
+"""Shared fixtures and helpers for MDX documentation tests."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import pytest
 
 from docs.docs_generation.content_gen_methods.mdx.mdx_code_doc import ACodeDocumentation, MdxFile
 from docs.docs_generation.content_gen_methods.mdx.mdx_ordered_code_doc import OrderedMdxCodeDocumentation
+from docs.docs_generation.content_gen_methods.mdx.mdx_section import MdxSection
 
 if TYPE_CHECKING:
     from invoke import Context
@@ -61,6 +62,20 @@ def method_order(content: str, class_name: str) -> list[str]:
     if not match:
         return []
     return re.findall(r"^#### `([^`]+)`", match.group(1), re.MULTILINE)
+
+
+def make_method_section(name: str, signature: str, docstring: str = "") -> MdxSection:
+    """Create an MdxSection mimicking a method entry in MDX output."""
+    lines = [
+        f"#### `{name}`",
+        "",
+        "```python",
+        signature,
+        "```",
+    ]
+    if docstring:
+        lines.extend(("", docstring))
+    return MdxSection(name=name, heading_level=4, _lines=lines)
 
 
 # --- Fixtures ---
