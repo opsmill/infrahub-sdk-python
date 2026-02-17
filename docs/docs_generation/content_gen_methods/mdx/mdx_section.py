@@ -69,10 +69,57 @@ def _extract_heading_name(line: str) -> str:
     return ""
 
 
-def _parse_sections(lines: list[str], heading_level: int) -> tuple[list[str], list[MdxSection]]:
+@dataclass
+class ParsedContent:
+    """Result of splitting MDX lines at a heading level.
+
+    Holds the *preamble* (lines before the first heading) and the
+    *sections* found at that level.  Provides reordering and reassembly
+    as instance methods so these operations stay with the data they act on.
+    """
+
+    preamble: list[str]
+    sections: list[MdxSection]
+
+    @property
+    def lines(self) -> list[str]:
+        """Reassemble preamble and sections into a flat line list."""
+        return self.reassembled(self.sections)
+
+    def reassembled(self, sections: Sequence[ASection]) -> list[str]:
+        """Combine this preamble with *sections* into a flat line list."""
+        result = list(self.preamble)
+        for section in sections:
+            result.extend(section.lines)
+        return result
+
+    def reordered(self, names: list[str]) -> ParsedContent:
+        """Return a new :class:`ParsedContent` with sections reordered by *names*.
+
+        Priority sections appear in the order given by *names*.
+        Non-priority sections retain their original relative order.
+        Handles overloaded names (multiple sections sharing a name) by grouping them.
+        Names not found in *sections* are silently skipped.
+        """
+        if not names:
+            return self
+        by_name: dict[str, list[MdxSection]] = {}
+        for section in self.sections:
+            by_name.setdefault(section.name, []).append(section)
+        ordered: list[MdxSection] = []
+        used: set[str] = set()
+        for name in names:
+            if name in by_name and name not in used:
+                ordered.extend(by_name[name])
+                used.add(name)
+        ordered.extend(s for s in self.sections if s.name not in used)
+        return ParsedContent(preamble=self.preamble, sections=ordered)
+
+
+def _parse_sections(lines: list[str], heading_level: int) -> ParsedContent:
     """Split *lines* into a preamble and sections at *heading_level*.
 
-    Returns ``(preamble, sections)`` where *preamble* contains every line
+    Returns a :class:`ParsedContent` where *preamble* contains every line
     before the first heading at the target level, and each
     :class:`MdxSection` runs from its heading until the next heading at the
     same level (or the end of the input).
@@ -100,12 +147,4 @@ def _parse_sections(lines: list[str], heading_level: int) -> tuple[list[str], li
     if current_section is not None:
         sections.append(current_section)
 
-    return preamble, sections
-
-
-def _reassemble(preamble: list[str], sections: Sequence[ASection]) -> list[str]:
-    """Combine preamble lines and section lines back into a flat line list."""
-    result = list(preamble)
-    for section in sections:
-        result.extend(section.lines)
-    return result
+    return ParsedContent(preamble=preamble, sections=sections)

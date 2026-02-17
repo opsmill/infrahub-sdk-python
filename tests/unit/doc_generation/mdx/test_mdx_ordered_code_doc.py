@@ -304,29 +304,20 @@ class TestValidatePriorities:
         # Assert
         assert FILE_KEY in result
 
-    def test_duplicate_class_names_raises(self, sample_mdx: str) -> None:
-        # Arrange
-        priority = PagePriority(classes=["InfrahubClient", "InfrahubClient"])
-
+    def test_duplicate_class_names_raises(self) -> None:
         # Act / Assert
         with pytest.raises(ValueError, match="Duplicate class 'InfrahubClient'"):
-            _build_ordered_doc(sample_mdx, priority)
+            PagePriority(classes=["InfrahubClient", "InfrahubClient"])
 
-    def test_duplicate_method_names_raises(self, sample_mdx: str) -> None:
-        # Arrange
-        priority = PagePriority(methods={"InfrahubClient": ["save", "save"]})
-
+    def test_duplicate_method_names_raises(self) -> None:
         # Act / Assert
         with pytest.raises(ValueError, match="Duplicate method 'save'"):
-            _build_ordered_doc(sample_mdx, priority)
+            PagePriority(methods={"InfrahubClient": ["save", "save"]})
 
-    def test_duplicate_section_names_raises(self, sample_mdx: str) -> None:
-        # Arrange
-        priority = PagePriority(sections=["Classes", "Classes"])
-
+    def test_duplicate_section_names_raises(self) -> None:
         # Act / Assert
         with pytest.raises(ValueError, match="Duplicate section 'Classes'"):
-            _build_ordered_doc(sample_mdx, priority)
+            PagePriority(sections=["Classes", "Classes"])
 
     def test_nonexistent_section_raises(self, sample_mdx: str) -> None:
         # Arrange
