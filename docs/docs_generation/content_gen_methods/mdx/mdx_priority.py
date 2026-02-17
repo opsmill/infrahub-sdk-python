@@ -45,7 +45,7 @@ class SectionPriority:
     Attributes:
         names: Ordered list of child section names to appear first.
         sub_priorities: Per-child priorities for deeper nesting.
-            Key is child name, value is ordered sub-section name list.
+            Key is child name, value is ordered subsection name list.
     """
 
     names: list[str] = field(default_factory=list)
