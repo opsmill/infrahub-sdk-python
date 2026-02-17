@@ -126,17 +126,47 @@ python-version = "3.10"
 include = ["infrahub_sdk/**"]
 
 [tool.ty.overrides.rules]
-##################################################################################################
-# The ignored rules below should be removed once the code has been updated, they are included    #
-# like this so that we can reactivate them one by one.                                           #
-##################################################################################################
-invalid-argument-type = "ignore"
-invalid-assignment = "ignore"
-invalid-await = "ignore"
-invalid-type-form = "ignore"
-no-matching-overload = "ignore"
-unresolved-attribute = "ignore"
 unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
+
+# File-specific overrides for remaining type violations
+# Fix these incrementally by addressing violations and removing the override
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/exceptions.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 1 violation at line 139
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/checks.py"]
+
+[tool.ty.overrides.rules]
+invalid-await = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/file_handler.py", "infrahub_sdk/utils.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 5 violations total (1 in file_handler.py, 4 in utils.py)
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/transfer/**"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 2 violations in importer/json.py
+invalid-assignment = "ignore" # 1 violation in importer/json.py
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/node/node.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 9 violations - lines 776, 855, 859, 862
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/timestamp.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 6 violations at line 95 (multiple parameters)
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/ctl/config.py"]
@@ -149,19 +179,81 @@ unresolved-import = "ignore" # import tomli as tomllib when running on later ver
 include = ["tests/**"]
 
 [tool.ty.overrides.rules]
-##################################################################################################
-# The ignored rules below should be removed once the code has been updated, they are included    #
-# like this so that we can reactivate them one by one.                                           #
-##################################################################################################
-invalid-argument-type = "ignore"
+unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
+
+[[tool.ty.overrides]]
+include = ["tests/fixtures/**"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # Test fixtures - dynamic mock data
+possibly-missing-attribute = "ignore" # Test fixtures use dynamic attributes
+
+# Test-specific overrides - tests have more lenient type checking
+# Fix these incrementally, starting with files that have fewer violations
+
+[[tool.ty.overrides]]
+include = ["tests/unit/sdk/conftest.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
+
+[[tool.ty.overrides]]
+include = [
+    "tests/unit/sdk/test_node.py",
+    "tests/unit/sdk/test_hierarchical_nodes.py",
+    "tests/unit/sdk/test_schema.py",
+]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 97 violations total across these files
 invalid-assignment = "ignore"
-invalid-method-override = "ignore"
-no-matching-overload = "ignore"
 not-subscriptable = "ignore"
 not-iterable = "ignore"
-possibly-missing-attribute = "ignore"
 unresolved-attribute = "ignore"
-unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
+possibly-missing-attribute = "ignore"
+
+[[tool.ty.overrides]]
+include = [
+    "tests/integration/**",
+    "tests/unit/sdk/test_store_branch.py",
+    "tests/unit/sdk/test_repository.py",
+]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # ~120 violations across integration tests
+invalid-assignment = "ignore"
+no-matching-overload = "ignore"
+possibly-missing-attribute = "ignore" # Tests use dynamic node attributes
+
+[[tool.ty.overrides]]
+include = [
+    "tests/unit/sdk/spec/test_object.py",
+    "tests/unit/sdk/test_client.py",
+    "tests/unit/ctl/test_graphql_utils.py",
+]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 29 violations
+invalid-assignment = "ignore"
+no-matching-overload = "ignore"
+possibly-missing-attribute = "ignore"
+
+[[tool.ty.overrides]]
+include = [
+    "tests/unit/sdk/test_artifact.py",
+    "tests/unit/sdk/test_group_context.py",
+    "tests/unit/sdk/test_utils.py",
+    "tests/unit/sdk/checks/test_checks.py",
+    "tests/unit/sdk/graphql/test_plugin.py",
+    "tests/unit/sdk/test_protocols_generator.py",
+    "tests/unit/sdk/test_schema_sorter.py",
+    "tests/unit/sdk/test_topological_sort.py",
+]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # Remaining files with 1-5 violations each
+invalid-method-override = "ignore"
+no-matching-overload = "ignore"
 
 [[tool.ty.overrides]]
 include = ["docs/**"]
