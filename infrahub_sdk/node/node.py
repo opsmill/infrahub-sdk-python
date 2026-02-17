@@ -147,7 +147,7 @@ class InfrahubNodeBase:
         if not hfid:
             return None
         if include_kind:
-            hfid = [self.get_kind()] + hfid
+            hfid = [self.get_kind(), *hfid]
         return "__".join(hfid)
 
     @property
@@ -203,7 +203,7 @@ class InfrahubNodeBase:
 
     def get_all_kinds(self) -> list[str]:
         if inherit_from := getattr(self._schema, "inherit_from", None):
-            return [self._schema.kind] + inherit_from
+            return [self._schema.kind, *inherit_from]
         return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
