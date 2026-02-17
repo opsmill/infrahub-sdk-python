@@ -189,6 +189,7 @@ def get_modules_to_document() -> list[str]:
 def _generate_sdk_api_docs(context: Context) -> None:
     """Generate API documentation for the Python SDK."""
     from docs.docs_generation.content_gen_methods import (
+        CollapsedOverloadCodeDocumentation,
         FilePrintingDocContentGenMethod,
         MdxCodeDocumentation,
         OrderedMdxCodeDocumentation,
@@ -205,9 +206,11 @@ def _generate_sdk_api_docs(context: Context) -> None:
     if (output_dir / "infrahub_sdk").exists():
         shutil.rmtree(output_dir / "infrahub_sdk")
 
-    documentation = OrderedMdxCodeDocumentation(
-        documentation=MdxCodeDocumentation(),
-        page_priorities=PAGE_PRIORITIES,
+    documentation = CollapsedOverloadCodeDocumentation(
+        documentation=OrderedMdxCodeDocumentation(
+            documentation=MdxCodeDocumentation(),
+            page_priorities=PAGE_PRIORITIES,
+        )
     )
     generated_files = documentation.generate(context=context, modules_to_document=modules_to_document)
 

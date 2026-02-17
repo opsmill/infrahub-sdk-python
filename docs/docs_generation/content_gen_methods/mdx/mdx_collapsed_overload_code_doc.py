@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from .mdx_code_doc import ACodeDocumentation, MdxFile
+from .mdx_collapsed_overload_section import CollapsedOverloadSection
+from .mdx_section import ASection, MdxSection, _parse_sections
+
+if TYPE_CHECKING:
+    from invoke import Context
+
+
+@dataclass
+class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
+    """Decorator around :class:`ACodeDocumentation` that collapses overloaded methods.
+
+    Delegates generation to the wrapped *documentation* instance, then
+    replaces groups of same-name H4 method sections within each class
+    with a :class:`CollapsedOverloadSection` showing the primary overload
+    and a collapsible ``<details>`` block for the rest.
+    """
+
+    documentation: ACodeDocumentation
+
+    def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]:
+        files = self.documentation.generate(context, modules_to_document)
+        return {name: self._collapse_overloads(mdx_file) for name, mdx_file in files.items()}
+
+    def _collapse_overloads(self, mdx_file: MdxFile) -> MdxFile:
+        lines = mdx_file.content.split("\n")
+        parsed_h2 = _parse_sections(lines, heading_level=2)
+
+        processed_h2: list[ASection] = []
+        for h2 in parsed_h2.sections:
+            processed_h3 = self._process_class_sections(h2.content)
+            if processed_h3 is None:
+                processed_h2.append(h2)
+            else:
+                h3_parsed = _parse_sections(h2.content, heading_level=3)
+                new_lines = h3_parsed.reassembled(processed_h3)
+                processed_h2.append(
+                    MdxSection(name=h2.name, heading_level=h2.heading_level, _lines=[h2.heading] + new_lines)
+                )
+
+        new_content = "\n".join(parsed_h2.reassembled(processed_h2))
+        return MdxFile(name=mdx_file.name, content=new_content, source_path=mdx_file.source_path)
+
+    def _process_class_sections(self, h2_content: list[str]) -> list[ASection] | None:
+        h3_parsed = _parse_sections(h2_content, heading_level=3)
+        if not h3_parsed.sections:
+            return None
+
+        any_collapsed = False
+        processed: list[ASection] = []
+        for h3 in h3_parsed.sections:
+            collapsed_methods = self._collapse_methods_in_class(h3.content)
+            if collapsed_methods is None:
+                processed.append(h3)
+            else:
+                any_collapsed = True
+                h4_parsed = _parse_sections(h3.content, heading_level=4)
+                new_lines = h4_parsed.reassembled(collapsed_methods)
+                processed.append(
+                    MdxSection(name=h3.name, heading_level=h3.heading_level, _lines=[h3.heading] + new_lines)
+                )
+
+        return processed if any_collapsed else None
+
+    def _collapse_methods_in_class(self, h3_content: list[str]) -> list[ASection] | None:
+        h4_parsed = _parse_sections(h3_content, heading_level=4)
+        if not h4_parsed.sections:
+            return None
+
+        groups = self._group_consecutive_overloads(h4_parsed.sections)
+        has_overloads = any(len(group) > 1 for group in groups)
+        if not has_overloads:
+            return None
+
+        collapsed: list[ASection] = []
+        for group in groups:
+            if len(group) == 1:
+                collapsed.append(group[0])
+            else:
+                collapsed.append(CollapsedOverloadSection.from_overloads(group))
+        return collapsed
+
+    def _group_consecutive_overloads(self, sections: list[MdxSection]) -> list[list[MdxSection]]:
+        """Group consecutive sections sharing the same name."""
+        groups: list[list[MdxSection]] = []
+        for section in sections:
+            if groups and groups[-1][0].name == section.name:
+                groups[-1].append(section)
+            else:
+                groups.append([section])
+        return groups

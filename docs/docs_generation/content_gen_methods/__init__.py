@@ -3,6 +3,9 @@ from __future__ import annotations
 from docs.docs_generation.content_gen_methods.command.command import ACommand
 from docs.docs_generation.content_gen_methods.command.typer_command import TyperGroupCommand, TyperSingleCommand
 from docs.docs_generation.content_gen_methods.mdx.mdx_code_doc import ACodeDocumentation, MdxCodeDocumentation
+from docs.docs_generation.content_gen_methods.mdx.mdx_collapsed_overload_code_doc import (
+    CollapsedOverloadCodeDocumentation,
+)
 from docs.docs_generation.content_gen_methods.mdx.mdx_ordered_code_doc import OrderedMdxCodeDocumentation
 
 from .base import ADocContentGenMethod
@@ -14,6 +17,7 @@ __all__ = [
     "ACodeDocumentation",
     "ACommand",
     "ADocContentGenMethod",
+    "CollapsedOverloadCodeDocumentation",
     "CommandOutputDocContentGenMethod",
     "FilePrintingDocContentGenMethod",
     "Jinja2DocContentGenMethod",
