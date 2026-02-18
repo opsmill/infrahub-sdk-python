@@ -66,6 +66,33 @@ _BASE_GENERIC = {
 }
 
 
+def _make_attr(name: str, kind: str = "Text", **kwargs: object) -> dict:
+    """Build a minimal AttributeSchemaAPI-compatible dict."""
+    attr: dict = {
+        "id": None,
+        "state": "present",
+        "name": name,
+        "kind": kind,
+        "label": None,
+        "description": None,
+        "default_value": None,
+        "unique": False,
+        "branch": "aware",
+        "optional": False,
+        "choices": None,
+        "enum": None,
+        "max_length": None,
+        "min_length": None,
+        "regex": None,
+        "order_weight": None,
+        "inherited": False,
+        "read_only": False,
+        "allow_override": "any",
+    }
+    attr.update(kwargs)
+    return attr
+
+
 def _make_rel(name: str, peer: str, **kwargs: object) -> dict:
     """Build a minimal RelationshipSchemaAPI-compatible dict."""
     rel: dict = {
@@ -317,10 +344,14 @@ def test_schema_export_includes_generics(httpx_mock: HTTPXMock, tmp_path: Path) 
 
 
 def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """Relationships strip defaults; attrs/rels appear after scalar fields."""
+    """Relationships strip defaults; computed attrs keep read_only; attrs/rels appear after scalar fields."""
     node = _make_node(
         "Infra",
         "Device",
+        attributes=[
+            _make_attr("name", "Text"),  # read_only=False → stripped
+            _make_attr("computed", "Text", read_only=True),  # read_only=True → kept
+        ],
         relationships=[
             # default-value rel — all strippable fields
             _make_rel("tags", "BuiltinTag"),
@@ -342,9 +373,19 @@ def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> 
     data = yaml.safe_load((output_dir / "infra.yml").read_text())
     node_data = data["nodes"][0]
 
-    # --- field ordering: relationships must be last ---
+    # --- field ordering: attributes and relationships must come after scalar fields ---
     keys = list(node_data.keys())
+    assert keys.index("name") < keys.index("attributes")
     assert keys.index("name") < keys.index("relationships")
+
+    # --- attributes: read_only stripped when False, kept when True ---
+    name_attr = next(a for a in node_data["attributes"] if a["name"] == "name")
+    computed_attr = next(a for a in node_data["attributes"] if a["name"] == "computed")
+    assert "read_only" not in name_attr
+    assert computed_attr["read_only"] is True
+    # branch always stripped from attributes
+    assert "branch" not in name_attr
+    assert "branch" not in computed_attr
 
     tags_rel = next(r for r in node_data["relationships"] if r["name"] == "tags")
     site_rel = next(r for r in node_data["relationships"] if r["name"] == "site")
