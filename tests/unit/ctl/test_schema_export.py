@@ -320,7 +320,7 @@ def test_schema_export_custom_directory(httpx_mock: HTTPXMock, tmp_path: Path) -
 
 
 def test_schema_export_includes_generics(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """Generic schemas are exported under the 'generics' key."""
+    """Generic schemas appear before nodes, both under the correct keys."""
     response = _schema_response(
         generics=[_make_generic("Infra", "GenericInterface")],
         nodes=[_make_node("Infra", "Device")],
@@ -341,6 +341,10 @@ def test_schema_export_includes_generics(httpx_mock: HTTPXMock, tmp_path: Path) 
     data = yaml.safe_load(infra_file.read_text())
     assert any(g["name"] == "GenericInterface" for g in data["generics"])
     assert any(n["name"] == "Device" for n in data["nodes"])
+
+    # generics must come before nodes in the file
+    keys = list(data.keys())
+    assert keys.index("generics") < keys.index("nodes")
 
 
 def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -471,3 +475,29 @@ def test_schema_export_hierarchical_generic(httpx_mock: HTTPXMock, tmp_path: Pat
     assert generic_data.get("hierarchical") is True
     # no Hierarchy or Group relationships in the output
     assert "relationships" not in generic_data
+
+
+def test_schema_export_uniqueness_constraints(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Auto-generated single-field uniqueness constraints are stripped; user-defined ones are kept."""
+    node = _make_node(
+        "Infra",
+        "Device",
+        attributes=[_make_attr("name", unique=True)],
+        uniqueness_constraints=[
+            ["name__value"],  # auto-generated from unique: true → stripped
+            ["namespace__value", "name__value"],  # user-defined multi-field → kept
+        ],
+    )
+    response = _schema_response(nodes=[node])
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
+
+    output_dir = tmp_path / "export"
+    result = runner.invoke(app=app, args=["export", "--directory", str(output_dir)])
+    assert result.exit_code == 0, result.stdout
+
+    data = yaml.safe_load((output_dir / "infra.yml").read_text())
+    node_data = data["nodes"][0]
+
+    constraints = node_data.get("uniqueness_constraints", [])
+    assert ["name__value"] not in constraints
+    assert ["namespace__value", "name__value"] in constraints

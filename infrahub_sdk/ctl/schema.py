@@ -259,6 +259,18 @@ def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str
     ):
         data["hierarchical"] = True
 
+    # Strip uniqueness_constraints that are auto-generated from `unique: true` attributes
+    # (single-field entries of the form ["<attr>__value"]). User-defined multi-field
+    # constraints are preserved.
+    unique_attr_suffixes = {f"{attr.name}__value" for attr in schema.attributes if attr.unique}
+    user_constraints = [
+        c
+        for c in (data.pop("uniqueness_constraints", None) or [])
+        if not (len(c) == 1 and c[0] in unique_attr_suffixes)
+    ]
+    if user_constraints:
+        data["uniqueness_constraints"] = user_constraints
+
     attributes = [
         {
             k: v
@@ -325,10 +337,10 @@ async def export(
 
     for ns, data in sorted(user_schemas.items()):
         payload: dict[str, Any] = {"version": "1.0"}
-        if data["nodes"]:
-            payload["nodes"] = data["nodes"]
         if data["generics"]:
             payload["generics"] = data["generics"]
+        if data["nodes"]:
+            payload["nodes"] = data["nodes"]
 
         output_file = directory / f"{ns.lower()}.yml"
         output_file.write_text(
