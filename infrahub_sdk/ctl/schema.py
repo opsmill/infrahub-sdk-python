@@ -237,7 +237,11 @@ _REL_EXPORT_DEFAULTS: dict[str, Any] = {
     "optional": True,
     "min_count": 0,
     "max_count": 0,
+    "read_only": False,
 }
+
+# Relationship kinds that Infrahub generates automatically — never user-defined
+_AUTO_GENERATED_REL_KINDS: frozenset[str] = frozenset({"Group", "Profile", "Hierarchy"})
 
 
 def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str, Any]:
@@ -247,6 +251,13 @@ def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str
     # Pop attrs/rels so they can be re-inserted last for better readability
     data.pop("attributes", None)
     data.pop("relationships", None)
+
+    # Generics with Hierarchy relationships were defined with `hierarchical: true`.
+    # Restore that flag and drop the auto-generated rels so the schema round-trips cleanly.
+    if isinstance(schema, GenericSchemaAPI) and any(
+        rel.kind == "Hierarchy" for rel in schema.relationships if not rel.inherited
+    ):
+        data["hierarchical"] = True
 
     attributes = [
         {
@@ -267,7 +278,7 @@ def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str
             if k not in _REL_EXPORT_DEFAULTS or v != _REL_EXPORT_DEFAULTS[k]
         }
         for rel in schema.relationships
-        if not rel.inherited
+        if not rel.inherited and rel.kind not in _AUTO_GENERATED_REL_KINDS
     ]
     if relationships:
         data["relationships"] = relationships

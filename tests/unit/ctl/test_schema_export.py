@@ -391,7 +391,16 @@ def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> 
     site_rel = next(r for r in node_data["relationships"] if r["name"] == "site")
 
     # default values stripped from 'tags' rel
-    for stripped_key in ("direction", "on_delete", "cardinality", "optional", "min_count", "max_count", "branch"):
+    for stripped_key in (
+        "direction",
+        "on_delete",
+        "cardinality",
+        "optional",
+        "min_count",
+        "max_count",
+        "branch",
+        "read_only",
+    ):
         assert stripped_key not in tags_rel, f"'{stripped_key}' should have been stripped"
 
     # non-default values kept in 'site' rel
@@ -399,7 +408,66 @@ def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> 
     assert site_rel["optional"] is False
     assert site_rel["min_count"] == 1
     assert site_rel["max_count"] == 1
-    # default direction/on_delete still stripped even on non-default rel
+    # default direction/on_delete/read_only still stripped even on non-default rel
     assert "direction" not in site_rel
     assert "on_delete" not in site_rel
     assert "branch" not in site_rel
+    assert "read_only" not in site_rel
+
+
+def test_schema_export_auto_generated_relationships_removed(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Group, Profile and Hierarchy relationships are auto-generated and must not be exported."""
+    node = _make_node(
+        "Infra",
+        "Device",
+        relationships=[
+            _make_rel("member_of_groups", "CoreGroup", kind="Group"),
+            _make_rel("subscriber_of_groups", "CoreGroup", kind="Group"),
+            _make_rel("profiles", "CoreProfile", kind="Profile"),
+            _make_rel("tags", "BuiltinTag"),  # user-defined — kept
+        ],
+    )
+    response = _schema_response(nodes=[node])
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
+
+    output_dir = tmp_path / "export"
+    result = runner.invoke(app=app, args=["export", "--directory", str(output_dir)])
+    assert result.exit_code == 0, result.stdout
+
+    data = yaml.safe_load((output_dir / "infra.yml").read_text())
+    rel_names = [r["name"] for r in data["nodes"][0]["relationships"]]
+    assert rel_names == ["tags"]
+
+
+def test_schema_export_hierarchical_generic(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Hierarchy rels are replaced with hierarchical: true on the generic."""
+    generic = _make_generic(
+        "Location",
+        "Generic",
+        relationships=[
+            _make_rel(
+                "parent",
+                "LocationGeneric",
+                kind="Hierarchy",
+                direction="outbound",
+                cardinality="one",
+                max_count=1,
+                optional=False,
+            ),
+            _make_rel("children", "LocationGeneric", kind="Hierarchy", direction="inbound"),
+            _make_rel("member_of_groups", "CoreGroup", kind="Group"),
+        ],
+    )
+    response = _schema_response(generics=[generic])
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
+
+    output_dir = tmp_path / "export"
+    result = runner.invoke(app=app, args=["export", "--directory", str(output_dir)])
+    assert result.exit_code == 0, result.stdout
+
+    data = yaml.safe_load((output_dir / "location.yml").read_text())
+    generic_data = data["generics"][0]
+
+    assert generic_data.get("hierarchical") is True
+    # no Hierarchy or Group relationships in the output
+    assert "relationships" not in generic_data
