@@ -221,28 +221,47 @@ def _default_export_directory() -> str:
 
 
 _SCHEMA_EXPORT_EXCLUDE: set[str] = {"hash", "hierarchy", "used_by", "id", "state"}
-_FIELD_EXPORT_EXCLUDE: set[str] = {"inherited", "read_only", "allow_override", "hierarchical", "id", "state"}
+# branch is inherited from the node and need not be repeated on each field
+_FIELD_EXPORT_EXCLUDE: set[str] = {"inherited", "read_only", "allow_override", "hierarchical", "id", "state", "branch"}
+
+# Relationship field values that match schema loading defaults — omitted for cleaner output
+_REL_EXPORT_DEFAULTS: dict[str, Any] = {
+    "direction": "bidirectional",
+    "on_delete": "no-action",
+    "cardinality": "many",
+    "optional": True,
+    "min_count": 0,
+    "max_count": 0,
+}
 
 
 def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str, Any]:
     """Convert an API schema object to an export-ready dict (omits API-internal fields)."""
     data = schema.model_dump(exclude=_SCHEMA_EXPORT_EXCLUDE, exclude_none=True)
 
-    data["attributes"] = [
+    # Pop attrs/rels so they can be re-inserted last for better readability
+    data.pop("attributes", None)
+    data.pop("relationships", None)
+
+    attributes = [
         dict(attr.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True))
         for attr in schema.attributes
         if not attr.inherited
     ]
-    if not data["attributes"]:
-        data.pop("attributes")
+    if attributes:
+        data["attributes"] = attributes
 
-    data["relationships"] = [
-        dict(rel.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True))
+    relationships = [
+        {
+            k: v
+            for k, v in rel.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True).items()
+            if k not in _REL_EXPORT_DEFAULTS or v != _REL_EXPORT_DEFAULTS[k]
+        }
         for rel in schema.relationships
         if not rel.inherited
     ]
-    if not data["relationships"]:
-        data.pop("relationships")
+    if relationships:
+        data["relationships"] = relationships
 
     return data
 

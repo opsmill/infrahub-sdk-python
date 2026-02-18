@@ -66,6 +66,34 @@ _BASE_GENERIC = {
 }
 
 
+def _make_rel(name: str, peer: str, **kwargs: object) -> dict:
+    """Build a minimal RelationshipSchemaAPI-compatible dict."""
+    rel: dict = {
+        "id": None,
+        "state": "present",
+        "name": name,
+        "peer": peer,
+        "kind": "Generic",
+        "label": None,
+        "description": None,
+        "identifier": None,
+        "min_count": 0,
+        "max_count": 0,
+        "direction": "bidirectional",
+        "on_delete": "no-action",
+        "cardinality": "many",
+        "branch": "aware",
+        "optional": True,
+        "order_weight": None,
+        "inherited": False,
+        "read_only": False,
+        "hierarchical": None,
+        "allow_override": "any",
+    }
+    rel.update(kwargs)
+    return rel
+
+
 def _make_node(namespace: str, name: str, **kwargs: object) -> dict:
     node = {**_BASE_NODE, "namespace": namespace, "name": name}
     node.update(kwargs)
@@ -286,3 +314,51 @@ def test_schema_export_includes_generics(httpx_mock: HTTPXMock, tmp_path: Path) 
     data = yaml.safe_load(infra_file.read_text())
     assert any(g["name"] == "GenericInterface" for g in data["generics"])
     assert any(n["name"] == "Device" for n in data["nodes"])
+
+
+def test_schema_export_output_quality(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Relationships strip defaults; attrs/rels appear after scalar fields."""
+    node = _make_node(
+        "Infra",
+        "Device",
+        relationships=[
+            # default-value rel — all strippable fields
+            _make_rel("tags", "BuiltinTag"),
+            # non-default rel — cardinality one, optional false, min/max_count 1
+            _make_rel("site", "LocationSite", cardinality="one", optional=False, min_count=1, max_count=1),
+        ],
+    )
+    response = _schema_response(nodes=[node])
+    httpx_mock.add_response(
+        method="GET",
+        url="http://mock/api/schema?branch=main",
+        json=response,
+    )
+
+    output_dir = tmp_path / "export"
+    result = runner.invoke(app=app, args=["export", "--directory", str(output_dir)])
+    assert result.exit_code == 0, result.stdout
+
+    data = yaml.safe_load((output_dir / "infra.yml").read_text())
+    node_data = data["nodes"][0]
+
+    # --- field ordering: relationships must be last ---
+    keys = list(node_data.keys())
+    assert keys.index("name") < keys.index("relationships")
+
+    tags_rel = next(r for r in node_data["relationships"] if r["name"] == "tags")
+    site_rel = next(r for r in node_data["relationships"] if r["name"] == "site")
+
+    # default values stripped from 'tags' rel
+    for stripped_key in ("direction", "on_delete", "cardinality", "optional", "min_count", "max_count", "branch"):
+        assert stripped_key not in tags_rel, f"'{stripped_key}' should have been stripped"
+
+    # non-default values kept in 'site' rel
+    assert site_rel["cardinality"] == "one"
+    assert site_rel["optional"] is False
+    assert site_rel["min_count"] == 1
+    assert site_rel["max_count"] == 1
+    # default direction/on_delete still stripped even on non-default rel
+    assert "direction" not in site_rel
+    assert "on_delete" not in site_rel
+    assert "branch" not in site_rel
