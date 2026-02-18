@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -11,10 +12,11 @@ from pydantic import ValidationError
 from rich.console import Console
 
 from ..async_typer import AsyncTyper
+from ..constants import RESTRICTED_NAMESPACES
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from ..schema import SchemaWarning
+from ..schema import GenericSchemaAPI, NodeSchemaAPI, ProfileSchemaAPI, SchemaWarning, TemplateSchemaAPI
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
@@ -211,3 +213,89 @@ def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) ->
         console.print(
             f"[yellow] {warning.type.value}: {warning.message} [{', '.join([kind.display for kind in warning.kinds])}]"
         )
+
+
+def _default_export_directory() -> str:
+    timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d-%H%M%S")
+    return f"infrahub-schema-export-{timestamp}"
+
+
+_SCHEMA_EXPORT_EXCLUDE: set[str] = {"hash", "hierarchy", "used_by", "id", "state"}
+_FIELD_EXPORT_EXCLUDE: set[str] = {"inherited", "read_only", "allow_override", "hierarchical", "id", "state"}
+
+
+def _schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str, Any]:
+    """Convert an API schema object to an export-ready dict (omits API-internal fields)."""
+    data = schema.model_dump(exclude=_SCHEMA_EXPORT_EXCLUDE, exclude_none=True)
+
+    data["attributes"] = [
+        dict(attr.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True))
+        for attr in schema.attributes
+        if not attr.inherited
+    ]
+    if not data["attributes"]:
+        data.pop("attributes")
+
+    data["relationships"] = [
+        dict(rel.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True))
+        for rel in schema.relationships
+        if not rel.inherited
+    ]
+    if not data["relationships"]:
+        data.pop("relationships")
+
+    return data
+
+
+@app.command()
+@catch_exception(console=console)
+async def export(
+    directory: Path = typer.Option(_default_export_directory, help="Directory path to store schema files"),
+    branch: str = typer.Option(None, help="Branch from which to export the schema"),
+    namespace: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
+    debug: bool = False,
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Export the schema from Infrahub as YAML files, one per namespace."""
+    init_logging(debug=debug)
+
+    client = initialize_client()
+    schema_nodes = await client.schema.fetch(branch=branch or client.default_branch)
+
+    user_schemas: dict[str, dict[str, list[dict[str, Any]]]] = {}
+    for schema in schema_nodes.values():
+        if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
+            continue
+        if schema.namespace in RESTRICTED_NAMESPACES:
+            continue
+        if namespace and schema.namespace not in namespace:
+            continue
+        ns = schema.namespace
+        user_schemas.setdefault(ns, {"nodes": [], "generics": []})
+        schema_dict = _schema_to_export_dict(schema)
+        if isinstance(schema, GenericSchemaAPI):
+            user_schemas[ns]["generics"].append(schema_dict)
+        else:
+            user_schemas[ns]["nodes"].append(schema_dict)
+
+    if not user_schemas:
+        console.print("[yellow]No user-defined schema found to export.")
+        return
+
+    directory.mkdir(parents=True, exist_ok=True)
+
+    for ns, data in sorted(user_schemas.items()):
+        payload: dict[str, Any] = {"version": "1.0"}
+        if data["nodes"]:
+            payload["nodes"] = data["nodes"]
+        if data["generics"]:
+            payload["generics"] = data["generics"]
+
+        output_file = directory / f"{ns.lower()}.yml"
+        output_file.write_text(
+            yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+        console.print(f"[green] Exported namespace '{ns}' to {output_file}")
+
+    console.print(f"[green] Schema exported to {directory}")
