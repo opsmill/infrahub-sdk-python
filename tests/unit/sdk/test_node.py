@@ -132,7 +132,9 @@ async def test_validate_method_signature(
     )
 
 
-@pytest.mark.parametrize("hfid,expected_kind,expected_hfid", [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])])
+@pytest.mark.parametrize(
+    ("hfid", "expected_kind", "expected_hfid"), [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])]
+)
 def test_parse_human_friendly_id(hfid: str, expected_kind: str, expected_hfid: list[str]) -> None:
     kind, hfid = parse_human_friendly_id(hfid)
     assert kind == expected_kind

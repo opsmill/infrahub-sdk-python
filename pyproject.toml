@@ -428,7 +428,6 @@ max-complexity = 17
     "S106",    # Possible hardcoded password assigned to argument
     "ARG001",  # Unused function argument
     "ARG002",  # Unused method argument
-    "PT006",   # Wrong type passed to first argument of `pytest.mark.parametrize`; expected `tuple`
     "PT011",   # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "PT012",   # `pytest.raises()` block should contain a single simple statement
 ]
