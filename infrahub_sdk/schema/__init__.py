@@ -22,6 +22,7 @@ from ..exceptions import (
 )
 from ..graphql import Mutation
 from ..queries import SCHEMA_HASH_SYNC_STATUS
+from .export import schema_to_export_dict
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
@@ -64,6 +65,7 @@ __all__ = [
     "SchemaRoot",
     "SchemaRootAPI",
     "TemplateSchemaAPI",
+    "schema_to_export_dict",
 ]
 
 
