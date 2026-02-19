@@ -14,10 +14,28 @@ from invoke import Context, Exit, task
 if TYPE_CHECKING:
     from docs.docs_generation.content_gen_methods.command.typer_command import ATyperCommand
 
+from docs.docs_generation.content_gen_methods.mdx.mdx_priority import PagePriority
+
 CURRENT_DIRECTORY = Path(__file__).resolve()
 DOCUMENTATION_DIRECTORY = CURRENT_DIRECTORY.parent / "docs"
 
 MAIN_DIRECTORY_PATH = Path(__file__).parent
+
+# Priority ordering for generated API documentation pages.
+# Keys match the mdxify output filenames (same keys used in generated_files dict).
+PAGE_PRIORITIES: dict[str, PagePriority] = {
+    "infrahub_sdk-client.mdx": PagePriority(
+        sections=["Classes"],
+        classes=["InfrahubClient", "InfrahubClientSync"],
+        methods={
+            "InfrahubClient": ["get", "delete", "create"],
+            "InfrahubClientSync": ["get", "delete", "create"],
+        },
+    ),
+    "infrahub_sdk-node-node.mdx": PagePriority(
+        classes=["InfrahubNode", "InfrahubNodeSync"],
+    ),
+}
 
 
 def require_tool(name: str, install_hint: str) -> None:
@@ -170,7 +188,11 @@ def get_modules_to_document() -> list[str]:
 @task(name="generate-sdk-api-docs")
 def _generate_sdk_api_docs(context: Context) -> None:
     """Generate API documentation for the Python SDK."""
-    from docs.docs_generation.content_gen_methods import FilePrintingDocContentGenMethod, MdxCodeDocumentation
+    from docs.docs_generation.content_gen_methods import (
+        FilePrintingDocContentGenMethod,
+        MdxCodeDocumentation,
+        OrderedMdxCodeDocumentation,
+    )
     from docs.docs_generation.pages import DocPage, MDXDocPage
 
     print(" - Generate Python SDK API documentation")
@@ -183,7 +205,10 @@ def _generate_sdk_api_docs(context: Context) -> None:
     if (output_dir / "infrahub_sdk").exists():
         shutil.rmtree(output_dir / "infrahub_sdk")
 
-    documentation = MdxCodeDocumentation()
+    documentation = OrderedMdxCodeDocumentation(
+        documentation=MdxCodeDocumentation(),
+        page_priorities=PAGE_PRIORITIES,
+    )
     generated_files = documentation.generate(context=context, modules_to_document=modules_to_document)
 
     for file_key, mdxified_file in generated_files.items():

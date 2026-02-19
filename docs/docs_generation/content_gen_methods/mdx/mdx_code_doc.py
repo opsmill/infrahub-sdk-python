@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -73,7 +74,14 @@ class MdxFile:
     source_path: Path
 
 
-class MdxCodeDocumentation:
+class ACodeDocumentation(ABC):
+    """Abstract base for code documentation generators."""
+
+    @abstractmethod
+    def generate(self, context: Context, modules_to_document: list[str]) -> dict[str, MdxFile]: ...
+
+
+class MdxCodeDocumentation(ACodeDocumentation):
     """Run mdxify once and cache the resulting files.
 
     Args:

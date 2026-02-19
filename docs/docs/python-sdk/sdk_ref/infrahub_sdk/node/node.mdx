@@ -7,98 +7,6 @@ sidebarTitle: node
 
 ## Classes
 
-### `InfrahubNodeBase`
-
-Base class for InfrahubNode and InfrahubNodeSync
-
-**Methods:**
-
-#### `get_branch`
-
-```python
-get_branch(self) -> str
-```
-
-#### `get_path_value`
-
-```python
-get_path_value(self, path: str) -> Any
-```
-
-#### `get_human_friendly_id`
-
-```python
-get_human_friendly_id(self) -> list[str] | None
-```
-
-#### `get_human_friendly_id_as_string`
-
-```python
-get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
-```
-
-#### `hfid`
-
-```python
-hfid(self) -> list[str] | None
-```
-
-#### `hfid_str`
-
-```python
-hfid_str(self) -> str | None
-```
-
-#### `get_node_metadata`
-
-```python
-get_node_metadata(self) -> NodeMetadata | None
-```
-
-Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched.
-
-#### `get_kind`
-
-```python
-get_kind(self) -> str
-```
-
-#### `get_all_kinds`
-
-```python
-get_all_kinds(self) -> list[str]
-```
-
-#### `is_ip_prefix`
-
-```python
-is_ip_prefix(self) -> bool
-```
-
-#### `is_ip_address`
-
-```python
-is_ip_address(self) -> bool
-```
-
-#### `is_resource_pool`
-
-```python
-is_resource_pool(self) -> bool
-```
-
-#### `get_raw_graphql_data`
-
-```python
-get_raw_graphql_data(self) -> dict | None
-```
-
-#### `generate_query_data_init`
-
-```python
-generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
-```
-
 ### `InfrahubNode`
 
 Represents a Infrahub node in an asynchronous context.
@@ -384,3 +292,95 @@ extract(self, params: dict[str, str]) -> dict[str, Any]
 ```
 
 Extract some data points defined in a flat notation.
+
+### `InfrahubNodeBase`
+
+Base class for InfrahubNode and InfrahubNodeSync
+
+**Methods:**
+
+#### `get_branch`
+
+```python
+get_branch(self) -> str
+```
+
+#### `get_path_value`
+
+```python
+get_path_value(self, path: str) -> Any
+```
+
+#### `get_human_friendly_id`
+
+```python
+get_human_friendly_id(self) -> list[str] | None
+```
+
+#### `get_human_friendly_id_as_string`
+
+```python
+get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
+```
+
+#### `hfid`
+
+```python
+hfid(self) -> list[str] | None
+```
+
+#### `hfid_str`
+
+```python
+hfid_str(self) -> str | None
+```
+
+#### `get_node_metadata`
+
+```python
+get_node_metadata(self) -> NodeMetadata | None
+```
+
+Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched.
+
+#### `get_kind`
+
+```python
+get_kind(self) -> str
+```
+
+#### `get_all_kinds`
+
+```python
+get_all_kinds(self) -> list[str]
+```
+
+#### `is_ip_prefix`
+
+```python
+is_ip_prefix(self) -> bool
+```
+
+#### `is_ip_address`
+
+```python
+is_ip_address(self) -> bool
+```
+
+#### `is_resource_pool`
+
+```python
+is_resource_pool(self) -> bool
+```
+
+#### `get_raw_graphql_data`
+
+```python
+get_raw_graphql_data(self) -> dict | None
+```
+
+#### `generate_query_data_init`
+
+```python
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+```
