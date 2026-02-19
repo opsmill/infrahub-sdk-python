@@ -131,3 +131,66 @@ class TestMethodSignatureParamCount:
 
         # Assert
         assert result == 0
+
+
+class TestMethodSignatureReturnType:
+    def test_returns_none_type(self) -> None:
+        # Arrange
+        sig = MethodSignature(make_method_section("value", "value(self, value: Any) -> None"))
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert result == "None"
+
+    def test_returns_concrete_type(self) -> None:
+        # Arrange
+        sig = MethodSignature(make_method_section("value", "value(self) -> Any"))
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert result == "Any"
+
+    def test_no_return_annotation_returns_empty(self) -> None:
+        # Arrange
+        sig = MethodSignature(make_method_section("get", "get(self, kind: str)"))
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert not result
+
+    def test_generic_return_type(self) -> None:
+        # Arrange
+        sig = MethodSignature(make_method_section("get", "get(self) -> dict[str, list[int]]"))
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert result == "dict[str, list[int]]"
+
+    def test_union_return_type(self) -> None:
+        # Arrange
+        sig = MethodSignature(make_method_section("get", "get(self, kind: str) -> InfrahubNode | None"))
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert result == "InfrahubNode | None"
+
+    def test_no_code_fence_returns_empty(self) -> None:
+        # Arrange
+        section = MdxSection(name="get", heading_level=4, _lines=["#### `get`", "", "Some description."])
+        sig = MethodSignature(section)
+
+        # Act
+        result = sig.return_type()
+
+        # Assert
+        assert not result

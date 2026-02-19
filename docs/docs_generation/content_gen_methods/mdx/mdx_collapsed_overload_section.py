@@ -119,11 +119,6 @@ class MethodSignature:
     Parses the raw signature text and counts comma-separated parameters
     at the top level, respecting bracket nesting for generic types
     like ``dict[str, int]``.
-
-    Example::
-
-        >>> MethodSignature(section).param_count()
-        2
     """
 
     def __init__(self, section: MdxSection) -> None:
@@ -136,6 +131,14 @@ class MethodSignature:
             return 0
         tokens = _split_params(params_text)
         return len([t for t in tokens if t.strip() and t.strip() != "self"])
+
+    def return_type(self) -> str:
+        """Return the return-type annotation (e.g. ``"None"``), or ``""`` if absent."""
+        _, sep, ret = self._text.rpartition(")")
+        if not sep:
+            return ""
+        _, arrow, after_arrow = ret.partition("->")
+        return after_arrow.strip() if arrow else ""
 
     def _extract_params_text(self) -> str:
         """Extract the text between the first ``(`` and its last ``)``."""

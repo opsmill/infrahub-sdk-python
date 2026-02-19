@@ -5,7 +5,7 @@ from itertools import groupby
 from typing import TYPE_CHECKING
 
 from .mdx_code_doc import ACodeDocumentation, MdxFile
-from .mdx_collapsed_overload_section import CollapsedOverloadSection
+from .mdx_collapsed_overload_section import CollapsedOverloadSection, MethodSignature
 from .mdx_section import ASection, MdxSection, _parse_sections
 
 if TYPE_CHECKING:
@@ -88,10 +88,46 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
             if len(group) == 1:
                 collapsed.append(group[0])
             else:
-                collapsed.append(CollapsedOverloadSection.from_overloads(group))
+                accessors, overloads = _split_property_accessors(group)
+                collapsed.extend(accessors)
+                if len(overloads) > 1:
+                    collapsed.append(CollapsedOverloadSection.from_overloads(overloads))
+                else:
+                    collapsed.extend(overloads)
         return collapsed
 
     @staticmethod
     def _group_consecutive_overloads(sections: list[MdxSection]) -> list[list[MdxSection]]:
         """Group consecutive sections sharing the same name."""
         return [list(group) for _, group in groupby(sections, key=lambda s: s.name)]
+
+
+def _split_property_accessors(sections: list[MdxSection]) -> tuple[list[MdxSection], list[MdxSection]]:
+    """Partition *sections* into property accessors and remaining overloads.
+
+    Recognised accessor patterns:
+
+    * **getter** — 0 params, non-``None`` return
+    * **setter** — 1 param, ``None`` return
+    * **deleter** — 0 params, ``None`` return
+    """
+    sigs = [(section, MethodSignature(section)) for section in sections]
+
+    def is_accessor(sig: MethodSignature) -> bool:
+        return getter_sig(sig) or setter_sig(sig) or deleter_sig(sig)
+
+    accessors = [section for section, sig in sigs if is_accessor(sig)]
+    overloads = [section for section, sig in sigs if not is_accessor(sig)]
+    return accessors, overloads
+
+
+def deleter_sig(sig: MethodSignature) -> bool:
+    return sig.param_count() == 0 and sig.return_type() == "None"
+
+
+def setter_sig(sig: MethodSignature) -> bool:
+    return sig.param_count() == 1 and sig.return_type() == "None"
+
+
+def getter_sig(sig: MethodSignature) -> bool:
+    return sig.param_count() == 0 and sig.return_type() != "None"

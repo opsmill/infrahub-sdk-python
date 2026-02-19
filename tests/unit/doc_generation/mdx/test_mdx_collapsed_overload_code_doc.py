@@ -81,6 +81,42 @@ class TestCollapseOverloads:
         assert "Show 1 other overload" in result
 
 
+class TestPropertyPairNotCollapsed:
+    def test_property_getter_setter_kept_separate(self, sample_mdx_with_property_pair: str) -> None:
+        # Arrange
+        doc = _build_collapsed_doc(sample_mdx_with_property_pair)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert "<details>" not in result
+        assert result.count("#### `value`") == 2
+
+    def test_property_getter_setter_deleter_kept_separate(self, sample_mdx_with_property_triplet: str) -> None:
+        # Arrange
+        doc = _build_collapsed_doc(sample_mdx_with_property_triplet)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert "<details>" not in result
+        assert result.count("#### `value`") == 3
+
+    def test_property_pair_alongside_real_overloads(self, sample_mdx_property_and_overloads: str) -> None:
+        # Arrange
+        doc = _build_collapsed_doc(sample_mdx_property_and_overloads)
+
+        # Act
+        result = doc.generate(MOCK_CONTEXT, MODULES)[FILE_KEY].content
+
+        # Assert
+        assert result.count("#### `value`") == 2
+        assert "<details>" in result
+        assert "#### `get`" in result
+
+
 class TestNoOverloads:
     def test_empty_content_passes_through(self) -> None:
         # Arrange
@@ -185,4 +221,121 @@ create(self, kind: str, data: dict | None = None, branch: str | None = None, tim
 
 ```python
 delete(self, kind: str, id: str) -> None
+```"""
+
+
+@pytest.fixture
+def sample_mdx_with_property_pair() -> str:
+    return """\
+---
+title: attribute
+sidebarTitle: attribute
+---
+
+# `infrahub_sdk.node.attribute`
+
+## Classes
+
+### `Attribute`
+
+Represents an attribute of a Node.
+
+**Methods:**
+
+#### `value`
+
+```python
+value(self) -> Any
+```
+
+#### `value`
+
+```python
+value(self, value: Any) -> None
+```"""
+
+
+@pytest.fixture
+def sample_mdx_property_and_overloads() -> str:
+    return """\
+---
+title: attribute
+sidebarTitle: attribute
+---
+
+# `infrahub_sdk.node.attribute`
+
+## Classes
+
+### `Attribute`
+
+Represents an attribute of a Node.
+
+**Methods:**
+
+#### `value`
+
+```python
+value(self) -> Any
+```
+
+#### `value`
+
+```python
+value(self, value: Any) -> None
+```
+
+#### `get`
+
+```python
+get(self, kind: str) -> InfrahubNode
+```
+
+#### `get`
+
+```python
+get(self, kind: str, id: int) -> InfrahubNode
+```
+
+#### `get`
+
+```python
+get(self, kind: str, id: int, branch: str) -> InfrahubNode
+```"""
+
+
+@pytest.fixture
+def sample_mdx_with_property_triplet() -> str:
+    return """\
+---
+title: attribute
+sidebarTitle: attribute
+---
+
+# `infrahub_sdk.node.attribute`
+
+## Classes
+
+### `Attribute`
+
+Represents an attribute of a Node.
+
+**Methods:**
+
+#### `value`
+
+```python
+value(self) -> Any
+```
+
+#### `value`
+
+```python
+value(self, value: Any) -> None
+```
+
+#### `value`
+
+```python
+value(self) -> None
 ```"""
