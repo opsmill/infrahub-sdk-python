@@ -717,6 +717,7 @@ ctl = [
     { name = "ariadne-codegen" },
     { name = "click" },
     { name = "jinja2" },
+    { name = "mdxify" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pyarrow" },
@@ -783,6 +784,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.20" },
     { name = "jinja2", marker = "extra == 'all'", specifier = ">=3" },
     { name = "jinja2", marker = "extra == 'ctl'", specifier = ">=3" },
+    { name = "mdxify", marker = "python_full_version >= '3.10' and extra == 'ctl'", specifier = ">=0.2.23" },
     { name = "netutils", specifier = ">=1.0.0" },
     { name = "numpy", marker = "python_full_version >= '3.12' and extra == 'all'", specifier = ">=1.26.2" },
     { name = "numpy", marker = "python_full_version >= '3.12' and extra == 'ctl'", specifier = ">=1.26.2" },
@@ -1147,6 +1149,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "mdxify"
+version = "0.2.36"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "griffe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/57/8b/eec3cc2f5b9e15a1d5d1a7399cf68b420bbd7ab8c363c789cfb14f783a09/mdxify-0.2.36.tar.gz", hash = "sha256:bd8afc3036b8258b13cd6d44413f1805088a9959b1b2d63eae9160cc037ee8e4", size = 1250127, upload-time = "2026-02-06T17:58:19.542Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/aa/b4/3ad6aac18dbd5913201cd3bbf19a896a59fd418c7e87a5abf18575fb339a/mdxify-0.2.36-py3-none-any.whl", hash = "sha256:9dbe9b3e608ad1b9d5d95f95fcc66788d0d737a52eadd8bdb1244e628dc6d98c", size = 24552, upload-time = "2026-02-06T17:58:18.542Z" },
 ]
 
 [[package]]
