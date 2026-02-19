@@ -162,11 +162,6 @@ include = ["infrahub_sdk/node/node.py"]
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # 9 violations - lines 776, 855, 859, 862
 
-[[tool.ty.overrides]]
-include = ["infrahub_sdk/timestamp.py"]
-
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 6 violations at line 95 (multiple parameters)
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/ctl/config.py"]
