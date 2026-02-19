@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from .mdx_code_doc import ACodeDocumentation, MdxCodeDocumentation, MdxFile
+from .mdx_collapsed_overload_code_doc import CollapsedOverloadCodeDocumentation
+from .mdx_collapsed_overload_section import CollapsedOverloadSection
 from .mdx_ordered_code_doc import OrderedMdxCodeDocumentation
 from .mdx_ordered_section import OrderedMdxSection
 from .mdx_section import MdxSection
 
 __all__ = [
     "ACodeDocumentation",
+    "CollapsedOverloadCodeDocumentation",
+    "CollapsedOverloadSection",
     "MdxCodeDocumentation",
     "MdxFile",
     "MdxSection",
