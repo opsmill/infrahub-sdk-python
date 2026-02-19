@@ -31,7 +31,7 @@ class InfrahubInputOutputTest(InfrahubBaseTest):
     directory: Path | None = Field(
         None, description="Path to the directory where the input and output files are located"
     )
-    input: Path = Field(
+    input: Path | None = Field(
         Path("input.json"),
         description="Path to the file with the input data for the test, can be a relative path from the config file or from the directory.",
     )
@@ -68,7 +68,7 @@ class InfrahubInputOutputTest(InfrahubBaseTest):
         else:
             self.directory = base_dir
 
-        if not self.input or not self.input.is_file():
+        if self.input is not None and not self.input.is_file():
             search_input: Path | str = self.input or "input.*"
             results = list(self.directory.rglob(str(search_input)))
 
@@ -99,6 +99,8 @@ class InfrahubInputOutputTest(InfrahubBaseTest):
 
 
 class InfrahubIntegrationTest(InfrahubInputOutputTest):
+    # Integration tests get input from live GraphQL queries, not from input files
+    input: Path | None = Field(None)
     variables: Path | dict[str, Any] = Field(
         Path("variables.json"), description="Variables and corresponding values to pass to the GraphQL query"
     )
