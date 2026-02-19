@@ -51,6 +51,7 @@ ctl = [
     "typer>=0.12.5",
     "click==8.1.*",
     "ariadne-codegen==0.15.3",
+    "mdxify>=0.2.23; python_version>='3.10'",
 ]
 
 all = [
