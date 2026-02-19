@@ -1447,7 +1447,7 @@ class InfrahubNode(InfrahubNodeBase):
         return await related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     async def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
+        """Extract some data points defined in a flat notation."""
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = await self.get_flat_value(key=value)
@@ -2332,7 +2332,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
+        """Extract some data points defined in a flat notation."""
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = self.get_flat_value(key=value)

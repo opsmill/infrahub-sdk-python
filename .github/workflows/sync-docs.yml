@@ -8,8 +8,9 @@ on:
       - stable
     paths:
       - 'docs/docs/**'
-      - 'docs/sidebars-infrahubctl.ts'
-      - 'docs/sidebars-python-sdk.ts'
+      - 'docs/sidebars/sidebars-infrahubctl.ts'
+      - 'docs/sidebars/sidebars-python-sdk.ts'
+      - 'docs/sidebars/sidebar-utils.ts'
 
 jobs:
   sync:
@@ -33,8 +34,9 @@ jobs:
           rm -f target-repo/docs/sidebars-python-sdk.ts
           rm -f target-repo/docs/sidebars-infrahubctl.ts
           cp -r source-repo/docs/docs/* target-repo/docs/docs-python-sdk/
-          cp source-repo/docs/sidebars-infrahubctl.ts target-repo/docs/
-          cp source-repo/docs/sidebars-python-sdk.ts target-repo/docs/
+          cp source-repo/docs/sidebars/sidebars-infrahubctl.ts target-repo/docs/
+          cp source-repo/docs/sidebars/sidebars-python-sdk.ts target-repo/docs/
+          cp source-repo/docs/sidebars/sidebar-utils.ts target-repo/docs/
           cd target-repo
           git config user.name github-actions
           git config user.email github-actions@github.com

@@ -36,7 +36,8 @@ markdown_all: &markdown_all
 
 infrahub_reference_generated: &infrahub_reference_generated
   - "docs/docs/infrahubctl/*.mdx"
-  - "docs/docs/python-sdk/reference/config.mdx"
+  - "docs/docs/python-sdk/reference/*.mdx"
+  - "docs/docs/python-sdk/sdk_ref/**/*.mdx"
 
 documentation_all:
   - *development_files
