@@ -256,12 +256,12 @@ class InfrahubNodeBase:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
 
         Examples:
-            # Using bytes (for small files)
-            node.upload_from_bytes(content=b"file content", name="example.txt")
+            >>> # Using bytes (for small files)
+            >>> node.upload_from_bytes(content=b"file content", name="example.txt")
 
-            # Using file-like object (for large files)
-            with open("/path/to/file.bin", "rb") as f:
-                node.upload_from_bytes(content=f, name="file.bin")
+            >>> # Using file-like object (for large files)
+            >>> with open("/path/to/file.bin", "rb") as f:
+            ...     node.upload_from_bytes(content=f, name="file.bin")
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -794,8 +794,8 @@ class InfrahubNode(InfrahubNodeBase):
                   file content will be returned as bytes.
 
         Returns:
-            If dest is None: The file content as bytes.
-            If dest is provided: The number of bytes written to the file.
+            If ``dest`` is None: The file content as bytes.
+            If ``dest`` is provided: The number of bytes written to the file.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
@@ -803,11 +803,11 @@ class InfrahubNode(InfrahubNodeBase):
             AuthenticationError: If authentication fails.
 
         Examples:
-            # Download to memory
-            content = await contract.download_file()
+            >>> # Download to memory
+            >>> content = await contract.download_file()
 
-            # Stream to file (memory-efficient for large files)
-            bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+            >>> # Stream to file (memory-efficient for large files)
+            >>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1682,8 +1682,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                   file content will be returned as bytes.
 
         Returns:
-            If dest is None: The file content as bytes.
-            If dest is provided: The number of bytes written to the file.
+            If ``dest`` is None: The file content as bytes.
+            If ``dest`` is provided: The number of bytes written to the file.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
@@ -1691,11 +1691,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
             AuthenticationError: If authentication fails.
 
         Examples:
-            # Download to memory
-            content = contract.download_file()
+            >>> # Download to memory
+            >>> content = contract.download_file()
 
-            # Stream to file (memory-efficient for large files)
-            bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
+            >>> # Stream to file (memory-efficient for large files)
+            >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
