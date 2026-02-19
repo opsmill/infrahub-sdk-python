@@ -12,17 +12,10 @@ from pydantic import ValidationError
 from rich.console import Console
 
 from ..async_typer import AsyncTyper
-from ..constants import RESTRICTED_NAMESPACES
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from ..schema import (
-    GenericSchemaAPI,
-    ProfileSchemaAPI,
-    SchemaWarning,
-    TemplateSchemaAPI,
-    schema_to_export_dict,
-)
+from ..schema import SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .utils import load_yamlfile_from_disk_and_exit
@@ -239,23 +232,10 @@ async def export(
     init_logging(debug=debug)
 
     client = initialize_client()
-    schema_nodes = await client.schema.fetch(branch=branch or client.default_branch)
-
-    user_schemas: dict[str, dict[str, list[dict[str, Any]]]] = {}
-    for schema in schema_nodes.values():
-        if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
-            continue
-        if schema.namespace in RESTRICTED_NAMESPACES:
-            continue
-        if namespace and schema.namespace not in namespace:
-            continue
-        ns = schema.namespace
-        user_schemas.setdefault(ns, {"nodes": [], "generics": []})
-        schema_dict = schema_to_export_dict(schema)
-        if isinstance(schema, GenericSchemaAPI):
-            user_schemas[ns]["generics"].append(schema_dict)
-        else:
-            user_schemas[ns]["nodes"].append(schema_dict)
+    user_schemas = await client.schema.export(
+        branch=branch,
+        namespaces=namespace or None,
+    )
 
     if not user_schemas:
         console.print("[yellow]No user-defined schema found to export.")
