@@ -37,6 +37,44 @@ artifact_generate(self, name: str) -> None
 artifact_fetch(self, name: str) -> str | dict[str, Any]
 ```
 
+#### `download_file`
+
+```python
+download_file(self, dest: Path | None = None) -> bytes | int
+```
+
+Download the file content from this FileObject node.
+
+This method is only available for nodes that inherit from CoreFileObject.
+The node must have been saved (have an id) before calling this method.
+
+**Args:**
+
+- `dest`: Optional destination path. If provided, the file will be streamed
+  directly to this path (memory-efficient for large files) and the
+  number of bytes written will be returned. If not provided, the
+  file content will be returned as bytes.
+
+**Returns:**
+
+- If ``dest`` is None: The file content as bytes.
+- If ``dest`` is provided: The number of bytes written to the file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+- `ValueError`: If the node hasn't been saved yet or file not found.
+- `AuthenticationError`: If authentication fails.
+
+**Examples:**
+
+```python
+>>> # Download to memory
+>>> content = await contract.download_file()
+>>> # Stream to file (memory-efficient for large files)
+>>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+```
+
 #### `delete`
 
 ```python
@@ -178,6 +216,44 @@ artifact_generate(self, name: str) -> None
 
 ```python
 artifact_fetch(self, name: str) -> str | dict[str, Any]
+```
+
+#### `download_file`
+
+```python
+download_file(self, dest: Path | None = None) -> bytes | int
+```
+
+Download the file content from this FileObject node.
+
+This method is only available for nodes that inherit from CoreFileObject.
+The node must have been saved (have an id) before calling this method.
+
+**Args:**
+
+- `dest`: Optional destination path. If provided, the file will be streamed
+  directly to this path (memory-efficient for large files) and the
+  number of bytes written will be returned. If not provided, the
+  file content will be returned as bytes.
+
+**Returns:**
+
+- If ``dest`` is None: The file content as bytes.
+- If ``dest`` is provided: The number of bytes written to the file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+- `ValueError`: If the node hasn't been saved yet or file not found.
+- `AuthenticationError`: If authentication fails.
+
+**Examples:**
+
+```python
+>>> # Download to memory
+>>> content = contract.download_file()
+>>> # Stream to file (memory-efficient for large files)
+>>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
 ```
 
 #### `delete`
@@ -372,6 +448,70 @@ is_ip_address(self) -> bool
 ```python
 is_resource_pool(self) -> bool
 ```
+
+#### `is_file_object`
+
+```python
+is_file_object(self) -> bool
+```
+
+Check if this node inherits from CoreFileObject and supports file uploads.
+
+#### `upload_from_path`
+
+```python
+upload_from_path(self, path: Path) -> None
+```
+
+Set a file from disk to be uploaded when saving this FileObject node.
+
+The file will be streamed during upload, avoiding loading the entire file into memory.
+
+**Args:**
+
+- `path`: Path to the file on disk.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+
+#### `upload_from_bytes`
+
+```python
+upload_from_bytes(self, content: bytes | BinaryIO, name: str) -> None
+```
+
+Set content to be uploaded when saving this FileObject node.
+
+The content can be provided as bytes or a file-like object.
+Using BinaryIO is recommended for large content to stream during upload.
+
+**Args:**
+
+- `content`: The file content as bytes or a file-like object.
+- `name`: The filename to use for the uploaded file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+
+**Examples:**
+
+```python
+>>> # Using bytes (for small files)
+>>> node.upload_from_bytes(content=b"file content", name="example.txt")
+>>> # Using file-like object (for large files)
+>>> with open("/path/to/file.bin", "rb") as f:
+...     node.upload_from_bytes(content=f, name="file.bin")
+```
+
+#### `clear_file`
+
+```python
+clear_file(self) -> None
+```
+
+Clear any pending file content.
 
 #### `get_raw_graphql_data`
 
