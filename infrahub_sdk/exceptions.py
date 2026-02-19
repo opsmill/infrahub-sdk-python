@@ -136,7 +136,7 @@ class ObjectValidationError(Error):
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        return f"{'.'.join(map(str, self.position))}: {self.message}"
+        return f"{'.'.join(str(p) for p in self.position)}: {self.message}"
 
 
 class AuthenticationError(Error):
