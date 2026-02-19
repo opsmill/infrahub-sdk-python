@@ -131,11 +131,6 @@ unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
 # File-specific overrides for remaining type violations
 # Fix these incrementally by addressing violations and removing the override
 
-[[tool.ty.overrides]]
-include = ["infrahub_sdk/exceptions.py"]
-
-[tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 1 violation at line 139
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/checks.py"]
