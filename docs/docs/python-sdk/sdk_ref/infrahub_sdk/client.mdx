@@ -900,19 +900,15 @@ Base class for InfrahubClient and InfrahubClientSync
 #### `request_context`
 
 ```python
-request_context(self, request_context: RequestContext) -> None
+request_context(self) -> RequestContext | None
 ```
-
-<details>
-<summary>Show 1 other overload</summary>
 
 #### `request_context`
 
 ```python
-request_context(self) -> RequestContext | None
+request_context(self, request_context: RequestContext) -> None
 ```
 
-</details>
 #### `start_tracking`
 
 ```python
