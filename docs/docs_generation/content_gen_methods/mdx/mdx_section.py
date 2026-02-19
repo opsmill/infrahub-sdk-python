@@ -19,7 +19,7 @@ class ASection(ABC):
 
     @property
     def lines(self) -> list[str]:
-        return [self.heading] + self.content
+        return [self.heading, *self.content]
 
 
 @dataclass

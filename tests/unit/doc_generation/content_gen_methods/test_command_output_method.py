@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import create_autospec
 
-from invoke import Result
-from invoke.context import MockContext
+from invoke import Context, Result
 
 from docs.docs_generation import ACommand, CommandOutputDocContentGenMethod
 
@@ -29,7 +29,7 @@ class TestCommandOutputDocContentGenMethod:
             output_path.write_text(output_content, encoding="utf-8")
             return Result()
 
-        mock_context = MockContext(run=Result())
+        mock_context = create_autospec(Context, instance=True)
         mock_context.run.side_effect = fake_run
 
         method = CommandOutputDocContentGenMethod(
@@ -55,7 +55,7 @@ class TestCommandOutputDocContentGenMethod:
             Path(parts[1].strip()).write_text("", encoding="utf-8")
             return Result()
 
-        mock_context = MockContext(run=Result())
+        mock_context = create_autospec(Context, instance=True)
         mock_context.run.side_effect = fake_run
 
         method = CommandOutputDocContentGenMethod(

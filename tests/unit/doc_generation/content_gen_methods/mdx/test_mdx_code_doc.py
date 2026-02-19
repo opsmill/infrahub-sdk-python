@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import create_autospec
 
-from invoke import Result
-from invoke.context import MockContext
+from invoke import Context, Result
 
 from docs.docs_generation.content_gen_methods import (
     MdxCodeDocumentation,
@@ -13,8 +13,8 @@ from docs.docs_generation.content_gen_methods import (
 def _make_mock_context(
     module_files: dict[str, dict[str, str]],
     calls: list[str] | None = None,
-) -> MockContext:
-    """Build a ``MockContext`` whose ``run()`` writes files based on requested modules.
+) -> Context:
+    """Build a mock ``Context`` whose ``run()`` writes files based on requested modules.
 
     Args:
         module_files: Mapping of module name to its output files
@@ -24,7 +24,7 @@ def _make_mock_context(
         calls: If provided, each executed command string is appended to this
             list so the caller can verify how many times ``run()`` was invoked.
     """
-    ctx = MockContext(run=Result())
+    ctx = create_autospec(Context, instance=True)
 
     def fake_run(cmd: str, **kwargs: object) -> Result:
         if calls is not None:

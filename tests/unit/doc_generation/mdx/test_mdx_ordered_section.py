@@ -87,7 +87,7 @@ def _make_ordered(
     child_heading_level: int = 3,
 ) -> OrderedMdxSection:
     heading = "#" * heading_level + f" `{name}`"
-    section = MdxSection(name=name, heading_level=heading_level, _lines=[heading] + children_lines)
+    section = MdxSection(name=name, heading_level=heading_level, _lines=[heading, *children_lines])
     return OrderedMdxSection(
         section=section,
         priority=priority,
