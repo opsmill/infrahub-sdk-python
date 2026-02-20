@@ -681,7 +681,7 @@ class ObjectFile(InfrahubFile):
             try:
                 self._spec = InfrahubObjectFileData(**self.data.spec)
             except Exception as exc:
-                raise ValidationError(identifier=str(self.location), message=str(exc))
+                raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
         return self._spec
 
     def validate_content(self) -> None:
@@ -691,7 +691,7 @@ class ObjectFile(InfrahubFile):
         try:
             self._spec = InfrahubObjectFileData(**self.data.spec)
         except Exception as exc:
-            raise ValidationError(identifier=str(self.location), message=str(exc))
+            raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

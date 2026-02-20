@@ -68,7 +68,7 @@ class Jinja2Template:
         except jinja2.TemplateSyntaxError as exc:
             self._raise_template_syntax_error(error=exc)
         except jinja2.TemplateNotFound as exc:
-            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name))
+            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name)) from exc
 
         return template
 
@@ -116,16 +116,18 @@ class Jinja2Template:
         try:
             output = await template.render_async(variables)
         except jinja2.exceptions.TemplateNotFound as exc:
-            raise JinjaTemplateNotFoundError(message=exc.message, filename=str(exc.name), base_template=template.name)
+            raise JinjaTemplateNotFoundError(
+                message=exc.message, filename=str(exc.name), base_template=template.name
+            ) from exc
         except jinja2.TemplateSyntaxError as exc:
             self._raise_template_syntax_error(error=exc)
         except jinja2.UndefinedError as exc:
             traceback = Traceback(show_locals=False)
             errors = _identify_faulty_jinja_code(traceback=traceback)
-            raise JinjaTemplateUndefinedError(message=exc.message, errors=errors)
+            raise JinjaTemplateUndefinedError(message=exc.message, errors=errors) from exc
         except Exception as exc:
             message = error_message if (error_message := getattr(exc, "message", None)) else str(exc)
-            raise JinjaTemplateError(message=message or "Unknown template error")
+            raise JinjaTemplateError(message=message or "Unknown template error") from exc
 
         return output
 

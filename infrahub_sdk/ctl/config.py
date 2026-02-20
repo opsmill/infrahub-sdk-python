@@ -90,7 +90,7 @@ class ConfiguredSettings:
             for error in exc.errors():
                 loc_str = [str(item) for item in error["loc"]]
                 print(f"  {'/'.join(loc_str)} | {error['msg']} ({error['type']})")
-            raise typer.Abort
+            raise typer.Abort from None
 
 
 SETTINGS = ConfiguredSettings()
