@@ -214,9 +214,9 @@ def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) ->
         )
 
 
-def _default_export_directory() -> str:
+def _default_export_directory() -> Path:
     timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d-%H%M%S")
-    return f"infrahub-schema-export-{timestamp}"
+    return Path(f"infrahub-schema-export-{timestamp}")
 
 
 @app.command()
