@@ -4,6 +4,23 @@ from typing import Any
 
 from .main import GenericSchemaAPI, NodeSchemaAPI
 
+# Namespaces reserved by the Infrahub server — mirrored from
+# backend/infrahub/core/constants/__init__.py in the opsmill/infrahub repo.
+RESTRICTED_NAMESPACES: list[str] = [
+    "Account",
+    "Branch",
+    "Builtin",
+    "Core",
+    "Deprecated",
+    "Diff",
+    "Infrahub",
+    "Internal",
+    "Lineage",
+    "Schema",
+    "Profile",
+    "Template",
+]
+
 _SCHEMA_EXPORT_EXCLUDE: set[str] = {"hash", "hierarchy", "used_by", "id", "state"}
 # branch is inherited from the node and need not be repeated on each field
 _FIELD_EXPORT_EXCLUDE: set[str] = {"inherited", "allow_override", "hierarchical", "id", "state", "branch"}

@@ -13,7 +13,6 @@ from urllib.parse import urlencode
 import httpx
 from pydantic import BaseModel, Field
 
-from ..constants import RESTRICTED_NAMESPACES
 from ..exceptions import (
     BranchNotFoundError,
     InvalidResponseError,
@@ -23,7 +22,7 @@ from ..exceptions import (
 )
 from ..graphql import Mutation
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from .export import schema_to_export_dict
+from .export import RESTRICTED_NAMESPACES, schema_to_export_dict
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
