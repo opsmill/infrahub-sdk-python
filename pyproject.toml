@@ -320,7 +320,6 @@ ignore = [
     # investigation if they are deemed to not make sense.                                            #
     ##################################################################################################
     "B008",    # Do not perform function call `typer.Option` in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
-    "B904",    # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
     "N802",    # Function name should be lowercase
     "PERF203", # `try`-`except` within a loop incurs performance overhead
     "PLR0913", # Too many arguments in function definition

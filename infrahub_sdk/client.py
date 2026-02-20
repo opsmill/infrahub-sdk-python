@@ -980,7 +980,7 @@ class InfrahubClient(BaseClient):
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
                 if exc.response.status_code == 404:
-                    raise URLNotFoundError(url=url)
+                    raise URLNotFoundError(url=url) from exc
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
@@ -2037,7 +2037,7 @@ class InfrahubClientSync(BaseClient):
                     messages = [error.get("message") for error in errors]
                     raise AuthenticationError(" | ".join(messages)) from exc
                 if exc.response.status_code == 404:
-                    raise URLNotFoundError(url=url)
+                    raise URLNotFoundError(url=url) from exc
 
         if not resp:
             raise Error("Unexpected situation, resp hasn't been initialized.")
