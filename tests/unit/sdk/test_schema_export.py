@@ -5,10 +5,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-
-if TYPE_CHECKING:
-    from pytest_httpx import HTTPXMock
 from infrahub_sdk.schema import (
     GenericSchemaAPI,
     InfrahubSchemaBase,
@@ -16,6 +12,13 @@ from infrahub_sdk.schema import (
     ProfileSchemaAPI,
     TemplateSchemaAPI,
 )
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+    from tests.unit.sdk.conftest import BothClients
+
+client_types = ["standard", "sync"]
 
 # ---------------------------------------------------------------------------
 # Minimal schema API response builders (reused from ctl tests)
@@ -201,20 +204,18 @@ def _make_generic_dict(namespace: str, name: str) -> dict[str, Any]:
     return {**_BASE_GENERIC, "namespace": namespace, "name": name}
 
 
-@pytest.mark.parametrize("client_type", ["async", "sync"])
-async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, client_type: str) -> None:
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
     response = _schema_response(
         nodes=[_make_node_dict("Infra", "Device"), _make_node_dict("Dcim", "Rack")],
         generics=[_make_generic_dict("Infra", "GenericInterface")],
     )
     httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
 
-    if client_type == "async":
-        client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
-        result = await client.schema.export(branch="main")
+    if client_type == "standard":
+        result = await clients.standard.schema.export(branch="main")
     else:
-        client = InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True))
-        result = client.schema.export(branch="main")
+        result = clients.sync.schema.export(branch="main")
 
     assert "Infra" in result
     assert "Dcim" in result
@@ -223,34 +224,30 @@ async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, client_type: s
     assert len(result["Dcim"]["nodes"]) == 1
 
 
-@pytest.mark.parametrize("client_type", ["async", "sync"])
-async def test_export_with_namespace_filter(httpx_mock: HTTPXMock, client_type: str) -> None:
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_with_namespace_filter(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
     response = _schema_response(
         nodes=[_make_node_dict("Infra", "Device")],
     )
     httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main&namespaces=Infra", json=response)
 
-    if client_type == "async":
-        client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
-        result = await client.schema.export(branch="main", namespaces=["Infra"])
+    if client_type == "standard":
+        result = await clients.standard.schema.export(branch="main", namespaces=["Infra"])
     else:
-        client = InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True))
-        result = client.schema.export(branch="main", namespaces=["Infra"])
+        result = clients.sync.schema.export(branch="main", namespaces=["Infra"])
 
     assert "Infra" in result
     assert "Dcim" not in result
 
 
-@pytest.mark.parametrize("client_type", ["async", "sync"])
-async def test_export_empty_when_only_restricted(httpx_mock: HTTPXMock, client_type: str) -> None:
+@pytest.mark.parametrize("client_type", client_types)
+async def test_export_empty_when_only_restricted(httpx_mock: HTTPXMock, clients: BothClients, client_type: str) -> None:
     response = _schema_response(nodes=[_make_node_dict("Core", "Repository")])
     httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
 
-    if client_type == "async":
-        client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
-        result = await client.schema.export(branch="main")
+    if client_type == "standard":
+        result = await clients.standard.schema.export(branch="main")
     else:
-        client = InfrahubClientSync(config=Config(address="http://mock", insert_tracker=True))
-        result = client.schema.export(branch="main")
+        result = clients.sync.schema.export(branch="main")
 
     assert result == {}

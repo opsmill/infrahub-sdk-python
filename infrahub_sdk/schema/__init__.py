@@ -140,7 +140,7 @@ class InfrahubSchemaBase:
             if restricted:
                 warnings.warn(
                     f"Restricted namespace(s) {sorted(restricted)} requested but will be excluded from export",
-                    stacklevel=2,
+                    stacklevel=3,
                 )
 
         user_schemas: dict[str, dict[str, list[dict[str, Any]]]] = {}
@@ -562,7 +562,7 @@ class InfrahubSchema(InfrahubSchemaBase):
             Mapping of namespace to ``{"nodes": [...], "generics": [...]}``.
         """
         branch = branch or self.client.default_branch
-        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces)
+        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
         return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
 
     async def get_graphql_schema(self, branch: str | None = None) -> str:
@@ -830,7 +830,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             Mapping of namespace to ``{"nodes": [...], "generics": [...]}``.
         """
         branch = branch or self.client.default_branch
-        schema_nodes = self.fetch(branch=branch, namespaces=namespaces)
+        schema_nodes = self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
         return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:
