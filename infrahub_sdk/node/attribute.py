@@ -25,8 +25,12 @@ class Attribute:
         """
         self.name = name
         self._schema = schema
+        self._from_pool: dict[str, Any] | None = None
 
-        if not isinstance(data, dict) or "value" not in data:
+        if isinstance(data, dict) and "from_pool" in data:
+            self._from_pool = data.pop("from_pool")
+            data.setdefault("value", None)
+        elif not isinstance(data, dict) or "value" not in data:
             data = {"value": data}
 
         self._properties_flag = PROPERTIES_FLAG
@@ -76,16 +80,14 @@ class Attribute:
         self._value = value
         self.value_has_been_mutated = True
 
-    def _generate_input_data(self) -> dict | None:
-        data: dict[str, Any] = {}
-        variables: dict[str, Any] = {}
-
-        if self.value is None:
+    def _generate_value_data(self, data: dict[str, Any], variables: dict[str, Any]) -> dict | None:
+        if self._from_pool is not None:
+            data["from_pool"] = self._from_pool
+        elif self.value is None:
             if self._schema.optional and self.value_has_been_mutated:
                 data["value"] = None
             return data
-
-        if isinstance(self.value, str):
+        elif isinstance(self.value, str):
             if SAFE_VALUE.match(self.value):
                 data["value"] = self.value
             else:
@@ -98,6 +100,15 @@ class Attribute:
             data["from_pool"] = {"id": self.value.id}
         else:
             data["value"] = self.value
+        return None
+
+    def _generate_input_data(self) -> dict | None:
+        data: dict[str, Any] = {}
+        variables: dict[str, Any] = {}
+
+        early_return = self._generate_value_data(data, variables)
+        if early_return is not None:
+            return early_return
 
         for prop_name in self._properties_flag:
             if getattr(self, prop_name) is not None:
@@ -128,7 +139,10 @@ class Attribute:
         return data
 
     def _generate_mutation_query(self) -> dict[str, Any]:
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if self._from_pool_attribute():
             # If it points to a pool, ask for the value of the pool allocated resource
             return {self.name: {"value": None}}
         return {}
+
+    def _from_pool_attribute(self) -> bool | Any:
+        return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None
