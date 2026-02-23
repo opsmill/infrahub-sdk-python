@@ -1,4 +1,4 @@
-Run a subset of fast CI checks locally. These are lightweight validations that catch common issues before pushing. Execute each step sequentially and stop on the first failure. Report a summary at the end.
+Run a subset of fast CI checks locally. These are lightweight validations that catch common issues before pushing. Run all steps and report a summary at the end.
 
 ## Steps
 
@@ -30,6 +30,6 @@ Run a subset of fast CI checks locally. These are lightweight validations that c
 ## Instructions
 
 - Run each step in order using the Bash tool.
-- If a step fails, stop immediately and report the failure with the relevant output.
+- If a step fails, continue with the remaining steps.
 - At the end, print a summary table of all steps with pass/fail status.
 - Do NOT commit or push anything.
