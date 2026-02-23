@@ -2,11 +2,6 @@
 When using from_pool on a number attribute (e.g. vlan_id), the SDK should generate:
     vlan_id: { from_pool: { id: "...", identifier: "..." } }
 
-Instead, it currently wraps it in value:
-    vlan_id: { value: { from_pool: { id: "...", identifier: "..." } } }
-
-This causes a GraphQL error: 'Expected value of type BigInt, found {from_pool: ...}'
-
 There are two ways to request a pool allocation:
 1. Dict-based:  {"from_pool": {"id": "...", "identifier": "..."}}
 2. Node-based:  pass an InfrahubNode pool object as the attribute value
@@ -16,10 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import pytest
-
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
-from infrahub_sdk.schema import NodeSchema
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
@@ -29,28 +21,8 @@ if TYPE_CHECKING:
 POOL_ID = "185b9728-1b76-dda7-d13d-106529b1bcd9"
 
 
-@pytest.fixture
-async def vlan_schema() -> NodeSchemaAPI:
-    data = {
-        "name": "VLAN",
-        "namespace": "Infra",
-        "label": "VLAN",
-        "default_filter": "name__value",
-        "order_by": ["name__value"],
-        "display_labels": ["name__value"],
-        "attributes": [
-            {"name": "name", "kind": "Text", "unique": True},
-            {"name": "vlan_id", "kind": "Number"},
-            {"name": "role", "kind": "Text", "optional": True},
-            {"name": "status", "kind": "Text", "optional": True},
-        ],
-        "relationships": [],
-    }
-    return NodeSchema(**data).convert_api()
-
-
 # ──────────────────────────────────────────────
-# Dict-based from_pool – async client
+# Dict-based from_pool - async client
 # ──────────────────────────────────────────────
 
 
@@ -117,7 +89,7 @@ async def test_number_attribute_from_pool_mutation_query(
 
 
 # ──────────────────────────────────────────────
-# Dict-based from_pool – sync client
+# Dict-based from_pool - sync client
 # ──────────────────────────────────────────────
 
 
@@ -167,7 +139,7 @@ async def test_sync_number_attribute_regular_value(
 
 
 # ──────────────────────────────────────────────
-# Node-based from_pool – async client
+# Node-based from_pool - async client
 # ──────────────────────────────────────────────
 
 NODE_POOL_ID = "185b9728-1b56-dda7-d13d-106535b1bcd9"
