@@ -127,12 +127,22 @@ class InfrahubSchemaBase:
     ) -> dict[str, dict[str, list[dict[str, Any]]]]:
         """Organize fetched schemas into a per-namespace export structure.
 
-        Filters out system types (Profile/Template), restricted namespaces,
-        and optionally limits to specific namespaces.
+        Filters out system types (Profile/Template) and restricted namespaces
+        (see :data:`RESTRICTED_NAMESPACES`), and optionally limits to specific
+        namespaces.  If the caller requests restricted namespaces they are
+        silently excluded and a :func:`warnings.warn` is emitted.
 
         Returns:
             Mapping of namespace to ``{"nodes": [...], "generics": [...]}``.
         """
+        if namespaces:
+            restricted = set(namespaces) & set(RESTRICTED_NAMESPACES)
+            if restricted:
+                warnings.warn(
+                    f"Restricted namespace(s) {sorted(restricted)} requested but will be excluded from export",
+                    stacklevel=2,
+                )
+
         user_schemas: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for schema in schema_nodes.values():
             if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
@@ -536,19 +546,23 @@ class InfrahubSchema(InfrahubSchemaBase):
     ) -> dict[str, dict[str, list[dict[str, Any]]]]:
         """Export user-defined schemas organized by namespace.
 
-        Fetches all schemas from the server, filters out system types and
-        restricted namespaces, and returns a dict keyed by namespace with
-        ``"nodes"`` and ``"generics"`` lists of export-ready dicts.
+        Fetches schemas from the server, filters out system types and
+        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
+        a dict keyed by namespace with ``"nodes"`` and ``"generics"`` lists of
+        export-ready dicts.  Restricted namespaces such as ``Core`` and
+        ``Builtin`` are always excluded even if explicitly listed in
+        *namespaces*; a warning is emitted when this happens.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None, all user-defined namespaces are exported.
+            namespaces: Optional list of namespaces to include. If empty/None,
+                all user-defined namespaces are exported.
 
         Returns:
             Mapping of namespace to ``{"nodes": [...], "generics": [...]}``.
         """
         branch = branch or self.client.default_branch
-        schema_nodes = await self.fetch(branch=branch)
+        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces)
         return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
 
     async def get_graphql_schema(self, branch: str | None = None) -> str:
@@ -800,19 +814,23 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
     ) -> dict[str, dict[str, list[dict[str, Any]]]]:
         """Export user-defined schemas organized by namespace.
 
-        Fetches all schemas from the server, filters out system types and
-        restricted namespaces, and returns a dict keyed by namespace with
-        ``"nodes"`` and ``"generics"`` lists of export-ready dicts.
+        Fetches schemas from the server, filters out system types and
+        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
+        a dict keyed by namespace with ``"nodes"`` and ``"generics"`` lists of
+        export-ready dicts.  Restricted namespaces such as ``Core`` and
+        ``Builtin`` are always excluded even if explicitly listed in
+        *namespaces*; a warning is emitted when this happens.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None, all user-defined namespaces are exported.
+            namespaces: Optional list of namespaces to include. If empty/None,
+                all user-defined namespaces are exported.
 
         Returns:
             Mapping of namespace to ``{"nodes": [...], "generics": [...]}``.
         """
         branch = branch or self.client.default_branch
-        schema_nodes = self.fetch(branch=branch)
+        schema_nodes = self.fetch(branch=branch, namespaces=namespaces)
         return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:

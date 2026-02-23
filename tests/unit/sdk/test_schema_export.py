@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -160,6 +161,17 @@ class TestBuildExportSchemas:
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
         assert result == {}
 
+    def test_warns_on_restricted_namespaces(self) -> None:
+        schema_nodes = {
+            "InfraDevice": _make_node_schema("Infra", "Device"),
+        }
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            result = InfrahubSchemaBase._build_export_schemas(schema_nodes, namespaces=["Infra", "Core"])
+        assert len(w) == 1
+        assert "Core" in str(w[0].message)
+        assert "Infra" in result
+
 
 # ---------------------------------------------------------------------------
 # Integration tests for export() method on client.schema
@@ -214,9 +226,9 @@ async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, client_type: s
 @pytest.mark.parametrize("client_type", ["async", "sync"])
 async def test_export_with_namespace_filter(httpx_mock: HTTPXMock, client_type: str) -> None:
     response = _schema_response(
-        nodes=[_make_node_dict("Infra", "Device"), _make_node_dict("Dcim", "Rack")],
+        nodes=[_make_node_dict("Infra", "Device")],
     )
-    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=response)
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main&namespaces=Infra", json=response)
 
     if client_type == "async":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
