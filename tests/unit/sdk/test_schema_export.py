@@ -10,6 +10,7 @@ from infrahub_sdk.schema import (
     InfrahubSchemaBase,
     NodeSchemaAPI,
     ProfileSchemaAPI,
+    SchemaExport,
     TemplateSchemaAPI,
 )
 
@@ -112,11 +113,12 @@ class TestBuildExportSchemas:
             "InfraInterface": _make_generic_schema("Infra", "Interface"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert "Infra" in result
-        assert len(result["Infra"]["nodes"]) == 1
-        assert len(result["Infra"]["generics"]) == 1
-        assert result["Infra"]["nodes"][0]["name"] == "Device"
-        assert result["Infra"]["generics"][0]["name"] == "Interface"
+        assert isinstance(result, SchemaExport)
+        assert "Infra" in result.namespaces
+        assert len(result.namespaces["Infra"].nodes) == 1
+        assert len(result.namespaces["Infra"].generics) == 1
+        assert result.namespaces["Infra"].nodes[0]["name"] == "Device"
+        assert result.namespaces["Infra"].generics[0]["name"] == "Interface"
 
     def test_groups_by_namespace(self) -> None:
         schema_nodes = {
@@ -124,7 +126,7 @@ class TestBuildExportSchemas:
             "DcimRack": _make_node_schema("Dcim", "Rack"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert set(result.keys()) == {"Infra", "Dcim"}
+        assert set(result.namespaces.keys()) == {"Infra", "Dcim"}
 
     def test_filters_profiles_and_templates(self) -> None:
         schema_nodes = {
@@ -133,9 +135,9 @@ class TestBuildExportSchemas:
             "TemplateInfraDevice": _make_template_schema("Template", "InfraDevice"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert "Infra" in result
-        assert "Profile" not in result
-        assert "Template" not in result
+        assert "Infra" in result.namespaces
+        assert "Profile" not in result.namespaces
+        assert "Template" not in result.namespaces
 
     def test_filters_restricted_namespaces(self) -> None:
         schema_nodes = {
@@ -144,9 +146,9 @@ class TestBuildExportSchemas:
             "InfraDevice": _make_node_schema("Infra", "Device"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert "Core" not in result
-        assert "Builtin" not in result
-        assert "Infra" in result
+        assert "Core" not in result.namespaces
+        assert "Builtin" not in result.namespaces
+        assert "Infra" in result.namespaces
 
     def test_namespace_filter(self) -> None:
         schema_nodes = {
@@ -154,15 +156,15 @@ class TestBuildExportSchemas:
             "DcimRack": _make_node_schema("Dcim", "Rack"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes, namespaces=["Infra"])
-        assert "Infra" in result
-        assert "Dcim" not in result
+        assert "Infra" in result.namespaces
+        assert "Dcim" not in result.namespaces
 
     def test_empty_when_no_user_schemas(self) -> None:
         schema_nodes = {
             "CoreRepository": _make_node_schema("Core", "Repository"),
         }
         result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
-        assert result == {}
+        assert result.namespaces == {}
 
     def test_warns_on_restricted_namespaces(self) -> None:
         schema_nodes = {
@@ -173,7 +175,20 @@ class TestBuildExportSchemas:
             result = InfrahubSchemaBase._build_export_schemas(schema_nodes, namespaces=["Infra", "Core"])
         assert len(w) == 1
         assert "Core" in str(w[0].message)
-        assert "Infra" in result
+        assert "Infra" in result.namespaces
+
+    def test_to_dict(self) -> None:
+        schema_nodes = {
+            "InfraDevice": _make_node_schema("Infra", "Device"),
+            "InfraInterface": _make_generic_schema("Infra", "Interface"),
+        }
+        result = InfrahubSchemaBase._build_export_schemas(schema_nodes)
+        as_dict = result.to_dict()
+        assert isinstance(as_dict, dict)
+        assert "Infra" in as_dict
+        assert isinstance(as_dict["Infra"], dict)
+        assert len(as_dict["Infra"]["nodes"]) == 1
+        assert len(as_dict["Infra"]["generics"]) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -217,11 +232,12 @@ async def test_export_returns_user_schemas(httpx_mock: HTTPXMock, clients: BothC
     else:
         result = clients.sync.schema.export(branch="main")
 
-    assert "Infra" in result
-    assert "Dcim" in result
-    assert len(result["Infra"]["nodes"]) == 1
-    assert len(result["Infra"]["generics"]) == 1
-    assert len(result["Dcim"]["nodes"]) == 1
+    assert isinstance(result, SchemaExport)
+    assert "Infra" in result.namespaces
+    assert "Dcim" in result.namespaces
+    assert len(result.namespaces["Infra"].nodes) == 1
+    assert len(result.namespaces["Infra"].generics) == 1
+    assert len(result.namespaces["Dcim"].nodes) == 1
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -236,8 +252,8 @@ async def test_export_with_namespace_filter(httpx_mock: HTTPXMock, clients: Both
     else:
         result = clients.sync.schema.export(branch="main", namespaces=["Infra"])
 
-    assert "Infra" in result
-    assert "Dcim" not in result
+    assert "Infra" in result.namespaces
+    assert "Dcim" not in result.namespaces
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -250,4 +266,4 @@ async def test_export_empty_when_only_restricted(httpx_mock: HTTPXMock, clients:
     else:
         result = clients.sync.schema.export(branch="main")
 
-    assert result == {}
+    assert result.namespaces == {}

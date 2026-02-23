@@ -237,18 +237,18 @@ async def export(
         namespaces=namespace or None,
     )
 
-    if not user_schemas:
+    if not user_schemas.namespaces:
         console.print("[yellow]No user-defined schema found to export.")
         return
 
     directory.mkdir(parents=True, exist_ok=True)
 
-    for ns, data in sorted(user_schemas.items()):
+    for ns, data in sorted(user_schemas.namespaces.items()):
         payload: dict[str, Any] = {"version": "1.0"}
-        if data["generics"]:
-            payload["generics"] = data["generics"]
-        if data["nodes"]:
-            payload["nodes"] = data["nodes"]
+        if data.generics:
+            payload["generics"] = data.generics
+        if data.nodes:
+            payload["nodes"] = data.nodes
 
         output_file = directory / f"{ns.lower()}.yml"
         output_file.write_text(

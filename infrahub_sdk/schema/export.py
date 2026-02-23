@@ -2,7 +2,27 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
 from .main import GenericSchemaAPI, NodeSchemaAPI
+
+
+class NamespaceExport(BaseModel):
+    """Export data for a single namespace."""
+
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    generics: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SchemaExport(BaseModel):
+    """Result of a schema export, organized by namespace."""
+
+    namespaces: dict[str, NamespaceExport] = Field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """Convert to plain dict for YAML serialization."""
+        return {ns: data.model_dump(exclude_defaults=True) for ns, data in self.namespaces.items()}
+
 
 # Namespaces reserved by the Infrahub server — mirrored from
 # backend/infrahub/core/constants/__init__.py in the opsmill/infrahub repo.
