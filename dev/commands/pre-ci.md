@@ -19,7 +19,7 @@ Run a subset of fast CI checks locally. These are lightweight validations that c
 
 4. **Docs unit tests** (vitest):
    ```bash
-   cd docs && npx --no-install vitest run
+   (cd docs && npx --no-install vitest run)
    ```
 
 5. **Validate generated documentation** (regenerate and check for drift):
