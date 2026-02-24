@@ -1,10 +1,10 @@
 # Session Feedback
 
-Analyze the current session and identify what documentation or context was missing, incomplete, or incorrect. The goal is to continuously improve the project's knowledge base so future sessions are more efficient.
+Analyze this conversation and identify what documentation or context was missing, incomplete, or incorrect. The goal is to continuously improve the project's knowledge base so future conversations are more efficient.
 
 ## Step 1: Session Analysis
 
-Reflect on the work done in this session. For each area, identify friction points:
+Reflect on the work done in this conversation. For each area, identify friction points:
 
 1. **Exploration overhead**: What parts of the codebase did you have to discover by searching that should have been documented? (e.g., patterns, conventions, module responsibilities)
 2. **Wrong assumptions**: Did you make incorrect assumptions due to missing or misleading documentation?
@@ -35,7 +35,7 @@ Present the feedback as a structured report with the following sections. Only in
 ## Session Feedback Report
 
 ### What I Was Working On
-<!-- Brief summary of the task(s) performed this session -->
+<!-- Brief summary of the task(s) performed in this conversation -->
 
 ### Documentation Gaps
 <!-- Things that should be documented but aren't -->
@@ -43,7 +43,7 @@ Present the feedback as a structured report with the following sections. Only in
 For each gap:
 - **Topic**: What's missing
 - **Where**: Which file should contain this (existing file to update, or new file to create)
-- **Why**: How this would have helped during this session
+- **Why**: How this would have helped during this conversation
 - **Suggested content**: A draft of what should be added (be specific and actionable)
 
 ### Documentation Corrections
