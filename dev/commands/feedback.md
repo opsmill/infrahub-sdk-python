@@ -80,6 +80,7 @@ After presenting the report, ask the user which changes they want to apply. Pres
 3. **None** — Just keep the report as reference, don't modify any files
 
 For approved changes:
+
 - Edit existing files when updating documentation
 - Create new files only when no appropriate existing file exists
 - Update `MEMORY.md` with approved memory changes
