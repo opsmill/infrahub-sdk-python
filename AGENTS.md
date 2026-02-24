@@ -54,6 +54,7 @@ Key rules:
 ✅ **Always**
 
 - Run `uv run invoke format lint-code` before committing Python code
+- Run `uv run invoke generate-sdk generate-infrahubctl` after changing CLI commands or SDK config
 - Run markdownlint before committing markdown changes
 - Follow async/sync dual pattern for new features
 - Use type hints on all function signatures
