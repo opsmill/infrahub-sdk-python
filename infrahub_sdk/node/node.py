@@ -1002,11 +1002,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -1810,11 +1806,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
