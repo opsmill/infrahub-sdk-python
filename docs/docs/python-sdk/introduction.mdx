@@ -1,36 +1,121 @@
 ---
-title: Python SDK
+title: Python SDK overview
 ---
-import VideoPlayer from '../../src/components/VideoPlayer';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
-The Infrahub Python SDK greatly simplifies how you can interact with Infrahub programmatically.
+# Infrahub Python SDK
 
-## Videos
+The Infrahub Python SDK is a client library for interacting with [Infrahub](https://docs.infrahub.app/) programmatically. It handles authentication, query construction, and data serialization so you can work with infrastructure data using native Python objects instead of raw API calls.
 
-<center>
-  <VideoPlayer url='https://www.youtube.com/live/RbRz8_t0FBs?feature=shared' light />
-</center>
+## What you can do with it
 
-## Blog posts
+The SDK covers three main use cases:
 
-- [Querying Data in Infrahub via the Python SDK](https://www.opsmill.com/querying-data-in-infrahub-via-the-python-sdk/)
-- [Creating, Modifying, and Deleting Data in Infrahub Using the Python SDK](https://www.opsmill.com/infrahub-python-sdk-create-modify-delete/)
+- **Automate inside Infrahub** — Write [transforms](https://docs.infrahub.app/guides/python-transform), generators, and checks that run as part of Infrahub's pipeline.
+- **Integrate with external systems** — Query and sync data between Infrahub and your existing tools, scripts, or CI/CD pipelines.
+- **Build custom applications** — Use Infrahub as a data backend for your own Python projects.
 
-## Guides
+Under the hood, tools like `infrahubctl` and the Infrahub Ansible collection both use this SDK.
 
-- [Installing infrahub-sdk](./guides/installation.mdx)
-- [Creating a client](./guides/client.mdx)
-- [Querying data in Infrahub](./guides/query_data.mdx)
-- [Managing nodes](./guides/create_update_delete.mdx)
-- [Managing branches](./guides/branches.mdx)
-- [Using the client store](./guides/store.mdx)
-- [Using the client tracking mode](./guides/tracking.mdx)
+## A quick look
 
-## Topics
+<Tabs groupId="async-sync">
+<TabItem value="Async" default>
 
-- [Understanding tracking in the Python SDK](./topics/tracking.mdx)
+```python
+import asyncio
+from infrahub_sdk import InfrahubClient
 
-## Reference
+async def main():
+    client = InfrahubClient()
 
-- [Client configuration](./reference/config.mdx)
-- [Python SDK Release Notes](https://github.com/opsmill/infrahub-sdk-python/releases)
+    # Query all devices
+    devices = await client.all(kind="InfraDevice")
+    for device in devices:
+        print(f"{device.name.value} — {device.site.peer.name.value}")
+
+    # Create a new tag and save it
+    tag = await client.create(kind="BuiltinTag", name="staging")
+    await tag.save()
+
+    # Work on a branch
+    branch = await client.branch.create("update-tags", description="Add staging tags")
+
+asyncio.run(main())
+```
+
+</TabItem>
+<TabItem value="Sync">
+
+```python
+from infrahub_sdk import InfrahubClientSync
+
+client = InfrahubClientSync()
+
+# Query all devices
+devices = client.all(kind="InfraDevice")
+for device in devices:
+    print(f"{device.name.value} — {device.site.peer.name.value}")
+
+# Create a new tag and save it
+tag = client.create(kind="BuiltinTag", name="staging")
+tag.save()
+
+# Work on a branch
+branch = client.branch.create("update-tags", description="Add staging tags")
+```
+
+</TabItem>
+</Tabs>
+
+Both async and sync clients expose the same API. Choose async for applications that benefit from concurrent I/O (transforms, large-scale sync scripts) and sync for straightforward scripting.
+
+## Why use the SDK over direct API calls
+
+| Concern | Raw API | SDK |
+|---------|---------|-----|
+| Authentication | Manual token management, JWT refresh | Handled automatically |
+| Querying | Build GraphQL strings by hand | `client.get()`, `client.all()`, `client.filters()` |
+| Mutations | Construct and POST GraphQL mutations | `node.save()`, `node.delete()` |
+| Relationships | Navigate nested JSON responses | Access via `node.relationship.peer` |
+| Branching | Manage branch headers/parameters | `client.branch.create()`, `client.branch.merge()` |
+| Concurrency | Roll your own async batching | Built-in `batch` with concurrency control |
+| Schema awareness | Parse schema separately | Schema-driven filters and validation |
+
+The SDK removes the boilerplate so you can focus on the logic that matters to your infrastructure.
+
+## Key capabilities
+
+- **CRUD operations** — Create, read, update, and delete any node type defined in your schema.
+- **Filtering** — Query nodes using schema-aware attribute and relationship filters (`name__value`, `site__name__value`, etc.).
+- **Branch management** — Create, merge, rebase, and diff branches programmatically.
+- **Batch execution** — Group multiple queries into a batch with configurable concurrency limits.
+- **Tracking** — Tag operations with identifiers for auditing and idempotent updates.
+- **Store** — Cache retrieved nodes locally to reduce redundant queries.
+- **GraphQL escape hatch** — Run arbitrary GraphQL queries when the high-level API doesn't cover your use case.
+
+## Installation
+
+```bash
+pip install infrahub-sdk
+```
+
+Extras are available for additional functionality:
+
+```bash
+pip install 'infrahub-sdk[ctl]'    # Adds the infrahubctl CLI
+pip install 'infrahub-sdk[tests]'  # Adds the testing framework for transforms and checks
+pip install 'infrahub-sdk[all]'    # Everything
+```
+
+See the [installation guide](./guides/installation.mdx) for details.
+
+## Next steps
+
+- **[Create and configure a client](./guides/client.mdx)** — Set up authentication, proxy settings, and client options.
+- **[Query data](./guides/query_data.mdx)** — Retrieve nodes with filters and GraphQL.
+- **[Create, update, and delete nodes](./guides/create_update_delete.mdx)** — Manage infrastructure data programmatically.
+- **[Work with branches](./guides/branches.mdx)** — Use Infrahub's branch workflow from Python.
+- **[Batch operations](./guides/batch.mdx)** — Optimize performance for bulk operations.
+- **[Client configuration reference](./reference/config.mdx)** — All available configuration options.
