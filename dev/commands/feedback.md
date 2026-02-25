@@ -41,6 +41,7 @@ Present the feedback as a structured report with the following sections. Only in
 <!-- Things that should be documented but aren't -->
 
 For each gap:
+
 - **Topic**: What's missing
 - **Where**: Which file should contain this (existing file to update, or new file to create)
 - **Why**: How this would have helped during this conversation
@@ -50,6 +51,7 @@ For each gap:
 <!-- Things that are documented but wrong or misleading -->
 
 For each correction:
+
 - **File**: Path to the file
 - **Issue**: What's wrong or misleading
 - **Fix**: What it should say instead
@@ -58,6 +60,7 @@ For each correction:
 <!-- Conventions or patterns found in the code that aren't documented -->
 
 For each pattern:
+
 - **Pattern**: Description of the convention
 - **Evidence**: Where in the code this pattern is used (file paths)
 - **Where to document**: Which AGENTS.md or guide file should capture this
@@ -66,6 +69,7 @@ For each pattern:
 <!-- Propose additions/changes to MEMORY.md for cross-session persistence -->
 
 For each update:
+
 - **Action**: Add / Update / Remove
 - **Content**: What to write
 - **Reason**: Why this is worth remembering across sessions
@@ -78,6 +82,7 @@ After presenting the report, ask the user which changes they want to apply. Pres
 1. **Apply all** — Create/update all proposed documentation files and memory
 2. **Cherry-pick** — Let the user select which changes to apply
 3. **None** — Just keep the report as reference, don't modify any files
+
 
 For approved changes:
 
