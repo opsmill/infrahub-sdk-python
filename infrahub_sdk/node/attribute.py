@@ -139,10 +139,10 @@ class Attribute:
         return data
 
     def _generate_mutation_query(self) -> dict[str, Any]:
-        if self._from_pool_attribute():
+        if self.is_from_pool_attribute():
             # If it points to a pool, ask for the value of the pool allocated resource
             return {self.name: {"value": None}}
         return {}
 
-    def _from_pool_attribute(self) -> bool | Any:
+    def is_from_pool_attribute(self) -> bool:
         return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None
