@@ -30,11 +30,7 @@ async def test_number_attribute_from_pool_with_identifier(
     client: InfrahubClient,
     vlan_schema: NodeSchemaAPI,
 ) -> None:
-    """A number attribute with from_pool and identifier should NOT be wrapped in value.
-
-    This is the exact scenario from the IHS-156 bug report where a user wants
-    to use an identifier for idempotent number pool allocation.
-    """
+    """A number attribute with from_pool and identifier should NOT be wrapped in value."""
     data: dict[str, Any] = {
         "name": "Example VLAN",
         "vlan_id": {"from_pool": {"id": POOL_ID, "identifier": "test"}},
@@ -97,11 +93,7 @@ async def test_sync_number_attribute_from_pool_with_identifier(
     client_sync: InfrahubClientSync,
     vlan_schema: NodeSchemaAPI,
 ) -> None:
-    """A number attribute with from_pool and identifier should NOT be wrapped in value (sync client).
-
-    This is the exact scenario from the IHS-156 bug report where a user wants
-    to use an identifier for idempotent number pool allocation.
-    """
+    """A number attribute with from_pool and identifier should NOT be wrapped in value (sync client)."""
     data: dict[str, Any] = {
         "name": "Example VLAN",
         "vlan_id": {"from_pool": {"id": POOL_ID, "identifier": "test"}},
