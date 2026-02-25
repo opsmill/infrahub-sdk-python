@@ -224,7 +224,7 @@ def _default_export_directory() -> Path:
 async def export(
     directory: Path = typer.Option(_default_export_directory, help="Directory path to store schema files"),
     branch: str = typer.Option(None, help="Branch from which to export the schema"),
-    namespace: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
+    namespaces: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
@@ -234,7 +234,7 @@ async def export(
     client = initialize_client()
     user_schemas = await client.schema.export(
         branch=branch,
-        namespaces=namespace or None,
+        namespaces=namespaces or None,
     )
 
     if not user_schemas.namespaces:
