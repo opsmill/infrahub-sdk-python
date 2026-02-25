@@ -99,13 +99,14 @@ The existing single `restricted: bool` parameter on `validate()` is insufficient
 - **FR-004**: The system MUST provide a `file_object_content` Jinja2 filter that accepts a `storage_id` string and returns the raw string content of the referenced file object, using the file-object-specific API path or metadata handling — this implementation is distinct from `artifact_content`.
 - **FR-005**: Both `artifact_content` and `file_object_content` MUST raise `JinjaFilterError` when the input `storage_id` is null or empty, or when the object store cannot retrieve the content for any reason (not found, network failure, auth failure).
 - **FR-006**: Both `artifact_content` and `file_object_content` MUST raise `JinjaFilterError` when invoked and no `InfrahubClient` was supplied to `Jinja2Template` at construction time. The error message MUST name the filter and explain that an `InfrahubClient` is required.
-- **FR-007**: Both `artifact_content` and `file_object_content` MUST be registered with `trusted=False` in the `FilterDefinition` registry so that `validate(restricted=True)` blocks them in the computed attributes execution context (Infrahub API server). They are only permitted to execute on Prefect workers, where an `InfrahubClient` is available.
+- **FR-007**: Both `artifact_content` and `file_object_content` MUST be registered with `trusted=False` in the `FilterDefinition` registry so that `validate(restricted=True)` blocks them in the computed attributes execution context (Infrahub API server). They are only permitted to execute on Prefect workers, where an `InfrahubClient` is available. Within Infrahub any Jinja2 based computed attributes that use these new filters should cause a schema violation when loading the schema.
 - **FR-008**: The system MUST provide `from_json` and `from_yaml` Jinja2 filters (adding them only if not already present in the environment) that parse a string into a Python dict/list. Applying them to an empty string MUST return an empty dict without raising. Applying them to malformed content MUST raise `JinjaFilterError`.
 - **FR-009**: `from_json` and `from_yaml` MUST be registered as trusted filters (`trusted=True`) since they perform no external I/O.
 - **FR-010**: All new filters MUST work correctly with `InfrahubClient` (async). `InfrahubClientSync` is not a supported client type for `Jinja2Template`.
 - **FR-011**: All `JinjaFilterError` instances MUST carry an actionable error message that identifies the filter name, the cause of failure, and any remediation hint (for example: "artifact_content requires an InfrahubClient — pass one via Jinja2Template(client=...)").
 - **FR-012**: A new `JinjaFilterError` exception class MUST be added to `infrahub_sdk/template/exceptions.py` as a subclass of `JinjaTemplateError`.
 - **FR-013**: Documentation MUST include a Python transform example demonstrating artifact content retrieval via `client.object_store.get(identifier=storage_id)`. No new SDK convenience method will be added.
+- **FR-014**: If the current user isn't allowed due to a permission denied error to query for the artifact or object file the filter should catch such permission error and raise a Jinja2 error specifically related to the permission issue.
 
 ### Key entities
 
@@ -146,7 +147,7 @@ The existing single `restricted: bool` parameter on `validate()` is insufficient
 
 ## Open questions
 
-- **Filter naming**: `artifact_content` is the working name. Alternatives are open.
+- **Filter naming**: `artifact_content` is the working name. Alternatives are open. Same with `file_object_content` as one option is to use the "/api/storage/files/by-storage-id" endpoint, we will want to support "by-hfid" and node as well.
 - **Sandboxed environment injection**: The `render_jinja2_template` method in `integrator.py` has access to `self.sdk`; the exact threading path to pass the client into `Jinja2Template` needs investigation during planning.
 - **Validation level model**: The current `validate(restricted: bool)` parameter is too coarse to express the three distinct execution contexts this feature requires. A natural evolution would be to replace the boolean with an enum (for example: `core` for the Infrahub API server, `worker` for Prefect background workers, `untrusted` for fully restricted local execution). Filters tagged as `worker`-only would be blocked in the `core` context but permitted in the `worker` context, while `trusted` filters remain available in all contexts. The exact enum design and migration of existing call sites is a technical decision for the implementation plan, but the interface change should be considered up front to avoid needing to revisit `validate()` again later.
 
