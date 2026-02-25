@@ -57,7 +57,7 @@ async def test_create_input_data_with_resource_pool_relationship(
                 "resources": [ip_prefix],
             },
         )
-        device = InfrahubNode(
+        device = InfrahubNodeSync(
             client=client,
             schema=simple_device_schema,
             data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
