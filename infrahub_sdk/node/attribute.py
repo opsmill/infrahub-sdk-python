@@ -30,7 +30,7 @@ class _GraphQLPayloadAttribute(NamedTuple):
     def to_dict(self) -> dict[str, Any]:
         return {"data": self.payload_dict, "variables": self.variables}
 
-    def add_properties(self, properties_flag: dict[str, Any], properties_object: dict[str, dict]) -> None:
+    def add_properties(self, properties_flag: dict[str, Any], properties_object: dict[str, str | None]) -> None:
         if not self.needs_metadata:
             return
         for prop_name, prop in properties_flag.items():
@@ -150,7 +150,7 @@ class Attribute:
             for property_name in self._properties_flag
             if getattr(self, property_name) is not None
         }
-        properties_object: dict[str, dict] = {
+        properties_object: dict[str, str | None] = {
             property_name: getattr(self, property_name)._generate_input_data()
             for property_name in self._properties_object
             if getattr(self, property_name) is not None
