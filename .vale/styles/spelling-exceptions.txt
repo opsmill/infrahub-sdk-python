@@ -79,6 +79,7 @@ kbps
 Keycloak
 Loopbacks
 markdownlint
+MDX
 max_count
 memgraph
 menu_placement
