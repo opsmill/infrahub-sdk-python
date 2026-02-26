@@ -7,7 +7,7 @@ Infrahub Python SDK - async/sync client for Infrahub infrastructure management.
 ```bash
 uv sync --all-groups --all-extras   # Install all deps
 uv run invoke format                # Format code
-uv run invoke lint                  # All linters (code + yamllint + documentation)
+uv run invoke lint                  # Full pipeline: ruff, yamllint, ty, mypy, markdownlint, vale
 uv run invoke lint-code             # All linters for Python code
 uv run pytest tests/unit/           # Unit tests
 uv run pytest tests/integration/    # Integration tests
