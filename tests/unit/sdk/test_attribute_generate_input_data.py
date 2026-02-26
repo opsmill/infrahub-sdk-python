@@ -95,7 +95,7 @@ class TestNullValue:
 
         assert result.payload_dict == {}
         assert result.variables == {}
-        assert result.need_additional_properties is False
+        assert result.needs_metadata is False
 
     def test_null_value_mutated_optional(self) -> None:
         """None value on an optional attr that was mutated → explicit null."""
@@ -105,7 +105,7 @@ class TestNullValue:
         result = attr._generate_input_data()
 
         assert result.payload_dict == {"value": None}
-        assert result.need_additional_properties is False
+        assert result.needs_metadata is False
 
     def test_null_value_mutated_non_optional(self) -> None:
         """None value on a non-optional attr that was mutated → empty payload (same as not mutated)."""
@@ -115,7 +115,7 @@ class TestNullValue:
         result = attr._generate_input_data()
 
         assert result.payload_dict == {}
-        assert result.need_additional_properties is False
+        assert result.needs_metadata is False
 
 
 # ──────────────────────────────────────────────
