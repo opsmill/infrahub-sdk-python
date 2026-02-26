@@ -216,7 +216,7 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(  # noqa: C901, PLR0915
+    def _generate_input_data(  # noqa: C901
         self,
         exclude_unmodified: bool = False,
         exclude_hfid: bool = False,
@@ -228,27 +228,18 @@ class InfrahubNodeBase:
             dict[str, Dict]: Representation of an input data in dict format
         """
 
-        data = {}
-        variables = {}
+        data: dict[str, Any] = {}
+        variables: dict[str, Any] = {}
 
         for item_name in self._attributes:
             attr: Attribute = getattr(self, item_name)
             if attr._schema.read_only:
                 continue
-            attr_data = attr._generate_input_data()
-
-            # NOTE, this code has been inherited when we splitted attributes and relationships
-            # into 2 loops, most likely it's possible to simply it
-            if attr_data and isinstance(attr_data, dict):
-                if variable_values := attr_data.get("data"):
-                    data[item_name] = variable_values
-                else:
-                    data[item_name] = attr_data
-                if variable_names := attr_data.get("variables"):
-                    variables.update(variable_names)
-
-            elif attr_data and isinstance(attr_data, list):
-                data[item_name] = attr_data
+            graphql_payload = attr._generate_input_data()
+            if graphql_payload.payload:
+                data[item_name] = graphql_payload.payload
+            if graphql_payload.variables:
+                variables.update(graphql_payload.variables)
 
         for item_name in self._relationships:
             allocate_from_pool = False
@@ -1011,11 +1002,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -1819,11 +1806,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
