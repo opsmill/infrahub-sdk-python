@@ -22,7 +22,7 @@ class TestFromPoolDict:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"from_pool": {"id": "pool-uuid-1"}}
+        assert result.payload == {"from_pool": {"id": "pool-uuid-1"}}
         assert result.variables == {}
 
     def test_from_pool_with_id_and_identifier(self) -> None:
@@ -31,7 +31,7 @@ class TestFromPoolDict:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"from_pool": {"id": "pool-uuid-1", "identifier": "test"}}
+        assert result.payload == {"from_pool": {"id": "pool-uuid-1", "identifier": "test"}}
         assert result.variables == {}
 
     def test_from_pool_with_pool_name(self) -> None:
@@ -42,9 +42,9 @@ class TestFromPoolDict:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"from_pool": "VLAN ID Pool"}
+        assert result.payload == {"from_pool": "VLAN ID Pool"}
         assert result.variables == {}
-        assert "value" not in result.payload_dict
+        assert "value" not in result.payload
 
     def test_from_pool_value_is_none(self) -> None:
         """from_pool pops 'from_pool' and sets Attribute.value to None; value should NOT appear in payload."""
@@ -52,7 +52,7 @@ class TestFromPoolDict:
 
         assert attr.value is None
         result = attr._generate_input_data()
-        assert "value" not in result.payload_dict
+        assert "value" not in result.payload
 
 
 # ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ class TestFromPoolNode:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"from_pool": {"id": "node-pool-uuid"}}
+        assert result.payload == {"from_pool": {"id": "node-pool-uuid"}}
         assert result.variables == {}
 
     def test_non_pool_node_treated_as_regular_value(self) -> None:
@@ -78,7 +78,7 @@ class TestFromPoolNode:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": node}
+        assert result.payload == {"value": node}
 
 
 # ──────────────────────────────────────────────
@@ -93,7 +93,7 @@ class TestNullValue:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {}
+        assert result.payload == {}
         assert result.variables == {}
         assert result.needs_metadata is False
 
@@ -104,7 +104,7 @@ class TestNullValue:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": None}
+        assert result.payload == {"value": None}
         assert result.needs_metadata is False
 
     def test_null_value_mutated_non_optional(self) -> None:
@@ -114,7 +114,7 @@ class TestNullValue:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {}
+        assert result.payload == {}
         assert result.needs_metadata is False
 
 
@@ -139,7 +139,7 @@ class TestStringValues:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": value}
+        assert result.payload == {"value": value}
         assert result.variables == {}
 
     @pytest.mark.parametrize(
@@ -155,9 +155,9 @@ class TestStringValues:
 
         result = attr._generate_input_data()
 
-        # payload_dict["value"] should be a variable reference like "$value_<hex>"
-        assert "value" in result.payload_dict
-        assert result.payload_dict["value"].startswith("$value_")
+        # payload["value"] should be a variable reference like "$value_<hex>"
+        assert "value" in result.payload
+        assert result.payload["value"].startswith("$value_")
         # The actual string should be in variables
         assert len(result.variables) == 1
         var_name = next(iter(result.variables))
@@ -175,7 +175,7 @@ class TestIPValues:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "10.0.0.1/24"
+        assert result.payload["value"] == "10.0.0.1/24"
         assert result.variables == {}
 
     def test_ipv6_interface(self) -> None:
@@ -183,21 +183,21 @@ class TestIPValues:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "2001:db8::1/64"
+        assert result.payload["value"] == "2001:db8::1/64"
 
     def test_ipv4_network(self) -> None:
         attr = Attribute(name="network", schema=_make_schema("IPNetwork"), data={"value": "10.0.0.0/24"})
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "10.0.0.0/24"
+        assert result.payload["value"] == "10.0.0.0/24"
 
     def test_ipv6_network(self) -> None:
         attr = Attribute(name="network", schema=_make_schema("IPNetwork"), data={"value": "2001:db8::/32"})
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "2001:db8::/32"
+        assert result.payload["value"] == "2001:db8::/32"
 
 
 # ──────────────────────────────────────────────
@@ -211,7 +211,7 @@ class TestScalarValues:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": 42}
+        assert result.payload == {"value": 42}
         assert result.variables == {}
 
     def test_boolean_value(self) -> None:
@@ -219,7 +219,7 @@ class TestScalarValues:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": True}
+        assert result.payload == {"value": True}
 
 
 # ──────────────────────────────────────────────
@@ -234,15 +234,15 @@ class TestProperties:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict == {"value": "hello"}
+        assert result.payload == {"value": "hello"}
 
     def test_flag_property_is_protected(self) -> None:
         attr = Attribute(name="test_attr", schema=_make_schema("Text"), data={"value": "hello", "is_protected": True})
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "hello"
-        assert result.payload_dict["is_protected"] is True
+        assert result.payload["value"] == "hello"
+        assert result.payload["is_protected"] is True
 
     def test_object_property_source(self) -> None:
         attr = Attribute(
@@ -253,8 +253,8 @@ class TestProperties:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "hello"
-        assert result.payload_dict["source"] == "source-uuid"
+        assert result.payload["value"] == "hello"
+        assert result.payload["source"] == "source-uuid"
 
     def test_object_property_owner(self) -> None:
         attr = Attribute(
@@ -268,7 +268,7 @@ class TestProperties:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["owner"] == "owner-uuid"
+        assert result.payload["owner"] == "owner-uuid"
 
     def test_both_flag_and_object_properties(self) -> None:
         attr = Attribute(
@@ -283,9 +283,9 @@ class TestProperties:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["value"] == "hello"
-        assert result.payload_dict["is_protected"] is True
-        assert result.payload_dict["source"] == "src-uuid"
+        assert result.payload["value"] == "hello"
+        assert result.payload["is_protected"] is True
+        assert result.payload["source"] == "src-uuid"
 
     def test_properties_not_appended_for_null_value(self) -> None:
         """When need_additional_properties is False (null non-mutated), properties are ignored."""
@@ -302,7 +302,7 @@ class TestProperties:
         result = attr._generate_input_data()
 
         # Null value, not mutated → empty payload, properties NOT appended
-        assert result.payload_dict == {}
+        assert result.payload == {}
 
     def test_properties_appended_for_from_pool(self) -> None:
         """from_pool payloads have need_additional_properties=True, so properties are included."""
@@ -314,8 +314,8 @@ class TestProperties:
 
         result = attr._generate_input_data()
 
-        assert result.payload_dict["from_pool"] == {"id": "pool-uuid"}
-        assert result.payload_dict["is_protected"] is True
+        assert result.payload["from_pool"] == {"id": "pool-uuid"}
+        assert result.payload["is_protected"] is True
 
 
 # ──────────────────────────────────────────────

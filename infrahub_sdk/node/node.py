@@ -236,8 +236,8 @@ class InfrahubNodeBase:
             if attr._schema.read_only:
                 continue
             graphql_payload = attr._generate_input_data()
-            if graphql_payload.payload_dict:
-                data[item_name] = graphql_payload.payload_dict
+            if graphql_payload.payload:
+                data[item_name] = graphql_payload.payload
             if graphql_payload.variables:
                 variables.update(graphql_payload.variables)
 

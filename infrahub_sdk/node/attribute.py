@@ -17,27 +17,27 @@ class _GraphQLPayloadAttribute(NamedTuple):
     """Result of resolving an attribute value for a GraphQL mutation.
 
     Attributes:
-        payload_dict: Key/value entries to include in the mutation payload
+        payload: Key/value entries to include in the mutation payload
             (e.g. ``{"value": ...}`` or ``{"from_pool": ...}``).
         variables: GraphQL variable bindings for unsafe string values.
         needs_metadata: When ``True``, the payload needs to append property flags/objects
     """
 
-    payload_dict: dict[str, Any]
+    payload: dict[str, Any]
     variables: dict[str, Any]
     needs_metadata: bool
 
     def to_dict(self) -> dict[str, Any]:
-        return {"data": self.payload_dict, "variables": self.variables}
+        return {"data": self.payload, "variables": self.variables}
 
     def add_properties(self, properties_flag: dict[str, Any], properties_object: dict[str, str | None]) -> None:
         if not self.needs_metadata:
             return
         for prop_name, prop in properties_flag.items():
-            self.payload_dict[prop_name] = prop
+            self.payload[prop_name] = prop
 
         for prop_name, prop in properties_object.items():
-            self.payload_dict[prop_name] = prop
+            self.payload[prop_name] = prop
 
 
 class Attribute:
@@ -112,31 +112,29 @@ class Attribute:
 
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
-            return _GraphQLPayloadAttribute(
-                payload_dict={"from_pool": self._from_pool}, variables={}, needs_metadata=True
-            )
+            return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
         if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
             return _GraphQLPayloadAttribute(
-                payload_dict={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
+                payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
             )
 
         # Null value
         if self.value is None:
             data = {"value": None} if (self._schema.optional and self.value_has_been_mutated) else {}
-            return _GraphQLPayloadAttribute(payload_dict=data, variables={}, needs_metadata=False)
+            return _GraphQLPayloadAttribute(payload=data, variables={}, needs_metadata=False)
 
         # Unsafe strings need a variable binding to avoid injection
         if isinstance(self.value, str) and not SAFE_VALUE.match(self.value):
             var_name = f"value_{UUIDT.new().hex}"
             return _GraphQLPayloadAttribute(
-                payload_dict={"value": f"${var_name}"},
+                payload={"value": f"${var_name}"},
                 variables={var_name: self.value},
                 needs_metadata=True,
             )
 
         # Safe strings, IP types, and everything else
         value = self.value.with_prefixlen if isinstance(self.value, get_args(IP_TYPES)) else self.value
-        return _GraphQLPayloadAttribute(payload_dict={"value": value}, variables={}, needs_metadata=True)
+        return _GraphQLPayloadAttribute(payload={"value": value}, variables={}, needs_metadata=True)
 
     def _generate_input_data(self) -> _GraphQLPayloadAttribute:
         """Build the input payload for a GraphQL mutation on this attribute.
