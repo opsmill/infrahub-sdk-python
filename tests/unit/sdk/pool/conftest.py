@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
@@ -7,7 +9,7 @@ from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
 
 @pytest.fixture
 async def ipaddress_pool_schema() -> NodeSchemaAPI:
-    data = {
+    data: dict[str, Any] = {
         "name": "IPAddressPool",
         "namespace": "Core",
         "description": "A pool of IP address resources",
@@ -57,7 +59,7 @@ async def ipaddress_pool_schema() -> NodeSchemaAPI:
 
 @pytest.fixture
 async def ipprefix_pool_schema() -> NodeSchemaAPI:
-    data = {
+    data: dict[str, Any] = {
         "name": "IPPrefixPool",
         "namespace": "Core",
         "description": "A pool of IP prefix resources",

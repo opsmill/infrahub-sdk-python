@@ -9,15 +9,15 @@ from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 if TYPE_CHECKING:
     from typing import Any
 
-    from infrahub_sdk import InfrahubClient
     from infrahub_sdk.schema import NodeSchemaAPI
+    from tests.unit.sdk.conftest import BothClients
 
 client_types = ["standard", "sync"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_resource_pool_relationship(
-    client: InfrahubClient,
+    clients: BothClients,
     ipaddress_pool_schema: NodeSchemaAPI,
     ipam_ipprefix_schema: NodeSchemaAPI,
     simple_device_schema: NodeSchemaAPI,
@@ -25,9 +25,9 @@ async def test_create_input_data_with_resource_pool_relationship(
     client_type: str,
 ) -> None:
     if client_type == "standard":
-        ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
+        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNode(
-            client=client,
+            client=clients.standard,
             schema=ipaddress_pool_schema,
             data={
                 "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
@@ -39,14 +39,14 @@ async def test_create_input_data_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client,
+            client=clients.standard,
             schema=simple_device_schema,
             data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
     else:
-        ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
+        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNodeSync(
-            client=client,
+            client=clients.sync,
             schema=ipaddress_pool_schema,
             data={
                 "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
@@ -58,7 +58,7 @@ async def test_create_input_data_with_resource_pool_relationship(
             },
         )
         device = InfrahubNodeSync(
-            client=client,
+            client=clients.sync,
             schema=simple_device_schema,
             data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
@@ -74,7 +74,7 @@ async def test_create_input_data_with_resource_pool_relationship(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_mutation_query_with_resource_pool_relationship(
-    client: InfrahubClient,
+    clients: BothClients,
     ipaddress_pool_schema: NodeSchemaAPI,
     ipam_ipprefix_schema: NodeSchemaAPI,
     simple_device_schema: NodeSchemaAPI,
@@ -82,9 +82,9 @@ async def test_create_mutation_query_with_resource_pool_relationship(
     client_type: str,
 ) -> None:
     if client_type == "standard":
-        ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
+        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNode(
-            client=client,
+            client=clients.standard,
             schema=ipaddress_pool_schema,
             data={
                 "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
@@ -96,14 +96,14 @@ async def test_create_mutation_query_with_resource_pool_relationship(
             },
         )
         device = InfrahubNode(
-            client=client,
+            client=clients.standard,
             schema=simple_device_schema,
             data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
     else:
-        ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
+        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNodeSync(
-            client=client,
+            client=clients.sync,
             schema=ipaddress_pool_schema,
             data={
                 "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
@@ -114,8 +114,8 @@ async def test_create_mutation_query_with_resource_pool_relationship(
                 "resources": [ip_prefix],
             },
         )
-        device = InfrahubNode(
-            client=client,
+        device = InfrahubNodeSync(
+            client=clients.sync,
             schema=simple_device_schema,
             data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
         )
