@@ -24,3 +24,15 @@ value(self) -> Any
 ```python
 value(self, value: Any) -> None
 ```
+
+#### `is_from_pool_attribute`
+
+```python
+is_from_pool_attribute(self) -> bool
+```
+
+Check whether this attribute's value is sourced from a resource pool.
+
+**Returns:**
+
+- True if the attribute value is a resource pool node or was explicitly allocated from a pool.
