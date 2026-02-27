@@ -66,5 +66,7 @@ Use callouts for important notes.
 
 🚫 **Never**
 
-- Edit `docs/infrahubctl/*.mdx` directly (regenerate with `uv run invoke generate-infrahubctl`)
-- Edit `docs/python-sdk/reference/config.mdx` directly (regenerate with `uv run invoke generate-sdk`)
+- Edit `docs/infrahubctl/*.mdx` directly (regenerate with `uv run invoke docs-generate`)
+- Edit `docs/python-sdk/reference/config.mdx` directly (regenerate with `uv run invoke docs-generate`)
+- Edit `docs/python-sdk/reference/templating.mdx` directly (regenerate with `uv run invoke docs-generate`)
+- Edit `docs/python-sdk/sdk_ref/**/*.mdx` directly (regenerate with `uv run invoke docs-generate`)

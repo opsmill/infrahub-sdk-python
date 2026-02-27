@@ -9,6 +9,8 @@ uv sync --all-groups --all-extras   # Install all deps
 uv run invoke format                # Format code
 uv run invoke lint                  # Full pipeline: ruff, yamllint, ty, mypy, markdownlint, vale
 uv run invoke lint-code             # All linters for Python code
+uv run invoke docs-generate         # Generate all docs (CLI + SDK)
+uv run invoke docs-validate         # Check generated docs match committed version
 uv run pytest tests/unit/           # Unit tests
 uv run pytest tests/integration/    # Integration tests
 ```
@@ -54,7 +56,7 @@ Key rules:
 ✅ **Always**
 
 - Run `uv run invoke format lint-code` before committing Python code
-- Run `uv run invoke generate-sdk generate-infrahubctl` after changing CLI commands or SDK config
+- Run `uv run invoke docs-generate` after creating, modifying or deleting CLI commands, SDK config, or Python docstrings
 - Run markdownlint before committing markdown changes
 - Follow async/sync dual pattern for new features
 - Use type hints on all function signatures
