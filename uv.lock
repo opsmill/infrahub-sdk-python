@@ -686,7 +686,7 @@ wheels = [
 
 [[package]]
 name = "infrahub-sdk"
-version = "1.19.0b0"
+version = "1.19.0rc0"
 source = { editable = "." }
 dependencies = [
     { name = "dulwich" },
