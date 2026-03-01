@@ -24,6 +24,7 @@ from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
 from ..ctl.branch import app as branch_app
 from ..ctl.check import run as run_check
+from ..ctl.marketplace import app as marketplace_app
 from ..ctl.client import initialize_client, initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.generator import run as run_generator
@@ -68,6 +69,7 @@ app.add_typer(menu_app, name="menu")
 app.add_typer(object_app, name="object")
 app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
+app.add_typer(marketplace_app, name="marketplace")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
