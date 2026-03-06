@@ -18,6 +18,10 @@ if TYPE_CHECKING:
     from ..node import InfrahubNode
     from ..schema import MainSchemaTypesAPI, RelationshipSchema
 
+_ATTRIBUTE_KIND_TO_POOL_KIND: dict[str, str] = {
+    "Number": "CoreNumberPool",
+}
+
 
 def validate_list_of_scalars(value: list[Any]) -> bool:
     return all(isinstance(item, (str, int, float, bool)) for item in value)
@@ -427,6 +431,30 @@ class InfrahubObjectFileData(BaseModel):
         return data
 
     @classmethod
+    async def _resolve_attribute_pool(
+        cls,
+        client: InfrahubClient,
+        schema: MainSchemaTypesAPI,
+        name: str,
+        value: Any,
+        branch: str | None = None,
+    ) -> Any:
+        """If an attribute value has from_pool as a plain string name, resolve it to {id: uuid}."""
+        if not isinstance(value, dict) or "from_pool" not in value:
+            return value
+        from_pool = value["from_pool"]
+        if not isinstance(from_pool, str):
+            return value
+        attr_schema = schema.get_attribute_or_none(name=name)
+        if attr_schema is None:
+            return value
+        pool_kind = _ATTRIBUTE_KIND_TO_POOL_KIND.get(attr_schema.kind)
+        if pool_kind is None:
+            return value
+        pool = await client.get(kind=pool_kind, hfid=[from_pool], branch=branch, raise_when_missing=True)
+        return {**value, "from_pool": {"id": pool.id}}
+
+    @classmethod
     async def create_node(
         cls,
         client: InfrahubClient,
@@ -463,7 +491,9 @@ class InfrahubObjectFileData(BaseModel):
 
         for key, value in data.items():
             if key in schema.attribute_names:
-                clean_data[key] = value
+                clean_data[key] = await cls._resolve_attribute_pool(
+                    client=client, schema=schema, name=key, value=value, branch=branch
+                )
                 continue
 
             if key in schema.relationship_names:
