@@ -286,7 +286,7 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(  # noqa: C901
+    def _generate_input_data(  # noqa: C901,PLR0915
         self,
         exclude_unmodified: bool = False,
         exclude_hfid: bool = False,
