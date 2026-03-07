@@ -286,7 +286,7 @@ class InfrahubNodeBase:
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(  # noqa: C901,PLR0915
+    def _generate_input_data(  # noqa: C901
         self,
         exclude_unmodified: bool = False,
         exclude_hfid: bool = False,
@@ -311,17 +311,7 @@ class InfrahubNodeBase:
             if graphql_payload.variables:
                 variables.update(graphql_payload.variables)
 
-        # For template schemas, skip _from_resource_pool relationships in mutation data.
-        # Pool references use from_pool syntax on the regular relationship field instead.
-        is_template = isinstance(self._schema, TemplateSchemaAPI)
-        pool_rel_names: set[str] = set()
-        if is_template:
-            pool_rel_names = {r.name for r in self._schema.relationships if r.name.endswith("_from_resource_pool")}
-
         for item_name in self._relationships:
-            if item_name in pool_rel_names:
-                continue
-
             allocate_from_pool = False
             rel_schema = self._schema.get_relationship(name=item_name)
             if not rel_schema or rel_schema.read_only:
@@ -1107,10 +1097,7 @@ class InfrahubNode(InfrahubNodeBase):
             attr: Attribute = getattr(self, attr_name)
             query_result["object"].update(attr._generate_mutation_query())
 
-        is_template = isinstance(self._schema, TemplateSchemaAPI)
         for rel_name in self._relationships:
-            if is_template:
-                continue
             rel = getattr(self, rel_name)
             if not isinstance(rel, RelatedNode):
                 continue
@@ -2003,10 +1990,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             attr: Attribute = getattr(self, attr_name)
             query_result["object"].update(attr._generate_mutation_query())
 
-        is_template = isinstance(self._schema, TemplateSchemaAPI)
         for rel_name in self._relationships:
-            if is_template:
-                continue
             rel = getattr(self, rel_name)
             if not isinstance(rel, RelatedNodeSync):
                 continue
