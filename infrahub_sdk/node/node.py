@@ -311,7 +311,17 @@ class InfrahubNodeBase:
             if graphql_payload.variables:
                 variables.update(graphql_payload.variables)
 
+        # For template schemas, skip _from_resource_pool relationships in mutation data.
+        # Pool references use from_pool syntax on the regular relationship field instead.
+        is_template = isinstance(self._schema, TemplateSchemaAPI)
+        pool_rel_names: set[str] = set()
+        if is_template:
+            pool_rel_names = {r.name for r in self._schema.relationships if r.name.endswith("_from_resource_pool")}
+
         for item_name in self._relationships:
+            if item_name in pool_rel_names:
+                continue
+
             allocate_from_pool = False
             rel_schema = self._schema.get_relationship(name=item_name)
             if not rel_schema or rel_schema.read_only:
@@ -1097,7 +1107,10 @@ class InfrahubNode(InfrahubNodeBase):
             attr: Attribute = getattr(self, attr_name)
             query_result["object"].update(attr._generate_mutation_query())
 
+        is_template = isinstance(self._schema, TemplateSchemaAPI)
         for rel_name in self._relationships:
+            if is_template:
+                continue
             rel = getattr(self, rel_name)
             if not isinstance(rel, RelatedNode):
                 continue
@@ -1113,9 +1126,15 @@ class InfrahubNode(InfrahubNodeBase):
         self.id = object_response["id"]
         self._existing = True
 
+        is_template = isinstance(self._schema, TemplateSchemaAPI)
+
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
             if attr_name not in object_response or not attr.is_from_pool_attribute():
+                continue
+
+            # Templates store pool references without allocating values
+            if is_template:
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -1124,6 +1143,10 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel_name not in object_response or not isinstance(rel, RelatedNode) or not rel.is_resource_pool:
+                continue
+
+            # Templates store pool references without allocating
+            if is_template:
                 continue
 
             # Process allocated resource from a pool and update related node
@@ -1980,7 +2003,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
             attr: Attribute = getattr(self, attr_name)
             query_result["object"].update(attr._generate_mutation_query())
 
+        is_template = isinstance(self._schema, TemplateSchemaAPI)
         for rel_name in self._relationships:
+            if is_template:
+                continue
             rel = getattr(self, rel_name)
             if not isinstance(rel, RelatedNodeSync):
                 continue
@@ -1996,9 +2022,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         self.id = object_response["id"]
         self._existing = True
 
+        is_template = isinstance(self._schema, TemplateSchemaAPI)
+
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
             if attr_name not in object_response or not attr.is_from_pool_attribute():
+                continue
+
+            # Templates store pool references without allocating values
+            if is_template:
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -2007,6 +2039,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
             if rel_name not in object_response or not isinstance(rel, RelatedNodeSync) or not rel.is_resource_pool:
+                continue
+
+            # Templates store pool references without allocating
+            if is_template:
                 continue
 
             # Process allocated resource from a pool and update related node
