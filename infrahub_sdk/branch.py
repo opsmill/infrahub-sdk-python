@@ -79,7 +79,7 @@ class InfraHubBranchManagerBase:
         if time_to:
             url_params["time_to"] = time_to
 
-        return url + urlencode(url_params)
+        return url + "?" + urlencode(url_params)
 
 
 class InfrahubBranchManager(InfraHubBranchManagerBase):
