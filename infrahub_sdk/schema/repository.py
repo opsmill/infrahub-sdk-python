@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -19,8 +19,6 @@ if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = InfrahubNode | InfrahubNodeSync
-
-ResourceClass = TypeVar("ResourceClass")
 
 
 class InfrahubRepositoryConfigElement(BaseModel):
@@ -166,18 +164,6 @@ class InfrahubMenuConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository containing menu data.")
 
 
-RESOURCE_MAP: dict[Any, str] = {
-    InfrahubJinja2TransformConfig: "jinja2_transforms",
-    InfrahubCheckDefinitionConfig: "check_definitions",
-    InfrahubRepositoryArtifactDefinitionConfig: "artifact_definitions",
-    InfrahubPythonTransformConfig: "python_transforms",
-    InfrahubGeneratorDefinitionConfig: "generator_definitions",
-    InfrahubRepositoryGraphQLConfig: "queries",
-    InfrahubObjectConfig: "objects",
-    InfrahubMenuConfig: "menus",
-}
-
-
 class InfrahubRepositoryConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     check_definitions: list[InfrahubCheckDefinitionConfig] = Field(
@@ -215,49 +201,56 @@ class InfrahubRepositoryConfig(BaseModel):
             raise ValueError(f"Found multiples element with the same names: {dups}")
         return v
 
-    def _has_resource(self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name") -> bool:
-        return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))
-
-    def _get_resource(
-        self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name"
-    ) -> ResourceClass:
-        for item in getattr(self, RESOURCE_MAP[resource_type]):
-            if getattr(item, resource_field) == resource_id:
-                return item
-        raise ResourceNotDefinedError(f"Unable to find {resource_id!r} in {RESOURCE_MAP[resource_type]!r}")
-
     def has_jinja2_transform(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubJinja2TransformConfig)
+        return any(item.name == name for item in self.jinja2_transforms)
 
     def get_jinja2_transform(self, name: str) -> InfrahubJinja2TransformConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubJinja2TransformConfig)
+        for item in self.jinja2_transforms:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'jinja2_transforms'")
 
     def has_check_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubCheckDefinitionConfig)
+        return any(item.name == name for item in self.check_definitions)
 
     def get_check_definition(self, name: str) -> InfrahubCheckDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubCheckDefinitionConfig)
+        for item in self.check_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'check_definitions'")
 
     def has_artifact_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubRepositoryArtifactDefinitionConfig)
+        return any(item.name == name for item in self.artifact_definitions)
 
     def get_artifact_definition(self, name: str) -> InfrahubRepositoryArtifactDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubRepositoryArtifactDefinitionConfig)
+        for item in self.artifact_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'artifact_definitions'")
 
     def has_generator_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubGeneratorDefinitionConfig)
+        return any(item.name == name for item in self.generator_definitions)
 
     def get_generator_definition(self, name: str) -> InfrahubGeneratorDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubGeneratorDefinitionConfig)
+        for item in self.generator_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'generator_definitions'")
 
     def has_python_transform(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubPythonTransformConfig)
+        return any(item.name == name for item in self.python_transforms)
 
     def get_python_transform(self, name: str) -> InfrahubPythonTransformConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubPythonTransformConfig)
+        for item in self.python_transforms:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'python_transforms'")
 
     def has_query(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubRepositoryGraphQLConfig)
+        return any(item.name == name for item in self.queries)
 
     def get_query(self, name: str) -> InfrahubRepositoryGraphQLConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubRepositoryGraphQLConfig)
+        for item in self.queries:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'queries'")
