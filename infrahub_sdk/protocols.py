@@ -152,6 +152,12 @@ class CoreGroup(CoreNode):
     children: RelationshipManager
 
 
+class CoreKeyValue(CoreNode):
+    name: String
+    key: String
+    description: StringOptional
+
+
 class CoreMenu(CoreNode):
     namespace: String
     name: String
@@ -240,6 +246,7 @@ class CoreWebhook(CoreNode):
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
+    headers: RelationshipManager
 
 
 class CoreWeightedPoolResource(CoreNode):
@@ -346,6 +353,10 @@ class CoreDataCheck(CoreCheck):
 
 class CoreDataValidator(CoreValidator):
     pass
+
+
+class CoreEnvironmentVariableKeyValue(CoreKeyValue):
+    value: String
 
 
 class CoreFileCheck(CoreCheck):
@@ -552,6 +563,10 @@ class CoreStandardWebhook(CoreWebhook, CoreTaskTarget):
     shared_key: String
 
 
+class CoreStaticKeyValue(CoreKeyValue):
+    value: String
+
+
 class CoreThreadComment(CoreComment):
     thread: RelatedNode
 
@@ -717,6 +732,12 @@ class CoreGroupSync(CoreNodeSync):
     children: RelationshipManagerSync
 
 
+class CoreKeyValueSync(CoreNodeSync):
+    name: String
+    key: String
+    description: StringOptional
+
+
 class CoreMenuSync(CoreNodeSync):
     namespace: String
     name: String
@@ -805,6 +826,7 @@ class CoreWebhookSync(CoreNodeSync):
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
+    headers: RelationshipManagerSync
 
 
 class CoreWeightedPoolResourceSync(CoreNodeSync):
@@ -911,6 +933,10 @@ class CoreDataCheckSync(CoreCheckSync):
 
 class CoreDataValidatorSync(CoreValidatorSync):
     pass
+
+
+class CoreEnvironmentVariableKeyValueSync(CoreKeyValueSync):
+    value: String
 
 
 class CoreFileCheckSync(CoreCheckSync):
@@ -1115,6 +1141,10 @@ class CoreStandardGroupSync(CoreGroupSync):
 
 class CoreStandardWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
     shared_key: String
+
+
+class CoreStaticKeyValueSync(CoreKeyValueSync):
+    value: String
 
 
 class CoreThreadCommentSync(CoreCommentSync):
