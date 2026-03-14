@@ -144,6 +144,29 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
         return transform_class
 
 
+class InfrahubAITransformConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="The name of the AI Transform")
+    query: str = Field(..., description="The name of the GraphQL Query")
+    prompt_template_path: Path = Field(..., description="The path within the repository of the prompt template file")
+    model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model to use for generation")
+    temperature: float = Field(default=1.0, description="Temperature for Claude API (0.0-1.0)")
+    max_tokens: int = Field(default=4096, description="Maximum tokens for Claude API response")
+    output_format: str = Field(default="markdown", description="Output format: markdown or csv")
+    description: str | None = Field(default=None, description="Description for this AI transform")
+
+    @property
+    def prompt_template_path_value(self) -> str:
+        return str(self.prompt_template_path)
+
+    @property
+    def payload(self) -> dict[str, Any]:
+        data = self.model_dump(exclude_none=True)
+        data["prompt_template_path"] = self.prompt_template_path_value
+        return data
+
+
 class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the GraphQL Query")
@@ -171,6 +194,7 @@ RESOURCE_MAP: dict[Any, str] = {
     InfrahubCheckDefinitionConfig: "check_definitions",
     InfrahubRepositoryArtifactDefinitionConfig: "artifact_definitions",
     InfrahubPythonTransformConfig: "python_transforms",
+    InfrahubAITransformConfig: "ai_transforms",
     InfrahubGeneratorDefinitionConfig: "generator_definitions",
     InfrahubRepositoryGraphQLConfig: "queries",
     InfrahubObjectConfig: "objects",
@@ -193,6 +217,9 @@ class InfrahubRepositoryConfig(BaseModel):
     python_transforms: list[InfrahubPythonTransformConfig] = Field(
         default_factory=list, description="Python data transformations"
     )
+    ai_transforms: list[InfrahubAITransformConfig] = Field(
+        default_factory=list, description="AI-powered data transformations"
+    )
     generator_definitions: list[InfrahubGeneratorDefinitionConfig] = Field(
         default_factory=list, description="Generator definitions"
     )
@@ -205,6 +232,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "jinja2_transforms",
         "artifact_definitions",
         "python_transforms",
+        "ai_transforms",
         "generator_definitions",
         "queries",
     )
@@ -261,3 +289,9 @@ class InfrahubRepositoryConfig(BaseModel):
 
     def get_query(self, name: str) -> InfrahubRepositoryGraphQLConfig:
         return self._get_resource(resource_id=name, resource_type=InfrahubRepositoryGraphQLConfig)
+
+    def has_ai_transform(self, name: str) -> bool:
+        return self._has_resource(resource_id=name, resource_type=InfrahubAITransformConfig)
+
+    def get_ai_transform(self, name: str) -> InfrahubAITransformConfig:
+        return self._get_resource(resource_id=name, resource_type=InfrahubAITransformConfig)

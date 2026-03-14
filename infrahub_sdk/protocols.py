@@ -556,6 +556,14 @@ class CoreThreadComment(CoreComment):
     thread: RelatedNode
 
 
+class CoreTransformAI(CoreTransformation):
+    prompt_template_path: String
+    model: StringOptional
+    temperature: IntegerOptional
+    max_tokens: IntegerOptional
+    output_format: StringOptional
+
+
 class CoreTransformJinja2(CoreTransformation):
     template_path: String
 
@@ -1119,6 +1127,14 @@ class CoreStandardWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
 
 class CoreThreadCommentSync(CoreCommentSync):
     thread: RelatedNodeSync
+
+
+class CoreTransformAISync(CoreTransformationSync):
+    prompt_template_path: String
+    model: StringOptional
+    temperature: IntegerOptional
+    max_tokens: IntegerOptional
+    output_format: StringOptional
 
 
 class CoreTransformJinja2Sync(CoreTransformationSync):
