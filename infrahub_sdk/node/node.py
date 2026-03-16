@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from copy import copy, deepcopy
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 from ..constants import InfrahubClientMode
 from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
+from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
@@ -21,6 +23,7 @@ from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
+    FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
 )
 from .metadata import NodeMetadata
@@ -65,13 +68,14 @@ class InfrahubNodeBase:
         self._attributes = [item.name for item in self._schema.attributes]
         self._relationships = [item.name for item in self._schema.relationships]
 
-        # GenericSchemaAPI doesn't have inherit_from, so we need to check the type first
-        if isinstance(schema, GenericSchemaAPI):
-            self._artifact_support = False
-        else:
-            inherit_from = getattr(schema, "inherit_from", None) or []
-            self._artifact_support = "CoreArtifactTarget" in inherit_from
+        # GenericSchemaAPI doesn't have inherit_from
+        inherit_from: list[str] = getattr(schema, "inherit_from", None) or []
+        self._artifact_support = "CoreArtifactTarget" in inherit_from
+        self._file_object_support = "CoreFileObject" in inherit_from
         self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
+
+        self._file_content: bytes | Path | BinaryIO | None = None
+        self._file_name: str | None = None
 
         # Check if this node is hierarchical (supports parent/children and ancestors/descendants)
         if not isinstance(schema, (ProfileSchemaAPI, GenericSchemaAPI, TemplateSchemaAPI)):
@@ -143,7 +147,7 @@ class InfrahubNodeBase:
         if not hfid:
             return None
         if include_kind:
-            hfid = [self.get_kind()] + hfid
+            hfid = [self.get_kind(), *hfid]
         return "__".join(hfid)
 
     @property
@@ -199,7 +203,7 @@ class InfrahubNodeBase:
 
     def get_all_kinds(self) -> list[str]:
         if inherit_from := getattr(self._schema, "inherit_from", None):
-            return [self._schema.kind] + inherit_from
+            return [self._schema.kind, *inherit_from]
         return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
@@ -213,10 +217,76 @@ class InfrahubNodeBase:
     def is_resource_pool(self) -> bool:
         return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
 
+    def is_file_object(self) -> bool:
+        """Check if this node inherits from CoreFileObject and supports file uploads."""
+        return self._file_object_support
+
+    def upload_from_path(self, path: Path) -> None:
+        """Set a file from disk to be uploaded when saving this FileObject node.
+
+        The file will be streamed during upload, avoiding loading the entire file into memory.
+
+        Args:
+            path: Path to the file on disk.
+
+        Raises:
+            FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
+
+        Example:
+            node.upload_from_path(path=Path("/path/to/large_file.pdf"))
+        """
+        if not self._file_object_support:
+            raise FeatureNotSupportedError(
+                f"File upload is not supported for {self._schema.kind}. Only nodes inheriting from CoreFileObject support file uploads."
+            )
+        self._file_content = path
+        self._file_name = path.name
+
+    def upload_from_bytes(self, content: bytes | BinaryIO, name: str) -> None:
+        """Set content to be uploaded when saving this FileObject node.
+
+        The content can be provided as bytes or a file-like object.
+        Using BinaryIO is recommended for large content to stream during upload.
+
+        Args:
+            content: The file content as bytes or a file-like object.
+            name: The filename to use for the uploaded file.
+
+        Raises:
+            FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
+
+        Examples:
+            >>> # Using bytes (for small files)
+            >>> node.upload_from_bytes(content=b"file content", name="example.txt")
+
+            >>> # Using file-like object (for large files)
+            >>> with open("/path/to/file.bin", "rb") as f:
+            ...     node.upload_from_bytes(content=f, name="file.bin")
+        """
+        if not self._file_object_support:
+            raise FeatureNotSupportedError(
+                f"File upload is not supported for {self._schema.kind}. Only nodes inheriting from CoreFileObject support file uploads."
+            )
+        self._file_content = content
+        self._file_name = name
+
+    def clear_file(self) -> None:
+        """Clear any pending file content."""
+        self._file_content = None
+        self._file_name = None
+
+    async def _get_file_for_upload(self) -> PreparedFile:
+        """Get the file content as a file-like object for upload (async version)."""
+        return await FileHandlerBase.prepare_upload(content=self._file_content, name=self._file_name)
+
+    def _get_file_for_upload_sync(self) -> PreparedFile:
+        """Get the file content as a file-like object for upload (sync version)."""
+        return FileHandlerBase.prepare_upload_sync(content=self._file_content, name=self._file_name)
+
     def get_raw_graphql_data(self) -> dict | None:
         return self._data
 
-    def _generate_input_data(  # noqa: C901, PLR0915
+    def _generate_input_data(  # noqa: C901
         self,
         exclude_unmodified: bool = False,
         exclude_hfid: bool = False,
@@ -228,27 +298,18 @@ class InfrahubNodeBase:
             dict[str, Dict]: Representation of an input data in dict format
         """
 
-        data = {}
-        variables = {}
+        data: dict[str, Any] = {}
+        variables: dict[str, Any] = {}
 
         for item_name in self._attributes:
             attr: Attribute = getattr(self, item_name)
             if attr._schema.read_only:
                 continue
-            attr_data = attr._generate_input_data()
-
-            # NOTE, this code has been inherited when we splitted attributes and relationships
-            # into 2 loops, most likely it's possible to simply it
-            if attr_data and isinstance(attr_data, dict):
-                if variable_values := attr_data.get("data"):
-                    data[item_name] = variable_values
-                else:
-                    data[item_name] = attr_data
-                if variable_names := attr_data.get("variables"):
-                    variables.update(variable_names)
-
-            elif attr_data and isinstance(attr_data, list):
-                data[item_name] = attr_data
+            graphql_payload = attr._generate_input_data()
+            if graphql_payload.payload:
+                data[item_name] = graphql_payload.payload
+            if graphql_payload.variables:
+                variables.update(graphql_payload.variables)
 
         for item_name in self._relationships:
             allocate_from_pool = False
@@ -297,9 +358,15 @@ class InfrahubNodeBase:
         elif self.hfid is not None and not exclude_hfid:
             data["hfid"] = self.hfid
 
-        mutation_payload = {"data": data}
+        mutation_payload: dict[str, Any] = {"data": data}
         if context_data := self._get_request_context(request_context=request_context):
             mutation_payload["context"] = context_data
+
+        # Add file variable for FileObject nodes with pending file content
+        # file is a mutation argument at the same level as data, not inside data
+        if self._file_object_support and self._file_content is not None:
+            mutation_payload["file"] = "$file"
+            mutation_variables["file"] = bytes
 
         return {
             "data": mutation_payload,
@@ -426,6 +493,10 @@ class InfrahubNodeBase:
         if not self._artifact_definition_support:
             raise FeatureNotSupportedError(message)
 
+    def _validate_file_object_support(self, message: str) -> None:
+        if not self._file_object_support:
+            raise FeatureNotSupportedError(message)
+
     def generate_query_data_init(
         self,
         filters: dict[str, Any] | None = None,
@@ -515,6 +586,7 @@ class InfrahubNode(InfrahubNodeBase):
             data: Optional data to initialize the node.
         """
         self._client = client
+        self._file_handler = FileHandler(client=client)
 
         # Extract node_metadata before extracting node data (node_metadata is sibling to node in edges)
         node_metadata_data: dict | None = None
@@ -567,10 +639,7 @@ class InfrahubNode(InfrahubNodeBase):
                         )
                         if value is not None
                     }
-                    if peer_id_data:
-                        rel_data = peer_id_data
-                    else:
-                        rel_data = None
+                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
@@ -702,6 +771,41 @@ class InfrahubNode(InfrahubNodeBase):
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
+
+    async def download_file(self, dest: Path | None = None) -> bytes | int:
+        """Download the file content from this FileObject node.
+
+        This method is only available for nodes that inherit from CoreFileObject.
+        The node must have been saved (have an id) before calling this method.
+
+        Args:
+            dest: Optional destination path. If provided, the file will be streamed
+                  directly to this path (memory-efficient for large files) and the
+                  number of bytes written will be returned. If not provided, the
+                  file content will be returned as bytes.
+
+        Returns:
+            If ``dest`` is None: The file content as bytes.
+            If ``dest`` is provided: The number of bytes written to the file.
+
+        Raises:
+            FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
+            ValueError: If the node hasn't been saved yet or file not found.
+            AuthenticationError: If authentication fails.
+
+        Examples:
+            >>> # Download to memory
+            >>> content = await contract.download_file()
+
+            >>> # Stream to file (memory-efficient for large files)
+            >>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+        """
+        self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        if not self.id:
+            raise ValueError("Cannot download file for a node that hasn't been saved yet.")
+
+        return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -1011,11 +1115,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -1037,6 +1137,12 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        if self._file_object_support and self._file_content is None:
+            raise ValueError(
+                f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
+                "file content before saving."
+            )
+
         mutation_query = self._generate_mutation_query()
 
         # Upserting means we may want to create, meaning payload contains all mandatory fields required for a creation,
@@ -1049,19 +1155,39 @@ class InfrahubNode(InfrahubNodeBase):
             input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
+
         query = Mutation(
             mutation=mutation_name,
             input_data=input_data["data"],
             query=mutation_query,
             variables=input_data["mutation_variables"],
         )
-        response = await self._client.execute_graphql(
-            query=query.render(),
-            branch_name=self._branch,
-            tracker=tracker,
-            variables=input_data["variables"],
-            timeout=timeout,
-        )
+
+        if "file" in input_data["mutation_variables"]:
+            prepared = await self._get_file_for_upload()
+            try:
+                response = await self._client._execute_graphql_with_file(
+                    query=query.render(),
+                    variables=input_data["variables"],
+                    file_content=prepared.file_object,
+                    file_name=prepared.filename,
+                    branch_name=self._branch,
+                    tracker=tracker,
+                    timeout=timeout,
+                )
+            finally:
+                if prepared.should_close and prepared.file_object:
+                    prepared.file_object.close()
+            # Clear the file content after successful upload
+            self.clear_file()
+        else:
+            response = await self._client.execute_graphql(
+                query=query.render(),
+                branch_name=self._branch,
+                tracker=tracker,
+                variables=input_data["variables"],
+                timeout=timeout,
+            )
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     async def update(
@@ -1070,6 +1196,7 @@ class InfrahubNode(InfrahubNodeBase):
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
+        tracker = f"mutation-{str(self._schema.kind).lower()}-update"
 
         query = Mutation(
             mutation=mutation_name,
@@ -1077,13 +1204,32 @@ class InfrahubNode(InfrahubNodeBase):
             query=mutation_query,
             variables=input_data["mutation_variables"],
         )
-        response = await self._client.execute_graphql(
-            query=query.render(),
-            branch_name=self._branch,
-            timeout=timeout,
-            tracker=f"mutation-{str(self._schema.kind).lower()}-update",
-            variables=input_data["variables"],
-        )
+
+        if "file" in input_data["mutation_variables"]:
+            prepared = await self._get_file_for_upload()
+            try:
+                response = await self._client._execute_graphql_with_file(
+                    query=query.render(),
+                    variables=input_data["variables"],
+                    file_content=prepared.file_object,
+                    file_name=prepared.filename,
+                    branch_name=self._branch,
+                    tracker=tracker,
+                    timeout=timeout,
+                )
+            finally:
+                if prepared.should_close and prepared.file_object:
+                    prepared.file_object.close()
+            # Clear the file content after successful upload
+            self.clear_file()
+        else:
+            response = await self._client.execute_graphql(
+                query=query.render(),
+                branch_name=self._branch,
+                timeout=timeout,
+                tracker=tracker,
+                variables=input_data["variables"],
+            )
         await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     async def _process_relationships(
@@ -1288,7 +1434,7 @@ class InfrahubNode(InfrahubNodeBase):
         return await related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     async def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
+        """Extract some data points defined in a flat notation."""
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = await self.get_flat_value(key=value)
@@ -1323,6 +1469,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             data (Optional[dict]): Optional data to initialize the node.
         """
         self._client = client
+        self._file_handler = FileHandlerSync(client=client)
 
         # Extract node_metadata before extracting node data (node_metadata is sibling to node in edges)
         node_metadata_data: dict | None = None
@@ -1375,10 +1522,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         )
                         if value is not None
                     }
-                    if peer_id_data:
-                        rel_data = peer_id_data
-                    else:
-                        rel_data = None
+                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
@@ -1511,6 +1655,41 @@ class InfrahubNodeSync(InfrahubNodeBase):
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
+
+    def download_file(self, dest: Path | None = None) -> bytes | int:
+        """Download the file content from this FileObject node.
+
+        This method is only available for nodes that inherit from CoreFileObject.
+        The node must have been saved (have an id) before calling this method.
+
+        Args:
+            dest: Optional destination path. If provided, the file will be streamed
+                  directly to this path (memory-efficient for large files) and the
+                  number of bytes written will be returned. If not provided, the
+                  file content will be returned as bytes.
+
+        Returns:
+            If ``dest`` is None: The file content as bytes.
+            If ``dest`` is provided: The number of bytes written to the file.
+
+        Raises:
+            FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
+            ValueError: If the node hasn't been saved yet or file not found.
+            AuthenticationError: If authentication fails.
+
+        Examples:
+            >>> # Download to memory
+            >>> content = contract.download_file()
+
+            >>> # Stream to file (memory-efficient for large files)
+            >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
+        """
+        self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        if not self.id:
+            raise ValueError("Cannot download file for a node that hasn't been saved yet.")
+
+        return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -1819,11 +1998,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
-            if (
-                attr_name not in object_response
-                or not isinstance(attr.value, InfrahubNodeBase)
-                or not attr.value.is_resource_pool()
-            ):
+            if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
             # Process allocated resource from a pool and update attribute
@@ -1845,6 +2020,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        if self._file_object_support and self._file_content is None:
+            raise ValueError(
+                f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
+                "file content before saving."
+            )
+
         mutation_query = self._generate_mutation_query()
 
         if allow_upsert:
@@ -1855,6 +2036,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Create"
             tracker = f"mutation-{str(self._schema.kind).lower()}-create"
+
         query = Mutation(
             mutation=mutation_name,
             input_data=input_data["data"],
@@ -1862,13 +2044,31 @@ class InfrahubNodeSync(InfrahubNodeBase):
             variables=input_data["mutation_variables"],
         )
 
-        response = self._client.execute_graphql(
-            query=query.render(),
-            branch_name=self._branch,
-            tracker=tracker,
-            variables=input_data["variables"],
-            timeout=timeout,
-        )
+        if "file" in input_data["mutation_variables"]:
+            prepared = self._get_file_for_upload_sync()
+            try:
+                response = self._client._execute_graphql_with_file(
+                    query=query.render(),
+                    variables=input_data["variables"],
+                    file_content=prepared.file_object,
+                    file_name=prepared.filename,
+                    branch_name=self._branch,
+                    tracker=tracker,
+                    timeout=timeout,
+                )
+            finally:
+                if prepared.should_close and prepared.file_object:
+                    prepared.file_object.close()
+            # Clear the file content after successful upload
+            self.clear_file()
+        else:
+            response = self._client.execute_graphql(
+                query=query.render(),
+                branch_name=self._branch,
+                tracker=tracker,
+                variables=input_data["variables"],
+                timeout=timeout,
+            )
         self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     def update(
@@ -1877,6 +2077,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
+        tracker = f"mutation-{str(self._schema.kind).lower()}-update"
 
         query = Mutation(
             mutation=mutation_name,
@@ -1885,13 +2086,31 @@ class InfrahubNodeSync(InfrahubNodeBase):
             variables=input_data["mutation_variables"],
         )
 
-        response = self._client.execute_graphql(
-            query=query.render(),
-            branch_name=self._branch,
-            tracker=f"mutation-{str(self._schema.kind).lower()}-update",
-            variables=input_data["variables"],
-            timeout=timeout,
-        )
+        if "file" in input_data["mutation_variables"]:
+            prepared = self._get_file_for_upload_sync()
+            try:
+                response = self._client._execute_graphql_with_file(
+                    query=query.render(),
+                    variables=input_data["variables"],
+                    file_content=prepared.file_object,
+                    file_name=prepared.filename,
+                    branch_name=self._branch,
+                    tracker=tracker,
+                    timeout=timeout,
+                )
+            finally:
+                if prepared.should_close and prepared.file_object:
+                    prepared.file_object.close()
+            # Clear the file content after successful upload
+            self.clear_file()
+        else:
+            response = self._client.execute_graphql(
+                query=query.render(),
+                branch_name=self._branch,
+                tracker=tracker,
+                variables=input_data["variables"],
+                timeout=timeout,
+            )
         self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
 
     def _process_relationships(
@@ -2096,7 +2315,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some datapoints defined in a flat notation."""
+        """Extract some data points defined in a flat notation."""
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = self.get_flat_value(key=value)

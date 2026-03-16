@@ -17,6 +17,12 @@ uv run pytest tests/unit/test_client.py      # Single file
 ```text
 tests/
 ├── unit/           # Fast, mocked, no external deps
+│   ├── ctl/        # CLI command tests
+│   └── sdk/        # SDK tests
+│       ├── pool/   # Resource pool allocation tests
+│       ├── spec/   # Object spec tests
+│       ├── checks/ # InfrahubCheck tests
+│       └── ...     # Core SDK tests (client, node, schema, etc.)
 ├── integration/    # Real Infrahub via testcontainers
 ├── fixtures/       # Test data (JSON, YAML)
 └── helpers/        # Test utilities

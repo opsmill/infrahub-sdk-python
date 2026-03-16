@@ -59,13 +59,13 @@ class CodeGenerator:
             not in {"TYPE_CHECKING", "CoreNode", "Optional", "Protocol", "Union", "annotations", "runtime_checkable"}
         ]
 
-        self.sorted_generics = self._sort_and_filter_models(self.generics, filters=["CoreNode"] + self.base_protocols)
-        self.sorted_nodes = self._sort_and_filter_models(self.nodes, filters=["CoreNode"] + self.base_protocols)
+        self.sorted_generics = self._sort_and_filter_models(self.generics, filters=["CoreNode", *self.base_protocols])
+        self.sorted_nodes = self._sort_and_filter_models(self.nodes, filters=["CoreNode", *self.base_protocols])
         self.sorted_profiles = self._sort_and_filter_models(
-            self.profiles, filters=["CoreProfile"] + self.base_protocols
+            self.profiles, filters=["CoreProfile", *self.base_protocols]
         )
         self.sorted_templates = self._sort_and_filter_models(
-            self.templates, filters=["CoreObjectTemplate"] + self.base_protocols
+            self.templates, filters=["CoreObjectTemplate", *self.base_protocols]
         )
 
     def render(self, sync: bool = True) -> str:

@@ -3,6 +3,7 @@ Alibaba
 Ansible
 append_git_suffix
 APIs
+Args
 artifact_definitions
 artifact_name
 async
@@ -78,6 +79,7 @@ kbps
 Keycloak
 Loopbacks
 markdownlint
+MDX
 max_count
 memgraph
 menu_placement

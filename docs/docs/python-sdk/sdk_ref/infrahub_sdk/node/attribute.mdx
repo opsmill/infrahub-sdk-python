@@ -1,0 +1,38 @@
+---
+title: attribute
+sidebarTitle: attribute
+---
+
+# `infrahub_sdk.node.attribute`
+
+## Classes
+
+### `Attribute`
+
+Represents an attribute of a Node, including its schema, value, and properties.
+
+**Methods:**
+
+#### `value`
+
+```python
+value(self) -> Any
+```
+
+#### `value`
+
+```python
+value(self, value: Any) -> None
+```
+
+#### `is_from_pool_attribute`
+
+```python
+is_from_pool_attribute(self) -> bool
+```
+
+Check whether this attribute's value is sourced from a resource pool.
+
+**Returns:**
+
+- True if the attribute value is a resource pool node or was explicitly allocated from a pool.

@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 import yaml
-from pytest import Item
 
 from .exceptions import InvalidResourceConfigError
 from .items import (
@@ -66,7 +65,7 @@ class InfrahubYamlFile(pytest.File):
 
         return resource_config
 
-    def collect_group(self, group: InfrahubTestGroup) -> Iterable[Item]:
+    def collect_group(self, group: InfrahubTestGroup) -> Iterable[pytest.Item]:
         """Collect all items for a group."""
         marker = MARKER_MAPPING[group.resource]
         resource_config = self.get_resource_config(group)
@@ -98,7 +97,7 @@ class InfrahubYamlFile(pytest.File):
 
             yield item
 
-    def collect(self) -> Iterable[Item]:
+    def collect(self) -> Iterable[pytest.Item]:
         raw = yaml.safe_load(self.path.open(encoding="utf-8"))
 
         if not raw or "infrahub_tests" not in raw:

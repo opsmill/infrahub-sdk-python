@@ -15,8 +15,6 @@ from infrahub_sdk.transfer.importer.json import LineDelimitedJSONImporter
 from infrahub_sdk.transfer.schema_sorter import InfrahubSchemaTopologicalSorter
 
 if TYPE_CHECKING:
-    from pytest import TempPathFactory
-
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
     from infrahub_sdk.schema import SchemaRoot
@@ -24,7 +22,7 @@ if TYPE_CHECKING:
 
 class TestSchemaExportImportBase(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
-    def temporary_directory(self, tmp_path_factory: TempPathFactory) -> Path:
+    def temporary_directory(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
         return tmp_path_factory.mktemp("infrahub-integration-tests")
 
     @pytest.fixture(scope="class")
@@ -189,7 +187,7 @@ class TestSchemaExportImportBase(TestInfrahubDockerClient, SchemaCarPerson):
 
 class TestSchemaExportImportManyRelationships(TestInfrahubDockerClient, SchemaCarPerson):
     @pytest.fixture(scope="class")
-    def temporary_directory(self, tmp_path_factory: TempPathFactory) -> Path:
+    def temporary_directory(self, tmp_path_factory: pytest.TempPathFactory) -> Path:
         return tmp_path_factory.mktemp("infrahub-integration-tests-many")
 
     @pytest.fixture(scope="class")
