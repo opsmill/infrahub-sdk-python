@@ -356,7 +356,7 @@ class CoreDataValidator(CoreValidator):
     pass
 
 
-class CoreEnvironmentVariableKeyValue(CoreKeyValue):
+class CoreEnvKeyValue(CoreKeyValue):
     pass
 
 
@@ -937,7 +937,7 @@ class CoreDataValidatorSync(CoreValidatorSync):
     pass
 
 
-class CoreEnvironmentVariableKeyValueSync(CoreKeyValueSync):
+class CoreEnvKeyValueSync(CoreKeyValueSync):
     pass
 
 
