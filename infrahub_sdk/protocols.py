@@ -156,6 +156,7 @@ class CoreKeyValue(CoreNode):
     name: String
     key: String
     description: StringOptional
+    value: String
 
 
 class CoreMenu(CoreNode):
@@ -356,7 +357,7 @@ class CoreDataValidator(CoreValidator):
 
 
 class CoreEnvironmentVariableKeyValue(CoreKeyValue):
-    value: String
+    pass
 
 
 class CoreFileCheck(CoreCheck):
@@ -564,7 +565,7 @@ class CoreStandardWebhook(CoreWebhook, CoreTaskTarget):
 
 
 class CoreStaticKeyValue(CoreKeyValue):
-    value: String
+    pass
 
 
 class CoreThreadComment(CoreComment):
@@ -736,6 +737,7 @@ class CoreKeyValueSync(CoreNodeSync):
     name: String
     key: String
     description: StringOptional
+    value: String
 
 
 class CoreMenuSync(CoreNodeSync):
@@ -936,7 +938,7 @@ class CoreDataValidatorSync(CoreValidatorSync):
 
 
 class CoreEnvironmentVariableKeyValueSync(CoreKeyValueSync):
-    value: String
+    pass
 
 
 class CoreFileCheckSync(CoreCheckSync):
@@ -1144,7 +1146,7 @@ class CoreStandardWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
 
 
 class CoreStaticKeyValueSync(CoreKeyValueSync):
-    value: String
+    pass
 
 
 class CoreThreadCommentSync(CoreCommentSync):
