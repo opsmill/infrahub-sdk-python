@@ -239,6 +239,7 @@ include = [
     "tests/unit/sdk/test_protocols_generator.py",
     "tests/unit/sdk/test_schema_sorter.py",
     "tests/unit/sdk/test_topological_sort.py",
+    "tests/unit/sdk/test_schema_export.py",
 ]
 
 [tool.ty.overrides.rules]
