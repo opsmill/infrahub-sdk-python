@@ -1,19 +1,18 @@
 import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
+from tests.constants import FIXTURE_REPOS_DIR
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import strip_color, temp_repo_and_cd
 
 runner = CliRunner()
 
-
-FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "repos")
+FIXTURE_BASE_DIR = FIXTURE_REPOS_DIR
 
 
 @dataclass

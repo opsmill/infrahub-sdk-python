@@ -1,0 +1,16 @@
+---
+graphql_fragments:
+  - name: interfaces
+    file_path: fragments/interfaces.gql
+  - name: devices
+    file_path: fragments/devices.gql
+
+graphql_queries:
+  - name: query_two_files
+    file_path: queries/query_two_files.gql
+  - name: query_no_fragments
+    file_path: queries/query_no_fragments.gql
+  - name: query_transitive
+    file_path: queries/query_transitive.gql
+  - name: query_missing_fragment
+    file_path: queries/query_missing_fragment.gql

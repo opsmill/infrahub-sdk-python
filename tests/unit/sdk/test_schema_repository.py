@@ -1,7 +1,10 @@
+import tempfile
+from pathlib import Path
+
 import pytest
 
-from infrahub_sdk.exceptions import ResourceNotDefinedError
-from infrahub_sdk.schema.repository import InfrahubRepositoryConfig
+from infrahub_sdk.exceptions import FragmentFileNotFoundError, ResourceNotDefinedError
+from infrahub_sdk.schema.repository import InfrahubRepositoryConfig, InfrahubRepositoryFragmentConfig
 
 
 @pytest.fixture
@@ -237,3 +240,79 @@ def test_get_query_found(repo_config: InfrahubRepositoryConfig) -> None:
 def test_get_query_not_found(repo_config: InfrahubRepositoryConfig) -> None:
     with pytest.raises(ResourceNotDefinedError):
         repo_config.get_query("missing")
+
+
+# --- InfrahubRepositoryFragmentConfig / graphql_fragments ---
+
+
+def test_parse_infrahub_yml_with_graphql_fragments() -> None:
+    config = InfrahubRepositoryConfig(
+        graphql_fragments=[
+            InfrahubRepositoryFragmentConfig(name="interfaces", file_path=Path("fragments/interfaces.gql")),
+            InfrahubRepositoryFragmentConfig(name="devices", file_path=Path("fragments/devices.gql")),
+        ]
+    )
+    assert len(config.graphql_fragments) == 2
+    assert config.graphql_fragments[0].name == "interfaces"
+    assert str(config.graphql_fragments[0].file_path) == "fragments/interfaces.gql"
+
+
+def test_graphql_fragments_defaults_to_empty() -> None:
+    config = InfrahubRepositoryConfig()
+    assert config.graphql_fragments == []
+
+
+def test_has_fragment_found() -> None:
+    config = InfrahubRepositoryConfig(
+        graphql_fragments=[InfrahubRepositoryFragmentConfig(name="ifaces", file_path=Path("frags/ifaces.gql"))]
+    )
+    assert config.has_fragment("ifaces") is True
+
+
+def test_has_fragment_not_found() -> None:
+    config = InfrahubRepositoryConfig()
+    assert config.has_fragment("missing") is False
+
+
+def test_get_fragment_found() -> None:
+    config = InfrahubRepositoryConfig(
+        graphql_fragments=[InfrahubRepositoryFragmentConfig(name="ifaces", file_path=Path("frags/ifaces.gql"))]
+    )
+    result = config.get_fragment("ifaces")
+    assert result.name == "ifaces"
+
+
+def test_get_fragment_not_found() -> None:
+    config = InfrahubRepositoryConfig()
+    with pytest.raises(ResourceNotDefinedError):
+        config.get_fragment("missing")
+
+
+def test_load_fragments_single_file() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        frag_file = Path(tmp) / "ifaces.gql"
+        frag_file.write_text("fragment F on T { id }", encoding="UTF-8")
+        cfg = InfrahubRepositoryFragmentConfig(name="ifaces", file_path=Path("ifaces.gql"))
+        result = cfg.load_fragments(relative_path=tmp)
+    assert len(result) == 1
+    assert "fragment F on T" in result[0]
+
+
+def test_load_fragments_directory() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / "a.gql").write_text("fragment A on T { id }", encoding="UTF-8")
+        (Path(tmp) / "b.gql").write_text("fragment B on T { id }", encoding="UTF-8")
+        (Path(tmp) / "not_a_gql.txt").write_text("ignored", encoding="UTF-8")
+        cfg = InfrahubRepositoryFragmentConfig(name="all", file_path=Path())
+        result = cfg.load_fragments(relative_path=tmp)
+    assert len(result) == 2
+    combined = "".join(result)
+    assert "fragment A" in combined
+    assert "fragment B" in combined
+
+
+def test_load_fragments_missing_file_raises() -> None:
+    cfg = InfrahubRepositoryFragmentConfig(name="ifaces", file_path=Path("does_not_exist.gql"))
+    with tempfile.TemporaryDirectory() as tmp, pytest.raises(FragmentFileNotFoundError) as exc_info:
+        cfg.load_fragments(relative_path=tmp)
+    assert "does_not_exist.gql" in exc_info.value.file_path
