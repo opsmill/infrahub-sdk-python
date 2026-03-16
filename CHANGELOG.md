@@ -10,6 +10,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the changes for the upcoming release can be found in <https://github.com/opsmill/infrahub/tree/develop/infrahub/python_sdk/changelog/>.
 
 <!-- towncrier release notes start -->
+
+## [1.19.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.19.0) - 2026-03-16
+
+### Added
+
+- Added support for FileObject nodes with file upload and download capabilities. New methods `upload_from_path(path)` and `upload_from_bytes(content, name)` allow setting file content before saving, while `download_file(dest)` enables downloading files to memory or streaming to disk for large files. ([#ihs193](https://github.com/opsmill/infrahub-sdk-python/issues/ihs193))
+- Python SDK API documentation is now generated directly from the docstrings of the classes, functions, and methods contained in the code. ([#201](https://github.com/opsmill/infrahub-sdk-python/issues/201))
+- Added a 'py.typed' file to the project. This is to enable type checking when the Infrahub SDK is imported from other projects. The addition of this file could cause new typing issues in external projects until all typing issues have been resolved. Adding it to the project now to better highlight remaining issues.
+
+### Changed
+
+- Updated branch report command to use node metadata for proposed change creator information instead of the deprecated relationship-based approach. Requires Infrahub 1.7 or above.
+
+### Fixed
+
+- Allow SDK tracking feature to continue after encountering delete errors due to impacted nodes having already been deleted by cascade delete. ([#265](https://github.com/opsmill/infrahub-sdk-python/issues/265))
+- Fixed Python SDK query generation regarding from_pool generated attribute value ([#497](https://github.com/opsmill/infrahub-sdk-python/issues/497))
+
 ## [1.18.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.18.1) - 2026-01-08
 
 ### Fixed
