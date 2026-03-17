@@ -222,7 +222,7 @@ Return a cloned version of the client using the same configuration
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -235,9 +235,6 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
-- `raise_for_error`: Deprecated. Controls only HTTP status handling.
-- None (default) or True\: HTTP errors raise via resp.raise_for_status().
-- False\: HTTP errors are not automatically raised. Defaults to None.
 
 **Raises:**
 
@@ -262,7 +259,7 @@ login(self, refresh: bool = False) -> None
 #### `query_gql_query`
 
 ```python
-query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> dict
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 #### `create_diff`
@@ -274,7 +271,7 @@ create_diff(self, branch: str, name: str, from_time: datetime, to_time: datetime
 #### `get_diff_summary`
 
 ```python
-get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> list[NodeDiff]
+get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None) -> list[NodeDiff]
 ```
 
 #### `get_diff_tree`
@@ -290,46 +287,22 @@ Returns None if no diff exists.
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaType | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNode | None
 ```
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaType
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNode | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNode | SchemaType | None
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNode | SchemaType | None
 ```
 
 Allocate a new IP address by using the provided resource pool.
@@ -344,7 +317,6 @@ Allocate a new IP address by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: Deprecated, raise an error if the HTTP status is not 2XX.
 
 Returns:
     InfrahubNode: Node corresponding to the allocated resource.
@@ -353,46 +325,22 @@ Returns:
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaType | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNode | None
 ```
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaType
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNode | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNode | SchemaType | None
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNode | SchemaType | None
 ```
 
 Allocate a new IP prefix by using the provided resource pool.
@@ -408,7 +356,6 @@ Allocate a new IP prefix by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: Deprecated, raise an error if the HTTP status is not 2XX.
 
 Returns:
     InfrahubNode: Node corresponding to the allocated resource.
@@ -556,7 +503,7 @@ Return a cloned version of the client using the same configuration
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -569,10 +516,6 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
-- `raise_for_error`: Deprecated. Controls only HTTP status handling.
-- None (default) or True\: HTTP errors raise via `resp.raise_for_status()`.
-- False\: HTTP errors are not automatically raised.
-GraphQL errors always raise `GraphQLError`. Defaults to None.
 
 **Raises:**
 
@@ -702,7 +645,7 @@ get_list_repositories(self, branches: dict[str, BranchData] | None = None, kind:
 #### `query_gql_query`
 
 ```python
-query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> dict
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 #### `create_diff`
@@ -714,7 +657,7 @@ create_diff(self, branch: str, name: str, from_time: datetime, to_time: datetime
 #### `get_diff_summary`
 
 ```python
-get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> list[NodeDiff]
+get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None) -> list[NodeDiff]
 ```
 
 #### `get_diff_tree`
@@ -730,46 +673,22 @@ Returns None if no diff exists.
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaTypeSync | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNodeSync | None
 ```
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaTypeSync
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNodeSync | SchemaTypeSync | None
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNodeSync | SchemaTypeSync | None
 ```
 
 Allocate a new IP address by using the provided resource pool.
@@ -784,7 +703,6 @@ Allocate a new IP address by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: The limit for pagination.
 
 Returns:
     InfrahubNodeSync: Node corresponding to the allocated resource.
@@ -793,46 +711,22 @@ Returns:
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaTypeSync | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNodeSync | None
 ```
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaTypeSync
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNodeSync | SchemaTypeSync | None
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNodeSync | SchemaTypeSync | None
 ```
 
 Allocate a new IP prefix by using the provided resource pool.
@@ -848,7 +742,6 @@ Allocate a new IP prefix by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: The limit for pagination.
 
 Returns:
     InfrahubNodeSync: Node corresponding to the allocated resource.
@@ -933,10 +826,4 @@ handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]) -> Call
 
 ```python
 handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]
-```
-
-### `raise_for_error_deprecation_warning`
-
-```python
-raise_for_error_deprecation_warning(value: bool | None) -> None
 ```

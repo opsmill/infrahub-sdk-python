@@ -126,7 +126,6 @@ def execute_graphql_query(
         query=query_str,
         branch_name=branch,
         variables=variables_dict,
-        raise_for_error=False,
     )
 
     if debug:

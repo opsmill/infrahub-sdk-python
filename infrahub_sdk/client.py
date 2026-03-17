@@ -4,7 +4,6 @@ import asyncio
 import copy
 import logging
 import time
-import warnings
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterator, Mapping, MutableMapping
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
@@ -107,15 +106,6 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
         return response
 
     return wrapper
-
-
-def raise_for_error_deprecation_warning(value: bool | None) -> None:
-    if value is not None:
-        warnings.warn(
-            "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
-            DeprecationWarning,
-            stacklevel=1,
-        )
 
 
 class BaseClient:
@@ -915,7 +905,6 @@ class InfrahubClient(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool | None = None,
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
@@ -927,9 +916,6 @@ class InfrahubClient(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
-                - None (default) or True: HTTP errors raise via resp.raise_for_status().
-                - False: HTTP errors are not automatically raised. Defaults to None.
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
@@ -937,8 +923,6 @@ class InfrahubClient(BaseClient):
         Returns:
             dict: The GraphQL data payload (response["data"]).
         """
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -959,9 +943,7 @@ class InfrahubClient(BaseClient):
             retry = self.retry_on_failure
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
-
-                if raise_for_error in {None, True}:
-                    resp.raise_for_status()
+                resp.raise_for_status()
 
                 retry = False
             except ServerNotReachableError:
@@ -1304,10 +1286,7 @@ class InfrahubClient(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> dict:
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
@@ -1351,8 +1330,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in {None, True}:
-            resp.raise_for_status()
+        resp.raise_for_status()
 
         return decode_json(response=resp)
 
@@ -1393,7 +1371,6 @@ class InfrahubClient(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -1410,7 +1387,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
         )
 
@@ -1493,43 +1469,12 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -1538,37 +1483,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNode: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNode | None: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_address(
@@ -1582,7 +1496,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -1595,7 +1508,6 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
         """
@@ -1617,7 +1529,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -1638,45 +1549,12 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -1686,39 +1564,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNode: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNode | None: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_prefix(
@@ -1733,7 +1578,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
@@ -1747,7 +1591,6 @@ class InfrahubClient(BaseClient):
             branch: Name of the branch to allocate from. Defaults to default_branch.
             timeout: Flag to indicate whether to populate the store with the retrieved nodes.
             tracker: The offset for pagination.
-            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
         """
@@ -1770,7 +1613,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -1883,7 +1725,6 @@ class InfrahubClient(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
-            raise_for_error=True,
         )
         return await InfrahubNode.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
 
@@ -1971,7 +1812,6 @@ class InfrahubClientSync(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool | None = None,
         tracker: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
@@ -1983,10 +1823,6 @@ class InfrahubClientSync(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
-                - None (default) or True: HTTP errors raise via `resp.raise_for_status()`.
-                - False: HTTP errors are not automatically raised.
-              GraphQL errors always raise `GraphQLError`. Defaults to None.
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
@@ -1994,8 +1830,6 @@ class InfrahubClientSync(BaseClient):
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
         """
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -2016,9 +1850,7 @@ class InfrahubClientSync(BaseClient):
             retry = self.retry_on_failure
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
-
-                if raise_for_error in {None, True}:
-                    resp.raise_for_status()
+                resp.raise_for_status()
 
                 retry = False
             except ServerNotReachableError:
@@ -2737,10 +2569,7 @@ class InfrahubClientSync(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> dict:
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
@@ -2783,8 +2612,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in {None, True}:
-            resp.raise_for_status()
+        resp.raise_for_status()
 
         return decode_json(response=resp)
 
@@ -2825,7 +2653,6 @@ class InfrahubClientSync(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -2842,7 +2669,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
         )
 
@@ -2925,43 +2751,12 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -2970,37 +2765,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNodeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNodeSync | None: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_address(
@@ -3014,7 +2778,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -3027,7 +2790,6 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
         """
@@ -3049,7 +2811,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -3070,45 +2831,12 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -3118,39 +2846,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNodeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNodeSync | None: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_prefix(
@@ -3165,7 +2860,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
@@ -3179,7 +2873,6 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
         """
@@ -3202,7 +2895,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -3441,6 +3133,5 @@ class InfrahubClientSync(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
-            raise_for_error=True,
         )
         return InfrahubNodeSync.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
