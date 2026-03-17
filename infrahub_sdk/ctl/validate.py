@@ -48,7 +48,7 @@ async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
         for error in exc.errors():
             loc_str = [str(item) for item in error["loc"]]
             console.print(f"  '{'/'.join(loc_str)}' | {error['msg']} ({error['type']})")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     console.print("[green]Schema is valid !!")
 

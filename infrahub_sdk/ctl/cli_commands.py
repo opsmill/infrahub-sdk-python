@@ -239,7 +239,7 @@ async def _run_transform(
             elif isinstance(error, str) and "Branch:" in error:
                 console.print(f"[yellow] - {error}")
                 console.print("[yellow]   you can specify a different branch with --branch")
-        raise typer.Abort
+        raise typer.Abort from None
 
     if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)
@@ -350,10 +350,7 @@ def transform(
     # Run Transform
     result = asyncio.run(transform.run(data=data))
 
-    if isinstance(result, str):
-        json_string = result
-    else:
-        json_string = ujson.dumps(result, indent=2, sort_keys=True)
+    json_string = result if isinstance(result, str) else ujson.dumps(result, indent=2, sort_keys=True)
 
     if out:
         write_to_file(Path(out), json_string)

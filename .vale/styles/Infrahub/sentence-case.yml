@@ -52,6 +52,7 @@ exceptions:
   - Jinja
   - Jinja2
   - JWT
+  - MDX
   - Namespace
   - NATS
   - Node

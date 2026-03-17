@@ -236,7 +236,7 @@ get_relationship_info_testdata = [
 ]
 
 
-@pytest.mark.parametrize("data,is_valid,format", get_relationship_info_testdata)
+@pytest.mark.parametrize(("data", "is_valid", "format"), get_relationship_info_testdata)
 async def test_get_relationship_info_tags(
     client_with_schema_01: InfrahubClient,
     data: dict | list,

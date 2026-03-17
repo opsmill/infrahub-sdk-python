@@ -1,4 +1,4 @@
-# docs/AGENTS.md
+# Documentation agents
 
 Docusaurus documentation following Diataxis framework.
 
@@ -34,12 +34,12 @@ Sidebar navigation is dynamic: `sidebars-*.ts` files read the filesystem at buil
 
 No manual sidebar update is needed when adding a new `.mdx` file. However, to control the display order of a new page, add its doc ID to the ordered list in the corresponding `sidebars-*.ts` file.
 
-## Adding Documentation
+## Adding documentation
 
 1. Create MDX file in appropriate directory
 2. Add frontmatter with `title`
 
-## MDX Pattern
+## MDX pattern
 
 Use Tabs for async/sync examples, callouts for notes:
 

@@ -44,7 +44,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
                 h3_parsed = _parse_sections(h2.content, heading_level=3)
                 new_lines = h3_parsed.reassembled(processed_h3)
                 processed_h2.append(
-                    MdxSection(name=h2.name, heading_level=h2.heading_level, _lines=[h2.heading] + new_lines)
+                    MdxSection(name=h2.name, heading_level=h2.heading_level, _lines=[h2.heading, *new_lines])
                 )
 
         new_content = "\n".join(parsed_h2.reassembled(processed_h2))
@@ -67,7 +67,7 @@ class CollapsedOverloadCodeDocumentation(ACodeDocumentation):
                 h4_parsed = _parse_sections(h3.content, heading_level=4)
                 new_lines = h4_parsed.reassembled(collapsed_methods)
                 processed.append(
-                    MdxSection(name=h3.name, heading_level=h3.heading_level, _lines=[h3.heading] + new_lines)
+                    MdxSection(name=h3.name, heading_level=h3.heading_level, _lines=[h3.heading, *new_lines])
                 )
 
         return processed if any_collapsed else None

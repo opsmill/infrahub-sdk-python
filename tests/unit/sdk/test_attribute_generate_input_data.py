@@ -9,6 +9,7 @@ import pytest
 from infrahub_sdk.node.attribute import Attribute
 from infrahub_sdk.protocols_base import CoreNodeBase
 from infrahub_sdk.schema import AttributeSchemaAPI
+from infrahub_sdk.schema.main import AttributeKind
 
 # ──────────────────────────────────────────────
 # Value resolution: from_pool (dict-based)
@@ -18,7 +19,7 @@ from infrahub_sdk.schema import AttributeSchemaAPI
 class TestFromPoolDict:
     def test_from_pool_with_id(self) -> None:
         pool_data = {"id": "pool-uuid-1"}
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data={"from_pool": pool_data})
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"from_pool": pool_data})
 
         result = attr._generate_input_data()
 
@@ -27,7 +28,7 @@ class TestFromPoolDict:
 
     def test_from_pool_with_id_and_identifier(self) -> None:
         pool_data = {"id": "pool-uuid-1", "identifier": "test"}
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data={"from_pool": pool_data})
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"from_pool": pool_data})
 
         result = attr._generate_input_data()
 
@@ -37,7 +38,7 @@ class TestFromPoolDict:
     def test_from_pool_with_pool_name(self) -> None:
         """from_pool can be a plain string (pool name), e.g. from_pool: 'VLAN ID Pool'."""
         attr = Attribute(
-            name="vlan_id", schema=_make_schema("Number", optional=True), data={"from_pool": "VLAN ID Pool"}
+            name="vlan_id", schema=_make_schema(AttributeKind.NUMBER, optional=True), data={"from_pool": "VLAN ID Pool"}
         )
 
         result = attr._generate_input_data()
@@ -48,7 +49,9 @@ class TestFromPoolDict:
 
     def test_from_pool_value_is_none(self) -> None:
         """from_pool pops 'from_pool' and sets Attribute.value to None; value should NOT appear in payload."""
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data={"from_pool": {"id": "pool-uuid-1"}})
+        attr = Attribute(
+            name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"from_pool": {"id": "pool-uuid-1"}}
+        )
 
         assert attr.value is None
         result = attr._generate_input_data()
@@ -64,7 +67,7 @@ class TestFromPoolNode:
     def test_pool_node_generates_from_pool(self) -> None:
         pool_node = _FakeNode(node_id="node-pool-uuid", is_pool=True)
 
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data=pool_node)
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data=pool_node)
 
         result = attr._generate_input_data()
 
@@ -74,7 +77,7 @@ class TestFromPoolNode:
     def test_non_pool_node_treated_as_regular_value(self) -> None:
         """A CoreNodeBase that is NOT a resource pool should go through the normal value path."""
         node = _FakeNode(node_id="regular-node-uuid", is_pool=False)
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data=node)
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data=node)
 
         result = attr._generate_input_data()
 
@@ -89,7 +92,7 @@ class TestFromPoolNode:
 class TestNullValue:
     def test_null_value_not_mutated(self) -> None:
         """None value that was never mutated → empty payload, no properties."""
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data={"value": None})
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data={"value": None})
 
         result = attr._generate_input_data()
 
@@ -99,7 +102,9 @@ class TestNullValue:
 
     def test_null_value_mutated_optional(self) -> None:
         """None value on an optional attr that was mutated → explicit null."""
-        attr = Attribute(name="test_attr", schema=_make_schema("Text", optional=True), data={"value": "initial"})
+        attr = Attribute(
+            name="test_attr", schema=_make_schema(AttributeKind.TEXT, optional=True), data={"value": "initial"}
+        )
         attr.value = None  # triggers value_has_been_mutated
 
         result = attr._generate_input_data()
@@ -109,7 +114,9 @@ class TestNullValue:
 
     def test_null_value_mutated_non_optional(self) -> None:
         """None value on a non-optional attr that was mutated → empty payload (same as not mutated)."""
-        attr = Attribute(name="test_attr", schema=_make_schema("Text", optional=False), data={"value": "initial"})
+        attr = Attribute(
+            name="test_attr", schema=_make_schema(AttributeKind.TEXT, optional=False), data={"value": "initial"}
+        )
         attr.value = None
 
         result = attr._generate_input_data()
@@ -135,7 +142,7 @@ class TestStringValues:
         ],
     )
     def test_safe_string(self, value: str) -> None:
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data=value)
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data=value)
 
         result = attr._generate_input_data()
 
@@ -151,7 +158,7 @@ class TestStringValues:
         ],
     )
     def test_unsafe_string_uses_variable_binding(self, value: str) -> None:
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data=value)
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data=value)
 
         result = attr._generate_input_data()
 
@@ -171,7 +178,7 @@ class TestStringValues:
 
 class TestIPValues:
     def test_ipv4_interface(self) -> None:
-        attr = Attribute(name="address", schema=_make_schema("IPHost"), data={"value": "10.0.0.1/24"})
+        attr = Attribute(name="address", schema=_make_schema(AttributeKind.IPHOST), data={"value": "10.0.0.1/24"})
 
         result = attr._generate_input_data()
 
@@ -179,21 +186,21 @@ class TestIPValues:
         assert result.variables == {}
 
     def test_ipv6_interface(self) -> None:
-        attr = Attribute(name="address", schema=_make_schema("IPHost"), data={"value": "2001:db8::1/64"})
+        attr = Attribute(name="address", schema=_make_schema(AttributeKind.IPHOST), data={"value": "2001:db8::1/64"})
 
         result = attr._generate_input_data()
 
         assert result.payload["value"] == "2001:db8::1/64"
 
     def test_ipv4_network(self) -> None:
-        attr = Attribute(name="network", schema=_make_schema("IPNetwork"), data={"value": "10.0.0.0/24"})
+        attr = Attribute(name="network", schema=_make_schema(AttributeKind.IPNETWORK), data={"value": "10.0.0.0/24"})
 
         result = attr._generate_input_data()
 
         assert result.payload["value"] == "10.0.0.0/24"
 
     def test_ipv6_network(self) -> None:
-        attr = Attribute(name="network", schema=_make_schema("IPNetwork"), data={"value": "2001:db8::/32"})
+        attr = Attribute(name="network", schema=_make_schema(AttributeKind.IPNETWORK), data={"value": "2001:db8::/32"})
 
         result = attr._generate_input_data()
 
@@ -207,7 +214,7 @@ class TestIPValues:
 
 class TestScalarValues:
     def test_number_value(self) -> None:
-        attr = Attribute(name="vlan_id", schema=_make_schema("Number"), data=42)
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data=42)
 
         result = attr._generate_input_data()
 
@@ -215,7 +222,7 @@ class TestScalarValues:
         assert result.variables == {}
 
     def test_boolean_value(self) -> None:
-        attr = Attribute(name="enabled", schema=_make_schema("Boolean"), data=True)
+        attr = Attribute(name="enabled", schema=_make_schema(AttributeKind.BOOLEAN), data=True)
 
         result = attr._generate_input_data()
 
@@ -230,14 +237,16 @@ class TestScalarValues:
 class TestProperties:
     def test_no_properties_set(self) -> None:
         """When no properties are set, payload only has the value."""
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data="hello")
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data="hello")
 
         result = attr._generate_input_data()
 
         assert result.payload == {"value": "hello"}
 
     def test_flag_property_is_protected(self) -> None:
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data={"value": "hello", "is_protected": True})
+        attr = Attribute(
+            name="test_attr", schema=_make_schema(AttributeKind.TEXT), data={"value": "hello", "is_protected": True}
+        )
 
         result = attr._generate_input_data()
 
@@ -247,7 +256,7 @@ class TestProperties:
     def test_object_property_source(self) -> None:
         attr = Attribute(
             name="test_attr",
-            schema=_make_schema("Text"),
+            schema=_make_schema(AttributeKind.TEXT),
             data={"value": "hello", "source": {"id": "source-uuid", "display_label": "Git", "__typename": "CoreGit"}},
         )
 
@@ -259,7 +268,7 @@ class TestProperties:
     def test_object_property_owner(self) -> None:
         attr = Attribute(
             name="test_attr",
-            schema=_make_schema("Text"),
+            schema=_make_schema(AttributeKind.TEXT),
             data={
                 "value": "hello",
                 "owner": {"id": "owner-uuid", "display_label": "Admin", "__typename": "CoreAccount"},
@@ -273,7 +282,7 @@ class TestProperties:
     def test_both_flag_and_object_properties(self) -> None:
         attr = Attribute(
             name="test_attr",
-            schema=_make_schema("Text"),
+            schema=_make_schema(AttributeKind.TEXT),
             data={
                 "value": "hello",
                 "is_protected": True,
@@ -291,7 +300,7 @@ class TestProperties:
         """When need_additional_properties is False (null non-mutated), properties are ignored."""
         attr = Attribute(
             name="test_attr",
-            schema=_make_schema("Text"),
+            schema=_make_schema(AttributeKind.TEXT),
             data={
                 "value": None,
                 "is_protected": True,
@@ -308,7 +317,7 @@ class TestProperties:
         """from_pool payloads have need_additional_properties=True, so properties are included."""
         attr = Attribute(
             name="vlan_id",
-            schema=_make_schema("Number"),
+            schema=_make_schema(AttributeKind.NUMBER),
             data={"from_pool": {"id": "pool-uuid"}, "is_protected": True},
         )
 
@@ -325,14 +334,14 @@ class TestProperties:
 
 class TestToDictIntegration:
     def test_to_dict_simple_value(self) -> None:
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data="hello")
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data="hello")
 
         result = attr._generate_input_data().to_dict()
 
         assert result == {"data": {"value": "hello"}, "variables": {}}
 
     def test_to_dict_with_variables(self) -> None:
-        attr = Attribute(name="test_attr", schema=_make_schema("Text"), data='has "quotes"')
+        attr = Attribute(name="test_attr", schema=_make_schema(AttributeKind.TEXT), data='has "quotes"')
 
         result = attr._generate_input_data().to_dict()
 
@@ -344,7 +353,7 @@ class TestToDictIntegration:
         assert result["data"]["value"] == f"${var_name}"
 
 
-def _make_schema(kind: str = "Text", optional: bool = False) -> AttributeSchemaAPI:
+def _make_schema(kind: AttributeKind = AttributeKind.TEXT, optional: bool = False) -> AttributeSchemaAPI:
     return AttributeSchemaAPI(name="test_attr", kind=kind, optional=optional)
 
 

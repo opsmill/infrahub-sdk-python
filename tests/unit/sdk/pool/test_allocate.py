@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from pytest_httpx import HTTPXMock
 
+    from infrahub_sdk.protocols_base import CoreNode, CoreNodeSync
     from infrahub_sdk.schema import NodeSchemaAPI
     from tests.unit.sdk.conftest import BothClients
 
@@ -83,7 +84,7 @@ async def test_allocate_next_ip_address(
             },
         )
         ip_address = await clients.standard.allocate_next_ip_address(
-            resource_pool=ip_pool,
+            resource_pool=cast("CoreNode", ip_pool),
             identifier="test",
             prefix_length=32,
             address_type="IpamIPAddress",
@@ -105,7 +106,7 @@ async def test_allocate_next_ip_address(
             },
         )
         ip_address = clients.sync.allocate_next_ip_address(
-            resource_pool=ip_pool,
+            resource_pool=cast("CoreNodeSync", ip_pool),
             identifier="test",
             prefix_length=32,
             address_type="IpamIPAddress",
@@ -114,8 +115,8 @@ async def test_allocate_next_ip_address(
         )
 
     assert ip_address
-    assert str(ip_address.address.value) == "192.0.2.0/32"
-    assert ip_address.description.value == "test"
+    assert str(cast("InfrahubNodeSync", ip_address).address.value) == "192.0.2.0/32"
+    assert cast("InfrahubNodeSync", ip_address).description.value == "test"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -184,7 +185,7 @@ async def test_allocate_next_ip_prefix(
             },
         )
         ip_prefix = await clients.standard.allocate_next_ip_prefix(
-            resource_pool=ip_pool,
+            resource_pool=cast("CoreNode", ip_pool),
             identifier="test",
             prefix_length=31,
             prefix_type="IpamIPPrefix",
@@ -206,7 +207,7 @@ async def test_allocate_next_ip_prefix(
             },
         )
         ip_prefix = clients.sync.allocate_next_ip_prefix(
-            resource_pool=ip_pool,
+            resource_pool=cast("CoreNodeSync", ip_pool),
             identifier="test",
             prefix_length=31,
             prefix_type="IpamIPPrefix",
@@ -215,5 +216,5 @@ async def test_allocate_next_ip_prefix(
         )
 
     assert ip_prefix
-    assert str(ip_prefix.prefix.value) == "192.0.2.0/31"
-    assert ip_prefix.description.value == "test"
+    assert str(cast("InfrahubNodeSync", ip_prefix).prefix.value) == "192.0.2.0/31"  # type: ignore[unresolved-attribute]
+    assert cast("InfrahubNodeSync", ip_prefix).description.value == "test"  # type: ignore[unresolved-attribute]

@@ -1,4 +1,6 @@
 from datetime import datetime
+from pathlib import Path
+from typing import BinaryIO
 
 VARIABLE_TYPE_MAPPING = (
     (str, "String!"),
@@ -11,4 +13,7 @@ VARIABLE_TYPE_MAPPING = (
     (bool | None, "Boolean"),
     (datetime, "DateTime!"),
     (datetime | None, "DateTime"),
+    (bytes, "Upload!"),
+    (Path, "Upload!"),
+    (BinaryIO, "Upload!"),
 )

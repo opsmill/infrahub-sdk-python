@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import Any, BinaryIO
 
 from pydantic import BaseModel
 
@@ -88,7 +89,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
     return str(value)
 
 
-GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | None]
+GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | bytes | Path | BinaryIO | None]
 
 
 def render_variables_to_string(data: dict[str, GRAPHQL_VARIABLE_TYPES]) -> str:
@@ -148,10 +149,7 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
         elif isinstance(value, dict) and len(value) == 1 and alias_key in value and value[alias_key]:
             lines.append(f"{offset_str}{value[alias_key]}: {key}")
         elif isinstance(value, dict):
-            if value.get(alias_key):
-                key_str = f"{value[alias_key]}: {key}"
-            else:
-                key_str = key
+            key_str = f"{value[alias_key]}: {key}" if value.get(alias_key) else key
 
             if value.get(filters_key):
                 filters_str = ", ".join(

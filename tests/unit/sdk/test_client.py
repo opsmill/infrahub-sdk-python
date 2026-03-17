@@ -278,7 +278,7 @@ async def test_method_all_multiple_pages(
     assert len(repos) == 5
 
 
-@pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
+@pytest.mark.parametrize(("client_type", "use_parallel"), batch_client_types)
 async def test_method_all_batching(
     clients: BothClients,
     mock_query_location_batch_count: HTTPXMock,

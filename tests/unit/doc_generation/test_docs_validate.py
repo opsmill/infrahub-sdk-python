@@ -3,15 +3,11 @@ from __future__ import annotations
 import os
 import subprocess  # noqa: S404
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 from invoke import Context, Exit
 
 import tasks
-
-if TYPE_CHECKING:
-    from pytest import MonkeyPatch
 
 _GIT_ENV = {
     "GIT_AUTHOR_NAME": "test",
@@ -45,7 +41,7 @@ class TestDocsValidate:
     """Ensure docs_validate() detects drift between committed and regenerated documentation."""
 
     def test_passes_when_generation_produces_no_changes(
-        self, git_repo_with_docs: Path, monkeypatch: MonkeyPatch
+        self, git_repo_with_docs: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Arrange
         monkeypatch.setattr(tasks, "docs_generate", lambda context: None)  # noqa: ARG005
@@ -55,7 +51,7 @@ class TestDocsValidate:
         tasks.docs_validate(Context())
 
     def test_fails_when_generation_modifies_existing_file(
-        self, git_repo_with_docs: Path, monkeypatch: MonkeyPatch
+        self, git_repo_with_docs: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Arrange
         def fake_generate(context: Context) -> None:
@@ -69,7 +65,7 @@ class TestDocsValidate:
             tasks.docs_validate(Context())
 
     def test_fails_when_generation_deletes_tracked_file(
-        self, git_repo_with_docs: Path, monkeypatch: MonkeyPatch
+        self, git_repo_with_docs: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Arrange
         def fake_generate(context: Context) -> None:
@@ -82,7 +78,9 @@ class TestDocsValidate:
         with pytest.raises(Exit, match="Modified or deleted files"):
             tasks.docs_validate(Context())
 
-    def test_fails_when_generation_creates_new_file(self, git_repo_with_docs: Path, monkeypatch: MonkeyPatch) -> None:
+    def test_fails_when_generation_creates_new_file(
+        self, git_repo_with_docs: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         # Arrange
         def fake_generate(context: Context) -> None:
             (git_repo_with_docs / "docs" / "new_file.mdx").write_text("# New\n")

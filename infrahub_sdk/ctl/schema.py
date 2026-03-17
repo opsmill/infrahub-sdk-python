@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -211,3 +212,49 @@ def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) ->
         console.print(
             f"[yellow] {warning.type.value}: {warning.message} [{', '.join([kind.display for kind in warning.kinds])}]"
         )
+
+
+def _default_export_directory() -> Path:
+    timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d-%H%M%S")
+    return Path(f"infrahub-schema-export-{timestamp}")
+
+
+@app.command()
+@catch_exception(console=console)
+async def export(
+    directory: Path = typer.Option(_default_export_directory, help="Directory path to store schema files"),
+    branch: str = typer.Option(None, help="Branch from which to export the schema"),
+    namespaces: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
+    debug: bool = False,
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Export the schema from Infrahub as YAML files, one per namespace."""
+    init_logging(debug=debug)
+
+    client = initialize_client()
+    user_schemas = await client.schema.export(
+        branch=branch,
+        namespaces=namespaces or None,
+    )
+
+    if not user_schemas.namespaces:
+        console.print("[yellow]No user-defined schema found to export.")
+        return
+
+    directory.mkdir(parents=True, exist_ok=True)
+
+    for ns, data in sorted(user_schemas.namespaces.items()):
+        payload: dict[str, Any] = {"version": "1.0"}
+        if data.generics:
+            payload["generics"] = data.generics
+        if data.nodes:
+            payload["nodes"] = data.nodes
+
+        output_file = directory / f"{ns.lower()}.yml"
+        output_file.write_text(
+            yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+        console.print(f"[green] Exported namespace '{ns}' to {output_file}")
+
+    console.print(f"[green] Schema exported to {directory}")

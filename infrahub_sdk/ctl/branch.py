@@ -110,6 +110,10 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
     proposed_change_tables: list[Table] = []
 
     for pc in proposed_changes:
+        metadata = pc.get_node_metadata()
+        created_by = metadata.created_by.display_label if metadata and metadata.created_by else "-"
+        created_at = format_timestamp(metadata.created_at) if metadata and metadata.created_at else "-"
+
         # Create proposal table
         proposed_change_table = Table(show_header=False, box=None)
         proposed_change_table.add_column(justify="left")
@@ -119,8 +123,8 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
         proposed_change_table.add_row("Name", pc.name.value)
         proposed_change_table.add_row("State", str(pc.state.value))
         proposed_change_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")
-        proposed_change_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[union-attr]
-        proposed_change_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))
+        proposed_change_table.add_row("Created by", created_by)
+        proposed_change_table.add_row("Created at", created_at)
         proposed_change_table.add_row("Approvals", str(len(pc.approved_by.peers)))
         proposed_change_table.add_row("Rejections", str(len(pc.rejected_by.peers)))
 
@@ -295,9 +299,9 @@ async def report(
     proposed_changes = await client.filters(
         kind=CoreProposedChange,  # type: ignore[type-abstract]
         source_branch__value=branch_name,
-        include=["created_by"],
         prefetch_relationships=True,
         property=True,
+        include_metadata=True,
     )
 
     branch_table = generate_branch_report_table(branch=branch, diff_tree=diff_tree, git_files_changed=git_files_changed)
