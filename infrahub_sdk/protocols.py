@@ -97,8 +97,6 @@ class CoreCheck(CoreNode):
 
 class CoreComment(CoreNode):
     text: String
-    created_at: DateTimeOptional
-    created_by: RelatedNode
 
 
 class CoreCredential(CoreNode):
@@ -204,10 +202,8 @@ class CoreTaskTarget(CoreNode):
 class CoreThread(CoreNode):
     label: StringOptional
     resolved: Boolean
-    created_at: DateTimeOptional
     change: RelatedNode
     comments: RelationshipManager
-    created_by: RelatedNode
 
 
 class CoreTransformation(CoreNode):
@@ -678,8 +674,6 @@ class CoreCheckSync(CoreNodeSync):
 
 class CoreCommentSync(CoreNodeSync):
     text: String
-    created_at: DateTimeOptional
-    created_by: RelatedNodeSync
 
 
 class CoreCredentialSync(CoreNodeSync):
@@ -785,10 +779,8 @@ class CoreTaskTargetSync(CoreNodeSync):
 class CoreThreadSync(CoreNodeSync):
     label: StringOptional
     resolved: Boolean
-    created_at: DateTimeOptional
     change: RelatedNodeSync
     comments: RelationshipManagerSync
-    created_by: RelatedNodeSync
 
 
 class CoreTransformationSync(CoreNodeSync):
