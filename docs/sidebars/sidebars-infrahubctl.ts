@@ -1,9 +1,9 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 import {readdirSync} from 'fs';
 import {join} from 'path';
-import {getCommandItems} from './sidebar-utils';
+import {getCommandItems, getDocsBaseDir} from './sidebar-utils';
 
-const docsDir = join(__dirname, '..', 'docs', 'infrahubctl');
+const docsDir = join(getDocsBaseDir(), 'infrahubctl');
 const commandItems = getCommandItems(readdirSync(docsDir));
 
 const sidebars: SidebarsConfig = {
