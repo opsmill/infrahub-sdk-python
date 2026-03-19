@@ -151,7 +151,7 @@ class InfrahubAITransformConfig(InfrahubRepositoryConfigElement):
     query: str = Field(..., description="The name of the GraphQL Query")
     prompt_template_path: Path = Field(..., description="The path within the repository of the prompt template file")
     model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model to use for generation")
-    temperature: float = Field(default=1.0, description="Temperature for Claude API (0.0-1.0)")
+    temperature: int = Field(default=100, description="Temperature for Claude API (0-100 scale, maps to 0.0-1.0)")
     max_tokens: int = Field(default=4096, description="Maximum tokens for Claude API response")
     output_format: str = Field(default="markdown", description="Output format: markdown or csv")
     description: str | None = Field(default=None, description="Description for this AI transform")
