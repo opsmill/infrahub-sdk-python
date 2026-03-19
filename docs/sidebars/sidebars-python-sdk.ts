@@ -1,9 +1,9 @@
 import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 import { readdirSync } from 'fs';
 import { join } from 'path';
-import { getItemsWithOrder } from './sidebar-utils';
+import { getDocsBaseDir, getItemsWithOrder } from './sidebar-utils';
 
-const pythonSdkDocsDir = join(__dirname, '..', 'docs', 'python-sdk');
+const pythonSdkDocsDir = join(getDocsBaseDir(), 'python-sdk');
 
 const guidesItems = getItemsWithOrder(
   readdirSync(join(pythonSdkDocsDir, 'guides')),
