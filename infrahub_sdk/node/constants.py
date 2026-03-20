@@ -35,3 +35,15 @@ HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not sup
 
 HFID_STR_SEPARATOR = "__"
 PROFILE_KIND_PREFIX = "Profile"
+
+# GraphQL wrapper type prefixes that need to be stripped to get the actual schema kind.
+# Ordered longest-first so that "NestedEdged" is checked before "Edged", etc.
+GRAPHQL_WRAPPER_TYPE_PREFIXES = ("NestedEdged", "NestedPaginated", "Edged", "Paginated", "Related")
+
+
+def strip_graphql_wrapper_prefix(typename: str) -> str:
+    """Strip GraphQL wrapper type prefixes (NestedEdged, Edged, etc.) to get the actual schema kind."""
+    for prefix in GRAPHQL_WRAPPER_TYPE_PREFIXES:
+        if typename.startswith(prefix):
+            return typename[len(prefix) :]
+    return typename

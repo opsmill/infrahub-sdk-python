@@ -25,6 +25,7 @@ from .constants import (
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
+    strip_graphql_wrapper_prefix,
 )
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
@@ -618,6 +619,7 @@ class InfrahubNode(InfrahubNodeBase):
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
+            node_kind = strip_graphql_wrapper_prefix(node_kind)
             schema = await client.schema.get(kind=node_kind, branch=branch, timeout=timeout)
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
@@ -1501,6 +1503,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
                 raise ValueError("Unable to determine the type of the node, __typename not present in data")
+            node_kind = strip_graphql_wrapper_prefix(node_kind)
             schema = client.schema.get(kind=node_kind, branch=branch, timeout=timeout)
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))

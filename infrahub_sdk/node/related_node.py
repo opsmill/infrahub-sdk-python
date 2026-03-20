@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
-from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT, strip_graphql_wrapper_prefix
 from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
@@ -69,9 +69,8 @@ class RelatedNodeBase:
 
             self.updated_at: str | None = data.get("updated_at", properties_data.get("updated_at", None))
 
-            # FIXME, we won't need that once we are only supporting paginated results
-            if self._typename and self._typename.startswith("Related"):
-                self._typename = self._typename[7:]
+            if self._typename:
+                self._typename = strip_graphql_wrapper_prefix(self._typename)
 
             for prop in self._properties:
                 prop_data = properties_data.get(prop, properties_data.get(f"_relation__{prop}", None))

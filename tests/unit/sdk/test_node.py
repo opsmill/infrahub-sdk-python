@@ -19,7 +19,7 @@ from infrahub_sdk.node import (
     RelationshipManagerBase,
     parse_human_friendly_id,
 )
-from infrahub_sdk.node.constants import SAFE_VALUE
+from infrahub_sdk.node.constants import SAFE_VALUE, strip_graphql_wrapper_prefix
 from infrahub_sdk.node.metadata import NodeMetadata, RelationshipMetadata
 from infrahub_sdk.node.property import NodeProperty
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
@@ -3243,3 +3243,194 @@ async def test_node_generate_input_data_with_file(
     assert "file" not in input_data["data"]["data"], "file should not be inside nested data dict"
     assert "file" in input_data["mutation_variables"]
     assert input_data["mutation_variables"]["file"] is bytes
+
+
+@pytest.mark.parametrize(
+    ("typename", "expected"),
+    [
+        ("NestedEdgedBuiltinIPPrefix", "BuiltinIPPrefix"),
+        ("NestedEdgedTestPerson", "TestPerson"),
+        ("EdgedBuiltinTag", "BuiltinTag"),
+        ("NestedPaginatedCorePerson", "CorePerson"),
+        ("PaginatedCoreNode", "CoreNode"),
+        ("RelatedTestPerson", "TestPerson"),
+        ("IpamIPPrefix", "IpamIPPrefix"),
+        ("CoreNode", "CoreNode"),
+    ],
+)
+def test_strip_graphql_wrapper_prefix(typename: str, expected: str) -> None:
+    assert strip_graphql_wrapper_prefix(typename) == expected
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_from_graphql_with_nested_edged_typename(
+    clients: BothClients,
+    client_type: str,
+) -> None:
+    """Test that from_graphql correctly strips NestedEdged prefix from __typename.
+
+    When a cardinality-one relationship is queried via a custom GraphQL query,
+    the response includes a NestedEdged wrapper type. The SDK must strip this
+    prefix to find the actual schema kind for node deserialization.
+    """
+    ip_prefix_schema = {
+        "name": "IPPrefix",
+        "namespace": "Builtin",
+        "attributes": [{"name": "prefix", "kind": "IPNetwork"}],
+        "relationships": [],
+    }
+    ip_address_schema = {
+        "name": "IPAddress",
+        "namespace": "Ipam",
+        "attributes": [{"name": "address", "kind": "IPHost"}],
+        "relationships": [
+            {
+                "name": "ip_prefix",
+                "peer": "BuiltinIPPrefix",
+                "cardinality": "one",
+                "optional": True,
+            }
+        ],
+    }
+    schema_data = {
+        "version": "1.0",
+        "nodes": [ip_prefix_schema, ip_address_schema],
+    }
+
+    # Data as returned by GraphQL for a cardinality-one relationship (NestedEdged wrapper)
+    nested_edged_data = {
+        "__typename": "NestedEdgedBuiltinIPPrefix",
+        "node": {
+            "__typename": "BuiltinIPPrefix",
+            "id": "prefix-1",
+            "display_label": "10.0.0.0/24",
+            "prefix": {"value": "10.0.0.0/24"},
+        },
+        "properties": {
+            "is_protected": False,
+            "source": None,
+            "owner": None,
+            "updated_at": None,
+        },
+    }
+
+    if client_type == "standard":
+        clients.standard.schema.set_cache(schema_data, branch="main")
+        node = await InfrahubNode.from_graphql(
+            client=clients.standard,
+            branch="main",
+            data=nested_edged_data,
+        )
+    else:
+        clients.sync.schema.set_cache(schema_data, branch="main")
+        node = InfrahubNodeSync.from_graphql(
+            client=clients.sync,
+            branch="main",
+            data=nested_edged_data,
+        )
+
+    assert node.id == "prefix-1"
+    assert node.typename == "BuiltinIPPrefix"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_process_relationships_with_nested_edged_cardinality_one(
+    clients: BothClients,
+    client_type: str,
+) -> None:
+    """Test that _process_relationships handles NestedEdged data for cardinality-one relationships.
+
+    This reproduces the bug where querying ip_prefix (cardinality=one) on IpamIPAddress
+    returns a NestedEdged wrapper type that the SDK failed to resolve.
+    """
+    ip_prefix_schema = {
+        "name": "IPPrefix",
+        "namespace": "Builtin",
+        "attributes": [{"name": "prefix", "kind": "IPNetwork"}],
+        "relationships": [],
+    }
+    ip_address_schema = {
+        "name": "IPAddress",
+        "namespace": "Ipam",
+        "attributes": [{"name": "address", "kind": "IPHost"}],
+        "relationships": [
+            {
+                "name": "ip_prefix",
+                "peer": "BuiltinIPPrefix",
+                "cardinality": "one",
+                "optional": True,
+            }
+        ],
+    }
+    schema_data = {
+        "version": "1.0",
+        "nodes": [ip_prefix_schema, ip_address_schema],
+    }
+
+    # Simulate GraphQL response for an IP address with a NestedEdged ip_prefix
+    ip_address_data = {
+        "node": {
+            "__typename": "IpamIPAddress",
+            "id": "ip-1",
+            "display_label": "10.0.0.1/24",
+            "address": {"value": "10.0.0.1/24"},
+            "ip_prefix": {
+                "__typename": "NestedEdgedBuiltinIPPrefix",
+                "node": {
+                    "__typename": "BuiltinIPPrefix",
+                    "id": "prefix-1",
+                    "display_label": "10.0.0.0/24",
+                    "prefix": {"value": "10.0.0.0/24"},
+                },
+                "properties": {
+                    "is_protected": False,
+                    "source": None,
+                    "owner": None,
+                    "updated_at": None,
+                },
+            },
+        }
+    }
+
+    if client_type == "standard":
+        clients.standard.schema.set_cache(schema_data, branch="main")
+        ip_schema = await clients.standard.schema.get(kind="IpamIPAddress", branch="main")
+        node = await InfrahubNode.from_graphql(
+            client=clients.standard,
+            schema=ip_schema,
+            branch="main",
+            data=ip_address_data,
+        )
+        related_nodes: list[InfrahubNode] = []
+        await node._process_relationships(
+            node_data=ip_address_data,
+            branch="main",
+            related_nodes=related_nodes,
+            recursive=False,
+        )
+    else:
+        clients.sync.schema.set_cache(schema_data, branch="main")
+        ip_schema = clients.sync.schema.get(kind="IpamIPAddress", branch="main")
+        node = InfrahubNodeSync.from_graphql(
+            client=clients.sync,
+            schema=ip_schema,
+            branch="main",
+            data=ip_address_data,
+        )
+        related_nodes_sync: list[InfrahubNodeSync] = []
+        node._process_relationships(
+            node_data=ip_address_data,
+            branch="main",
+            related_nodes=related_nodes_sync,
+            recursive=False,
+        )
+        related_nodes = related_nodes_sync  # type: ignore[assignment]
+
+    # The ip_prefix relationship should be initialized with data from the NestedEdged response
+    assert node.ip_prefix.initialized is True
+    assert node.ip_prefix.id == "prefix-1"
+
+    # _process_relationships should have created a related node for the ip_prefix
+    assert len(related_nodes) == 1
+    assert related_nodes[0].id == "prefix-1"
+    assert related_nodes[0].typename == "BuiltinIPPrefix"
