@@ -155,6 +155,7 @@ class InfrahubAITransformConfig(InfrahubRepositoryConfigElement):
     max_tokens: int = Field(default=4096, description="Maximum tokens for Claude API response")
     output_format: str = Field(default="markdown", description="Output format: markdown or csv")
     description: str | None = Field(default=None, description="Description for this AI transform")
+    result_kind: str | None = Field(default=None, description="Schema kind for the result FileObject (must inherit from CoreFileObject)")
 
     @property
     def prompt_template_path_value(self) -> str:

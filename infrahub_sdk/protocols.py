@@ -562,6 +562,7 @@ class CoreTransformAI(CoreTransformation):
     temperature: IntegerOptional
     max_tokens: IntegerOptional
     output_format: StringOptional
+    result_kind: StringOptional
 
 
 class CoreTransformJinja2(CoreTransformation):
@@ -1135,6 +1136,7 @@ class CoreTransformAISync(CoreTransformationSync):
     temperature: IntegerOptional
     max_tokens: IntegerOptional
     output_format: StringOptional
+    result_kind: StringOptional
 
 
 class CoreTransformJinja2Sync(CoreTransformationSync):
