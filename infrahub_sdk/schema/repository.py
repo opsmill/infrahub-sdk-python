@@ -153,7 +153,7 @@ class InfrahubAITransformConfig(InfrahubRepositoryConfigElement):
     model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model to use for generation")
     temperature: int = Field(default=100, description="Temperature for Claude API (0-100 scale, maps to 0.0-1.0)")
     max_tokens: int = Field(default=4096, description="Maximum tokens for Claude API response")
-    output_format: str = Field(default="markdown", description="Output format: markdown or csv")
+    output_format: str = Field(default="markdown", description="Output format: markdown, csv, or svg")
     description: str | None = Field(default=None, description="Description for this AI transform")
     result_kind: str | None = Field(default=None, description="Schema kind for the result FileObject (must inherit from CoreFileObject)")
 
