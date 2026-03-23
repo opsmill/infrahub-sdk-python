@@ -173,3 +173,49 @@ class TimestampFormatError(Error):
     def __init__(self, message: str | None = None) -> None:
         self.message = message or "Invalid timestamp format"
         super().__init__(self.message)
+
+
+class GraphQLQueryError(Error):
+    """Base class for errors raised during GraphQL query rendering (fragment resolution)."""
+
+
+class QuerySyntaxError(GraphQLQueryError):
+    def __init__(self, syntax_error: str) -> None:
+        self.message = f"GraphQL syntax error: {syntax_error}"
+        super().__init__(self.message)
+
+
+class FragmentNotFoundError(GraphQLQueryError):
+    def __init__(self, fragment_name: str, query_file: str | None = None, message: str | None = None) -> None:
+        self.fragment_name = fragment_name
+        self.query_file = query_file
+        if message:
+            self.message = message
+        elif query_file:
+            self.message = f"Fragment '{fragment_name}' not found (referenced in '{query_file}')."
+        else:
+            self.message = f"Fragment '{fragment_name}' not found."
+        super().__init__(self.message)
+
+
+class DuplicateFragmentError(GraphQLQueryError):
+    def __init__(self, fragment_name: str, message: str | None = None) -> None:
+        self.fragment_name = fragment_name
+        self.message = (
+            message or f"Fragment '{fragment_name}' is defined more than once across declared fragment files."
+        )
+        super().__init__(self.message)
+
+
+class CircularFragmentError(GraphQLQueryError):
+    def __init__(self, cycle: list[str], message: str | None = None) -> None:
+        self.cycle = cycle
+        self.message = message or f"Circular fragment dependency detected: {' -> '.join(cycle)}."
+        super().__init__(self.message)
+
+
+class FragmentFileNotFoundError(GraphQLQueryError):
+    def __init__(self, file_path: str, message: str | None = None) -> None:
+        self.file_path = file_path
+        self.message = message or f"Fragment file '{file_path}' declared in graphql_fragments does not exist."
+        super().__init__(self.message)

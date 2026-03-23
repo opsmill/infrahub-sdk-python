@@ -44,6 +44,7 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
+from ..graphql.query_renderer import render_query
 from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
@@ -342,7 +343,7 @@ def transform(
         convert_query_response=transform_config.convert_query_response,
     )
     # Get data
-    query_str = repository_config.get_query(name=transform.query).load_query()
+    query_str = render_query(name=transform.query, config=repository_config)
     data = asyncio.run(
         transform.client.execute_graphql(query=query_str, variables=variables_dict, branch_name=transform.branch_name)
     )

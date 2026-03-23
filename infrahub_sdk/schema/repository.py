@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from .._importer import import_module
 from ..checks import InfrahubCheck
 from ..exceptions import (
+    FragmentFileNotFoundError,
     ModuleImportError,
     ResourceNotDefinedError,
 )
@@ -152,6 +153,28 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
         return file_name.read_text(encoding="UTF-8")
 
 
+class InfrahubRepositoryFragmentConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="Logical name for this fragment file or directory")
+    file_path: Path = Field(
+        ..., description="Path to a .gql fragment file or a directory of .gql files, relative to repo root"
+    )
+
+    def load_fragments(self, relative_path: str = ".") -> list[str]:
+        """Return raw content of all fragment files at file_path.
+
+        If file_path is a .gql file, returns a single-element list.
+        If file_path is a directory, returns one entry per .gql file found (sorted alphabetically).
+        Raises FragmentFileNotFoundError if file_path does not exist.
+        """
+        resolved = Path(f"{relative_path}/{self.file_path}")
+        if not resolved.exists():
+            raise FragmentFileNotFoundError(file_path=str(self.file_path))
+        if resolved.is_dir():
+            return [f.read_text(encoding="UTF-8") for f in sorted(resolved.glob("*.gql"))]
+        return [resolved.read_text(encoding="UTF-8")]
+
+
 class InfrahubObjectConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name associated to the object file")
@@ -183,6 +206,9 @@ class InfrahubRepositoryConfig(BaseModel):
         default_factory=list, description="Generator definitions"
     )
     queries: list[InfrahubRepositoryGraphQLConfig] = Field(default_factory=list, description="GraphQL Queries")
+    graphql_fragments: list[InfrahubRepositoryFragmentConfig] = Field(
+        default_factory=list, description="GraphQL fragment files declared for this repository"
+    )
     objects: list[Path] = Field(default_factory=list, description="Objects")
     menus: list[Path] = Field(default_factory=list, description="Menus")
 
@@ -193,6 +219,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "python_transforms",
         "generator_definitions",
         "queries",
+        "graphql_fragments",
     )
     @classmethod
     def unique_items(cls, v: list[Any]) -> list[Any]:
@@ -254,3 +281,12 @@ class InfrahubRepositoryConfig(BaseModel):
             if item.name == name:
                 return item
         raise ResourceNotDefinedError(f"Unable to find {name!r} in 'queries'")
+
+    def has_fragment(self, name: str) -> bool:
+        return any(item.name == name for item in self.graphql_fragments)
+
+    def get_fragment(self, name: str) -> InfrahubRepositoryFragmentConfig:
+        for item in self.graphql_fragments:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'graphql_fragments'")
