@@ -3,7 +3,7 @@ from __future__ import annotations
 import linecache
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes
@@ -19,8 +19,12 @@ from .exceptions import (
     JinjaTemplateSyntaxError,
     JinjaTemplateUndefinedError,
 )
-from .filters import AVAILABLE_FILTERS
+from .filters import AVAILABLE_FILTERS, ExecutionContext
+from .infrahub_filters import InfrahubFilters, no_client_filter
 from .models import UndefinedJinja2Error
+
+if TYPE_CHECKING:
+    from infrahub_sdk.client import InfrahubClient
 
 netutils_filters = jinja2_convenience_function()
 
@@ -31,6 +35,7 @@ class Jinja2Template:
         template: str | Path,
         template_directory: Path | None = None,
         filters: dict[str, Callable] | None = None,
+        client: InfrahubClient | None = None,
     ) -> None:
         self.is_string_based = isinstance(template, str)
         self.is_file_based = isinstance(template, Path)
@@ -39,16 +44,39 @@ class Jinja2Template:
         self._environment: jinja2.Environment | None = None
 
         self._available_filters = [filter_definition.name for filter_definition in AVAILABLE_FILTERS]
-        self._trusted_filters = [
-            filter_definition.name for filter_definition in AVAILABLE_FILTERS if filter_definition.trusted
-        ]
 
         self._filters = filters or {}
+        self._user_filter_names: set[str] = set(self._filters.keys())
         for user_filter in self._filters:
             self._available_filters.append(user_filter)
-            self._trusted_filters.append(user_filter)
+
+        # Register Infrahub client-dependent filters (fallback until client is set)
+        self._infrahub_filters: InfrahubFilters | None = None
+        self._register_client_filters(client=client)
 
         self._template_definition: jinja2.Template | None = None
+
+    def set_client(self, client: InfrahubClient) -> None:
+        """Set or replace the InfrahubClient for client-dependent filters.
+
+        Can be called after construction to enable artifact_content filter.
+        """
+        self._register_client_filters(client=client)
+        # Update the environment if it was already created
+        if self._environment:
+            self._environment.filters["artifact_content"] = self._filters["artifact_content"]
+
+    def _register_client_filters(self, client: InfrahubClient | None) -> None:
+        """Register client-dependent filters, using fallbacks if no client is provided."""
+        if client is not None:
+            self._infrahub_filters = InfrahubFilters(client=client)
+            self._filters["artifact_content"] = self._infrahub_filters.artifact_content
+        else:
+            self._filters["artifact_content"] = no_client_filter(filter_name="artifact_content")
+
+        for name in ("artifact_content",):
+            if name not in self._available_filters:
+                self._available_filters.append(name)
 
     def get_environment(self) -> jinja2.Environment:
         if self._environment:
@@ -86,10 +114,16 @@ class Jinja2Template:
 
         return sorted(meta.find_undeclared_variables(template))
 
-    def validate(self, restricted: bool = True) -> None:
-        allowed_list = self._available_filters
-        if restricted:
-            allowed_list = self._trusted_filters
+    def validate(self, restricted: bool = True, context: ExecutionContext | None = None) -> None:
+        effective_context = (
+            context if context is not None else ExecutionContext.CORE if restricted else ExecutionContext.LOCAL
+        )
+
+        allowed_list = [fd.name for fd in AVAILABLE_FILTERS if fd.allowed_contexts & effective_context]
+        # User-supplied filters are always allowed (but not SDK-injected ones)
+        for user_filter in self._user_filter_names:
+            if user_filter not in allowed_list:
+                allowed_list.append(user_filter)
 
         env = self.get_environment()
         template_source = self._template

@@ -161,4 +161,9 @@ NETUTILS_FILTERS = [
 ]
 
 
-AVAILABLE_FILTERS = BUILTIN_FILTERS + NETUTILS_FILTERS
+INFRAHUB_FILTERS = [
+    FilterDefinition(name="artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
+]
+
+
+AVAILABLE_FILTERS = BUILTIN_FILTERS + NETUTILS_FILTERS + INFRAHUB_FILTERS
