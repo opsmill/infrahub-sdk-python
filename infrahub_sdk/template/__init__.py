@@ -59,24 +59,30 @@ class Jinja2Template:
     def set_client(self, client: InfrahubClient) -> None:
         """Set or replace the InfrahubClient for client-dependent filters.
 
-        Can be called after construction to enable artifact_content filter.
+        Can be called after construction to enable artifact_content
+        and file_object_content filters.
         """
         self._register_client_filters(client=client)
         # Update the environment if it was already created
         if self._environment:
             self._environment.filters["artifact_content"] = self._filters["artifact_content"]
+            self._environment.filters["file_object_content"] = self._filters["file_object_content"]
+
+    def _register_filter(self, name: str, func: Callable) -> None:
+        """Register a filter callable and make it available for validation."""
+        self._filters[name] = func
+        if name not in self._available_filters:
+            self._available_filters.append(name)
 
     def _register_client_filters(self, client: InfrahubClient | None) -> None:
         """Register client-dependent filters, using fallbacks if no client is provided."""
         if client is not None:
             self._infrahub_filters = InfrahubFilters(client=client)
-            self._filters["artifact_content"] = self._infrahub_filters.artifact_content
+            self._register_filter("artifact_content", self._infrahub_filters.artifact_content)
+            self._register_filter("file_object_content", self._infrahub_filters.file_object_content)
         else:
-            self._filters["artifact_content"] = no_client_filter(filter_name="artifact_content")
-
-        for name in ("artifact_content",):
-            if name not in self._available_filters:
-                self._available_filters.append(name)
+            self._register_filter("artifact_content", no_client_filter("artifact_content"))
+            self._register_filter("file_object_content", no_client_filter("file_object_content"))
 
     def get_environment(self) -> jinja2.Environment:
         if self._environment:

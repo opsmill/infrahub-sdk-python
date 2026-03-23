@@ -18,7 +18,6 @@ class InfrahubFilters:
 
     async def artifact_content(self, storage_id: str) -> str:
         """Retrieve artifact content by storage_id."""
-        # Validate input
         if storage_id is None:
             raise JinjaFilterError(
                 filter_name="artifact_content",
@@ -35,12 +34,40 @@ class InfrahubFilters:
             return await self.client.object_store.get(identifier=storage_id)
         except AuthenticationError as exc:
             raise JinjaFilterError(
-                filter_name="artifact_content",
-                message=f"permission denied for storage_id: {storage_id}",
+                filter_name="artifact_content", message=f"permission denied for storage_id: {storage_id}"
             ) from exc
         except Exception as exc:
             raise JinjaFilterError(
                 filter_name="artifact_content",
+                message=f"failed to retrieve content for storage_id: {storage_id}",
+                hint=str(exc),
+            ) from exc
+
+    async def file_object_content(self, storage_id: str) -> str:
+        """Retrieve file object content by storage_id."""
+        if storage_id is None:
+            raise JinjaFilterError(
+                filter_name="file_object_content",
+                message="storage_id is null",
+                hint="ensure the GraphQL query returns a valid storage_id value",
+            )
+        if not storage_id:
+            raise JinjaFilterError(
+                filter_name="file_object_content",
+                message="storage_id is empty",
+                hint="ensure the GraphQL query returns a non-empty storage_id value",
+            )
+        try:
+            return await self.client.object_store.get_file_by_storage_id(storage_id=storage_id)
+        except AuthenticationError as exc:
+            raise JinjaFilterError(
+                filter_name="file_object_content", message=f"permission denied for storage_id: {storage_id}"
+            ) from exc
+        except ValueError as exc:
+            raise JinjaFilterError(filter_name="file_object_content", message=str(exc)) from exc
+        except Exception as exc:
+            raise JinjaFilterError(
+                filter_name="file_object_content",
                 message=f"failed to retrieve content for storage_id: {storage_id}",
                 hint=str(exc),
             ) from exc

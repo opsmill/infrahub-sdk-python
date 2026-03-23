@@ -163,6 +163,7 @@ NETUTILS_FILTERS = [
 
 INFRAHUB_FILTERS = [
     FilterDefinition(name="artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
+    FilterDefinition(name="file_object_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
 ]
 
 
