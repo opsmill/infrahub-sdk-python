@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
+
+import yaml
 
 from infrahub_sdk.exceptions import AuthenticationError
 from infrahub_sdk.template.exceptions import JinjaFilterError
@@ -84,3 +87,27 @@ def no_client_filter(filter_name: str) -> Callable[[str], Coroutine[Any, Any, st
         )
 
     return _filter
+
+
+def from_json(value: str) -> dict | list:
+    """Parse a JSON string into a Python dict or list."""
+    if not value:
+        return {}
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise JinjaFilterError(filter_name="from_json", message=f"invalid JSON: {exc}") from exc
+
+
+def from_yaml(value: str) -> dict | list:
+    """Parse a YAML string into a Python dict or list."""
+    if not value:
+        return {}
+    try:
+        result = yaml.safe_load(value)
+        # yaml.safe_load("") returns None, normalize to {}
+        if result is None:
+            return {}
+        return result
+    except yaml.YAMLError as exc:
+        raise JinjaFilterError(filter_name="from_yaml", message=f"invalid YAML: {exc}") from exc

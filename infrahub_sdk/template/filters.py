@@ -164,6 +164,8 @@ NETUTILS_FILTERS = [
 INFRAHUB_FILTERS = [
     FilterDefinition(name="artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
     FilterDefinition(name="file_object_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
+    FilterDefinition(name="from_json", allowed_contexts=ExecutionContext.ALL, source="infrahub"),
+    FilterDefinition(name="from_yaml", allowed_contexts=ExecutionContext.ALL, source="infrahub"),
 ]
 
 

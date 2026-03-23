@@ -20,7 +20,7 @@ from .exceptions import (
     JinjaTemplateUndefinedError,
 )
 from .filters import AVAILABLE_FILTERS, ExecutionContext
-from .infrahub_filters import InfrahubFilters, no_client_filter
+from .infrahub_filters import InfrahubFilters, from_json, from_yaml, no_client_filter
 from .models import UndefinedJinja2Error
 
 if TYPE_CHECKING:
@@ -53,6 +53,9 @@ class Jinja2Template:
         # Register Infrahub client-dependent filters (fallback until client is set)
         self._infrahub_filters: InfrahubFilters | None = None
         self._register_client_filters(client=client)
+
+        self._register_filter("from_json", from_json)
+        self._register_filter("from_yaml", from_yaml)
 
         self._template_definition: jinja2.Template | None = None
 
