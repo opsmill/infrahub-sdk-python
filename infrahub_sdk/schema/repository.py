@@ -128,6 +128,7 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
         default=False,
         description="Decide if the transform should convert the result of the GraphQL query to SDK InfrahubNode objects.",
     )
+    description: str | None = Field(default=None, description="Description for this transform")
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubTransform]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
