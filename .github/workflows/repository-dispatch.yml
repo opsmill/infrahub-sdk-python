@@ -35,6 +35,7 @@ jobs:
       matrix:
         # Either a literal path, or the name of a secret...
         repo:
+          - "opsmill/emma"
           - "opsmill/infrahub-bundle-dc"
           - "INFRAHUB_CUSTOMER1_REPOSITORY"
           - "INFRAHUB_CUSTOMER3_REPOSITORY"
