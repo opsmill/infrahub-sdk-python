@@ -282,6 +282,7 @@ class TestFromJsonFilter:
         with pytest.raises(JinjaFilterError) as exc:
             from_json("{not valid json}")
         assert exc.value.filter_name == "from_json"
+        assert exc.value.message is not None
         assert exc.value.message.startswith("Filter 'from_json': invalid JSON: Expecting property name")
 
     async def test_render_through_template(self) -> None:
