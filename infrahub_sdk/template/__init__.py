@@ -50,23 +50,16 @@ class Jinja2Template:
         for user_filter in self._filters:
             self._available_filters.append(user_filter)
 
-        # Register Infrahub client-dependent filters (fallback until client is set)
         self._infrahub_filters: InfrahubFilters | None = None
         self._register_client_filters(client=client)
-
         self._register_filter("from_json", from_json)
         self._register_filter("from_yaml", from_yaml)
 
         self._template_definition: jinja2.Template | None = None
 
     def set_client(self, client: InfrahubClient) -> None:
-        """Set or replace the InfrahubClient for client-dependent filters.
-
-        Can be called after construction to enable artifact_content
-        and file_object_content filters.
-        """
+        """Set or replace the InfrahubClient used by client-dependent filters."""
         self._register_client_filters(client=client)
-        # Update the environment if it was already created
         if self._environment:
             self._environment.filters["artifact_content"] = self._filters["artifact_content"]
             self._environment.filters["file_object_content"] = self._filters["file_object_content"]

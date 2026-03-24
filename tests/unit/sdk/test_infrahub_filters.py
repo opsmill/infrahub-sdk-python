@@ -288,8 +288,7 @@ class TestFromJsonFilter:
     async def test_render_through_template(self) -> None:
         jinja = Jinja2Template(template="{{ data | from_json }}")
         result = await jinja.render(variables={"data": '{"a": 1}'})
-        assert "a" in result
-        assert "1" in result
+        assert result == "{'a': 1}"
 
 
 class TestFromYamlFilter:
@@ -314,8 +313,7 @@ class TestFromYamlFilter:
     async def test_render_through_template(self) -> None:
         jinja = Jinja2Template(template="{{ data | from_yaml }}")
         result = await jinja.render(variables={"data": "key: value"})
-        assert "key" in result
-        assert "value" in result
+        assert result == "{'key': 'value'}"
 
 
 class TestFilterChaining:
@@ -324,8 +322,7 @@ class TestFilterChaining:
         httpx_mock.add_response(method="GET", url=f"{ARTIFACT_CONTENT_URL}/store-789", text=json_payload)
         jinja = Jinja2Template(template="{{ storage_id | artifact_content | from_json }}", client=client)
         result = await jinja.render(variables={"storage_id": "store-789"})
-        assert "hostname" in result
-        assert "router1" in result
+        assert result == "{'hostname': 'router1', 'interfaces': ['eth0', 'eth1']}"
 
 
 class TestClientFilter:
