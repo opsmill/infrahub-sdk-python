@@ -169,6 +169,33 @@ class InfrahubAITransformConfig(InfrahubRepositoryConfigElement):
         return data
 
 
+class InfrahubAICheckDefinitionConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., description="The name of the AI Check Definition")
+    query: str | None = Field(default=None, description="The name of the GraphQL Query")
+    prompt_template_path: Path = Field(..., description="The path within the repository of the prompt template file")
+    model: str = Field(default="claude-sonnet-4-5-20250929", description="Claude model to use for generation")
+    temperature: int = Field(default=0, description="Temperature for Claude API (0-100 scale, maps to 0.0-1.0)")
+    max_tokens: int = Field(default=4096, description="Maximum tokens for Claude API response")
+    timeout: int = Field(default=60, description="Maximum execution time in seconds")
+    description: str | None = Field(default=None, description="Description for this AI check")
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Additional parameters to pass to the check")
+    targets: str | None = Field(
+        default=None, description="The group to target when running this check, leave blank for global checks"
+    )
+
+    @property
+    def prompt_template_path_value(self) -> str:
+        return str(self.prompt_template_path)
+
+    @property
+    def payload(self) -> dict[str, Any]:
+        data = self.model_dump(exclude_none=True)
+        data["prompt_template_path"] = self.prompt_template_path_value
+        return data
+
+
 class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the GraphQL Query")
@@ -197,6 +224,7 @@ RESOURCE_MAP: dict[Any, str] = {
     InfrahubRepositoryArtifactDefinitionConfig: "artifact_definitions",
     InfrahubPythonTransformConfig: "python_transforms",
     InfrahubAITransformConfig: "ai_transforms",
+    InfrahubAICheckDefinitionConfig: "ai_checks",
     InfrahubGeneratorDefinitionConfig: "generator_definitions",
     InfrahubRepositoryGraphQLConfig: "queries",
     InfrahubObjectConfig: "objects",
@@ -222,6 +250,9 @@ class InfrahubRepositoryConfig(BaseModel):
     ai_transforms: list[InfrahubAITransformConfig] = Field(
         default_factory=list, description="AI-powered data transformations"
     )
+    ai_checks: list[InfrahubAICheckDefinitionConfig] = Field(
+        default_factory=list, description="AI-powered check definitions"
+    )
     generator_definitions: list[InfrahubGeneratorDefinitionConfig] = Field(
         default_factory=list, description="Generator definitions"
     )
@@ -235,6 +266,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "artifact_definitions",
         "python_transforms",
         "ai_transforms",
+        "ai_checks",
         "generator_definitions",
         "queries",
     )
@@ -297,3 +329,9 @@ class InfrahubRepositoryConfig(BaseModel):
 
     def get_ai_transform(self, name: str) -> InfrahubAITransformConfig:
         return self._get_resource(resource_id=name, resource_type=InfrahubAITransformConfig)
+
+    def has_ai_check(self, name: str) -> bool:
+        return self._has_resource(resource_id=name, resource_type=InfrahubAICheckDefinitionConfig)
+
+    def get_ai_check(self, name: str) -> InfrahubAICheckDefinitionConfig:
+        return self._get_resource(resource_id=name, resource_type=InfrahubAICheckDefinitionConfig)
