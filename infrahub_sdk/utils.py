@@ -288,6 +288,8 @@ async def extract_fields(selection_set: SelectionSetNode | None) -> dict[str, di
 
         elif isinstance(node, InlineFragmentNode):
             for sub_node in node.selection_set.selections:
+                if not isinstance(sub_node, FieldNode):
+                    continue
                 sub_sub_selection_set = getattr(sub_node, "selection_set", None)
                 value = await extract_fields(sub_sub_selection_set)
                 if sub_node.name.value not in fields:
