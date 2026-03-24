@@ -159,7 +159,7 @@ Task T010: "from_yaml filter in infrahub_sdk/template/infrahub_filters.py"
 ### Jira Task Mapping
 
 | Task | Jira | Phase |
-|------|------|-------|
+| ---- | ---- | ----- |
 | T001 | IFC-2367 | 1 |
 | T002 | IFC-2368 | 1 |
 | T003 | IFC-2371 | 2 |

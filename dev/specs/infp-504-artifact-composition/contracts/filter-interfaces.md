@@ -11,7 +11,7 @@ async def artifact_content(storage_id: str) -> str
 ```
 
 | Input | Output | Error |
-|-------|--------|-------|
+| ----- | ------ | ----- |
 | Valid storage_id string | Raw artifact content (text) | — |
 | `None` | — | `JinjaFilterError("artifact_content", "storage_id is null", hint="...")` |
 | `""` (empty) | — | `JinjaFilterError("artifact_content", "storage_id is empty", hint="...")` |
@@ -28,7 +28,7 @@ async def file_object_content(storage_id: str) -> str
 ```
 
 | Input | Output | Error |
-|-------|--------|-------|
+| ----- | ------ | ----- |
 | Valid storage_id (text file) | Raw file content (text) | — |
 | Valid storage_id (binary file) | — | `JinjaFilterError("file_object_content", "binary content not supported for storage_id: {id}")` |
 | `None` | — | `JinjaFilterError("file_object_content", "storage_id is null", hint="...")` |
@@ -46,7 +46,7 @@ def from_json(value: str) -> dict | list
 ```
 
 | Input | Output | Error |
-|-------|--------|-------|
+| ----- | ------ | ----- |
 | Valid JSON string | Parsed dict or list | — |
 | `""` (empty) | `{}` | — |
 | Malformed JSON | — | `JinjaFilterError("from_json", "invalid JSON: {error_detail}")` |
@@ -60,7 +60,7 @@ def from_yaml(value: str) -> dict | list
 ```
 
 | Input | Output | Error |
-|-------|--------|-------|
+| ----- | ------ | ----- |
 | Valid YAML string | Parsed dict, list, or scalar | — |
 | `""` (empty) | `{}` | — |
 | Malformed YAML | — | `JinjaFilterError("from_yaml", "invalid YAML: {error_detail}")` |
@@ -99,7 +99,7 @@ def validate(
 ```
 
 | Context | Trusted filters | Worker filters | Untrusted filters |
-|---------|:-:|:-:|:-:|
+| ------- | :-: | :-: | :-: |
 | `CORE` | allowed | blocked | blocked |
 | `WORKER` | allowed | allowed | blocked |
 | `LOCAL` | allowed | allowed | allowed |

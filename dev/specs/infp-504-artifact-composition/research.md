@@ -8,7 +8,7 @@
 
 **Decision**: Use Jinja2's native async filter support (`auto_await`) — no bridging needed.
 
-**Rationale**: The `SandboxedEnvironment` is already created with `enable_async=True` (template/__init__.py:137), and rendering uses `template.render_async()` (template/__init__.py:122). In Jinja2 async mode, filter call results are wrapped in `auto_await()`, which detects awaitables and awaits them automatically. This means we can register async functions directly as filters.
+**Rationale**: The `SandboxedEnvironment` is already created with `enable_async=True` (`template/__init__.py`:137), and rendering uses `template.render_async()` (`template/__init__.py`:122). In Jinja2 async mode, filter call results are wrapped in `auto_await()`, which detects awaitables and awaits them automatically. This means we can register async functions directly as filters.
 
 **Caveat**: The file-based environment (`_get_file_based_environment()` at line 140) does NOT currently set `enable_async=True`. This must be added for async filters to work with file-based templates.
 

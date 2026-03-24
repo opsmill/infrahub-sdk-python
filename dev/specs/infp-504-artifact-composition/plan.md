@@ -101,7 +101,7 @@ Phase 5 (Documentation + Server — depend on Phase 4):
 ## Risk Register
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
+| ---- | --------- | ------ | ---------- |
 | Jinja2 `auto_await` doesn't work as expected for filters | Low | High | Verify with a minimal test before building on the assumption. Fallback: sync wrapper with thread executor. |
 | File-based environment breaks with `enable_async=True` | Low | Medium | File-based env change is isolated and testable. Existing tests will catch regressions. |
 | ObjectStore API returns incorrect content-type for file objects | Medium | Low | Already flagged by @wvandeun. The filter will use best-effort content-type checking; can be refined when API is fixed. |

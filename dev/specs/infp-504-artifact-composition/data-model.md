@@ -38,7 +38,7 @@ class FilterDefinition:
 **Migration**:
 
 | Current | New |
-|---------|-----|
+| ------- | --- |
 | `FilterDefinition("abs", trusted=True, source="jinja2")` | `FilterDefinition("abs", allowed_contexts=ExecutionContext.ALL, source="jinja2")` |
 | `FilterDefinition("safe", trusted=False, source="jinja2")` | `FilterDefinition("safe", allowed_contexts=ExecutionContext.LOCAL, source="jinja2")` |
 
