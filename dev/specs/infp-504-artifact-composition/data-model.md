@@ -104,7 +104,19 @@ def __init__(
 - New optional `client` parameter
 - When `client` provided: instantiate `InfrahubFilters`, register `artifact_content` and `file_object_content`
 - Always register `from_json` and `from_yaml` (no client needed)
-- File-based environment must add `enable_async=True` for async filter support
+- File-based environment already has `enable_async=True` (no change needed)
+
+### Jinja2Template.set_client() (new method)
+
+```python
+def set_client(self, client: InfrahubClient) -> None:
+```
+
+**Purpose**: Deferred client injection — allows creating a `Jinja2Template` first and adding the client later. Also supports replacing a previously set client.
+
+- Calls `_register_client_filters(client)` to bind real filter methods
+- If the Jinja2 environment was already created, patches it in place
+- Without calling `set_client()` (and without passing `client` to `__init__`), client-dependent filters raise `JinjaFilterError` with a descriptive message at render time
 
 ### Jinja2Template.validate() (modified signature)
 
@@ -140,9 +152,9 @@ async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = No
 ```python
 # In AVAILABLE_FILTERS:
 
-# Infrahub client-dependent filters (worker context only)
-FilterDefinition("artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
-FilterDefinition("file_object_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
+# Infrahub client-dependent filters (worker and local contexts)
+FilterDefinition("artifact_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
+FilterDefinition("file_object_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
 
 # Parsing filters (trusted, all contexts)
 FilterDefinition("from_json", allowed_contexts=ExecutionContext.ALL, source="infrahub"),

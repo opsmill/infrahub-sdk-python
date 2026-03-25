@@ -11,6 +11,14 @@ if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
 
 
+ALLOWED_TEXT_CONTENT_TYPES = {"application/json", "application/yaml", "application/x-yaml"}
+
+
+def _extract_content_type(response: httpx.Response) -> str:
+    """Extract and normalize the content-type from an HTTP response, stripping parameters."""
+    return response.headers.get("content-type", "").split(";")[0].strip().lower()
+
+
 class ObjectStoreBase:
     pass
 
@@ -62,6 +70,38 @@ class ObjectStore(ObjectStoreBase):
 
         return resp.json()
 
+    async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by storage_id.
+
+        Raises an error if the content-type indicates binary content.
+        """
+        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        headers = copy.copy(self.client.headers or {})
+        if self.client.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+
+        try:
+            resp = await self.client._get(url=url, headers=headers)
+            resp.raise_for_status()
+        except ServerNotReachableError:
+            self.client.log.error(f"Unable to connect to {self.client.address} .. ")
+            raise
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 403}:
+                response = exc.response.json()
+                errors = response.get("errors")
+                messages = [error.get("message") for error in errors]
+                raise AuthenticationError(" | ".join(messages)) from exc
+            raise
+
+        content_type = _extract_content_type(resp)
+        if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
+            raise ValueError(
+                f"Binary content not supported: content-type '{content_type}' for storage_id '{storage_id}'"
+            )
+
+        return resp.text
+
 
 class ObjectStoreSync(ObjectStoreBase):
     def __init__(self, client: InfrahubClientSync) -> None:
@@ -109,3 +149,35 @@ class ObjectStoreSync(ObjectStoreBase):
                 raise AuthenticationError(" | ".join(messages)) from exc
 
         return resp.json()
+
+    def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by storage_id.
+
+        Raises an error if the content-type indicates binary content.
+        """
+        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        headers = copy.copy(self.client.headers or {})
+        if self.client.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+
+        try:
+            resp = self.client._get(url=url, headers=headers)
+            resp.raise_for_status()
+        except ServerNotReachableError:
+            self.client.log.error(f"Unable to connect to {self.client.address} .. ")
+            raise
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 403}:
+                response = exc.response.json()
+                errors = response.get("errors")
+                messages = [error.get("message") for error in errors]
+                raise AuthenticationError(" | ".join(messages)) from exc
+            raise
+
+        content_type = _extract_content_type(resp)
+        if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
+            raise ValueError(
+                f"Binary content not supported: content-type '{content_type}' for storage_id '{storage_id}'"
+            )
+
+        return resp.text

@@ -3,7 +3,7 @@ from __future__ import annotations
 import linecache
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import jinja2
 from jinja2 import meta, nodes
@@ -19,8 +19,12 @@ from .exceptions import (
     JinjaTemplateSyntaxError,
     JinjaTemplateUndefinedError,
 )
-from .filters import AVAILABLE_FILTERS
+from .filters import AVAILABLE_FILTERS, ExecutionContext
+from .infrahub_filters import InfrahubFilters, from_json, from_yaml, no_client_filter
 from .models import UndefinedJinja2Error
+
+if TYPE_CHECKING:
+    from infrahub_sdk.client import InfrahubClient
 
 netutils_filters = jinja2_convenience_function()
 
@@ -31,6 +35,7 @@ class Jinja2Template:
         template: str | Path,
         template_directory: Path | None = None,
         filters: dict[str, Callable] | None = None,
+        client: InfrahubClient | None = None,
     ) -> None:
         self.is_string_based = isinstance(template, str)
         self.is_file_based = isinstance(template, Path)
@@ -39,16 +44,41 @@ class Jinja2Template:
         self._environment: jinja2.Environment | None = None
 
         self._available_filters = [filter_definition.name for filter_definition in AVAILABLE_FILTERS]
-        self._trusted_filters = [
-            filter_definition.name for filter_definition in AVAILABLE_FILTERS if filter_definition.trusted
-        ]
 
         self._filters = filters or {}
+        self._user_filter_names: set[str] = set(self._filters.keys())
         for user_filter in self._filters:
             self._available_filters.append(user_filter)
-            self._trusted_filters.append(user_filter)
+
+        self._infrahub_filters: InfrahubFilters | None = None
+        self._register_client_filters(client=client)
+        self._register_filter("from_json", from_json)
+        self._register_filter("from_yaml", from_yaml)
 
         self._template_definition: jinja2.Template | None = None
+
+    def set_client(self, client: InfrahubClient) -> None:
+        """Set or replace the InfrahubClient used by client-dependent filters."""
+        self._register_client_filters(client=client)
+        if self._environment:
+            self._environment.filters["artifact_content"] = self._filters["artifact_content"]
+            self._environment.filters["file_object_content"] = self._filters["file_object_content"]
+
+    def _register_filter(self, name: str, func: Callable) -> None:
+        """Register a filter callable and make it available for validation."""
+        self._filters[name] = func
+        if name not in self._available_filters:
+            self._available_filters.append(name)
+
+    def _register_client_filters(self, client: InfrahubClient | None) -> None:
+        """Register client-dependent filters, using fallbacks if no client is provided."""
+        if client is not None:
+            self._infrahub_filters = InfrahubFilters(client=client)
+            self._register_filter("artifact_content", self._infrahub_filters.artifact_content)
+            self._register_filter("file_object_content", self._infrahub_filters.file_object_content)
+        else:
+            self._register_filter("artifact_content", no_client_filter("artifact_content"))
+            self._register_filter("file_object_content", no_client_filter("file_object_content"))
 
     def get_environment(self) -> jinja2.Environment:
         if self._environment:
@@ -86,10 +116,16 @@ class Jinja2Template:
 
         return sorted(meta.find_undeclared_variables(template))
 
-    def validate(self, restricted: bool = True) -> None:
-        allowed_list = self._available_filters
-        if restricted:
-            allowed_list = self._trusted_filters
+    def validate(self, restricted: bool = True, context: ExecutionContext | None = None) -> None:
+        effective_context = (
+            context if context is not None else ExecutionContext.CORE if restricted else ExecutionContext.LOCAL
+        )
+
+        allowed_list = [fd.name for fd in AVAILABLE_FILTERS if fd.allowed_contexts & effective_context]
+        # User-supplied filters are always allowed (but not SDK-injected ones)
+        for user_filter in self._user_filter_names:
+            if user_filter not in allowed_list:
+                allowed_list.append(user_filter)
 
         env = self.get_environment()
         template_source = self._template
