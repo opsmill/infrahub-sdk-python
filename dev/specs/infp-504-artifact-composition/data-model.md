@@ -152,9 +152,9 @@ async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = No
 ```python
 # In AVAILABLE_FILTERS:
 
-# Infrahub client-dependent filters (worker context only)
-FilterDefinition("artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
-FilterDefinition("file_object_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub"),
+# Infrahub client-dependent filters (worker and local contexts)
+FilterDefinition("artifact_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
+FilterDefinition("file_object_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
 
 # Parsing filters (trusted, all contexts)
 FilterDefinition("from_json", allowed_contexts=ExecutionContext.ALL, source="infrahub"),

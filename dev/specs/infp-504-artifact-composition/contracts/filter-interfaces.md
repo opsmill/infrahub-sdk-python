@@ -19,7 +19,7 @@ async def artifact_content(storage_id: str) -> str
 | Permission denied (401/403) | — | `JinjaFilterError("artifact_content", "permission denied for storage_id: {id}")` |
 | No client provided | — | `JinjaFilterError("artifact_content", "requires InfrahubClient", hint="pass client via Jinja2Template(client=...)")` |
 
-**Validation**: Blocked in `CORE` context. Allowed in `WORKER` context.
+**Validation**: Blocked in `CORE` context. Allowed in `WORKER` and `LOCAL` contexts.
 
 ### file_object_content
 
@@ -37,7 +37,7 @@ async def file_object_content(storage_id: str) -> str
 | Permission denied (401/403) | — | `JinjaFilterError("file_object_content", "permission denied for storage_id: {id}")` |
 | No client provided | — | `JinjaFilterError("file_object_content", "requires InfrahubClient", hint="pass client via Jinja2Template(client=...)")` |
 
-**Validation**: Blocked in `CORE` context. Allowed in `WORKER` context.
+**Validation**: Blocked in `CORE` context. Allowed in `WORKER` and `LOCAL` contexts.
 
 ### from_json
 
