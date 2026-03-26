@@ -106,7 +106,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v6"
       - name: "Linting: markdownlint"
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           config: docs/.markdownlint.yaml
           globs: |
@@ -175,7 +175,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: "npm"
           cache-dependency-path: docs/package-lock.json
       - name: "Install dependencies"
@@ -210,7 +210,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: "npm"
           cache-dependency-path: docs/package-lock.json
       - name: "Install npm dependencies"
