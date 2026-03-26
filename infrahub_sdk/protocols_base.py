@@ -125,11 +125,11 @@ class IntegerOptional(Attribute):
 
 
 class IPHost(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface
 
 
 class IPHostOptional(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface | None
 
 
 class IPNetwork(Attribute):
