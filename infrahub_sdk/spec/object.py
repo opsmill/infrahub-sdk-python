@@ -264,11 +264,14 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
 
         # First validate if all mandatory fields are present
-        errors.extend(
-            ObjectValidationError(position=[*position, element], message=f"{element} is mandatory")
-            for element in schema.mandatory_input_names
-            if not any([element in data, element in context])
-        )
+        # Skip mandatory check when an object_template is specified, as the template provides defaults, we expect the API server to just send a
+        # response with a failure if the template is not valid or doesn't provide all mandatory fields
+        if "object_template" not in data:
+            errors.extend(
+                ObjectValidationError(position=[*position, element], message=f"{element} is mandatory")
+                for element in schema.mandatory_input_names
+                if not any([element in data, element in context])
+            )
 
         # Validate if all attributes are valid
         for key, value in data.items():
