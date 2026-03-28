@@ -37,17 +37,7 @@ async def update_command(
 
     Fetches the object identified by KIND and IDENTIFIER, applies the
     requested changes, and saves the updated object back to the server.
-
-    Changes can be provided either as repeatable ``--set key=value``
-    flags or via a ``--file`` pointing to a YAML/JSON object file.
-    The two modes are mutually exclusive.
-
-    Args:
-        kind: Infrahub schema kind (e.g. ``InfraDevice``).
-        identifier: Object UUID or human-readable display name.
-        set_args: Repeatable key=value pairs for inline field updates.
-        file: Path to a YAML or JSON object file with update data.
-        branch: Target branch for the operation.
+    Provide field values with repeatable --set flags or supply a file via --file.
     """
     if set_args and file:
         raise typer.BadParameter("--set and --file are mutually exclusive.")

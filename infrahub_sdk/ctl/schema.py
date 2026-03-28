@@ -264,20 +264,14 @@ async def export(
 @app.command(name="list")
 @catch_exception(console=console)
 async def schema_list(
-    filter_text: str | None = typer.Option(None, "--filter", help="Filter kinds by name substring"),
+    filter_text: str | None = typer.Option(None, "--filter", help="Filter kinds by name"),
     branch: str | None = typer.Option(None, "--branch", "-b", help="Target branch"),
     _: str = CONFIG_PARAM,
 ) -> None:
     """List all available schema kinds.
 
-    Fetches the full schema from the Infrahub instance and displays a
-    table of node schema entries.  Use ``--filter`` to narrow results
-    by a case-insensitive substring match on the kind name.
-
-    Args:
-        filter_text: Optional substring to filter kind names.
-        branch: Target branch name.
-        _: Configuration file path (handled by callback).
+    Displays a table of all node schema entries. Use --filter to narrow
+    results by a case-insensitive match on the kind name.
     """
     client = initialize_client(branch=branch)
     schemas = await client.schema.all(branch=branch)
@@ -317,11 +311,6 @@ async def schema_show(
 
     Displays metadata, attributes, and relationships for the requested
     schema kind in a human-readable format.
-
-    Args:
-        kind: Infrahub schema kind (e.g. ``InfraDevice``).
-        branch: Target branch name.
-        _: Configuration file path (handled by callback).
     """
     client = initialize_client(branch=branch)
     node_schema = await client.schema.get(kind=kind, branch=branch)

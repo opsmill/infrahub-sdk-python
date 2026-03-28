@@ -66,14 +66,8 @@ $ infrahubctl schema export [OPTIONS]
 
 List all available schema kinds.
 
-Fetches the full schema from the Infrahub instance and displays a
-table of node schema entries.  Use ``--filter`` to narrow results
-by a case-insensitive substring match on the kind name.
-
-Args:
-    filter_text: Optional substring to filter kind names.
-    branch: Target branch name.
-    _: Configuration file path (handled by callback).
+Displays a table of all node schema entries. Use --filter to narrow
+results by a case-insensitive match on the kind name.
 
 **Usage**:
 
@@ -83,7 +77,7 @@ $ infrahubctl schema list [OPTIONS]
 
 **Options**:
 
-* `--filter TEXT`: Filter kinds by name substring
+* `--filter TEXT`: Filter kinds by name
 * `-b, --branch TEXT`: Target branch
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
@@ -116,11 +110,6 @@ Show details for a specific schema kind.
 
 Displays metadata, attributes, and relationships for the requested
 schema kind in a human-readable format.
-
-Args:
-    kind: Infrahub schema kind (e.g. ``InfraDevice``).
-    branch: Target branch name.
-    _: Configuration file path (handled by callback).
 
 **Usage**:
 

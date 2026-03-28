@@ -35,19 +35,8 @@ async def get_command(
 ) -> None:
     """Query and display Infrahub objects.
 
-    When *identifier* is omitted, lists all objects of the given *kind*,
-    optionally filtered by ``--filter`` arguments.  When *identifier* is
-    provided, displays a single object in detail view.
-
-    Args:
-        kind: Infrahub schema kind (e.g. ``InfraDevice``).
-        identifier: UUID or display name for single-object lookup.
-        filter_args: Repeatable filters in ``attr__value=x`` format.
-        output: Explicit output format; auto-detected when omitted.
-        branch: Target branch name.
-        limit: Maximum number of results to return.
-        offset: Number of results to skip (pagination).
-        _: Configuration file path (handled by callback).
+    When IDENTIFIER is omitted, lists all objects of the given KIND.
+    When IDENTIFIER is provided, displays a single object in detail view.
     """
     client = initialize_client(branch=branch)
     schema = await client.schema.get(kind=kind, branch=branch)

@@ -2,16 +2,8 @@
 
 Create a new object in Infrahub.
 
-Supports two mutually exclusive modes: inline field assignment via
-repeatable ``--set key=value`` options, or bulk creation from a
-JSON/YAML object file via ``--file``.
-
-Args:
-    kind: The Infrahub schema kind to create (e.g. ``InfraDevice``).
-    set_args: Repeatable ``key=value`` pairs for inline field assignment.
-    file: Path to a JSON or YAML object file.
-    branch: Target branch for the operation.
-    _: Configuration file parameter (handled by callback).
+Provide field values with repeatable --set flags or supply a
+JSON/YAML object file via --file. The two modes are mutually exclusive.
 
 **Usage**:
 

@@ -25,16 +25,8 @@ async def delete_command(
 ) -> None:
     """Delete an Infrahub object.
 
-    Fetches the object identified by *identifier* (UUID or display name) and
-    deletes it.  Unless ``--yes`` is provided, the user is prompted for
-    confirmation before the deletion is executed.
-
-    Args:
-        kind: Infrahub schema kind (e.g. ``InfraDevice``).
-        identifier: UUID or display name of the object to delete.
-        yes: When ``True``, skip the interactive confirmation prompt.
-        branch: Target branch name.
-        _: Configuration file path (handled by callback).
+    Fetches the object by KIND and IDENTIFIER, then deletes it.
+    Unless --yes is provided, a confirmation prompt is shown first.
     """
     client = initialize_client(branch=branch)
     node = await client.get(kind=kind, id=identifier)
