@@ -36,7 +36,6 @@ Documentation = "https://docs.infrahub.app/python-sdk/introduction"
 
 [project.scripts]
 infrahubctl = "infrahub_sdk.ctl.cli:app"
-infrahub = "infrahub_sdk.ctl.enduser_cli:app"
 
 [project.entry-points."pytest11"]
 "pytest-infrahub" = "infrahub_sdk.pytest_plugin.plugin"

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from infrahub_sdk.ctl.enduser_cli import app
+from infrahub_sdk.ctl.cli_commands import app
 
 runner = CliRunner()
 

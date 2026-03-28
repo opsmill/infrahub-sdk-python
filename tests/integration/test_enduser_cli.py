@@ -16,7 +16,7 @@ import yaml
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl import config
-from infrahub_sdk.ctl.enduser_cli import app
+from infrahub_sdk.ctl.cli_commands import app
 from infrahub_sdk.ctl.parameters import load_configuration
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import SchemaAnimal

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from typer.testing import CliRunner
 
-from infrahub_sdk.ctl.enduser_cli import app
+from infrahub_sdk.ctl.cli_commands import app
 from infrahub_sdk.schema import NodeSchemaAPI
 
 runner = CliRunner()
@@ -112,7 +112,7 @@ def test_schema_list_returns_table() -> None:
     mock_client = MagicMock()
     mock_client.schema.all = AsyncMock(return_value={"InfraDevice": device_schema, "InfraInterface": interface_schema})
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "list"])
 
     assert result.exit_code == 0, result.stdout
@@ -129,7 +129,7 @@ def test_schema_list_with_filter() -> None:
     mock_client = MagicMock()
     mock_client.schema.all = AsyncMock(return_value={"InfraDevice": device_schema, "IpamPrefix": prefix_schema})
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "list", "--filter", "infra"])
 
     assert result.exit_code == 0, result.stdout
@@ -142,7 +142,7 @@ def test_schema_list_empty() -> None:
     mock_client = MagicMock()
     mock_client.schema.all = AsyncMock(return_value={})
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "list"])
 
     assert result.exit_code == 0, result.stdout
@@ -155,7 +155,7 @@ def test_schema_list_with_branch() -> None:
     mock_client = MagicMock()
     mock_client.schema.all = AsyncMock(return_value={"CoreAccount": schema})
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "list", "--branch", "feature-x"])
 
     assert result.exit_code == 0, result.stdout
@@ -172,7 +172,7 @@ def test_schema_list_skips_non_node_schema_entries() -> None:
     mock_client = MagicMock()
     mock_client.schema.all = AsyncMock(return_value={"InfraDevice": node_schema, "SomeGenericKind": generic_schema})
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "list"])
 
     assert result.exit_code == 0, result.stdout
@@ -225,7 +225,7 @@ def test_schema_show_displays_metadata() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice"])
 
     assert result.exit_code == 0, result.stdout
@@ -245,7 +245,7 @@ def test_schema_show_displays_attributes() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice"])
 
     assert result.exit_code == 0, result.stdout
@@ -269,7 +269,7 @@ def test_schema_show_displays_relationships() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice"])
 
     assert result.exit_code == 0, result.stdout
@@ -288,7 +288,7 @@ def test_schema_show_no_attributes_or_relationships() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice"])
 
     assert result.exit_code == 0, result.stdout
@@ -302,7 +302,7 @@ def test_schema_show_with_branch() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice", "--branch", "feature-x"])
 
     assert result.exit_code == 0, result.stdout
@@ -316,7 +316,7 @@ def test_schema_show_attribute_with_default_value() -> None:
     mock_client = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=schema)
 
-    with patch("infrahub_sdk.ctl.commands.schema.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.schema.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["schema", "show", "InfraDevice"])
 
     assert result.exit_code == 0, result.stdout
