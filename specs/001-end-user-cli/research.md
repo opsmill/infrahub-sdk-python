@@ -1,21 +1,20 @@
-# Research: End-User CLI (`infrahub` command)
+# Research: End-User CLI (infrahubctl CRUD commands)
 
 ## R1: Entry Point & Packaging Strategy
 
-**Decision**: Add `infrahub` as a second entry point in `[project.scripts]` within the
-same package, pointing to a new app in `infrahub_sdk/ctl/enduser_cli.py`.
+**Decision**: Register new commands (`get`, `create`, `update`, `delete`) as top-level
+commands on the existing `infrahubctl` app in `infrahub_sdk/ctl/cli_commands.py`, and
+add `schema list` / `schema show` to the existing `infrahubctl schema` subgroup.
 
-**Rationale**: The existing `infrahubctl` entry point lives in `infrahub_sdk/ctl/cli.py`
-and uses the same `[ctl]` optional dependency group (typer, rich, click, pyyaml). The
-end-user CLI needs identical dependencies. A separate package would duplicate
-configuration, authentication, and client initialization code. A second entry point in
-the same package reuses all existing infrastructure.
+**Rationale**: The existing `infrahubctl` entry point already has the CLI framework,
+configuration, authentication, and client initialization. Adding commands to it avoids
+a separate entry point and keeps the user experience unified under one tool.
 
 **Alternatives considered**:
 
+- Separate `infrahub` entry point: initially implemented, then reversed — added
+  unnecessary complexity and user confusion with two CLI tools
 - Separate Python package: rejected — duplicates config/client code, complicates releases
-- Subcommand of `infrahubctl`: rejected — user explicitly wants separate `infrahub`
-  command with end-user focus distinct from developer tooling
 
 ## R2: CLI Framework & Async Pattern
 
