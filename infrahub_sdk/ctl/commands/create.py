@@ -58,4 +58,5 @@ async def create_command(
         data = await resolve_relationship_values(client, data, schema, branch=branch)
         node = await client.create(kind=kind, data=data, branch=branch)
         await node.save(allow_upsert=True)
-        console.print(f"[green]Created {kind} '{node.display_label}' (id: {node.id})")
+        label = node.display_label or data.get("name") or node.id
+        console.print(f"[green]Created {kind} '{label}' (id: {node.id})")
