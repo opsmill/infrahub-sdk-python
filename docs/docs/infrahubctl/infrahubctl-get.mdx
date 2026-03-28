@@ -5,6 +5,11 @@ Query and display Infrahub objects.
 When IDENTIFIER is omitted, lists all objects of the given KIND.
 When IDENTIFIER is provided, displays a single object in detail view.
 
+By default, columns where every value is empty are hidden in table
+and CSV output. Use --all-columns to show them.
+
+Exit codes: 0 = results found, 80 = query succeeded but no results.
+
 **Usage**:
 
 ```console
@@ -23,6 +28,7 @@ $ infrahubctl get [OPTIONS] KIND [IDENTIFIER]
 * `-b, --branch TEXT`: Target branch
 * `--limit INTEGER`: Maximum results
 * `--offset INTEGER`: Skip first N results
+* `--all-columns`: Show all columns including empty ones
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
