@@ -28,7 +28,7 @@ console = Console()
 @catch_exception(console=console)
 async def update_command(
     kind: str = typer.Argument(..., help="Infrahub schema kind"),
-    identifier: str = typer.Argument(..., help="Object ID or display name"),
+    identifier: str = typer.Argument(..., help="UUID, name, or HFID (use / for multi-part, e.g. Cisco/NX-OS)"),
     set_args: list[str] | None = typer.Option(None, "--set", help="Field value in key=value format"),
     file: Path | None = typer.Option(None, "--file", "-f", help="JSON or YAML file with update data"),
     branch: str | None = typer.Option(None, "--branch", "-b", help="Target branch"),
