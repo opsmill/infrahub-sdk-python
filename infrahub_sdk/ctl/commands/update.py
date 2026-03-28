@@ -13,7 +13,7 @@ import typer  # pyright: ignore[reportMissingImports]
 from rich.console import Console  # pyright: ignore[reportMissingImports]
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_node
+from infrahub_sdk.ctl.commands.utils import resolve_node, resolve_relationship_values
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -92,7 +92,9 @@ async def _update_with_set_args(
 
     node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 
-    changes: list[tuple[str, object, str]] = []
+    resolved_data = await resolve_relationship_values(client, data, schema, branch=branch)
+
+    changes: list[tuple[str, object, object]] = []
     for key, new_value in data.items():
         if key in schema.attribute_names:
             attr = getattr(node, key)
@@ -101,10 +103,8 @@ async def _update_with_set_args(
             changes.append((key, old_value, new_value))
         elif key in schema.relationship_names:
             rel = getattr(node, key)
-            old_id = getattr(rel, "id", None)
-            await rel.fetch()  # type: ignore[union-attr]
-            old_display = getattr(rel, "display_label", old_id)
-            setattr(node, key, {"id": new_value})
+            old_display = getattr(rel, "display_label", getattr(rel, "id", None))
+            setattr(node, key, resolved_data[key])
             changes.append((key, old_display, new_value))
 
     await node.save()

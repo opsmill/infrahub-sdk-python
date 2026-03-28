@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.commands.utils import resolve_relationship_values
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -54,6 +55,7 @@ async def create_command(
         data = parse_set_args(set_args)  # type: ignore[arg-type]
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
+        data = await resolve_relationship_values(client, data, schema, branch=branch)
         node = await client.create(kind=kind, data=data, branch=branch)
         await node.save(allow_upsert=True)
         console.print(f"[green]Created {kind} '{node.display_label}' (id: {node.id})")

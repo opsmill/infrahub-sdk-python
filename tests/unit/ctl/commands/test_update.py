@@ -236,6 +236,9 @@ def test_update_with_set_args_relationship() -> None:
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
+    async def passthrough_resolve(client: object, data: object, schema: object, **kwargs: object) -> dict:
+        return {"site": {"id": "new-site-id"}}
+
     with (
         patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
         patch(
@@ -243,12 +246,15 @@ def test_update_with_set_args_relationship() -> None:
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_relationship_values",
+            side_effect=passthrough_resolve,
+        ),
     ):
         result = runner.invoke(app, ["update", "InfraDevice", "node-rel-001", "--set", "site=new-site-id"])
 
     assert result.exit_code == 0, result.stdout
     assert "Updated" in result.stdout
-    mock_rel.fetch.assert_awaited_once()
     mock_node.save.assert_awaited_once()
 
 
