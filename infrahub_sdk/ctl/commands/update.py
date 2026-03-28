@@ -65,8 +65,9 @@ async def update_command(
             branch=branch,
         )
     elif file:
-        console.print("[dim]Note: KIND and IDENTIFIER are ignored in --file mode; "
-                      "the file defines target objects.[/dim]")
+        console.print(
+            "[dim]Note: KIND and IDENTIFIER are ignored in --file mode; the file defines target objects.[/dim]"
+        )
         await _update_with_file(
             client=client,
             file=file,
