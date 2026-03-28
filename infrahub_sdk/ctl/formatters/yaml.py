@@ -31,7 +31,12 @@ class YamlFormatter:
               field2: value2
     """
 
-    def format_list(self, nodes: list[InfrahubNode], schema: MainSchemaTypesAPI) -> str:
+    def format_list(
+        self,
+        nodes: list[InfrahubNode],
+        schema: MainSchemaTypesAPI,
+        show_all_columns: bool = False,  # noqa: ARG002
+    ) -> str:
         """Format a list of nodes as an Infrahub YAML object document.
 
         Each node becomes an entry in the spec.data array with its
@@ -40,6 +45,7 @@ class YamlFormatter:
         Args:
             nodes: List of InfrahubNode objects to format.
             schema: Schema definition for the node kind.
+            show_all_columns: Accepted for interface compatibility; not used for YAML.
 
         Returns:
             YAML string in Infrahub object format.

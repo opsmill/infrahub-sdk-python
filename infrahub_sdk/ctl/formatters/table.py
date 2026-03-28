@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.table import Table
 
-from .base import extract_node_data, extract_node_detail
+from .base import extract_node_data, extract_node_detail, non_empty_columns
 
 if TYPE_CHECKING:
     from ...node import InfrahubNode
@@ -22,7 +22,12 @@ class TableFormatter:
     column headers derived from the schema field names.
     """
 
-    def format_list(self, nodes: list[InfrahubNode], schema: MainSchemaTypesAPI) -> str:
+    def format_list(
+        self,
+        nodes: list[InfrahubNode],
+        schema: MainSchemaTypesAPI,
+        show_all_columns: bool = False,
+    ) -> str:
         """Format a list of nodes as a Rich table.
 
         Creates a table with one column per attribute and relationship,
@@ -31,18 +36,20 @@ class TableFormatter:
         Args:
             nodes: List of InfrahubNode objects to format.
             schema: Schema definition for the node kind.
+            show_all_columns: When True, include columns where every value is empty.
 
         Returns:
             Rendered table string.
         """
-        columns = schema.attribute_names + schema.relationship_names
-        table = Table(title=schema.kind, show_lines=False)
+        all_columns = schema.attribute_names + schema.relationship_names
+        rows = [extract_node_data(node, schema) for node in nodes]
+        columns = all_columns if show_all_columns else non_empty_columns(rows, all_columns)
 
+        table = Table(title=schema.kind, show_lines=False)
         for col in columns:
             table.add_column(col, overflow="fold")
 
-        for node in nodes:
-            row_data = extract_node_data(node, schema)
+        for row_data in rows:
             table.add_row(*(str(row_data.get(col, "")) for col in columns))
 
         return self._render(table)

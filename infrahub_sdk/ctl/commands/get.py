@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import typer
-from rich.console import Console
+import typer  # pyright: ignore[reportMissingImports]
+from rich.console import Console  # pyright: ignore[reportMissingImports]
 
 from infrahub_sdk.ctl.client import initialize_client
 from infrahub_sdk.ctl.formatters import OutputFormat, detect_output_format, get_formatter
@@ -31,12 +31,16 @@ async def get_command(
     branch: str | None = typer.Option(None, "--branch", "-b", help="Target branch"),
     limit: int | None = typer.Option(None, "--limit", help="Maximum results"),
     offset: int | None = typer.Option(None, "--offset", help="Skip first N results"),
+    all_columns: bool = typer.Option(False, "--all-columns", help="Show all columns including empty ones"),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Query and display Infrahub objects.
 
     When IDENTIFIER is omitted, lists all objects of the given KIND.
     When IDENTIFIER is provided, displays a single object in detail view.
+
+    By default, columns where every value is empty are hidden in table
+    and CSV output. Use --all-columns to show them.
     """
     client = initialize_client(branch=branch)
     schema = await client.schema.get(kind=kind, branch=branch)
@@ -56,7 +60,7 @@ async def get_command(
             limit=limit,
             prefetch_relationships=True,
         )
-        result = formatter.format_list(nodes, schema)
+        result = formatter.format_list(nodes, schema, show_all_columns=all_columns)
 
     if fmt == OutputFormat.TABLE:
         console.print(result, highlight=False)

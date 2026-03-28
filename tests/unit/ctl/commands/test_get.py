@@ -47,7 +47,7 @@ def test_get_list_mode() -> None:
     assert result.exit_code == 0
     mock_client.schema.get.assert_awaited_once_with(kind="InfraDevice", branch=None)
     mock_client.filters.assert_awaited_once()
-    mock_formatter.format_list.assert_called_once_with([mock_node], mock_schema)
+    mock_formatter.format_list.assert_called_once_with([mock_node], mock_schema, show_all_columns=False)
 
 
 def test_get_detail_mode() -> None:

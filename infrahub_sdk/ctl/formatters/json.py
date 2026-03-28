@@ -18,7 +18,12 @@ class JsonFormatter:
     Uses stdlib json module with indentation for readable output.
     """
 
-    def format_list(self, nodes: list[InfrahubNode], schema: MainSchemaTypesAPI) -> str:
+    def format_list(
+        self,
+        nodes: list[InfrahubNode],
+        schema: MainSchemaTypesAPI,
+        show_all_columns: bool = False,  # noqa: ARG002
+    ) -> str:
         """Format a list of nodes as a JSON array.
 
         Each node is represented as a dict with attribute and
@@ -27,6 +32,7 @@ class JsonFormatter:
         Args:
             nodes: List of InfrahubNode objects to format.
             schema: Schema definition for the node kind.
+            show_all_columns: Accepted for interface compatibility; not used for JSON.
 
         Returns:
             JSON array string.

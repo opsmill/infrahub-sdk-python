@@ -16,12 +16,18 @@ class BaseFormatter(Protocol):
     for display in various output formats (table, JSON, CSV, YAML).
     """
 
-    def format_list(self, nodes: list[InfrahubNode], schema: MainSchemaTypesAPI) -> str:
+    def format_list(
+        self,
+        nodes: list[InfrahubNode],
+        schema: MainSchemaTypesAPI,
+        show_all_columns: bool = False,
+    ) -> str:
         """Format a list of nodes for display.
 
         Args:
             nodes: List of InfrahubNode objects to format.
             schema: Schema definition for the node kind.
+            show_all_columns: When True, include columns where every value is empty.
 
         Returns:
             Formatted string representation of all nodes.
@@ -98,6 +104,19 @@ def extract_node_data(
         data[rel_name] = _extract_relationship_value(node, rel_name, rel_schema.cardinality)
 
     return data
+
+
+def non_empty_columns(rows: list[dict[str, Any]], columns: list[str]) -> list[str]:
+    """Return only columns that have at least one non-empty value across all rows.
+
+    Args:
+        rows: List of row dicts (from extract_node_data).
+        columns: All candidate column names.
+
+    Returns:
+        Filtered list of column names with data.
+    """
+    return [col for col in columns if any(str(row.get(col, "")).strip() for row in rows)]
 
 
 def extract_node_detail(

@@ -6,7 +6,7 @@ import csv
 import io
 from typing import TYPE_CHECKING
 
-from .base import extract_node_data, extract_node_detail
+from .base import extract_node_data, extract_node_detail, non_empty_columns
 
 if TYPE_CHECKING:
     from ...node import InfrahubNode
@@ -19,7 +19,12 @@ class CsvFormatter:
     Uses stdlib csv module for proper escaping and quoting of values.
     """
 
-    def format_list(self, nodes: list[InfrahubNode], schema: MainSchemaTypesAPI) -> str:
+    def format_list(
+        self,
+        nodes: list[InfrahubNode],
+        schema: MainSchemaTypesAPI,
+        show_all_columns: bool = False,
+    ) -> str:
         """Format a list of nodes as CSV with a header row.
 
         Columns correspond to schema attribute and relationship names.
@@ -28,18 +33,20 @@ class CsvFormatter:
         Args:
             nodes: List of InfrahubNode objects to format.
             schema: Schema definition for the node kind.
+            show_all_columns: When True, include columns where every value is empty.
 
         Returns:
             CSV string with header and data rows.
         """
-        columns = schema.attribute_names + schema.relationship_names
+        all_columns = schema.attribute_names + schema.relationship_names
+        rows = [extract_node_data(node, schema) for node in nodes]
+        columns = all_columns if show_all_columns else non_empty_columns(rows, all_columns)
+
         output = io.StringIO()
         writer = csv.writer(output)
-
         writer.writerow(columns)
 
-        for node in nodes:
-            row_data = extract_node_data(node, schema)
+        for row_data in rows:
             writer.writerow([str(row_data.get(col, "")) for col in columns])
 
         return output.getvalue()
