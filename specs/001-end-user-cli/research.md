@@ -12,6 +12,7 @@ configuration, authentication, and client initialization code. A second entry po
 the same package reuses all existing infrastructure.
 
 **Alternatives considered**:
+
 - Separate Python package: rejected — duplicates config/client code, complicates releases
 - Subcommand of `infrahubctl`: rejected — user explicitly wants separate `infrahub`
   command with end-user focus distinct from developer tooling
@@ -26,6 +27,7 @@ Rich console output, matching the `infrahubctl` patterns exactly.
 `initialize_client`, `CONFIG_PARAM`) work with this pattern.
 
 **Alternatives considered**:
+
 - Click directly: rejected — less ergonomic, would diverge from existing patterns
 - Sync-only CLI: rejected — SDK client methods are async-first
 
@@ -40,6 +42,7 @@ parameters. Filter syntax is `attribute__value="x"` or `relationship__id="uuid"`
 Pagination is handled automatically with `client.pagination_size`.
 
 **Key findings**:
+
 - `node.display_label` provides the human-readable name for table display
 - `node.<attr>.value` accesses attribute values
 - `schema.attribute_names` and `schema.relationship_names` enumerate fields
@@ -58,6 +61,7 @@ reverse direction needs a serializer that walks node attributes and relationship
 produce the same dict structure.
 
 **Key classes**:
+
 - `InfrahubObjectFileData` — spec model with `kind`, `parameters`, `data` fields
 - `ObjectFile` — file wrapper with `validate_content()` and `process()` methods
 - Relationship formats: `ONE_REF`, `MANY_REF`, `ONE_OBJ`, `MANY_OBJ_DICT_LIST`
@@ -74,6 +78,7 @@ produce the same dict structure.
 ## R6: Create/Update/Delete Implementation
 
 **Decision**: Use existing SDK CRUD methods:
+
 - Create: `client.create(kind=kind, data=data)` → `node.save(allow_upsert=True)`
 - Update: `client.get(kind=kind, id=identifier)` → modify attrs → `node.save()`
 - Delete: `client.get(kind=kind, id=identifier)` → `node.delete()`

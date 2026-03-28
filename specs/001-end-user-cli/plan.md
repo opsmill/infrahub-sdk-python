@@ -28,7 +28,7 @@ formats including round-trippable Infrahub Object YAML.
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 | Principle | Status | Notes |
-|-----------|--------|-------|
+| --------- | ------ | ----- |
 | I. Async/Sync Dual Pattern | PASS | CLI commands are async (via AsyncTyper). No new public SDK API surface requiring dual pattern — CLI is async-only consumer. |
 | II. Type Safety | PASS | All new functions will have type hints. mypy/ty must pass. |
 | III. Test Discipline | PASS | FR-015 requires unit + integration tests. 70% coverage target. |
@@ -103,7 +103,7 @@ testability and reuse across commands.
 ## Post-Design Constitution Re-Check
 
 | Principle | Status | Notes |
-|-----------|--------|-------|
+| --------- | ------ | ----- |
 | I. Async/Sync Dual Pattern | PASS | No new public SDK API. CLI is async consumer only. |
 | II. Type Safety | PASS | All modules typed. No generated code modified. |
 | III. Test Discipline | PASS | Test structure mirrors source structure. Unit tests mock SDK client. Integration tests hit Infrahub. |

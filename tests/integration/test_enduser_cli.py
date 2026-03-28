@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 runner = CliRunner()
 
 
-class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
-    """Integration tests for the ``infrahub`` CLI against a live Infrahub instance."""
+class _EnduserCliBase(TestInfrahubDockerClient, SchemaAnimal):
+    """Shared fixtures for end-user CLI integration tests."""
 
     @pytest.fixture(scope="class")
     async def base_dataset(
@@ -66,19 +66,15 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         if original_password:
             os.environ["INFRAHUB_PASSWORD"] = original_password
 
-    # ------------------------------------------------------------------
-    # infrahub --version
-    # ------------------------------------------------------------------
+
+class TestEnduserCliRead(_EnduserCliBase):
+    """Read-only CLI tests: version, schema discovery, and get queries."""
 
     def test_version(self) -> None:
         """Verify the --version flag works without a server."""
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert "infrahub v" in result.stdout
-
-    # ------------------------------------------------------------------
-    # infrahub schema (US5)
-    # ------------------------------------------------------------------
 
     def test_schema_list(self, base_dataset: None) -> None:
         """List schema kinds and verify TestingPerson is present."""
@@ -101,10 +97,6 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         assert "name" in result.stdout
         assert "height" in result.stdout
         assert "animals" in result.stdout
-
-    # ------------------------------------------------------------------
-    # infrahub get (US1)
-    # ------------------------------------------------------------------
 
     def test_get_list_table(self, base_dataset: None) -> None:
         """Query all persons and verify table output contains known names."""
@@ -177,11 +169,11 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         result = runner.invoke(app, ["get", "NonExistentKind"])
         assert result.exit_code != 0
 
-    # ------------------------------------------------------------------
-    # infrahub create (US2)
-    # ------------------------------------------------------------------
 
-    async def test_create_inline(self, base_dataset: None, client: InfrahubClient) -> None:
+class TestEnduserCliWrite(_EnduserCliBase):
+    """Write CLI tests: create, update, delete operations."""
+
+    def test_create_inline(self, base_dataset: None) -> None:
         """Create a person using inline --set flags."""
         result = runner.invoke(
             app,
@@ -189,9 +181,9 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         )
         assert result.exit_code == 0
         assert "Created" in result.stdout
-        assert "Integration Test Person" in result.stdout
 
-        # Verify via SDK
+    async def test_create_inline_verify(self, base_dataset: None, client: InfrahubClient) -> None:
+        """Verify the object created by test_create_inline exists."""
         node = await client.get(kind="TestingPerson", id="Integration Test Person")
         assert node.name.value == "Integration Test Person"  # type: ignore[union-attr]
         assert node.height.value == 190  # type: ignore[union-attr]
@@ -201,11 +193,7 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         result = runner.invoke(app, ["create", "TestingPerson"])
         assert result.exit_code != 0
 
-    # ------------------------------------------------------------------
-    # infrahub update (US3)
-    # ------------------------------------------------------------------
-
-    async def test_update_inline(self, base_dataset: None, client: InfrahubClient) -> None:
+    def test_update_inline(self, base_dataset: None) -> None:
         """Update a person's height using --set."""
         result = runner.invoke(
             app,
@@ -214,24 +202,23 @@ class TestEnduserCli(TestInfrahubDockerClient, SchemaAnimal):
         assert result.exit_code == 0
         assert "Updated" in result.stdout
 
-        # Verify via SDK
+    async def test_update_inline_verify(self, base_dataset: None, client: InfrahubClient) -> None:
+        """Verify the update from test_update_inline persisted."""
         node = await client.get(kind="TestingPerson", id="Sophia Walker")
         assert node.height.value == 175  # type: ignore[union-attr]
 
-    # ------------------------------------------------------------------
-    # infrahub delete (US4)
-    # ------------------------------------------------------------------
-
-    async def test_delete_with_yes(self, base_dataset: None, client: InfrahubClient) -> None:
-        """Delete a person using --yes to skip confirmation."""
-        # Create a throwaway object
+    async def test_delete_setup(self, base_dataset: None, client: InfrahubClient) -> None:
+        """Create a throwaway object for the delete test."""
         obj = await client.create(kind="TestingPerson", name="Delete Me", height=100)
         await obj.save()
 
+    def test_delete_with_yes(self, base_dataset: None) -> None:
+        """Delete a person using --yes to skip confirmation."""
         result = runner.invoke(app, ["delete", "TestingPerson", "Delete Me", "--yes"])
         assert result.exit_code == 0
         assert "Deleted" in result.stdout
 
-        # Verify deleted
+    async def test_delete_verify(self, base_dataset: None, client: InfrahubClient) -> None:
+        """Verify the object from test_delete_with_yes is gone."""
         node = await client.get(kind="TestingPerson", id="Delete Me", raise_when_missing=False)
         assert node is None

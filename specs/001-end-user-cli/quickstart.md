@@ -100,7 +100,7 @@ infrahub delete InfraDevice spine03 --yes
 ## Output Formats
 
 | Format | Flag | Use Case |
-|--------|------|----------|
+| ------ | ---- | -------- |
 | Table | `--output table` | Interactive terminal (default) |
 | JSON | `--output json` | Scripting, piping (default when piped) |
 | CSV | `--output csv` | Spreadsheet import, data analysis |

@@ -27,8 +27,8 @@
 
 - [x] T001 Add `infrahub` entry point to `[project.scripts]` in pyproject.toml pointing to `infrahub_sdk.ctl.enduser_cli:app`
 - [x] T002 Create CLI entry point module in infrahub_sdk/ctl/enduser_cli.py with AsyncTyper app and error-handling wrapper (matching infrahub_sdk/ctl/cli.py pattern)
-- [x] T003 [P] Create commands package with infrahub_sdk/ctl/commands/__init__.py
-- [x] T004 [P] Create formatters package with infrahub_sdk/ctl/formatters/__init__.py
+- [x] T003 [P] Create commands package with infrahub_sdk/ctl/commands/\_\_init\_\_.py
+- [x] T004 [P] Create formatters package with infrahub_sdk/ctl/formatters/\_\_init\_\_.py
 
 ---
 
@@ -40,7 +40,7 @@
 
 - [x] T005 Implement `--set` flag parser (parse `key=value` strings into dict) in infrahub_sdk/ctl/parsers.py
 - [x] T006 Implement `--filter` flag parser (parse `attr__value=x` strings into kwargs dict) in infrahub_sdk/ctl/parsers.py
-- [x] T007 Implement output format auto-detection (TTY → table, piped → json) and `OutputFormat` enum in infrahub_sdk/ctl/formatters/__init__.py
+- [x] T007 Implement output format auto-detection (TTY → table, piped → json) and `OutputFormat` enum in infrahub_sdk/ctl/formatters/\_\_init\_\_.py
 - [x] T008 [P] Implement base formatter protocol with `format_list()` and `format_detail()` methods in infrahub_sdk/ctl/formatters/base.py
 - [x] T009 [P] Implement Rich table formatter (list view: attribute + relationship columns with display names; detail view: key-value pairs) in infrahub_sdk/ctl/formatters/table.py
 - [x] T010 [P] Implement JSON formatter (list and detail mode) in infrahub_sdk/ctl/formatters/json.py
