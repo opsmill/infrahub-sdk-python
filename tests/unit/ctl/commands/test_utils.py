@@ -21,7 +21,6 @@ def mock_client() -> MagicMock:
     return client
 
 
-@pytest.mark.anyio
 async def test_resolve_by_uuid(mock_client: MagicMock) -> None:
     """When the identifier is a valid UUID, ``client.get(id=...)`` is called directly."""
     mock_schema = MagicMock()
@@ -41,7 +40,6 @@ async def test_resolve_by_uuid(mock_client: MagicMock) -> None:
     mock_client.get.assert_awaited_once_with(kind="InfraDevice", id=uuid_identifier, branch=None)
 
 
-@pytest.mark.anyio
 async def test_resolve_by_default_filter(mock_client: MagicMock) -> None:
     """When the schema has a ``default_filter``, it is used as a keyword filter."""
     mock_schema = MagicMock(spec=NodeSchemaAPI)
@@ -64,7 +62,6 @@ async def test_resolve_by_default_filter(mock_client: MagicMock) -> None:
     )
 
 
-@pytest.mark.anyio
 async def test_resolve_by_hfid(mock_client: MagicMock) -> None:
     """When the schema defines ``human_friendly_id``, ``client.get(hfid=...)`` is used."""
 
@@ -88,7 +85,6 @@ async def test_resolve_by_hfid(mock_client: MagicMock) -> None:
     )
 
 
-@pytest.mark.anyio
 async def test_resolve_by_hfid_multi_component(mock_client: MagicMock) -> None:
     """Multi-component HFID strings (``a/b``) are split on ``/``."""
 
@@ -112,7 +108,6 @@ async def test_resolve_by_hfid_multi_component(mock_client: MagicMock) -> None:
     )
 
 
-@pytest.mark.anyio
 async def test_resolve_fallback_raises(mock_client: MagicMock) -> None:
     """When no lookup strategy matches, the fallback ``client.get(id=...)`` call raises."""
 
@@ -134,7 +129,6 @@ async def test_resolve_fallback_raises(mock_client: MagicMock) -> None:
     mock_client.get.assert_awaited_once_with(kind="InfraDevice", id="unknown-name", branch=None)
 
 
-@pytest.mark.anyio
 async def test_resolve_uses_provided_schema(mock_client: MagicMock) -> None:
     """When ``schema`` is provided, ``client.schema.get`` is not called."""
     pre_fetched_schema = MagicMock(spec=NodeSchemaAPI)
@@ -153,7 +147,6 @@ async def test_resolve_uses_provided_schema(mock_client: MagicMock) -> None:
     mock_client.schema.get.assert_not_awaited()
 
 
-@pytest.mark.anyio
 async def test_resolve_default_filter_miss_falls_through_to_hfid(mock_client: MagicMock) -> None:
     """When the default-filter lookup returns ``None``, the HFID strategy is tried next."""
     mock_schema = MagicMock(spec=NodeSchemaAPI)
