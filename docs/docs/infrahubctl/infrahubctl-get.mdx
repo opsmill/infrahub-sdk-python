@@ -14,7 +14,8 @@ Examples:
   infrahubctl get InfraDevice --output json
   infrahubctl get InfraDevice --output yaml > backup.yml
 
-Exit codes: 0 = results found, 80 = query succeeded but no results.
+Exit codes: 0 = results found, 1 = error (including not found in detail
+mode), 80 = list query succeeded but returned zero objects.
 
 **Usage**:
 
