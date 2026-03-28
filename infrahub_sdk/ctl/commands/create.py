@@ -34,9 +34,12 @@ async def create_command(
     JSON/YAML object file via --file. The two modes are mutually exclusive.
     """
     if set_args and file:
-        raise typer.BadParameter("--set and --file are mutually exclusive. Use one or the other.")
+        console.print("[red]Error: --set and --file are mutually exclusive.")
+        raise typer.Exit(code=1)
     if not set_args and not file:
-        raise typer.BadParameter("Provide either --set key=value pairs or --file <path>.")
+        console.print("[red]Error: provide --set key=value or --file <path>.")
+        console.print("Example: infrahubctl create MyKind --set name=foo --set status=active")
+        raise typer.Exit(code=1)
 
     client = initialize_client(branch=branch)
 

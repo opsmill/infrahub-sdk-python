@@ -41,10 +41,13 @@ async def update_command(
     Provide field values with repeatable --set flags or supply a file via --file.
     """
     if set_args and file:
-        raise typer.BadParameter("--set and --file are mutually exclusive.")
+        console.print("[red]Error: --set and --file are mutually exclusive.")
+        raise typer.Exit(code=1)
 
     if not set_args and not file:
-        raise typer.BadParameter("Provide either --set or --file to specify update data.")
+        console.print("[red]Error: provide --set key=value or --file <path>.")
+        console.print("Example: infrahubctl update MyKind my-node --set field=value")
+        raise typer.Exit(code=1)
 
     client = initialize_client(branch=branch)
 
