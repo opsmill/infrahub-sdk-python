@@ -7,61 +7,61 @@ sidebarTitle: related_node
 
 ## Classes
 
-### `RelatedNodeBase`
+### `RelatedNodeBase` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Base class for representing a related node in a relationship.
 
 **Methods:**
 
-#### `id`
+#### `id` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 id(self) -> str | None
 ```
 
-#### `hfid`
+#### `hfid` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 hfid(self) -> list[Any] | None
 ```
 
-#### `hfid_str`
+#### `hfid_str` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 hfid_str(self) -> str | None
 ```
 
-#### `is_resource_pool`
+#### `is_resource_pool` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_resource_pool(self) -> bool
 ```
 
-#### `initialized`
+#### `initialized` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 initialized(self) -> bool
 ```
 
-#### `display_label`
+#### `display_label` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 display_label(self) -> str | None
 ```
 
-#### `typename`
+#### `typename` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 typename(self) -> str | None
 ```
 
-#### `kind`
+#### `kind` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kind(self) -> str | None
 ```
 
-#### `is_from_profile`
+#### `is_from_profile` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_from_profile(self) -> bool
@@ -69,7 +69,7 @@ is_from_profile(self) -> bool
 
 Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind.
 
-#### `get_relationship_metadata`
+#### `get_relationship_metadata` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_relationship_metadata(self) -> RelationshipMetadata | None
@@ -77,49 +77,49 @@ get_relationship_metadata(self) -> RelationshipMetadata | None
 
 Returns the relationship metadata (updated_at, updated_by) if fetched.
 
-### `RelatedNode`
+### `RelatedNode` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Represents a RelatedNodeBase in an asynchronous context.
 
 **Methods:**
 
-#### `fetch`
+#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch(self, timeout: int | None = None) -> None
 ```
 
-#### `peer`
+#### `peer` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 peer(self) -> InfrahubNode
 ```
 
-#### `get`
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self) -> InfrahubNode
 ```
 
-### `RelatedNodeSync`
+### `RelatedNodeSync` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 Represents a related node in a synchronous context.
 
 **Methods:**
 
-#### `fetch`
+#### `fetch` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch(self, timeout: int | None = None) -> None
 ```
 
-#### `peer`
+#### `peer` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 peer(self) -> InfrahubNodeSync
 ```
 
-#### `get`
+#### `get` <sup><a href="https://github.com/opsmill/infrahub-sdk-python/blob/main/src/infrahub-sdk-python/infrahub_sdk/node/related_node.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(self) -> InfrahubNodeSync
