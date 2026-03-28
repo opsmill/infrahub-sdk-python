@@ -108,9 +108,13 @@ async def _update_with_set_args(
             changes.append((key, old_value, new_value))
         elif key in schema.relationship_names:
             rel = getattr(node, key)
-            old_display = getattr(rel, "display_label", getattr(rel, "id", None))
-            setattr(node, key, resolved_data[key])
-            changes.append((key, old_display, new_value))
+            old_id = getattr(rel, "id", None)
+            old_display = getattr(rel, "display_label", old_id)
+            resolved = resolved_data[key]
+            new_id = resolved.get("id") if isinstance(resolved, dict) else resolved
+            if old_id != new_id:
+                setattr(node, key, resolved)
+                changes.append((key, old_display, new_value))
 
     actual_changes = [(f, o, n) for f, o, n in changes if str(o) != str(n)]
 
