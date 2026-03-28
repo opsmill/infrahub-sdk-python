@@ -1,0 +1,34 @@
+# `infrahubctl delete`
+
+Delete an Infrahub object.
+
+Fetches the object identified by *identifier* (UUID or display name) and
+deletes it.  Unless ``--yes`` is provided, the user is prompted for
+confirmation before the deletion is executed.
+
+Args:
+    kind: Infrahub schema kind (e.g. ``InfraDevice``).
+    identifier: UUID or display name of the object to delete.
+    yes: When ``True``, skip the interactive confirmation prompt.
+    branch: Target branch name.
+    _: Configuration file path (handled by callback).
+
+**Usage**:
+
+```console
+$ infrahubctl delete [OPTIONS] KIND IDENTIFIER
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind  [required]
+* `IDENTIFIER`: Object ID or display name  [required]
+
+**Options**:
+
+* `-y, --yes`: Skip confirmation prompt
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.

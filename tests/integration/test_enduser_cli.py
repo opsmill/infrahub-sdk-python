@@ -71,10 +71,10 @@ class TestEnduserCliRead(_EnduserCliBase):
     """Read-only CLI tests: version, schema discovery, and get queries."""
 
     def test_version(self) -> None:
-        """Verify the --version flag works without a server."""
-        result = runner.invoke(app, ["--version"])
+        """Verify the version subcommand works without a server."""
+        result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "infrahub v" in result.stdout
+        assert "SDK" in result.stdout
 
     def test_schema_list(self, base_dataset: None) -> None:
         """List schema kinds and verify TestingPerson is present."""
