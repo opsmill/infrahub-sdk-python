@@ -3,6 +3,7 @@
 ## Global Options
 
 All commands accept:
+
 - `--branch TEXT` — Target Infrahub branch (default: from config)
 - `--config-file PATH` — Configuration file path (default: infrahubctl.toml)
 - `--output [table|json|csv|yaml]` — Output format (default: table if TTY, json if piped)
@@ -10,11 +11,13 @@ All commands accept:
 ## `infrahub get <kind> [identifier]`
 
 **List mode** (no identifier):
+
 - Input: kind (positional), --filter (repeatable), --limit INT, --offset INT
 - Output: Table with columns for each attribute + relationship (display names)
 - Exit 0: results found | Exit 0: no results (empty table) | Exit 1: invalid kind
 
 **Detail mode** (with identifier):
+
 - Input: kind (positional), identifier (positional — UUID or display name)
 - Output: Key-value display of all attributes, relationships, metadata
 - Exit 0: found | Exit 1: not found

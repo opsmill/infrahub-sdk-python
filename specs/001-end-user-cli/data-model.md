@@ -11,12 +11,14 @@ The CLI introduces transient structures for formatting and serialization:
 Used when serializing query results to YAML output format.
 
 **Fields**:
+
 - `apiVersion` (str): Always `"infrahub.app/v1"`
 - `kind` (str): Always `"Object"`
 - `spec.kind` (str): The Infrahub Kind being exported (e.g., `"InfraDevice"`)
 - `spec.data` (list[dict]): Array of serialized node objects
 
 Each node in `spec.data` contains:
+
 - Attribute fields as `key: value` pairs
 - Relationship fields as `key: display_name` (single) or
   `key: {data: [list]}` (many)
@@ -32,6 +34,7 @@ Parses `--set key=value` arguments into a dict suitable for SDK calls.
 **Output**: `dict[str, str | list[str]]`
 
 Validation rules:
+
 - Key MUST exist as an attribute or relationship name in the target Kind's schema
 - Value is a string; the SDK handles type coercion
 - For relationships, value is the display name or UUID of the target node
@@ -44,5 +47,6 @@ Parses `--filter key=value` arguments into kwargs for `client.filters()`.
 **Output**: `dict[str, Any]` passed as `**kwargs`
 
 Validation rules:
+
 - Key MUST follow the `attribute__value` or `relationship__id` pattern
 - Invalid keys produce a validation error with available field names
