@@ -46,6 +46,11 @@ class TestCoerceValue:
     def test_string_with_spaces(self) -> None:
         assert parse_set_args(["name=my device"])["name"] == "my device"
 
+    def test_leading_zero_stays_string(self) -> None:
+        result = parse_set_args(["code=00123"])
+        assert result["code"] == "00123"
+        assert isinstance(result["code"], str)
+
     def test_empty_string(self) -> None:
         result = parse_set_args(["name="])
         assert not result["name"]

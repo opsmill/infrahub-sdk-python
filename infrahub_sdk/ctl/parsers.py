@@ -17,15 +17,19 @@ def _coerce_value(value: str) -> Any:
     Returns:
         The coerced Python value.
     """
-    # Try integer
+    # Try integer (preserve leading zeros — "00123" stays a string)
     try:
-        return int(value)
+        int_val = int(value)
+        if str(int_val) == value:
+            return int_val
     except ValueError:
         pass
 
-    # Try float
+    # Try float (preserve leading zeros)
     try:
-        return float(value)
+        float_val = float(value)
+        if str(float_val) == value:
+            return float_val
     except ValueError:
         pass
 
