@@ -158,8 +158,8 @@ class TestCsvFormatterFormatList:
 
         rows = _parse_csv(result)
         assert rows == []
-        # With no data, empty columns are hidden by default
-        assert not result.strip()
+        # With no data rows, all column headers are still shown
+        assert "name" in result
 
 
 class TestCsvFormatterFormatDetail:

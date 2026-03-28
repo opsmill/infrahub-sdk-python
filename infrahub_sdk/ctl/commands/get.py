@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import typer  # pyright: ignore[reportMissingImports]
-from rich.console import Console  # pyright: ignore[reportMissingImports]
+import typer
+from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
 from infrahub_sdk.ctl.formatters import OutputFormat, detect_output_format, get_formatter
@@ -19,7 +19,10 @@ from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_filter_args
 from infrahub_sdk.ctl.utils import catch_exception
 
+EXIT_CODE_NO_RESULTS = 80
+
 console = Console()
+console_stderr = Console(stderr=True)
 
 
 @catch_exception(console=console)
@@ -41,6 +44,8 @@ async def get_command(
 
     By default, columns where every value is empty are hidden in table
     and CSV output. Use --all-columns to show them.
+
+    Exit codes: 0 = results found, 80 = query succeeded but no results.
     """
     client = initialize_client(branch=branch)
     schema = await client.schema.get(kind=kind, branch=branch)
@@ -51,18 +56,30 @@ async def get_command(
     if identifier is not None:
         node = await client.get(kind=kind, id=identifier)
         result = formatter.format_detail(node, schema)
-    else:
-        filters: dict[str, Any] = parse_filter_args(filter_args or [])
-        nodes = await client.filters(
-            kind=kind,
-            **filters,
-            offset=offset,
-            limit=limit,
-            prefetch_relationships=True,
-        )
-        result = formatter.format_list(nodes, schema, show_all_columns=all_columns)
+        if fmt == OutputFormat.TABLE:
+            console.print(result, highlight=False)
+        else:
+            typer.echo(result)
+        return
+
+    filters: dict[str, Any] = parse_filter_args(filter_args or [])
+    nodes = await client.filters(
+        kind=kind,
+        **filters,
+        offset=offset,
+        limit=limit,
+        prefetch_relationships=True,
+    )
+
+    count = len(nodes)
+    result = formatter.format_list(nodes, schema, show_all_columns=all_columns)
 
     if fmt == OutputFormat.TABLE:
         console.print(result, highlight=False)
+        console.print(f"\n{count} object(s) found.", style="dim")
     else:
         typer.echo(result)
+
+    if count == 0:
+        console_stderr.print(f"No objects of kind {kind} found.", style="yellow")
+        raise typer.Exit(code=EXIT_CODE_NO_RESULTS)

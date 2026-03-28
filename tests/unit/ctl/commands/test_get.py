@@ -110,4 +110,5 @@ def test_get_list_mode_with_options(extra_args: list[str]) -> None:
     ):
         result = runner.invoke(app, ["get", "InfraDevice", *extra_args])
 
-    assert result.exit_code == 0
+    # Exit 80 = query succeeded but no results (empty mock)
+    assert result.exit_code == 80

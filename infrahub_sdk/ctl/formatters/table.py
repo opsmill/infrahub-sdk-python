@@ -43,7 +43,8 @@ class TableFormatter:
         """
         all_columns = schema.attribute_names + schema.relationship_names
         rows = [extract_node_data(node, schema) for node in nodes]
-        columns = all_columns if show_all_columns else non_empty_columns(rows, all_columns)
+
+        columns = all_columns if not rows or show_all_columns else non_empty_columns(rows, all_columns)
 
         table = Table(title=schema.kind, show_lines=False)
         for col in columns:
