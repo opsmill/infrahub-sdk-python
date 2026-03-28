@@ -179,7 +179,7 @@ class TestEnduserCliWrite(_EnduserCliBase):
             app,
             ["create", "TestingPerson", "--set", "name=Integration Test Person", "--set", "height=190"],
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"create failed: {result.output}"
         assert "Created" in result.stdout
 
     async def test_create_inline_verify(self, base_dataset: None, client: InfrahubClient) -> None:
@@ -199,7 +199,7 @@ class TestEnduserCliWrite(_EnduserCliBase):
             app,
             ["update", "TestingPerson", "Sophia Walker", "--set", "height=175"],
         )
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"update failed: {result.output}"
         assert "Updated" in result.stdout
 
     async def test_update_inline_verify(self, base_dataset: None, client: InfrahubClient) -> None:

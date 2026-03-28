@@ -8,6 +8,50 @@ import typer
 from infrahub_sdk.ctl.parsers import parse_filter_args, parse_set_args, validate_set_fields
 
 
+class TestCoerceValue:
+    """Tests for type coercion via parse_set_args."""
+
+    def test_integer(self) -> None:
+        result = parse_set_args(["count=42"])
+        assert result["count"] == 42
+        assert isinstance(result["count"], int)
+
+    def test_negative_integer(self) -> None:
+        result = parse_set_args(["offset=-10"])
+        assert result["offset"] == -10
+
+    def test_float(self) -> None:
+        result = parse_set_args(["ratio=2.5"])
+        assert result["ratio"] == 2.5
+        assert isinstance(result["ratio"], float)
+
+    def test_bool_true(self) -> None:
+        assert parse_set_args(["flag=true"])["flag"] is True
+        assert parse_set_args(["flag=True"])["flag"] is True
+        assert parse_set_args(["flag=yes"])["flag"] is True
+
+    def test_bool_false(self) -> None:
+        assert parse_set_args(["flag=false"])["flag"] is False
+        assert parse_set_args(["flag=False"])["flag"] is False
+        assert parse_set_args(["flag=no"])["flag"] is False
+
+    def test_null(self) -> None:
+        assert parse_set_args(["field=null"])["field"] is None
+        assert parse_set_args(["field=none"])["field"] is None
+        assert parse_set_args(["field=None"])["field"] is None
+
+    def test_string_passthrough(self) -> None:
+        assert parse_set_args(["name=router1"])["name"] == "router1"
+
+    def test_string_with_spaces(self) -> None:
+        assert parse_set_args(["name=my device"])["name"] == "my device"
+
+    def test_empty_string(self) -> None:
+        result = parse_set_args(["name="])
+        assert not result["name"]
+        assert isinstance(result["name"], str)
+
+
 class TestParseSetArgs:
     """Tests for parse_set_args."""
 
@@ -25,6 +69,12 @@ class TestParseSetArgs:
         """Test that only the first = is used as the split point."""
         result = parse_set_args(["description=a=b=c"])
         assert result == {"description": "a=b=c"}
+
+    def test_numeric_value_coerced(self) -> None:
+        """Test that numeric string values are coerced to int/float."""
+        result = parse_set_args(["height=190"])
+        assert result == {"height": 190}
+        assert isinstance(result["height"], int)
 
     def test_empty_list(self) -> None:
         """Test parse_set_args with an empty list returns an empty dict."""

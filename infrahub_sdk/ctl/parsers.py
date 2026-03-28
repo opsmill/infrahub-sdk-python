@@ -5,22 +5,61 @@ from typing import Any
 import typer
 
 
-def parse_set_args(set_args: list[str]) -> dict[str, str]:
+def _coerce_value(value: str) -> Any:
+    """Attempt to coerce a string value to an appropriate Python type.
+
+    Tries, in order: int, float, bool (true/false), None (null/none).
+    Falls back to the original string if no conversion matches.
+
+    Args:
+        value: The raw string value from the CLI.
+
+    Returns:
+        The coerced Python value.
+    """
+    # Try integer
+    try:
+        return int(value)
+    except ValueError:
+        pass
+
+    # Try float
+    try:
+        return float(value)
+    except ValueError:
+        pass
+
+    # Try boolean
+    lower = value.lower()
+    if lower in {"true", "yes"}:
+        return True
+    if lower in {"false", "no"}:
+        return False
+
+    # Try null
+    if lower in {"null", "none"}:
+        return None
+
+    return value
+
+
+def parse_set_args(set_args: list[str]) -> dict[str, Any]:
     """Parse --set key=value arguments into a dictionary.
 
     Splits each argument on the first ``=`` sign, allowing values
-    to contain additional ``=`` characters.
+    to contain additional ``=`` characters. Values are automatically
+    coerced to int, float, bool, or None where possible.
 
     Args:
         set_args: List of "key=value" strings from the CLI.
 
     Returns:
-        Dictionary mapping field names to string values.
+        Dictionary mapping field names to coerced Python values.
 
     Raises:
         typer.BadParameter: If any argument is not in key=value format.
     """
-    result: dict[str, str] = {}
+    result: dict[str, Any] = {}
     for arg in set_args:
         if "=" not in arg:
             raise typer.BadParameter(f"Invalid format '{arg}'. Expected key=value.")
@@ -28,7 +67,7 @@ def parse_set_args(set_args: list[str]) -> dict[str, str]:
         key = key.strip()
         if not key:
             raise typer.BadParameter(f"Invalid format '{arg}'. Key must not be empty.")
-        result[key] = value
+        result[key] = _coerce_value(value)
     return result
 
 
@@ -62,7 +101,7 @@ def parse_filter_args(filter_args: list[str]) -> dict[str, Any]:
 
 
 def validate_set_fields(
-    data: dict[str, str],
+    data: dict[str, Any],
     attribute_names: list[str],
     relationship_names: list[str],
 ) -> None:
