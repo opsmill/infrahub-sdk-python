@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import yaml  # pyright: ignore[reportMissingModuleSource]
 
@@ -204,3 +204,139 @@ class TestYamlFormatterFormatDetail:
 
         parsed = yaml.safe_load(result)
         assert parsed["spec"]["data"][0]["site"] == "DC1"
+
+
+class TestYamlFormatterEdgeCases:
+    """Edge case tests targeting uncovered branches in YamlFormatter._node_to_data_entry."""
+
+    def test_attr_detail_not_dict_uses_raw_value(self) -> None:
+        """Test that a non-dict attr_detail is used as the raw entry value.
+
+        Covers the ``else`` branch in _node_to_data_entry for attributes when
+        detail.get(attr_name) returns something that is not a dict.
+        """
+        schema = _make_mock_schema(["name"], [])
+        node = _make_mock_node({"name": "router1"}, {})
+        formatter = YamlFormatter()
+
+        fake_detail = {
+            "id": "test-id",
+            "display_label": "Test",
+            "kind": "TestKind",
+            "name": "raw-string-value",  # not a dict
+        }
+        with patch(
+            "infrahub_sdk.ctl.formatters.yaml.extract_node_detail",
+            return_value=fake_detail,
+        ):
+            result = formatter.format_detail(node, schema)
+
+        parsed = yaml.safe_load(result)
+        assert parsed["spec"]["data"][0]["name"] == "raw-string-value"
+
+    def test_rel_detail_not_dict_uses_raw_value(self) -> None:
+        """Test that a non-dict rel_detail is used as the raw entry value.
+
+        Covers the ``not isinstance(rel_detail, dict)`` branch for relationships.
+        """
+        schema = _make_mock_schema([], ["site"])
+        node = _make_mock_node({}, {"site": "DC1"})
+        formatter = YamlFormatter()
+
+        fake_detail = {
+            "id": "test-id",
+            "display_label": "Test",
+            "kind": "TestKind",
+            "site": "non-dict-rel-value",  # not a dict
+        }
+        with patch(
+            "infrahub_sdk.ctl.formatters.yaml.extract_node_detail",
+            return_value=fake_detail,
+        ):
+            result = formatter.format_detail(node, schema)
+
+        parsed = yaml.safe_load(result)
+        assert parsed["spec"]["data"][0]["site"] == "non-dict-rel-value"
+
+    def test_rel_cardinality_one_with_empty_display_label(self) -> None:
+        """Test cardinality-one relationship with an empty display_label.
+
+        Covers the ``cardinality == "one"`` branch where display_label is "".
+        """
+        schema = _make_mock_schema([], ["site"])
+        node = _make_mock_node({}, {})
+        # Attach a relationship with empty display_label using configure_mock
+        # to avoid setattr with a constant string literal.
+        rel = MagicMock()
+        rel.display_label = ""
+        rel.id = "site-id"
+        node.configure_mock(site=rel)
+        formatter = YamlFormatter()
+
+        result = formatter.format_detail(node, schema)
+
+        parsed = yaml.safe_load(result)
+        assert not parsed["spec"]["data"][0]["site"]
+
+    def test_rel_cardinality_many_with_empty_peers(self) -> None:
+        """Test cardinality-many relationship with an empty peers list.
+
+        Covers the ``peers`` empty branch producing ``{"data": []}``.
+        """
+        schema = MagicMock()
+        schema.kind = "TestKind"
+        schema.attribute_names = []
+        schema.relationship_names = ["tags"]
+
+        def get_rel_side_effect(name: str) -> MagicMock:
+            rel = MagicMock()
+            rel.cardinality = "many"
+            return rel
+
+        schema.get_relationship = MagicMock(side_effect=get_rel_side_effect)
+
+        node = MagicMock()
+        node.id = "test-id"
+        node.display_label = "Test"
+        rel_manager = MagicMock()
+        rel_manager.peers = []
+        node.configure_mock(tags=rel_manager)
+
+        formatter = YamlFormatter()
+        result = formatter.format_detail(node, schema)
+
+        parsed = yaml.safe_load(result)
+        assert parsed["spec"]["data"][0]["tags"] == {"data": []}
+
+    def test_rel_cardinality_many_with_peers(self) -> None:
+        """Test cardinality-many relationship with populated peers.
+
+        Covers the ``peers`` non-empty branch producing ``{"data": [...]}``.
+        """
+        schema = MagicMock()
+        schema.kind = "TestKind"
+        schema.attribute_names = []
+        schema.relationship_names = ["tags"]
+
+        def get_rel_side_effect(name: str) -> MagicMock:
+            rel = MagicMock()
+            rel.cardinality = "many"
+            return rel
+
+        schema.get_relationship = MagicMock(side_effect=get_rel_side_effect)
+
+        node = MagicMock()
+        node.id = "test-id"
+        node.display_label = "Test"
+        rel_manager = MagicMock()
+        rel_manager.peers = [
+            MagicMock(display_label="peer1", id="id1"),
+            MagicMock(display_label="peer2", id="id2"),
+        ]
+        node.configure_mock(tags=rel_manager)
+
+        formatter = YamlFormatter()
+        result = formatter.format_detail(node, schema)
+
+        parsed = yaml.safe_load(result)
+        assert parsed["spec"]["data"][0]["tags"] == {"data": ["peer1", "peer2"]}
