@@ -1,12 +1,15 @@
-"""YAML formatter for InfrahubNode query results in Infrahub object format."""
+"""YAML formatter for InfrahubNode query results in Infrahub object format.
+
+Produces YAML that is round-trippable with ``infrahubctl object load``.
+Empty/null attribute values and unset relationships are omitted so the
+output can be loaded back without validation errors.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import yaml
-
-from .base import extract_node_detail
+import yaml  # type: ignore[import-untyped]
 
 if TYPE_CHECKING:
     from ...node import InfrahubNode
@@ -37,34 +40,12 @@ class YamlFormatter:
         schema: MainSchemaTypesAPI,
         show_all_columns: bool = False,  # noqa: ARG002
     ) -> str:
-        """Format a list of nodes as an Infrahub YAML object document.
-
-        Each node becomes an entry in the spec.data array with its
-        attribute and relationship values.
-
-        Args:
-            nodes: List of InfrahubNode objects to format.
-            schema: Schema definition for the node kind.
-            show_all_columns: Accepted for interface compatibility; not used for YAML.
-
-        Returns:
-            YAML string in Infrahub object format.
-        """
+        """Format a list of nodes as an Infrahub YAML object document."""
         data_items = [self._node_to_data_entry(node, schema) for node in nodes]
         return self._build_document(schema.kind, data_items)
 
     def format_detail(self, node: InfrahubNode, schema: MainSchemaTypesAPI) -> str:
-        """Format a single node as an Infrahub YAML object document.
-
-        The spec.data array contains a single entry for the node.
-
-        Args:
-            node: The InfrahubNode to format.
-            schema: Schema definition for the node kind.
-
-        Returns:
-            YAML string in Infrahub object format.
-        """
+        """Format a single node as an Infrahub YAML object document."""
         data_entry = self._node_to_data_entry(node, schema)
         return self._build_document(schema.kind, [data_entry])
 
@@ -73,55 +54,46 @@ class YamlFormatter:
         node: InfrahubNode,
         schema: MainSchemaTypesAPI,
     ) -> dict[str, Any]:
-        """Convert a single node into a data entry dict for YAML output.
+        """Convert a node into a dict compatible with ObjectFile spec format.
 
-        Args:
-            node: The InfrahubNode to convert.
-            schema: Schema definition for the node kind.
-
-        Returns:
-            Dict suitable for inclusion in the spec.data array.
+        Omits empty/null attribute values and unset relationships so the
+        output can be loaded back via ``infrahubctl object load`` without
+        validation errors.
         """
-        detail = extract_node_detail(node, schema)
         entry: dict[str, Any] = {}
 
-        # Attributes: extract plain values
+        # Attributes: only include non-empty values
         for attr_name in schema.attribute_names:
-            attr_detail = detail.get(attr_name, {})
-            if isinstance(attr_detail, dict):
-                entry[attr_name] = attr_detail.get("value", "")
-            else:
-                entry[attr_name] = attr_detail
+            attr = getattr(node, attr_name, None)
+            if attr is None:
+                continue
+            value = attr.value
+            if not value and value != 0 and value is not False:
+                continue
+            entry[attr_name] = value
 
-        # Relationships: format depends on cardinality
+        # Relationships: skip unset, use HFID when available
         for rel_name in schema.relationship_names:
-            rel_detail = detail.get(rel_name, {})
-            if not isinstance(rel_detail, dict):
-                entry[rel_name] = rel_detail
+            rel_schema = schema.get_relationship(rel_name)
+            rel = getattr(node, rel_name, None)
+            if rel is None:
                 continue
 
-            if rel_detail.get("cardinality") == "one":
-                entry[rel_name] = rel_detail.get("display_label", "")
+            if rel_schema.cardinality == "one":
+                ref = _related_node_ref(rel)
+                if ref is not None:
+                    entry[rel_name] = ref
             else:
-                peers = rel_detail.get("peers", [])
-                if peers:
-                    entry[rel_name] = {"data": [p.get("display_label", "") for p in peers]}
-                else:
-                    entry[rel_name] = {"data": []}
+                peers = getattr(rel, "peers", None) or []
+                refs = [r for p in peers if (r := _related_node_ref(p)) is not None]
+                if refs:
+                    entry[rel_name] = {"data": refs}
 
         return entry
 
     @staticmethod
     def _build_document(kind: str, data: list[dict[str, Any]]) -> str:
-        """Build the full Infrahub YAML document structure.
-
-        Args:
-            kind: The schema kind string (e.g. "InfraDevice").
-            data: List of data entry dicts for the spec.data array.
-
-        Returns:
-            Complete YAML document string with leading '---' separator.
-        """
+        """Build the full Infrahub YAML document structure."""
         document = {
             "apiVersion": _INFRAHUB_API_VERSION,
             "kind": _INFRAHUB_KIND,
@@ -136,3 +108,23 @@ class YamlFormatter:
             sort_keys=False,
             allow_unicode=True,
         )
+
+
+def _related_node_ref(rel: Any) -> str | list[str] | None:
+    """Build a reference value for a related node suitable for ObjectFile.
+
+    Uses the HFID if available. For single-component HFIDs, returns a
+    plain string. For multi-component HFIDs, returns a list. Falls back
+    to display_label.
+
+    Args:
+        rel: A RelatedNode object.
+
+    Returns:
+        A string, list of strings, or None if the relationship is unset.
+    """
+    hfid = getattr(rel, "hfid", None)
+    if hfid:
+        return hfid[0] if len(hfid) == 1 else list(hfid)
+    label = getattr(rel, "display_label", None)
+    return label or None
