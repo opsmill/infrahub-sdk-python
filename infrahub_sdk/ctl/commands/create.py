@@ -6,13 +6,14 @@ arguments or from a JSON/YAML object file specified via ``--file``.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
-import typer
-from rich.console import Console
+import typer  # pyright: ignore[reportMissingImports]
+from rich.console import Console  # pyright: ignore[reportMissingImports]
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_relationship_values
+from infrahub_sdk.ctl.commands.utils import resolve_node, resolve_relationship_values
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -56,7 +57,19 @@ async def create_command(
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
         data = await resolve_relationship_values(client, data, schema, branch=branch)
+
+        # Check if node already exists to distinguish create from upsert
+        existing = None
+        name_value = data.get("name")
+        if name_value is not None:
+            with contextlib.suppress(Exception):
+                existing = await resolve_node(client, kind, str(name_value), schema=schema, branch=branch)
+
         node = await client.create(kind=kind, data=data, branch=branch)
         await node.save(allow_upsert=True)
-        label = node.display_label or data.get("name") or node.id
-        console.print(f"[green]Created {kind} '{label}' (id: {node.id})")
+        label = node.display_label or name_value or node.id
+
+        if existing:
+            console.print(f"[yellow]Updated {kind} '{label}' (id: {node.id}) — already existed")
+        else:
+            console.print(f"[green]Created {kind} '{label}' (id: {node.id})")
