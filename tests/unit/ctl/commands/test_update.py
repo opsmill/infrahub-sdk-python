@@ -258,6 +258,48 @@ def test_update_with_set_args_relationship() -> None:
     mock_node.save.assert_awaited_once()
 
 
+def test_update_with_set_args_relationship_noop() -> None:
+    """``update`` with a relationship --set that resolves to the same target is a no-op."""
+    mock_schema = MagicMock()
+    mock_schema.attribute_names = []
+    mock_schema.relationship_names = ["site"]
+
+    mock_rel = MagicMock()
+    mock_rel.id = "same-site-id"
+    mock_rel.display_label = "same-site"
+
+    mock_node = MagicMock()
+    mock_node.id = "node-noop-001"
+    mock_node.display_label = "device-noop"
+    mock_node.site = mock_rel
+    mock_node.save = AsyncMock()
+
+    mock_client = MagicMock()
+    mock_client.schema = MagicMock()
+    mock_client.schema.get = AsyncMock(return_value=mock_schema)
+
+    async def resolve_to_same(client: object, data: object, schema: object, **kwargs: object) -> dict:
+        return {"site": {"id": "same-site-id"}}
+
+    with (
+        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_relationship_values",
+            side_effect=resolve_to_same,
+        ),
+    ):
+        result = runner.invoke(app, ["update", "InfraDevice", "node-noop-001", "--set", "site=same-site"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "No changes" in result.stdout
+    mock_node.save.assert_not_awaited()
+
+
 @pytest.mark.parametrize("bad_arg", ["noequals", "=emptykey"])
 def test_update_malformed_set_arg(bad_arg: str) -> None:
     """Malformed --set arguments (no ``=`` or empty key) exit with a non-zero code."""
