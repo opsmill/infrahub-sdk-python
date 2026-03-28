@@ -1,9 +1,9 @@
-# Feature Specification: End-User CLI (`infrahub` command)
+# Feature Specification: End-User CLI (`infrahubctl` CRUD commands)
 
 **Feature Branch**: `001-end-user-cli`
 **Created**: 2026-03-28
 **Status**: Draft
-**Input**: User description: "Create an `infrahub` CLI command for end users to query, create, and modify data in the Infrahub database, distinct from the developer-oriented `infrahubctl`."
+**Input**: User description: "Add CRUD and schema discovery commands to `infrahubctl` for end users to query, create, and modify data in the Infrahub database."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -17,13 +17,13 @@ An end user wants to retrieve data from Infrahub to answer operational questions
 
 **Acceptance Scenarios**:
 
-1. **Given** a running Infrahub instance with data, **When** the user runs `infrahub get <kind>`, **Then** a formatted table of all objects of that kind is displayed with attribute columns and relationship columns (showing display names).
-2. **Given** a running Infrahub instance, **When** the user runs `infrahub get <kind> --filter name__value="spine01"`, **Then** only objects matching the filter are returned.
-3. **Given** a running Infrahub instance, **When** the user runs `infrahub get <kind> --output json`, **Then** the results are printed as valid JSON to stdout.
-4. **Given** a running Infrahub instance, **When** the user runs `infrahub get <kind> --output yaml`, **Then** the results are printed in Infrahub Object YAML format (with `apiVersion: infrahub.app/v1`, `kind: Object`, `spec.kind`, and `spec.data` array), suitable for round-tripping back into `infrahub create --file`.
-5. **Given** an Infrahub instance, **When** the user runs `infrahub get <kind> --branch develop`, **Then** data from the specified branch is returned.
-6. **Given** an invalid kind name, **When** the user runs `infrahub get UnknownKind`, **Then** a clear error message is displayed listing available kinds or suggesting corrections.
-7. **Given** an existing object, **When** the user runs `infrahub get <kind> <identifier>`, **Then** a detailed view is displayed showing all attributes, relationships, and metadata for that single object.
+1. **Given** a running Infrahub instance with data, **When** the user runs `infrahubctl get <kind>`, **Then** a formatted table of all objects of that kind is displayed with attribute columns and relationship columns (showing display names).
+2. **Given** a running Infrahub instance, **When** the user runs `infrahubctl get <kind> --filter name__value="spine01"`, **Then** only objects matching the filter are returned.
+3. **Given** a running Infrahub instance, **When** the user runs `infrahubctl get <kind> --output json`, **Then** the results are printed as valid JSON to stdout.
+4. **Given** a running Infrahub instance, **When** the user runs `infrahubctl get <kind> --output yaml`, **Then** the results are printed in Infrahub Object YAML format (with `apiVersion: infrahub.app/v1`, `kind: Object`, `spec.kind`, and `spec.data` array), suitable for round-tripping back into `infrahubctl create --file`.
+5. **Given** an Infrahub instance, **When** the user runs `infrahubctl get <kind> --branch develop`, **Then** data from the specified branch is returned.
+6. **Given** an invalid kind name, **When** the user runs `infrahubctl get UnknownKind`, **Then** a clear error message is displayed listing available kinds or suggesting corrections.
+7. **Given** an existing object, **When** the user runs `infrahubctl get <kind> <identifier>`, **Then** a detailed view is displayed showing all attributes, relationships, and metadata for that single object.
 
 ---
 
@@ -37,9 +37,9 @@ An end user needs to add new infrastructure data to Infrahub. They run a command
 
 **Acceptance Scenarios**:
 
-1. **Given** a running Infrahub instance, **When** the user runs `infrahub create <kind> --set name="spine03" --set description="New spine switch"`, **Then** the object is created and a confirmation with the object ID is displayed.
-2. **Given** a YAML file with object definitions, **When** the user runs `infrahub create <kind> --file objects.yaml`, **Then** all objects in the file are created and a summary of results (created count, errors) is displayed.
-3. **Given** invalid attribute or relationship names, **When** the user runs `infrahub create <kind> --set invalid_field="value"`, **Then** a clear validation error is displayed indicating which fields are invalid and what the valid attributes and relationships are.
+1. **Given** a running Infrahub instance, **When** the user runs `infrahubctl create <kind> --set name="spine03" --set description="New spine switch"`, **Then** the object is created and a confirmation with the object ID is displayed.
+2. **Given** a YAML file with object definitions, **When** the user runs `infrahubctl create <kind> --file objects.yaml`, **Then** all objects in the file are created and a summary of results (created count, errors) is displayed.
+3. **Given** invalid attribute or relationship names, **When** the user runs `infrahubctl create <kind> --set invalid_field="value"`, **Then** a clear validation error is displayed indicating which fields are invalid and what the valid attributes and relationships are.
 
 ---
 
@@ -53,9 +53,9 @@ An end user needs to update attributes on existing infrastructure objects. They 
 
 **Acceptance Scenarios**:
 
-1. **Given** an existing object, **When** the user runs `infrahub update <kind> <identifier> --set description="Updated description"`, **Then** the object is updated and a confirmation is displayed showing old and new values.
-2. **Given** an existing object, **When** the user runs `infrahub update <kind> <identifier> --file updates.yaml`, **Then** the object is updated from the file contents.
-3. **Given** a non-existent object identifier, **When** the user runs `infrahub update <kind> nonexistent`, **Then** a clear error message indicates the object was not found.
+1. **Given** an existing object, **When** the user runs `infrahubctl update <kind> <identifier> --set description="Updated description"`, **Then** the object is updated and a confirmation is displayed showing old and new values.
+2. **Given** an existing object, **When** the user runs `infrahubctl update <kind> <identifier> --file updates.yaml`, **Then** the object is updated from the file contents.
+3. **Given** a non-existent object identifier, **When** the user runs `infrahubctl update <kind> nonexistent`, **Then** a clear error message indicates the object was not found.
 
 ---
 
@@ -69,8 +69,8 @@ An end user needs to remove obsolete infrastructure data from Infrahub. They spe
 
 **Acceptance Scenarios**:
 
-1. **Given** an existing object, **When** the user runs `infrahub delete <kind> <identifier>`, **Then** a confirmation prompt is shown, and upon confirmation the object is deleted with a success message.
-2. **Given** an existing object, **When** the user runs `infrahub delete <kind> <identifier> --yes`, **Then** the object is deleted without a confirmation prompt.
+1. **Given** an existing object, **When** the user runs `infrahubctl delete <kind> <identifier>`, **Then** a confirmation prompt is shown, and upon confirmation the object is deleted with a success message.
+2. **Given** an existing object, **When** the user runs `infrahubctl delete <kind> <identifier> --yes`, **Then** the object is deleted without a confirmation prompt.
 3. **Given** an object with dependencies, **When** the user attempts to delete it, **Then** a clear error message explains what depends on it and how to resolve the conflict.
 
 ---
@@ -85,9 +85,9 @@ An end user unfamiliar with the data model wants to explore what kinds of object
 
 **Acceptance Scenarios**:
 
-1. **Given** a running Infrahub instance, **When** the user runs `infrahub schema list`, **Then** a table of all available kinds is displayed with their namespace, name, and description.
-2. **Given** a valid kind name, **When** the user runs `infrahub schema show <kind>`, **Then** the kind's attributes, relationships, and constraints are displayed in a readable format.
-3. **Given** a partial kind name, **When** the user runs `infrahub schema list --filter "Network"`, **Then** only kinds matching the filter are shown.
+1. **Given** a running Infrahub instance, **When** the user runs `infrahubctl schema list`, **Then** a table of all available kinds is displayed with their namespace, name, and description.
+2. **Given** a valid kind name, **When** the user runs `infrahubctl schema show <kind>`, **Then** the kind's attributes, relationships, and constraints are displayed in a readable format.
+3. **Given** a partial kind name, **When** the user runs `infrahubctl schema list --filter "Network"`, **Then** only kinds matching the filter are shown.
 
 ---
 
@@ -104,21 +104,21 @@ An end user unfamiliar with the data model wants to explore what kinds of object
 ### Session 2026-03-28
 
 - Q: How should users specify relationships in create/update commands? → A: Unified `--set` flag for both attributes and relationships (e.g., `--set name="x" --set site="my-site"`).
-- Q: Should there be a single-object detail view? → A: `infrahub get <kind> <identifier>` shows a detail view with all attributes, relationships, and metadata.
+- Q: Should there be a single-object detail view? → A: `infrahubctl get <kind> <identifier>` shows a detail view with all attributes, relationships, and metadata.
 - Q: How should relationships appear in list/table output? → A: Show as columns with their display name (e.g., site column shows "my-site"). Full relationship detail in detail view only.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide an `infrahub` CLI entry point, separate from `infrahubctl`.
-- **FR-002**: The system MUST support querying objects by kind with `infrahub get <kind>` (list view) and `infrahub get <kind> <identifier>` (detail view showing all attributes, relationships, and metadata).
+- **FR-001**: The system MUST provide CRUD and schema discovery commands within `infrahubctl`.
+- **FR-002**: The system MUST support querying objects by kind with `infrahubctl get <kind>` (list view) and `infrahubctl get <kind> <identifier>` (detail view showing all attributes, relationships, and metadata).
 - **FR-003**: The system MUST support filtering query results by attribute values.
-- **FR-004**: The system MUST support multiple output formats: human-readable table (default), JSON, CSV, and Infrahub Object YAML (`--output yaml`). The YAML format MUST use the Infrahub spec object structure (`apiVersion: infrahub.app/v1`, `kind: Object`, with `spec.kind` and `spec.data` fields), matching the format used by `infrahub create --file`.
-- **FR-005**: The system MUST support creating objects with `infrahub create <kind>` using inline `--set` flags (for both attributes and relationships) or file input.
-- **FR-006**: The system MUST support updating objects with `infrahub update <kind> <identifier>` using inline `--set` flags (for both attributes and relationships) or file input.
-- **FR-007**: The system MUST support deleting objects with `infrahub delete <kind> <identifier>` with confirmation.
-- **FR-008**: The system MUST support schema discovery with `infrahub schema list` and `infrahub schema show <kind>`.
+- **FR-004**: The system MUST support multiple output formats: human-readable table (default), JSON, CSV, and Infrahub Object YAML (`--output yaml`). The YAML format MUST use the Infrahub spec object structure (`apiVersion: infrahub.app/v1`, `kind: Object`, with `spec.kind` and `spec.data` fields), matching the format used by `infrahubctl create --file`.
+- **FR-005**: The system MUST support creating objects with `infrahubctl create <kind>` using inline `--set` flags (for both attributes and relationships) or file input.
+- **FR-006**: The system MUST support updating objects with `infrahubctl update <kind> <identifier>` using inline `--set` flags (for both attributes and relationships) or file input.
+- **FR-007**: The system MUST support deleting objects with `infrahubctl delete <kind> <identifier>` with confirmation.
+- **FR-008**: The system MUST support schema discovery with `infrahubctl schema list` and `infrahubctl schema show <kind>`.
 - **FR-009**: The system MUST support specifying a target branch for all operations via `--branch`.
 - **FR-010**: The system MUST reuse the existing SDK configuration mechanism (server address, API token) from `infrahubctl.toml` or environment variables.
 - **FR-011**: The system MUST display clear, actionable error messages for all failure modes (connection, authentication, validation, not found).
