@@ -14,6 +14,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.commands.utils import resolve_node
 from infrahub_sdk.ctl.formatters import OutputFormat, detect_output_format, get_formatter
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_filter_args
@@ -54,7 +55,7 @@ async def get_command(
     formatter = get_formatter(fmt)
 
     if identifier is not None:
-        node = await client.get(kind=kind, id=identifier)
+        node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
         result = formatter.format_detail(node, schema)
         if fmt == OutputFormat.TABLE:
             console.print(result, highlight=False)

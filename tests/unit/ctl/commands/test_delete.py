@@ -26,14 +26,15 @@ def test_delete_with_yes() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(app, ["delete", "InfraDevice", "node-del-001", "--yes"])
 
     assert result.exit_code == 0, result.stdout
     assert "Deleted" in result.stdout
-    mock_client.get.assert_awaited_once_with(kind="InfraDevice", id="node-del-001")
     mock_node.delete.assert_awaited_once()
 
 
@@ -45,9 +46,11 @@ def test_delete_with_yes_short_flag() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(app, ["delete", "InfraDevice", "node-del-002", "-y"])
 
     assert result.exit_code == 0, result.stdout
@@ -62,9 +65,11 @@ def test_delete_with_branch() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client) as mock_init:
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client) as mock_init,
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(
             app,
             ["delete", "InfraDevice", "node-br-del", "--yes", "--branch", "my-branch"],
@@ -83,9 +88,11 @@ def test_delete_confirmation_abort() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(app, ["delete", "InfraDevice", "node-abort"], input="n\n")
 
     assert result.exit_code != 0
@@ -100,9 +107,11 @@ def test_delete_confirmation_yes_input() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(app, ["delete", "InfraDevice", "node-confirm"], input="y\n")
 
     assert result.exit_code == 0, result.stdout
@@ -118,9 +127,11 @@ def test_delete_output_contains_id_and_label() -> None:
     mock_node.delete = AsyncMock()
 
     mock_client = MagicMock()
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+    ):
         result = runner.invoke(app, ["delete", "InfraDevice", "unique-id-xyz", "--yes"])
 
     assert result.exit_code == 0, result.stdout

@@ -57,18 +57,22 @@ def test_update_with_set_args() -> None:
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-    mock_client.get = AsyncMock(return_value=mock_node)
 
     with (
         patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
         patch("infrahub_sdk.ctl.commands.update.getattr", side_effect=getattr_side_effect, create=True),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ) as mock_resolve,
     ):
         result = runner.invoke(app, ["update", "InfraDevice", "abc-123", "--set", "name=router1"])
 
     assert result.exit_code == 0, result.stdout
     assert "Updated" in result.stdout
     mock_client.schema.get.assert_awaited_once_with(kind="InfraDevice", branch=None)
-    mock_client.get.assert_awaited_once_with(kind="InfraDevice", id="abc-123")
+    mock_resolve.assert_awaited_once_with(mock_client, "InfraDevice", "abc-123", schema=mock_schema, branch=None)
     mock_node.save.assert_awaited_once()
 
 
@@ -92,9 +96,15 @@ def test_update_with_set_args_attribute_applied() -> None:
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ),
+    ):
         result = runner.invoke(app, ["update", "InfraDevice", "node-001", "--set", "description=new description"])
 
     assert result.exit_code == 0, result.stdout
@@ -103,7 +113,7 @@ def test_update_with_set_args_attribute_applied() -> None:
 
 
 def test_update_with_set_args_and_branch() -> None:
-    """``update`` forwards --branch to schema and get calls."""
+    """``update`` forwards --branch to schema and resolve_node calls."""
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name"]
     mock_schema.relationship_names = []
@@ -119,9 +129,15 @@ def test_update_with_set_args_and_branch() -> None:
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ) as mock_resolve,
+    ):
         result = runner.invoke(
             app,
             ["update", "InfraDevice", "node-br", "--set", "name=newname", "--branch", "feature-x"],
@@ -129,7 +145,7 @@ def test_update_with_set_args_and_branch() -> None:
 
     assert result.exit_code == 0, result.stdout
     mock_client.schema.get.assert_awaited_once_with(kind="InfraDevice", branch="feature-x")
-    mock_client.get.assert_awaited_once_with(kind="InfraDevice", id="node-br")
+    mock_resolve.assert_awaited_once_with(mock_client, "InfraDevice", "node-br", schema=mock_schema, branch="feature-x")
 
 
 def test_update_invalid_field() -> None:
@@ -142,7 +158,10 @@ def test_update_invalid_field() -> None:
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
-    with patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.commands.update.resolve_node", new_callable=AsyncMock),
+    ):
         result = runner.invoke(app, ["update", "InfraDevice", "abc-123", "--set", "unknown_field=value"])
 
     assert result.exit_code != 0
@@ -216,9 +235,15 @@ def test_update_with_set_args_relationship() -> None:
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-    mock_client.get = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.update.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ),
+    ):
         result = runner.invoke(app, ["update", "InfraDevice", "node-rel-001", "--set", "site=new-site-id"])
 
     assert result.exit_code == 0, result.stdout

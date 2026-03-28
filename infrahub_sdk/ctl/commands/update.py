@@ -13,6 +13,7 @@ import typer  # pyright: ignore[reportMissingImports]
 from rich.console import Console  # pyright: ignore[reportMissingImports]
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.commands.utils import resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -86,7 +87,7 @@ async def _update_with_set_args(
     schema = await client.schema.get(kind=kind, branch=branch)
     validate_set_fields(data, schema.attribute_names, schema.relationship_names)
 
-    node = await client.get(kind=kind, id=identifier)
+    node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 
     changes: list[tuple[str, object, str]] = []
     for key, new_value in data.items():

@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.commands.utils import resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.utils import catch_exception
 
@@ -29,7 +30,7 @@ async def delete_command(
     Unless --yes is provided, a confirmation prompt is shown first.
     """
     client = initialize_client(branch=branch)
-    node = await client.get(kind=kind, id=identifier)
+    node = await resolve_node(client, kind, identifier, branch=branch)
 
     if not yes:
         typer.confirm(f"Delete {kind} '{node.display_label}'?", abort=True)

@@ -51,7 +51,7 @@ def test_get_list_mode() -> None:
 
 
 def test_get_detail_mode() -> None:
-    """Detail mode calls ``client.get`` when an identifier is supplied."""
+    """Detail mode calls ``resolve_node`` when an identifier is supplied."""
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name"]
     mock_schema.relationship_names = []
@@ -63,7 +63,6 @@ def test_get_detail_mode() -> None:
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-    mock_client.get = AsyncMock(return_value=mock_node)
 
     mock_formatter = MagicMock()
     mock_formatter.format_detail.return_value = '{"id": "abc-123"}'
@@ -72,11 +71,16 @@ def test_get_detail_mode() -> None:
         patch("infrahub_sdk.ctl.commands.get.initialize_client", return_value=mock_client),
         patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
         patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
+        patch(
+            "infrahub_sdk.ctl.commands.get.resolve_node",
+            new_callable=AsyncMock,
+            return_value=mock_node,
+        ) as mock_resolve,
     ):
         result = runner.invoke(app, ["get", "InfraDevice", "abc-123"])
 
     assert result.exit_code == 0
-    mock_client.get.assert_awaited_once_with(kind="InfraDevice", id="abc-123")
+    mock_resolve.assert_awaited_once_with(mock_client, "InfraDevice", "abc-123", schema=mock_schema, branch=None)
     mock_formatter.format_detail.assert_called_once_with(mock_node, mock_schema)
 
 
