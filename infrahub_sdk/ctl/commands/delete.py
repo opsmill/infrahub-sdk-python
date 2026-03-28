@@ -28,6 +28,11 @@ async def delete_command(
 
     Fetches the object by KIND and IDENTIFIER, then deletes it.
     Unless --yes is provided, a confirmation prompt is shown first.
+
+    \b
+    Examples:
+      infrahubctl delete InfraDevice spine01
+      infrahubctl delete InfraDevice spine01 --yes
     """
     client = initialize_client(branch=branch)
     node = await resolve_node(client, kind, identifier, branch=branch)

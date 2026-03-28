@@ -69,6 +69,11 @@ List all available schema kinds.
 Displays a table of all node schema entries. Use --filter to narrow
 results by a case-insensitive match on the kind name.
 
+
+Examples:
+  infrahubctl schema list
+  infrahubctl schema list --filter Device
+
 **Usage**:
 
 ```console
@@ -110,6 +115,10 @@ Show details for a specific schema kind.
 
 Displays metadata, attributes, and relationships for the requested
 schema kind in a human-readable format.
+
+
+Examples:
+  infrahubctl schema show InfraDevice
 
 **Usage**:
 

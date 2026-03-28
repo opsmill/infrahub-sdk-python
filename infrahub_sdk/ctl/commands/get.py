@@ -40,11 +40,17 @@ async def get_command(
 ) -> None:
     """Query and display Infrahub objects.
 
-    When IDENTIFIER is omitted, lists all objects of the given KIND.
-    When IDENTIFIER is provided, displays a single object in detail view.
+    When IDENTIFIER is omitted the command lists all objects of the given
+    KIND. When IDENTIFIER is provided it displays a single object in
+    detail view. Empty columns are hidden by default (use --all-columns).
 
-    By default, columns where every value is empty are hidden in table
-    and CSV output. Use --all-columns to show them.
+    \b
+    Examples:
+      infrahubctl get InfraDevice
+      infrahubctl get InfraDevice spine01
+      infrahubctl get InfraDevice --filter name__value=spine01
+      infrahubctl get InfraDevice --output json
+      infrahubctl get InfraDevice --output yaml > backup.yml
 
     Exit codes: 0 = results found, 80 = query succeeded but no results.
     """

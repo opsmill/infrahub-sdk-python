@@ -34,6 +34,12 @@ async def create_command(
 
     Provide field values with repeatable --set flags or supply a
     JSON/YAML object file via --file. The two modes are mutually exclusive.
+
+    \b
+    Examples:
+      infrahubctl create InfraDevice --set name=spine01 --set status=active
+      infrahubctl create InfraDevice --set name=spine01 --set location=DC1
+      infrahubctl create InfraDevice --file devices.yml
     """
     if set_args and file:
         console.print("[red]Error: --set and --file are mutually exclusive.")

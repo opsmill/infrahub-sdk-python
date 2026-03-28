@@ -36,9 +36,14 @@ async def update_command(
 ) -> None:
     """Update an existing object in Infrahub.
 
-    Fetches the object identified by KIND and IDENTIFIER, applies the
-    requested changes, and saves the updated object back to the server.
-    Provide field values with repeatable --set flags or supply a file via --file.
+    Fetches the object by KIND and IDENTIFIER, applies the requested
+    changes, and saves back to the server. Use --set or --file.
+
+    \b
+    Examples:
+      infrahubctl update InfraDevice spine01 --set status=active
+      infrahubctl update InfraDevice spine01 --set location=DC1
+      infrahubctl update InfraDevice spine01 --file updates.yml
     """
     if set_args and file:
         console.print("[red]Error: --set and --file are mutually exclusive.")

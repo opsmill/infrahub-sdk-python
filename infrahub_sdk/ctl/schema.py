@@ -272,6 +272,11 @@ async def schema_list(
 
     Displays a table of all node schema entries. Use --filter to narrow
     results by a case-insensitive match on the kind name.
+
+    \b
+    Examples:
+      infrahubctl schema list
+      infrahubctl schema list --filter Device
     """
     client = initialize_client(branch=branch)
     schemas = await client.schema.all(branch=branch)
@@ -311,6 +316,10 @@ async def schema_show(
 
     Displays metadata, attributes, and relationships for the requested
     schema kind in a human-readable format.
+
+    \b
+    Examples:
+      infrahubctl schema show InfraDevice
     """
     client = initialize_client(branch=branch)
     node_schema = await client.schema.get(kind=kind, branch=branch)
