@@ -14,7 +14,7 @@ All commands accept:
 
 - Input: kind (positional), --filter (repeatable), --limit INT, --offset INT
 - Output: Table with columns for each attribute + relationship (display names)
-- Exit 0: results found | Exit 0: no results (empty table) | Exit 1: invalid kind
+- Exit 0: results found | Exit 80: no results (empty list) | Exit 1: invalid kind
 
 **Detail mode** (with identifier):
 
