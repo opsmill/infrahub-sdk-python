@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from infrahub_sdk.exceptions import NodeNotFoundError, SchemaNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 from infrahub_sdk.utils import is_valid_uuid
 
@@ -121,13 +122,13 @@ async def resolve_relationship_values(
         rel_schema = schema.get_relationship(key)
         peer_kind = rel_schema.peer
 
-        # Try to resolve the string value as a node identifier
+        # Try to resolve the string value as a node identifier.
+        # Only fall back to generic peer search on lookup-miss errors;
+        # re-raise auth, network, and other unexpected errors.
         try:
             peer_node = await resolve_node(client, peer_kind, str_value, branch=branch)
             resolved[key] = {"id": peer_node.id}
-        except Exception:
-            # If the peer kind is a generic, try searching all schemas
-            # for a node matching the value
+        except (NodeNotFoundError, SchemaNotFoundError, ValueError, IndexError):
             node = await _search_generic_peer(client, str_value, branch=branch)
             if node is not None:
                 resolved[key] = {"id": node.id}
