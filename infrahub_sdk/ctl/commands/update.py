@@ -107,10 +107,16 @@ async def _update_with_set_args(
             setattr(node, key, resolved_data[key])
             changes.append((key, old_display, new_value))
 
+    actual_changes = [(f, o, n) for f, o, n in changes if str(o) != str(n)]
+
+    if not actual_changes:
+        console.print(f"[yellow]No changes — {kind} '{identifier}' already has the requested values.")
+        return
+
     await node.save()
 
     console.print(f"[green]Updated {kind} '{identifier}' successfully.")
-    for field_name, old_val, new_val in changes:
+    for field_name, old_val, new_val in actual_changes:
         console.print(f"  {field_name}: {old_val} -> {new_val}")
 
 
