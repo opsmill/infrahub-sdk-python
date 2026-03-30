@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
@@ -18,20 +19,27 @@ class InfrahubFilters:
 
     @classmethod
     def get_filter_names(cls) -> tuple[str, ...]:
-        """Return all public filter method names by convention."""
-        return tuple(name for name in sorted(vars(cls)) if not name.startswith("_") and callable(vars(cls)[name]))
+        """Return all public async filter method names by convention."""
+        return tuple(
+            name
+            for name in sorted(vars(cls))
+            if not name.startswith("_") and inspect.iscoroutinefunction(vars(cls)[name])
+        )
 
     def __init__(self, client: InfrahubClient | None = None) -> None:
-        self.client = client
+        self._client = client
+
+    def set_client(self, client: InfrahubClient) -> None:
+        self._client = client
 
     def _require_client(self, filter_name: str) -> InfrahubClient:
-        if self.client is None:
+        if self._client is None:
             raise JinjaFilterError(
                 filter_name=filter_name,
                 message="requires an InfrahubClient",
                 hint="pass a client via Jinja2Template(client=...)",
             )
-        return self.client
+        return self._client
 
     async def artifact_content(self, storage_id: str) -> str:
         """Retrieve artifact content by storage_id."""

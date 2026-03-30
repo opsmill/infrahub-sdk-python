@@ -58,7 +58,7 @@ class Jinja2Template:
 
     def set_client(self, client: InfrahubClient) -> None:
         """Set or replace the InfrahubClient used by client-dependent filters."""
-        self._infrahub_filters.client = client
+        self._infrahub_filters.set_client(client=client)
         if self._environment:
             for name in InfrahubFilters.get_filter_names():
                 self._environment.filters[name] = self._filters[name]
