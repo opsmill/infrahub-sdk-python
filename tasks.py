@@ -114,7 +114,17 @@ def _generate_infrahub_sdk_template_documentation() -> None:
     from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
     from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
-    from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
+    from infrahub_sdk.template.filters import BUILTIN_FILTERS, INFRAHUB_FILTERS, NETUTILS_FILTERS, ExecutionContext
+
+    infrahub_filters_with_contexts = [
+        {
+            "name": f.name,
+            "core": bool(f.allowed_contexts & ExecutionContext.CORE),
+            "worker": bool(f.allowed_contexts & ExecutionContext.WORKER),
+            "local": bool(f.allowed_contexts & ExecutionContext.LOCAL),
+        }
+        for f in INFRAHUB_FILTERS
+    ]
 
     print(" - Generate Infrahub SDK template documentation")
     # Generating one documentation page for template documentation
@@ -124,7 +134,11 @@ def _generate_infrahub_sdk_template_documentation() -> None:
                 template=Path("sdk_template_reference.j2"),
                 template_directory=DOCUMENTATION_DIRECTORY / "_templates",
             ),
-            template_variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS},
+            template_variables={
+                "builtin": BUILTIN_FILTERS,
+                "netutils": NETUTILS_FILTERS,
+                "infrahub": infrahub_filters_with_contexts,
+            },
         ),
     )
     output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"

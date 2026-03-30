@@ -111,6 +111,9 @@ The existing single `restricted: bool` parameter on `validate()` is insufficient
 - **FR-012**: A new `JinjaFilterError` exception class MUST be added to `infrahub_sdk/template/exceptions.py` as a subclass of `JinjaTemplateError`.
 - **FR-013**: Documentation MUST include a Python transform example demonstrating artifact content retrieval via `client.object_store.get(identifier=storage_id)`. No new SDK convenience method will be added.
 - **FR-014**: If the current user isn't allowed due to a permission denied error to query for the artifact or object file the filter should catch such permission error and raise a Jinja2 error specifically related to the permission issue.
+- **FR-015**: The auto-generated templating reference (`sdk_template_reference.j2` and `_generate_infrahub_sdk_template_documentation()`) MUST be updated to include `INFRAHUB_FILTERS` as a third section ("Infrahub filters"). The table MUST show which execution contexts each filter is allowed in (`CORE`, `WORKER`, `LOCAL`) rather than only a binary "Trusted" column.
+- **FR-016**: The templating reference documentation MUST explain the `ExecutionContext` model — what `CORE`, `WORKER`, and `LOCAL` contexts mean, how they map to Infrahub's execution environments (computed attributes, Prefect workers, local CLI), and how `validate(context=...)` is used to enforce filter restrictions.
+- **FR-017**: Usage examples for the new Jinja2 filters MUST be included in the SDK documentation, covering at minimum: `artifact_content` with a storage_id, `file_object_content` by storage_id, `file_object_content_by_id` by node UUID, `file_object_content_by_hfid` with `kind` argument, and `from_json`/`from_yaml` chaining.
 
 ### Key entities
 

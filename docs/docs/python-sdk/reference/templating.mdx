@@ -3,9 +3,34 @@ title: Python SDK Templating
 ---
 Filters can be used when defining [computed attributes](https://docs.infrahub.app/guides/computed-attributes) or [Jinja2 Transforms](https://docs.infrahub.app/guides/jinja2-transform) within Infrahub.
 
+## Execution contexts
+
+Filters are restricted based on the execution context in which a template is rendered:
+
+- **CORE** — Computed attributes evaluated inside the Infrahub API server. Only fully trusted filters (no I/O, no side effects) are allowed.
+- **WORKER** — Jinja2 transforms executed on Prefect background workers. Trusted filters and Infrahub client-dependent filters are allowed.
+- **LOCAL** — Local CLI rendering and unrestricted usage. All filters are allowed.
+
+The `validate()` method on `Jinja2Template` accepts an optional `context` parameter to enforce these restrictions:
+
+```python
+from infrahub_sdk.template import Jinja2Template
+from infrahub_sdk.template.filters import ExecutionContext
+
+template = Jinja2Template(template="{{ sid | artifact_content }}")
+
+# Raises JinjaTemplateOperationViolationError — blocked in CORE
+template.validate(context=ExecutionContext.CORE)
+
+# Passes — allowed in WORKER
+template.validate(context=ExecutionContext.WORKER)
+```
+
+For backward compatibility, `validate(restricted=True)` maps to `CORE` and `validate(restricted=False)` maps to `LOCAL`.
+
 ## Builtin Jinja2 filters
 
-The following filters are those that are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub. The trusted column indicates if the filter is allowed for use with Infrahub's computed attributes when the server is configured in strict mode.
+The following filters are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub. The "Trusted" column indicates if the filter is allowed in the CORE context (computed attributes).
 
 <!-- vale off -->
 | Name | Trusted |
@@ -151,6 +176,70 @@ The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netu
 | vlanlist_to_config | ✅ |
 | wildcardmask_to_netmask | ✅ |
 <!-- vale on -->
+
+## Infrahub filters
+
+These filters are provided by the Infrahub SDK for artifact and file object content composition. The table shows which execution contexts each filter is allowed in.
+
+<!-- vale off -->
+| Name | CORE | WORKER | LOCAL |
+| ---- | ---- | ------ | ----- |
+| `artifact_content` | ❌ | ✅ | ✅ |
+| `file_object_content` | ❌ | ✅ | ✅ |
+| `file_object_content_by_hfid` | ❌ | ✅ | ✅ |
+| `file_object_content_by_id` | ❌ | ✅ | ✅ |
+| `from_json` | ✅ | ✅ | ✅ |
+| `from_yaml` | ✅ | ✅ | ✅ |
+<!-- vale on -->
+
+### Usage examples
+
+**Inline artifact content by `storage_id`:**
+
+```jinja2
+{{ artifact.node.storage_id.value | artifact_content }}
+```
+
+**Inline file object content:**
+
+```jinja2
+{# By storage_id #}
+{{ file_object.storage_id.value | file_object_content }}
+
+{# By node UUID #}
+{{ file_object.id | file_object_content_by_id }}
+
+{# By Human-Friendly ID #}
+{{ hfid_components | file_object_content_by_hfid(kind="NetworkCircuitContract") }}
+```
+
+**Parse structured content with chaining:**
+
+```jinja2
+{# JSON artifact → access parsed fields #}
+{% set config = artifact.node.storage_id.value | artifact_content | from_json %}
+interface {{ config.interface_name }}
+  ip address {{ config.ip_address }}
+
+{# YAML artifact → iterate parsed data #}
+{% set config = artifact.node.storage_id.value | artifact_content | from_yaml %}
+{% for route in config.static_routes %}
+ip route {{ route.prefix }} {{ route.next_hop }}
+{% endfor %}
+```
+
+Client-dependent filters (`artifact_content`, `file_object_content`, `file_object_content_by_id`, `file_object_content_by_hfid`) require an `InfrahubClient` to be passed to `Jinja2Template`:
+
+```python
+from infrahub_sdk.template import Jinja2Template
+
+# At construction time
+template = Jinja2Template(template=my_template, client=client)
+
+# Or via deferred injection
+template = Jinja2Template(template=my_template)
+template.set_client(client)
+```
 
 ## Known issues
 
