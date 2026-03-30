@@ -1706,7 +1706,7 @@ class InfrahubClient(BaseClient):
         """
         Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
         and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-convert-type
+        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
         for more information.
         """
 
@@ -3114,7 +3114,7 @@ class InfrahubClientSync(BaseClient):
         """
         Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
         and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-convert-type
+        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
         for more information.
         """
 
