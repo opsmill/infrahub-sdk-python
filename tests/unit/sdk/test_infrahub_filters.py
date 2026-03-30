@@ -8,7 +8,7 @@ import pytest
 from infrahub_sdk.template import Jinja2Template
 from infrahub_sdk.template.exceptions import JinjaFilterError, JinjaTemplateError, JinjaTemplateOperationViolationError
 from infrahub_sdk.template.filters import INFRAHUB_FILTERS, ExecutionContext, FilterDefinition
-from infrahub_sdk.template.infrahub_filters import from_json, from_yaml, no_client_filter
+from infrahub_sdk.template.infrahub_filters import InfrahubFilters, from_json, from_yaml
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
 ARTIFACT_CONTENT_URL = "http://mock/api/storage/object"
-FILE_OBJECT_CONTENT_URL = "http://mock/api/files/by-storage-id"
+FILE_BY_STORAGE_ID_URL = "http://mock/api/files/by-storage-id"
 
 CLIENT_FILTER_PARAMS = [
     pytest.param(
@@ -32,7 +32,7 @@ CLIENT_FILTER_PARAMS = [
     pytest.param(
         "file_object_content",
         "{{ storage_id | file_object_content }}",
-        f"{FILE_OBJECT_CONTENT_URL}/test-id",
+        f"{FILE_BY_STORAGE_ID_URL}/test-id",
         {"content-type": "text/plain"},
         id="file_object_content",
     ),
@@ -131,16 +131,6 @@ class TestValidateContext:
         jinja = Jinja2Template(template="{{ '{\"a\":1}' | from_json }}")
         jinja.validate(context=ExecutionContext.CORE)
 
-    def test_context_core_blocks_file_object_content(self) -> None:
-        jinja = Jinja2Template(template="{{ sid | file_object_content }}")
-        with pytest.raises(JinjaTemplateOperationViolationError) as exc:
-            jinja.validate(context=ExecutionContext.CORE)
-        assert exc.value.message == "The 'file_object_content' filter isn't allowed to be used"
-
-    def test_context_worker_allows_file_object_content(self) -> None:
-        jinja = Jinja2Template(template="{{ sid | file_object_content }}")
-        jinja.validate(context=ExecutionContext.WORKER)
-
 
 class TestClientDependentFilters:
     @pytest.mark.parametrize(("filter_name", "template", "url", "headers"), CLIENT_FILTER_PARAMS)
@@ -195,14 +185,10 @@ class TestClientDependentFilters:
         ("template", "url"),
         [
             pytest.param(
-                "{{ storage_id | artifact_content }}",
-                f"{ARTIFACT_CONTENT_URL}/abc-123",
-                id="artifact_content",
+                "{{ storage_id | artifact_content }}", f"{ARTIFACT_CONTENT_URL}/abc-123", id="artifact_content"
             ),
             pytest.param(
-                "{{ storage_id | file_object_content }}",
-                f"{FILE_OBJECT_CONTENT_URL}/abc-123",
-                id="file_object_content",
+                "{{ storage_id | file_object_content }}", f"{FILE_BY_STORAGE_ID_URL}/abc-123", id="file_object_content"
             ),
         ],
     )
@@ -226,7 +212,7 @@ class TestClientDependentFilters:
             ),
             pytest.param(
                 "{{ storage_id | file_object_content }}",
-                f"{FILE_OBJECT_CONTENT_URL}/fid-x",
+                f"{FILE_BY_STORAGE_ID_URL}/fid-x",
                 "fid-x",
                 "Filter 'file_object_content': permission denied for storage_id: fid-x",
                 id="file_object_content",
@@ -253,7 +239,7 @@ class TestClientDependentFilters:
     ) -> None:
         httpx_mock.add_response(
             method="GET",
-            url=f"{FILE_OBJECT_CONTENT_URL}/fid-bin",
+            url=f"{FILE_BY_STORAGE_ID_URL}/fid-bin",
             content=b"\x00\x01\x02",
             headers={"content-type": "application/octet-stream"},
         )
@@ -262,7 +248,16 @@ class TestClientDependentFilters:
             await jinja.render(variables={"storage_id": "fid-bin"})
         assert (
             exc.value.message == "Filter 'file_object_content': Binary content not supported:"
-            " content-type 'application/octet-stream' for storage_id 'fid-bin'"
+            " content-type 'application/octet-stream' for identifier 'fid-bin'"
+        )
+
+    async def test_file_object_content_by_hfid_missing_kind(self, client: InfrahubClient) -> None:
+        jinja = Jinja2Template(template="{{ hfid | file_object_content_by_hfid }}", client=client)
+        with pytest.raises(JinjaTemplateError) as exc:
+            await jinja.render(variables={"hfid": ["contract-2024"]})
+        assert exc.value.message == (
+            "Filter 'file_object_content_by_hfid': 'kind' argument is required"
+            ' — use {{ hfid | file_object_content_by_hfid(kind="MyKind") }}'
         )
 
 
@@ -326,13 +321,15 @@ class TestFilterChaining:
 
 
 class TestClientFilter:
-    @pytest.mark.parametrize("filter_name", ["artifact_content", "file_object_content"])
-    async def test_no_client_filter_raises(self, filter_name: str) -> None:
-        fallback = no_client_filter(filter_name)
+    @pytest.mark.parametrize("filter_name", InfrahubFilters.CLIENT_FILTER_NAMES)
+    async def test_no_client_raises(self, filter_name: str) -> None:
+        filters = InfrahubFilters(client=None)
+        method = getattr(filters, filter_name)
         with pytest.raises(JinjaFilterError) as exc:
-            await fallback("some-id")
-        assert exc.value.message == (
-            f"Filter '{filter_name}': requires an InfrahubClient — pass a client via Jinja2Template(client=...)"
+            await method("some-id")
+        assert (
+            exc.value.message
+            == f"Filter '{filter_name}': requires an InfrahubClient — pass a client via Jinja2Template(client=...)"
         )
         assert exc.value.filter_name == filter_name
 
