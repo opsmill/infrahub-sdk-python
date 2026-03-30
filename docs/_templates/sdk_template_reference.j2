@@ -31,30 +31,31 @@ For backward compatibility, `validate(restricted=True)` maps to `CORE` and `vali
 
 ## Builtin Jinja2 filters
 
-The following filters are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub. The "Trusted" column indicates if the filter is allowed in the CORE context (computed attributes).
+The following filters are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub.
 
 <!-- vale off -->
-| Name | Trusted |
-| ---- | ------- |
+| Name | CORE | WORKER | LOCAL |
+| ---- | ---- | ------ | ----- |
 {% for filter in builtin %}
-| {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
+| {{ filter.name }} | {% if filter.core %}✅{% else %}❌{% endif %} | {% if filter.worker %}✅{% else %}❌{% endif %} | {% if filter.local %}✅{% else %}❌{% endif %} |
 {% endfor %}
 <!-- vale on -->
 
 ## Netutils filters
 
 The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netutils</a> are included within Infrahub.
+
 <!-- vale off -->
-| Name | Trusted |
-| ---- | ------- |
+| Name | CORE | WORKER | LOCAL |
+| ---- | ---- | ------ | ----- |
 {% for filter in netutils %}
-| {{ filter.name }} | {% if filter.trusted %}✅{% else %}❌{% endif %} |
+| {{ filter.name }} | {% if filter.core %}✅{% else %}❌{% endif %} | {% if filter.worker %}✅{% else %}❌{% endif %} | {% if filter.local %}✅{% else %}❌{% endif %} |
 {% endfor %}
 <!-- vale on -->
 
 ## Infrahub filters
 
-These filters are provided by the Infrahub SDK for artifact and file object content composition. The table shows which execution contexts each filter is allowed in.
+These filters are provided by the Infrahub SDK for artifact and file object content composition.
 
 <!-- vale off -->
 | Name | CORE | WORKER | LOCAL |

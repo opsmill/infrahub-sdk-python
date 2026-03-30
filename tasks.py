@@ -116,15 +116,16 @@ def _generate_infrahub_sdk_template_documentation() -> None:
     from infrahub_sdk.template import Jinja2Template
     from infrahub_sdk.template.filters import BUILTIN_FILTERS, INFRAHUB_FILTERS, NETUTILS_FILTERS, ExecutionContext
 
-    infrahub_filters_with_contexts = [
-        {
-            "name": f.name,
-            "core": bool(f.allowed_contexts & ExecutionContext.CORE),
-            "worker": bool(f.allowed_contexts & ExecutionContext.WORKER),
-            "local": bool(f.allowed_contexts & ExecutionContext.LOCAL),
-        }
-        for f in INFRAHUB_FILTERS
-    ]
+    def _filters_with_contexts(filters: list) -> list[dict]:
+        return [
+            {
+                "name": f.name,
+                "core": bool(f.allowed_contexts & ExecutionContext.CORE),
+                "worker": bool(f.allowed_contexts & ExecutionContext.WORKER),
+                "local": bool(f.allowed_contexts & ExecutionContext.LOCAL),
+            }
+            for f in filters
+        ]
 
     print(" - Generate Infrahub SDK template documentation")
     # Generating one documentation page for template documentation
@@ -135,9 +136,9 @@ def _generate_infrahub_sdk_template_documentation() -> None:
                 template_directory=DOCUMENTATION_DIRECTORY / "_templates",
             ),
             template_variables={
-                "builtin": BUILTIN_FILTERS,
-                "netutils": NETUTILS_FILTERS,
-                "infrahub": infrahub_filters_with_contexts,
+                "builtin": _filters_with_contexts(BUILTIN_FILTERS),
+                "netutils": _filters_with_contexts(NETUTILS_FILTERS),
+                "infrahub": _filters_with_contexts(INFRAHUB_FILTERS),
             },
         ),
     )
