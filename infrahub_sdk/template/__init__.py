@@ -20,7 +20,7 @@ from .exceptions import (
     JinjaTemplateUndefinedError,
 )
 from .filters import AVAILABLE_FILTERS, ExecutionContext
-from .infrahub_filters import InfrahubFilters, from_json, from_yaml, no_client_filter
+from .infrahub_filters import InfrahubFilters, from_json, from_yaml
 from .models import UndefinedJinja2Error
 
 if TYPE_CHECKING:
@@ -50,7 +50,6 @@ class Jinja2Template:
         for user_filter in self._filters:
             self._available_filters.append(user_filter)
 
-        self._infrahub_filters: InfrahubFilters | None = None
         self._register_client_filters(client=client)
         self._register_filter("from_json", from_json)
         self._register_filter("from_yaml", from_yaml)
@@ -59,26 +58,20 @@ class Jinja2Template:
 
     def set_client(self, client: InfrahubClient) -> None:
         """Set or replace the InfrahubClient used by client-dependent filters."""
-        self._register_client_filters(client=client)
+        self._infrahub_filters.set_client(client=client)
         if self._environment:
-            self._environment.filters["artifact_content"] = self._filters["artifact_content"]
-            self._environment.filters["file_object_content"] = self._filters["file_object_content"]
+            for name in InfrahubFilters.get_filter_names():
+                self._environment.filters[name] = self._filters[name]
 
     def _register_filter(self, name: str, func: Callable) -> None:
-        """Register a filter callable and make it available for validation."""
         self._filters[name] = func
         if name not in self._available_filters:
             self._available_filters.append(name)
 
     def _register_client_filters(self, client: InfrahubClient | None) -> None:
-        """Register client-dependent filters, using fallbacks if no client is provided."""
-        if client is not None:
-            self._infrahub_filters = InfrahubFilters(client=client)
-            self._register_filter("artifact_content", self._infrahub_filters.artifact_content)
-            self._register_filter("file_object_content", self._infrahub_filters.file_object_content)
-        else:
-            self._register_filter("artifact_content", no_client_filter("artifact_content"))
-            self._register_filter("file_object_content", no_client_filter("file_object_content"))
+        self._infrahub_filters = InfrahubFilters(client=client)
+        for name in InfrahubFilters.get_filter_names():
+            self._register_filter(name, getattr(self._infrahub_filters, name))
 
     def get_environment(self) -> jinja2.Environment:
         if self._environment:
