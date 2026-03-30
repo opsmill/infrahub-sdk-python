@@ -62,12 +62,8 @@ class TestFilterDefinition:
         fd = FilterDefinition(name="safe", allowed_contexts=ExecutionContext.LOCAL, source="jinja2")
         assert fd.trusted is False
 
-    def test_not_trusted_when_worker_and_local(self) -> None:
-        fd = FilterDefinition(
-            name="artifact_content",
-            allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL,
-            source="infrahub",
-        )
+    def test_not_trusted_when_worker_only(self) -> None:
+        fd = FilterDefinition(name="artifact_content", allowed_contexts=ExecutionContext.WORKER, source="infrahub")
         assert fd.trusted is False
 
     def test_not_trusted_when_core_only(self) -> None:
@@ -114,10 +110,11 @@ class TestValidateContext:
         jinja = Jinja2Template(template="{{ data | safe }}")
         jinja.validate(context=ExecutionContext.LOCAL)
 
-    def test_context_local_allows_artifact_content(self) -> None:
-        """LOCAL context allows artifact_content (WORKER | LOCAL)."""
+    def test_context_local_blocks_artifact_content(self) -> None:
+        """LOCAL context blocks artifact_content (WORKER only) — these filters require a worker."""
         jinja = Jinja2Template(template="{{ sid | artifact_content }}")
-        jinja.validate(context=ExecutionContext.LOCAL)
+        with pytest.raises(JinjaTemplateOperationViolationError):
+            jinja.validate(context=ExecutionContext.LOCAL)
 
     @pytest.mark.parametrize("context", [ExecutionContext.CORE, ExecutionContext.WORKER])
     def test_user_filters_always_allowed(self, context: ExecutionContext) -> None:
