@@ -65,7 +65,10 @@ class JinjaFilterError(JinjaTemplateError):
 
 ```python
 class InfrahubFilters:
-    CLIENT_FILTER_NAMES = ("artifact_content", "file_object_content", ...)
+    @classmethod
+    def get_filter_names(cls) -> tuple[str, ...]:
+        """Discover filter names from public methods."""
+        ...
 
     def __init__(self, client: InfrahubClient | None = None) -> None:
         self.client = client
@@ -83,7 +86,7 @@ class InfrahubFilters:
 **Key design decisions**:
 
 - Client is optional — `InfrahubFilters` is always instantiated, each method checks for a client at call time via `_require_client()`
-- `CLIENT_FILTER_NAMES` is the single source of truth for all client-dependent filter names, used by `Jinja2Template` for registration
+- `get_filter_names()` discovers client-dependent filter names automatically from all public methods — adding a new filter only requires adding a method
 - Methods are `async` — Jinja2's `auto_await` handles them in async rendering mode
 - Holds an `InfrahubClient` (async only), not `InfrahubClientSync`
 - Each method validates inputs and catches `AuthenticationError` to wrap in `JinjaFilterError`

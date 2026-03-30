@@ -321,7 +321,7 @@ class TestFilterChaining:
 
 
 class TestClientFilter:
-    @pytest.mark.parametrize("filter_name", InfrahubFilters.CLIENT_FILTER_NAMES)
+    @pytest.mark.parametrize("filter_name", InfrahubFilters.get_filter_names())
     async def test_no_client_raises(self, filter_name: str) -> None:
         filters = InfrahubFilters(client=None)
         method = getattr(filters, filter_name)

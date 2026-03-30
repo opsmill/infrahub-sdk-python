@@ -16,12 +16,10 @@ if TYPE_CHECKING:
 class InfrahubFilters:
     """Holds an optional InfrahubClient and exposes async filter methods for Jinja2 templates."""
 
-    CLIENT_FILTER_NAMES = (
-        "artifact_content",
-        "file_object_content",
-        "file_object_content_by_id",
-        "file_object_content_by_hfid",
-    )
+    @classmethod
+    def get_filter_names(cls) -> tuple[str, ...]:
+        """Return all public filter method names by convention."""
+        return tuple(name for name in sorted(vars(cls)) if not name.startswith("_") and callable(vars(cls)[name]))
 
     def __init__(self, client: InfrahubClient | None = None) -> None:
         self.client = client

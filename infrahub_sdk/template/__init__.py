@@ -60,7 +60,7 @@ class Jinja2Template:
         """Set or replace the InfrahubClient used by client-dependent filters."""
         self._infrahub_filters.client = client
         if self._environment:
-            for name in InfrahubFilters.CLIENT_FILTER_NAMES:
+            for name in InfrahubFilters.get_filter_names():
                 self._environment.filters[name] = self._filters[name]
 
     def _register_filter(self, name: str, func: Callable) -> None:
@@ -70,7 +70,7 @@ class Jinja2Template:
 
     def _register_client_filters(self, client: InfrahubClient | None) -> None:
         self._infrahub_filters = InfrahubFilters(client=client)
-        for name in InfrahubFilters.CLIENT_FILTER_NAMES:
+        for name in InfrahubFilters.get_filter_names():
             self._register_filter(name, getattr(self._infrahub_filters, name))
 
     def get_environment(self) -> jinja2.Environment:
