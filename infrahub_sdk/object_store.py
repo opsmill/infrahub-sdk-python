@@ -20,7 +20,15 @@ def _extract_content_type(response: httpx.Response) -> str:
 
 
 class ObjectStoreBase:
-    pass
+    @staticmethod
+    def _validate_text_content(response: httpx.Response, identifier: str) -> str:
+        """Validate that a file response has a text-based content-type and return the text."""
+        content_type = _extract_content_type(response)
+        if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
+            raise ValueError(
+                f"Binary content not supported: content-type '{content_type}' for identifier '{identifier}'"
+            )
+        return response.text
 
 
 class ObjectStore(ObjectStoreBase):
@@ -70,12 +78,8 @@ class ObjectStore(ObjectStoreBase):
 
         return resp.json()
 
-    async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
-        """Retrieve file object content by storage_id.
-
-        Raises an error if the content-type indicates binary content.
-        """
-        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+    async def _get_file(self, url: str, identifier: str, tracker: str | None = None) -> str:
+        """Fetch a file endpoint and validate that the response is text-based."""
         headers = copy.copy(self.client.headers or {})
         if self.client.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
@@ -94,13 +98,23 @@ class ObjectStore(ObjectStoreBase):
                 raise AuthenticationError(" | ".join(messages)) from exc
             raise
 
-        content_type = _extract_content_type(resp)
-        if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
-            raise ValueError(
-                f"Binary content not supported: content-type '{content_type}' for storage_id '{storage_id}'"
-            )
+        return self._validate_text_content(response=resp, identifier=identifier)
 
-        return resp.text
+    async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by storage_id."""
+        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        return await self._get_file(url=url, identifier=storage_id, tracker=tracker)
+
+    async def get_file_by_id(self, node_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by node UUID."""
+        url = f"{self.client.address}/api/files/{node_id}"
+        return await self._get_file(url=url, identifier=node_id, tracker=tracker)
+
+    async def get_file_by_hfid(self, kind: str, hfid: list[str], tracker: str | None = None) -> str:
+        """Retrieve file object content by Human-Friendly ID."""
+        params = "&".join(f"hfid={h}" for h in hfid)
+        url = f"{self.client.address}/api/files/by-hfid/{kind}?{params}"
+        return await self._get_file(url=url, identifier=f"{kind}:{'/'.join(hfid)}", tracker=tracker)
 
 
 class ObjectStoreSync(ObjectStoreBase):
@@ -150,12 +164,8 @@ class ObjectStoreSync(ObjectStoreBase):
 
         return resp.json()
 
-    def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
-        """Retrieve file object content by storage_id.
-
-        Raises an error if the content-type indicates binary content.
-        """
-        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+    def _get_file(self, url: str, identifier: str, tracker: str | None = None) -> str:
+        """Fetch a file endpoint and validate that the response is text-based."""
         headers = copy.copy(self.client.headers or {})
         if self.client.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
@@ -174,10 +184,20 @@ class ObjectStoreSync(ObjectStoreBase):
                 raise AuthenticationError(" | ".join(messages)) from exc
             raise
 
-        content_type = _extract_content_type(resp)
-        if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
-            raise ValueError(
-                f"Binary content not supported: content-type '{content_type}' for storage_id '{storage_id}'"
-            )
+        return self._validate_text_content(resp, identifier)
 
-        return resp.text
+    def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by storage_id."""
+        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        return self._get_file(url=url, identifier=storage_id, tracker=tracker)
+
+    def get_file_by_id(self, node_id: str, tracker: str | None = None) -> str:
+        """Retrieve file object content by node UUID."""
+        url = f"{self.client.address}/api/files/{node_id}"
+        return self._get_file(url=url, identifier=node_id, tracker=tracker)
+
+    def get_file_by_hfid(self, kind: str, hfid: list[str], tracker: str | None = None) -> str:
+        """Retrieve file object content by Human-Friendly ID."""
+        params = "&".join(f"hfid={h}" for h in hfid)
+        url = f"{self.client.address}/api/files/by-hfid/{kind}?{params}"
+        return self._get_file(url=url, identifier=f"{kind}:{'/'.join(hfid)}", tracker=tracker)

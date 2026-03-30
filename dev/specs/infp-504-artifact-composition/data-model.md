@@ -65,23 +65,29 @@ class JinjaFilterError(JinjaTemplateError):
 
 ```python
 class InfrahubFilters:
-    def __init__(self, client: InfrahubClient) -> None:
+    CLIENT_FILTER_NAMES = ("artifact_content", "file_object_content", ...)
+
+    def __init__(self, client: InfrahubClient | None = None) -> None:
         self.client = client
 
-    async def artifact_content(self, storage_id: str) -> str:
-        """Retrieve artifact content by storage_id."""
+    def _require_client(self, filter_name: str) -> InfrahubClient:
+        """Raise JinjaFilterError if no client is available."""
         ...
 
-    async def file_object_content(self, storage_id: str) -> str:
-        """Retrieve file object content by storage_id."""
-        ...
+    async def artifact_content(self, storage_id: str) -> str: ...
+    async def file_object_content(self, storage_id: str) -> str: ...
+    async def file_object_content_by_id(self, node_id: str) -> str: ...
+    async def file_object_content_by_hfid(self, hfid: str | list[str], kind: str = "") -> str: ...
 ```
 
 **Key design decisions**:
 
+- Client is optional — `InfrahubFilters` is always instantiated, each method checks for a client at call time via `_require_client()`
+- `CLIENT_FILTER_NAMES` is the single source of truth for all client-dependent filter names, used by `Jinja2Template` for registration
 - Methods are `async` — Jinja2's `auto_await` handles them in async rendering mode
 - Holds an `InfrahubClient` (async only), not `InfrahubClientSync`
 - Each method validates inputs and catches `AuthenticationError` to wrap in `JinjaFilterError`
+- File object retrieval is split into 3 filters matching the server's 3 endpoints (`by-storage-id`, `by-id`, `by-hfid`)
 
 ## Modified Entities
 
@@ -114,9 +120,9 @@ def set_client(self, client: InfrahubClient) -> None:
 
 **Purpose**: Deferred client injection — allows creating a `Jinja2Template` first and adding the client later. Also supports replacing a previously set client.
 
-- Calls `_register_client_filters(client)` to bind real filter methods
+- Updates `self._infrahub_filters.client` on the existing `InfrahubFilters` instance (no re-registration needed since the bound methods are already registered)
 - If the Jinja2 environment was already created, patches it in place
-- Without calling `set_client()` (and without passing `client` to `__init__`), client-dependent filters raise `JinjaFilterError` with a descriptive message at render time
+- Without calling `set_client()` (and without passing `client` to `__init__`), client-dependent filters raise `JinjaFilterError` with a descriptive message at render time via `_require_client()`
 
 ### Jinja2Template.validate() (modified signature)
 
@@ -143,7 +149,11 @@ async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = No
     ...
 ```
 
-**API endpoint**: `GET /api/files/by-storage-id/{storage_id}`
+**API endpoints**:
+
+- `GET /api/files/by-storage-id/{storage_id}` — used by `file_object_content`
+- `GET /api/files/{node_id}` — used by `file_object_content_by_id`
+- `GET /api/files/by-hfid/{kind}?hfid=...` — used by `file_object_content_by_hfid`
 
 **Content-type check**: Allow `text/*`, `application/json`, `application/yaml`, `application/x-yaml`. Reject all others.
 
@@ -155,6 +165,8 @@ async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = No
 # Infrahub client-dependent filters (worker and local contexts)
 FilterDefinition("artifact_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
 FilterDefinition("file_object_content", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
+FilterDefinition("file_object_content_by_hfid", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
+FilterDefinition("file_object_content_by_id", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="infrahub"),
 
 # Parsing filters (trusted, all contexts)
 FilterDefinition("from_json", allowed_contexts=ExecutionContext.ALL, source="infrahub"),

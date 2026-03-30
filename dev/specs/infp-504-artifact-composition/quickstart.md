@@ -22,9 +22,17 @@ hostname {{ device.hostname.value }}
 
 ### Inline file object content
 
+File objects can be retrieved by storage ID, node UUID, or HFID:
+
 ```jinja2
-{% set file_content = file_object.storage_id.value | file_object_content %}
-{{ file_content }}
+{# By storage_id (most common) #}
+{{ file_object.storage_id.value | file_object_content }}
+
+{# By node UUID #}
+{{ file_object.id | file_object_content_by_id }}
+
+{# By Human-Friendly ID #}
+{{ hfid_components | file_object_content_by_hfid(kind="NetworkCircuitContract") }}
 ```
 
 ### Parse structured content

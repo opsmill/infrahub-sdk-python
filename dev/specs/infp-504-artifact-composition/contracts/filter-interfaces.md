@@ -39,6 +39,40 @@ async def file_object_content(storage_id: str) -> str
 
 **Validation**: Blocked in `CORE` context. Allowed in `WORKER` and `LOCAL` contexts.
 
+### file_object_content_by_id
+
+```python
+async def file_object_content_by_id(node_id: str) -> str
+```
+
+| Input | Output | Error |
+| ----- | ------ | ----- |
+| Valid node UUID (text file) | Raw file content (text) | — |
+| Valid node UUID (binary file) | — | `JinjaFilterError("file_object_content_by_id", "binary content not supported...")` |
+| `None` | — | `JinjaFilterError("file_object_content_by_id", "node_id is null", hint="...")` |
+| `""` (empty) | — | `JinjaFilterError("file_object_content_by_id", "node_id is empty", hint="...")` |
+| Permission denied (401/403) | — | `JinjaFilterError("file_object_content_by_id", "permission denied for node_id: {id}")` |
+| No client provided | — | `JinjaFilterError("file_object_content_by_id", "requires InfrahubClient", hint="...")` |
+
+**Validation**: Blocked in `CORE` context. Allowed in `WORKER` and `LOCAL` contexts.
+
+### file_object_content_by_hfid
+
+```python
+async def file_object_content_by_hfid(hfid: str | list[str], kind: str = "") -> str
+```
+
+| Input | Output | Error |
+| ----- | ------ | ----- |
+| Valid HFID + kind (text file) | Raw file content (text) | — |
+| Valid HFID + kind (binary file) | — | `JinjaFilterError("file_object_content_by_hfid", "binary content not supported...")` |
+| `None` | — | `JinjaFilterError("file_object_content_by_hfid", "hfid is null", hint="...")` |
+| Missing `kind` argument | — | `JinjaFilterError("file_object_content_by_hfid", "'kind' argument is required", hint="...")` |
+| Permission denied (401/403) | — | `JinjaFilterError("file_object_content_by_hfid", "permission denied for hfid: {hfid}")` |
+| No client provided | — | `JinjaFilterError("file_object_content_by_hfid", "requires InfrahubClient", hint="...")` |
+
+**Validation**: Blocked in `CORE` context. Allowed in `WORKER` and `LOCAL` contexts.
+
 ### from_json
 
 ```python
@@ -73,9 +107,15 @@ def from_yaml(value: str) -> dict | list
 
 Used by `artifact_content`. Returns plain text content.
 
-### GET /api/files/by-storage-id/{storage_id} (new)
+### File object endpoints
 
-Used by `file_object_content`. Returns file content with appropriate content-type header.
+All three endpoints return file content with the node's `file_type` as content-type. The SDK validates that the content-type is text-based.
+
+| Endpoint | Used by | Identifier |
+| -------- | ------- | ---------- |
+| `GET /api/files/by-storage-id/{storage_id}` | `file_object_content` | storage_id |
+| `GET /api/files/{node_id}` | `file_object_content_by_id` | node UUID |
+| `GET /api/files/by-hfid/{kind}?hfid=...` | `file_object_content_by_hfid` | kind + HFID components |
 
 **Accepted content-types** (text-based):
 
