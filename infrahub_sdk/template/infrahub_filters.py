@@ -120,8 +120,13 @@ class InfrahubFilters:
                 message="'kind' argument is required",
                 hint='use {{ hfid | file_object_content_by_hfid(kind="MyKind") }}',
             )
-        # Validate raw value before list wrapping
         hfid_list = hfid if isinstance(hfid, list) else [hfid]
+        if not all(hfid_list):
+            raise JinjaFilterError(
+                filter_name="file_object_content_by_hfid",
+                message="hfid contains empty elements",
+                hint="ensure all HFID components are non-empty strings",
+            )
         return await self._fetch_file_object(
             filter_name="file_object_content_by_hfid",
             identifier=hfid,
