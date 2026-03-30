@@ -3,6 +3,8 @@ title: Python SDK overview
 ---
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import ReferenceLink from '@site/src/components/Card';
+import VideoPlayer from '@site/src/components/VideoPlayer';
 
 # Infrahub Python SDK
 
@@ -12,11 +14,11 @@ The Infrahub Python SDK is a client library for interacting with [Infrahub](http
 
 The SDK covers three main use cases:
 
-- **Automate inside Infrahub** — Write [transforms](https://docs.infrahub.app/guides/python-transform), generators, and checks that run as part of Infrahub's pipeline.
-- **Integrate with external systems** — Query and sync data between Infrahub and your existing tools, scripts, or CI/CD pipelines.
+- **Automate inside Infrahub** — Write [transforms](https://docs.infrahub.app/topics/transformation), [generators](https://docs.infrahub.app/topics/generator), and [checks](https://docs.infrahub.app/topics/check) that run as part of Infrahub's pipeline.
+- **Integrate with external systems** — Query and sync data between Infrahub and your existing tools.
 - **Build custom applications** — Use Infrahub as a data backend for your own Python projects.
 
-Under the hood, tools like `infrahubctl` and the Infrahub Ansible collection both use this SDK.
+Under the hood, tools like [`infrahubctl`](/infrahubctl/infrahubctl) and the [Infrahub Ansible collection](https://docs.infrahub.app/ansible) both use this SDK.
 
 ## A quick look
 
@@ -27,22 +29,26 @@ Under the hood, tools like `infrahubctl` and the Infrahub Ansible collection bot
 import asyncio
 from infrahub_sdk import InfrahubClient
 
+
 async def main():
     client = InfrahubClient()
 
-    # Query all devices
-    devices = await client.all(kind="InfraDevice")
-    for device in devices:
-        print(f"{device.name.value} — {device.site.peer.name.value}")
-
     # Create a new tag and save it
-    tag = await client.create(kind="BuiltinTag", name="staging")
+    tag = await client.create(
+        kind="BuiltinTag",
+        name="staging",
+        description="Resources in the staging environment",
+    )
     await tag.save()
 
-    # Work on a branch
-    branch = await client.branch.create("update-tags", description="Add staging tags")
+    # Query all tags
+    tags = await client.all(kind="BuiltinTag")
+    for tag in tags:
+        print(f"{tag.name.value} — {tag.description.value}")
+
 
 asyncio.run(main())
+
 ```
 
 </TabItem>
@@ -53,17 +59,19 @@ from infrahub_sdk import InfrahubClientSync
 
 client = InfrahubClientSync()
 
-# Query all devices
-devices = client.all(kind="InfraDevice")
-for device in devices:
-    print(f"{device.name.value} — {device.site.peer.name.value}")
-
 # Create a new tag and save it
-tag = client.create(kind="BuiltinTag", name="staging")
+tag = client.create(
+    kind="BuiltinTag",
+    name="staging",
+    description="Resources in the staging environment",
+)
 tag.save()
 
-# Work on a branch
-branch = client.branch.create("update-tags", description="Add staging tags")
+# Query all tags
+tags = client.all(kind="BuiltinTag")
+for tag in tags:
+    print(f"{tag.name.value} — {tag.description.value}")
+
 ```
 
 </TabItem>
@@ -74,28 +82,50 @@ Both async and sync clients expose the same API. Choose async for applications t
 ## Why use the SDK over direct API calls
 
 | Concern | Raw API | SDK |
-|---------|---------|-----|
+| ------- | ------- | --- |
 | Authentication | Manual token management, JWT refresh | Handled automatically |
-| Querying | Build GraphQL strings by hand | `client.get()`, `client.all()`, `client.filters()` |
+| Querying | Build GraphQL queries by hand | `client.get()`, `client.all()`, `client.filters()` |
 | Mutations | Construct and POST GraphQL mutations | `node.save()`, `node.delete()` |
-| Relationships | Navigate nested JSON responses | Access via `node.relationship.peer` |
-| Branching | Manage branch headers/parameters | `client.branch.create()`, `client.branch.merge()` |
 | Concurrency | Roll your own async batching | Built-in `batch` with concurrency control |
-| Schema awareness | Parse schema separately | Schema-driven filters and validation |
+| Typing | Maintain type definitions manually | Schema-driven type export using protocols |
 
+:::tip
 The SDK removes the boilerplate so you can focus on the logic that matters to your infrastructure.
+:::
 
 ## Key capabilities
 
 - **CRUD operations** — Create, read, update, and delete any node type defined in your schema.
-- **Filtering** — Query nodes using schema-aware attribute and relationship filters (`name__value`, `site__name__value`, etc.).
-- **Branch management** — Create, merge, rebase, and diff branches programmatically.
 - **Batch execution** — Group multiple queries into a batch with configurable concurrency limits.
 - **Tracking** — Tag operations with identifiers for auditing and idempotent updates.
 - **Store** — Cache retrieved nodes locally to reduce redundant queries.
 - **GraphQL escape hatch** — Run arbitrary GraphQL queries when the high-level API doesn't cover your use case.
 
+## Video walkthrough
+
+<center>
+  <VideoPlayer url='https://www.youtube.com/live/RbRz8_t0FBs?feature=shared' light />
+</center>
+
 ## Installation
+
+<Tabs groupId="installation">
+<TabItem value="uv" default>
+
+```bash
+uv add infrahub-sdk
+```
+
+Extras are available for additional functionality:
+
+```bash
+uv add 'infrahub-sdk[ctl]'    # Adds the infrahubctl CLI
+uv add 'infrahub-sdk[tests]'  # Adds the testing framework for transforms and checks
+uv add 'infrahub-sdk[all]'    # Everything
+```
+
+</TabItem>
+<TabItem value="pip">
 
 ```bash
 pip install infrahub-sdk
@@ -109,10 +139,14 @@ pip install 'infrahub-sdk[tests]'  # Adds the testing framework for transforms a
 pip install 'infrahub-sdk[all]'    # Everything
 ```
 
-See the [installation guide](./guides/installation.mdx) for details.
+</TabItem>
+</Tabs>
+
+<ReferenceLink title="Installation guide" url="/python-sdk/guides/installation" />
 
 ## Next steps
 
+- **[Hello world example](./guides/client.mdx#hello-world-example)** — Your first client connection and query.
 - **[Create and configure a client](./guides/client.mdx)** — Set up authentication, proxy settings, and client options.
 - **[Query data](./guides/query_data.mdx)** — Retrieve nodes with filters and GraphQL.
 - **[Create, update, and delete nodes](./guides/create_update_delete.mdx)** — Manage infrastructure data programmatically.
