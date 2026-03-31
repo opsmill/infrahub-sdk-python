@@ -117,7 +117,7 @@ class CodeGenerator:
     def _jinja2_filter_render_attribute(value: AttributeSchemaAPI) -> str:
         attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
-        if value.optional:
+        if value.optional and value.default_value is None:
             attribute_kind += "Optional"
 
         return f"{value.name}: {attribute_kind}"
