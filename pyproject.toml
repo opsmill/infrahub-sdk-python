@@ -364,7 +364,7 @@ max-line-length = 150
 
 [tool.ruff.lint.mccabe]
 # Target max-complexity=10
-max-complexity = 17
+max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
 
