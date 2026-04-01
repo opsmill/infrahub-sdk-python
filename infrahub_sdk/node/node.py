@@ -565,7 +565,7 @@ class InfrahubNodeBase:
         property: bool,
         include_metadata: bool,
     ) -> dict[str, Any] | None:
-        if rel_schema.cardinality == "one":
+        if rel_schema.cardinality == RelationshipCardinality.ONE:
             rel_data = RelatedNodeBase._generate_query_data(
                 peer_data=peer_data, property=property, include_metadata=include_metadata
             )
@@ -578,7 +578,7 @@ class InfrahubNodeBase:
                 rel_data["node"] = {}
                 rel_data["node"][f"...on {rel_schema.peer}"] = data_node
             return rel_data
-        if rel_schema.cardinality == "many":
+        if rel_schema.cardinality == RelationshipCardinality.MANY:
             return RelationshipManagerBase._generate_query_data(
                 peer_data=peer_data, property=property, include_metadata=include_metadata
             )
@@ -643,7 +643,7 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
-            if rel_schema.cardinality == "one":
+            if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNode):
                     peer_id_data: dict[str, Any] = {
                         key: value
@@ -1460,7 +1460,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
-            if rel_schema.cardinality == "one":
+            if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNodeSync):
                     peer_id_data: dict[str, Any] = {
                         key: value
