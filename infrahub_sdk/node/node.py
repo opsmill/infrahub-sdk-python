@@ -13,6 +13,7 @@ from ..schema import (
     GenericSchemaAPI,
     RelationshipCardinality,
     RelationshipKind,
+    RelationshipSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
 from .attribute import Attribute
@@ -557,6 +558,32 @@ class InfrahubNodeBase:
 
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
+    @staticmethod
+    def _build_rel_query_data(
+        rel_schema: RelationshipSchemaAPI,
+        peer_data: dict[str, Any],
+        property: bool,
+        include_metadata: bool,
+    ) -> dict[str, Any] | None:
+        if rel_schema.cardinality == "one":
+            rel_data = RelatedNodeBase._generate_query_data(
+                peer_data=peer_data, property=property, include_metadata=include_metadata
+            )
+            # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
+            # tries to resolve attributes in this ancestor instead of actual node. To avoid
+            # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
+            # to explicit actual node kind we are querying.
+            if rel_schema.kind == RelationshipKind.HIERARCHY:
+                data_node = rel_data["node"]
+                rel_data["node"] = {}
+                rel_data["node"][f"...on {rel_schema.peer}"] = data_node
+            return rel_data
+        if rel_schema.cardinality == "many":
+            return RelationshipManagerBase._generate_query_data(
+                peer_data=peer_data, property=property, include_metadata=include_metadata
+            )
+        return None
+
 
 class InfrahubNode(InfrahubNodeBase):
     """Represents a Infrahub node in an asynchronous context."""
@@ -951,8 +978,7 @@ class InfrahubNode(InfrahubNodeBase):
                 if insert_alias:
                     data[attr_name]["@alias"] = f"__alias__{self._schema.kind}__{attr_name}"
             elif insert_alias:
-                if insert_alias:
-                    data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
+                data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
             if exclude and rel_name in exclude:
@@ -980,24 +1006,8 @@ class InfrahubNode(InfrahubNodeBase):
                     include_metadata=include_metadata,
                 )
 
-            rel_data: dict[str, Any]
-            if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNode._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
-                # tries to resolve attributes in this ancestor instead of actual node. To avoid
-                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
-                # to explicit actual node kind we are querying.
-                if rel_schema.kind == RelationshipKind.HIERARCHY:
-                    data_node = rel_data["node"]
-                    rel_data["node"] = {}
-                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
-            elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManager._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-            else:
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is None:
                 continue
 
             data[rel_name] = rel_data
@@ -1778,8 +1788,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 if insert_alias:
                     data[attr_name]["@alias"] = f"__alias__{self._schema.kind}__{attr_name}"
             elif insert_alias:
-                if insert_alias:
-                    data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
+                data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
             if exclude and rel_name in exclude:
@@ -1807,24 +1816,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     include_metadata=include_metadata,
                 )
 
-            rel_data: dict[str, Any]
-            if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNodeSync._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
-                # tries to resolve attributes in this ancestor instead of actual node. To avoid
-                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
-                # to explicit actual node kind we are querying.
-                if rel_schema.kind == RelationshipKind.HIERARCHY:
-                    data_node = rel_data["node"]
-                    rel_data["node"] = {}
-                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
-            elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManagerSync._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-            else:
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is None:
                 continue
 
             data[rel_name] = rel_data
