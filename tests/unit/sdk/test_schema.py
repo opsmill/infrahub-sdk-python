@@ -1,5 +1,4 @@
 import inspect
-import re
 from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock
@@ -485,38 +484,11 @@ def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols
     assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"
 
 
-async def test_schema_load_rejected_when_node_namespace_violates_generic_restricted_namespaces(
-    client: InfrahubClient, httpx_mock: HTTPXMock
-) -> None:
-    """Validate that loading a schema with a node whose namespace violates the generic's restricted_namespaces
-    is rejected. One test is already testing the API internal behavior
-    tests.integration.schema_lifecycle.test_restricted_namespaces_validation.
-    TestRestrictedNamespacesValidation.test_change_restriction_should_fail"""
+async def test_schema_load_surfaces_api_error_on_422(client: InfrahubClient, httpx_mock: HTTPXMock) -> None:
+    """Validate that schema.load surfaces API error responses to the caller."""
     # Arrange
-    schema_payload = {
-        "version": "1.0",
-        "generics": [
-            {
-                "name": "Animal",
-                "namespace": "Testing",
-                "attributes": [{"name": "name", "kind": "Text"}],
-                "restricted_namespaces": ["Dog"],
-            }
-        ],
-        "nodes": [
-            {
-                "name": "Cat",
-                "namespace": "Cat",
-                "inherit_from": ["TestingAnimal"],
-                "attributes": [{"name": "breed", "kind": "Text", "optional": True}],
-            }
-        ],
-    }
-
-    error_message = (
-        "Generic node 'TestingAnimal' has restricted namespaces: ['Dog']. "
-        "The node 'CatCat' does not comply with this restriction as its namespace is 'Cat'."
-    )
+    schema_payload = {"version": "1.0", "nodes": [{"name": "Dummy", "namespace": "Test"}]}
+    api_error_message = "Something went wrong on the server side."
 
     httpx_mock.add_response(
         method="POST",
@@ -524,7 +496,7 @@ async def test_schema_load_rejected_when_node_namespace_violates_generic_restric
         status_code=422,
         json={
             "data": None,
-            "errors": [{"message": error_message, "extensions": {"code": 422}}],
+            "errors": [{"message": api_error_message, "extensions": {"code": 422}}],
         },
     )
 
@@ -533,6 +505,5 @@ async def test_schema_load_rejected_when_node_namespace_violates_generic_restric
 
     # Assert
     assert response.errors
-    error_message = response.errors["errors"][0]["message"]
-    assert re.search(r"(?s)restricted namespaces(?=.*Dog)(?=.*Cat)", error_message)
+    assert response.errors["errors"][0]["message"] == api_error_message
     assert not response.schema_updated
