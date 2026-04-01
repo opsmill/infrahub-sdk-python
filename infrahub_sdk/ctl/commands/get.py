@@ -29,7 +29,9 @@ console_stderr = Console(stderr=True)
 @catch_exception(console=console)
 async def get_command(
     kind: str = typer.Argument(..., help="Infrahub schema kind to query"),
-    identifier: str | None = typer.Argument(None, help="UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)"),
+    identifier: str | None = typer.Argument(
+        None, help="UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)"
+    ),
     filter_args: list[str] | None = typer.Option(None, "--filter", help="Filter in attr__value=x format"),
     output: OutputFormat | None = typer.Option(None, "--output", "-o", help="Output format"),
     branch: str | None = typer.Option(None, "--branch", "-b", help="Target branch"),
