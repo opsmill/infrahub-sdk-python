@@ -12,6 +12,7 @@ from rich.progress import Progress
 
 from ...exceptions import GraphQLError
 from ...node import InfrahubNode, RelatedNode, RelationshipManager
+from ...schema import RelationshipCardinality
 from ..exceptions import TransferFileNotFoundError
 from .interface import ImporterInterface
 
@@ -130,11 +131,14 @@ class LineDelimitedJSONImporter(ImporterInterface):
                 relationship_schema = self.optional_relationships_schemas_by_node_kind[node_kind][relationship_attr]
 
                 # Check if we are in a many-many relationship, ignore importing it if it is
-                if relationship_schema.cardinality == "many":
+                if relationship_schema.cardinality == RelationshipCardinality.MANY:
                     if relationship_schema.peer not in self.schemas_by_kind:
                         continue
                     for peer_relationship in self.schemas_by_kind[relationship_schema.peer].relationships:
-                        if peer_relationship.cardinality == "many" and peer_relationship.peer == node_kind:
+                        if (
+                            peer_relationship.cardinality == RelationshipCardinality.MANY
+                            and peer_relationship.peer == node_kind
+                        ):
                             ignore = True
 
                 if not ignore:
