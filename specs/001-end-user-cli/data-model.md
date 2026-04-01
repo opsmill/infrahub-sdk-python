@@ -37,7 +37,17 @@ Validation rules:
 
 - Key MUST exist as an attribute or relationship name in the target Kind's schema
 - Value is a string; the SDK handles type coercion
-- For relationships, value is the display name or UUID of the target node
+- For relationships (cardinality ONE), value is the HFID or UUID of the target node (e.g., `--set site=DC1`)
+- For relationships (cardinality MANY), value is a JSON array of HFID arrays (e.g., `--set tags=[["blue"], ["red"]]`). Each inner array is an HFID supporting multi-component keys (e.g., `[["Cisco", "NX-OS"]]`). The parser detects `[...]` and parses as JSON.
+
+**Relationship resolution**: The CLI passes relationship values through to the
+SDK as HFID references. The SDK/server is responsible for resolving HFIDs to
+internal IDs. The CLI MUST NOT perform its own lookup round-trips.
+
+**SDK dependencies**:
+
+- [opsmill/infrahub-sdk-python#267](https://github.com/opsmill/infrahub-sdk-python/issues/267) — `rebuild_hfid_from_data()`: reconstruct HFID from flat user data based on schema definition
+- [opsmill/infrahub-sdk-python#272](https://github.com/opsmill/infrahub-sdk-python/issues/272) — `node.update(data)`: update attributes and relationships from a dict (eliminates manual per-field mutation)
 
 ## Filter Parser
 

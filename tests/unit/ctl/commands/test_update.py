@@ -216,28 +216,19 @@ def test_update_with_file_and_branch() -> None:
 
 
 def test_update_with_set_args_relationship() -> None:
-    """``update`` with a relationship --set field fetches the rel and sets the new id."""
+    """``update`` with a relationship --set converts to HFID and saves."""
     mock_schema = MagicMock()
     mock_schema.attribute_names = []
     mock_schema.relationship_names = ["site"]
 
-    mock_rel = MagicMock()
-    mock_rel.id = "old-site-id"
-    mock_rel.display_label = "old-site"
-    mock_rel.fetch = AsyncMock()
-
     mock_node = MagicMock()
     mock_node.id = "node-rel-001"
     mock_node.display_label = "device-rel"
-    mock_node.site = mock_rel
     mock_node.save = AsyncMock()
 
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-
-    async def passthrough_resolve(client: object, data: object, schema: object, **kwargs: object) -> dict:
-        return {"site": {"id": "new-site-id"}}
 
     with (
         patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
@@ -246,40 +237,33 @@ def test_update_with_set_args_relationship() -> None:
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
-        patch(
-            "infrahub_sdk.ctl.commands.update.resolve_relationship_values",
-            side_effect=passthrough_resolve,
-        ),
     ):
-        result = runner.invoke(app, ["update", "InfraDevice", "node-rel-001", "--set", "site=new-site-id"])
+        result = runner.invoke(app, ["update", "InfraDevice", "node-rel-001", "--set", "site=DC1"])
 
     assert result.exit_code == 0, result.stdout
     assert "Updated" in result.stdout
     mock_node.save.assert_awaited_once()
 
 
-def test_update_with_set_args_relationship_noop() -> None:
-    """``update`` with a relationship --set that resolves to the same target is a no-op."""
+def test_update_with_set_args_attribute_noop() -> None:
+    """``update`` with only attribute --set that matches existing value is a no-op."""
     mock_schema = MagicMock()
-    mock_schema.attribute_names = []
-    mock_schema.relationship_names = ["site"]
+    mock_schema.attribute_names = ["description"]
+    mock_schema.relationship_names = []
 
-    mock_rel = MagicMock()
-    mock_rel.id = "same-site-id"
-    mock_rel.display_label = "same-site"
+    mock_attr = MagicMock()
+    mock_attr.value = "same value"
 
     mock_node = MagicMock()
     mock_node.id = "node-noop-001"
     mock_node.display_label = "device-noop"
-    mock_node.site = mock_rel
     mock_node.save = AsyncMock()
+
+    type(mock_node).description = mock_attr
 
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
-
-    async def resolve_to_same(client: object, data: object, schema: object, **kwargs: object) -> dict:
-        return {"site": {"id": "same-site-id"}}
 
     with (
         patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
@@ -288,12 +272,8 @@ def test_update_with_set_args_relationship_noop() -> None:
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
-        patch(
-            "infrahub_sdk.ctl.commands.update.resolve_relationship_values",
-            side_effect=resolve_to_same,
-        ),
     ):
-        result = runner.invoke(app, ["update", "InfraDevice", "node-noop-001", "--set", "site=same-site"])
+        result = runner.invoke(app, ["update", "InfraDevice", "node-noop-001", "--set", "description=same value"])
 
     assert result.exit_code == 0, result.stdout
     assert "No changes" in result.stdout

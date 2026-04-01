@@ -1,4 +1,4 @@
-# Tasks: End-User CLI (`infrahub` command)
+# Tasks: End-User CLI (`infrahubctl` command)
 
 **Input**: Design documents from `/specs/001-end-user-cli/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
@@ -23,10 +23,10 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Create the `infrahub` entry point and package structure
+**Purpose**: Register CRUD commands on existing `infrahubctl` and create package structure
 
-- [x] T001 Add `infrahub` entry point to `[project.scripts]` in pyproject.toml pointing to `infrahub_sdk.ctl.enduser_cli:app`
-- [x] T002 Create CLI entry point module in infrahub_sdk/ctl/enduser_cli.py with AsyncTyper app and error-handling wrapper (matching infrahub_sdk/ctl/cli.py pattern)
+- [x] T001 Register CRUD commands (`get`, `create`, `update`, `delete`) on the existing `infrahubctl` app in infrahub_sdk/ctl/cli_commands.py
+- [x] T002 Import command functions from infrahub_sdk/ctl/commands/ into cli_commands.py and wire via `app.command(name=...)`
 - [x] T003 [P] Create commands package with infrahub_sdk/ctl/commands/\_\_init\_\_.py
 - [x] T004 [P] Create formatters package with infrahub_sdk/ctl/formatters/\_\_init\_\_.py
 
@@ -46,7 +46,7 @@
 - [x] T010 [P] Implement JSON formatter (list and detail mode) in infrahub_sdk/ctl/formatters/json.py
 - [x] T011 [P] Implement CSV formatter (list mode; detail mode falls back to key-value) in infrahub_sdk/ctl/formatters/csv.py
 - [x] T012 [P] Implement Infrahub Object YAML formatter (serialize nodes to apiVersion/kind/spec.kind/spec.data structure, round-trippable with ObjectFile) in infrahub_sdk/ctl/formatters/yaml.py
-- [x] T013 Create command registration module in infrahub_sdk/ctl/enduser_commands.py (register all command groups on the app)
+- [x] T013 Register all command imports and `app.command()` calls in infrahub_sdk/ctl/cli_commands.py
 - [x] T014 [P] Write unit tests for set/filter parsers in tests/unit/ctl/test_parsers.py
 - [x] T015 [P] Write unit tests for table formatter in tests/unit/ctl/formatters/test_table.py
 - [x] T016 [P] Write unit tests for JSON formatter in tests/unit/ctl/formatters/test_json.py
@@ -59,9 +59,9 @@
 
 ## Phase 3: User Story 1 - Query Data (Priority: P1) MVP
 
-**Goal**: Users can retrieve data from Infrahub with `infrahub get <kind>` (list) and `infrahub get <kind> <identifier>` (detail), with filtering, pagination, and all output formats.
+**Goal**: Users can retrieve data from Infrahub with `infrahubctl get <kind>` (list) and `infrahubctl get <kind> <identifier>` (detail), with filtering, pagination, and all output formats.
 
-**Independent Test**: Run `infrahub get <any-kind>` against an Infrahub instance and verify formatted output. Test all four output formats. Test `--filter`, `--limit`, `--offset`, `--branch`.
+**Independent Test**: Run `infrahubctl get <any-kind>` against an Infrahub instance and verify formatted output. Test all four output formats. Test `--filter`, `--limit`, `--offset`, `--branch`.
 
 ### Tests for User Story 1
 
@@ -70,19 +70,19 @@
 
 ### Implementation for User Story 1
 
-- [x] T021 [US1] Implement `infrahub get` command with list mode (`client.filters()` with kwargs from --filter, --limit, --offset, --branch) and detail mode (`client.get()` with identifier) in infrahub_sdk/ctl/commands/get.py
-- [x] T022 [US1] Wire get command into enduser_commands.py and verify `infrahub get` works end-to-end
+- [x] T021 [US1] Implement `infrahubctl get` command with list mode (`client.filters()` with kwargs from --filter, --limit, --offset, --branch) and detail mode (`client.get()` with identifier) in infrahub_sdk/ctl/commands/get.py
+- [x] T022 [US1] Wire get command into cli_commands.py and verify `infrahubctl get` works end-to-end
 - [x] T023 [US1] Add error handling for invalid kind (suggest similar kinds from schema), not-found identifier, and connection failures in infrahub_sdk/ctl/commands/get.py
 
-**Checkpoint**: `infrahub get` fully functional with all output formats, filtering, pagination, detail view. MVP complete.
+**Checkpoint**: `infrahubctl get` fully functional with all output formats, filtering, pagination, detail view. MVP complete.
 
 ---
 
 ## Phase 4: User Story 2 - Create Objects (Priority: P2)
 
-**Goal**: Users can create new objects with `infrahub create <kind> --set key=value` or `infrahub create <kind> --file objects.yaml`.
+**Goal**: Users can create new objects with `infrahubctl create <kind> --set key=value` or `infrahubctl create <kind> --file objects.yaml`.
 
-**Independent Test**: Create an object via `--set` flags, then verify it exists with `infrahub get`. Create objects from a YAML file and verify batch results.
+**Independent Test**: Create an object via `--set` flags, then verify it exists with `infrahubctl get`. Create objects from a YAML file and verify batch results.
 
 ### Tests for User Story 2
 
@@ -91,17 +91,17 @@
 
 ### Implementation for User Story 2
 
-- [x] T026 [US2] Implement `infrahub create` command with inline mode (`client.create()` + `node.save()` using parsed --set data) and file mode (load via ObjectFile, validate, process) in infrahub_sdk/ctl/commands/create.py
-- [x] T027 [US2] Wire create command into enduser_commands.py
+- [x] T026 [US2] Implement `infrahubctl create` command with inline mode (`client.create()` + `node.save()` using parsed --set data) and file mode (load via ObjectFile, validate, process) in infrahub_sdk/ctl/commands/create.py
+- [x] T027 [US2] Wire create command into cli_commands.py
 - [x] T028 [US2] Add validation error handling (invalid fields → show valid attribute/relationship names from schema) and batch result summary in infrahub_sdk/ctl/commands/create.py
 
-**Checkpoint**: `infrahub create` works with both inline and file input. Users can create and then query back objects.
+**Checkpoint**: `infrahubctl create` works with both inline and file input. Users can create and then query back objects.
 
 ---
 
 ## Phase 5: User Story 3 - Update Objects (Priority: P3)
 
-**Goal**: Users can update existing objects with `infrahub update <kind> <identifier> --set key=value` or `--file`.
+**Goal**: Users can update existing objects with `infrahubctl update <kind> <identifier> --set key=value` or `--file`.
 
 **Independent Test**: Update an attribute on an existing object, then query it to verify the change. Show old vs new values in confirmation.
 
@@ -112,17 +112,17 @@
 
 ### Implementation for User Story 3
 
-- [x] T031 [US3] Implement `infrahub update` command (`client.get()` to fetch node, apply --set changes to attributes/relationships, `node.save()`, display old → new values) in infrahub_sdk/ctl/commands/update.py
-- [x] T032 [US3] Wire update command into enduser_commands.py
+- [x] T031 [US3] Implement `infrahubctl update` command (`client.get()` to fetch node, apply --set changes to attributes/relationships, `node.save()`, display old → new values) in infrahub_sdk/ctl/commands/update.py
+- [x] T032 [US3] Wire update command into cli_commands.py
 - [x] T033 [US3] Add file-based update mode and not-found error handling in infrahub_sdk/ctl/commands/update.py
 
-**Checkpoint**: `infrahub update` works. Full create → query → update → query cycle verified.
+**Checkpoint**: `infrahubctl update` works. Full create → query → update → query cycle verified.
 
 ---
 
 ## Phase 6: User Story 4 - Delete Objects (Priority: P4)
 
-**Goal**: Users can delete objects with `infrahub delete <kind> <identifier>` with confirmation prompt and `--yes` bypass.
+**Goal**: Users can delete objects with `infrahubctl delete <kind> <identifier>` with confirmation prompt and `--yes` bypass.
 
 **Independent Test**: Create an object, delete it (with and without --yes), verify it no longer appears in query results.
 
@@ -133,8 +133,8 @@
 
 ### Implementation for User Story 4
 
-- [x] T036 [US4] Implement `infrahub delete` command (`client.get()` to fetch, confirmation prompt via typer.confirm(), `node.delete()`, --yes flag to skip) in infrahub_sdk/ctl/commands/delete.py
-- [x] T037 [US4] Wire delete command into enduser_commands.py
+- [x] T036 [US4] Implement `infrahubctl delete` command (`client.get()` to fetch, confirmation prompt via typer.confirm(), `node.delete()`, --yes flag to skip) in infrahub_sdk/ctl/commands/delete.py
+- [x] T037 [US4] Wire delete command into cli_commands.py
 - [x] T038 [US4] Add dependency conflict error handling (catch server error, display dependent objects) in infrahub_sdk/ctl/commands/delete.py
 
 **Checkpoint**: Full CRUD cycle complete. All data operations functional.
@@ -143,7 +143,7 @@
 
 ## Phase 7: User Story 5 - Schema Discovery (Priority: P5)
 
-**Goal**: Users can explore the data model with `infrahub schema list` and `infrahub schema show <kind>`.
+**Goal**: Users can explore the data model with `infrahubctl schema list` and `infrahubctl schema show <kind>`.
 
 **Independent Test**: List all schema kinds, verify output matches actual schema. Show a specific kind's attributes and relationships.
 
@@ -154,9 +154,9 @@
 
 ### Implementation for User Story 5
 
-- [x] T041 [US5] Implement `infrahub schema list` command (`client.schema.all()`, filter by substring, display table with Namespace/Name/Kind/Description columns) in infrahub_sdk/ctl/commands/schema.py
-- [x] T042 [US5] Implement `infrahub schema show <kind>` command (`client.schema.get()`, display metadata + attributes table + relationships table) in infrahub_sdk/ctl/commands/schema.py
-- [x] T043 [US5] Wire schema command group into enduser_commands.py
+- [x] T041 [US5] Implement `infrahubctl schema list` command (`client.schema.all()`, filter by substring, display table with Namespace/Name/Kind/Description columns) in infrahub_sdk/ctl/schema.py
+- [x] T042 [US5] Implement `infrahubctl schema show <kind>` command (`client.schema.get()`, display metadata + attributes table + relationships table) in infrahub_sdk/ctl/schema.py
+- [x] T043 [US5] Add schema list/show to existing `schema_app` subgroup in infrahub_sdk/ctl/schema.py (registered via `app.add_typer` in cli_commands.py)
 
 **Checkpoint**: All 5 user stories complete. Full CLI feature set available.
 
@@ -241,7 +241,7 @@ Task: T018 "YAML formatter tests in tests/unit/ctl/formatters/test_yaml.py"
 1. Complete Phase 1: Setup (T001-T004)
 2. Complete Phase 2: Foundational (T005-T018)
 3. Complete Phase 3: User Story 1 - Query (T019-T023)
-4. **STOP and VALIDATE**: `infrahub get <kind>` works with all output formats
+4. **STOP and VALIDATE**: `infrahubctl get <kind>` works with all output formats
 5. Demo/review if ready
 
 ### Incremental Delivery

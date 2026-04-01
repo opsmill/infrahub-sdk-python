@@ -1,4 +1,4 @@
-# Quickstart: `infrahub` CLI
+# Quickstart: `infrahubctl` CLI
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@
 
 ## Configuration
 
-The `infrahub` command uses the same configuration as `infrahubctl`.
+These commands use the existing `infrahubctl` configuration.
 
 Set via environment variables:
 
@@ -29,72 +29,72 @@ api_token = "your-api-token"
 
 ```bash
 # List all available kinds
-infrahub schema list
+infrahubctl schema list
 
 # Filter by name
-infrahub schema list --filter "Device"
+infrahubctl schema list --filter "Device"
 
 # Show details for a specific kind
-infrahub schema show InfraDevice
+infrahubctl schema show InfraDevice
 ```
 
 ## Query Data
 
 ```bash
 # List all devices
-infrahub get InfraDevice
+infrahubctl get InfraDevice
 
 # Filter by attribute
-infrahub get InfraDevice --filter name__value="spine01"
+infrahubctl get InfraDevice --filter name__value="spine01"
 
 # Get a single device's full details
-infrahub get InfraDevice spine01
+infrahubctl get InfraDevice spine01
 
 # Output as JSON (for scripting)
-infrahub get InfraDevice --output json
+infrahubctl get InfraDevice --output json
 
 # Export as Infrahub Object YAML (round-trippable)
-infrahub get InfraDevice --output yaml > devices.yaml
+infrahubctl get InfraDevice --output yaml > devices.yaml
 
 # Query a specific branch
-infrahub get InfraDevice --branch develop
+infrahubctl get InfraDevice --branch develop
 
 # Paginate results
-infrahub get InfraDevice --limit 10 --offset 20
+infrahubctl get InfraDevice --limit 10 --offset 20
 ```
 
 ## Create Objects
 
 ```bash
 # Create with inline flags
-infrahub create InfraDevice \
+infrahubctl create InfraDevice \
   --set name="spine03" \
   --set description="New spine switch" \
   --set site="dc1"
 
 # Create from a YAML file
-infrahub create InfraDevice --file new-devices.yaml
+infrahubctl create InfraDevice --file new-devices.yaml
 ```
 
 ## Update Objects
 
 ```bash
 # Update an attribute
-infrahub update InfraDevice spine03 \
+infrahubctl update InfraDevice spine03 \
   --set description="Updated spine switch"
 
 # Update from file
-infrahub update InfraDevice spine03 --file updates.yaml
+infrahubctl update InfraDevice spine03 --file updates.yaml
 ```
 
 ## Delete Objects
 
 ```bash
 # Delete with confirmation prompt
-infrahub delete InfraDevice spine03
+infrahubctl delete InfraDevice spine03
 
 # Skip confirmation
-infrahub delete InfraDevice spine03 --yes
+infrahubctl delete InfraDevice spine03 --yes
 ```
 
 ## Output Formats
@@ -110,7 +110,7 @@ infrahub delete InfraDevice spine03 --yes
 
 To verify the CLI is working:
 
-1. `infrahub schema list` — confirms connection and authentication
-2. `infrahub get <any-kind>` — confirms data access
-3. `infrahub get <kind> --output yaml > test.yaml` then
-   `infrahub create <kind> --file test.yaml` — confirms round-trip
+1. `infrahubctl schema list` — confirms connection and authentication
+2. `infrahubctl get <any-kind>` — confirms data access
+3. `infrahubctl get <kind> --output yaml > test.yaml` then
+   `infrahubctl create <kind> --file test.yaml` — confirms round-trip

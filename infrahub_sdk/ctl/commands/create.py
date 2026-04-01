@@ -9,14 +9,15 @@ from __future__ import annotations
 import contextlib
 from pathlib import Path
 
-import typer  # pyright: ignore[reportMissingImports]
-from rich.console import Console  # pyright: ignore[reportMissingImports]
+import typer
+from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_node, resolve_relationship_values
+from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
+from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.spec.object import ObjectFile
 
 console = Console()
@@ -62,13 +63,13 @@ async def create_command(
         data = parse_set_args(set_args)  # type: ignore[arg-type]
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
-        data = await resolve_relationship_values(client, data, schema, branch=branch)
+        data = prepare_relationship_data(data, schema)
 
         # Check if node already exists to distinguish create from upsert
         existing = None
         name_value = data.get("name")
         if name_value is not None:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(NodeNotFoundError):
                 existing = await resolve_node(client, kind, str(name_value), schema=schema, branch=branch)
 
         node = await client.create(kind=kind, data=data, branch=branch)

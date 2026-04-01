@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from infrahub_sdk.ctl.commands.utils import resolve_node
+from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_node
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 
@@ -163,3 +163,73 @@ async def test_resolve_default_filter_miss_falls_through_to_hfid(mock_client: Ma
 
     assert result is expected_node
     assert mock_client.get.await_count == 2
+
+
+# --- Tests for prepare_relationship_data ---
+
+
+def _make_schema(attribute_names: list[str], relationship_names: list[str]) -> MagicMock:
+    schema = MagicMock()
+    schema.attribute_names = attribute_names
+    schema.relationship_names = relationship_names
+    return schema
+
+
+def test_prepare_relationship_data_attributes_unchanged() -> None:
+    """Attribute values pass through without modification."""
+    schema = _make_schema(["name", "description"], ["site"])
+    data = {"name": "router1", "description": "core router"}
+    result = prepare_relationship_data(data, schema)
+    assert result == {"name": "router1", "description": "core router"}
+
+
+def test_prepare_relationship_data_uuid_passthrough() -> None:
+    """UUID relationship values pass through as strings."""
+    schema = _make_schema([], ["site"])
+    data = {"site": "12345678-1234-5678-1234-567812345678"}
+    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=True):
+        result = prepare_relationship_data(data, schema)
+    assert result == {"site": "12345678-1234-5678-1234-567812345678"}
+
+
+def test_prepare_relationship_data_hfid_single() -> None:
+    """Non-UUID string is converted to a single-component HFID list."""
+    schema = _make_schema([], ["site"])
+    data = {"site": "DC1"}
+    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+        result = prepare_relationship_data(data, schema)
+    assert result == {"site": ["DC1"]}
+
+
+def test_prepare_relationship_data_hfid_multi_component() -> None:
+    """Multi-component HFID string is split on /."""
+    schema = _make_schema([], ["platform"])
+    data = {"platform": "Cisco/NX-OS"}
+    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+        result = prepare_relationship_data(data, schema)
+    assert result == {"platform": ["Cisco", "NX-OS"]}
+
+
+def test_prepare_relationship_data_list_passthrough() -> None:
+    """List values (cardinality-many) pass through unchanged."""
+    schema = _make_schema([], ["tags"])
+    data = {"tags": [["blue"], ["red"]]}
+    result = prepare_relationship_data(data, schema)
+    assert result == {"tags": [["blue"], ["red"]]}
+
+
+def test_prepare_relationship_data_dict_passthrough() -> None:
+    """Dict values (already structured) pass through unchanged."""
+    schema = _make_schema([], ["site"])
+    data = {"site": {"id": "some-uuid"}}
+    result = prepare_relationship_data(data, schema)
+    assert result == {"site": {"id": "some-uuid"}}
+
+
+def test_prepare_relationship_data_mixed() -> None:
+    """Mixed attributes and relationships are handled correctly."""
+    schema = _make_schema(["name"], ["site", "tags"])
+    data = {"name": "router1", "site": "DC1", "tags": [["blue"]]}
+    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+        result = prepare_relationship_data(data, schema)
+    assert result == {"name": "router1", "site": ["DC1"], "tags": [["blue"]]}

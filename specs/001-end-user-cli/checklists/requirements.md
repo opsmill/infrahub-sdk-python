@@ -1,4 +1,4 @@
-# Specification Quality Checklist: End-User CLI (`infrahub` command)
+# Specification Quality Checklist: End-User CLI (`infrahubctl` command)
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-03-28

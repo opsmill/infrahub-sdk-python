@@ -8,7 +8,7 @@ All commands accept:
 - `--config-file PATH` — Configuration file path (default: infrahubctl.toml)
 - `--output [table|json|csv|yaml]` — Output format (default: table if TTY, json if piped)
 
-## `infrahub get <kind> [identifier]`
+## `infrahubctl get <kind> [identifier]`
 
 **List mode** (no identifier):
 
@@ -24,7 +24,7 @@ All commands accept:
 
 **Filters**: `--filter name__value="spine01"` (repeatable)
 
-## `infrahub create <kind>`
+## `infrahubctl create <kind>`
 
 - Input: kind (positional), --set key=value (repeatable), --file PATH
 - --set and --file are mutually exclusive
@@ -34,7 +34,7 @@ All commands accept:
 **File input**: JSON or YAML in Infrahub Object format
 (`apiVersion: infrahub.app/v1`)
 
-## `infrahub update <kind> <identifier>`
+## `infrahubctl update <kind> <identifier>`
 
 - Input: kind (positional), identifier (positional), --set key=value
   (repeatable), --file PATH
@@ -42,19 +42,19 @@ All commands accept:
 - Output: Confirmation with old → new values for changed fields
 - Exit 0: updated | Exit 1: not found | Exit 1: validation error
 
-## `infrahub delete <kind> <identifier>`
+## `infrahubctl delete <kind> <identifier>`
 
 - Input: kind (positional), identifier (positional), --yes (skip confirmation)
 - Output: Confirmation prompt (unless --yes), then success message
 - Exit 0: deleted | Exit 1: not found | Exit 1: dependency conflict
 
-## `infrahub schema list`
+## `infrahubctl schema list`
 
 - Input: --filter TEXT (substring match on kind name)
 - Output: Table with columns: Namespace, Name, Kind, Description
 - Exit 0: always (empty table if no matches)
 
-## `infrahub schema show <kind>`
+## `infrahubctl schema show <kind>`
 
 - Input: kind (positional)
 - Output: Formatted display of:

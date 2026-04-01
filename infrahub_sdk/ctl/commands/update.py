@@ -9,11 +9,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import typer  # pyright: ignore[reportMissingImports]
-from rich.console import Console  # pyright: ignore[reportMissingImports]
+import typer
+from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_node, resolve_relationship_values
+from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -28,7 +28,7 @@ console = Console()
 @catch_exception(console=console)
 async def update_command(
     kind: str = typer.Argument(..., help="Infrahub schema kind"),
-    identifier: str = typer.Argument(..., help="UUID, name, or HFID (use / for multi-part, e.g. Cisco/NX-OS)"),
+    identifier: str = typer.Argument(..., help="UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)"),
     set_args: list[str] | None = typer.Option(None, "--set", help="Field value in key=value format"),
     file: Path | None = typer.Option(None, "--file", "-f", help="JSON or YAML file with update data"),
     branch: str | None = typer.Option(None, "--branch", "-b", help="Target branch"),
@@ -96,40 +96,42 @@ async def _update_with_set_args(
     """
     data = parse_set_args(set_args)
     schema = await client.schema.get(kind=kind, branch=branch)
-    validate_set_fields(data, schema.attribute_names, schema.relationship_names)
+    attr_names = schema.attribute_names
+    rel_names = schema.relationship_names
+    validate_set_fields(data, attr_names, rel_names)
 
     node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 
-    resolved_data = await resolve_relationship_values(client, data, schema, branch=branch)
+    prepared = prepare_relationship_data(data, schema)
 
-    changes: list[tuple[str, object, object]] = []
+    # Detect changes before mutating so no-op check is accurate
+    attr_changes: list[tuple[str, object, object]] = []
+    rel_keys: list[str] = []
     for key, new_value in data.items():
-        if key in schema.attribute_names:
-            attr = getattr(node, key)
-            old_value = attr.value
-            attr.value = new_value
-            changes.append((key, old_value, new_value))
-        elif key in schema.relationship_names:
-            rel = getattr(node, key)
-            old_id = getattr(rel, "id", None)
-            old_display = getattr(rel, "display_label", old_id)
-            resolved = resolved_data[key]
-            new_id = resolved.get("id") if isinstance(resolved, dict) else resolved
-            if old_id != new_id:
-                setattr(node, key, resolved)
-                changes.append((key, old_display, new_value))
+        if key in attr_names:
+            old_value = getattr(node, key).value
+            if str(old_value) != str(new_value):
+                attr_changes.append((key, old_value, new_value))
+        elif key in rel_names:
+            rel_keys.append(key)
 
-    actual_changes = [(f, o, n) for f, o, n in changes if str(o) != str(n)]
-
-    if not actual_changes:
+    if not attr_changes and not rel_keys:
         console.print(f"[yellow]No changes — {kind} '{identifier}' already has the requested values.")
         return
+
+    for key, _old, new_val in attr_changes:
+        getattr(node, key).value = new_val
+
+    for key in rel_keys:
+        setattr(node, key, prepared[key])
 
     await node.save()
 
     console.print(f"[green]Updated {kind} '{identifier}' successfully.")
-    for field_name, old_val, new_val in actual_changes:
+    for field_name, old_val, new_val in attr_changes:
         console.print(f"  {field_name}: {old_val} -> {new_val}")
+    for key in rel_keys:
+        console.print(f"  {key}: -> {data[key]}")
 
 
 async def _update_with_file(

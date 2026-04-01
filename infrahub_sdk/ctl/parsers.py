@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import typer
@@ -8,7 +9,8 @@ import typer
 def _coerce_value(value: str) -> Any:
     """Attempt to coerce a string value to an appropriate Python type.
 
-    Tries, in order: int, float, bool (true/false), None (null/none).
+    Tries, in order: JSON array (for relationship lists), int, float,
+    bool (true/false), None (null/none).
     Falls back to the original string if no conversion matches.
 
     Args:
@@ -17,6 +19,14 @@ def _coerce_value(value: str) -> Any:
     Returns:
         The coerced Python value.
     """
+    # Try JSON array syntax (e.g. [["blue"], ["red"]] for cardinality-many)
+    stripped = value.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
+
     # Try integer (preserve leading zeros — "00123" stays a string)
     try:
         int_val = int(value)
@@ -33,16 +43,11 @@ def _coerce_value(value: str) -> Any:
     except ValueError:
         pass
 
-    # Try boolean
+    # Try boolean / null
+    keyword_map = {"true": True, "yes": True, "false": False, "no": False, "null": None, "none": None}
     lower = value.lower()
-    if lower in {"true", "yes"}:
-        return True
-    if lower in {"false", "no"}:
-        return False
-
-    # Try null
-    if lower in {"null", "none"}:
-        return None
+    if lower in keyword_map:
+        return keyword_map[lower]
 
     return value
 

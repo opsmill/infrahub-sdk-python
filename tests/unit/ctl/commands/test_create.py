@@ -8,6 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
+from infrahub_sdk.exceptions import NodeNotFoundError
 
 runner = CliRunner()
 
@@ -47,7 +48,14 @@ def test_create_with_set_args() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.create.resolve_node",
+            new_callable=AsyncMock,
+            side_effect=NodeNotFoundError(identifier={"name": ["router1"]}),
+        ),
+    ):
         result = runner.invoke(app, ["create", "InfraDevice", "--set", "name=router1"])
 
     assert result.exit_code == 0, result.stdout
@@ -73,7 +81,14 @@ def test_create_with_set_args_and_branch() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.create.resolve_node",
+            new_callable=AsyncMock,
+            side_effect=NodeNotFoundError(identifier={"name": ["router2"]}),
+        ),
+    ):
         result = runner.invoke(
             app,
             ["create", "InfraDevice", "--set", "name=router2", "--branch", "dev"],
@@ -175,7 +190,14 @@ def test_create_multiple_set_args() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client):
+    with (
+        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.create.resolve_node",
+            new_callable=AsyncMock,
+            side_effect=NodeNotFoundError(identifier={"name": ["router3"]}),
+        ),
+    ):
         result = runner.invoke(
             app,
             ["create", "InfraDevice", "--set", "name=router3", "--set", "description=core router"],

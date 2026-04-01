@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any
 
-from infrahub_sdk.exceptions import NodeNotFoundError, SchemaNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 from infrahub_sdk.utils import is_valid_uuid
-
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
@@ -82,114 +78,52 @@ async def resolve_node(
     return await client.get(kind=kind, id=identifier, branch=branch)
 
 
-async def resolve_relationship_values(
-    client: InfrahubClient,
+def prepare_relationship_data(
     data: dict[str, Any],
     schema: MainSchemaTypesAPI,
-    branch: str | None = None,
 ) -> dict[str, Any]:
-    """Resolve relationship string values in a data dict to node IDs.
+    """Convert relationship values in a data dict to SDK-compatible format.
 
-    For each key that is a relationship name in the schema, attempts to
-    look up the target node by the string value (using the relationship's
-    peer kind). The value is replaced with ``{"id": "<uuid>"}`` so the
-    SDK can create/update the node correctly.
+    Instead of resolving relationship values to UUIDs via round-trips,
+    this converts them to a format the SDK natively understands:
 
-    Attribute values are passed through unchanged.
+    - UUID strings → passed through (SDK wraps as ``{"id": uuid}``)
+    - Non-UUID strings → converted to HFID list (SDK wraps as ``{"hfid": [...]}``)
+    - Lists → passed through (for cardinality-many HFID arrays)
+    - Dicts → passed through
+
+    Attribute values are left unchanged.
 
     Args:
-        client: Initialised async Infrahub client.
         data: Parsed data from ``--set`` arguments.
         schema: Schema for the kind being created/updated.
-        branch: Optional target branch.
 
     Returns:
-        A new dict with relationship values resolved to ID references.
+        A new dict with relationship values in SDK-compatible format.
     """
-    resolved: dict[str, Any] = {}
-
+    rel_names = schema.relationship_names
+    result: dict[str, Any] = {}
     for key, value in data.items():
-        if key not in schema.relationship_names:
-            resolved[key] = value
+        if key not in rel_names:
+            result[key] = value
             continue
-
-        # Already a dict (e.g. {"id": "uuid"}) — pass through
-        if isinstance(value, dict):
-            resolved[key] = value
-            continue
-
-        str_value = str(value)
-        rel_schema = schema.get_relationship(key)
-        peer_kind = rel_schema.peer
-
-        # Try to resolve the string value as a node identifier.
-        # Only fall back to generic peer search on lookup-miss errors;
-        # re-raise auth, network, and other unexpected errors.
-        try:
-            peer_node = await resolve_node(client, peer_kind, str_value, branch=branch)
-            resolved[key] = {"id": peer_node.id}
-        except (NodeNotFoundError, SchemaNotFoundError, ValueError, IndexError):
-            node = await _search_generic_peer(client, str_value, branch=branch)
-            if node is not None:
-                resolved[key] = {"id": node.id}
-            else:
-                resolved[key] = value
-
-    return resolved
+        result[key] = _to_relationship_value(value)
+    return result
 
 
-async def _search_generic_peer(
-    client: InfrahubClient,
-    identifier: str,
-    branch: str | None = None,
-) -> InfrahubNode | None:
-    """Search across all node schemas for a node matching the identifier.
-
-    Used as a fallback when the relationship peer is a generic type
-    and the direct lookup fails.
+def _to_relationship_value(value: Any) -> Any:
+    """Convert a user-provided value to SDK-compatible relationship format.
 
     Args:
-        client: Initialised async Infrahub client.
-        identifier: Display name or HFID to search for.
-        branch: Optional target branch.
+        value: The raw value from the CLI (string, list, or dict).
 
     Returns:
-        The matched node, or None if not found.
+        A value suitable for passing to the SDK's node constructor.
     """
-    all_schemas = await client.schema.all(branch=branch)
-    hfid_parts = identifier.split("/") if "/" in identifier else [identifier]
-
-    for schema in all_schemas.values():
-        if not isinstance(schema, NodeSchemaAPI):
-            continue
-
-        # Try default_filter first
-        if schema.default_filter:
-            try:
-                filters: dict[str, Any] = {schema.default_filter: identifier}
-                node = await client.get(  # type: ignore[arg-type]
-                    kind=schema.kind,
-                    branch=branch,
-                    raise_when_missing=False,
-                    **filters,
-                )
-                if node is not None:
-                    return node
-            except Exception:
-                logger.debug("Failed default_filter for %r via %s", identifier, schema.kind)
-
-        # Try HFID
-        if schema.human_friendly_id:
-            try:
-                node = await client.get(
-                    kind=schema.kind,
-                    hfid=hfid_parts,
-                    branch=branch,
-                    raise_when_missing=False,
-                )
-                if node is not None:
-                    return node
-            except Exception:
-                logger.debug("Failed HFID for %r via %s", identifier, schema.kind)
-
-    return None
+    if isinstance(value, (dict, list)):
+        return value
+    str_value = str(value)
+    if is_valid_uuid(str_value):
+        return str_value
+    # Treat as HFID — split on / for multi-component HFIDs
+    return str_value.split("/") if "/" in str_value else [str_value]

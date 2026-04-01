@@ -89,6 +89,28 @@ applied to node attributes before `node.save()`.
 **Key detail**: Identifier resolution accepts both UUID and HFID (human-friendly ID)
 via the `id` parameter of `client.get()`.
 
+**Relationship values**: Users provide HFID or UUID for relationship targets via
+`--set`. The CLI passes these through to the SDK — it MUST NOT resolve them to
+internal IDs itself. The `infrahub-ansible` collection uses this same pattern
+(see `infrahub_utils.py`).
+
+**Generic peer resolution**: When a relationship peer is a generic type (e.g.,
+`LocationGeneric`), the SDK schema provides `GenericSchemaAPI.used_by` — a list
+of concrete node kinds that implement the generic. This allows targeted HFID
+lookup against only those kinds, rather than brute-forcing all schemas. The
+Ansible collection uses this approach. The SDK handles this server-side when
+HFID is passed directly via `{"hfid": [...]}`.
+
+Relevant SDK improvements:
+
+- [opsmill/infrahub-sdk-python#267](https://github.com/opsmill/infrahub-sdk-python/issues/267) — `rebuild_hfid_from_data()` in SDK
+- [opsmill/infrahub-sdk-python#272](https://github.com/opsmill/infrahub-sdk-python/issues/272) — `node.update(data)` from dict
+
+**Resolved**: Cardinality-many uses JSON array-of-HFID-arrays syntax:
+`--set tags=[["blue"], ["red"]]`. The SDK natively accepts `{"hfid": [...]}`
+dicts and lists thereof for many-relationships (`RelationshipManager` parses
+each list item via `RelatedNode`, which auto-wraps lists as `{"hfid": list}`).
+
 ## R7: Configuration Reuse
 
 **Decision**: Reuse `infrahub_sdk/ctl/config.py` and `CONFIG_PARAM` from

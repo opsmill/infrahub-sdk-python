@@ -103,7 +103,9 @@ An end user unfamiliar with the data model wants to explore what kinds of object
 
 ### Session 2026-03-28
 
-- Q: How should users specify relationships in create/update commands? → A: Unified `--set` flag for both attributes and relationships (e.g., `--set name="x" --set site="my-site"`).
+- Q: How should users specify relationships in create/update commands? → A: Unified `--set` flag for both attributes and relationships (e.g., `--set name="x" --set site="my-site"`). Relationship values are HFIDs or UUIDs — the SDK/server resolves them.
+- Q: How should cardinality-many relationships be specified via `--set`? → A: JSON array-of-HFID-arrays syntax: `--set tags=[["blue"], ["red"]]`. Each inner array is an HFID (supports multi-component HFIDs like `[["Cisco", "NX-OS"]]`). The parser detects `[...]` syntax and parses as JSON.
+- Q: Should the CLI support an explicit `kind` hint for generic peer relationships? → A: No. The CLI passes HFIDs without a kind qualifier; the server resolves across generic peer types.
 - Q: Should there be a single-object detail view? → A: `infrahubctl get <kind> <identifier>` shows a detail view with all attributes, relationships, and metadata.
 - Q: How should relationships appear in list/table output? → A: Show as columns with their display name (e.g., site column shows "my-site"). Full relationship detail in detail view only.
 
@@ -136,8 +138,8 @@ An end user unfamiliar with the data model wants to explore what kinds of object
 
 ## Assumptions
 
-- The `infrahub` command shares the same configuration file and environment variables as `infrahubctl` (no separate config needed).
-- Object identifiers in update/delete commands accept either the object's display name or its UUID.
+- The new CRUD and schema commands are added directly to `infrahubctl`, sharing its existing configuration mechanism (`infrahubctl.toml` or environment variables).
+- Object identifiers in update/delete commands accept either the object's HFID (human-friendly ID) or its UUID.
 - The default output format for interactive terminals is a human-readable table; when stdout is piped, JSON is used automatically.
 - Batch file input supports both JSON and YAML formats with the same schema.
 
@@ -149,4 +151,4 @@ An end user unfamiliar with the data model wants to explore what kinds of object
 - **SC-002**: Users can create a single object in under 3 commands (configure once, then one create command).
 - **SC-003**: 90% of first-time users can successfully query data without consulting documentation beyond `--help`.
 - **SC-004**: All error messages include a suggested corrective action (not just a failure description).
-- **SC-005**: The CLI supports all CRUD operations and schema discovery as a single installable command alongside `infrahubctl`.
+- **SC-005**: All CRUD operations and schema discovery are available as subcommands within `infrahubctl`.

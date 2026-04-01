@@ -56,6 +56,27 @@ class TestCoerceValue:
         assert not result["name"]
         assert isinstance(result["name"], str)
 
+    def test_json_array_single(self) -> None:
+        result = parse_set_args(['tags=[["blue"]]'])
+        assert result["tags"] == [["blue"]]
+
+    def test_json_array_multiple(self) -> None:
+        result = parse_set_args(['tags=[["blue"], ["red"]]'])
+        assert result["tags"] == [["blue"], ["red"]]
+
+    def test_json_array_multi_component_hfid(self) -> None:
+        result = parse_set_args(['platform=[["Cisco", "NX-OS"]]'])
+        assert result["platform"] == [["Cisco", "NX-OS"]]
+
+    def test_json_array_invalid_falls_through(self) -> None:
+        result = parse_set_args(["value=[not valid json"])
+        assert result["value"] == "[not valid json"
+        assert isinstance(result["value"], str)
+
+    def test_json_array_flat_strings(self) -> None:
+        result = parse_set_args(['ids=["abc", "def"]'])
+        assert result["ids"] == ["abc", "def"]
+
 
 class TestParseSetArgs:
     """Tests for parse_set_args."""
