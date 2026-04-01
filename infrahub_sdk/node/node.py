@@ -11,11 +11,8 @@ from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, Prepar
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
-    ProfileSchemaAPI,
     RelationshipCardinality,
     RelationshipKind,
-    RelationshipSchemaAPI,
-    TemplateSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
 from .attribute import Attribute
@@ -68,20 +65,13 @@ class InfrahubNodeBase:
         self._attributes = [item.name for item in self._schema.attributes]
         self._relationships = [item.name for item in self._schema.relationships]
 
-        # GenericSchemaAPI doesn't have inherit_from
-        inherit_from: list[str] = getattr(schema, "inherit_from", None) or []
-        self._artifact_support = "CoreArtifactTarget" in inherit_from
-        self._file_object_support = "CoreFileObject" in inherit_from
-        self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
+        self._artifact_support = schema.supports_artifacts
+        self._file_object_support = schema.supports_file_object
+        self._hierarchy_support = schema.supports_hierarchy
+        self._artifact_definition_support = schema.supports_artifact_definition
 
         self._file_content: bytes | Path | BinaryIO | None = None
         self._file_name: str | None = None
-
-        # Check if this node is hierarchical (supports parent/children and ancestors/descendants)
-        if not isinstance(schema, (ProfileSchemaAPI, GenericSchemaAPI, TemplateSchemaAPI)):
-            self._hierarchy_support = getattr(schema, "hierarchy", None) is not None
-        else:
-            self._hierarchy_support = False
 
         if not self.id:
             self._existing = False
@@ -653,74 +643,25 @@ class InfrahubNode(InfrahubNodeBase):
                     data=rel_data,
                 )
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
-        if self._hierarchy_support:
-            # Create pseudo-schema for parent (cardinality one)
-            parent_schema = RelationshipSchemaAPI(
-                name="parent",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="one",
-                optional=True,
-            )
-            parent_data = data.get("parent", None) if isinstance(data, dict) else None
-            self._hierarchical_data["parent"] = RelatedNode(
-                name="parent",
-                client=self._client,
-                branch=self._branch,
-                schema=parent_schema,
-                data=parent_data,
-            )
-            # Create pseudo-schema for children (many cardinality)
-            children_schema = RelationshipSchemaAPI(
-                name="children",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="many",
-                optional=True,
-            )
-            children_data = data.get("children", None) if isinstance(data, dict) else None
-            self._hierarchical_data["children"] = RelationshipManager(
-                name="children",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=children_schema,
-                data=children_data,
-            )
-            # Create pseudo-schema for ancestors (read-only, many cardinality)
-            ancestors_schema = RelationshipSchemaAPI(
-                name="ancestors",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
-            self._hierarchical_data["ancestors"] = RelationshipManager(
-                name="ancestors",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=ancestors_schema,
-                data=ancestors_data,
-            )
-            # Create pseudo-schema for descendants (read-only, many cardinality)
-            descendants_schema = RelationshipSchemaAPI(
-                name="descendants",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
-            self._hierarchical_data["descendants"] = RelationshipManager(
-                name="descendants",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=descendants_schema,
-                data=descendants_data,
-            )
+        for rel_schema in self._schema.hierarchical_relationship_schemas:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            if rel_schema.cardinality_is_one:
+                self._hierarchical_data[rel_schema.name] = RelatedNode(
+                    name=rel_schema.name,
+                    client=self._client,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
+            else:
+                self._hierarchical_data[rel_schema.name] = RelationshipManager(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -1537,77 +1478,25 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 )
 
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
-        if self._hierarchy_support:
-            # Create pseudo-schema for parent (cardinality one)
-            parent_schema = RelationshipSchemaAPI(
-                name="parent",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="one",
-                optional=True,
-            )
-            parent_data = data.get("parent", None) if isinstance(data, dict) else None
-            self._hierarchical_data["parent"] = RelatedNodeSync(
-                name="parent",
-                client=self._client,
-                branch=self._branch,
-                schema=parent_schema,
-                data=parent_data,
-            )
-
-            # Create pseudo-schema for children (many cardinality)
-            children_schema = RelationshipSchemaAPI(
-                name="children",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="many",
-                optional=True,
-            )
-            children_data = data.get("children", None) if isinstance(data, dict) else None
-            self._hierarchical_data["children"] = RelationshipManagerSync(
-                name="children",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=children_schema,
-                data=children_data,
-            )
-
-            # Create pseudo-schema for ancestors (read-only, many cardinality)
-            ancestors_schema = RelationshipSchemaAPI(
-                name="ancestors",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
-            self._hierarchical_data["ancestors"] = RelationshipManagerSync(
-                name="ancestors",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=ancestors_schema,
-                data=ancestors_data,
-            )
-
-            # Create pseudo-schema for descendants (read-only, many cardinality)
-            descendants_schema = RelationshipSchemaAPI(
-                name="descendants",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
-            self._hierarchical_data["descendants"] = RelationshipManagerSync(
-                name="descendants",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=descendants_schema,
-                data=descendants_data,
-            )
+        for rel_schema in self._schema.hierarchical_relationship_schemas:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            if rel_schema.cardinality_is_one:
+                self._hierarchical_data[rel_schema.name] = RelatedNodeSync(
+                    name=rel_schema.name,
+                    client=self._client,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
+            else:
+                self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
