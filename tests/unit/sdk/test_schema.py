@@ -476,3 +476,28 @@ def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddressSync) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddress) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"
+
+
+async def test_schema_load_surfaces_api_error_on_422(client: InfrahubClient, httpx_mock: HTTPXMock) -> None:
+    """Validate that schema.load surfaces API error responses to the caller."""
+    # Arrange
+    schema_payload = {"version": "1.0", "nodes": [{"name": "Dummy", "namespace": "Test"}]}
+    api_error_message = "Something went wrong on the server side."
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/api/schema/load?branch=main",
+        status_code=422,
+        json={
+            "data": None,
+            "errors": [{"message": api_error_message, "extensions": {"code": 422}}],
+        },
+    )
+
+    # Act
+    response = await client.schema.load(schemas=[schema_payload])
+
+    # Assert
+    assert response.errors
+    assert response.errors["errors"][0]["message"] == api_error_message
+    assert not response.schema_updated
