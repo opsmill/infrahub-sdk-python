@@ -17,10 +17,13 @@ from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_n
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
+from infrahub_sdk.node.relationship import RelatedNode
 from infrahub_sdk.spec.object import ObjectFile
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
+    from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.schema import MainSchemaTypesAPI
 
 console = Console()
 
@@ -106,31 +109,32 @@ async def _update_with_set_args(
 
     # Detect changes before mutating so no-op check is accurate
     attr_changes: list[tuple[str, object, object]] = []
-    rel_keys: list[str] = []
+    rel_changes: list[str] = []
     for key, new_value in data.items():
         if key in attr_names:
             old_value = getattr(node, key).value
             if str(old_value) != str(new_value):
                 attr_changes.append((key, old_value, new_value))
         elif key in rel_names:
-            rel_keys.append(key)
+            if _relationship_changed(node, key, prepared[key], schema):
+                rel_changes.append(key)
 
-    if not attr_changes and not rel_keys:
+    if not attr_changes and not rel_changes:
         console.print(f"[yellow]No changes — {kind} '{identifier}' already has the requested values.")
         return
 
     for key, _old, new_val in attr_changes:
         getattr(node, key).value = new_val
 
-    for key in rel_keys:
-        setattr(node, key, prepared[key])
+    for key in rel_changes:
+        _apply_relationship(node, key, prepared[key], schema)
 
     await node.save()
 
     console.print(f"[green]Updated {kind} '{identifier}' successfully.")
     for field_name, old_val, new_val in attr_changes:
         console.print(f"  {field_name}: {old_val} -> {new_val}")
-    for key in rel_keys:
+    for key in rel_changes:
         console.print(f"  {key}: -> {data[key]}")
 
 
@@ -155,3 +159,65 @@ async def _update_with_file(
         await obj_file.process(client=client, branch=branch)
 
     console.print(f"[green]Processed update from file '{file}' successfully.")
+
+
+def _relationship_changed(
+    node: InfrahubNode,
+    key: str,
+    new_value: object,
+    schema: MainSchemaTypesAPI,
+) -> bool:
+    """Check whether a relationship value actually differs from the node's current state."""
+    rel_schema = schema.get_relationship(key)
+    if rel_schema.cardinality == "one":
+        rel = getattr(node, key, None)
+        if rel is None or not getattr(rel, "initialized", False):
+            return True
+        if getattr(rel, "id", None) is not None and isinstance(new_value, str):
+            return rel.id != new_value
+        old_hfid = getattr(rel, "hfid", None)
+        if old_hfid is not None and isinstance(new_value, list):
+            return list(old_hfid) != new_value
+        return True
+    # cardinality many — always treat as changed since the CLI can't express
+    # the full current set for comparison
+    return True
+
+
+def _apply_relationship(
+    node: InfrahubNode,
+    key: str,
+    new_value: object,
+    schema: MainSchemaTypesAPI,
+) -> None:
+    """Set a relationship value using the proper InfrahubNode API.
+
+    For cardinality-one, ``__setattr__`` correctly creates a ``RelatedNode``.
+    For cardinality-many, directly manipulate the ``RelationshipManager``
+    to avoid overwriting it via ``object.__setattr__``.
+    """
+    rel_schema = schema.get_relationship(key)
+    if rel_schema.cardinality == "one":
+        setattr(node, key, new_value)
+        return
+
+    # Cardinality many: access the RelationshipManager from internal storage
+    many_data: dict[str, object] = getattr(node, "_relationship_cardinality_many_data", {})
+    rel_manager = many_data.get(key)
+    if rel_manager is None or not hasattr(rel_manager, "peers"):
+        return
+
+    client = node._client
+    branch: str = node._branch
+
+    rel_manager.peers.clear()
+    items = new_value if isinstance(new_value, list) and new_value and isinstance(new_value[0], list) else [new_value]
+    for item in items:
+        peer = RelatedNode(
+            name=rel_schema.name,
+            branch=branch,
+            client=client,
+            schema=rel_schema,
+            data=item,
+        )
+        rel_manager.peers.append(peer)

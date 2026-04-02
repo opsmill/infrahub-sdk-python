@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.commands.utils import derive_identifier, prepare_relationship_data, resolve_node
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 
@@ -233,3 +233,47 @@ def test_prepare_relationship_data_mixed() -> None:
     with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
         result = prepare_relationship_data(data, schema)
     assert result == {"name": "router1", "site": ["DC1"], "tags": [["blue"]]}
+
+
+# --- Tests for derive_identifier ---
+
+
+def test_derive_identifier_from_hfid() -> None:
+    """HFID components are assembled from data fields and joined with /."""
+    schema = MagicMock(spec=NodeSchemaAPI)
+    schema.human_friendly_id = ["site__name__value", "name__value"]
+    schema.default_filter = None
+    data = {"site": "DC1", "name": "router1"}
+    assert derive_identifier(data, schema) == "DC1/router1"
+
+
+def test_derive_identifier_from_hfid_partial() -> None:
+    """Partial HFID (missing component) falls through to default_filter."""
+    schema = MagicMock(spec=NodeSchemaAPI)
+    schema.human_friendly_id = ["site__name__value", "name__value"]
+    schema.default_filter = "name__value"
+    data = {"name": "router1"}
+    assert derive_identifier(data, schema) == "router1"
+
+
+def test_derive_identifier_from_default_filter() -> None:
+    """default_filter field is used when HFID is not defined."""
+    schema = MagicMock(spec=NodeSchemaAPI)
+    schema.human_friendly_id = None
+    schema.default_filter = "prefix__value"
+    data = {"prefix": "10.0.0.0/8"}
+    assert derive_identifier(data, schema) == "10.0.0.0/8"
+
+
+def test_derive_identifier_fallback_to_name() -> None:
+    """Falls back to 'name' field when no schema hints are available."""
+    schema = MagicMock()
+    data = {"name": "router1", "description": "core"}
+    assert derive_identifier(data, schema) == "router1"
+
+
+def test_derive_identifier_returns_none() -> None:
+    """Returns None when no identifier can be derived."""
+    schema = MagicMock()
+    data = {"description": "core"}
+    assert derive_identifier(data, schema) is None

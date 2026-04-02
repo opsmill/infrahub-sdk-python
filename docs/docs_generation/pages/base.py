@@ -55,5 +55,7 @@ class MDXDocPage:
 
     @classmethod
     def _sanitize(cls, text: str) -> str:
-        """Strip non-printable control characters and collapse multiple blank lines."""
-        return re.sub(r"\n{3,}", "\n\n", cls._CONTROL_CHAR_RE.sub("", text))
+        """Normalize line endings, strip control characters and collapse blank lines."""
+        text = text.replace("\r\n", "\n")
+        text = cls._CONTROL_CHAR_RE.sub("", text)
+        return re.sub(r"\n{3,}", "\n\n", text)

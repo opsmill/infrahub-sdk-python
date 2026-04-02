@@ -78,6 +78,42 @@ async def resolve_node(
     return await client.get(kind=kind, id=identifier, branch=branch)
 
 
+def derive_identifier(
+    data: dict[str, Any],
+    schema: MainSchemaTypesAPI,
+) -> str | None:
+    """Derive an identifier string from user data and schema for existence checks.
+
+    Tries HFID components first, then default_filter, then falls back to "name".
+
+    Args:
+        data: Parsed data from ``--set`` arguments.
+        schema: Schema for the kind being created/updated.
+
+    Returns:
+        An identifier string suitable for ``resolve_node``, or None.
+    """
+    if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
+        parts: list[str] = []
+        for component in schema.human_friendly_id:
+            field_name = component.split("__")[0]
+            value = data.get(field_name)
+            if value is None:
+                break
+            parts.append(str(value))
+        if parts and len(parts) == len(schema.human_friendly_id):
+            return "/".join(parts)
+
+    if isinstance(schema, NodeSchemaAPI) and schema.default_filter:
+        field_name = schema.default_filter.replace("__value", "")
+        value = data.get(field_name)
+        if value is not None:
+            return str(value)
+
+    name = data.get("name")
+    return str(name) if name is not None else None
+
+
 def prepare_relationship_data(
     data: dict[str, Any],
     schema: MainSchemaTypesAPI,

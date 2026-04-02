@@ -216,9 +216,14 @@ def test_update_with_file_and_branch() -> None:
 
 def test_update_with_set_args_relationship() -> None:
     """``update`` with a relationship --set converts to HFID and saves."""
+    mock_rel_schema = MagicMock()
+    mock_rel_schema.cardinality = "one"
+    mock_rel_schema.name = "site"
+
     mock_schema = MagicMock()
     mock_schema.attribute_names = []
     mock_schema.relationship_names = ["site"]
+    mock_schema.get_relationship = MagicMock(return_value=mock_rel_schema)
 
     mock_node = MagicMock()
     mock_node.id = "node-rel-001"

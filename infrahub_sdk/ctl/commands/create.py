@@ -13,7 +13,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.commands.utils import derive_identifier, prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -70,14 +70,14 @@ async def create_command(
 
         # Check if node already exists to distinguish create from upsert
         existing = None
-        name_value = data.get("name")
-        if name_value is not None:
+        identifier_value = derive_identifier(data, schema)
+        if identifier_value is not None:
             with contextlib.suppress(NodeNotFoundError):
-                existing = await resolve_node(client, kind, str(name_value), schema=schema, branch=branch)
+                existing = await resolve_node(client, kind, identifier_value, schema=schema, branch=branch)
 
         node = await client.create(kind=kind, data=data, branch=branch)
         await node.save(allow_upsert=True)
-        label = node.display_label or name_value or node.id
+        label = node.display_label or identifier_value or node.id
 
         if existing:
             console.print(f"[yellow]Updated {kind} '{label}' (id: {node.id}) — already existed")
