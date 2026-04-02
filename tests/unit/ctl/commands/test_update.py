@@ -90,8 +90,7 @@ def test_update_with_set_args_attribute_applied() -> None:
     mock_node.display_label = "device-a"
     mock_node.save = AsyncMock()
 
-    # Make getattr(node, "description") return mock_attr
-    type(mock_node).description = mock_attr
+    mock_node.description = mock_attr
 
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
@@ -259,7 +258,7 @@ def test_update_with_set_args_attribute_noop() -> None:
     mock_node.display_label = "device-noop"
     mock_node.save = AsyncMock()
 
-    type(mock_node).description = mock_attr
+    mock_node.description = mock_attr
 
     mock_client = MagicMock()
     mock_client.schema = MagicMock()

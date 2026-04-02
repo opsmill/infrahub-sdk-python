@@ -96,11 +96,11 @@ class TableFormatter:
                 continue
 
             if rel_detail.get("cardinality") == "one":
-                label = rel_detail.get("display_label", "")
+                label = rel_detail.get("display_label") or rel_detail.get("id", "")
                 table.add_row(rel_name, str(label))
             else:
                 peers = rel_detail.get("peers", [])
-                labels = [p.get("display_label", "") for p in peers]
+                labels = [p.get("display_label") or p.get("id", "") for p in peers]
                 table.add_row(rel_name, ", ".join(labels))
 
         return self._render(table)

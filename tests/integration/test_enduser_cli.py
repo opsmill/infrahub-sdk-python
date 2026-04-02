@@ -54,17 +54,25 @@ class _EnduserCliBase(TestInfrahubDockerClient, SchemaAnimal):
         """Configure the CLI to talk to the test Infrahub instance."""
         load_configuration(value="infrahubctl.toml")
         assert config.SETTINGS._settings
+        original_server_address = config.SETTINGS._settings.server_address
         config.SETTINGS._settings.server_address = client.config.address
         original_username = os.environ.get("INFRAHUB_USERNAME")
         original_password = os.environ.get("INFRAHUB_PASSWORD")
-        if client.config.username and client.config.password:
-            os.environ["INFRAHUB_USERNAME"] = client.config.username
-            os.environ["INFRAHUB_PASSWORD"] = client.config.password
-        yield
-        if original_username:
-            os.environ["INFRAHUB_USERNAME"] = original_username
-        if original_password:
-            os.environ["INFRAHUB_PASSWORD"] = original_password
+        try:
+            if client.config.username and client.config.password:
+                os.environ["INFRAHUB_USERNAME"] = client.config.username
+                os.environ["INFRAHUB_PASSWORD"] = client.config.password
+            yield
+        finally:
+            config.SETTINGS._settings.server_address = original_server_address
+            if original_username is not None:
+                os.environ["INFRAHUB_USERNAME"] = original_username
+            else:
+                os.environ.pop("INFRAHUB_USERNAME", None)
+            if original_password is not None:
+                os.environ["INFRAHUB_PASSWORD"] = original_password
+            else:
+                os.environ.pop("INFRAHUB_PASSWORD", None)
 
 
 class TestEnduserCliRead(_EnduserCliBase):
@@ -171,7 +179,12 @@ class TestEnduserCliRead(_EnduserCliBase):
 
 
 class TestEnduserCliWrite(_EnduserCliBase):
-    """Write CLI tests: create, update, delete operations."""
+    """Write CLI tests: create, update, delete operations.
+
+    TODO: These tests depend on execution order (e.g. test_create_inline_verify
+    depends on test_create_inline having run first). Ideally each test should be
+    self-contained with its own setup/teardown.
+    """
 
     def test_create_inline(self, base_dataset: None) -> None:
         """Create a person using inline --set flags."""

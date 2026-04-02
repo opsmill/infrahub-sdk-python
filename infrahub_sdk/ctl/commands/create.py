@@ -55,6 +55,9 @@ async def create_command(
     if file:
         files = ObjectFile.load_from_disk(paths=[file])
         for obj_file in files:
+            if obj_file.spec.kind != kind:
+                console.print(f"[red]Error: file kind '{obj_file.spec.kind}' does not match positional kind '{kind}'.")
+                raise typer.Exit(code=1)
             await obj_file.validate_format(client=client, branch=branch)
             await obj_file.process(client=client, branch=branch)
             object_count = len(obj_file.spec.data)

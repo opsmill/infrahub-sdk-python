@@ -7,6 +7,7 @@ output can be loaded back without validation errors.
 
 from __future__ import annotations
 
+import ipaddress
 from typing import TYPE_CHECKING, Any
 
 import yaml  # type: ignore[import-untyped]
@@ -70,6 +71,18 @@ class YamlFormatter:
             value = attr.value
             if not value and value != 0 and value is not False:
                 continue
+            if isinstance(
+                value,
+                (
+                    ipaddress.IPv4Interface,
+                    ipaddress.IPv6Interface,
+                    ipaddress.IPv4Network,
+                    ipaddress.IPv6Network,
+                    ipaddress.IPv4Address,
+                    ipaddress.IPv6Address,
+                ),
+            ):
+                value = str(value)
             entry[attr_name] = value
 
         # Relationships: skip unset, use HFID when available

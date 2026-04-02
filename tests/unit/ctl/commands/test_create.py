@@ -138,7 +138,7 @@ def test_create_with_file_multiple_files() -> None:
         return obj
 
     file_a = make_obj_file("InfraDevice", 2)
-    file_b = make_obj_file("InfraPrefix", 3)
+    file_b = make_obj_file("InfraDevice", 3)
 
     mock_client = MagicMock()
 
@@ -156,6 +156,29 @@ def test_create_with_file_multiple_files() -> None:
     file_a.process.assert_awaited_once()
     file_b.validate_format.assert_awaited_once()
     file_b.process.assert_awaited_once()
+
+
+def test_create_with_file_kind_mismatch() -> None:
+    """``create`` with --file rejects files whose kind doesn't match the positional kind."""
+    mock_file = MagicMock()
+    mock_file.spec.data = [{"name": "item-0"}]
+    mock_file.spec.kind = "InfraPrefix"
+    mock_file.validate_format = AsyncMock()
+    mock_file.process = AsyncMock()
+
+    mock_client = MagicMock()
+
+    with (
+        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch(
+            "infrahub_sdk.ctl.commands.create.ObjectFile.load_from_disk",
+            return_value=[mock_file],
+        ),
+    ):
+        result = runner.invoke(app, ["create", "InfraDevice", "--file", "prefix.yml"])
+
+    assert result.exit_code != 0
+    assert "does not match" in result.stdout
 
 
 def test_create_invalid_field() -> None:
