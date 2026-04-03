@@ -281,11 +281,9 @@ async def schema_list(
     client = initialize_client(branch=branch)
     schemas = await client.schema.all(branch=branch)
 
-    items = list(schemas.values())
+    items = [s for s in schemas.values() if isinstance(s, NodeSchemaAPI)]
     if filter_text:
         items = [s for s in items if filter_text.lower() in s.kind.lower()]
-
-    items = [s for s in items if isinstance(s, NodeSchemaAPI)]
     items.sort(key=lambda s: s.kind)
 
     table = Table(title="Schema Kinds")
