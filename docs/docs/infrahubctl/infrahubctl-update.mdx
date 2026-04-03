@@ -1,0 +1,32 @@
+# `infrahubctl update`
+
+Update an existing object in Infrahub.
+
+Fetches the object by KIND and IDENTIFIER, applies the requested
+changes, and saves back to the server. Use --set or --file.
+
+Examples:
+  infrahubctl update InfraDevice spine01 --set status=active
+  infrahubctl update InfraDevice spine01 --set location=DC1
+  infrahubctl update InfraDevice spine01 --file updates.yml
+
+**Usage**:
+
+```console
+$ infrahubctl update [OPTIONS] KIND IDENTIFIER
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind  [required]
+* `IDENTIFIER`: UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)  [required]
+
+**Options**:
+
+* `--set TEXT`: Field value in key=value format
+* `-f, --file PATH`: JSON or YAML file with update data
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
