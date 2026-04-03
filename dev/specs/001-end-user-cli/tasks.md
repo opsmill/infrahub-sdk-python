@@ -1,6 +1,6 @@
 # Tasks: End-User CLI (`infrahubctl` command)
 
-**Input**: Design documents from `/specs/001-end-user-cli/`
+**Input**: Design documents from `/dev/specs/001-end-user-cli/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
 **Tests**: Tests are REQUIRED per FR-015. Unit tests for all public functions, integration tests for Infrahub server interactions.
