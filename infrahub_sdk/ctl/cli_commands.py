@@ -11,14 +11,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import typer
-import ujson
-from rich.console import Console
-from rich.layout import Layout
-from rich.logging import RichHandler
-from rich.panel import Panel
-from rich.pretty import Pretty
-from rich.table import Table
+import typer  # pyright: ignore[reportMissingImports]
+import ujson  # pyright: ignore[reportMissingModuleSource]
+from rich.console import Console  # pyright: ignore[reportMissingImports]
+from rich.layout import Layout  # pyright: ignore[reportMissingImports]
+from rich.logging import RichHandler  # pyright: ignore[reportMissingImports]
+from rich.panel import Panel  # pyright: ignore[reportMissingImports]
+from rich.pretty import Pretty  # pyright: ignore[reportMissingImports]
+from rich.table import Table  # pyright: ignore[reportMissingImports]
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
@@ -52,6 +52,10 @@ from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
 from ..utils import write_to_file
 from ..yaml import SchemaFile
+from .commands.create import create_command
+from .commands.delete import delete_command
+from .commands.get import get_command
+from .commands.update import update_command
 from .exporter import dump
 from .importer import load
 from .parameters import CONFIG_PARAM
@@ -72,6 +76,17 @@ app.add_typer(task_app, name="task")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
+app.command(name="get")(get_command)
+app.command(name="create")(create_command)
+app.command(name="update")(update_command)
+app.command(name="delete")(delete_command)
+
+# Expose command functions under their command names for typer doc generation
+# (typer --func <name> looks up module-level names)
+get = get_command
+create = create_command
+update = update_command
+delete = delete_command
 
 console = Console()
 

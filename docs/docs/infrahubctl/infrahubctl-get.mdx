@@ -1,0 +1,41 @@
+# `infrahubctl get`
+
+Query and display Infrahub objects.
+
+When IDENTIFIER is omitted the command lists all objects of the given
+KIND. When IDENTIFIER is provided it displays a single object in
+detail view. Empty columns are hidden by default (use --all-columns).
+
+Examples:
+  infrahubctl get InfraDevice
+  infrahubctl get InfraDevice spine01
+  infrahubctl get InfraDevice --filter name__value=spine01
+  infrahubctl get InfraDevice --output json
+  infrahubctl get InfraDevice --output yaml > backup.yml
+
+Exit codes: 0 = results found, 1 = error (including not found in detail
+mode), 80 = list query succeeded but returned zero objects.
+
+**Usage**:
+
+```console
+$ infrahubctl get [OPTIONS] KIND [IDENTIFIER]
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind to query  [required]
+* `[IDENTIFIER]`: UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)
+
+**Options**:
+
+* `--filter TEXT`: Filter in attr__value=x format
+* `-o, --output [table|json|csv|yaml]`: Output format
+* `-b, --branch TEXT`: Target branch
+* `--limit INTEGER`: Maximum results
+* `--offset INTEGER`: Skip first N results
+* `--all-columns`: Show all columns including empty ones
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
