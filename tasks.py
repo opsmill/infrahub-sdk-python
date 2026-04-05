@@ -109,6 +109,37 @@ def _generate_infrahub_sdk_configuration_documentation() -> None:
     MDXDocPage(page=page, output_path=output_path).to_mdx()
 
 
+def _generate_infrahub_sdk_compatibility_documentation() -> None:
+    """Generate documentation for the Infrahub SDK compatibility matrix."""
+    from docs.docs_generation.compatibility import (
+        FEATURE_REQUIREMENTS,
+        PYTHON_SUPPORT,
+        RELEASE_MAPPINGS,
+        VERSION_RANGES,
+    )
+    from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from docs.docs_generation.pages import DocPage, MDXDocPage
+    from infrahub_sdk.template import Jinja2Template
+
+    print(" - Generate Infrahub SDK compatibility documentation")
+    page = DocPage(
+        content_gen_method=Jinja2DocContentGenMethod(
+            template=Jinja2Template(
+                template=Path("sdk_compatibility.j2"),
+                template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+            ),
+            template_variables={
+                "version_ranges": VERSION_RANGES,
+                "release_mappings": RELEASE_MAPPINGS,
+                "python_support": PYTHON_SUPPORT,
+                "feature_requirements": FEATURE_REQUIREMENTS,
+            },
+        ),
+    )
+    output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "compatibility.mdx"
+    MDXDocPage(page=page, output_path=output_path).to_mdx()
+
+
 def _generate_infrahub_sdk_template_documentation() -> None:
     """Generate documentation for the Infrahub SDK template reference."""
     from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
@@ -360,6 +391,7 @@ def generate_python_sdk(context: Context) -> None:
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
+    _generate_infrahub_sdk_compatibility_documentation()
     _generate_sdk_api_docs(context)
 
 
