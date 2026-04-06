@@ -1,0 +1,62 @@
+---
+title: Compatibility matrix
+---
+# Compatibility matrix
+
+This page documents which versions of the Infrahub Python SDK are compatible with each version of Infrahub.
+
+## Version mapping
+
+Each Infrahub release pins a specific SDK version. Using the matching SDK version ensures full compatibility. Newer patch releases of the SDK within the same minor version are generally safe to use.
+
+<!-- vale off -->
+| Infrahub | Required SDK | Release date |
+| --- | --- | --- |
+{% for v in version_ranges %}
+| {{ v.infrahub }} | >= {{ v.min_sdk }} | {{ v.date }} |
+{% endfor %}
+<!-- vale on -->
+
+## Detailed release mapping
+
+The table below shows the exact SDK version pinned to each Infrahub release.
+
+<!-- vale off -->
+| Infrahub | SDK version | Infrahub release date |
+| --- | --- | --- |
+{% for r in release_mappings %}
+| {{ r.infrahub }} | {{ r.sdk }} | {{ r.date }} |
+{% endfor %}
+<!-- vale on -->
+
+## Python version support
+
+<!-- vale off -->
+| SDK version | Python versions |
+| --- | --- |
+{% for p in python_support %}
+| {{ p.sdk_range }} | {{ p.python_versions }} |
+{% endfor %}
+<!-- vale on -->
+
+:::note
+The Infrahub server requires Python 3.12 or later. The SDK supports older Python versions so it can be used from environments that do not run the server itself.
+:::
+
+## Feature-specific requirements
+
+Some SDK features require a minimum Infrahub version:
+
+<!-- vale off -->
+| Feature | Minimum SDK | Minimum Infrahub |
+| --- | --- | --- |
+{% for f in feature_requirements %}
+| {{ f.feature }} | {{ f.min_sdk }} | {{ f.min_infrahub }} |
+{% endfor %}
+<!-- vale on -->
+
+## General guidance
+
+- **Use the SDK version that matches your Infrahub release.** The version mapping table above shows which SDK version was tested and shipped with each Infrahub release.
+- **Patch upgrades within a minor SDK version are safe.** For example, if your Infrahub version pins SDK 1.18.0, upgrading to 1.18.1 is safe.
+- **Upgrading to a newer minor SDK version may work** but is not guaranteed. New SDK features may depend on server-side changes that are not present in older Infrahub versions.
