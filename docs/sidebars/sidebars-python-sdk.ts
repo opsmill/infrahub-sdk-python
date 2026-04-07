@@ -37,6 +37,7 @@ const referenceItems = getItemsWithOrder(
   [
     'reference/config',
     'reference/templating',
+    'reference/compatibility',
   ],
   'reference',
 );
