@@ -66,6 +66,7 @@ class SchemaAnimal:
             name="Dog",
             namespace=NAMESPACE,
             include_in_menu=True,
+            generate_template=True,
             inherit_from=[TESTING_ANIMAL],
             display_labels=["name__value", "breed__value"],
             attributes=[

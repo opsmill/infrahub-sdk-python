@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     import ipaddress
 
     from .context import RequestContext
+    from .node.metadata import NodeMetadata
     from .schema import MainSchemaTypes
 
 
@@ -124,11 +125,11 @@ class IntegerOptional(Attribute):
 
 
 class IPHost(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface
 
 
 class IPHostOptional(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface | None
 
 
 class IPNetwork(Attribute):
@@ -202,6 +203,8 @@ class CoreNodeBase(Protocol):
     def is_resource_pool(self) -> bool: ...
 
     def get_raw_graphql_data(self) -> dict | None: ...
+
+    def get_node_metadata(self) -> NodeMetadata | None: ...
 
 
 @runtime_checkable

@@ -1,0 +1,126 @@
+---
+title: related_node
+sidebarTitle: related_node
+---
+
+# `infrahub_sdk.node.related_node`
+
+## Classes
+
+### `RelatedNodeBase`
+
+Base class for representing a related node in a relationship.
+
+**Methods:**
+
+#### `id`
+
+```python
+id(self) -> str | None
+```
+
+#### `hfid`
+
+```python
+hfid(self) -> list[Any] | None
+```
+
+#### `hfid_str`
+
+```python
+hfid_str(self) -> str | None
+```
+
+#### `is_resource_pool`
+
+```python
+is_resource_pool(self) -> bool
+```
+
+#### `initialized`
+
+```python
+initialized(self) -> bool
+```
+
+#### `display_label`
+
+```python
+display_label(self) -> str | None
+```
+
+#### `typename`
+
+```python
+typename(self) -> str | None
+```
+
+#### `kind`
+
+```python
+kind(self) -> str | None
+```
+
+#### `is_from_profile`
+
+```python
+is_from_profile(self) -> bool
+```
+
+Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind.
+
+#### `get_relationship_metadata`
+
+```python
+get_relationship_metadata(self) -> RelationshipMetadata | None
+```
+
+Returns the relationship metadata (updated_at, updated_by) if fetched.
+
+### `RelatedNode`
+
+Represents a RelatedNodeBase in an asynchronous context.
+
+**Methods:**
+
+#### `fetch`
+
+```python
+fetch(self, timeout: int | None = None) -> None
+```
+
+#### `peer`
+
+```python
+peer(self) -> InfrahubNode
+```
+
+#### `get`
+
+```python
+get(self) -> InfrahubNode
+```
+
+### `RelatedNodeSync`
+
+Represents a related node in a synchronous context.
+
+**Methods:**
+
+#### `fetch`
+
+```python
+fetch(self, timeout: int | None = None) -> None
+```
+
+#### `peer`
+
+```python
+peer(self) -> InfrahubNodeSync
+```
+
+#### `get`
+
+```python
+get(self) -> InfrahubNodeSync
+```

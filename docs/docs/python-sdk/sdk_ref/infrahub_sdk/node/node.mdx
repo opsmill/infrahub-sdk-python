@@ -1,0 +1,526 @@
+---
+title: node
+sidebarTitle: node
+---
+
+# `infrahub_sdk.node.node`
+
+## Classes
+
+### `InfrahubNode`
+
+Represents a Infrahub node in an asynchronous context.
+
+**Methods:**
+
+#### `from_graphql`
+
+```python
+from_graphql(cls, client: InfrahubClient, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
+```
+
+#### `generate`
+
+```python
+generate(self, nodes: list[str] | None = None) -> None
+```
+
+#### `artifact_generate`
+
+```python
+artifact_generate(self, name: str) -> None
+```
+
+#### `artifact_fetch`
+
+```python
+artifact_fetch(self, name: str) -> str | dict[str, Any]
+```
+
+#### `download_file`
+
+```python
+download_file(self, dest: Path | None = None) -> bytes | int
+```
+
+Download the file content from this FileObject node.
+
+This method is only available for nodes that inherit from CoreFileObject.
+The node must have been saved (have an id) before calling this method.
+
+**Args:**
+
+- `dest`: Optional destination path. If provided, the file will be streamed
+  directly to this path (memory-efficient for large files) and the
+  number of bytes written will be returned. If not provided, the
+  file content will be returned as bytes.
+
+**Returns:**
+
+- If ``dest`` is None: The file content as bytes.
+- If ``dest`` is provided: The number of bytes written to the file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+- `ValueError`: If the node hasn't been saved yet or file not found.
+- `AuthenticationError`: If authentication fails.
+
+**Examples:**
+
+```python
+>>> # Download to memory
+>>> content = await contract.download_file()
+>>> # Stream to file (memory-efficient for large files)
+>>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+```
+
+#### `delete`
+
+```python
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `save`
+
+```python
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `generate_query_data`
+
+```python
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+```
+
+#### `generate_query_data_node`
+
+```python
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False) -> dict[str, Any | dict]
+```
+
+Generate the node part of a GraphQL Query with attributes and nodes.
+
+**Args:**
+
+- `include`: List of attributes or relationships to include. Defaults to None.
+- `exclude`: List of attributes or relationships to exclude. Defaults to None.
+- `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
+                        Defaults to True.
+- `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
+- `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
+- `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+
+**Returns:**
+
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
+
+#### `add_relationships`
+
+```python
+add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `remove_relationships`
+
+```python
+remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `create`
+
+```python
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `update`
+
+```python
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `get_pool_allocated_resources`
+
+```python
+get_pool_allocated_resources(self, resource: InfrahubNode) -> list[InfrahubNode]
+```
+
+Fetch all nodes that were allocated for the pool and a given resource.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated.
+
+**Returns:**
+
+- list\[InfrahubNode]: The allocated nodes.
+
+#### `get_pool_resources_utilization`
+
+```python
+get_pool_resources_utilization(self) -> list[dict[str, Any]]
+```
+
+Fetch the utilization of each resource for the pool.
+
+**Returns:**
+
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+#### `get_flat_value`
+
+```python
+get_flat_value(self, key: str, separator: str = '__') -> Any
+```
+
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+**Examples:**
+
+name__value
+module.object.value
+
+#### `extract`
+
+```python
+extract(self, params: dict[str, str]) -> dict[str, Any]
+```
+
+Extract some data points defined in a flat notation.
+
+### `InfrahubNodeSync`
+
+Represents a Infrahub node in a synchronous context.
+
+**Methods:**
+
+#### `from_graphql`
+
+```python
+from_graphql(cls, client: InfrahubClientSync, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
+```
+
+#### `generate`
+
+```python
+generate(self, nodes: list[str] | None = None) -> None
+```
+
+#### `artifact_generate`
+
+```python
+artifact_generate(self, name: str) -> None
+```
+
+#### `artifact_fetch`
+
+```python
+artifact_fetch(self, name: str) -> str | dict[str, Any]
+```
+
+#### `download_file`
+
+```python
+download_file(self, dest: Path | None = None) -> bytes | int
+```
+
+Download the file content from this FileObject node.
+
+This method is only available for nodes that inherit from CoreFileObject.
+The node must have been saved (have an id) before calling this method.
+
+**Args:**
+
+- `dest`: Optional destination path. If provided, the file will be streamed
+  directly to this path (memory-efficient for large files) and the
+  number of bytes written will be returned. If not provided, the
+  file content will be returned as bytes.
+
+**Returns:**
+
+- If ``dest`` is None: The file content as bytes.
+- If ``dest`` is provided: The number of bytes written to the file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+- `ValueError`: If the node hasn't been saved yet or file not found.
+- `AuthenticationError`: If authentication fails.
+
+**Examples:**
+
+```python
+>>> # Download to memory
+>>> content = contract.download_file()
+>>> # Stream to file (memory-efficient for large files)
+>>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
+```
+
+#### `delete`
+
+```python
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `save`
+
+```python
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `generate_query_data`
+
+```python
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+```
+
+#### `generate_query_data_node`
+
+```python
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False) -> dict[str, Any | dict]
+```
+
+Generate the node part of a GraphQL Query with attributes and nodes.
+
+**Args:**
+
+- `include`: List of attributes or relationships to include. Defaults to None.
+- `exclude`: List of attributes or relationships to exclude. Defaults to None.
+- `inherited`: Indicated of the attributes and the relationships inherited from generics should be included as well.
+                        Defaults to True.
+- `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
+- `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
+- `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+
+**Returns:**
+
+- dict\[str, Union\[Any, Dict]]: GraphQL query in dictionary format
+
+#### `add_relationships`
+
+```python
+add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `remove_relationships`
+
+```python
+remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
+```
+
+#### `create`
+
+```python
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `update`
+
+```python
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+```
+
+#### `get_pool_allocated_resources`
+
+```python
+get_pool_allocated_resources(self, resource: InfrahubNodeSync) -> list[InfrahubNodeSync]
+```
+
+Fetch all nodes that were allocated for the pool and a given resource.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated.
+
+**Returns:**
+
+- list\[InfrahubNodeSync]: The allocated nodes.
+
+#### `get_pool_resources_utilization`
+
+```python
+get_pool_resources_utilization(self) -> list[dict[str, Any]]
+```
+
+Fetch the utilization of each resource for the pool.
+
+**Returns:**
+
+- list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+#### `get_flat_value`
+
+```python
+get_flat_value(self, key: str, separator: str = '__') -> Any
+```
+
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+
+**Examples:**
+
+name__value
+module.object.value
+
+#### `extract`
+
+```python
+extract(self, params: dict[str, str]) -> dict[str, Any]
+```
+
+Extract some data points defined in a flat notation.
+
+### `InfrahubNodeBase`
+
+Base class for InfrahubNode and InfrahubNodeSync
+
+**Methods:**
+
+#### `get_branch`
+
+```python
+get_branch(self) -> str
+```
+
+#### `get_path_value`
+
+```python
+get_path_value(self, path: str) -> Any
+```
+
+#### `get_human_friendly_id`
+
+```python
+get_human_friendly_id(self) -> list[str] | None
+```
+
+#### `get_human_friendly_id_as_string`
+
+```python
+get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
+```
+
+#### `hfid`
+
+```python
+hfid(self) -> list[str] | None
+```
+
+#### `hfid_str`
+
+```python
+hfid_str(self) -> str | None
+```
+
+#### `get_node_metadata`
+
+```python
+get_node_metadata(self) -> NodeMetadata | None
+```
+
+Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched.
+
+#### `get_kind`
+
+```python
+get_kind(self) -> str
+```
+
+#### `get_all_kinds`
+
+```python
+get_all_kinds(self) -> list[str]
+```
+
+#### `is_ip_prefix`
+
+```python
+is_ip_prefix(self) -> bool
+```
+
+#### `is_ip_address`
+
+```python
+is_ip_address(self) -> bool
+```
+
+#### `is_resource_pool`
+
+```python
+is_resource_pool(self) -> bool
+```
+
+#### `is_file_object`
+
+```python
+is_file_object(self) -> bool
+```
+
+Check if this node inherits from CoreFileObject and supports file uploads.
+
+#### `upload_from_path`
+
+```python
+upload_from_path(self, path: Path) -> None
+```
+
+Set a file from disk to be uploaded when saving this FileObject node.
+
+The file will be streamed during upload, avoiding loading the entire file into memory.
+
+**Args:**
+
+- `path`: Path to the file on disk.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+
+#### `upload_from_bytes`
+
+```python
+upload_from_bytes(self, content: bytes | BinaryIO, name: str) -> None
+```
+
+Set content to be uploaded when saving this FileObject node.
+
+The content can be provided as bytes or a file-like object.
+Using BinaryIO is recommended for large content to stream during upload.
+
+**Args:**
+
+- `content`: The file content as bytes or a file-like object.
+- `name`: The filename to use for the uploaded file.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
+
+**Examples:**
+
+```python
+>>> # Using bytes (for small files)
+>>> node.upload_from_bytes(content=b"file content", name="example.txt")
+>>> # Using file-like object (for large files)
+>>> with open("/path/to/file.bin", "rb") as f:
+...     node.upload_from_bytes(content=f, name="file.bin")
+```
+
+#### `clear_file`
+
+```python
+clear_file(self) -> None
+```
+
+Clear any pending file content.
+
+#### `get_raw_graphql_data`
+
+```python
+get_raw_graphql_data(self) -> dict | None
+```
+
+#### `generate_query_data_init`
+
+```python
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+```

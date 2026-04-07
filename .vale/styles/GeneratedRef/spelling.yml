@@ -1,0 +1,10 @@
+---
+extends: spelling
+message: "Did you really mean '%s'?"
+level: error
+filters:
+  - '[pP]y.*\b'
+  - '\bimport_.*\b' # Ignore variables starting with 'import_'
+  - '\w+__value' # Skip Infrahub filters in documentation (name__value)
+  - '\b\w+_\w+\b' # Ignore snake_case identifiers in generated API reference docs
+ignore: spelling-exceptions.txt

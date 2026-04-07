@@ -17,6 +17,7 @@ $ infrahubctl schema [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `check`: Check if schema files are valid and what...
+* `export`: Export the schema from Infrahub as YAML...
 * `load`: Load one or multiple schema files into...
 
 ## `infrahubctl schema check`
@@ -37,6 +38,25 @@ $ infrahubctl schema check [OPTIONS] SCHEMAS...
 
 * `--debug / --no-debug`: [default: no-debug]
 * `--branch TEXT`: Branch on which to check the schema.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl schema export`
+
+Export the schema from Infrahub as YAML files, one per namespace.
+
+**Usage**:
+
+```console
+$ infrahubctl schema export [OPTIONS]
+```
+
+**Options**:
+
+* `--directory PATH`: Directory path to store schema files  [default: (dynamic)]
+* `--branch TEXT`: Branch from which to export the schema
+* `--namespaces TEXT`: Namespace(s) to export (default: all user-defined)
+* `--debug / --no-debug`: [default: no-debug]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 

@@ -341,19 +341,21 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                     ],
                                 },
                                 "rejected_by": {"count": 0, "edges": []},
+                            },
+                            "node_metadata": {
+                                "created_at": "2025-11-10T14:30:00Z",
                                 "created_by": {
-                                    "node": {
-                                        "id": "187895d8-723e-8f5d-3614-c517ac8e761c",
-                                        "hfid": ["johndoe"],
-                                        "display_label": "John Doe",
-                                        "__typename": "CoreAccount",
-                                        "name": {"value": "John Doe"},
-                                    },
-                                    "properties": {
-                                        "updated_at": "2025-11-10T14:30:00Z",
-                                    },
+                                    "id": "187895d8-723e-8f5d-3614-c517ac8e761c",
+                                    "__typename": "CoreAccount",
+                                    "display_label": "John Doe",
                                 },
-                            }
+                                "updated_at": "2025-11-10T14:30:00Z",
+                                "updated_by": {
+                                    "id": "187895d8-723e-8f5d-3614-c517ac8e761c",
+                                    "__typename": "CoreAccount",
+                                    "display_label": "John Doe",
+                                },
+                            },
                         },
                         {
                             "node": {
@@ -392,19 +394,21 @@ def mock_branch_report_with_proposed_changes(httpx_mock: HTTPXMock) -> HTTPXMock
                                         },
                                     ],
                                 },
+                            },
+                            "node_metadata": {
+                                "created_at": "2025-11-12T09:15:00Z",
                                 "created_by": {
-                                    "node": {
-                                        "id": "287895d8-723e-8f5d-3614-c517ac8e762c",
-                                        "hfid": ["janesmith"],
-                                        "display_label": "Jane Smith",
-                                        "__typename": "CoreAccount",
-                                        "name": {"value": "Jane Smith"},
-                                    },
-                                    "properties": {
-                                        "updated_at": "2025-11-10T14:30:00Z",
-                                    },
+                                    "id": "287895d8-723e-8f5d-3614-c517ac8e762c",
+                                    "__typename": "CoreAccount",
+                                    "display_label": "Jane Smith",
                                 },
-                            }
+                                "updated_at": "2025-11-12T09:15:00Z",
+                                "updated_by": {
+                                    "id": "287895d8-723e-8f5d-3614-c517ac8e762c",
+                                    "__typename": "CoreAccount",
+                                    "display_label": "Jane Smith",
+                                },
+                            },
                         },
                     ],
                 }

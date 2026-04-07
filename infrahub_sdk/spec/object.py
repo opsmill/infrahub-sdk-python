@@ -264,18 +264,21 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
 
         # First validate if all mandatory fields are present
-        errors.extend(
-            ObjectValidationError(position=position + [element], message=f"{element} is mandatory")
-            for element in schema.mandatory_input_names
-            if not any([element in data, element in context])
-        )
+        # Skip mandatory check when an object_template is specified, as the template provides defaults, we expect the API server to just send a
+        # response with a failure if the template is not valid or doesn't provide all mandatory fields
+        if "object_template" not in data:
+            errors.extend(
+                ObjectValidationError(position=[*position, element], message=f"{element} is mandatory")
+                for element in schema.mandatory_input_names
+                if not any([element in data, element in context])
+            )
 
         # Validate if all attributes are valid
         for key, value in data.items():
             if key not in schema.attribute_names and key not in schema.relationship_names:
                 errors.append(
                     ObjectValidationError(
-                        position=position + [key],
+                        position=[*position, key],
                         message=f"{key} is not a valid attribute or relationship for {schema.kind}",
                     )
                 )
@@ -283,7 +286,7 @@ class InfrahubObjectFileData(BaseModel):
             if key in schema.attribute_names and not isinstance(value, (str, int, float, bool, list, dict)):
                 errors.append(
                     ObjectValidationError(
-                        position=position + [key],
+                        position=[*position, key],
                         message=f"{key} must be a string, int, float, bool, list, or dict",
                     )
                 )
@@ -295,7 +298,7 @@ class InfrahubObjectFileData(BaseModel):
                 if not rel_info.is_valid:
                     errors.append(
                         ObjectValidationError(
-                            position=position + [key],
+                            position=[*position, key],
                             message=rel_info.reason_relationship_not_valid or "Invalid relationship",
                         )
                     )
@@ -303,7 +306,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_related_nodes(
                         client=client,
-                        position=position + [key],
+                        position=[*position, key],
                         rel_info=rel_info,
                         data=value,
                         context=context,
@@ -378,7 +381,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_object(
                         client=client,
-                        position=position + [idx + 1],
+                        position=[*position, idx + 1],
                         schema=peer_schema,
                         data=peer_data,
                         context=context,
@@ -403,7 +406,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_object(
                         client=client,
-                        position=position + [idx + 1],
+                        position=[*position, idx + 1],
                         schema=peer_schema,
                         data=item["data"],
                         context=context,
@@ -613,7 +616,7 @@ class InfrahubObjectFileData(BaseModel):
                     node = await cls.create_node(
                         client=client,
                         schema=peer_schema,
-                        position=position + [rel_info.name, idx + 1],
+                        position=[*position, rel_info.name, idx + 1],
                         data=peer_data,
                         context=context,
                         branch=branch,
@@ -639,7 +642,7 @@ class InfrahubObjectFileData(BaseModel):
                 node = await cls.create_node(
                     client=client,
                     schema=peer_schema,
-                    position=position + [rel_info.name, idx + 1],
+                    position=[*position, rel_info.name, idx + 1],
                     data=item["data"],
                     context=context,
                     branch=branch,
@@ -681,7 +684,7 @@ class ObjectFile(InfrahubFile):
             try:
                 self._spec = InfrahubObjectFileData(**self.data.spec)
             except Exception as exc:
-                raise ValidationError(identifier=str(self.location), message=str(exc))
+                raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
         return self._spec
 
     def validate_content(self) -> None:
@@ -691,7 +694,7 @@ class ObjectFile(InfrahubFile):
         try:
             self._spec = InfrahubObjectFileData(**self.data.spec)
         except Exception as exc:
-            raise ValidationError(identifier=str(self.location), message=str(exc))
+            raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

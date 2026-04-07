@@ -92,7 +92,11 @@ class Timestamp:
                     params["hours"] = float(match.group(1))
 
         if params:
-            return ZonedDateTime.now("UTC").subtract(**params)
+            return ZonedDateTime.now("UTC").subtract(
+                seconds=params.get("seconds", 0.0),
+                minutes=params.get("minutes", 0.0),
+                hours=params.get("hours", 0.0),
+            )
 
         raise TimestampFormatError(f"Invalid time format for {value}")
 

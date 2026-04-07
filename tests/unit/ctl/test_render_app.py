@@ -71,7 +71,7 @@ def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HT
 
 
 @pytest.mark.parametrize(
-    "cli_branch,env_branch,from_git,expected_branch",
+    ("cli_branch", "env_branch", "from_git", "expected_branch"),
     [
         ("cli-branch", None, False, "cli-branch"),
         (None, "env-branch", False, "env-branch"),

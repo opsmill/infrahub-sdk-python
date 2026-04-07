@@ -9,6 +9,7 @@ import pytest
 from infrahub_sdk.exceptions import ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
 from infrahub_sdk.spec.object import (
+    InfrahubObjectFileData,
     ObjectFile,
     RelationshipDataFormat,
     get_relationship_info,
@@ -236,7 +237,7 @@ get_relationship_info_testdata = [
 ]
 
 
-@pytest.mark.parametrize("data,is_valid,format", get_relationship_info_testdata)
+@pytest.mark.parametrize(("data", "is_valid", "format"), get_relationship_info_testdata)
 async def test_get_relationship_info_tags(
     client_with_schema_01: InfrahubClient,
     data: dict | list,
@@ -456,3 +457,18 @@ def test_related_node_graphql_payload(test_case: RelatedNodePayloadTestCase) -> 
 
     # Verify the payload structure
     assert payload == test_case.expected_payload, f"Expected payload {test_case.expected_payload}, got {payload}"
+
+
+async def test_validate_object_skips_mandatory_check_with_object_template(
+    client_with_schema_01: InfrahubClient,
+) -> None:
+    """When object_template is present, mandatory field validation should be skipped."""
+    schema = await client_with_schema_01.schema.get(kind="BuiltinLocation")
+
+    data = {"name": "Site1", "object_template": "Standard Site"}
+    errors = await InfrahubObjectFileData.validate_object(
+        client=client_with_schema_01, position=[1], schema=schema, data=data
+    )
+
+    mandatory_errors = [e for e in errors if e.message == "type is mandatory"]
+    assert mandatory_errors == []

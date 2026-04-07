@@ -46,4 +46,4 @@ def dump(
         aiorun(exporter.export(export_directory=directory, namespaces=namespace, branch=branch, exclude=exclude))
     except TransferError as exc:
         console.print(f"[red]{exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None

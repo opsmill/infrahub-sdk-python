@@ -88,21 +88,28 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository with the generator code.")
     query: str = Field(..., description="The GraphQL query to use as input.")
     parameters: dict[str, Any] = Field(
-        default_factory=dict, description="The input parameters required to run this check"
+        default_factory=dict,
+        description="Maps GraphQL query variable names to target object attribute paths using double-underscore notation.",
     )
-    targets: str = Field(..., description="The group to target when running this generator")
-    class_name: str = Field(default="Generator", description="The name of the generator class to run.")
+    targets: str = Field(
+        ...,
+        description="Name of the CoreStandardGroup whose members become individual Generator targets. One run is created per group member.",
+    )
+    class_name: str = Field(
+        default="Generator",
+        description="The name of the Python class within file_path that extends InfrahubGenerator.",
+    )
     convert_query_response: bool = Field(
         default=False,
-        description="Decide if the generator should convert the result of the GraphQL query to SDK InfrahubNode objects.",
+        description="When true, converts the raw GraphQL dict into SDK InfrahubNode objects accessible via self.nodes and self.store.",
     )
     execute_in_proposed_change: bool = Field(
         default=True,
-        description="Decide if the generator should execute in a proposed change.",
+        description="When true (default), the Generator runs as a CI check during proposed changes.",
     )
     execute_after_merge: bool = Field(
         default=True,
-        description="Decide if the generator should execute after a merge.",
+        description="When true (default), the Generator runs after a branch merge. Set to false for Generators that only run via event triggers.",
     )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:

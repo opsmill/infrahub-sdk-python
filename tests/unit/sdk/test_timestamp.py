@@ -43,7 +43,7 @@ def test_parse_string() -> None:
 
 
 @pytest.mark.parametrize(
-    "input_str,expected_datetime",
+    ("input_str", "expected_datetime"),
     [
         pytest.param(
             "2022-01-01T10:01:01.123000Z", datetime(2022, 1, 1, 10, 1, 1, 123000, tzinfo=UTC), id="milliseconds"
@@ -69,7 +69,7 @@ def test_to_datetime(input_str: str, expected_datetime: datetime) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_str,expected_str,expected_str_no_z",
+    ("input_str", "expected_str", "expected_str_no_z"),
     [
         pytest.param(
             "2022-01-01T10:01:01.123000Z",

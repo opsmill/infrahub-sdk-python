@@ -51,7 +51,7 @@ def init_logging(debug: bool = False) -> None:
 
 
 def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
-    """Handle exeception in a different fashion based on its type."""
+    """Handle exception in a different fashion based on its type."""
     if isinstance(exc, Exit):
         raise typer.Exit(code=exc.exit_code)
     if isinstance(exc, AuthenticationError):
