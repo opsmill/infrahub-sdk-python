@@ -18,6 +18,7 @@ from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
 from infrahub_sdk.node.relationship import RelatedNode
+from infrahub_sdk.schema.main import RelationshipCardinality
 from infrahub_sdk.spec.object import ObjectFile
 
 if TYPE_CHECKING:
@@ -169,7 +170,7 @@ def _relationship_changed(
 ) -> bool:
     """Check whether a relationship value actually differs from the node's current state."""
     rel_schema = schema.get_relationship(key)
-    if rel_schema.cardinality == "one":
+    if rel_schema.cardinality == RelationshipCardinality.ONE:
         rel = getattr(node, key, None)
         if rel is None or not getattr(rel, "initialized", False):
             return True
@@ -197,7 +198,7 @@ def _apply_relationship(
     to avoid overwriting it via ``object.__setattr__``.
     """
     rel_schema = schema.get_relationship(key)
-    if rel_schema.cardinality == "one":
+    if rel_schema.cardinality == RelationshipCardinality.ONE:
         setattr(node, key, new_value)
         return
 
