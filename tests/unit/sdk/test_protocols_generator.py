@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.protocols_generator.generator import CodeGenerator
+from infrahub_sdk.schema import AttributeSchemaAPI
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -34,6 +35,56 @@ SYNCIFY_TEST_CASES = [
         output=["LineageSource", "CoreObjectTemplate", "CoreNode"],
     ),
 ]
+
+
+@dataclass
+class RenderAttributeTestCase:
+    name: str
+    optional: bool
+    default_value: Any
+    expected: str
+
+
+RENDER_ATTRIBUTE_TEST_CASES = [
+    RenderAttributeTestCase(
+        name="required-no-default",
+        optional=False,
+        default_value=None,
+        expected="enabled: Boolean",
+    ),
+    RenderAttributeTestCase(
+        name="required-with-default",
+        optional=False,
+        default_value=True,
+        expected="enabled: Boolean",
+    ),
+    RenderAttributeTestCase(
+        name="optional-no-default",
+        optional=True,
+        default_value=None,
+        expected="enabled: BooleanOptional",
+    ),
+    RenderAttributeTestCase(
+        name="optional-with-default",
+        optional=True,
+        default_value=True,
+        expected="enabled: Boolean",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in RENDER_ATTRIBUTE_TEST_CASES],
+)
+async def test_filter_render_attribute(test_case: RenderAttributeTestCase) -> None:
+    attr = AttributeSchemaAPI(
+        name="enabled",
+        kind="Boolean",
+        optional=test_case.optional,
+        default_value=test_case.default_value,
+    )
+    assert CodeGenerator._jinja2_filter_render_attribute(attr) == test_case.expected
 
 
 @pytest.mark.parametrize(
