@@ -66,8 +66,8 @@ async def create_command(
             await obj_file.process(client=client, branch=branch)
             object_count = len(obj_file.spec.data)
             console.print(f"[green]Created {object_count} objects of kind {obj_file.spec.kind}")
-    else:
-        data = parse_set_args(set_args)  # type: ignore[arg-type]
+    elif set_args:
+        data = parse_set_args(set_args)
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
         data = prepare_relationship_data(data, schema)
