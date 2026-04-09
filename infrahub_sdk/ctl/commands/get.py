@@ -48,11 +48,11 @@ async def get_command(
 
     \b
     Examples:
-      infrahubctl get InfraDevice
-      infrahubctl get InfraDevice spine01
-      infrahubctl get InfraDevice --filter name__value=spine01
-      infrahubctl get InfraDevice --output json
-      infrahubctl get InfraDevice --output yaml > backup.yml
+      infrahubctl object get InfraDevice
+      infrahubctl object get InfraDevice spine01
+      infrahubctl object get InfraDevice --filter name__value=spine01
+      infrahubctl object get InfraDevice --output json
+      infrahubctl object get InfraDevice --output yaml > backup.yml
 
     Exit codes: 0 = results found, 1 = error (including not found in detail
     mode), 80 = list query succeeded but returned zero objects.

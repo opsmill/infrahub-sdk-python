@@ -31,9 +31,9 @@ Provide field values with repeatable --set flags or supply a
 JSON/YAML object file via --file. The two modes are mutually exclusive.
 
 Examples:
-  infrahubctl create InfraDevice --set name=spine01 --set status=active
-  infrahubctl create InfraDevice --set name=spine01 --set location=DC1
-  infrahubctl create InfraDevice --file devices.yml
+  infrahubctl object create InfraDevice --set name=spine01 --set status=active
+  infrahubctl object create InfraDevice --set name=spine01 --set location=DC1
+  infrahubctl object create InfraDevice --file devices.yml
 
 **Usage**:
 
@@ -61,8 +61,8 @@ Fetches the object by KIND and IDENTIFIER, then deletes it.
 Unless --yes is provided, a confirmation prompt is shown first.
 
 Examples:
-  infrahubctl delete InfraDevice spine01
-  infrahubctl delete InfraDevice spine01 --yes
+  infrahubctl object delete InfraDevice spine01
+  infrahubctl object delete InfraDevice spine01 --yes
 
 **Usage**:
 
@@ -91,11 +91,11 @@ KIND. When IDENTIFIER is provided it displays a single object in
 detail view. Empty columns are hidden by default (use --all-columns).
 
 Examples:
-  infrahubctl get InfraDevice
-  infrahubctl get InfraDevice spine01
-  infrahubctl get InfraDevice --filter name__value=spine01
-  infrahubctl get InfraDevice --output json
-  infrahubctl get InfraDevice --output yaml > backup.yml
+  infrahubctl object get InfraDevice
+  infrahubctl object get InfraDevice spine01
+  infrahubctl object get InfraDevice --filter name__value=spine01
+  infrahubctl object get InfraDevice --output json
+  infrahubctl object get InfraDevice --output yaml > backup.yml
 
 Exit codes: 0 = results found, 1 = error (including not found in detail
 mode), 80 = list query succeeded but returned zero objects.
@@ -151,9 +151,9 @@ Fetches the object by KIND and IDENTIFIER, applies the requested
 changes, and saves back to the server. Use --set or --file.
 
 Examples:
-  infrahubctl update InfraDevice spine01 --set status=active
-  infrahubctl update InfraDevice spine01 --set location=DC1
-  infrahubctl update InfraDevice spine01 --file updates.yml
+  infrahubctl object update InfraDevice spine01 --set status=active
+  infrahubctl object update InfraDevice spine01 --set location=DC1
+  infrahubctl object update InfraDevice spine01 --file updates.yml
 
 **Usage**:
 

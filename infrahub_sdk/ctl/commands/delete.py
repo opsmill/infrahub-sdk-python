@@ -31,8 +31,8 @@ async def delete_command(
 
     \b
     Examples:
-      infrahubctl delete InfraDevice spine01
-      infrahubctl delete InfraDevice spine01 --yes
+      infrahubctl object delete InfraDevice spine01
+      infrahubctl object delete InfraDevice spine01 --yes
     """
     client = initialize_client(branch=branch)
     node = await resolve_node(client, kind, identifier, branch=branch)
