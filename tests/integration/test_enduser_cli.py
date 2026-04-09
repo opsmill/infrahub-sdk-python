@@ -1,4 +1,4 @@
-"""Integration tests for the ``infrahub`` end-user CLI.
+"""Integration tests for the ``infrahubctl`` end-user CLI.
 
 Requires a running Infrahub instance with the TestingAnimal schema loaded.
 Uses the same ``TestInfrahubDockerClient`` + ``SchemaAnimal`` fixtures as
@@ -108,14 +108,14 @@ class TestEnduserCliRead(_EnduserCliBase):
 
     def test_get_list_table(self, base_dataset: None) -> None:
         """Query all persons and verify table output contains known names."""
-        result = runner.invoke(app, ["get", "TestingPerson"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson"])
         assert result.exit_code == 0
         assert "Ethan Carter" in result.stdout
         assert "Liam Walker" in result.stdout
 
     def test_get_list_json(self, base_dataset: None) -> None:
         """Query all persons with JSON output and verify valid JSON array."""
-        result = runner.invoke(app, ["get", "TestingPerson", "--output", "json"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "--output", "json"])
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert isinstance(data, list)
@@ -125,14 +125,14 @@ class TestEnduserCliRead(_EnduserCliBase):
 
     def test_get_list_csv(self, base_dataset: None) -> None:
         """Query all persons with CSV output."""
-        result = runner.invoke(app, ["get", "TestingPerson", "--output", "csv"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "--output", "csv"])
         assert result.exit_code == 0
         assert "name" in result.stdout
         assert "Ethan Carter" in result.stdout
 
     def test_get_list_yaml(self, base_dataset: None) -> None:
         """Query all persons with YAML output in Infrahub object format."""
-        result = runner.invoke(app, ["get", "TestingPerson", "--output", "yaml"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "--output", "yaml"])
         assert result.exit_code == 0
         doc = yaml.safe_load(result.stdout)
         assert doc["apiVersion"] == "infrahub.app/v1"
@@ -144,7 +144,9 @@ class TestEnduserCliRead(_EnduserCliBase):
 
     def test_get_list_with_filter(self, base_dataset: None) -> None:
         """Query persons filtered by name."""
-        result = runner.invoke(app, ["get", "TestingPerson", "--filter", "name__value=Liam Walker", "--output", "json"])
+        result = runner.invoke(
+            app, ["object", "get", "TestingPerson", "--filter", "name__value=Liam Walker", "--output", "json"]
+        )
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert len(data) == 1
@@ -152,21 +154,21 @@ class TestEnduserCliRead(_EnduserCliBase):
 
     def test_get_list_with_limit(self, base_dataset: None) -> None:
         """Query persons with a limit on results."""
-        result = runner.invoke(app, ["get", "TestingPerson", "--limit", "1", "--output", "json"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "--limit", "1", "--output", "json"])
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert len(data) == 1
 
     def test_get_detail(self, base_dataset: None) -> None:
         """Get detail view of a single person by display name."""
-        result = runner.invoke(app, ["get", "TestingPerson", "Ethan Carter"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "Ethan Carter"])
         assert result.exit_code == 0
         assert "Ethan Carter" in result.stdout
         assert "185" in result.stdout
 
     def test_get_detail_json(self, base_dataset: None) -> None:
         """Get detail view in JSON format."""
-        result = runner.invoke(app, ["get", "TestingPerson", "Ethan Carter", "--output", "json"])
+        result = runner.invoke(app, ["object", "get", "TestingPerson", "Ethan Carter", "--output", "json"])
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["kind"] == "TestingPerson"
@@ -174,7 +176,7 @@ class TestEnduserCliRead(_EnduserCliBase):
 
     def test_get_invalid_kind(self, base_dataset: None) -> None:
         """Querying an invalid kind returns an error."""
-        result = runner.invoke(app, ["get", "NonExistentKind"])
+        result = runner.invoke(app, ["object", "get", "NonExistentKind"])
         assert result.exit_code != 0
 
 
@@ -190,7 +192,7 @@ class TestEnduserCliWrite(_EnduserCliBase):
         """Create a person using inline --set flags."""
         result = runner.invoke(
             app,
-            ["create", "TestingPerson", "--set", "name=Integration Test Person", "--set", "height=190"],
+            ["object", "create", "TestingPerson", "--set", "name=Integration Test Person", "--set", "height=190"],
         )
         assert result.exit_code == 0, f"create failed: {result.output}"
         assert "Created" in result.stdout
@@ -203,14 +205,14 @@ class TestEnduserCliWrite(_EnduserCliBase):
 
     def test_create_missing_args(self, base_dataset: None) -> None:
         """Create without --set or --file fails."""
-        result = runner.invoke(app, ["create", "TestingPerson"])
+        result = runner.invoke(app, ["object", "create", "TestingPerson"])
         assert result.exit_code != 0
 
     def test_update_inline(self, base_dataset: None) -> None:
         """Update a person's height using --set."""
         result = runner.invoke(
             app,
-            ["update", "TestingPerson", "Sophia Walker", "--set", "height=175"],
+            ["object", "update", "TestingPerson", "Sophia Walker", "--set", "height=175"],
         )
         assert result.exit_code == 0, f"update failed: {result.output}"
         assert "Updated" in result.stdout
@@ -227,7 +229,7 @@ class TestEnduserCliWrite(_EnduserCliBase):
 
     def test_delete_with_yes(self, base_dataset: None) -> None:
         """Delete a person using --yes to skip confirmation."""
-        result = runner.invoke(app, ["delete", "TestingPerson", "Delete Me", "--yes"])
+        result = runner.invoke(app, ["object", "delete", "TestingPerson", "Delete Me", "--yes"])
         assert result.exit_code == 0
         assert "Deleted" in result.stdout
 

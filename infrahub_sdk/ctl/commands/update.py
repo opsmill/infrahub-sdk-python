@@ -45,9 +45,9 @@ async def update_command(
 
     \b
     Examples:
-      infrahubctl update InfraDevice spine01 --set status=active
-      infrahubctl update InfraDevice spine01 --set location=DC1
-      infrahubctl update InfraDevice spine01 --file updates.yml
+      infrahubctl object update InfraDevice spine01 --set status=active
+      infrahubctl object update InfraDevice spine01 --set location=DC1
+      infrahubctl object update InfraDevice spine01 --file updates.yml
     """
     if set_args and file:
         console.print("[red]Error: --set and --file are mutually exclusive.")
@@ -55,7 +55,7 @@ async def update_command(
 
     if not set_args and not file:
         console.print("[red]Error: provide --set key=value or --file <path>.")
-        console.print("Example: infrahubctl update MyKind my-node --set field=value")
+        console.print("Example: infrahubctl object update MyKind my-node --set field=value")
         raise typer.Exit(code=1)
 
     client = initialize_client(branch=branch)

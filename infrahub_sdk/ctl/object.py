@@ -9,6 +9,10 @@ from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..exceptions import ObjectValidationError, ValidationError
 from ..spec.object import ObjectFile
+from .commands.create import create_command
+from .commands.delete import delete_command
+from .commands.get import get_command
+from .commands.update import update_command
 from .parameters import CONFIG_PARAM
 from .utils import (
     display_object_validate_format_error,
@@ -18,6 +22,11 @@ from .utils import (
 
 app = AsyncTyper()
 console = Console()
+
+app.command(name="get")(get_command)
+app.command(name="create")(create_command)
+app.command(name="update")(update_command)
+app.command(name="delete")(delete_command)
 
 
 @app.callback()
