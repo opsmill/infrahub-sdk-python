@@ -1,4 +1,4 @@
-"""Unit tests for the ``infrahub get`` end-user CLI command."""
+"""Unit tests for the ``infrahub object get`` end-user CLI command."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ runner = CliRunner()
 
 
 def test_get_help() -> None:
-    """``get --help`` exits cleanly and includes usage text."""
-    result = runner.invoke(app, ["get", "--help"])
+    """``object get --help`` exits cleanly and includes usage text."""
+    result = runner.invoke(app, ["object", "get", "--help"])
     assert result.exit_code == 0
     assert "kind" in result.stdout.lower() or "Usage" in result.stdout
 
@@ -42,7 +42,7 @@ def test_get_list_mode() -> None:
         patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
         patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
     ):
-        result = runner.invoke(app, ["get", "InfraDevice"])
+        result = runner.invoke(app, ["object", "get", "InfraDevice"])
 
     assert result.exit_code == 0
     mock_client.schema.get.assert_awaited_once_with(kind="InfraDevice", branch=None)
@@ -77,7 +77,7 @@ def test_get_detail_mode() -> None:
             return_value=mock_node,
         ) as mock_resolve,
     ):
-        result = runner.invoke(app, ["get", "InfraDevice", "abc-123"])
+        result = runner.invoke(app, ["object", "get", "InfraDevice", "abc-123"])
 
     assert result.exit_code == 0
     mock_resolve.assert_awaited_once_with(mock_client, "InfraDevice", "abc-123", schema=mock_schema, branch=None)
@@ -112,7 +112,7 @@ def test_get_list_mode_with_options(extra_args: list[str]) -> None:
         patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
         patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
     ):
-        result = runner.invoke(app, ["get", "InfraDevice", *extra_args])
+        result = runner.invoke(app, ["object", "get", "InfraDevice", *extra_args])
 
     # Exit 80 = query succeeded but no results (empty mock)
     assert result.exit_code == 80
