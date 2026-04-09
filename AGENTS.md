@@ -73,6 +73,13 @@ Key rules:
 - Modify generated code (protocols.py)
 - Bypass type checking without justification
 
+## Knowledge base
+
+Deep-dive docs on architecture and workflows live in `dev/knowledge/`. Read these before making changes to the areas they cover.
+
+- [dev/knowledge/cli-architecture.md](dev/knowledge/cli-architecture.md) - CLI command hierarchy and design rules
+- [dev/knowledge/doc-generation.md](dev/knowledge/doc-generation.md) - How docs are auto-generated from code
+
 ## Subdirectory guides
 
 - [docs/AGENTS.md](docs/AGENTS.md) - Documentation (Docusaurus)
