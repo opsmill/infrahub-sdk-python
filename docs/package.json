@@ -17,8 +17,8 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@docusaurus/core": "^3.9.2",
-    "@docusaurus/preset-classic": "^3.9.2",
+    "@docusaurus/core": "^3.10.0",
+    "@docusaurus/preset-classic": "^3.10.0",
     "@iconify/react": "^6.0.0",
     "@mdx-js/react": "^3.0.0",
     "clsx": "^2.0.0",
@@ -30,9 +30,9 @@
     "react-player": "^3.3.2"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.9.2",
-    "@docusaurus/tsconfig": "^3.9.2",
-    "@docusaurus/types": "^3.9.2",
+    "@docusaurus/module-type-aliases": "^3.10.0",
+    "@docusaurus/tsconfig": "^3.10.0",
+    "@docusaurus/types": "^3.10.0",
     "typescript": "~5.5.2",
     "vitest": "^4.0.17"
   },
