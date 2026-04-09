@@ -49,9 +49,9 @@ def test_create_with_set_args() -> None:
     mock_client.create = AsyncMock(return_value=mock_node)
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.resolve_node",
+            "infrahub_sdk.ctl.object.create.resolve_node",
             new_callable=AsyncMock,
             side_effect=NodeNotFoundError(identifier={"name": ["router1"]}),
         ),
@@ -82,9 +82,9 @@ def test_create_with_set_args_and_branch() -> None:
     mock_client.create = AsyncMock(return_value=mock_node)
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.resolve_node",
+            "infrahub_sdk.ctl.object.create.resolve_node",
             new_callable=AsyncMock,
             side_effect=NodeNotFoundError(identifier={"name": ["router2"]}),
         ),
@@ -110,9 +110,9 @@ def test_create_with_file() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.ObjectFile.load_from_disk",
+            "infrahub_sdk.ctl.object.create.ObjectFile.load_from_disk",
             return_value=[mock_file],
         ),
     ):
@@ -143,9 +143,9 @@ def test_create_with_file_multiple_files() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.ObjectFile.load_from_disk",
+            "infrahub_sdk.ctl.object.create.ObjectFile.load_from_disk",
             return_value=[file_a, file_b],
         ),
     ):
@@ -169,9 +169,9 @@ def test_create_with_file_kind_mismatch() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.ObjectFile.load_from_disk",
+            "infrahub_sdk.ctl.object.create.ObjectFile.load_from_disk",
             return_value=[mock_file],
         ),
     ):
@@ -191,7 +191,7 @@ def test_create_invalid_field() -> None:
     mock_client.schema = MagicMock()
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
-    with patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["object", "create", "InfraDevice", "--set", "nonexistent_field=value"])
 
     assert result.exit_code != 0
@@ -214,9 +214,9 @@ def test_create_multiple_set_args() -> None:
     mock_client.create = AsyncMock(return_value=mock_node)
 
     with (
-        patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.create.resolve_node",
+            "infrahub_sdk.ctl.object.create.resolve_node",
             new_callable=AsyncMock,
             side_effect=NodeNotFoundError(identifier={"name": ["router3"]}),
         ),
@@ -236,7 +236,7 @@ def test_create_malformed_set_arg(bad_arg: str) -> None:
     """Malformed --set arguments (no ``=`` or empty key) exit with a non-zero code."""
     mock_client = MagicMock()
 
-    with patch("infrahub_sdk.ctl.commands.create.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["object", "create", "InfraDevice", "--set", bad_arg])
 
     assert result.exit_code != 0

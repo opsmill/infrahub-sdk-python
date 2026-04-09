@@ -14,8 +14,8 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_node
 from infrahub_sdk.ctl.formatters import OutputFormat, detect_output_format, get_formatter
+from infrahub_sdk.ctl.object.utils import resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_filter_args
 from infrahub_sdk.ctl.utils import catch_exception

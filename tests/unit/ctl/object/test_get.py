@@ -38,9 +38,9 @@ def test_get_list_mode() -> None:
     mock_formatter.format_list.return_value = "device-list-output"
 
     with (
-        patch("infrahub_sdk.ctl.commands.get.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
-        patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
+        patch("infrahub_sdk.ctl.object.get.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.get.detect_output_format", return_value="json"),
+        patch("infrahub_sdk.ctl.object.get.get_formatter", return_value=mock_formatter),
     ):
         result = runner.invoke(app, ["object", "get", "InfraDevice"])
 
@@ -68,11 +68,11 @@ def test_get_detail_mode() -> None:
     mock_formatter.format_detail.return_value = '{"id": "abc-123"}'
 
     with (
-        patch("infrahub_sdk.ctl.commands.get.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
-        patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
+        patch("infrahub_sdk.ctl.object.get.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.get.detect_output_format", return_value="json"),
+        patch("infrahub_sdk.ctl.object.get.get_formatter", return_value=mock_formatter),
         patch(
-            "infrahub_sdk.ctl.commands.get.resolve_node",
+            "infrahub_sdk.ctl.object.get.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ) as mock_resolve,
@@ -108,9 +108,9 @@ def test_get_list_mode_with_options(extra_args: list[str]) -> None:
     mock_formatter.format_list.return_value = "[]"
 
     with (
-        patch("infrahub_sdk.ctl.commands.get.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.get.detect_output_format", return_value="json"),
-        patch("infrahub_sdk.ctl.commands.get.get_formatter", return_value=mock_formatter),
+        patch("infrahub_sdk.ctl.object.get.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.get.detect_output_format", return_value="json"),
+        patch("infrahub_sdk.ctl.object.get.get_formatter", return_value=mock_formatter),
     ):
         result = runner.invoke(app, ["object", "get", "InfraDevice", *extra_args])
 

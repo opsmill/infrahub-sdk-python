@@ -28,8 +28,8 @@ def test_delete_with_yes() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-del-001", "--yes"])
 
@@ -48,8 +48,8 @@ def test_delete_with_yes_short_flag() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-del-002", "-y"])
 
@@ -67,8 +67,8 @@ def test_delete_with_branch() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client) as mock_init,
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client) as mock_init,
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(
             app,
@@ -90,8 +90,8 @@ def test_delete_confirmation_abort() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-abort"], input="n\n")
 
@@ -109,8 +109,8 @@ def test_delete_confirmation_yes_input() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-confirm"], input="y\n")
 
@@ -129,8 +129,8 @@ def test_delete_output_contains_id_and_label() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(app, ["object", "delete", "InfraDevice", "unique-id-xyz", "--yes"])
 

@@ -13,7 +13,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import derive_identifier, prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.object.utils import derive_identifier, prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
