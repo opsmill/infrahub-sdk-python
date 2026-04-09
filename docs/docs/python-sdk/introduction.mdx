@@ -1,37 +1,157 @@
 ---
-title: Python SDK
+title: Python SDK overview
 ---
-import VideoPlayer from '../../src/components/VideoPlayer';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import ReferenceLink from '@site/src/components/Card';
+import VideoPlayer from '@site/src/components/VideoPlayer';
 
-The Infrahub Python SDK greatly simplifies how you can interact with Infrahub programmatically.
+# Infrahub Python SDK
 
-## Videos
+The Infrahub Python SDK is a client library for interacting with [Infrahub](https://docs.infrahub.app/) programmatically. It handles authentication, query construction, and data serialization so you can work with infrastructure data using native Python objects instead of raw API calls.
+
+## What you can do with it
+
+The SDK covers three main use cases:
+
+- **Automate inside Infrahub** — Write [transforms](https://docs.infrahub.app/topics/transformation), [generators](https://docs.infrahub.app/topics/generator), and [checks](https://docs.infrahub.app/topics/check) that run as part of Infrahub's pipeline.
+- **Integrate with external systems** — Query and sync data between Infrahub and your existing tools.
+- **Build custom applications** — Use Infrahub as a data backend for your own Python projects.
+
+Under the hood, tools like [`infrahubctl`](/infrahubctl/infrahubctl) and the [Infrahub Ansible collection](https://docs.infrahub.app/ansible) both use this SDK.
+
+## A quick look
+
+<Tabs groupId="async-sync">
+<TabItem value="Async" default>
+
+```python
+import asyncio
+from infrahub_sdk import InfrahubClient
+
+
+async def main():
+    client = InfrahubClient()
+
+    # Create a new tag and save it
+    tag = await client.create(
+        kind="BuiltinTag",
+        name="staging",
+        description="Resources in the staging environment",
+    )
+    await tag.save()
+
+    # Query all tags
+    tags = await client.all(kind="BuiltinTag")
+    for tag in tags:
+        print(f"{tag.name.value} — {tag.description.value}")
+
+
+asyncio.run(main())
+
+```
+
+</TabItem>
+<TabItem value="Sync">
+
+```python
+from infrahub_sdk import InfrahubClientSync
+
+client = InfrahubClientSync()
+
+# Create a new tag and save it
+tag = client.create(
+    kind="BuiltinTag",
+    name="staging",
+    description="Resources in the staging environment",
+)
+tag.save()
+
+# Query all tags
+tags = client.all(kind="BuiltinTag")
+for tag in tags:
+    print(f"{tag.name.value} — {tag.description.value}")
+
+```
+
+</TabItem>
+</Tabs>
+
+Both async and sync clients expose the same API. Choose async for applications that benefit from concurrent I/O (transforms, large-scale sync scripts) and sync for straightforward scripting.
+
+## When to use the SDK instead of direct API calls
+
+| Concern | Raw API | SDK |
+| ------- | ------- | --- |
+| Authentication | Manual token management, JWT refresh | Handled automatically |
+| Querying | Build GraphQL queries by hand | `client.get()`, `client.all()`, `client.filters()` |
+| Mutations | Construct and POST GraphQL mutations | `node.save()`, `node.delete()` |
+| Concurrency | Roll your own async batching | Built-in `batch` with concurrency control |
+| Typing | Maintain type definitions manually | Schema-driven type export using protocols |
+
+:::tip
+The SDK removes the boilerplate so you can focus on the logic that matters to your infrastructure.
+:::
+
+## Key capabilities
+
+- **CRUD operations** — Create, read, update, and delete any node type defined in your schema.
+- **Batch execution** — Group multiple queries into a batch with configurable concurrency limits.
+- **Tracking** — Tag operations with identifiers for auditing and idempotent updates.
+- **Store** — Cache retrieved nodes locally to reduce redundant queries.
+- **GraphQL escape hatch** — Run arbitrary GraphQL queries when the high-level API doesn't cover your use case.
+
+## Video walkthrough
 
 <center>
   <VideoPlayer url='https://www.youtube.com/live/RbRz8_t0FBs?feature=shared' light />
 </center>
 
-## Blog posts
+## Installation
 
-- [Querying Data in Infrahub via the Python SDK](https://www.opsmill.com/querying-data-in-infrahub-via-the-python-sdk/)
-- [Creating, Modifying, and Deleting Data in Infrahub Using the Python SDK](https://www.opsmill.com/infrahub-python-sdk-create-modify-delete/)
+<Tabs groupId="installation">
+<TabItem value="uv" default>
 
-## Guides
+```bash
+uv add infrahub-sdk
+```
 
-- [Installing infrahub-sdk](./guides/installation.mdx)
-- [Creating a client](./guides/client.mdx)
-- [Querying data in Infrahub](./guides/query_data.mdx)
-- [Managing nodes](./guides/create_update_delete.mdx)
-- [Managing branches](./guides/branches.mdx)
-- [Using the client store](./guides/store.mdx)
-- [Using the client tracking mode](./guides/tracking.mdx)
+Extras are available for additional functionality:
 
-## Topics
+```bash
+uv add 'infrahub-sdk[ctl]'    # Adds the infrahubctl CLI
+uv add 'infrahub-sdk[tests]'  # Adds the testing framework for transforms and checks
+uv add 'infrahub-sdk[all]'    # Everything
+```
 
-- [Understanding tracking in the Python SDK](./topics/tracking.mdx)
+</TabItem>
+<TabItem value="pip">
 
-## Reference
+```bash
+pip install infrahub-sdk
+```
 
-- [Client configuration](./reference/config.mdx)
-- [Compatibility matrix](./reference/compatibility.mdx)
-- [Python SDK Release Notes](https://github.com/opsmill/infrahub-sdk-python/releases)
+Extras are available for additional functionality:
+
+```bash
+pip install 'infrahub-sdk[ctl]'    # Adds the infrahubctl CLI
+pip install 'infrahub-sdk[tests]'  # Adds the testing framework for transforms and checks
+pip install 'infrahub-sdk[all]'    # Everything
+```
+
+</TabItem>
+</Tabs>
+
+<ReferenceLink title="Installation guide" url="/python-sdk/guides/installation" />
+
+## Next steps
+
+- **[Hello world example](./guides/client.mdx#hello-world-example)** — Your first client connection and query.
+- **[Create and configure a client](./guides/client.mdx)** — Set up authentication, proxy settings, and client options.
+- **[Query data](./guides/query_data.mdx)** — Retrieve nodes with filters and GraphQL.
+- **[Create, update, and delete nodes](./guides/create_update_delete.mdx)** — Manage infrastructure data programmatically.
+- **[Work with branches](./guides/branches.mdx)** — Use Infrahub's branch workflow from Python.
+- **[Batch operations](./guides/batch.mdx)** — Optimize performance for bulk operations.
+- **[Client configuration reference](./reference/config.mdx)** — All available configuration options.
+- **[Compatibility matrix](./reference/compatibility.mdx)**
+- **[Python SDK Release Notes](https://github.com/opsmill/infrahub-sdk-python/releases)**
