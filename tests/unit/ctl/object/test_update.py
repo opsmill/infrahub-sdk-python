@@ -59,10 +59,10 @@ def test_update_with_set_args() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.update.getattr", side_effect=getattr_side_effect, create=True),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.getattr", side_effect=getattr_side_effect, create=True),
         patch(
-            "infrahub_sdk.ctl.commands.update.resolve_node",
+            "infrahub_sdk.ctl.object.update.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ) as mock_resolve,
@@ -97,9 +97,9 @@ def test_update_with_set_args_attribute_applied() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.resolve_node",
+            "infrahub_sdk.ctl.object.update.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
@@ -132,9 +132,9 @@ def test_update_with_set_args_and_branch() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.resolve_node",
+            "infrahub_sdk.ctl.object.update.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ) as mock_resolve,
@@ -160,8 +160,8 @@ def test_update_invalid_field() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.update.resolve_node", new_callable=AsyncMock),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.resolve_node", new_callable=AsyncMock),
     ):
         result = runner.invoke(app, ["object", "update", "InfraDevice", "abc-123", "--set", "unknown_field=value"])
 
@@ -177,9 +177,9 @@ def test_update_with_file() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.ObjectFile.load_from_disk",
+            "infrahub_sdk.ctl.object.update.ObjectFile.load_from_disk",
             return_value=[mock_file],
         ),
     ):
@@ -200,9 +200,9 @@ def test_update_with_file_and_branch() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.ObjectFile.load_from_disk",
+            "infrahub_sdk.ctl.object.update.ObjectFile.load_from_disk",
             return_value=[mock_file],
         ),
     ):
@@ -237,9 +237,9 @@ def test_update_with_set_args_relationship() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.resolve_node",
+            "infrahub_sdk.ctl.object.update.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
@@ -272,9 +272,9 @@ def test_update_with_set_args_attribute_noop() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
 
     with (
-        patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
         patch(
-            "infrahub_sdk.ctl.commands.update.resolve_node",
+            "infrahub_sdk.ctl.object.update.resolve_node",
             new_callable=AsyncMock,
             return_value=mock_node,
         ),
@@ -293,7 +293,7 @@ def test_update_malformed_set_arg(bad_arg: str) -> None:
     """Malformed --set arguments (no ``=`` or empty key) exit with a non-zero code."""
     mock_client = MagicMock()
 
-    with patch("infrahub_sdk.ctl.commands.update.initialize_client", return_value=mock_client):
+    with patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["object", "update", "InfraDevice", "abc-123", "--set", bad_arg])
 
     assert result.exit_code != 0

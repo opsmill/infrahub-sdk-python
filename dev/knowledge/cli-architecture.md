@@ -21,11 +21,23 @@ For a **root command**, define the function in the appropriate module and regist
 app.command(name="mycommand")(my_function)
 ```
 
-For a **subcommand**, add it to the relevant group's module. For example, object subcommands go in `infrahub_sdk/ctl/object.py` or in dedicated files under `infrahub_sdk/ctl/commands/` and are registered on the object app.
+For a **subcommand**, add it to the relevant group's package or module. For example, object subcommands live in `infrahub_sdk/ctl/object/` and are registered on the object app in `__init__.py`.
 
-## The `commands/` directory
+## Group packages
 
-`infrahub_sdk/ctl/commands/` contains modular command implementations that are imported and registered on a group app. This keeps individual command logic separated from the group wiring. Shared utilities live in `commands/utils.py`.
+When a subcommand group has multiple commands, it lives as a package (directory with `__init__.py`) rather than a single module file. The `object` group is the reference example:
+
+```text
+infrahub_sdk/ctl/object/
+├── __init__.py    # App, callback, load/validate commands, registers CRUD
+├── create.py      # create subcommand
+├── delete.py      # delete subcommand
+├── get.py         # get subcommand
+├── update.py      # update subcommand
+└── utils.py       # Shared utilities (resolve_node, etc.)
+```
+
+Each command file contains a single command function. Shared logic goes in `utils.py`. The `__init__.py` wires everything together by importing and registering commands on the group's `AsyncTyper` app. Other groups that grow beyond a single file should follow this same pattern.
 
 ## Decorators
 
