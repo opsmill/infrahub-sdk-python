@@ -23,14 +23,16 @@ class FilterDefinition:
 
 BUILTIN_FILTERS = [
     FilterDefinition(name="abs", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="attr", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="batch", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="attr", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(name="batch", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="capitalize", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="center", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="count", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="d", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="default", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="dictsort", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(
+        name="dictsort", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"
+    ),
     FilterDefinition(name="e", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="escape", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="filesizeformat", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
@@ -38,44 +40,52 @@ BUILTIN_FILTERS = [
     FilterDefinition(name="float", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="forceescape", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="format", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="groupby", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(
+        name="groupby", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"
+    ),
     FilterDefinition(name="indent", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="int", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="items", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="items", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="join", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="last", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="length", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="list", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="lower", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="map", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="map", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="max", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="min", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="pprint", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="random", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="reject", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="rejectattr", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="pprint", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(name="random", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(name="reject", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(
+        name="rejectattr", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"
+    ),
     FilterDefinition(name="replace", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="reverse", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="round", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="safe", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="select", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
-    FilterDefinition(name="selectattr", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="safe", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(name="select", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
+    FilterDefinition(
+        name="selectattr", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"
+    ),
     FilterDefinition(name="slice", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="sort", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="sort", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="string", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="striptags", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="sum", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="title", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="tojson", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="tojson", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="trim", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="truncate", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="unique", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="unique", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="upper", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="urlencode", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="urlize", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(name="urlize", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"),
     FilterDefinition(name="wordcount", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
     FilterDefinition(name="wordwrap", allowed_contexts=ExecutionContext.ALL, source="jinja2"),
-    FilterDefinition(name="xmlattr", allowed_contexts=ExecutionContext.WORKER, source="jinja2"),
+    FilterDefinition(
+        name="xmlattr", allowed_contexts=ExecutionContext.WORKER | ExecutionContext.LOCAL, source="jinja2"
+    ),
 ]
 
 
