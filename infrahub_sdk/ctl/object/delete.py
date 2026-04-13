@@ -41,7 +41,7 @@ async def delete_command(
         typer.confirm(f"Delete {kind} '{node.display_label}'?", abort=True)
 
     await node.delete()
-    if node.display_label and node.display_label != node.id:
-        console.print(f"[green]Deleted {kind} '{node.display_label}' (id: {node.id})")
+    if node.display_label:
+        console.print(f"[green]Deleted {kind} '{node.display_label}' (ID: {node.id})")
     else:
-        console.print(f"[green]Deleted {kind} (id: {node.id})")
+        console.print(f"[green]Deleted {kind} (ID: {node.id})")
