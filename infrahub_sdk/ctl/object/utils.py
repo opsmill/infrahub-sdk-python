@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 from infrahub_sdk.utils import is_valid_uuid
 
@@ -74,50 +75,10 @@ async def resolve_node(
         if node is not None:
             return node
 
-    # Nothing found — raise with a helpful error via the standard path
-    return await client.get(kind=kind, id=identifier, branch=branch)
+    raise NodeNotFoundError(node_type=kind, identifier={"id": [identifier]}, branch_name=branch)
 
 
-def derive_identifier(
-    data: dict[str, Any],
-    schema: MainSchemaTypesAPI,
-) -> str | None:
-    """Derive an identifier string from user data and schema for existence checks.
-
-    Tries HFID components first, then default_filter, then falls back to "name".
-
-    Args:
-        data: Parsed data from ``--set`` arguments.
-        schema: Schema for the kind being created/updated.
-
-    Returns:
-        An identifier string suitable for ``resolve_node``, or None.
-    """
-    if isinstance(schema, NodeSchemaAPI) and schema.human_friendly_id:
-        parts: list[str] = []
-        for component in schema.human_friendly_id:
-            field_name = component.split("__")[0]
-            value = data.get(field_name)
-            if value is None:
-                break
-            parts.append(str(value))
-        if parts and len(parts) == len(schema.human_friendly_id):
-            return "/".join(parts)
-
-    if isinstance(schema, NodeSchemaAPI) and schema.default_filter:
-        field_name = schema.default_filter.replace("__value", "")
-        value = data.get(field_name)
-        if value is not None:
-            return str(value)
-
-    name = data.get("name")
-    return str(name) if name is not None else None
-
-
-def prepare_relationship_data(
-    data: dict[str, Any],
-    schema: MainSchemaTypesAPI,
-) -> dict[str, Any]:
+def prepare_relationship_data(data: dict[str, Any], schema: MainSchemaTypesAPI) -> dict[str, Any]:
     """Convert relationship values in a data dict to SDK-compatible format.
 
     Instead of resolving relationship values to UUIDs via round-trips,
