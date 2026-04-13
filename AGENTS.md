@@ -2,6 +2,20 @@
 
 Infrahub Python SDK - async/sync client for Infrahub infrastructure management.
 
+## Product context
+
+The SDK is the foundational library for programmatically interacting with Infrahub. It abstracts away the underlying API so developers can work with infrastructure data using native Python objects.
+
+**Primary audience:** Network automation engineers and software developers.
+
+**Three main use cases:**
+
+- **Automate inside Infrahub** — Write transforms, generators, and checks that run as part of Infrahub's pipeline.
+- **Integrate with external systems** — Query and sync data between Infrahub and existing tools. `infrahubctl` and the Infrahub Ansible collection both use this SDK internally.
+- **Build custom applications** — Use Infrahub as a data backend for Python projects entirely outside of Infrahub's own pipeline.
+
+**Why the SDK over direct API calls:** eliminates the need to learn Infrahub's API structure, provides Python-native interfaces with built-in auth, adds advanced capabilities (batching, caching, tracking), and reduces boilerplate.
+
 ## Commands
 
 ```bash
@@ -72,6 +86,13 @@ Key rules:
 - Mix async/sync inappropriately
 - Modify generated code (protocols.py)
 - Bypass type checking without justification
+
+## Knowledge base
+
+Deep-dive docs on architecture and workflows live in `dev/knowledge/`. Read these before making changes to the areas they cover.
+
+- [dev/knowledge/cli-architecture.md](dev/knowledge/cli-architecture.md) - CLI command hierarchy and design rules
+- [dev/knowledge/doc-generation.md](dev/knowledge/doc-generation.md) - How docs are auto-generated from code
 
 ## Subdirectory guides
 

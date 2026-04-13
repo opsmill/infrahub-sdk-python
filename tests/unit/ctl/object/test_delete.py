@@ -1,4 +1,4 @@
-"""Unit tests for the ``infrahub delete`` end-user CLI command."""
+"""Unit tests for the ``infrahub object delete`` end-user CLI command."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ runner = CliRunner()
 
 
 def test_delete_help() -> None:
-    """``delete --help`` exits cleanly and includes usage text."""
-    result = runner.invoke(app, ["delete", "--help"])
+    """``object delete --help`` exits cleanly and includes usage text."""
+    result = runner.invoke(app, ["object", "delete", "--help"])
     assert result.exit_code == 0
     assert "kind" in result.stdout.lower() or "Usage" in result.stdout
 
 
 def test_delete_with_yes() -> None:
-    """``delete --yes`` skips confirmation, deletes the node, and prints a confirmation."""
+    """``object delete --yes`` skips confirmation, deletes the node, and prints a confirmation."""
     mock_node = MagicMock()
     mock_node.id = "node-del-001"
     mock_node.display_label = "router-to-delete"
@@ -28,10 +28,10 @@ def test_delete_with_yes() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
-        result = runner.invoke(app, ["delete", "InfraDevice", "node-del-001", "--yes"])
+        result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-del-001", "--yes"])
 
     assert result.exit_code == 0, result.stdout
     assert "Deleted" in result.stdout
@@ -39,7 +39,7 @@ def test_delete_with_yes() -> None:
 
 
 def test_delete_with_yes_short_flag() -> None:
-    """``delete -y`` is equivalent to ``--yes``."""
+    """``object delete -y`` is equivalent to ``--yes``."""
     mock_node = MagicMock()
     mock_node.id = "node-del-002"
     mock_node.display_label = "router-b"
@@ -48,17 +48,17 @@ def test_delete_with_yes_short_flag() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
-        result = runner.invoke(app, ["delete", "InfraDevice", "node-del-002", "-y"])
+        result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-del-002", "-y"])
 
     assert result.exit_code == 0, result.stdout
     mock_node.delete.assert_awaited_once()
 
 
 def test_delete_with_branch() -> None:
-    """``delete`` forwards --branch to initialize_client."""
+    """``object delete`` forwards --branch to initialize_client."""
     mock_node = MagicMock()
     mock_node.id = "node-br-del"
     mock_node.display_label = "device-in-branch"
@@ -67,12 +67,12 @@ def test_delete_with_branch() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client) as mock_init,
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client) as mock_init,
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
         result = runner.invoke(
             app,
-            ["delete", "InfraDevice", "node-br-del", "--yes", "--branch", "my-branch"],
+            ["object", "delete", "InfraDevice", "node-br-del", "--yes", "--branch", "my-branch"],
         )
 
     assert result.exit_code == 0, result.stdout
@@ -90,10 +90,10 @@ def test_delete_confirmation_abort() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
-        result = runner.invoke(app, ["delete", "InfraDevice", "node-abort"], input="n\n")
+        result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-abort"], input="n\n")
 
     assert result.exit_code != 0
     mock_node.delete.assert_not_awaited()
@@ -109,10 +109,10 @@ def test_delete_confirmation_yes_input() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
-        result = runner.invoke(app, ["delete", "InfraDevice", "node-confirm"], input="y\n")
+        result = runner.invoke(app, ["object", "delete", "InfraDevice", "node-confirm"], input="y\n")
 
     assert result.exit_code == 0, result.stdout
     assert "Deleted" in result.stdout
@@ -129,10 +129,10 @@ def test_delete_output_contains_id_and_label() -> None:
     mock_client = MagicMock()
 
     with (
-        patch("infrahub_sdk.ctl.commands.delete.initialize_client", return_value=mock_client),
-        patch("infrahub_sdk.ctl.commands.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
+        patch("infrahub_sdk.ctl.object.delete.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.delete.resolve_node", new_callable=AsyncMock, return_value=mock_node),
     ):
-        result = runner.invoke(app, ["delete", "InfraDevice", "unique-id-xyz", "--yes"])
+        result = runner.invoke(app, ["object", "delete", "InfraDevice", "unique-id-xyz", "--yes"])
 
     assert result.exit_code == 0, result.stdout
     assert "unique-id-xyz" in result.stdout

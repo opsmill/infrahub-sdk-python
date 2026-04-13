@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import resolve_node
+from infrahub_sdk.ctl.object.utils import resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.utils import catch_exception
 
@@ -31,8 +31,8 @@ async def delete_command(
 
     \b
     Examples:
-      infrahubctl delete InfraDevice spine01
-      infrahubctl delete InfraDevice spine01 --yes
+      infrahubctl object delete InfraDevice spine01
+      infrahubctl object delete InfraDevice spine01 --yes
     """
     client = initialize_client(branch=branch)
     node = await resolve_node(client, kind, identifier, branch=branch)

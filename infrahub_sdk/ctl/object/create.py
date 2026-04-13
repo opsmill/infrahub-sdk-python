@@ -13,7 +13,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.commands.utils import derive_identifier, prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.object.utils import derive_identifier, prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
@@ -38,16 +38,16 @@ async def create_command(
 
     \b
     Examples:
-      infrahubctl create InfraDevice --set name=spine01 --set status=active
-      infrahubctl create InfraDevice --set name=spine01 --set location=DC1
-      infrahubctl create InfraDevice --file devices.yml
+      infrahubctl object create InfraDevice --set name=spine01 --set status=active
+      infrahubctl object create InfraDevice --set name=spine01 --set location=DC1
+      infrahubctl object create InfraDevice --file devices.yml
     """
     if set_args and file:
         console.print("[red]Error: --set and --file are mutually exclusive.")
         raise typer.Exit(code=1)
     if not set_args and not file:
         console.print("[red]Error: provide --set key=value or --file <path>.")
-        console.print("Example: infrahubctl create MyKind --set name=foo --set status=active")
+        console.print("Example: infrahubctl object create MyKind --set name=foo --set status=active")
         raise typer.Exit(code=1)
 
     client = initialize_client(branch=branch)

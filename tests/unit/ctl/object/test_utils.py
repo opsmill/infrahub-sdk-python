@@ -1,4 +1,4 @@
-"""Unit tests for ``infrahub_sdk.ctl.commands.utils``."""
+"""Unit tests for ``infrahub_sdk.ctl.object.utils``."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from infrahub_sdk.ctl.commands.utils import derive_identifier, prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.object.utils import derive_identifier, prepare_relationship_data, resolve_node
 from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.schema import NodeSchemaAPI
 
@@ -33,7 +33,7 @@ async def test_resolve_by_uuid(mock_client: MagicMock) -> None:
 
     uuid_identifier = "12345678-1234-5678-1234-567812345678"
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=True):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=True):
         result = await resolve_node(mock_client, "InfraDevice", uuid_identifier)
 
     assert result is expected_node
@@ -50,7 +50,7 @@ async def test_resolve_by_default_filter(mock_client: MagicMock) -> None:
     expected_node = MagicMock()
     mock_client.get = AsyncMock(return_value=expected_node)
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = await resolve_node(mock_client, "InfraDevice", "router1")
 
     assert result is expected_node
@@ -73,7 +73,7 @@ async def test_resolve_by_hfid(mock_client: MagicMock) -> None:
     expected_node = MagicMock()
     mock_client.get = AsyncMock(return_value=expected_node)
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = await resolve_node(mock_client, "InfraDevice", "router1")
 
     assert result is expected_node
@@ -96,7 +96,7 @@ async def test_resolve_by_hfid_multi_component(mock_client: MagicMock) -> None:
     expected_node = MagicMock()
     mock_client.get = AsyncMock(return_value=expected_node)
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = await resolve_node(mock_client, "InfraDevice", "london/router1")
 
     assert result is expected_node
@@ -121,7 +121,7 @@ async def test_resolve_fallback_raises(mock_client: MagicMock) -> None:
     )
 
     with (
-        patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False),
+        patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False),
         pytest.raises(NodeNotFoundError),
     ):
         await resolve_node(mock_client, "InfraDevice", "unknown-name")
@@ -140,7 +140,7 @@ async def test_resolve_uses_provided_schema(mock_client: MagicMock) -> None:
 
     uuid_identifier = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=True):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=True):
         result = await resolve_node(mock_client, "InfraDevice", uuid_identifier, schema=pre_fetched_schema)
 
     assert result is expected_node
@@ -158,7 +158,7 @@ async def test_resolve_default_filter_miss_falls_through_to_hfid(mock_client: Ma
     # First call (default_filter) returns None; second call (hfid) returns the node.
     mock_client.get = AsyncMock(side_effect=[None, expected_node])
 
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = await resolve_node(mock_client, "InfraDevice", "router1")
 
     assert result is expected_node
@@ -187,7 +187,7 @@ def test_prepare_relationship_data_uuid_passthrough() -> None:
     """UUID relationship values pass through as strings."""
     schema = _make_schema([], ["site"])
     data = {"site": "12345678-1234-5678-1234-567812345678"}
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=True):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=True):
         result = prepare_relationship_data(data, schema)
     assert result == {"site": "12345678-1234-5678-1234-567812345678"}
 
@@ -196,7 +196,7 @@ def test_prepare_relationship_data_hfid_single() -> None:
     """Non-UUID string is converted to a single-component HFID list."""
     schema = _make_schema([], ["site"])
     data = {"site": "DC1"}
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = prepare_relationship_data(data, schema)
     assert result == {"site": ["DC1"]}
 
@@ -205,7 +205,7 @@ def test_prepare_relationship_data_hfid_multi_component() -> None:
     """Multi-component HFID string is split on /."""
     schema = _make_schema([], ["platform"])
     data = {"platform": "Cisco/NX-OS"}
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = prepare_relationship_data(data, schema)
     assert result == {"platform": ["Cisco", "NX-OS"]}
 
@@ -230,7 +230,7 @@ def test_prepare_relationship_data_mixed() -> None:
     """Mixed attributes and relationships are handled correctly."""
     schema = _make_schema(["name"], ["site", "tags"])
     data = {"name": "router1", "site": "DC1", "tags": [["blue"]]}
-    with patch("infrahub_sdk.ctl.commands.utils.is_valid_uuid", return_value=False):
+    with patch("infrahub_sdk.ctl.object.utils.is_valid_uuid", return_value=False):
         result = prepare_relationship_data(data, schema)
     assert result == {"name": "router1", "site": ["DC1"], "tags": [["blue"]]}
 
