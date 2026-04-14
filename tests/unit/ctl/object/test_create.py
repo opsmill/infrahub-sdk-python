@@ -8,7 +8,6 @@ import pytest
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
-from infrahub_sdk.exceptions import NodeNotFoundError
 
 runner = CliRunner()
 
@@ -48,18 +47,11 @@ def test_create_with_set_args() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with (
-        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
-        patch(
-            "infrahub_sdk.ctl.object.create.resolve_node",
-            new_callable=AsyncMock,
-            side_effect=NodeNotFoundError(identifier={"name": ["router1"]}),
-        ),
-    ):
+    with patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client):
         result = runner.invoke(app, ["object", "create", "InfraDevice", "--set", "name=router1"])
 
     assert result.exit_code == 0, result.stdout
-    assert "Created" in result.stdout
+    assert "Saved" in result.stdout
     mock_client.schema.get.assert_awaited_once_with(kind="InfraDevice", branch=None)
     mock_client.create.assert_awaited_once_with(kind="InfraDevice", data={"name": "router1"}, branch=None)
     mock_node.save.assert_awaited_once_with(allow_upsert=True)
@@ -81,14 +73,7 @@ def test_create_with_set_args_and_branch() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with (
-        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
-        patch(
-            "infrahub_sdk.ctl.object.create.resolve_node",
-            new_callable=AsyncMock,
-            side_effect=NodeNotFoundError(identifier={"name": ["router2"]}),
-        ),
-    ):
+    with patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client):
         result = runner.invoke(
             app,
             ["object", "create", "InfraDevice", "--set", "name=router2", "--branch", "dev"],
@@ -119,7 +104,7 @@ def test_create_with_file() -> None:
         result = runner.invoke(app, ["object", "create", "InfraDevice", "--file", "devices.yml"])
 
     assert result.exit_code == 0, result.stdout
-    assert "Created" in result.stdout
+    assert "Saved" in result.stdout
     assert "2" in result.stdout
     assert "InfraDevice" in result.stdout
     mock_file.validate_format.assert_awaited_once_with(client=mock_client, branch=None)
@@ -213,14 +198,7 @@ def test_create_multiple_set_args() -> None:
     mock_client.schema.get = AsyncMock(return_value=mock_schema)
     mock_client.create = AsyncMock(return_value=mock_node)
 
-    with (
-        patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client),
-        patch(
-            "infrahub_sdk.ctl.object.create.resolve_node",
-            new_callable=AsyncMock,
-            side_effect=NodeNotFoundError(identifier={"name": ["router3"]}),
-        ),
-    ):
+    with patch("infrahub_sdk.ctl.object.create.initialize_client", return_value=mock_client):
         result = runner.invoke(
             app,
             ["object", "create", "InfraDevice", "--set", "name=router3", "--set", "description=core router"],

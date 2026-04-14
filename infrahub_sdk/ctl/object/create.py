@@ -6,18 +6,16 @@ arguments or from a JSON/YAML object file specified via ``--file``.
 
 from __future__ import annotations
 
-import contextlib
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
-from infrahub_sdk.ctl.object.utils import derive_identifier, prepare_relationship_data, resolve_node
+from infrahub_sdk.ctl.object.utils import prepare_relationship_data
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
-from infrahub_sdk.exceptions import NodeNotFoundError
 from infrahub_sdk.spec.object import ObjectFile
 
 console = Console()
@@ -65,25 +63,16 @@ async def create_command(
         for obj_file in files:
             await obj_file.process(client=client, branch=branch)
             object_count = len(obj_file.spec.data)
-            console.print(f"[green]Created {object_count} objects of kind {obj_file.spec.kind}")
+            console.print(f"[green]Saved {object_count} objects of kind {obj_file.spec.kind}")
     elif set_args:
         data = parse_set_args(set_args)
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
         data = prepare_relationship_data(data, schema)
 
-        # Check if node already exists to distinguish create from upsert
-        existing = None
-        identifier_value = derive_identifier(data, schema)
-        if identifier_value is not None:
-            with contextlib.suppress(NodeNotFoundError):
-                existing = await resolve_node(client, kind, identifier_value, schema=schema, branch=branch)
-
         node = await client.create(kind=kind, data=data, branch=branch)
         await node.save(allow_upsert=True)
-        label = node.display_label or identifier_value or node.id
-
-        if existing:
-            console.print(f"[yellow]Updated {kind} '{label}' (id: {node.id}) — already existed")
+        if node.display_label:
+            console.print(f"[green]Saved {kind} '{node.display_label}' (ID: {node.id})")
         else:
-            console.print(f"[green]Created {kind} '{label}' (id: {node.id})")
+            console.print(f"[green]Saved {kind} (ID: {node.id})")
