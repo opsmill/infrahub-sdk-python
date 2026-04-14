@@ -100,14 +100,14 @@ class TestValidateContext:
         jinja.validate(context=ExecutionContext.WORKER)
 
     def test_context_worker_blocks_local_only_filters(self) -> None:
-        """WORKER context should still block LOCAL-only filters like 'safe'."""
-        jinja = Jinja2Template(template="{{ data | safe }}")
+        """WORKER context should still block LOCAL-only filters like 'fqdn_to_ip'."""
+        jinja = Jinja2Template(template="{{ data | fqdn_to_ip }}")
         with pytest.raises(JinjaTemplateOperationViolationError) as exc:
             jinja.validate(context=ExecutionContext.WORKER)
-        assert exc.value.message == "The 'safe' filter isn't allowed to be used"
+        assert exc.value.message == "The 'fqdn_to_ip' filter isn't allowed to be used"
 
     def test_context_local_allows_local_only_filters(self) -> None:
-        jinja = Jinja2Template(template="{{ data | safe }}")
+        jinja = Jinja2Template(template="{{ data | fqdn_to_ip }}")
         jinja.validate(context=ExecutionContext.LOCAL)
 
     def test_context_local_blocks_artifact_content(self) -> None:
