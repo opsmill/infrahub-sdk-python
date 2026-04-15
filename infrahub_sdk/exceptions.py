@@ -163,6 +163,13 @@ class InvalidResponseError(Error):
     """Raised when an object requires an initialization step before use"""
 
 
+class RepositoryFileNotFoundError(Error):
+    def __init__(self, file_path: str, message: str | None = None) -> None:
+        self.file_path = file_path
+        self.message = message or f"File '{file_path}' does not exist."
+        super().__init__(self.message)
+
+
 class FileNotValidError(Error):
     def __init__(self, name: str, message: str = "") -> None:
         self.message = message or f"Cannot parse '{name}' content."
