@@ -3,8 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from infrahub_sdk.exceptions import FragmentFileNotFoundError, ResourceNotDefinedError
-from infrahub_sdk.schema.repository import InfrahubRepositoryConfig, InfrahubRepositoryFragmentConfig
+from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNotFoundError, ResourceNotDefinedError
+from infrahub_sdk.schema.repository import (
+    InfrahubRepositoryConfig,
+    InfrahubRepositoryFragmentConfig,
+    InfrahubRepositoryGraphQLConfig,
+)
 
 
 @pytest.fixture
@@ -315,4 +319,20 @@ def test_load_fragments_missing_file_raises() -> None:
     cfg = InfrahubRepositoryFragmentConfig(name="ifaces", file_path=Path("does_not_exist.gql"))
     with tempfile.TemporaryDirectory() as tmp, pytest.raises(FragmentFileNotFoundError) as exc_info:
         cfg.load_fragments(relative_path=tmp)
+    assert "does_not_exist.gql" in exc_info.value.file_path
+
+
+def test_load_query_returns_content() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        query_file = Path(tmp) / "my_query.gql"
+        query_file.write_text("{ devices { id } }", encoding="UTF-8")
+        cfg = InfrahubRepositoryGraphQLConfig(name="my_query", file_path=Path("my_query.gql"))
+        result = cfg.load_query(relative_path=tmp)
+    assert result == "{ devices { id } }"
+
+
+def test_load_query_missing_file_raises() -> None:
+    cfg = InfrahubRepositoryGraphQLConfig(name="my_query", file_path=Path("does_not_exist.gql"))
+    with tempfile.TemporaryDirectory() as tmp, pytest.raises(RepositoryFileNotFoundError) as exc_info:
+        cfg.load_query(relative_path=tmp)
     assert "does_not_exist.gql" in exc_info.value.file_path

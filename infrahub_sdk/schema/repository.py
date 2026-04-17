@@ -10,6 +10,7 @@ from ..checks import InfrahubCheck
 from ..exceptions import (
     FragmentFileNotFoundError,
     ModuleImportError,
+    RepositoryFileNotFoundError,
     ResourceNotDefinedError,
 )
 from ..generator import InfrahubGenerator
@@ -157,7 +158,10 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
 
     def load_query(self, relative_path: str = ".") -> str:
         file_name = Path(f"{relative_path}/{self.file_path}")
-        return file_name.read_text(encoding="UTF-8")
+        try:
+            return file_name.read_text(encoding="UTF-8")
+        except FileNotFoundError as exc:
+            raise RepositoryFileNotFoundError(file_path=str(self.file_path)) from exc
 
 
 class InfrahubRepositoryFragmentConfig(InfrahubRepositoryConfigElement):
