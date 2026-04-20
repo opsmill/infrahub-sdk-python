@@ -341,6 +341,27 @@ async def test_infrahub_repository_config_dups() -> None:
     assert "Found multiples element with the same names: ['check01', 'check02']" in str(exc.value)
 
 
+async def test_python_transform_config_description() -> None:
+    """Verify InfrahubPythonTransformConfig supports an optional description field."""
+    # With description
+    config_with_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description="A useful transform"
+    )
+    assert config_with_desc.description == "A useful transform"
+
+    # Without description (default None)
+    config_without_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform"
+    )
+    assert config_without_desc.description is None
+
+    # Explicit None
+    config_explicit_none = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description=None
+    )
+    assert config_explicit_none.description is None
+
+
 @mock.patch(
     "infrahub_sdk.ctl.schema.get_node",
     return_value={
