@@ -37,9 +37,9 @@ $ infrahubctl marketplace download [OPTIONS] IDENTIFIER
 
 **Options**:
 
-* `-v, --version TEXT`: Specific schema version (semver). Default: latest published.
+* `-v, --version TEXT`: Specific schema version, for example 1.2.0. Default: latest published.
 * `-c, --collection`: Force collection download. Default: auto-detect whether the identifier is a schema or collection.
 * `-o, --output-dir PATH`: Directory to save downloaded files.  [default: schemas]
-* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides config/env.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

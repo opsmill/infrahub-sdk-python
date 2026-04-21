@@ -205,7 +205,7 @@ async def _download_collection(
 async def download(
     identifier: str = typer.Argument(help="Schema or collection identifier in namespace/name format"),
     version: str | None = typer.Option(
-        None, "--version", "-v", help="Specific schema version (semver). Default: latest published."
+        None, "--version", "-v", help="Specific schema version, for example 1.2.0. Default: latest published."
     ),
     collection: bool | None = typer.Option(
         None,
@@ -217,7 +217,7 @@ async def download(
     marketplace_url: str | None = typer.Option(
         None,
         "--marketplace-url",
-        help="Base URL of the Infrahub Marketplace. Overrides config/env.",
+        help="Base URL of the Infrahub Marketplace. Overrides configuration and environment.",
     ),
     _: str = CONFIG_PARAM,
 ) -> None:
