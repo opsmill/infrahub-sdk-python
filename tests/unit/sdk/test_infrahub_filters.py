@@ -19,7 +19,9 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
 ARTIFACT_CONTENT_URL = "http://mock/api/storage/object"
-FILE_BY_STORAGE_ID_URL = "http://mock/api/files/by-storage-id"
+FILE_BY_STORAGE_ID_URL = "http://mock/api/storage/files/by-storage-id"
+FILE_BY_ID_URL = "http://mock/api/storage/files"
+FILE_BY_HFID_URL = "http://mock/api/storage/files/by-hfid"
 
 CLIENT_FILTER_PARAMS = [
     pytest.param(
@@ -256,6 +258,47 @@ class TestClientDependentFilters:
             "Filter 'file_object_content_by_hfid': 'kind' argument is required"
             ' — use {{ hfid | file_object_content_by_hfid(kind="MyKind") }}'
         )
+
+    async def test_file_object_content_by_id_happy_path(self, client: InfrahubClient, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            method="GET",
+            url=f"{FILE_BY_ID_URL}/node-uuid-1",
+            text="file node content",
+            headers={"content-type": "text/plain"},
+        )
+        jinja = Jinja2Template(template="{{ node_id | file_object_content_by_id }}", client=client)
+        result = await jinja.render(variables={"node_id": "node-uuid-1"})
+        assert result == "file node content"
+
+    async def test_file_object_content_by_hfid_happy_path_string(
+        self, client: InfrahubClient, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            method="GET",
+            url=f"{FILE_BY_HFID_URL}/CoreFileObject?hfid=contract-2024",
+            text="hfid content",
+            headers={"content-type": "text/plain"},
+        )
+        jinja = Jinja2Template(
+            template='{{ hfid | file_object_content_by_hfid(kind="CoreFileObject") }}', client=client
+        )
+        result = await jinja.render(variables={"hfid": "contract-2024"})
+        assert result == "hfid content"
+
+    async def test_file_object_content_by_hfid_happy_path_list(
+        self, client: InfrahubClient, httpx_mock: HTTPXMock
+    ) -> None:
+        httpx_mock.add_response(
+            method="GET",
+            url=f"{FILE_BY_HFID_URL}/CoreFileObject?hfid=configs&hfid=base.conf",
+            text="hfid list content",
+            headers={"content-type": "text/plain"},
+        )
+        jinja = Jinja2Template(
+            template='{{ hfid | file_object_content_by_hfid(kind="CoreFileObject") }}', client=client
+        )
+        result = await jinja.render(variables={"hfid": ["configs", "base.conf"]})
+        assert result == "hfid list content"
 
 
 class TestFromJsonFilter:
