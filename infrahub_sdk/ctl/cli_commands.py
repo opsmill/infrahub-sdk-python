@@ -24,11 +24,11 @@ from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
 from ..ctl.branch import app as branch_app
 from ..ctl.check import run as run_check
-from ..ctl.marketplace import app as marketplace_app
 from ..ctl.client import initialize_client, initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.generator import run as run_generator
 from ..ctl.graphql import app as graphql_app
+from ..ctl.marketplace import app as marketplace_app
 from ..ctl.menu import app as menu_app
 from ..ctl.object import app as object_app
 from ..ctl.render import list_jinja2_transforms, print_template_errors
