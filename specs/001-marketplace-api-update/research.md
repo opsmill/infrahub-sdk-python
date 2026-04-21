@@ -7,7 +7,7 @@
 **Options evaluated**:
 
 | # | Approach | Round-trips (schema case) | Round-trips (collection case) | Depends on new API? |
-|---|----------|---------------------------|-------------------------------|---------------------|
+| - | -------- | ------------------------- | ----------------------------- | ------------------- |
 | A | Probe `/schemas/{ns}/{name}/download` first; on 404 fall back to `/collections/{ns}/{name}/download` | 1 | 2 (first 404, then success) | No |
 | B | Probe both endpoints in parallel with `asyncio.gather`; take whichever returns 200; if both 200, apply precedence rule | 1 wall-clock (2 wire) | 1 wall-clock (2 wire) | No |
 | C | Call a dedicated resolver endpoint (e.g. `/api/v1/items/{ns}/{name}`) that returns the item type, then fetch the download | 2 | 2 | **Yes** — requires marketplace API addition |
@@ -79,7 +79,7 @@
 **Decision**:
 
 | Class | Trigger | User-facing message template | Exit code |
-|-------|---------|------------------------------|-----------|
+| ----- | ------- | ---------------------------- | --------- |
 | Invalid input | `namespace/name` fails `_parse_identifier` OR `--version` is malformed | `Invalid identifier '<value>'. Expected format: namespace/name` (or version-specific variant) | 1 |
 | Not found | Both schema and collection probes return 404 | `No schema or collection named '<ns>/<name>' found on <marketplace-host>` | 1 |
 | Version not found | Schema probe succeeds in general but `--version <v>` returns 404 | `Schema '<ns>/<name>' has no published version '<v>'. Run without --version for the latest.` | 1 |
