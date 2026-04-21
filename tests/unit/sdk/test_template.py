@@ -330,6 +330,17 @@ async def test_validate_operation() -> None:
     )
 
 
+def test_validate_missing_file_raises_not_found() -> None:
+    """validate() on a non-existent file-based template must raise JinjaTemplateNotFoundError
+    so callers (e.g. infrahubctl render) can handle it the same way they handle it from render().
+    """
+    jinja = Jinja2Template(template=Path("does-not-exist.j2"), template_directory=TEMPLATE_DIRECTORY)
+    with pytest.raises(JinjaTemplateNotFoundError) as exc:
+        jinja.validate()
+
+    assert exc.value.filename == "does-not-exist.j2"
+
+
 @pytest.mark.parametrize(
     "filter_collection",
     [

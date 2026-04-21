@@ -123,7 +123,12 @@ class Jinja2Template:
         env = self.get_environment()
         template_source = self._template
         if self.is_file_based and env.loader:
-            template_source = env.loader.get_source(env, self._template)[0]
+            try:
+                template_source = env.loader.get_source(env, self._template)[0]
+            except jinja2.TemplateNotFound as exc:
+                raise JinjaTemplateNotFoundError(
+                    message=exc.message or str(exc), filename=str(exc.name), base_template=self._template
+                ) from exc
 
         try:
             template = env.parse(template_source)
