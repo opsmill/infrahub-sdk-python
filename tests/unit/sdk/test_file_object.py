@@ -570,3 +570,107 @@ class TestUploadIfChanged:
                 match=r"calling upload_if_changed is only supported",
             ):
                 node.upload_if_changed(source=b"x", name="f.bin")
+
+
+@pytest.mark.parametrize("client_type", ["standard"])
+class TestDownloadSkipIfUnchanged:
+    async def test_skip_when_local_matches(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+        httpx_mock: HTTPXMock,
+    ) -> None:
+        payload = b"identical content"
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+        dest = tmp_path / "local.bin"
+        dest.write_bytes(payload)
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "file-node-skip"
+        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+
+        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+
+        assert bytes_written == 0
+        # No GET to the storage endpoint should have happened.
+        download_requests = [
+            r for r in httpx_mock.get_requests()
+            if r.method == "GET" and "/api/storage/files/" in r.url.path
+        ]
+        assert download_requests == []
+
+    async def test_downloads_when_local_differs(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+        mock_download_file_to_disk: HTTPXMock,  # existing fixture
+    ) -> None:
+        dest = tmp_path / "local.bin"
+        dest.write_bytes(b"stale content")  # different from FILE_CONTENT
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "file-node-stream"  # id matches mock_download_file_to_disk
+        node.checksum.value = "server-digest-different-from-local"  # type: ignore[attr-defined, union-attr]
+
+        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+
+        assert bytes_written == len(FILE_CONTENT)
+        assert dest.read_bytes() == FILE_CONTENT
+
+    async def test_downloads_when_dest_missing(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+        mock_download_file_to_disk: HTTPXMock,
+    ) -> None:
+        dest = tmp_path / "missing.bin"  # does not exist
+        assert not dest.exists()
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "file-node-stream"
+        node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
+
+        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+
+        assert bytes_written == len(FILE_CONTENT)
+        assert dest.exists()
+
+    async def test_raises_when_skip_without_dest(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+    ) -> None:
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "file-node-1"
+        node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
+
+        with pytest.raises(ValueError, match=r"skip_if_unchanged requires dest"):
+            await node.download_file(dest=None, skip_if_unchanged=True)
+
+    async def test_default_behavior_unchanged(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        mock_download_file: HTTPXMock,  # existing fixture for in-memory download
+    ) -> None:
+        # skip_if_unchanged defaults to False — download always occurs.
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "file-node-123"  # matches mock_download_file
+
+        content = await node.download_file()  # no flag
+
+        assert isinstance(content, bytes)
+        assert content == FILE_CONTENT
