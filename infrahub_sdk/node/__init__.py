@@ -11,6 +11,7 @@ from .constants import (
     PROPERTIES_FLAG,
     PROPERTIES_OBJECT,
     SAFE_VALUE,
+    UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
 from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync, UploadResult
 from .parsers import parse_human_friendly_id
@@ -28,6 +29,7 @@ __all__ = [
     "PROPERTIES_FLAG",
     "PROPERTIES_OBJECT",
     "SAFE_VALUE",
+    "UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE",
     "Attribute",
     "InfrahubNode",
     "InfrahubNodeBase",

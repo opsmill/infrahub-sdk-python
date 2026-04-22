@@ -25,6 +25,7 @@ from .constants import (
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
     MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
+    UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
@@ -829,6 +830,71 @@ class InfrahubNode(InfrahubNodeBase):
             )
 
         return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
+    async def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Args:
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
+
+        Returns:
+            :class:`UploadResult` with ``uploaded=False`` (skipped) or
+            ``uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
+        """
+        self._validate_file_object_support(
+            message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE
+        )
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if not isinstance(source, Path) and resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = getattr(self, "checksum", None)
+        have_server_state = (
+            bool(self.id)
+            and server_checksum is not None
+            and server_checksum.value is not None
+        )
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            # resolved_name guaranteed non-None by the validation above.
+            self.upload_from_bytes(content=source, name=resolved_name)  # type: ignore[arg-type]
+
+        await self.save()
+
+        return UploadResult(uploaded=True, checksum=local_digest)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}

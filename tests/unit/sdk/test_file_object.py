@@ -413,3 +413,145 @@ class TestMatchesLocalChecksum:
         else:
             with pytest.raises(ValueError, match=r"has no server-side checksum"):
                 node.matches_local_checksum(b"anything")
+
+
+@pytest.fixture
+def mock_upload_if_changed_update(httpx_mock: HTTPXMock) -> HTTPXMock:
+    """Mock the HTTP response for a file upload update (same payload shape as mock_node_update_with_file)."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "NetworkCircuitContractUpdate": {
+                    "ok": True,
+                    "object": {
+                        "id": "upload-if-changed-node",
+                        "display_label": FILE_NAME,
+                        "file_name": {"value": FILE_NAME},
+                        "checksum": {"value": "new-server-digest"},
+                        "file_size": {"value": len(FILE_CONTENT)},
+                        "file_type": {"value": FILE_MIME_TYPE},
+                        "storage_id": {"value": "storage-xyz-updated"},
+                        "contract_start": {"value": "2024-01-01T00:00:00Z"},
+                        "contract_end": {"value": "2024-12-31T23:59:59Z"},
+                    },
+                }
+            }
+        },
+    )
+    return httpx_mock
+
+
+@pytest.mark.parametrize("client_type", ["standard"])
+class TestUploadIfChanged:
+    async def test_skips_when_checksum_matches(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        httpx_mock: HTTPXMock,
+    ) -> None:
+        payload = b"unchanged content"
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "already-on-server"
+        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+
+        result = await node.upload_if_changed(source=payload, name="f.bin")
+
+        assert isinstance(result, UploadResult)
+        assert result.uploaded is False
+        assert result.checksum == digest
+        # No HTTP request should have been issued.
+        assert httpx_mock.get_requests() == []
+
+    async def test_uploads_when_checksum_differs(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        mock_upload_if_changed_update: HTTPXMock,
+    ) -> None:
+        new_content = b"new content"
+        expected_digest = hashlib.sha1(new_content, usedforsecurity=False).hexdigest()
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "upload-if-changed-node"
+        node._existing = True
+        node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
+
+        result = await node.upload_if_changed(source=new_content, name="f.bin")
+
+        assert result.uploaded is True
+        # Post-save checksum is the locally computed SHA-1 of the uploaded content.
+        assert result.checksum == expected_digest
+
+    async def test_uploads_when_node_unsaved(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        mock_node_create_with_file: HTTPXMock,
+    ) -> None:
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        # Do NOT set node.id — unsaved.
+
+        result = await node.upload_if_changed(source=b"initial content", name=FILE_NAME)
+
+        assert result.uploaded is True
+        assert result.checksum is not None
+
+    async def test_derives_name_from_path(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        mock_upload_if_changed_update: HTTPXMock,
+        tmp_path: Path,
+    ) -> None:
+        target = tmp_path / "derived-name.bin"
+        target.write_bytes(b"content")
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "upload-if-changed-node"
+        node._existing = True
+        node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
+
+        # No explicit name — should derive from target.name internally.
+        result = await node.upload_if_changed(source=target)
+
+        assert result.uploaded is True
+
+    async def test_requires_name_for_bytes(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+    ) -> None:
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "some-id"
+        node.checksum.value = "x"  # type: ignore[attr-defined, union-attr]
+
+        with pytest.raises(ValueError, match=r"name is required"):
+            await node.upload_if_changed(source=b"bytes content")  # no name supplied
+
+    async def test_raises_for_non_file_object(
+        self,
+        client_type: str,
+        clients: BothClients,
+        non_file_object_schema: NodeSchemaAPI,
+    ) -> None:
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+
+        with pytest.raises(
+            FeatureNotSupportedError,
+            match=r"calling upload_if_changed is only supported",
+        ):
+            await node.upload_if_changed(source=b"x", name="f.bin")

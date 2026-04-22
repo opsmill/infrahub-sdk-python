@@ -33,6 +33,9 @@ FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE = (
 MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling matches_local_checksum is only supported for nodes that inherit from CoreFileObject"
 )
+UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE = (
+    "calling upload_if_changed is only supported for nodes that inherit from CoreFileObject"
+)
 
 HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
 
