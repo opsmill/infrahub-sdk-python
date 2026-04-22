@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -12,6 +13,54 @@ from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachab
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
+
+_SHA1_CHUNK_BYTES = 64 * 1024
+
+
+def sha1_of_source(source: bytes | Path | BinaryIO) -> str:
+    """Compute the SHA-1 hex digest of an upload/download source.
+
+    Accepts the same shapes as :meth:`FileHandlerBase.prepare_upload` so
+    callers can compare local content against a server-stored checksum
+    without materialising the full file in memory.
+
+    Args:
+        source: The content to hash. ``bytes`` are hashed in one shot.
+            A ``Path`` is read in 64 KiB chunks. A ``BinaryIO`` is read
+            from its current position, then rewound so downstream
+            callers can re-read it.
+
+    Returns:
+        Lowercase SHA-1 hex digest, matching the algorithm Infrahub
+        stores in ``CoreFileObject.checksum``.
+
+    Raises:
+        TypeError: If ``source`` is not one of the supported types.
+    """
+    hasher = hashlib.sha1(usedforsecurity=False)
+
+    if isinstance(source, bytes):
+        hasher.update(source)
+        return hasher.hexdigest()
+
+    if isinstance(source, Path):
+        with source.open("rb") as fh:
+            while chunk := fh.read(_SHA1_CHUNK_BYTES):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    if hasattr(source, "read") and hasattr(source, "seek"):
+        start = source.tell()
+        try:
+            while chunk := source.read(_SHA1_CHUNK_BYTES):
+                hasher.update(chunk)
+        finally:
+            source.seek(start)
+        return hasher.hexdigest()
+
+    raise TypeError(
+        f"sha1_of_source expects bytes, Path, or BinaryIO; got {type(source).__name__}"
+    )
 
 
 @dataclass

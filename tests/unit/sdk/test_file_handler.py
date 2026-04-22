@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -10,7 +11,7 @@ import httpx
 import pytest
 
 from infrahub_sdk.exceptions import AuthenticationError, NodeNotFoundError
-from infrahub_sdk.file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile
+from infrahub_sdk.file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -303,3 +304,40 @@ async def test_file_handler_build_url_without_branch(client_type: str, clients: 
 
     url = handler._build_url(node_id="node-456", branch=None)
     assert url == "http://mock/api/storage/files/node-456"
+
+
+KNOWN_CONTENT = b"hello infrahub"
+KNOWN_SHA1 = hashlib.sha1(KNOWN_CONTENT, usedforsecurity=False).hexdigest()
+
+
+class TestSha1OfSource:
+    def test_bytes_matches_known_digest(self) -> None:
+        assert sha1_of_source(KNOWN_CONTENT) == KNOWN_SHA1
+
+    def test_path_matches_known_digest(self, tmp_path: Path) -> None:
+        target = tmp_path / "sample.bin"
+        target.write_bytes(KNOWN_CONTENT)
+        assert sha1_of_source(target) == KNOWN_SHA1
+
+    def test_binaryio_matches_known_digest(self) -> None:
+        stream = BytesIO(KNOWN_CONTENT)
+        assert sha1_of_source(stream) == KNOWN_SHA1
+
+    def test_binaryio_resets_position(self) -> None:
+        stream = BytesIO(KNOWN_CONTENT)
+        sha1_of_source(stream)
+        # Hashing must not consume the stream — later callers (upload_from_bytes)
+        # still need to read it.
+        assert stream.read() == KNOWN_CONTENT
+
+    def test_large_file_streams_without_full_read(self, tmp_path: Path) -> None:
+        # 2 MiB — bigger than the 64 KiB chunk to exercise the streaming loop.
+        payload = b"x" * (2 * 1024 * 1024)
+        target = tmp_path / "big.bin"
+        target.write_bytes(payload)
+        expected = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+        assert sha1_of_source(target) == expected
+
+    def test_rejects_none(self) -> None:
+        with pytest.raises(TypeError):
+            sha1_of_source(None)  # type: ignore[arg-type]
