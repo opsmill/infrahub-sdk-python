@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO
 
 from ..constants import InfrahubClientMode
 from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
-from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile
+from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
@@ -23,6 +23,7 @@ from .constants import (
     ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
+    MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
 )
 from .metadata import NodeMetadata
@@ -794,6 +795,40 @@ class InfrahubNode(InfrahubNodeBase):
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
+
+    async def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        Parameters:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
+        """
+        self._validate_file_object_support(
+            message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE
+        )
+
+        server_checksum = getattr(self, "checksum", None)
+        if server_checksum is None or server_checksum.value is None:
+            raise ValueError(
+                f"{self._schema.kind} node has no checksum on the server yet; "
+                "save the node with file content before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}

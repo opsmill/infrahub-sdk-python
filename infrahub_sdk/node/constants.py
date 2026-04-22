@@ -30,6 +30,9 @@ ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE = (
 FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling download_file is only supported for nodes that inherit from CoreFileObject"
 )
+MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE = (
+    "calling matches_local_checksum is only supported for nodes that inherit from CoreFileObject"
+)
 
 HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
 

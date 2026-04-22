@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 from pathlib import Path
 
@@ -309,3 +310,86 @@ class TestUploadResult:
         result = UploadResult(uploaded=True, checksum="abc")
         with pytest.raises(AttributeError):  # FrozenInstanceError is an AttributeError on all supported versions
             result.uploaded = False  # type: ignore[misc]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+class TestMatchesLocalChecksum:
+    async def test_bytes_match(
+        self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+    ) -> None:
+        if client_type == "sync":
+            pytest.skip("sync variant added in Task 4")
+
+        payload = b"matching content"
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "node-1"
+        node.checksum.value = digest  # type: ignore[attr-defined]
+
+        assert await node.matches_local_checksum(payload) is True
+
+    async def test_bytes_differ(
+        self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+    ) -> None:
+        if client_type == "sync":
+            pytest.skip("sync variant added in Task 4")
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "node-1"
+        node.checksum.value = "different-digest"  # type: ignore[attr-defined]
+
+        assert await node.matches_local_checksum(b"hello world") is False
+
+    async def test_path_source(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+    ) -> None:
+        if client_type == "sync":
+            pytest.skip("sync variant added in Task 4")
+
+        payload = b"file on disk"
+        target = tmp_path / "f.bin"
+        target.write_bytes(payload)
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "node-1"
+        node.checksum.value = digest  # type: ignore[attr-defined]
+
+        assert await node.matches_local_checksum(target) is True
+
+    async def test_raises_for_non_file_object(
+        self, client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+    ) -> None:
+        if client_type == "sync":
+            pytest.skip("sync variant added in Task 4")
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+
+        with pytest.raises(
+            FeatureNotSupportedError,
+            match=r"calling matches_local_checksum is only supported",
+        ):
+            await node.matches_local_checksum(b"anything")
+
+    async def test_raises_when_no_server_checksum(
+        self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+    ) -> None:
+        if client_type == "sync":
+            pytest.skip("sync variant added in Task 4")
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        node.id = "node-1"
+        # Do NOT set node.checksum.value — default is None.
+
+        with pytest.raises(ValueError, match=r"has no checksum"):
+            await node.matches_local_checksum(b"anything")
