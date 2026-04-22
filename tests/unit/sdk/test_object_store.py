@@ -84,7 +84,6 @@ async def test_object_store_upload(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_object_store_get_raises_on_404(client_type: str, clients: BothClients, httpx_mock: HTTPXMock) -> None:
-    """get() must raise on 404 — otherwise the response body is silently returned as 'content'."""
     httpx_mock.add_response(
         method="GET",
         status_code=404,
@@ -105,7 +104,6 @@ async def test_object_store_get_raises_on_404(client_type: str, clients: BothCli
 async def test_object_store_get_raises_authentication_error(
     client_type: str, status_code: int, clients: BothClients, httpx_mock: HTTPXMock
 ) -> None:
-    """get() must still convert 401/403 responses to AuthenticationError (unchanged behaviour)."""
     httpx_mock.add_response(
         method="GET",
         status_code=status_code,
@@ -122,7 +120,6 @@ async def test_object_store_get_raises_authentication_error(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_object_store_upload_raises_on_500(client_type: str, clients: BothClients, httpx_mock: HTTPXMock) -> None:
-    """upload() must raise on server errors — otherwise resp.json() returns the error payload as if it were a successful upload."""
     httpx_mock.add_response(
         method="POST",
         status_code=500,
