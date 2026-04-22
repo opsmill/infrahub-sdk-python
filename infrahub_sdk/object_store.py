@@ -102,18 +102,18 @@ class ObjectStore(ObjectStoreBase):
 
     async def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
         """Retrieve file object content by storage_id."""
-        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        url = f"{self.client.address}/api/storage/files/by-storage-id/{storage_id}"
         return await self._get_file(url=url, identifier=storage_id, tracker=tracker)
 
     async def get_file_by_id(self, node_id: str, tracker: str | None = None) -> str:
         """Retrieve file object content by node UUID."""
-        url = f"{self.client.address}/api/files/{node_id}"
+        url = f"{self.client.address}/api/storage/files/{node_id}"
         return await self._get_file(url=url, identifier=node_id, tracker=tracker)
 
     async def get_file_by_hfid(self, kind: str, hfid: list[str], tracker: str | None = None) -> str:
         """Retrieve file object content by Human-Friendly ID."""
         params = "&".join(f"hfid={h}" for h in hfid)
-        url = f"{self.client.address}/api/files/by-hfid/{kind}?{params}"
+        url = f"{self.client.address}/api/storage/files/by-hfid/{kind}?{params}"
         return await self._get_file(url=url, identifier=f"{kind}:{'/'.join(hfid)}", tracker=tracker)
 
 
@@ -188,16 +188,16 @@ class ObjectStoreSync(ObjectStoreBase):
 
     def get_file_by_storage_id(self, storage_id: str, tracker: str | None = None) -> str:
         """Retrieve file object content by storage_id."""
-        url = f"{self.client.address}/api/files/by-storage-id/{storage_id}"
+        url = f"{self.client.address}/api/storage/files/by-storage-id/{storage_id}"
         return self._get_file(url=url, identifier=storage_id, tracker=tracker)
 
     def get_file_by_id(self, node_id: str, tracker: str | None = None) -> str:
         """Retrieve file object content by node UUID."""
-        url = f"{self.client.address}/api/files/{node_id}"
+        url = f"{self.client.address}/api/storage/files/{node_id}"
         return self._get_file(url=url, identifier=node_id, tracker=tracker)
 
     def get_file_by_hfid(self, kind: str, hfid: list[str], tracker: str | None = None) -> str:
         """Retrieve file object content by Human-Friendly ID."""
         params = "&".join(f"hfid={h}" for h in hfid)
-        url = f"{self.client.address}/api/files/by-hfid/{kind}?{params}"
+        url = f"{self.client.address}/api/storage/files/by-hfid/{kind}?{params}"
         return self._get_file(url=url, identifier=f"{kind}:{'/'.join(hfid)}", tracker=tracker)
