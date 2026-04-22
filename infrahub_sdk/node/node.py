@@ -1709,7 +1709,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
-    def download_file(self, dest: Path | None = None) -> bytes | int:
+    @overload
+    def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
+
+    @overload
+    def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
+
+    def download_file(
+        self,
+        dest: Path | None = None,
+        skip_if_unchanged: bool = False,
+    ) -> bytes | int:
         """Download the file content from this FileObject node.
 
         This method is only available for nodes that inherit from CoreFileObject.
@@ -1720,14 +1730,21 @@ class InfrahubNodeSync(InfrahubNodeBase):
                   directly to this path (memory-efficient for large files) and the
                   number of bytes written will be returned. If not provided, the
                   file content will be returned as bytes.
+            skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
+                  ``dest`` (which must be provided) and compare against the
+                  node's server checksum. If they match, return ``0`` without
+                  hitting the network.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
+            If ``skip_if_unchanged=True`` and the local file matches the server
+            checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
-            ValueError: If the node hasn't been saved yet or file not found.
+            ValueError: If the node hasn't been saved yet, file not found, or
+                  ``skip_if_unchanged=True`` was passed without a ``dest``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -1737,11 +1754,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
 
+            >>> # Skip download if local file already matches server checksum
+            >>> bytes_written = contract.download_file(
+            ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
+            ... )
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         if not self.id:
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
+
+        if skip_if_unchanged:
+            if dest is None:
+                raise ValueError("skip_if_unchanged requires dest to be provided")
+            if dest.exists() and dest.is_file():
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                    return 0
 
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 

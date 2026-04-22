@@ -572,7 +572,7 @@ class TestUploadIfChanged:
                 node.upload_if_changed(source=b"x", name="f.bin")
 
 
-@pytest.mark.parametrize("client_type", ["standard"])
+@pytest.mark.parametrize("client_type", client_types)
 class TestDownloadSkipIfUnchanged:
     async def test_skip_when_local_matches(
         self,
@@ -588,11 +588,19 @@ class TestDownloadSkipIfUnchanged:
         dest.write_bytes(payload)
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-skip"
         node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
 
-        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        if isinstance(node, InfrahubNode):
+            bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        else:
+            bytes_written = node.download_file(dest=dest, skip_if_unchanged=True)
 
         assert bytes_written == 0
         # pytest-httpx raises if any unregistered request is attempted; this also asserts
@@ -611,11 +619,19 @@ class TestDownloadSkipIfUnchanged:
         dest.write_bytes(b"stale content")  # different from FILE_CONTENT
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-stream"  # id matches mock_download_file_to_disk
         node.checksum.value = "server-digest-different-from-local"  # type: ignore[attr-defined, union-attr]
 
-        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        if isinstance(node, InfrahubNode):
+            bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        else:
+            bytes_written = node.download_file(dest=dest, skip_if_unchanged=True)
 
         assert bytes_written == len(FILE_CONTENT)
         assert dest.read_bytes() == FILE_CONTENT
@@ -632,11 +648,19 @@ class TestDownloadSkipIfUnchanged:
         assert not dest.exists()
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-stream"
         node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
 
-        bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        if isinstance(node, InfrahubNode):
+            bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
+        else:
+            bytes_written = node.download_file(dest=dest, skip_if_unchanged=True)
 
         assert bytes_written == len(FILE_CONTENT)
         assert dest.exists()
@@ -648,12 +672,20 @@ class TestDownloadSkipIfUnchanged:
         file_object_schema: NodeSchemaAPI,
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-1"
         node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
 
         with pytest.raises(ValueError, match=r"skip_if_unchanged requires dest"):
-            await node.download_file(dest=None, skip_if_unchanged=True)
+            if isinstance(node, InfrahubNode):
+                await node.download_file(dest=None, skip_if_unchanged=True)
+            else:
+                node.download_file(dest=None, skip_if_unchanged=True)
 
     async def test_default_behavior_unchanged(
         self,
@@ -664,10 +696,18 @@ class TestDownloadSkipIfUnchanged:
     ) -> None:
         # skip_if_unchanged defaults to False — download always occurs.
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-123"  # matches mock_download_file
 
-        content = await node.download_file()  # no flag
+        if isinstance(node, InfrahubNode):
+            content = await node.download_file()  # no flag
+        else:
+            content = node.download_file()  # no flag
 
         assert isinstance(content, bytes)
         assert content == FILE_CONTENT
@@ -688,9 +728,17 @@ class TestDownloadSkipIfUnchanged:
         dest.write_bytes(payload)
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
+                client=client, schema=file_object_schema, branch="main"
+            )
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         # Do NOT set node.id — unsaved.
         node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
 
         with pytest.raises(ValueError, match=r"hasn't been saved yet"):
-            await node.download_file(dest=dest, skip_if_unchanged=True)
+            if isinstance(node, InfrahubNode):
+                await node.download_file(dest=dest, skip_if_unchanged=True)
+            else:
+                node.download_file(dest=dest, skip_if_unchanged=True)
