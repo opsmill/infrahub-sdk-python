@@ -762,7 +762,7 @@ class InfrahubNode(InfrahubNodeBase):
         return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
     @overload
-    async def download_file(self, dest: None = ..., skip_if_unchanged: bool = ...) -> bytes: ...
+    async def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
 
     @overload
     async def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
@@ -813,20 +813,16 @@ class InfrahubNode(InfrahubNodeBase):
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
+        if not self.id:
+            raise ValueError("Cannot download file for a node that hasn't been saved yet.")
+
         if skip_if_unchanged:
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = getattr(self, "checksum", None)
-                if (
-                    server_checksum is not None
-                    and server_checksum.value is not None
-                    and sha1_of_source(dest) == server_checksum.value
-                ):
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
                     return 0
-
-        if not self.id:
-            raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 

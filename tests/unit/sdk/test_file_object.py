@@ -595,12 +595,9 @@ class TestDownloadSkipIfUnchanged:
         bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
 
         assert bytes_written == 0
-        # No GET to the storage endpoint should have happened.
-        download_requests = [
-            r for r in httpx_mock.get_requests()
-            if r.method == "GET" and "/api/storage/files/" in r.url.path
-        ]
-        assert download_requests == []
+        # pytest-httpx raises if any unregistered request is attempted; this also asserts
+        # that zero requests were made at all.
+        assert httpx_mock.get_requests() == []
 
     async def test_downloads_when_local_differs(
         self,
@@ -674,3 +671,26 @@ class TestDownloadSkipIfUnchanged:
 
         assert isinstance(content, bytes)
         assert content == FILE_CONTENT
+
+    async def test_skip_raises_for_unsaved_node(
+        self,
+        client_type: str,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+    ) -> None:
+        # Unsaved node (no id) with a dest whose checksum happens to match
+        # the node's checksum attribute should still raise the unsaved-node
+        # ValueError, not silently return 0.
+        payload = b"content"
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+        dest = tmp_path / "local.bin"
+        dest.write_bytes(payload)
+
+        client = getattr(clients, client_type)
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        # Do NOT set node.id — unsaved.
+        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+
+        with pytest.raises(ValueError, match=r"hasn't been saved yet"):
+            await node.download_file(dest=dest, skip_if_unchanged=True)
