@@ -51,6 +51,7 @@ from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
+from ..template.filters import ExecutionContext
 from ..utils import write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
@@ -189,6 +190,7 @@ async def render_jinja2_template(template_path: Path, variables: dict[str, Any],
     variables["data"] = data
     jinja_template = Jinja2Template(template=Path(template_path), template_directory=Path())
     try:
+        jinja_template.validate(context=ExecutionContext.LOCAL)
         rendered_tpl = await jinja_template.render(variables=variables)
     except JinjaTemplateError as exc:
         print_template_errors(error=exc, console=console)

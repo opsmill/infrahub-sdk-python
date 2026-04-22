@@ -41,7 +41,12 @@ RENDER_APP_FAIL_TEST_CASES = [
     RenderAppFailure(
         name="invalid-filter",
         template="missing_filter",
-        error="No filter named 'my_filter_is_missing'.",
+        error="The 'my_filter_is_missing' filter isn't allowed to be used",
+    ),
+    RenderAppFailure(
+        name="worker-only-filter-rejected-in-local-context",
+        template="worker_only_filter",
+        error="The 'artifact_content' filter isn't allowed to be used",
     ),
 ]
 
