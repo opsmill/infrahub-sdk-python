@@ -1650,6 +1650,36 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 
+    def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Sync equivalent of :meth:`InfrahubNode.matches_local_checksum`. See
+        that method for full documentation.
+
+        Args:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet.
+        """
+        self._validate_file_object_support(
+            message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE
+        )
+
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
+            raise ValueError(
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):

@@ -312,7 +312,7 @@ class TestUploadResult:
             result.uploaded = False  # type: ignore[misc]
 
 
-@pytest.mark.parametrize("client_type", ["standard"])
+@pytest.mark.parametrize("client_type", client_types)
 class TestMatchesLocalChecksum:
     async def test_bytes_match(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
@@ -321,21 +321,33 @@ class TestMatchesLocalChecksum:
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
         node.checksum.value = digest  # type: ignore[attr-defined]
 
-        assert await node.matches_local_checksum(payload) is True
+        if isinstance(node, InfrahubNode):
+            assert await node.matches_local_checksum(payload) is True
+        else:
+            assert node.matches_local_checksum(payload) is True
 
     async def test_bytes_differ(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
         node.checksum.value = "different-digest"  # type: ignore[attr-defined]
 
-        assert await node.matches_local_checksum(b"hello world") is False
+        if isinstance(node, InfrahubNode):
+            assert await node.matches_local_checksum(b"hello world") is False
+        else:
+            assert node.matches_local_checksum(b"hello world") is False
 
     async def test_path_source(
         self,
@@ -350,31 +362,54 @@ class TestMatchesLocalChecksum:
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
         node.checksum.value = digest  # type: ignore[attr-defined]
 
-        assert await node.matches_local_checksum(target) is True
+        if isinstance(node, InfrahubNode):
+            assert await node.matches_local_checksum(target) is True
+        else:
+            assert node.matches_local_checksum(target) is True
 
     async def test_raises_for_non_file_object(
         self, client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=non_file_object_schema, branch="main")
 
-        with pytest.raises(
-            FeatureNotSupportedError,
-            match=r"calling matches_local_checksum is only supported",
-        ):
-            await node.matches_local_checksum(b"anything")
+        if isinstance(node, InfrahubNode):
+            with pytest.raises(
+                FeatureNotSupportedError,
+                match=r"calling matches_local_checksum is only supported",
+            ):
+                await node.matches_local_checksum(b"anything")
+        else:
+            with pytest.raises(
+                FeatureNotSupportedError,
+                match=r"calling matches_local_checksum is only supported",
+            ):
+                node.matches_local_checksum(b"anything")
 
     async def test_raises_when_no_server_checksum(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
         # Do NOT set node.checksum.value — default is None.
 
-        with pytest.raises(ValueError, match=r"has no server-side checksum"):
-            await node.matches_local_checksum(b"anything")
+        if isinstance(node, InfrahubNode):
+            with pytest.raises(ValueError, match=r"has no server-side checksum"):
+                await node.matches_local_checksum(b"anything")
+        else:
+            with pytest.raises(ValueError, match=r"has no server-side checksum"):
+                node.matches_local_checksum(b"anything")
