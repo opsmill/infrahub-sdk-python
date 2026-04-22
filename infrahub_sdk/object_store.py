@@ -54,6 +54,7 @@ class ObjectStore(ObjectStoreBase):
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
                 raise AuthenticationError(" | ".join(messages)) from exc
+            raise
 
         return resp.text
 
@@ -75,6 +76,7 @@ class ObjectStore(ObjectStoreBase):
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
                 raise AuthenticationError(" | ".join(messages)) from exc
+            raise
 
         return resp.json()
 
@@ -140,6 +142,7 @@ class ObjectStoreSync(ObjectStoreBase):
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
                 raise AuthenticationError(" | ".join(messages)) from exc
+            raise
 
         return resp.text
 
@@ -161,6 +164,7 @@ class ObjectStoreSync(ObjectStoreBase):
                 errors = response.get("errors")
                 messages = [error.get("message") for error in errors]
                 raise AuthenticationError(" | ".join(messages)) from exc
+            raise
 
         return resp.json()
 
