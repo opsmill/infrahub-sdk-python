@@ -889,8 +889,8 @@ class InfrahubNode(InfrahubNodeBase):
         if isinstance(source, Path):
             self.upload_from_path(path=source)
         else:
-            # resolved_name guaranteed non-None by the validation above.
-            self.upload_from_bytes(content=source, name=resolved_name)  # type: ignore[arg-type]
+            assert resolved_name is not None  # validated above for non-Path sources  # noqa: S101
+            self.upload_from_bytes(content=source, name=resolved_name)
 
         await self.save()
 

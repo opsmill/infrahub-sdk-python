@@ -415,33 +415,6 @@ class TestMatchesLocalChecksum:
                 node.matches_local_checksum(b"anything")
 
 
-@pytest.fixture
-def mock_upload_if_changed_update(httpx_mock: HTTPXMock) -> HTTPXMock:
-    """Mock the HTTP response for a file upload update (same payload shape as mock_node_update_with_file)."""
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "NetworkCircuitContractUpdate": {
-                    "ok": True,
-                    "object": {
-                        "id": "upload-if-changed-node",
-                        "display_label": FILE_NAME,
-                        "file_name": {"value": FILE_NAME},
-                        "checksum": {"value": "new-server-digest"},
-                        "file_size": {"value": len(FILE_CONTENT)},
-                        "file_type": {"value": FILE_MIME_TYPE},
-                        "storage_id": {"value": "storage-xyz-updated"},
-                        "contract_start": {"value": "2024-01-01T00:00:00Z"},
-                        "contract_end": {"value": "2024-12-31T23:59:59Z"},
-                    },
-                }
-            }
-        },
-    )
-    return httpx_mock
-
-
 @pytest.mark.parametrize("client_type", ["standard"])
 class TestUploadIfChanged:
     async def test_skips_when_checksum_matches(
@@ -457,6 +430,7 @@ class TestUploadIfChanged:
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
         node.id = "already-on-server"
+        node._existing = True
         node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
 
         result = await node.upload_if_changed(source=payload, name="f.bin")
@@ -472,14 +446,14 @@ class TestUploadIfChanged:
         client_type: str,
         clients: BothClients,
         file_object_schema: NodeSchemaAPI,
-        mock_upload_if_changed_update: HTTPXMock,
+        mock_node_update_with_file: HTTPXMock,
     ) -> None:
         new_content = b"new content"
         expected_digest = hashlib.sha1(new_content, usedforsecurity=False).hexdigest()
 
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        node.id = "upload-if-changed-node"
+        node.id = "existing-file-node-456"
         node._existing = True
         node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
 
@@ -510,7 +484,7 @@ class TestUploadIfChanged:
         client_type: str,
         clients: BothClients,
         file_object_schema: NodeSchemaAPI,
-        mock_upload_if_changed_update: HTTPXMock,
+        mock_node_update_with_file: HTTPXMock,
         tmp_path: Path,
     ) -> None:
         target = tmp_path / "derived-name.bin"
@@ -518,7 +492,7 @@ class TestUploadIfChanged:
 
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        node.id = "upload-if-changed-node"
+        node.id = "existing-file-node-456"
         node._existing = True
         node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
 
