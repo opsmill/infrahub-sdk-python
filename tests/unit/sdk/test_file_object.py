@@ -314,9 +314,7 @@ class TestUploadResult:
 
 @pytest.mark.parametrize("client_type", client_types)
 class TestMatchesLocalChecksum:
-    async def test_bytes_match(
-        self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
-    ) -> None:
+    async def test_bytes_match(self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI) -> None:
         payload = b"matching content"
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 

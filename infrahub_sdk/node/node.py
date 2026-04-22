@@ -851,9 +851,7 @@ class InfrahubNode(InfrahubNodeBase):
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
         """
-        self._validate_file_object_support(
-            message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE
-        )
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         server_checksum = self.checksum  # type: ignore[attr-defined]
         if server_checksum.value is None:  # type: ignore[union-attr]
@@ -894,9 +892,7 @@ class InfrahubNode(InfrahubNodeBase):
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
         """
-        self._validate_file_object_support(
-            message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE
-        )
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         resolved_name: str | None = name
         if resolved_name is None and isinstance(source, Path):
@@ -906,11 +902,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         # Short-circuit only if we have a server checksum to compare against.
         server_checksum = getattr(self, "checksum", None)
-        have_server_state = (
-            bool(self.id)
-            and server_checksum is not None
-            and server_checksum.value is not None
-        )
+        have_server_state = bool(self.id) and server_checksum is not None and server_checksum.value is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
@@ -1795,9 +1787,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet.
         """
-        self._validate_file_object_support(
-            message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE
-        )
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         server_checksum = self.checksum  # type: ignore[attr-defined]
         if server_checksum.value is None:  # type: ignore[union-attr]
@@ -1829,9 +1819,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Bytes/BinaryIO source without ``name``.
         """
-        self._validate_file_object_support(
-            message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE
-        )
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         resolved_name: str | None = name
         if resolved_name is None and isinstance(source, Path):
@@ -1841,11 +1829,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         # Short-circuit only if we have a server checksum to compare against.
         server_checksum = getattr(self, "checksum", None)
-        have_server_state = (
-            bool(self.id)
-            and server_checksum is not None
-            and server_checksum.value is not None
-        )
+        have_server_state = bool(self.id) and server_checksum is not None and server_checksum.value is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)

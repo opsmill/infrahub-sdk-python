@@ -58,9 +58,7 @@ def sha1_of_source(source: bytes | Path | BinaryIO) -> str:
             source.seek(start)
         return hasher.hexdigest()
 
-    raise TypeError(
-        f"sha1_of_source expects bytes, Path, or BinaryIO; got {type(source).__name__}"
-    )
+    raise TypeError(f"sha1_of_source expects bytes, Path, or BinaryIO; got {type(source).__name__}")
 
 
 @dataclass
