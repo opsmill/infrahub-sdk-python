@@ -11,7 +11,7 @@ from .constants import (
     PROPERTIES_OBJECT,
     SAFE_VALUE,
 )
-from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
+from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync, UploadResult
 from .parsers import parse_human_friendly_id
 from .property import NodeProperty
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
@@ -37,5 +37,6 @@ __all__ = [
     "RelationshipManager",
     "RelationshipManagerBase",
     "RelationshipManagerSync",
+    "UploadResult",
     "parse_human_friendly_id",
 ]

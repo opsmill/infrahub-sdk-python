@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from copy import copy, deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
 
@@ -35,6 +36,21 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
+
+
+@dataclass(frozen=True)
+class UploadResult:
+    """Outcome of an idempotent upload attempt.
+
+    Returned by :meth:`InfrahubNode.upload_if_changed` and its sync twin.
+    ``uploaded`` tells the caller whether a network transfer actually
+    happened; ``checksum`` is the SHA-1 that the server now reports (or
+    ``None`` when the node was unsaved and therefore had no prior
+    server-side content to compare against).
+    """
+
+    uploaded: bool
+    checksum: str | None
 
 
 class InfrahubNodeBase:

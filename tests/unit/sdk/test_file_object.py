@@ -6,7 +6,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.exceptions import FeatureNotSupportedError
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, UploadResult
 from infrahub_sdk.schema import NodeSchemaAPI
 from tests.unit.sdk.conftest import BothClients
 
@@ -293,3 +293,19 @@ async def test_node_download_file_unsaved_node_raises(
         node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         with pytest.raises(ValueError, match=r"Cannot download file for a node that hasn't been saved yet"):
             node.download_file()
+
+
+class TestUploadResult:
+    def test_carries_uploaded_and_checksum(self) -> None:
+        result = UploadResult(uploaded=True, checksum="abc123")
+        assert result.uploaded is True
+        assert result.checksum == "abc123"
+
+    def test_checksum_optional(self) -> None:
+        result = UploadResult(uploaded=False, checksum=None)
+        assert result.checksum is None
+
+    def test_is_frozen(self) -> None:
+        result = UploadResult(uploaded=True, checksum="abc")
+        with pytest.raises(AttributeError):  # FrozenInstanceError (3.11+) is a subclass
+            result.uploaded = False  # type: ignore[misc]
