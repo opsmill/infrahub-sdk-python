@@ -341,3 +341,10 @@ class TestSha1OfSource:
     def test_rejects_none(self) -> None:
         with pytest.raises(TypeError):
             sha1_of_source(None)  # type: ignore[arg-type]
+
+    def test_binaryio_resets_to_original_position_not_start(self) -> None:
+        stream = BytesIO(b"prefixhello")
+        stream.read(6)  # advance to position 6, so only b"hello" remains
+        digest = sha1_of_source(stream)
+        assert digest == hashlib.sha1(b"hello", usedforsecurity=False).hexdigest()
+        assert stream.tell() == 6  # rewound to the original non-zero position, not 0
