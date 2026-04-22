@@ -805,7 +805,7 @@ class InfrahubNode(InfrahubNodeBase):
         and hashing ``source`` themselves, so the hashing convention stays
         centralised in the SDK.
 
-        Parameters:
+        Args:
             source: Local content to hash and compare. Accepts the same
                 shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
 
@@ -821,14 +821,14 @@ class InfrahubNode(InfrahubNodeBase):
             message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE
         )
 
-        server_checksum = getattr(self, "checksum", None)
-        if server_checksum is None or server_checksum.value is None:
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
             raise ValueError(
-                f"{self._schema.kind} node has no checksum on the server yet; "
-                "save the node with file content before comparing."
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
             )
 
-        return sha1_of_source(source) == server_checksum.value
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}

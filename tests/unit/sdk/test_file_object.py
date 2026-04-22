@@ -312,14 +312,11 @@ class TestUploadResult:
             result.uploaded = False  # type: ignore[misc]
 
 
-@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("client_type", ["standard"])
 class TestMatchesLocalChecksum:
     async def test_bytes_match(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
-        if client_type == "sync":
-            pytest.skip("sync variant added in Task 4")
-
         payload = b"matching content"
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
@@ -333,9 +330,6 @@ class TestMatchesLocalChecksum:
     async def test_bytes_differ(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
-        if client_type == "sync":
-            pytest.skip("sync variant added in Task 4")
-
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
@@ -350,9 +344,6 @@ class TestMatchesLocalChecksum:
         file_object_schema: NodeSchemaAPI,
         tmp_path: Path,
     ) -> None:
-        if client_type == "sync":
-            pytest.skip("sync variant added in Task 4")
-
         payload = b"file on disk"
         target = tmp_path / "f.bin"
         target.write_bytes(payload)
@@ -368,9 +359,6 @@ class TestMatchesLocalChecksum:
     async def test_raises_for_non_file_object(
         self, client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
     ) -> None:
-        if client_type == "sync":
-            pytest.skip("sync variant added in Task 4")
-
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
 
@@ -383,13 +371,10 @@ class TestMatchesLocalChecksum:
     async def test_raises_when_no_server_checksum(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
-        if client_type == "sync":
-            pytest.skip("sync variant added in Task 4")
-
         client = getattr(clients, client_type)
         node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
         # Do NOT set node.checksum.value — default is None.
 
-        with pytest.raises(ValueError, match=r"has no checksum"):
+        with pytest.raises(ValueError, match=r"has no server-side checksum"):
             await node.matches_local_checksum(b"anything")
