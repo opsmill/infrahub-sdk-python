@@ -307,5 +307,5 @@ class TestUploadResult:
 
     def test_is_frozen(self) -> None:
         result = UploadResult(uploaded=True, checksum="abc")
-        with pytest.raises(AttributeError):  # FrozenInstanceError (3.11+) is a subclass
+        with pytest.raises(AttributeError):  # FrozenInstanceError is an AttributeError on all supported versions
             result.uploaded = False  # type: ignore[misc]

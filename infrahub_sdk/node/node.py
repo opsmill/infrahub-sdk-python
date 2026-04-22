@@ -44,9 +44,10 @@ class UploadResult:
 
     Returned by :meth:`InfrahubNode.upload_if_changed` and its sync twin.
     ``uploaded`` tells the caller whether a network transfer actually
-    happened; ``checksum`` is the SHA-1 that the server now reports (or
-    ``None`` when the node was unsaved and therefore had no prior
-    server-side content to compare against).
+    happened; ``checksum`` carries the SHA-1 the server holds after the
+    operation, or ``None`` when no server checksum is available (either
+    the node was unsaved and nothing was transferred, or the save did not
+    return a checksum value).
     """
 
     uploaded: bool
