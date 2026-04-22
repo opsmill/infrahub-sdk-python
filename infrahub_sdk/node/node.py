@@ -1746,6 +1746,62 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
 
+    def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Sync equivalent of :meth:`InfrahubNode.upload_if_changed`. See that
+        method for full documentation.
+
+        Args:
+            source: Content to upload.
+            name: Filename to use on the server.
+
+        Returns:
+            :class:`UploadResult`.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Bytes/BinaryIO source without ``name``.
+        """
+        self._validate_file_object_support(
+            message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE
+        )
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if not isinstance(source, Path) and resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = getattr(self, "checksum", None)
+        have_server_state = (
+            bool(self.id)
+            and server_checksum is not None
+            and server_checksum.value is not None
+        )
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            assert resolved_name is not None  # validated above for non-Path sources  # noqa: S101
+            self.upload_from_bytes(content=source, name=resolved_name)
+
+        self.save()
+
+        return UploadResult(uploaded=True, checksum=local_digest)
+
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):

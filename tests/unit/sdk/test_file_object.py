@@ -415,7 +415,7 @@ class TestMatchesLocalChecksum:
                 node.matches_local_checksum(b"anything")
 
 
-@pytest.mark.parametrize("client_type", ["standard"])
+@pytest.mark.parametrize("client_type", client_types)
 class TestUploadIfChanged:
     async def test_skips_when_checksum_matches(
         self,
@@ -428,12 +428,18 @@ class TestUploadIfChanged:
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "already-on-server"
         node._existing = True
         node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
 
-        result = await node.upload_if_changed(source=payload, name="f.bin")
+        if isinstance(node, InfrahubNode):
+            result = await node.upload_if_changed(source=payload, name="f.bin")
+        else:
+            result = node.upload_if_changed(source=payload, name="f.bin")
 
         assert isinstance(result, UploadResult)
         assert result.uploaded is False
@@ -452,12 +458,18 @@ class TestUploadIfChanged:
         expected_digest = hashlib.sha1(new_content, usedforsecurity=False).hexdigest()
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "existing-file-node-456"
         node._existing = True
         node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
 
-        result = await node.upload_if_changed(source=new_content, name="f.bin")
+        if isinstance(node, InfrahubNode):
+            result = await node.upload_if_changed(source=new_content, name="f.bin")
+        else:
+            result = node.upload_if_changed(source=new_content, name="f.bin")
 
         assert result.uploaded is True
         # Post-save checksum is the locally computed SHA-1 of the uploaded content.
@@ -471,10 +483,16 @@ class TestUploadIfChanged:
         mock_node_create_with_file: HTTPXMock,
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         # Do NOT set node.id — unsaved.
 
-        result = await node.upload_if_changed(source=b"initial content", name=FILE_NAME)
+        if isinstance(node, InfrahubNode):
+            result = await node.upload_if_changed(source=b"initial content", name=FILE_NAME)
+        else:
+            result = node.upload_if_changed(source=b"initial content", name=FILE_NAME)
 
         assert result.uploaded is True
         assert result.checksum is not None
@@ -491,13 +509,19 @@ class TestUploadIfChanged:
         target.write_bytes(b"content")
 
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "existing-file-node-456"
         node._existing = True
         node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
 
         # No explicit name — should derive from target.name internally.
-        result = await node.upload_if_changed(source=target)
+        if isinstance(node, InfrahubNode):
+            result = await node.upload_if_changed(source=target)
+        else:
+            result = node.upload_if_changed(source=target)
 
         assert result.uploaded is True
 
@@ -508,12 +532,19 @@ class TestUploadIfChanged:
         file_object_schema: NodeSchemaAPI,
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "some-id"
         node.checksum.value = "x"  # type: ignore[attr-defined, union-attr]
 
-        with pytest.raises(ValueError, match=r"name is required"):
-            await node.upload_if_changed(source=b"bytes content")  # no name supplied
+        if isinstance(node, InfrahubNode):
+            with pytest.raises(ValueError, match=r"name is required"):
+                await node.upload_if_changed(source=b"bytes content")  # no name supplied
+        else:
+            with pytest.raises(ValueError, match=r"name is required"):
+                node.upload_if_changed(source=b"bytes content")  # no name supplied
 
     async def test_raises_for_non_file_object(
         self,
@@ -522,10 +553,20 @@ class TestUploadIfChanged:
         non_file_object_schema: NodeSchemaAPI,
     ) -> None:
         client = getattr(clients, client_type)
-        node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+        if client_type == "standard":
+            node = InfrahubNode(client=client, schema=non_file_object_schema, branch="main")
+        else:
+            node = InfrahubNodeSync(client=client, schema=non_file_object_schema, branch="main")
 
-        with pytest.raises(
-            FeatureNotSupportedError,
-            match=r"calling upload_if_changed is only supported",
-        ):
-            await node.upload_if_changed(source=b"x", name="f.bin")
+        if isinstance(node, InfrahubNode):
+            with pytest.raises(
+                FeatureNotSupportedError,
+                match=r"calling upload_if_changed is only supported",
+            ):
+                await node.upload_if_changed(source=b"x", name="f.bin")
+        else:
+            with pytest.raises(
+                FeatureNotSupportedError,
+                match=r"calling upload_if_changed is only supported",
+            ):
+                node.upload_if_changed(source=b"x", name="f.bin")
