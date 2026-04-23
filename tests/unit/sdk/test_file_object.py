@@ -635,7 +635,8 @@ class TestDownloadSkipIfUnchanged:
         assert dest.read_bytes() == FILE_CONTENT
         # Positive-path HTTP verification: the GET to the storage endpoint must have fired.
         download_requests = [
-            r for r in mock_download_file_to_disk.get_requests()
+            r
+            for r in mock_download_file_to_disk.get_requests()
             if r.method == "GET" and "/api/storage/files/" in r.url.path
         ]
         assert len(download_requests) == 1

@@ -54,6 +54,12 @@ class UploadResult:
     only when no server checksum was available (either the node was
     unsaved and nothing was transferred, or the save returned no checksum
     value).
+
+    The comparison used by ``upload_if_changed`` reads the node's
+    ``checksum`` attribute, which was populated when the node was
+    fetched via ``client.get(...)``. A server-side change to the file
+    between the fetch and the call will not be detected unless the
+    caller re-fetches the node first.
     """
 
     was_uploaded: bool
@@ -788,8 +794,11 @@ class InfrahubNode(InfrahubNodeBase):
                   file content will be returned as bytes.
             skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
                   ``dest`` (which must be provided) and compare against the
-                  node's server checksum. If they match, return ``0`` without
-                  hitting the network.
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
@@ -838,6 +847,12 @@ class InfrahubNode(InfrahubNodeBase):
         should use this primitive instead of reading ``node.checksum.value``
         and hashing ``source`` themselves, so the hashing convention stays
         centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
 
         Args:
             source: Local content to hash and compare. Accepts the same
@@ -1728,8 +1743,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                   file content will be returned as bytes.
             skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
                   ``dest`` (which must be provided) and compare against the
-                  node's server checksum. If they match, return ``0`` without
-                  hitting the network.
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
