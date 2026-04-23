@@ -467,6 +467,11 @@ class TestUploadIfChanged:
         assert result.was_uploaded is True
         # Post-save checksum is the locally computed SHA-1 of the uploaded content.
         assert result.checksum == expected_digest
+        # Positive-path HTTP verification: the update mutation must have been dispatched.
+        requests = mock_node_update_with_file.get_requests()
+        assert len(requests) > 0
+        # At least one request should be a POST to the GraphQL endpoint (the update mutation).
+        assert any(r.method == "POST" for r in requests)
 
     async def test_uploads_when_node_unsaved(
         self,
@@ -628,6 +633,12 @@ class TestDownloadSkipIfUnchanged:
 
         assert bytes_written == len(FILE_CONTENT)
         assert dest.read_bytes() == FILE_CONTENT
+        # Positive-path HTTP verification: the GET to the storage endpoint must have fired.
+        download_requests = [
+            r for r in mock_download_file_to_disk.get_requests()
+            if r.method == "GET" and "/api/storage/files/" in r.url.path
+        ]
+        assert len(download_requests) == 1
 
     async def test_downloads_when_dest_missing(
         self,
