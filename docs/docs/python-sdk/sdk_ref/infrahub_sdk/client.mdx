@@ -158,7 +158,7 @@ Retrieve all nodes of a given kind
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
-- `query_name`: If provided is used a the GraphQL operation name else All_{str(kind)} is used.
+- `query_name`: If provided is used a the GraphQL operation name else All_&lt;kind&gt; is used.
 
 **Returns:**
 
@@ -205,7 +205,7 @@ Retrieve nodes of a given kind based on provided filters.
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
-- `query_name`: If provided is used a the GraphQL operation name else Filters_{str(kind)} is used.
+- `query_name`: If provided is used a the GraphQL operation name else Filters_&lt;kind&gt; is used.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
@@ -574,7 +574,7 @@ Retrieve all nodes of a given kind
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
-- `query_name`: If provided is used a the GraphQL operation name else All_{str(kind)} is used.
+- `query_name`: If provided is used a the GraphQL operation name else All_&lt;kind&gt; is used.
 
 **Returns:**
 
@@ -621,7 +621,7 @@ Retrieve nodes of a given kind based on provided filters.
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
-- `query_name`: If provided is used a the GraphQL operation name else Filters_{str(kind)} is used.
+- `query_name`: If provided is used a the GraphQL operation name else Filters_&lt;kind&gt; is used.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
