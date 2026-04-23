@@ -717,6 +717,7 @@ class InfrahubClient(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used a the GraphQL operation name else All_{str(kind)} is used.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -827,6 +828,7 @@ class InfrahubClient(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used a the GraphQL operation name else Filters_{str(kind)} is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -2150,6 +2152,7 @@ class InfrahubClientSync(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used a the GraphQL operation name else All_{str(kind)} is used.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
@@ -2301,6 +2304,7 @@ class InfrahubClientSync(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used a the GraphQL operation name else Filters_{str(kind)} is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
