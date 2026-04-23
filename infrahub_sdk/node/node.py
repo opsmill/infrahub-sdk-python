@@ -45,7 +45,7 @@ class UploadResult:
     """Outcome of an idempotent upload attempt.
 
     Returned by :meth:`InfrahubNode.upload_if_changed` and its sync twin.
-    ``uploaded`` tells the caller whether a network transfer actually
+    ``was_uploaded`` tells the caller whether a network transfer actually
     happened; ``checksum`` carries the SHA-1 of the content held on the
     server after the operation — on skip paths that is the server's
     pre-existing value, on upload paths it is the locally-computed SHA-1
@@ -56,7 +56,7 @@ class UploadResult:
     value).
     """
 
-    uploaded: bool
+    was_uploaded: bool
     checksum: str | None
 
 
@@ -882,8 +882,8 @@ class InfrahubNode(InfrahubNodeBase):
                 ``BinaryIO`` sources.
 
         Returns:
-            :class:`UploadResult` with ``uploaded=False`` (skipped) or
-            ``uploaded=True`` (transfer occurred), and the resulting server
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
             checksum (``None`` only when no server checksum was available
             after the operation).
 
@@ -908,7 +908,7 @@ class InfrahubNode(InfrahubNodeBase):
         local_digest = sha1_of_source(source)
 
         if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -919,7 +919,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         await self.save()
 
-        return UploadResult(uploaded=True, checksum=local_digest)
+        return UploadResult(was_uploaded=True, checksum=local_digest)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -1835,7 +1835,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         local_digest = sha1_of_source(source)
 
         if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -1846,7 +1846,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         self.save()
 
-        return UploadResult(uploaded=True, checksum=local_digest)
+        return UploadResult(was_uploaded=True, checksum=local_digest)
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}

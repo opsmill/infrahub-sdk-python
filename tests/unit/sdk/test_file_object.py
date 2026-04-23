@@ -297,19 +297,19 @@ async def test_node_download_file_unsaved_node_raises(
 
 
 class TestUploadResult:
-    def test_carries_uploaded_and_checksum(self) -> None:
-        result = UploadResult(uploaded=True, checksum="abc123")
-        assert result.uploaded is True
+    def test_carries_was_uploaded_and_checksum(self) -> None:
+        result = UploadResult(was_uploaded=True, checksum="abc123")
+        assert result.was_uploaded is True
         assert result.checksum == "abc123"
 
     def test_checksum_optional(self) -> None:
-        result = UploadResult(uploaded=False, checksum=None)
+        result = UploadResult(was_uploaded=False, checksum=None)
         assert result.checksum is None
 
     def test_is_frozen(self) -> None:
-        result = UploadResult(uploaded=True, checksum="abc")
+        result = UploadResult(was_uploaded=True, checksum="abc")
         with pytest.raises(AttributeError):  # FrozenInstanceError is an AttributeError on all supported versions
-            result.uploaded = False  # type: ignore[misc]
+            result.was_uploaded = False  # type: ignore[misc]
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -440,7 +440,7 @@ class TestUploadIfChanged:
             result = node.upload_if_changed(source=payload, name="f.bin")
 
         assert isinstance(result, UploadResult)
-        assert result.uploaded is False
+        assert result.was_uploaded is False
         assert result.checksum == digest
         # No HTTP request should have been issued.
         assert httpx_mock.get_requests() == []
@@ -469,7 +469,7 @@ class TestUploadIfChanged:
         else:
             result = node.upload_if_changed(source=new_content, name="f.bin")
 
-        assert result.uploaded is True
+        assert result.was_uploaded is True
         # Post-save checksum is the locally computed SHA-1 of the uploaded content.
         assert result.checksum == expected_digest
 
@@ -492,7 +492,7 @@ class TestUploadIfChanged:
         else:
             result = node.upload_if_changed(source=b"initial content", name=FILE_NAME)
 
-        assert result.uploaded is True
+        assert result.was_uploaded is True
         assert result.checksum is not None
 
     async def test_derives_name_from_path(
@@ -521,7 +521,7 @@ class TestUploadIfChanged:
         else:
             result = node.upload_if_changed(source=target)
 
-        assert result.uploaded is True
+        assert result.was_uploaded is True
 
     async def test_requires_name_for_bytes(
         self,
