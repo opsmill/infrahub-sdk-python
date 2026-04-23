@@ -7,6 +7,7 @@ import time
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterator, Mapping, MutableMapping
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
+from enum import Enum
 from functools import wraps
 from time import sleep
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, overload
@@ -106,6 +107,14 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
         return response
 
     return wrapper
+
+
+def get_kind_as_string(kind: str | type[SchemaType | SchemaTypeSync]) -> str:
+    if isinstance(kind, Enum):
+        return str(kind.value)
+    if isinstance(kind, str):
+        return kind
+    return kind.__name__
 
 
 class BaseClient:
@@ -713,8 +722,7 @@ class InfrahubClient(BaseClient):
             list[InfrahubNode]: List of Nodes
         """
         if query_name is None:
-            kind_str = kind if isinstance(kind, str) else kind.__name__
-            query_name = f"All_{kind_str}"
+            query_name = f"All_{get_kind_as_string(kind=kind)}"
         return await self.filters(
             kind=kind,
             at=at,
@@ -2147,8 +2155,7 @@ class InfrahubClientSync(BaseClient):
             list[InfrahubNodeSync]: List of Nodes
         """
         if query_name is None:
-            kind_str = kind if isinstance(kind, str) else kind.__name__
-            query_name = f"All_{kind_str}"
+            query_name = f"All_{get_kind_as_string(kind=kind)}"
         return self.filters(
             kind=kind,
             at=at,
