@@ -378,6 +378,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -398,6 +399,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -418,6 +420,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -438,6 +441,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -458,6 +462,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -478,6 +483,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -497,10 +503,13 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Get_{schema.kind}"
 
         filters: MutableMapping[str, Any] = {}
 
@@ -531,6 +540,7 @@ class InfrahubClient(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             include_metadata=include_metadata,
+            query_name=query_name,
             **filters,
         )
 
@@ -591,6 +601,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         partial_match: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -601,6 +612,8 @@ class InfrahubClient(BaseClient):
 
         schema = await self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
+        if query_name is None:
+            query_name = f"Count_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -610,7 +623,7 @@ class InfrahubClient(BaseClient):
         }
 
         response = await self.execute_graphql(
-            query=Query(query={schema.kind: data}).render(),
+            query=Query(query={schema.kind: data}, name=query_name).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -635,6 +648,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -655,6 +669,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -674,6 +689,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind
 
@@ -696,6 +712,9 @@ class InfrahubClient(BaseClient):
         Returns:
             list[InfrahubNode]: List of Nodes
         """
+        if query_name is None:
+            kind_str = kind if isinstance(kind, str) else kind.__name__
+            query_name = f"All_{kind_str}"
         return await self.filters(
             kind=kind,
             at=at,
@@ -712,6 +731,7 @@ class InfrahubClient(BaseClient):
             parallel=parallel,
             order=order,
             include_metadata=include_metadata,
+            query_name=query_name,
         )
 
     @overload
@@ -733,6 +753,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -755,10 +776,11 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
-    async def filters(
+    async def filters(  # noqa: C901
         self,
         kind: str | type[SchemaType],
         at: Timestamp | None = None,
@@ -776,6 +798,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -803,6 +826,8 @@ class InfrahubClient(BaseClient):
         """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Filters_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -824,7 +849,7 @@ class InfrahubClient(BaseClient):
                 order=order,
                 include_metadata=include_metadata,
             )
-            query = Query(query=query_data)
+            query = Query(query=query_data, name=query_name)
             response = await self.execute_graphql(
                 query=query.render(),
                 branch_name=branch,
@@ -2010,6 +2035,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         partial_match: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -2020,6 +2046,8 @@ class InfrahubClientSync(BaseClient):
 
         schema = self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
+        if query_name is None:
+            query_name = f"Count_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -2029,7 +2057,7 @@ class InfrahubClientSync(BaseClient):
         }
 
         response = self.execute_graphql(
-            query=Query(query={schema.kind: data}).render(),
+            query=Query(query={schema.kind: data}, name=query_name).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
@@ -2054,6 +2082,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2074,6 +2103,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2093,6 +2123,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind
 
@@ -2115,6 +2146,9 @@ class InfrahubClientSync(BaseClient):
         Returns:
             list[InfrahubNodeSync]: List of Nodes
         """
+        if query_name is None:
+            kind_str = kind if isinstance(kind, str) else kind.__name__
+            query_name = f"All_{kind_str}"
         return self.filters(
             kind=kind,
             at=at,
@@ -2131,6 +2165,7 @@ class InfrahubClientSync(BaseClient):
             parallel=parallel,
             order=order,
             include_metadata=include_metadata,
+            query_name=query_name,
         )
 
     def _process_nodes_and_relationships(
@@ -2193,6 +2228,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -2215,10 +2251,11 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
-    def filters(
+    def filters(  # noqa: C901
         self,
         kind: str | type[SchemaTypeSync],
         at: Timestamp | None = None,
@@ -2236,6 +2273,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -2263,6 +2301,8 @@ class InfrahubClientSync(BaseClient):
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Filters_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -2284,7 +2324,7 @@ class InfrahubClientSync(BaseClient):
                 order=order,
                 include_metadata=include_metadata,
             )
-            query = Query(query=query_data)
+            query = Query(query=query_data, name=query_name)
             response = self.execute_graphql(
                 query=query.render(),
                 branch_name=branch,
@@ -2373,6 +2413,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -2393,6 +2434,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2413,6 +2455,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2433,6 +2476,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -2453,6 +2497,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2473,6 +2518,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2492,10 +2538,13 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Get_{schema.kind}"
 
         filters: MutableMapping[str, Any] = {}
 
@@ -2526,6 +2575,7 @@ class InfrahubClientSync(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             include_metadata=include_metadata,
+            query_name=query_name,
             **filters,
         )
 
