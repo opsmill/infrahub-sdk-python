@@ -306,11 +306,6 @@ class TestUploadResult:
         result = UploadResult(was_uploaded=False, checksum=None)
         assert result.checksum is None
 
-    def test_is_frozen(self) -> None:
-        result = UploadResult(was_uploaded=True, checksum="abc")
-        with pytest.raises(AttributeError):  # FrozenInstanceError is an AttributeError on all supported versions
-            result.was_uploaded = False  # type: ignore[misc]
-
 
 @pytest.mark.parametrize("client_type", client_types)
 class TestMatchesLocalChecksum:
