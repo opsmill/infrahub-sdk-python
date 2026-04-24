@@ -59,6 +59,12 @@ def _define_config(
     if config.SETTINGS.active.api_token:
         client_config["api_token"] = config.SETTINGS.active.api_token
 
+    if config.SETTINGS.active.tls_ca_file:
+        client_config["tls_ca_file"] = config.SETTINGS.active.tls_ca_file
+
+    if config.SETTINGS.active.tls_insecure:
+        client_config["tls_insecure"] = config.SETTINGS.active.tls_insecure
+
     if timeout:
         client_config["timeout"] = timeout
 
