@@ -467,11 +467,13 @@ class TestUploadIfChanged:
         assert result.was_uploaded is True
         # Post-save checksum is the locally computed SHA-1 of the uploaded content.
         assert result.checksum == expected_digest
-        # Positive-path HTTP verification: the update mutation must have been dispatched.
+        # Positive-path HTTP verification: the update mutation must have been dispatched as a
+        # multipart request (mirrors the assertions in test_node_update_with_file_uses_multipart).
         requests = mock_node_update_with_file.get_requests()
-        assert len(requests) > 0
-        # At least one request should be a POST to the GraphQL endpoint (the update mutation).
-        assert any(r.method == "POST" for r in requests)
+        assert len(requests) == 1
+        assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-update"
+        assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
+        assert b'filename="f.bin"' in requests[0].content
 
     async def test_uploads_when_node_unsaved(
         self,
@@ -494,10 +496,13 @@ class TestUploadIfChanged:
 
         assert result.was_uploaded is True
         assert result.checksum is not None
-        # Positive-path HTTP verification: the create mutation must have been dispatched.
+        # Positive-path HTTP verification: the create mutation must have been dispatched as a
+        # multipart request (mirrors the assertions in test_node_create_with_file_uses_multipart).
         requests = mock_node_create_with_file.get_requests()
-        assert len(requests) > 0
-        assert any(r.method == "POST" for r in requests)
+        assert len(requests) == 1
+        assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-create"
+        assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
+        assert f'filename="{FILE_NAME}"'.encode() in requests[0].content
 
     async def test_derives_name_from_path(
         self,
