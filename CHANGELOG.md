@@ -11,6 +11,29 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.20.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.0) - 2026-04-24
+
+### Removed
+
+- Removed the deprecated `raise_for_error` argument from `execute_graphql`, `query_gql_query`, `get_diff_summary`, `allocate_next_ip_address`, and `allocate_next_ip_prefix` client methods. HTTP errors are now always raised via `resp.raise_for_status()`.
+
+### Added
+
+- Add `infrahubctl schema export` command to export schemas from Infrahub. ([#151](https://github.com/opsmill/infrahub-sdk-python/issues/151))
+- Add `artifact_content`, `file_object_content`, `from_json`, and `from_yaml` Jinja2 filters for artifact content composition in templates.
+
+### Changed
+
+- Replace `FilterDefinition.trusted: bool` with flag-based `ExecutionContext` model (`CORE`, `WORKER`, `LOCAL`) for context-aware template validation. `validate()` now accepts an optional `context` parameter. Backward compatible.
+
+### Fixed
+
+- Allow direct assignment of authentication method to the configuration to override settings from environment variables. ([#654](https://github.com/opsmill/infrahub-sdk-python/issues/654))
+- Corrected protocol typing for IPHost.value IPAddress -> IPInterface ([#891](https://github.com/opsmill/infrahub-sdk-python/issues/891))
+- Generate protocols so that optional attributes with a default value are rendered as required (not nullable). ([#894](https://github.com/opsmill/infrahub-sdk-python/issues/894))
+- Fixed `ObjectStore.get()` and `ObjectStore.upload()` silently swallowing non-2xx HTTP errors instead of raising them. ([#958](https://github.com/opsmill/infrahub-sdk-python/issues/958))
+- Skip mandatory field validation during object loading when `object_template` is specified.
+
 ## [1.19.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.19.0) - 2026-03-16
 
 ### Added

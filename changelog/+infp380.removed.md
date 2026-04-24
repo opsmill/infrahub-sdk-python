@@ -1,1 +1,0 @@
-Removed the deprecated `raise_for_error` argument from `execute_graphql`, `query_gql_query`, `get_diff_summary`, `allocate_next_ip_address`, and `allocate_next_ip_prefix` client methods. HTTP errors are now always raised via `resp.raise_for_status()`.
