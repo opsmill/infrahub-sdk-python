@@ -494,6 +494,10 @@ class TestUploadIfChanged:
 
         assert result.was_uploaded is True
         assert result.checksum is not None
+        # Positive-path HTTP verification: the create mutation must have been dispatched.
+        requests = mock_node_create_with_file.get_requests()
+        assert len(requests) > 0
+        assert any(r.method == "POST" for r in requests)
 
     async def test_derives_name_from_path(
         self,
