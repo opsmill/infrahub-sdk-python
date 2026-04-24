@@ -12,15 +12,13 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
 from infrahub_sdk.repository import GitRepoManager
+from tests.constants import FIXTURES_DIR
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory, strip_color
 
 runner = CliRunner()
 
-
-FIXTURE_BASE_DIR = Path(
-    Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
-)
+FIXTURE_BASE_DIR = FIXTURES_DIR / "integration" / "test_infrahubctl"
 
 
 @pytest.fixture

@@ -123,6 +123,9 @@ addopts = "-vs --cov-report term-missing --cov-report xml --dist loadscope"
 [tool.ty.environment]
 python-version = "3.10"
 
+[tool.ty.rules]
+possibly-missing-attribute = "error"
+
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/**"]
 
@@ -361,7 +364,7 @@ max-line-length = 150
 
 [tool.ruff.lint.mccabe]
 # Target max-complexity=10
-max-complexity = 17
+max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
 

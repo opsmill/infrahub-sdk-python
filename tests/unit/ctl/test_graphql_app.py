@@ -10,11 +10,12 @@ from graphql import OperationDefinitionNode
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.graphql import app, find_gql_files, get_graphql_query
+from tests.constants import FIXTURES_DIR as _FIXTURES_DIR
 from tests.helpers.cli import remove_ansi_color
 
 runner = CliRunner()
 
-FIXTURES_DIR = Path(__file__).parent.parent.parent / "fixtures" / "unit" / "test_infrahubctl" / "graphql"
+FIXTURES_DIR = _FIXTURES_DIR / "unit" / "test_infrahubctl" / "graphql"
 
 
 class TestFindGqlFiles:

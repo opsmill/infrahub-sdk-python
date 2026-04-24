@@ -1,0 +1,1 @@
+Replace `FilterDefinition.trusted: bool` with flag-based `ExecutionContext` model (`CORE`, `WORKER`, `LOCAL`) for context-aware template validation. `validate()` now accepts an optional `context` parameter. Backward compatible.

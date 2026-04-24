@@ -133,6 +133,7 @@ validators
 Version Control
 Vitest
 VLANs
+yaml
 Yaml
 yamllint
 YouTube

@@ -18,7 +18,9 @@ $ infrahubctl schema [OPTIONS] COMMAND [ARGS]...
 
 * `check`: Check if schema files are valid and what...
 * `export`: Export the schema from Infrahub as YAML...
+* `list`: List all available schema kinds.
 * `load`: Load one or multiple schema files into...
+* `show`: Show details for a specific schema kind.
 
 ## `infrahubctl schema check`
 
@@ -60,6 +62,30 @@ $ infrahubctl schema export [OPTIONS]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
+## `infrahubctl schema list`
+
+List all available schema kinds.
+
+Displays a table of all node schema entries. Use --filter to narrow
+results by a case-insensitive match on the kind name.
+
+Examples:
+  infrahubctl schema list
+  infrahubctl schema list --filter Device
+
+**Usage**:
+
+```console
+$ infrahubctl schema list [OPTIONS]
+```
+
+**Options**:
+
+* `--filter TEXT`: Filter kinds by name
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
 ## `infrahubctl schema load`
 
 Load one or multiple schema files into Infrahub.
@@ -79,5 +105,31 @@ $ infrahubctl schema load [OPTIONS] SCHEMAS...
 * `--debug / --no-debug`: [default: no-debug]
 * `--branch TEXT`: Branch on which to load the schema.
 * `--wait INTEGER`: Time in seconds to wait until the schema has converged across all workers  [default: 0]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl schema show`
+
+Show details for a specific schema kind.
+
+Displays metadata, attributes, and relationships for the requested
+schema kind in a human-readable format.
+
+Examples:
+  infrahubctl schema show InfraDevice
+
+**Usage**:
+
+```console
+$ infrahubctl schema show [OPTIONS] KIND
+```
+
+**Arguments**:
+
+* `KIND`: Schema kind to display  [required]
+
+**Options**:
+
+* `-b, --branch TEXT`: Target branch
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

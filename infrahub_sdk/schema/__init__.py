@@ -217,10 +217,10 @@ class InfrahubSchemaBase:
             elif key in schema.relationship_names:
                 rel = schema.get_relationship(name=key)
                 if rel:
-                    if rel.cardinality == "one":
+                    if rel.cardinality == RelationshipCardinality.ONE:
                         obj_data[key] = {"id": str(value)}
                         obj_data[key].update(item_metadata)
-                    elif rel.cardinality == "many":
+                    elif rel.cardinality == RelationshipCardinality.MANY:
                         obj_data[key] = [{"id": str(item)} for item in value]
                         for item in obj_data[key]:
                             item.update(item_metadata)
