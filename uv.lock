@@ -878,7 +878,7 @@ types = [
 
 [[package]]
 name = "infrahub-testcontainers"
-version = "1.8.5"
+version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -888,9 +888,9 @@ dependencies = [
     { name = "pytest" },
     { name = "testcontainers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/55/9fa6fb96db0da0c816731ca2f3336d7e44fd6eaff6a52ff1c39941430a37/infrahub_testcontainers-1.8.5.tar.gz", hash = "sha256:0ddead7aa18fd2d24996d62c5c230f5b0cccfc8d2bd4082b92112c0e12ed76db", size = 17384, upload-time = "2026-04-17T12:08:42.239Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/1e/a97804267d0a68e9aa30aff37ccb6c93fa4ec85b6caedc90042724a29045/infrahub_testcontainers-1.9.0.tar.gz", hash = "sha256:9c148a093f639548e569f468eaa9f847d91fa059afa8cfd16d16b64f8df86967", size = 17349, upload-time = "2026-04-24T20:58:18.332Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/01/71764f634bc646c324084790b41b964ec20908deb02f4f7fd696caf6acb4/infrahub_testcontainers-1.8.5-py3-none-any.whl", hash = "sha256:df3285beef788b9d348e60ab67d134145e4cd13a0a9e0a763b3738626b74e21e", size = 23192, upload-time = "2026-04-17T12:08:41.059Z" },
+    { url = "https://files.pythonhosted.org/packages/7c/1b/4611a79955640db7e9ac67e314296ca8216d6abfbfcf02472041d54ebc35/infrahub_testcontainers-1.9.0-py3-none-any.whl", hash = "sha256:fb844cce591117f682b6a10da8bb74635785afde8ff1ad31be53ec32cb84e27e", size = 23191, upload-time = "2026-04-24T20:58:17.319Z" },
 ]
 
 [[package]]
