@@ -467,8 +467,7 @@ class TestUploadIfChanged:
         assert result.was_uploaded is True
         # Post-save checksum is the locally computed SHA-1 of the uploaded content.
         assert result.checksum == expected_digest
-        # Positive-path HTTP verification: the update mutation must have been dispatched as a
-        # multipart request (mirrors the assertions in test_node_update_with_file_uses_multipart).
+        # Positive-path HTTP verification: the update mutation must have been dispatched as a multipart request.
         requests = mock_node_update_with_file.get_requests()
         assert len(requests) == 1
         assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-update"
@@ -496,8 +495,7 @@ class TestUploadIfChanged:
 
         assert result.was_uploaded is True
         assert result.checksum is not None
-        # Positive-path HTTP verification: the create mutation must have been dispatched as a
-        # multipart request (mirrors the assertions in test_node_create_with_file_uses_multipart).
+        # Positive-path HTTP verification: the create mutation must have been dispatched as a multipart request.
         requests = mock_node_create_with_file.get_requests()
         assert len(requests) == 1
         assert requests[0].headers.get("x-infrahub-tracker") == "mutation-networkcircuitcontract-create"
