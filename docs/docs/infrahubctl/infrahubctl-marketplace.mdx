@@ -16,11 +16,11 @@ $ infrahubctl marketplace [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `download`: Download a schema or collection from the...
+* `get`: Fetch a schema or collection from the...
 
-## `infrahubctl marketplace download`
+## `infrahubctl marketplace get`
 
-Download a schema or collection from the Infrahub Marketplace.
+Fetch a schema or collection from the Infrahub Marketplace.
 
 By default, auto-detects whether `namespace/name` is a schema or a collection.
 Pass --collection to force the collection path when an identifier exists as both.
@@ -28,7 +28,7 @@ Pass --collection to force the collection path when an identifier exists as both
 **Usage**:
 
 ```console
-$ infrahubctl marketplace download [OPTIONS] IDENTIFIER
+$ infrahubctl marketplace get [OPTIONS] IDENTIFIER
 ```
 
 **Arguments**:
@@ -39,6 +39,7 @@ $ infrahubctl marketplace download [OPTIONS] IDENTIFIER
 
 * `-v, --version TEXT`: Specific schema version, for example 1.2.0. Default: latest published.
 * `-c, --collection`: Force collection download. Default: auto-detect whether the identifier is a schema or collection.
+* `-s, --stdout`: Print content to stdout instead of writing to disk. Status messages go to stderr.
 * `-o, --output-dir PATH`: Directory to save downloaded files.  [default: schemas]
 * `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from contextlib import suppress
 from pathlib import Path
 from typing import Literal
@@ -17,6 +18,7 @@ from ..ctl.utils import catch_exception
 
 app = AsyncTyper()
 console = Console()
+err_console = Console(stderr=True)
 
 MarketplaceItemType = Literal["schema", "collection"]
 ErrorClass = Literal["invalid-input", "not-found", "network"]
@@ -29,9 +31,14 @@ _ERROR_EXIT_CODES: dict[ErrorClass, int] = {
 
 
 def _fail(error_class: ErrorClass, message: str) -> typer.Exit:
-    """Print an error line and return a typer.Exit with the mapped code. Intended to be raised by the caller."""
-    console.print(f"[red]{message}")
+    """Print an error line to stderr and return a typer.Exit with the mapped code. Intended to be raised by the caller."""
+    err_console.print(f"[red]{message}")
     return typer.Exit(_ERROR_EXIT_CODES[error_class])
+
+
+def _status(stdout: bool) -> Console:
+    """Return the console to use for status / warning messages."""
+    return err_console if stdout else console
 
 
 @app.callback()
@@ -63,6 +70,8 @@ async def _detect_item_type(
     base_url: str,
     namespace: str,
     name: str,
+    *,
+    stdout: bool,
 ) -> tuple[MarketplaceItemType, httpx.Response]:
     """Probe schema and collection endpoints in parallel. Schema wins on 200-200.
 
@@ -83,7 +92,7 @@ async def _detect_item_type(
 
     if schema_ok:
         if collection_ok:
-            console.print(
+            _status(stdout).print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
@@ -115,9 +124,11 @@ async def _download_schema(
     name: str,
     version: str | None,
     output_dir: Path,
+    *,
+    stdout: bool,
     prefetched: httpx.Response | None = None,
 ) -> None:
-    """Download a single schema and write it to disk.
+    """Download a single schema and write it to disk or stdout.
 
     When ``prefetched`` is supplied and ``version`` is None, reuses the response
     instead of re-fetching the unversioned download URL.
@@ -145,6 +156,14 @@ async def _download_schema(
     resp.raise_for_status()
 
     resolved_version = version or resp.headers.get("x-schema-version", "latest")
+
+    if stdout:
+        sys.stdout.write(resp.text)
+        if not resp.text.endswith("\n"):
+            sys.stdout.write("\n")
+        err_console.print(f"[green]Fetched schema {namespace}/{name} v{resolved_version}")
+        return
+
     filename = f"{name}.yml"
     _mkdir_or_fail(output_dir)
     file_path = output_dir / filename
@@ -159,9 +178,11 @@ async def _download_collection(
     namespace: str,
     name: str,
     output_dir: Path,
+    *,
+    stdout: bool,
     prefetched: httpx.Response | None = None,
 ) -> None:
-    """Download all schemas in a collection to disk.
+    """Download all schemas in a collection to disk or stdout.
 
     When ``prefetched`` is supplied, reuses the response instead of re-fetching
     the collection download URL.
@@ -182,27 +203,39 @@ async def _download_collection(
     meta = data["collection"]
     schemas = data["schemas"]
     skipped = meta.get("skipped", [])
+    status = _status(stdout)
 
-    collection_dir = output_dir / name
-    _mkdir_or_fail(collection_dir)
-
-    for schema in schemas:
-        filename = f"{schema['name']}.yml"
-        file_path = collection_dir / filename
-        file_path.write_text(schema["content"], encoding="utf-8")
-        console.print(f"[green]Downloaded {schema['namespace']}/{schema['name']} v{schema['semver']} -> {file_path}")
+    if stdout:
+        for index, schema in enumerate(schemas):
+            content = schema["content"]
+            if index > 0 and not content.lstrip().startswith("---"):
+                sys.stdout.write("---\n")
+            sys.stdout.write(content)
+            if not content.endswith("\n"):
+                sys.stdout.write("\n")
+            err_console.print(f"[green]Fetched {schema['namespace']}/{schema['name']} v{schema['semver']}")
+    else:
+        collection_dir = output_dir / name
+        _mkdir_or_fail(collection_dir)
+        for schema in schemas:
+            filename = f"{schema['name']}.yml"
+            file_path = collection_dir / filename
+            file_path.write_text(schema["content"], encoding="utf-8")
+            console.print(
+                f"[green]Downloaded {schema['namespace']}/{schema['name']} v{schema['semver']} -> {file_path}"
+            )
 
     for item in skipped:
-        console.print(f"[yellow]Skipped {item['namespace']}/{item['name']}: {item['reason']}")
+        status.print(f"[yellow]Skipped {item['namespace']}/{item['name']}: {item['reason']}")
 
-    console.print(
+    status.print(
         f"\n[green]Collection {namespace}/{name}: {meta['downloaded_count']}/{meta['schema_count']} schemas downloaded"
     )
 
 
 @app.command()
 @catch_exception(console=console)
-async def download(
+async def get(
     identifier: str = typer.Argument(help="Schema or collection identifier in namespace/name format"),
     version: str | None = typer.Option(
         None, "--version", "-v", help="Specific schema version, for example 1.2.0. Default: latest published."
@@ -213,6 +246,12 @@ async def download(
         "-c",
         help="Force collection download. Default: auto-detect whether the identifier is a schema or collection.",
     ),
+    stdout: bool = typer.Option(
+        False,
+        "--stdout",
+        "-s",
+        help="Print content to stdout instead of writing to disk. Status messages go to stderr.",
+    ),
     output_dir: Path = typer.Option(Path("schemas"), "--output-dir", "-o", help="Directory to save downloaded files."),
     marketplace_url: str | None = typer.Option(
         None,
@@ -221,7 +260,7 @@ async def download(
     ),
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Download a schema or collection from the Infrahub Marketplace.
+    """Fetch a schema or collection from the Infrahub Marketplace.
 
     By default, auto-detects whether `namespace/name` is a schema or a collection.
     Pass --collection to force the collection path when an identifier exists as both.
@@ -234,7 +273,7 @@ async def download(
     async with httpx.AsyncClient(follow_redirects=True) as client:
         prefetched: httpx.Response | None = None
         if collection is None:
-            item_type, prefetched = await _detect_item_type(client, base_url, namespace, name)
+            item_type, prefetched = await _detect_item_type(client, base_url, namespace, name, stdout=stdout)
         elif collection:
             item_type = "collection"
         else:
@@ -242,7 +281,11 @@ async def download(
 
         if item_type == "collection":
             if version:
-                console.print("[yellow]Warning: --version is ignored when downloading a collection.")
-            await _download_collection(client, base_url, namespace, name, output_dir, prefetched=prefetched)
+                _status(stdout).print("[yellow]Warning: --version is ignored when downloading a collection.")
+            await _download_collection(
+                client, base_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
+            )
         else:
-            await _download_schema(client, base_url, namespace, name, version, output_dir, prefetched=prefetched)
+            await _download_schema(
+                client, base_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
+            )
