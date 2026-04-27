@@ -449,6 +449,60 @@ def test_download_collection_with_skipped(httpx_mock: HTTPXMock, tmp_path: Path)
     assert "1/2 schemas downloaded" in result.stdout
 
 
+def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Schema 404 + collection transport failure should be classified as network, not not-found."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/foo/download",
+        status_code=404,
+        json={"detail": "Schema not found"},
+    )
+    httpx_mock.add_exception(
+        httpx.ConnectError("connection refused"),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+    )
+    result = runner.invoke(app, ["get", "acme/foo", "-o", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "Could not reach marketplace" in result.stdout
+
+
+def test_versioned_download_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A network failure during the post-detect versioned fetch should exit with code 2."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.2.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    httpx_mock.add_exception(
+        httpx.ConnectError("connection refused"),
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+    )
+    result = runner.invoke(app, ["get", "acme/network-base", "-v", "1.0.0", "-o", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "Marketplace request failed" in result.stdout
+
+
+def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A network failure on the explicit --collection fetch should exit with code 2."""
+    httpx_mock.add_exception(
+        httpx.ConnectError("connection refused"),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+    )
+    result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "Marketplace request failed" in result.stdout
+
+
 def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",

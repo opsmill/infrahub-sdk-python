@@ -66,7 +66,7 @@ This must exercise the same auto-detection behaviour against the overridden host
 For a schema:
 
 ```text
-Downloaded acme/network-base v1.2.0 -> schemas/network-base.yml
+Downloaded schema acme/network-base v1.2.0 -> schemas/network-base.yml
 ```
 
 For a collection:

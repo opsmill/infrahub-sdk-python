@@ -105,7 +105,7 @@ async def _detect_item_type(
             return True
         return isinstance(r, httpx.Response) and r.status_code >= 500
 
-    if is_transport_failure(schema_resp) and is_transport_failure(collection_resp):
+    if is_transport_failure(schema_resp) or is_transport_failure(collection_resp):
         raise _fail(
             "network",
             f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
@@ -279,13 +279,16 @@ async def get(
         else:
             item_type = "schema"
 
-        if item_type == "collection":
-            if version:
-                _status(stdout).print("[yellow]Warning: --version is ignored when downloading a collection.")
-            await _download_collection(
-                client, base_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
-            )
-        else:
-            await _download_schema(
-                client, base_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
-            )
+        try:
+            if item_type == "collection":
+                if version:
+                    _status(stdout).print("[yellow]Warning: --version is ignored when downloading a collection.")
+                await _download_collection(
+                    client, base_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
+                )
+            else:
+                await _download_schema(
+                    client, base_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
+                )
+        except httpx.HTTPError as exc:
+            raise _fail("network", f"Marketplace request failed: {exc}") from exc
