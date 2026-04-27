@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from pytest_httpx import HTTPXMock
 
+    from infrahub_sdk.protocols import BuiltinIPAddressSync
     from infrahub_sdk.protocols_base import CoreNode, CoreNodeSync
     from infrahub_sdk.schema import NodeSchemaAPI
     from tests.unit.sdk.conftest import BothClients
@@ -115,8 +116,8 @@ async def test_allocate_next_ip_address(
         )
 
     assert ip_address
-    assert str(cast("InfrahubNodeSync", ip_address).address.value) == "192.0.2.0/32"
-    assert cast("InfrahubNodeSync", ip_address).description.value == "test"
+    assert str(cast("BuiltinIPAddressSync", ip_address).address.value) == "192.0.2.0/32"
+    assert cast("BuiltinIPAddressSync", ip_address).description.value == "test"
 
 
 @pytest.mark.parametrize("client_type", client_types)

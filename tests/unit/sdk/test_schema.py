@@ -341,6 +341,27 @@ async def test_infrahub_repository_config_dups() -> None:
     assert "Found multiples element with the same names: ['check01', 'check02']" in str(exc.value)
 
 
+async def test_python_transform_config_description() -> None:
+    """Verify InfrahubPythonTransformConfig supports an optional description field."""
+    # With description
+    config_with_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description="A useful transform"
+    )
+    assert config_with_desc.description == "A useful transform"
+
+    # Without description (default None)
+    config_without_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform"
+    )
+    assert config_without_desc.description is None
+
+    # Explicit None
+    config_explicit_none = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description=None
+    )
+    assert config_explicit_none.description is None
+
+
 @mock.patch(
     "infrahub_sdk.ctl.schema.get_node",
     return_value={
@@ -476,3 +497,28 @@ def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddressSync) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddress) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"
+
+
+async def test_schema_load_surfaces_api_error_on_422(client: InfrahubClient, httpx_mock: HTTPXMock) -> None:
+    """Validate that schema.load surfaces API error responses to the caller."""
+    # Arrange
+    schema_payload = {"version": "1.0", "nodes": [{"name": "Dummy", "namespace": "Test"}]}
+    api_error_message = "Something went wrong on the server side."
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/api/schema/load?branch=main",
+        status_code=422,
+        json={
+            "data": None,
+            "errors": [{"message": api_error_message, "extensions": {"code": 422}}],
+        },
+    )
+
+    # Act
+    response = await client.schema.load(schemas=[schema_payload])
+
+    # Assert
+    assert response.errors
+    assert response.errors["errors"][0]["message"] == api_error_message
+    assert not response.schema_updated

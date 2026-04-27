@@ -1,0 +1,57 @@
+# `infrahubctl telemetry`
+
+**Usage**:
+
+```console
+$ infrahubctl telemetry [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `export`: Export telemetry snapshots to a JSON file.
+* `list`: List telemetry snapshots with summary...
+
+## `infrahubctl telemetry export`
+
+Export telemetry snapshots to a JSON file.
+
+Pages through the API automatically so that all matching snapshots are exported,
+not just the first page.
+
+**Usage**:
+
+```console
+$ infrahubctl telemetry export [OPTIONS]
+```
+
+**Options**:
+
+* `--output TEXT`: Output file path  [default: telemetry-export.json]
+* `--start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Start date filter (ISO 8601)
+* `--end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: End date filter (ISO 8601)
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl telemetry list`
+
+List telemetry snapshots with summary information.
+
+**Usage**:
+
+```console
+$ infrahubctl telemetry list [OPTIONS]
+```
+
+**Options**:
+
+* `--start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Start date filter (ISO 8601)
+* `--end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: End date filter (ISO 8601)
+* `--limit INTEGER`: Maximum number of results  [default: 50]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.

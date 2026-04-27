@@ -36,6 +36,7 @@ from ..ctl.repository import app as repository_app
 from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.schema import app as schema_app
 from ..ctl.task import app as task_app
+from ..ctl.telemetry import app as telemetry_app
 from ..ctl.transform import list_transforms
 from ..ctl.utils import (
     catch_exception,
@@ -45,11 +46,13 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
+from ..graphql.query_renderer import render_query
 from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
+from ..template.filters import ExecutionContext
 from ..utils import write_to_file
 from ..yaml import SchemaFile
 from .exporter import dump
@@ -70,6 +73,7 @@ app.add_typer(object_app, name="object")
 app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
 app.add_typer(marketplace_app, name="marketplace")
+app.add_typer(telemetry_app, name="telemetry")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
@@ -188,6 +192,7 @@ async def render_jinja2_template(template_path: Path, variables: dict[str, Any],
     variables["data"] = data
     jinja_template = Jinja2Template(template=Path(template_path), template_directory=Path())
     try:
+        jinja_template.validate(context=ExecutionContext.LOCAL)
         rendered_tpl = await jinja_template.render(variables=variables)
     except JinjaTemplateError as exc:
         print_template_errors(error=exc, console=console)
@@ -344,7 +349,7 @@ def transform(
         convert_query_response=transform_config.convert_query_response,
     )
     # Get data
-    query_str = repository_config.get_query(name=transform.query).load_query()
+    query_str = render_query(name=transform.query, config=repository_config)
     data = asyncio.run(
         transform.client.execute_graphql(query=query_str, variables=variables_dict, branch_name=transform.branch_name)
     )

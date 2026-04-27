@@ -128,3 +128,48 @@ def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock) -> None:
         fixture_file.read_text(encoding="utf-8"),
     )
     assert content_json == {"schemas": [fixture_file_content]}
+
+
+def test_load_valid_generic_schema(httpx_mock: HTTPXMock) -> None:
+    """A test which ensures that a generic schema is correctly loaded when loaded from infrahubctl command"""
+
+    # Arrange
+    fixture_file = get_fixtures_dir() / "models" / "valid_generic_schema.json"
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/api/schema/load?branch=main",
+        status_code=200,
+        json={
+            "hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+            "previous_hash": "d3f7f4e7161f0ae6538a01d5a42dc661",
+            "diff": {
+                "added": {
+                    "TestingAnimal": {"added": {}, "changed": {}, "removed": {}},
+                    "DogDog": {"added": {}, "changed": {}, "removed": {}},
+                },
+                "changed": {},
+                "removed": {},
+            },
+            "schema_updated": True,
+        },
+    )
+
+    # Act
+    result = runner.invoke(app=app, args=["load", str(fixture_file)])
+
+    # Assert
+    assert result.exit_code == 0
+    assert f"schema '{fixture_file}' loaded successfully" in remove_ansi_color(result.stdout.replace("\n", ""))
+
+    content = httpx_mock.get_requests()[0].content.decode("utf8")
+    content_json = yaml.safe_load(content)
+    fixture_file_content = yaml.safe_load(
+        fixture_file.read_text(encoding="utf-8"),
+    )
+    assert content_json == {"schemas": [fixture_file_content]}
+
+    # Verify restricted_namespaces is present in the payload sent to the API
+    sent_generics = content_json["schemas"][0]["generics"]
+    assert len(sent_generics) == 1
+    assert sent_generics[0]["restricted_namespaces"] == ["Dog"]

@@ -12,6 +12,9 @@ jinja2_transforms:
   - name: missing_filter
     query: "tags_query"
     template_path: "templates/wrong-filter.j2"
+  - name: worker_only_filter
+    query: "tags_query"
+    template_path: "templates/worker_only_filter.j2"
 
 queries:
   - name: tags_query

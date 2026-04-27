@@ -14,6 +14,7 @@ from ..schema import (
     NodeSchema,
     NodeSchemaAPI,
     ProfileSchemaAPI,
+    RelationshipCardinality,
     RelationshipSchemaAPI,
     TemplateSchemaAPI,
 )
@@ -128,7 +129,7 @@ class CodeGenerator:
         cardinality = value.cardinality
 
         type_ = "RelatedNode"
-        if cardinality == "many":
+        if cardinality == RelationshipCardinality.MANY:
             type_ = "RelationshipManager"
 
         if sync:

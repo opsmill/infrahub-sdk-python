@@ -1,19 +1,18 @@
 import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
+from tests.constants import FIXTURE_REPOS_DIR
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import strip_color, temp_repo_and_cd
 
 runner = CliRunner()
 
-
-FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "repos")
+FIXTURE_BASE_DIR = FIXTURE_REPOS_DIR
 
 
 @dataclass
@@ -42,7 +41,12 @@ RENDER_APP_FAIL_TEST_CASES = [
     RenderAppFailure(
         name="invalid-filter",
         template="missing_filter",
-        error="No filter named 'my_filter_is_missing'.",
+        error="The 'my_filter_is_missing' filter isn't allowed to be used",
+    ),
+    RenderAppFailure(
+        name="worker-only-filter-rejected-in-local-context",
+        template="worker_only_filter",
+        error="The 'artifact_content' filter isn't allowed to be used",
     ),
 ]
 

@@ -87,7 +87,6 @@ def validate_graphql(
             query=query_str,
             branch_name=branch,
             variables=variables_dict,
-            raise_for_error=False,
         )
     except GraphQLError as exc:
         console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")
