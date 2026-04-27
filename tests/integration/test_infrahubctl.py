@@ -24,7 +24,9 @@ if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
 
-FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / "fixtures")
+from tests.constants import FIXTURES_DIR
+
+FIXTURE_BASE_DIR = FIXTURES_DIR
 
 
 runner = CliRunner()

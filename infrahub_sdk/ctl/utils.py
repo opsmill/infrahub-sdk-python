@@ -20,6 +20,7 @@ from ..exceptions import (
     Error,
     FileNotValidError,
     GraphQLError,
+    GraphQLQueryError,
     NodeNotFoundError,
     ResourceNotDefinedError,
     SchemaNotFoundError,
@@ -27,6 +28,7 @@ from ..exceptions import (
     ServerNotResponsiveError,
     ValidationError,
 )
+from ..graphql.query_renderer import render_query
 from ..yaml import YamlFile
 from .client import initialize_client_sync
 from .exceptions import QueryNotFoundError
@@ -66,7 +68,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError)):
+    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError, GraphQLQueryError)):
         console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
@@ -114,8 +116,7 @@ def execute_graphql_query(
     debug: bool = False,
 ) -> dict:
     console = Console()
-    query_object = repository_config.get_query(name=query)
-    query_str = query_object.load_query()
+    query_str = render_query(name=query, config=repository_config)
 
     client = initialize_client_sync()
 
@@ -126,7 +127,6 @@ def execute_graphql_query(
         query=query_str,
         branch_name=branch,
         variables=variables_dict,
-        raise_for_error=False,
     )
 
     if debug:

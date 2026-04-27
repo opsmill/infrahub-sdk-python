@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
+from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchema
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
@@ -102,7 +102,10 @@ class RelationshipInfo(BaseModel):
         # For hierarchical node, currently the relationship to the parent is always optional in the schema even if it's mandatory
         # In order to build the tree from top to bottom, we need to consider it as mandatory
         # While it should technically work bottom-up, it created some unexpected behavior while loading the menu
-        if self.peer_rel.cardinality == "one" and self.peer_rel.kind == RelationshipKind.HIERARCHY:
+        if (
+            self.peer_rel.cardinality == RelationshipCardinality.ONE
+            and self.peer_rel.kind == RelationshipKind.HIERARCHY
+        ):
             return True
         return not self.peer_rel.optional
 
@@ -116,9 +119,9 @@ class RelationshipInfo(BaseModel):
 
     def get_context(self, value: Any) -> dict:
         """Return a dict to insert to the context if the relationship is mandatory"""
-        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "one":
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.ONE:
             return {self.peer_rel.name: value}
-        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "many":
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.MANY:
             return {self.peer_rel.name: [value]}
         return {}
 
@@ -162,21 +165,21 @@ async def get_relationship_info(
             id=rel_schema.identifier or "", direction=rel_schema.direction
         )
 
-    if rel_schema.cardinality == "one" and isinstance(value, list):
+    if rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, list):
         # validate the list is composed of string
         if validate_list_of_scalars(value):
             info.format = RelationshipDataFormat.ONE_REF
         else:
             info.reason_relationship_not_valid = "Too many objects provided for a relationship of cardinality one"
 
-    elif rel_schema.cardinality == "one" and isinstance(value, str):
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, str):
         info.format = RelationshipDataFormat.ONE_REF
 
-    elif rel_schema.cardinality == "one" and isinstance(value, dict) and "data" in value:
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, dict) and "data" in value:
         info.format = RelationshipDataFormat.ONE_OBJ
 
     elif (
-        rel_schema.cardinality == "many"
+        rel_schema.cardinality == RelationshipCardinality.MANY
         and isinstance(value, dict)
         and "data" in value
         and validate_list_of_objects(value["data"])
@@ -185,11 +188,11 @@ async def get_relationship_info(
         # it's helpful if there is only one type of object to manage
         info.format = RelationshipDataFormat.MANY_OBJ_DICT_LIST
 
-    elif rel_schema.cardinality == "many" and isinstance(value, dict) and "data" not in value:
+    elif rel_schema.cardinality == RelationshipCardinality.MANY and isinstance(value, dict) and "data" not in value:
         info.reason_relationship_not_valid = "Invalid structure for a relationship of cardinality many,"
         " either provide a dict with data as a list or a list of objects"
 
-    elif rel_schema.cardinality == "many" and isinstance(value, list):
+    elif rel_schema.cardinality == RelationshipCardinality.MANY and isinstance(value, list):
         if validate_list_of_data_dicts(value):
             info.format = RelationshipDataFormat.MANY_OBJ_LIST_DICT
         elif validate_list_of_hfids(value):

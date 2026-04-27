@@ -1,0 +1,30 @@
+{
+    "version": "1.0",
+    "generics": [
+        {
+            "name": "Animal",
+            "namespace": "Testing",
+            "attributes": [
+                {
+                    "name": "name",
+                    "kind": "Text"
+                }
+            ],
+            "restricted_namespaces": ["Dog"]
+        }
+    ],
+    "nodes": [
+        {
+            "name": "Dog",
+            "namespace": "Dog",
+            "inherit_from": ["TestingAnimal"],
+            "attributes": [
+                {
+                    "name": "breed",
+                    "kind": "Text",
+                    "optional": true
+                }
+            ]
+        }
+    ]
+}

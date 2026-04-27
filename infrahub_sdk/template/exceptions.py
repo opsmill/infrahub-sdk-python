@@ -39,3 +39,13 @@ class JinjaTemplateUndefinedError(JinjaTemplateError):
 class JinjaTemplateOperationViolationError(JinjaTemplateError):
     def __init__(self, message: str | None = None) -> None:
         self.message = message or "Forbidden code found in the template"
+
+
+class JinjaFilterError(JinjaTemplateError):
+    def __init__(self, filter_name: str, message: str, hint: str | None = None) -> None:
+        self.filter_name = filter_name
+        self.hint = hint
+        full_message = f"Filter '{filter_name}': {message}"
+        if hint is not None:
+            full_message += f" — {hint}"
+        super().__init__(full_message)

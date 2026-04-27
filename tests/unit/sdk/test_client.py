@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import ssl
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -723,3 +724,125 @@ async def test_clone_define_branch(clients: BothClients, client_type: str) -> No
     assert clone.default_branch == clone_branch
     assert original_branch != clone_branch
     assert clone.store._default_branch == clone_branch
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_count(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_count: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.count(kind="CoreRepository", query_name="MyCountQuery")
+    else:
+        clients.sync.count(kind="CoreRepository", query_name="MyCountQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query MyCountQuery {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_all(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository", query_name="MyAllQuery")
+    else:
+        clients.sync.all(kind="CoreRepository", query_name="MyAllQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query MyAllQuery {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_filters(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.filters(kind="CoreRepository", query_name="MyFiltersQuery")
+    else:
+        clients.sync.filters(kind="CoreRepository", query_name="MyFiltersQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query MyFiltersQuery {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_get(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.get(
+            kind="CoreRepository", name__value="test", raise_when_missing=False, query_name="MyGetQuery"
+        )
+    else:
+        clients.sync.get(kind="CoreRepository", name__value="test", raise_when_missing=False, query_name="MyGetQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query MyGetQuery {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_count_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_count: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.count(kind="CoreRepository")
+    else:
+        clients.sync.count(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query Count_CoreRepository {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_all_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository")
+    else:
+        clients.sync.all(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query All_CoreRepository {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_filters_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.filters(kind="CoreRepository")
+    else:
+        clients.sync.filters(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query Filters_CoreRepository {" in query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_get_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.get(kind="CoreRepository", name__value="test", raise_when_missing=False)
+    else:
+        clients.sync.get(kind="CoreRepository", name__value="test", raise_when_missing=False)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    query = json.loads(post_requests[0].content)["query"]
+    assert "query Get_CoreRepository {" in query
