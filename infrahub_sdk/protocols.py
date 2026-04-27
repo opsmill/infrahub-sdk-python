@@ -121,6 +121,7 @@ class CoreGenericAccount(CoreNode):
     account_type: Enum
     status: Dropdown
     tokens: RelationshipManager
+    external_identities: RelationshipManager
 
 
 class CoreGenericRepository(CoreNode):
@@ -590,6 +591,13 @@ class InternalAccountToken(CoreNode):
     account: RelatedNode
 
 
+class InternalExternalIdentity(CoreNode):
+    sub: String
+    provider_name: String
+    protocol: String
+    account: RelatedNode
+
+
 class InternalIPPrefixAvailable(BuiltinIPPrefix):
     pass
 
@@ -698,6 +706,7 @@ class CoreGenericAccountSync(CoreNodeSync):
     account_type: Enum
     status: Dropdown
     tokens: RelationshipManagerSync
+    external_identities: RelationshipManagerSync
 
 
 class CoreGenericRepositorySync(CoreNodeSync):
@@ -1164,6 +1173,13 @@ class InternalAccountTokenSync(CoreNodeSync):
     name: StringOptional
     token: String
     expiration: DateTimeOptional
+    account: RelatedNodeSync
+
+
+class InternalExternalIdentitySync(CoreNodeSync):
+    sub: String
+    provider_name: String
+    protocol: String
     account: RelatedNodeSync
 
 
