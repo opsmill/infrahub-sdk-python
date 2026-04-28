@@ -5,6 +5,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
+from infrahub_sdk.ctl import config as ctl_config
 from infrahub_sdk.ctl.marketplace import app
 
 runner = CliRunner()
@@ -16,28 +17,6 @@ nodes:
   - name: Device
     namespace: Infra
 """
-
-
-def test_download_schema_latest(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/download",
-        text=SCHEMA_YAML,
-        headers={"x-schema-version": "1.2.0"},
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
-        status_code=404,
-        json={"detail": "Collection not found"},
-    )
-    result = runner.invoke(app, ["get", "acme/network-base", "-o", str(tmp_path)])
-
-    assert result.exit_code == 0
-    assert "Downloaded schema acme/network-base v1.2.0" in result.stdout
-    written = tmp_path / "network-base.yml"
-    assert written.exists()
-    assert written.read_text() == SCHEMA_YAML
 
 
 def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -66,6 +45,7 @@ def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path)
     assert "Downloaded schema acme/network-base v0.9.0" in result.stdout
     written = tmp_path / "network-base.yml"
     assert written.exists()
+    assert written.read_text() == SCHEMA_YAML
 
 
 def test_download_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -124,7 +104,7 @@ def test_download_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/nonexistent", "-o", str(tmp_path)])
 
     assert result.exit_code == 1
-    assert "acme/nonexistent" in result.stdout
+    assert "No schema or collection named 'acme/nonexistent'" in result.stdout
     assert "marketplace.infrahub.app" in result.stdout
 
 
@@ -155,6 +135,29 @@ def test_download_custom_marketplace_url(httpx_mock: HTTPXMock, tmp_path: Path) 
 
     assert result.exit_code == 0
     assert "Downloaded schema acme/test v1.0.0" in result.stdout
+
+
+def test_marketplace_url_from_env(httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # SETTINGS is a module-level singleton that only loads once. Reset it so the
+    # next invoke re-reads from env, then patch the env var before that happens.
+    monkeypatch.setattr(ctl_config.SETTINGS, "_settings", None)
+    monkeypatch.setenv("INFRAHUB_MARKETPLACE_URL", "http://staging.example.com")
+    httpx_mock.add_response(
+        method="GET",
+        url="http://staging.example.com/api/v1/schemas/acme/network-base/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="http://staging.example.com/api/v1/collections/acme/network-base/download",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["get", "acme/network-base", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Downloaded schema acme/network-base v1.0.0" in result.stdout
 
 
 def test_autodetect_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:

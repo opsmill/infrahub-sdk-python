@@ -5,7 +5,7 @@ import sys
 from contextlib import suppress
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, NoReturn
 from urllib.parse import urlparse
 
 import httpx
@@ -14,6 +14,7 @@ from rich.console import Console
 
 from ..async_typer import AsyncTyper
 from ..config import ConfigBase as _SdkConfig
+from ..ctl.config import SETTINGS
 from ..ctl.parameters import CONFIG_PARAM
 from ..ctl.utils import catch_exception
 
@@ -34,12 +35,12 @@ class _ErrorClass(Enum):
         return 2 if self is _ErrorClass.NETWORK else 1
 
 
-def _fail(error_class: _ErrorClass, message: str) -> typer.Exit:
+def _fail(error_class: _ErrorClass, message: str) -> NoReturn:
     err_console.print(f"[red]{message}")
-    return typer.Exit(error_class.exit_code)
+    raise typer.Exit(error_class.exit_code)
 
 
-def _status(stdout: bool) -> Console:
+def _status_console(stdout: bool) -> Console:
     return err_console if stdout else console
 
 
@@ -51,7 +52,7 @@ def callback() -> None:
 def _parse_identifier(identifier: str) -> tuple[str, str]:
     parts = identifier.split("/")
     if len(parts) != 2 or not all(parts):
-        raise _fail(_ErrorClass.INVALID_INPUT, f"Invalid identifier '{identifier}'. Expected format: namespace/name")
+        _fail(_ErrorClass.INVALID_INPUT, f"Invalid identifier '{identifier}'. Expected format: namespace/name")
     return parts[0], parts[1]
 
 
@@ -59,11 +60,21 @@ def _host_from(base_url: str) -> str:
     return urlparse(base_url).netloc or base_url
 
 
+def _schema_url(base_url: str, namespace: str, name: str, version: str | None = None) -> str:
+    if version:
+        return f"{base_url}/api/v1/schemas/{namespace}/{name}/versions/{version}/download"
+    return f"{base_url}/api/v1/schemas/{namespace}/{name}/download"
+
+
+def _collection_url(base_url: str, namespace: str, name: str) -> str:
+    return f"{base_url}/api/v1/collections/{namespace}/{name}/download"
+
+
 def _mkdir_or_fail(path: Path) -> None:
     try:
         path.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise _fail(_ErrorClass.INVALID_INPUT, f"Cannot write to '{path}': {exc}") from exc
+        _fail(_ErrorClass.INVALID_INPUT, f"Cannot write to '{path}': {exc}")
 
 
 def _make_http_client(sdk_cfg: _SdkConfig) -> httpx.AsyncClient:
@@ -93,8 +104,8 @@ async def _detect_item_type(
     Returns the resolved type and the winning 200 response so the caller can reuse
     it instead of re-fetching the same URL.
     """
-    schema_url = f"{base_url}/api/v1/schemas/{namespace}/{name}/download"
-    collection_url = f"{base_url}/api/v1/collections/{namespace}/{name}/download"
+    schema_url = _schema_url(base_url, namespace, name)
+    collection_url = _collection_url(base_url, namespace, name)
 
     schema_resp, collection_resp = await asyncio.gather(
         client.get(schema_url),
@@ -104,7 +115,7 @@ async def _detect_item_type(
 
     if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
         if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-            _status(stdout).print(
+            _status_console(stdout).print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
@@ -118,12 +129,12 @@ async def _detect_item_type(
         return isinstance(r, httpx.Response) and r.status_code >= 500
 
     if is_transport_failure(schema_resp) or is_transport_failure(collection_resp):
-        raise _fail(
+        _fail(
             _ErrorClass.NETWORK,
             f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
         )
 
-    raise _fail(
+    _fail(
         _ErrorClass.NOT_FOUND,
         f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
     )
@@ -139,24 +150,24 @@ async def _download_schema(
     *,
     stdout: bool,
     prefetched: httpx.Response | None = None,
+    schema_confirmed_exists: bool = False,
 ) -> None:
     """Download a single schema and write it to disk or stdout.
 
     When ``prefetched`` is supplied and ``version`` is None, reuses the response
     instead of re-fetching the unversioned download URL.
+    ``schema_confirmed_exists`` signals that the schema is known to exist (e.g. from
+    the auto-detect probe), so a 404 on a versioned URL is reported as version-not-found
+    rather than the generic not-found message.
     """
     if prefetched is not None and version is None:
         resp = prefetched
     else:
-        if version:
-            url = f"{base_url}/api/v1/schemas/{namespace}/{name}/versions/{version}/download"
-        else:
-            url = f"{base_url}/api/v1/schemas/{namespace}/{name}/download"
-        resp = await client.get(url)
+        resp = await client.get(_schema_url(base_url, namespace, name, version=version))
 
     if resp.status_code == 404:
-        if version is not None and prefetched is not None:
-            raise _fail(
+        if version is not None and schema_confirmed_exists:
+            _fail(
                 _ErrorClass.NOT_FOUND,
                 f"Schema '{namespace}/{name}' has no published version '{version}'. "
                 "Run without --version for the latest.",
@@ -164,7 +175,7 @@ async def _download_schema(
         detail = "not found"
         with suppress(Exception):
             detail = resp.json().get("detail", detail)
-        raise _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
+        _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
     resp.raise_for_status()
 
     resolved_version = version or resp.headers.get("x-schema-version", "latest")
@@ -202,20 +213,19 @@ async def _download_collection(
     if prefetched is not None:
         resp = prefetched
     else:
-        url = f"{base_url}/api/v1/collections/{namespace}/{name}/download"
-        resp = await client.get(url)
+        resp = await client.get(_collection_url(base_url, namespace, name))
     if resp.status_code == 404:
         detail = "not found"
         with suppress(Exception):
             detail = resp.json().get("detail", detail)
-        raise _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
+        _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
     resp.raise_for_status()
 
     data = resp.json()
     meta = data["collection"]
     schemas = data["schemas"]
     skipped = meta.get("skipped", [])
-    status = _status(stdout)
+    status = _status_console(stdout)
 
     if stdout:
         for index, schema in enumerate(schemas):
@@ -280,27 +290,42 @@ async def get(
     namespace, name = _parse_identifier(identifier)
 
     sdk_cfg = _SdkConfig()
-    resolved_url = (marketplace_url or sdk_cfg.marketplace_url).rstrip("/")
+    resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
 
     async with _make_http_client(sdk_cfg) as client:
         prefetched: httpx.Response | None = None
+        schema_confirmed_exists = False
         if collection is None:
             item_type, prefetched = await _detect_item_type(client, resolved_url, namespace, name, stdout=stdout)
+            schema_confirmed_exists = item_type == "schema"
         elif collection:
             item_type = "collection"
         else:
+            # Typer exposes only --collection, not --no-collection, so collection=False
+            # is unreachable from the CLI. Kept for defensive completeness against the
+            # bool | None type.
             item_type = "schema"
 
         try:
             if item_type == "collection":
                 if version:
-                    _status(stdout).print("[yellow]Warning: --version is ignored when downloading a collection.")
+                    _status_console(stdout).print(
+                        "[yellow]Warning: --version is ignored when downloading a collection."
+                    )
                 await _download_collection(
                     client, resolved_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
                 )
             else:
                 await _download_schema(
-                    client, resolved_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
+                    client,
+                    resolved_url,
+                    namespace,
+                    name,
+                    version,
+                    output_dir,
+                    stdout=stdout,
+                    prefetched=prefetched,
+                    schema_confirmed_exists=schema_confirmed_exists,
                 )
         except httpx.HTTPError as exc:
-            raise _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {exc}") from exc
+            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {exc}")

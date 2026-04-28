@@ -1,6 +1,6 @@
-# Quickstart: Marketplace Download Command
+# Quickstart: Marketplace Get Command
 
-End-to-end smoke test for the updated `infrahubctl marketplace download` command. These steps exercise each acceptance scenario in `spec.md` and should be green before merging.
+End-to-end smoke test for the updated `infrahubctl marketplace get` command. These steps exercise each acceptance scenario in `spec.md` and should be green before merging.
 
 ## Prerequisites
 
@@ -28,33 +28,33 @@ All existing tests must stay green, and new tests MUST be added to cover:
 
 ```bash
 # Scenario 1: download a schema by auto-detection
-uv run infrahubctl marketplace download acme/network-base
+uv run infrahubctl marketplace get acme/network-base
 ls schemas/
 
 # Scenario 2: download a collection by auto-detection
-uv run infrahubctl marketplace download acme/starter-pack
+uv run infrahubctl marketplace get acme/starter-pack
 ls schemas/
 
 # Scenario 3: pin a specific schema version
-uv run infrahubctl marketplace download acme/network-base --version 0.9.0
+uv run infrahubctl marketplace get acme/network-base --version 0.9.0
 grep '^version:' schemas/network-base.yml
 
 # Scenario 4: custom output directory
-uv run infrahubctl marketplace download acme/network-base --output-dir ./tmp/market-test
+uv run infrahubctl marketplace get acme/network-base --output-dir ./tmp/market-test
 ls ./tmp/market-test
 
 # Scenario 5: explicit --collection still works (override path)
-uv run infrahubctl marketplace download acme/starter-pack --collection
+uv run infrahubctl marketplace get acme/starter-pack --collection
 
 # Scenario 6: version on a collection emits a warning, proceeds
-uv run infrahubctl marketplace download acme/starter-pack --version 1.0.0
+uv run infrahubctl marketplace get acme/starter-pack --version 1.0.0
 # Expect: "Warning: --version is ignored when downloading a collection." followed by success output.
 ```
 
 ## Manual verification against a local/staging marketplace
 
 ```bash
-uv run infrahubctl marketplace download acme/test \
+uv run infrahubctl marketplace get acme/test \
   --marketplace-url http://localhost:8000 \
   --output-dir ./tmp/local-market
 ```
