@@ -27,7 +27,6 @@ class Settings(BaseSettings):
     server_address: str = Field(default="http://localhost:8000", validation_alias="infrahub_address")
     api_token: str | None = Field(default=None)
     default_branch: str = Field(default="main")
-    marketplace_url: str = Field(default="https://marketplace.infrahub.app")
 
     @field_validator("server_address")
     @classmethod

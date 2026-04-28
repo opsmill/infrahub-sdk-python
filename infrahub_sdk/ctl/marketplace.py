@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import sys
 from contextlib import suppress
+from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import httpx
@@ -12,7 +13,7 @@ import typer
 from rich.console import Console
 
 from ..async_typer import AsyncTyper
-from ..ctl import config
+from ..config import ConfigBase as _SdkConfig
 from ..ctl.parameters import CONFIG_PARAM
 from ..ctl.utils import catch_exception
 
@@ -21,23 +22,24 @@ console = Console()
 err_console = Console(stderr=True)
 
 MarketplaceItemType = Literal["schema", "collection"]
-ErrorClass = Literal["invalid-input", "not-found", "network"]
-
-_ERROR_EXIT_CODES: dict[ErrorClass, int] = {
-    "invalid-input": 1,
-    "not-found": 1,
-    "network": 2,
-}
 
 
-def _fail(error_class: ErrorClass, message: str) -> typer.Exit:
-    """Print an error line to stderr and return a typer.Exit with the mapped code. Intended to be raised by the caller."""
+class _ErrorClass(Enum):
+    INVALID_INPUT = "invalid-input"
+    NOT_FOUND = "not-found"
+    NETWORK = "network"
+
+    @property
+    def exit_code(self) -> int:
+        return 2 if self is _ErrorClass.NETWORK else 1
+
+
+def _fail(error_class: _ErrorClass, message: str) -> typer.Exit:
     err_console.print(f"[red]{message}")
-    return typer.Exit(_ERROR_EXIT_CODES[error_class])
+    return typer.Exit(error_class.exit_code)
 
 
 def _status(stdout: bool) -> Console:
-    """Return the console to use for status / warning messages."""
     return err_console if stdout else console
 
 
@@ -47,10 +49,9 @@ def callback() -> None:
 
 
 def _parse_identifier(identifier: str) -> tuple[str, str]:
-    """Validate and split a 'namespace/name' identifier."""
     parts = identifier.split("/")
     if len(parts) != 2 or not all(parts):
-        raise _fail("invalid-input", f"Invalid identifier '{identifier}'. Expected format: namespace/name")
+        raise _fail(_ErrorClass.INVALID_INPUT, f"Invalid identifier '{identifier}'. Expected format: namespace/name")
     return parts[0], parts[1]
 
 
@@ -62,7 +63,21 @@ def _mkdir_or_fail(path: Path) -> None:
     try:
         path.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
-        raise _fail("invalid-input", f"Cannot write to '{path}': {exc}") from exc
+        raise _fail(_ErrorClass.INVALID_INPUT, f"Cannot write to '{path}': {exc}") from exc
+
+
+def _make_http_client(sdk_cfg: _SdkConfig) -> httpx.AsyncClient:
+    """Build an httpx client that inherits the SDK's proxy and TLS configuration."""
+    proxy_kwargs: dict[str, Any] = {}
+    if sdk_cfg.proxy:
+        proxy_kwargs["proxy"] = sdk_cfg.proxy
+    elif sdk_cfg.proxy_mounts.is_set:
+        proxy_kwargs["mounts"] = {
+            key: httpx.AsyncHTTPTransport(proxy=val)
+            for key, val in sdk_cfg.proxy_mounts.model_dump(by_alias=True).items()
+            if val
+        }
+    return httpx.AsyncClient(follow_redirects=True, verify=sdk_cfg.tls_context, **proxy_kwargs)
 
 
 async def _detect_item_type(
@@ -87,18 +102,15 @@ async def _detect_item_type(
         return_exceptions=True,
     )
 
-    schema_ok = isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200
-    collection_ok = isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200
-
-    if schema_ok:
-        if collection_ok:
+    if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
+        if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
             _status(stdout).print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
-        return "schema", schema_resp  # type: ignore[return-value]
-    if collection_ok:
-        return "collection", collection_resp  # type: ignore[return-value]
+        return "schema", schema_resp
+    if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
+        return "collection", collection_resp
 
     def is_transport_failure(r: object) -> bool:
         if isinstance(r, Exception):
@@ -107,12 +119,12 @@ async def _detect_item_type(
 
     if is_transport_failure(schema_resp) or is_transport_failure(collection_resp):
         raise _fail(
-            "network",
+            _ErrorClass.NETWORK,
             f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
         )
 
     raise _fail(
-        "not-found",
+        _ErrorClass.NOT_FOUND,
         f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
     )
 
@@ -145,14 +157,14 @@ async def _download_schema(
     if resp.status_code == 404:
         if version is not None and prefetched is not None:
             raise _fail(
-                "not-found",
+                _ErrorClass.NOT_FOUND,
                 f"Schema '{namespace}/{name}' has no published version '{version}'. "
                 "Run without --version for the latest.",
             )
         detail = "not found"
         with suppress(Exception):
             detail = resp.json().get("detail", detail)
-        raise _fail("not-found", f"Error: {detail}")
+        raise _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
     resp.raise_for_status()
 
     resolved_version = version or resp.headers.get("x-schema-version", "latest")
@@ -196,7 +208,7 @@ async def _download_collection(
         detail = "not found"
         with suppress(Exception):
             detail = resp.json().get("detail", detail)
-        raise _fail("not-found", f"Error: {detail}")
+        raise _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
     resp.raise_for_status()
 
     data = resp.json()
@@ -267,13 +279,13 @@ async def get(
     """
     namespace, name = _parse_identifier(identifier)
 
-    resolved_url = marketplace_url or config.SETTINGS.active.marketplace_url
-    base_url = resolved_url.rstrip("/")
+    sdk_cfg = _SdkConfig()
+    resolved_url = (marketplace_url or sdk_cfg.marketplace_url).rstrip("/")
 
-    async with httpx.AsyncClient(follow_redirects=True) as client:
+    async with _make_http_client(sdk_cfg) as client:
         prefetched: httpx.Response | None = None
         if collection is None:
-            item_type, prefetched = await _detect_item_type(client, base_url, namespace, name, stdout=stdout)
+            item_type, prefetched = await _detect_item_type(client, resolved_url, namespace, name, stdout=stdout)
         elif collection:
             item_type = "collection"
         else:
@@ -284,11 +296,11 @@ async def get(
                 if version:
                     _status(stdout).print("[yellow]Warning: --version is ignored when downloading a collection.")
                 await _download_collection(
-                    client, base_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
+                    client, resolved_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
                 )
             else:
                 await _download_schema(
-                    client, base_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
+                    client, resolved_url, namespace, name, version, output_dir, stdout=stdout, prefetched=prefetched
                 )
         except httpx.HTTPError as exc:
-            raise _fail("network", f"Marketplace request failed: {exc}") from exc
+            raise _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {exc}") from exc
