@@ -31,3 +31,6 @@ dist/*
 # Generated files
 generated/
 sandbox/
+
+# SpecKit internal cache
+.specify/**/.cache/
