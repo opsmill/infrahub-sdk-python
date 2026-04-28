@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.ctl import config as ctl_config
 from infrahub_sdk.ctl.marketplace import app
+from infrahub_sdk.ctl.marketplace import get as marketplace_get
 
 runner = CliRunner()
 split_runner = CliRunner(mix_stderr=False)
@@ -604,3 +605,25 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
 
     assert result.exit_code == 0
     assert result.stdout == bare_yaml + "---\n" + bare_yaml
+
+
+async def test_collection_false_downloads_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """collection=False is unreachable from CLI but defensively treated as a schema download."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
+    )
+
+    await marketplace_get(
+        identifier="acme/network-base",
+        version=None,
+        collection=False,
+        stdout=False,
+        output_dir=tmp_path,
+        marketplace_url="https://marketplace.infrahub.app",
+        _="",
+    )
+
+    assert (tmp_path / "network-base.yml").read_text() == SCHEMA_YAML

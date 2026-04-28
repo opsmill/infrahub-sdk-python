@@ -7,13 +7,13 @@
 
 ## Overview
 
-The public Infrahub Marketplace at `marketplace.infrahub.app` is now live and exposes a REST API for distributing schemas and schema collections. The existing `infrahubctl marketplace download` command was designed against an earlier GraphQL-based interface and must be realigned with the new REST contract. Alongside that migration, users need a simpler, less error-prone download experience: one identifier argument that Works For Schemas And Collections alike, an optional pinned version, and predictable default output placement.
+The public Infrahub Marketplace at `marketplace.infrahub.app` is now live and exposes a REST API for distributing schemas and schema collections. The existing `infrahubctl marketplace get` command was designed against an earlier GraphQL-based interface and must be realigned with the new REST contract. Alongside that migration, users need a simpler, less error-prone download experience: one identifier argument that Works For Schemas And Collections alike, an optional pinned version, and predictable default output placement.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Download any published item by identifier (Priority: P1)
 
-As a platform engineer bootstrapping a new Infrahub environment, I want to run a single `infrahubctl marketplace download <namespace>/<name>` command and have the tool figure out whether I'm asking for a single schema or a full collection so that I don't need to inspect the marketplace UI or remember which flag to pass.
+As a platform engineer bootstrapping a new Infrahub environment, I want to run a single `infrahubctl marketplace get <namespace>/<name>` command and have the tool figure out whether I'm asking for a single schema or a full collection so that I don't need to inspect the marketplace UI or remember which flag to pass.
 
 **Why this priority**: This is the primary workflow for every marketplace user. Without automatic detection, every first-time user who types the command will either guess wrong or abandon the command line and revisit the web UI, undermining the value of the CLI.
 
@@ -21,8 +21,8 @@ As a platform engineer bootstrapping a new Infrahub environment, I want to run a
 
 **Acceptance Scenarios**:
 
-1. **Given** the identifier `acme/network-base` refers to a single schema on the marketplace, **When** the user runs `infrahubctl marketplace download acme/network-base`, **Then** the CLI downloads the schema file to the default destination and reports it was downloaded as a schema.
-2. **Given** the identifier `acme/starter-pack` refers to a collection on the marketplace, **When** the user runs `infrahubctl marketplace download acme/starter-pack`, **Then** the CLI downloads every schema in the collection to the default destination and reports the collection totals.
+1. **Given** the identifier `acme/network-base` refers to a single schema on the marketplace, **When** the user runs `infrahubctl marketplace get acme/network-base`, **Then** the CLI downloads the schema file to the default destination and reports it was downloaded as a schema.
+2. **Given** the identifier `acme/starter-pack` refers to a collection on the marketplace, **When** the user runs `infrahubctl marketplace get acme/starter-pack`, **Then** the CLI downloads every schema in the collection to the default destination and reports the collection totals.
 3. **Given** the identifier does not match any published schema or collection, **When** the user runs the download command, **Then** the CLI fails with a clear message naming the identifier and the marketplace that was queried, and exits non-zero.
 
 ---
@@ -37,7 +37,7 @@ As a configuration author integrating a schema into a production pipeline, I wan
 
 **Acceptance Scenarios**:
 
-1. **Given** schema `acme/network-base` has published versions `0.9.0` and `1.2.0`, **When** the user runs `infrahubctl marketplace download acme/network-base --version 0.9.0`, **Then** the CLI writes the `0.9.0` payload to disk and reports that version in its success output.
+1. **Given** schema `acme/network-base` has published versions `0.9.0` and `1.2.0`, **When** the user runs `infrahubctl marketplace get acme/network-base --version 0.9.0`, **Then** the CLI writes the `0.9.0` payload to disk and reports that version in its success output.
 2. **Given** the user passes `--version` with a value that has not been published for the schema, **When** the command runs, **Then** the CLI fails with a message that distinguishes "version not found" from "schema not found" and exits non-zero.
 3. **Given** the target identifier resolves to a collection, **When** the user also passes `--version`, **Then** the CLI warns that `--version` has no effect for collections and proceeds with the collection download.
 
@@ -72,7 +72,7 @@ As a repository owner whose project uses a non-standard layout, I want to direct
 
 ### Functional Requirements
 
-- **FR-001**: The `infrahubctl marketplace download` command MUST communicate with the marketplace exclusively over its public REST API; no GraphQL usage for marketplace operations is permitted.
+- **FR-001**: The `infrahubctl marketplace get` command MUST communicate with the marketplace exclusively over its public REST API; no GraphQL usage for marketplace operations is permitted.
 - **FR-002**: The command MUST accept a single positional identifier in `namespace/name` form and reject any other shape with a usage error before making network calls.
 - **FR-003**: When no type-hint flag is passed, the command MUST automatically determine whether the identifier refers to a schema or a collection and download accordingly, reporting the resolved type in its output.
 - **FR-004**: The command MUST expose a `--version` option that, when provided, pins the download to that specific published semver for a schema.

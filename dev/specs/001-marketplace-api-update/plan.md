@@ -5,7 +5,7 @@
 
 ## Summary
 
-Migrate `infrahubctl marketplace download` to the public REST API at `marketplace.infrahub.app`, add auto-detection of schema-vs-collection identifiers, keep the `--version` pinning flag for schemas, and retain `--output-dir` (default `./schemas`). The REST migration, `--version`, and `--output-dir` pieces have already shipped in the current branch's `Marketplace` commit; the remaining deltas are auto-detection, the four-class error taxonomy, and the documented precedence rule for namespace/name collisions.
+Migrate `infrahubctl marketplace get` to the public REST API at `marketplace.infrahub.app`, add auto-detection of schema-vs-collection identifiers, keep the `--version` pinning flag for schemas, and retain `--output-dir` (default `./schemas`). The REST migration, `--version`, and `--output-dir` pieces have already shipped in the current branch's `Marketplace` commit; the remaining deltas are auto-detection, the four-class error taxonomy, and the documented precedence rule for namespace/name collisions.
 
 ## Technical Context
 

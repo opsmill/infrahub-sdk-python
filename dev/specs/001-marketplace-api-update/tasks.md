@@ -48,7 +48,7 @@ Single project: repository root contains `infrahub_sdk/` and `tests/`. All paths
 
 ## Phase 3: User Story 1 — Auto-detect schema vs. collection (Priority: P1) 🎯 MVP
 
-**Goal**: A single `infrahubctl marketplace download <namespace>/<name>` command resolves to the correct item type without the user passing `--collection`, and prints the resolved type in success output.
+**Goal**: A single `infrahubctl marketplace get <namespace>/<name>` command resolves to the correct item type without the user passing `--collection`, and prints the resolved type in success output.
 
 **Independent Test**: Mock one schema endpoint and one collection endpoint (as in `tests/unit/ctl/test_marketplace_app.py`). Run the download twice with no `--collection` flag — once against each identifier. Both succeed, files land at the expected paths, and the output names the resolved type.
 
@@ -70,7 +70,7 @@ Single project: repository root contains `infrahub_sdk/` and `tests/`. All paths
 - [ ] T016 [US1] Route the existing 404 handling in `_download_schema` and `_download_collection` in `infrahub_sdk/ctl/marketplace.py` through `_fail("not-found", ...)`.
 - [ ] T017 [US1] Add network-error handling (`httpx.ConnectError`, `httpx.TimeoutException`, 5xx) wrapping the `async with httpx.AsyncClient...` block in `infrahub_sdk/ctl/marketplace.py`'s `download()` and route through `_fail("network", ...)`.
 
-**Checkpoint**: Tests T006–T011 all pass. Running `infrahubctl marketplace download acme/starter-pack` (collection) and `infrahubctl marketplace download acme/network-base` (schema) both succeed without `--collection`, and the output names the resolved type. MVP scope.
+**Checkpoint**: Tests T006–T011 all pass. Running `infrahubctl marketplace get acme/starter-pack` (collection) and `infrahubctl marketplace get acme/network-base` (schema) both succeed without `--collection`, and the output names the resolved type. MVP scope.
 
 ---
 
@@ -90,7 +90,7 @@ Single project: repository root contains `infrahub_sdk/` and `tests/`. All paths
 - [ ] T020 [US2] In `infrahub_sdk/ctl/marketplace.py` `_download_schema`, when `version` is provided and the versioned request returns 404, first retry an unversioned HEAD/GET against the same identifier to decide between "schema not found" and "version not found"; route through `_fail` with the appropriate class.
 - [ ] T021 [US2] Confirm that the existing "`--version` is ignored when downloading a collection" warning (currently at `marketplace.py:146-147`) still fires on the auto-detect path — i.e. when the user passed `--version` and the detected type is `collection`, the warning is printed before falling through to `_download_collection`. Add/adjust wiring in `download()` in `infrahub_sdk/ctl/marketplace.py` as needed.
 
-**Checkpoint**: US1 still passes; T018 and T019 pass; `infrahubctl marketplace download acme/network-base --version 9.9.9` prints the version-not-found message and exits 1.
+**Checkpoint**: US1 still passes; T018 and T019 pass; `infrahubctl marketplace get acme/network-base --version 9.9.9` prints the version-not-found message and exits 1.
 
 ---
 

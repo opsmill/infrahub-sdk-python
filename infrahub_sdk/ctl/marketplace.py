@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from contextlib import suppress
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NoReturn
@@ -70,6 +69,12 @@ def _collection_url(base_url: str, namespace: str, name: str) -> str:
     return f"{base_url}/api/v1/collections/{namespace}/{name}/download"
 
 
+def _is_transport_failure(r: object) -> bool:
+    if isinstance(r, Exception):
+        return True
+    return isinstance(r, httpx.Response) and r.status_code >= 500
+
+
 def _mkdir_or_fail(path: Path) -> None:
     try:
         path.mkdir(parents=True, exist_ok=True)
@@ -123,12 +128,7 @@ async def _detect_item_type(
     if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
         return "collection", collection_resp
 
-    def is_transport_failure(r: object) -> bool:
-        if isinstance(r, Exception):
-            return True
-        return isinstance(r, httpx.Response) and r.status_code >= 500
-
-    if is_transport_failure(schema_resp) or is_transport_failure(collection_resp):
+    if _is_transport_failure(schema_resp) or _is_transport_failure(collection_resp):
         _fail(
             _ErrorClass.NETWORK,
             f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
@@ -172,10 +172,10 @@ async def _download_schema(
                 f"Schema '{namespace}/{name}' has no published version '{version}'. "
                 "Run without --version for the latest.",
             )
-        detail = "not found"
-        with suppress(Exception):
-            detail = resp.json().get("detail", detail)
-        _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
+        _fail(
+            _ErrorClass.NOT_FOUND,
+            f"No schema named '{namespace}/{name}' found on {_host_from(base_url)}.",
+        )
     resp.raise_for_status()
 
     resolved_version = version or resp.headers.get("x-schema-version", "latest")
@@ -215,10 +215,10 @@ async def _download_collection(
     else:
         resp = await client.get(_collection_url(base_url, namespace, name))
     if resp.status_code == 404:
-        detail = "not found"
-        with suppress(Exception):
-            detail = resp.json().get("detail", detail)
-        _fail(_ErrorClass.NOT_FOUND, f"Error: {detail}")
+        _fail(
+            _ErrorClass.NOT_FOUND,
+            f"No collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
+        )
     resp.raise_for_status()
 
     data = resp.json()
