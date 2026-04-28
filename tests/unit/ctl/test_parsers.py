@@ -22,7 +22,7 @@ class TestCoerceValue:
 
     def test_float(self) -> None:
         result = parse_set_args(["ratio=2.5"])
-        assert result["ratio"] == 2.5
+        assert result["ratio"] == pytest.approx(2.5)
         assert isinstance(result["ratio"], float)
 
     def test_bool_true(self) -> None:

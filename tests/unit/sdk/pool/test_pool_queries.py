@@ -164,7 +164,7 @@ async def test_get_pool_resources_utilization(
 
         utilizations = await ip_pool.get_pool_resources_utilization()
         assert len(utilizations) == 1
-        assert utilizations[0]["utilization"] == 93.75
+        assert utilizations[0]["utilization"] == pytest.approx(93.75)
     else:
         ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
         ip_pool = InfrahubNodeSync(
@@ -182,4 +182,4 @@ async def test_get_pool_resources_utilization(
 
         utilizations = ip_pool.get_pool_resources_utilization()
         assert len(utilizations) == 1
-        assert utilizations[0]["utilization"] == 93.75
+        assert utilizations[0]["utilization"] == pytest.approx(93.75)
