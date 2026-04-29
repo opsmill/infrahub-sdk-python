@@ -3,6 +3,7 @@ extends: default
 
 ignore: |
   /.venv
+  /.specify
   /examples
   tests/unit/sdk/test_data/schema_encoding_error.yml
   /**/node_modules/**
