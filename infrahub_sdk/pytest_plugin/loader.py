@@ -37,7 +37,7 @@ CONFIG_MAPPING = {
     "PythonTransform": "get_python_transform",
 }
 
-ITEMS_MAPPING = {
+ITEMS_MAPPING: dict[str, type[InfrahubItem]] = {
     "check-smoke": InfrahubCheckSmokeItem,
     "check-unit-process": InfrahubCheckUnitProcessItem,
     "check-integration": InfrahubCheckIntegrationItem,
@@ -71,7 +71,7 @@ class InfrahubYamlFile(pytest.File):
         resource_config = self.get_resource_config(group)
 
         for test in group.tests:
-            item_class: type[pytest.Item] = ITEMS_MAPPING[test.spec.kind]  # type: ignore[assignment]
+            item_class = ITEMS_MAPPING[test.spec.kind]
             item: InfrahubItem = item_class.from_parent(
                 name=f"{marker.markname}__{group.resource_name}__{test.name}",
                 parent=self,
