@@ -817,7 +817,7 @@ requires-dist = [
     { name = "pyarrow", marker = "extra == 'ctl'", specifier = ">=14" },
     { name = "pydantic", specifier = ">=2.0.0,!=2.0.1,!=2.1.0,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
-    { name = "pytest", marker = "extra == 'all'" },
+    { name = "pytest", marker = "extra == 'all'", specifier = ">=7.0" },
     { name = "pyyaml", marker = "extra == 'all'", specifier = ">=6" },
     { name = "pyyaml", marker = "extra == 'ctl'", specifier = ">=6" },
     { name = "rich", marker = "extra == 'all'", specifier = ">=12,<14" },

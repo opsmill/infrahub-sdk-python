@@ -11,6 +11,7 @@ from httpx import HTTPStatusError
 
 from ...template import Jinja2Template
 from ...template.exceptions import JinjaTemplateError
+from .._stash import INFRAHUB_CLIENT_KEY, INFRAHUB_CONFIG_PATH_KEY
 from ..exceptions import OutputMatchError
 from ..models import InfrahubInputOutputTest, InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -23,7 +24,7 @@ class InfrahubJinja2Item(InfrahubItem):
     def _get_jinja2(self) -> Jinja2Template:
         return Jinja2Template(
             template=Path(self.resource_config.template_path),  # type: ignore[attr-defined]
-            template_directory=Path(self.session.infrahub_config_path.parent),  # type: ignore[attr-defined]
+            template_directory=Path(self.session.stash[INFRAHUB_CONFIG_PATH_KEY].parent),
         )
 
     def get_jinja2_environment(self) -> jinja2.Environment:
@@ -82,7 +83,7 @@ class InfrahubJinja2Item(InfrahubItem):
 
 class InfrahubJinja2TransformSmokeItem(InfrahubJinja2Item):
     def runtest(self) -> None:
-        file_path: Path = self.session.infrahub_config_path.parent / self.resource_config.template_path  # type: ignore[attr-defined]
+        file_path: Path = self.session.stash[INFRAHUB_CONFIG_PATH_KEY].parent / self.resource_config.template_path  # type: ignore[attr-defined]
         self.get_jinja2_environment().parse(file_path.read_text(encoding="utf-8"), filename=file_path.name)
 
 
@@ -103,7 +104,7 @@ class InfrahubJinja2TransformUnitRenderItem(InfrahubJinja2Item):
 
 class InfrahubJinja2TransformIntegrationItem(InfrahubJinja2Item):
     def runtest(self) -> None:
-        graphql_result = self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
+        graphql_result = self.session.stash[INFRAHUB_CLIENT_KEY].query_gql_query(
             self.resource_config.query,  # type: ignore[attr-defined]
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]
         )

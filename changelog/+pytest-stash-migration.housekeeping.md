@@ -1,0 +1,1 @@
+Migrate the pytest plugin's session state to `pytest.Stash`. Internal change with no impact on external test files; removes inline `# type: ignore[attr-defined]` comments from `infrahub_sdk/pytest_plugin/`. Adds a `pytest>=7.0` floor to the `all` extra to make the requirement explicit.

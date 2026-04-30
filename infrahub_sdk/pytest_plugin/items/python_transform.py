@@ -8,6 +8,7 @@ import ujson
 from httpx import HTTPStatusError
 
 from ...node import InfrahubNode
+from .._stash import INFRAHUB_CLIENT_KEY
 from ..exceptions import OutputMatchError, PythonTransformDefinitionError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -40,7 +41,7 @@ class InfrahubPythonTransformItem(InfrahubItem):
         transform_class = self.resource_config.load_class(  # type: ignore[attr-defined]
             import_root=self.repository_base, relative_path=relative_path
         )
-        client = self.session.infrahub_client  # type: ignore[attr-defined]
+        client = self.session.stash[INFRAHUB_CLIENT_KEY]
         # TODO: Look into seeing how a transform class may use the branch, but set as a empty string for the time being to keep current behaviour
         self.transform_instance = transform_class(branch="", client=client, infrahub_node=InfrahubNode)
 
@@ -90,7 +91,7 @@ class InfrahubPythonTransformUnitProcessItem(InfrahubPythonTransformItem):
 class InfrahubPythonTransformIntegrationItem(InfrahubPythonTransformItem):
     def runtest(self) -> None:
         self.instantiate_transform()
-        input_data = self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
+        input_data = self.session.stash[INFRAHUB_CLIENT_KEY].query_gql_query(
             self.transform_instance.query,
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]
         )

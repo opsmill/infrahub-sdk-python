@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 import yaml
 
+from ._stash import INFRAHUB_REPO_CONFIG_KEY
 from .exceptions import InvalidResourceConfigError
 from .items import (
     InfrahubCheckIntegrationItem,
@@ -59,7 +60,8 @@ class InfrahubYamlFile(pytest.File):
 
         resource_config = None
         if resource_config_function is not None:
-            func = getattr(self.session.infrahub_repo_config, resource_config_function)  # type:ignore[attr-defined]
+            repo_config = self.session.stash[INFRAHUB_REPO_CONFIG_KEY]
+            func = getattr(repo_config, resource_config_function)
             with contextlib.suppress(KeyError):
                 resource_config = func(group.resource_name)
 
