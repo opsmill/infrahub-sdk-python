@@ -835,7 +835,7 @@ dev = [
     { name = "astroid", specifier = ">=3.1,<4.0" },
     { name = "codecov" },
     { name = "infrahub-testcontainers", specifier = ">=1.7.3" },
-    { name = "invoke", specifier = ">=2.2.0" },
+    { name = "invoke", specifier = ">=2.2.1" },
     { name = "ipython" },
     { name = "mypy", specifier = "==1.11.2" },
     { name = "prek", specifier = ">=0.3.0" },
