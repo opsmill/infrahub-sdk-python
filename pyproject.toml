@@ -98,7 +98,7 @@ dev = [
     "requests",
     "prek>=0.3.0",
     "codecov",
-    "invoke>=2.2.0",
+    "invoke>=2.2.1",
     "towncrier>=24.8.0",
 ]
 
