@@ -70,6 +70,7 @@ class FeatureRequirement:
 # Mapping of Infrahub minor version series to minimum SDK versions.
 # Auto-updated by update_compatibility.py.
 VERSION_RANGES: list[VersionRange] = [
+    VersionRange(infrahub="1.9.x", min_sdk="1.20.0", date="April 2026"),
     VersionRange(infrahub="1.8.x", min_sdk="1.19.0", date="March 2026"),
     VersionRange(infrahub="1.7.x", min_sdk="1.18.1", date="January 2026"),
     VersionRange(infrahub="1.6.x", min_sdk="1.16.0", date="December 2025"),
@@ -85,6 +86,12 @@ VERSION_RANGES: list[VersionRange] = [
 # Detailed mapping of every Infrahub release to its pinned SDK version.
 # Auto-updated by update_compatibility.py.
 RELEASE_MAPPINGS: list[ReleaseMapping] = [
+    ReleaseMapping(infrahub="1.9.3", sdk="1.20.0", date="2026-05-05"),
+    ReleaseMapping(infrahub="1.9.2", sdk="1.20.0", date="2026-04-30"),
+    ReleaseMapping(infrahub="1.9.1", sdk="1.20.0", date="2026-04-29"),
+    ReleaseMapping(infrahub="1.9.0", sdk="1.20.0", date="2026-04-24"),
+    ReleaseMapping(infrahub="1.8.6", sdk="1.19.0", date="2026-04-21"),
+    ReleaseMapping(infrahub="1.8.5", sdk="1.19.0", date="2026-04-17"),
     ReleaseMapping(infrahub="1.8.4", sdk="1.19.0", date="2026-04-02"),
     ReleaseMapping(infrahub="1.8.3", sdk="1.19.0", date="2026-03-31"),
     ReleaseMapping(infrahub="1.8.2", sdk="1.19.0", date="2026-03-25"),
