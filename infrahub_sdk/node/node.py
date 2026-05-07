@@ -921,8 +921,8 @@ class InfrahubNode(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = getattr(self, "checksum", None)
-        have_server_state = bool(self.id) and server_checksum is not None and server_checksum.value is not None
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
@@ -1875,8 +1875,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = getattr(self, "checksum", None)
-        have_server_state = bool(self.id) and server_checksum is not None and server_checksum.value is not None
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
