@@ -803,8 +803,7 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
-            If ``skip_if_unchanged=True`` and the local file matches the server
-            checksum: ``0``.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
@@ -888,6 +887,12 @@ class InfrahubNode(InfrahubNodeBase):
         (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
         nodes that have no prior server-side file, the upload is always
         performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
 
         Args:
             source: Content to upload. ``bytes`` and ``BinaryIO`` sources
@@ -1752,8 +1757,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
-            If ``skip_if_unchanged=True`` and the local file matches the server
-            checksum: ``0``.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
@@ -1791,8 +1795,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
         """Return True if ``source``'s SHA-1 matches this node's server checksum.
 
-        Sync equivalent of :meth:`InfrahubNode.matches_local_checksum`. See
-        that method for full documentation.
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
 
         Args:
             source: Local content to hash and compare. Accepts the same
@@ -1803,7 +1816,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Raises:
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
-            ValueError: Node has no server-side checksum yet.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1823,19 +1837,34 @@ class InfrahubNodeSync(InfrahubNodeBase):
     ) -> UploadResult:
         """Upload ``source`` only if its SHA-1 differs from the server checksum.
 
-        Sync equivalent of :meth:`InfrahubNode.upload_if_changed`. See that
-        method for full documentation.
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
 
         Args:
-            source: Content to upload.
-            name: Filename to use on the server.
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
 
         Returns:
-            :class:`UploadResult`.
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
 
         Raises:
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
-            ValueError: Bytes/BinaryIO source without ``name``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
 
