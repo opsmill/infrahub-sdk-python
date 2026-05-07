@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, BinaryIO, cast, overload
+from typing import TYPE_CHECKING, BinaryIO, overload
 
 import anyio
 import httpx
+from anyio.to_thread import run_sync as run_sync_in_thread
 
 from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachableError
 
@@ -19,6 +20,17 @@ class PreparedFile:
     file_object: BinaryIO | None
     filename: str | None
     should_close: bool
+
+
+def _open_binary(path: Path) -> BinaryIO:
+    """Open a file in binary read mode.
+
+    Wrapper exists to pin the return type to BinaryIO when called via
+    ``run_sync_in_thread``: the overload resolution on ``Path.open``'s mode arg
+    is lost through the indirection and would otherwise widen to a union of all
+    open() return types.
+    """
+    return path.open("rb")
 
 
 class FileHandlerBase:
@@ -57,11 +69,11 @@ class FileHandlerBase:
         if isinstance(content, Path):
             # Open file in thread pool to avoid blocking the event loop
             # Returns a sync file handle that httpx can stream from in chunks
-            file_obj = await anyio.to_thread.run_sync(content.open, "rb")
-            return PreparedFile(file_object=cast("BinaryIO", file_obj), filename=filename, should_close=True)
+            file_obj = await run_sync_in_thread(_open_binary, content)
+            return PreparedFile(file_object=file_obj, filename=filename, should_close=True)
 
         # At this point, content must be a BinaryIO (file-like object)
-        return PreparedFile(file_object=cast("BinaryIO", content), filename=filename, should_close=False)
+        return PreparedFile(file_object=content, filename=filename, should_close=False)
 
     @staticmethod
     def prepare_upload_sync(content: bytes | Path | BinaryIO | None, name: str | None = None) -> PreparedFile:
@@ -92,7 +104,7 @@ class FileHandlerBase:
             return PreparedFile(file_object=content.open("rb"), filename=filename, should_close=True)
 
         # At this point, content must be a BinaryIO (file-like object)
-        return PreparedFile(file_object=cast("BinaryIO", content), filename=filename, should_close=False)
+        return PreparedFile(file_object=content, filename=filename, should_close=False)
 
     @staticmethod
     def handle_error_response(exc: httpx.HTTPStatusError) -> None:

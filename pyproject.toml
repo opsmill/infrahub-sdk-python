@@ -143,10 +143,10 @@ include = ["infrahub_sdk/checks.py"]
 invalid-await = "ignore" # 1 violation
 
 [[tool.ty.overrides]]
-include = ["infrahub_sdk/file_handler.py", "infrahub_sdk/utils.py"]
+include = ["infrahub_sdk/utils.py"]
 
 [tool.ty.overrides.rules]
-unresolved-attribute = "ignore" # 5 violations total (1 in file_handler.py, 4 in utils.py)
+unresolved-attribute = "ignore" # 4 violations in utils.py
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/transfer/**"]
