@@ -917,7 +917,7 @@ class InfrahubNode(InfrahubNodeBase):
         resolved_name: str | None = name
         if resolved_name is None and isinstance(source, Path):
             resolved_name = source.name
-        if not isinstance(source, Path) and resolved_name is None:
+        if resolved_name is None:
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
@@ -934,7 +934,6 @@ class InfrahubNode(InfrahubNodeBase):
         if isinstance(source, Path):
             self.upload_from_path(path=source)
         else:
-            assert resolved_name is not None  # validated above for non-Path sources  # noqa: S101
             self.upload_from_bytes(content=source, name=resolved_name)
 
         await self.save()
@@ -1871,7 +1870,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         resolved_name: str | None = name
         if resolved_name is None and isinstance(source, Path):
             resolved_name = source.name
-        if not isinstance(source, Path) and resolved_name is None:
+        if resolved_name is None:
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
@@ -1888,7 +1887,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if isinstance(source, Path):
             self.upload_from_path(path=source)
         else:
-            assert resolved_name is not None  # validated above for non-Path sources  # noqa: S101
             self.upload_from_bytes(content=source, name=resolved_name)
 
         self.save()
