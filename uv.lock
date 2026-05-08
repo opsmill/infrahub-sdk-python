@@ -764,8 +764,8 @@ requires-dist = [
     { name = "rich", marker = "extra == 'all'", specifier = ">=12,<14" },
     { name = "rich", marker = "extra == 'ctl'", specifier = ">=12,<14" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
-    { name = "typer", marker = "extra == 'all'", specifier = ">=0.12.5" },
-    { name = "typer", marker = "extra == 'ctl'", specifier = ">=0.12.5" },
+    { name = "typer", marker = "extra == 'all'", specifier = ">=0.15.0" },
+    { name = "typer", marker = "extra == 'ctl'", specifier = ">=0.15.0" },
     { name = "ujson", specifier = ">=5" },
     { name = "whenever", specifier = ">=0.9.3,<0.10.0" },
 ]
@@ -2659,17 +2659,17 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.12.5"
+version = "0.25.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "annotated-doc" },
     { name = "click" },
     { name = "rich" },
     { name = "shellingham" },
-    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/58/a79003b91ac2c6890fc5d90145c662fd5771c6f11447f116b63300436bc9/typer-0.12.5.tar.gz", hash = "sha256:f592f089bedcc8ec1b974125d64851029c3b1af145f04aca64d69410f0c9b722", size = 98953, upload-time = "2024-08-24T21:17:57.346Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/51/9aed62104cea109b820bbd6c14245af756112017d309da813ef107d42e7e/typer-0.25.1.tar.gz", hash = "sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc", size = 122276, upload-time = "2026-04-30T19:32:16.964Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/2b/886d13e742e514f704c33c4caa7df0f3b89e5a25ef8db02aa9ca3d9535d5/typer-0.12.5-py3-none-any.whl", hash = "sha256:62fe4e471711b147e3365034133904df3e235698399bc4de2b36c8579298d52b", size = 47288, upload-time = "2024-08-24T21:17:55.451Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/f9/2b3ff4e56e5fa7debfaf9eb135d0da96f3e9a1d5b27222223c7296336e5f/typer-0.25.1-py3-none-any.whl", hash = "sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89", size = 58409, upload-time = "2026-04-30T19:32:18.271Z" },
 ]
 
 [[package]]
