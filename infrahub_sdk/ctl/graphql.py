@@ -16,19 +16,7 @@ from ariadne_codegen.schema import (
 )
 from ariadne_codegen.settings import ClientSettings, CommentsStrategy
 from ariadne_codegen.utils import ast_to_str
-from graphql import (
-    DefinitionNode,
-    GraphQLField,
-    GraphQLInterfaceType,
-    GraphQLNonNull,
-    GraphQLObjectType,
-    GraphQLSchema,
-    GraphQLString,
-    NoUnusedFragmentsRule,
-    parse,
-    specified_rules,
-    validate,
-)
+from graphql import DefinitionNode, GraphQLSchema, NoUnusedFragmentsRule, parse, specified_rules, validate
 from rich.console import Console
 
 from ..async_typer import AsyncTyper
@@ -50,24 +38,6 @@ ARIADNE_PLUGINS = [
     "infrahub_sdk.graphql.plugin.FutureAnnotationPlugin",
     "infrahub_sdk.graphql.plugin.StandardTypeHintPlugin",
 ]
-
-
-def inject_typename_into_schema(schema: GraphQLSchema) -> None:
-    """Inject __typename as an explicit field on each object type in the schema.
-
-    ariadne-codegen adds __typename automatically when generating types for abstract-typed
-    (interface/union) fields, then tries to resolve __typename via schema.type_map.fields.
-    The lookup fails because __typename is a built-in meta-field, not a schema-defined field.
-    The ariadne-codegen fallback incorrectly creates a new GraphQLScalarType("String"), which
-    raises TypeError because "String" is a reserved built-in type.
-
-    Injecting __typename with the existing GraphQLString scalar fixes the lookup so codegen
-    can generate typed Pydantic models for queries that traverse interface-typed relationships.
-    """
-    typename_field = GraphQLField(GraphQLNonNull(GraphQLString))
-    for type_def in schema.type_map.values():
-        if isinstance(type_def, (GraphQLObjectType, GraphQLInterfaceType)) and "__typename" not in type_def.fields:
-            type_def.fields["__typename"] = typename_field
 
 
 def find_gql_files(query_path: Path) -> list[Path]:
@@ -163,7 +133,6 @@ async def generate_return_types(
     if not schema.exists():
         raise FileNotFoundError(f"GraphQL Schema file not found: {schema}")
     graphql_schema = get_graphql_schema_from_path(schema_path=str(schema))
-    inject_typename_into_schema(graphql_schema)
 
     # Initialize the plugin manager
     plugin_manager = PluginManager(
