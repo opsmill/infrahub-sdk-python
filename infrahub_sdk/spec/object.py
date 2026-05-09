@@ -47,6 +47,7 @@ def normalize_hfid_reference(value: str | list[str]) -> str | list[str]:
         - If value is already a list: returns it unchanged as list[str]
         - If value is a valid UUID string: returns it unchanged as str (will be treated as an ID)
         - If value is a non-UUID string: wraps it in a list as list[str] (single-component HFID)
+
     """
     if isinstance(value, list):
         return value
@@ -143,9 +144,7 @@ class RelationshipInfo(BaseModel):
 async def get_relationship_info(
     client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None
 ) -> RelationshipInfo:
-    """
-    Get the relationship info for a given relationship name.
-    """
+    """Get the relationship info for a given relationship name."""
     rel_schema = schema.get_relationship(name=name)
 
     info = RelationshipInfo(name=name, peer_kind=rel_schema.peer, rel_schema=rel_schema)
@@ -211,7 +210,6 @@ class InfrahubObjectFileData(BaseModel):
 
     async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Get data processed according to the strategy"""
-
         return await DataProcessorFactory.process_data(kind=self.kind, parameters=self.parameters, data=data)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:

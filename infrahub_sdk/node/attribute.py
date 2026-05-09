@@ -21,6 +21,7 @@ class _GraphQLPayloadAttribute(NamedTuple):
             (e.g. ``{"value": ...}`` or ``{"from_pool": ...}``).
         variables: GraphQL variable bindings for unsafe string values.
         needs_metadata: When ``True``, the payload needs to append property flags/objects
+
     """
 
     payload: dict[str, Any]
@@ -44,11 +45,11 @@ class Attribute:
     """Represents an attribute of a Node, including its schema, value, and properties."""
 
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
-        """
-        Args:
-            name (str): The name of the attribute.
-            schema (AttributeSchema): The schema defining the attribute.
-            data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
+        """Args:
+        name (str): The name of the attribute.
+        schema (AttributeSchema): The schema defining the attribute.
+        data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
+
         """
         self.name = name
         self._schema = schema
@@ -109,7 +110,6 @@ class Attribute:
 
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
         """Resolve the attribute value into a GraphQL mutation payload object."""
-
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
             return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
@@ -186,5 +186,6 @@ class Attribute:
 
         Returns:
             True if the attribute value is a resource pool node or was explicitly allocated from a pool.
+
         """
         return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None

@@ -23,6 +23,7 @@ def _make_mock_schema(
 
     Returns:
         MagicMock configured to behave like a MainSchemaTypesAPI object.
+
     """
     schema = MagicMock()
     schema.kind = kind
@@ -51,6 +52,7 @@ def _make_mock_node(
 
     Returns:
         MagicMock configured to behave like an InfrahubNode object.
+
     """
     node = MagicMock()
     node.id = node_id
@@ -75,6 +77,7 @@ def _parse_csv(text: str) -> list[dict[str, str]]:
 
     Returns:
         List of dicts keyed by header row values.
+
     """
     return list(csv.DictReader(io.StringIO(text)))
 

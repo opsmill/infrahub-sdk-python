@@ -97,8 +97,8 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         Returns:
             The number of tasks.
-        """
 
+        """
         query = self._generate_count_query(filters=filters)
         response = await self.client.execute_graphql(
             query=query.render(convert_enum=False), tracker="query-tasks-count"
@@ -126,8 +126,8 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         Returns:
             A list of tasks.
-        """
 
+        """
         return await self.filter(
             limit=limit,
             offset=offset,
@@ -160,6 +160,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         Returns:
             A list of tasks.
+
         """
         if filter is None:
             filter = TaskFilter()
@@ -215,6 +216,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         Returns:
             The task object.
+
         """
         for _ in range(timeout // interval):
             task = await self.get(id=id)
@@ -237,8 +239,8 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         Returns:
             A tuple containing a list of tasks and the count of tasks.
-        """
 
+        """
         response = await client.execute_graphql(
             query=query.render(convert_enum=False),
             tracker=f"query-tasks-page{page_number}",
@@ -332,8 +334,8 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         Returns:
             The number of tasks.
-        """
 
+        """
         query = self._generate_count_query(filters=filters)
         response = self.client.execute_graphql(query=query.render(convert_enum=False), tracker="query-tasks-count")
         return int(response["InfrahubTask"]["count"])
@@ -359,8 +361,8 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         Returns:
             A list of tasks.
-        """
 
+        """
         return self.filter(
             limit=limit,
             offset=offset,
@@ -393,6 +395,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         Returns:
             A list of tasks.
+
         """
         if filter is None:
             filter = TaskFilter()
@@ -448,6 +451,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         Returns:
             The task object.
+
         """
         for _ in range(timeout // interval):
             task = self.get(id=id)
@@ -470,8 +474,8 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         Returns:
             A tuple containing a list of tasks and the count of tasks.
-        """
 
+        """
         response = client.execute_graphql(
             query=query.render(convert_enum=False),
             tracker=f"query-tasks-page{page_number}",

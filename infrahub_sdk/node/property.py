@@ -5,9 +5,9 @@ class NodeProperty:
     """Represents a property of a node, typically used for metadata like display labels."""
 
     def __init__(self, data: dict | str) -> None:
-        """
-        Args:
-            data (Union[dict, str]): Data representing the node property.
+        """Args:
+        data (Union[dict, str]): Data representing the node property.
+
         """
         self.id = None
         self.display_label = None

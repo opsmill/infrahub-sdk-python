@@ -91,7 +91,6 @@ def test_render_branch_selection(
     expected_branch: str,
 ) -> None:
     """Test that the render command uses the correct branch source."""
-
     if from_git:
         monkeypatch.setattr("dulwich.porcelain.active_branch", lambda _: b"git-branch")
 

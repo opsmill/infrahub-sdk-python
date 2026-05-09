@@ -108,6 +108,7 @@ def range_expansion(interface_pattern: str) -> list[str]:
         ['GigabitEtherneta/0/1', 'GigabitEthernetb/0/1', 'GigabitEthernetc/0/1']
         >>> range_expansion("Eth[a,c,e]/0/1")
         ['Etha/0/1', 'Ethc/0/1', 'Ethe/0/1']
+
     """
     pattern_escaped = _escape_brackets(interface_pattern)
     re_compiled = re.compile(MATCH_PATTERN)

@@ -298,11 +298,13 @@ task-tags = ["FIXME", "TODO", "XXX"]
 select = ["ALL"]
 
 ignore = [
-    "D",      # pydocstyle
-    "DOC",    # pydoclint
+    #"D",      # pydocstyle
+    #"DOC",    # pydoclint
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
     "COM812", # missing-trailing-comma
+    "D203",     # incorrect-blank-line-before-class (incompatible with D211)
+    "D213",     # multi-line-summary-second-line (incompatible with D212)
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
@@ -335,6 +337,31 @@ ignore = [
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
+
+    ##################################################################################################
+    # Documentation rules (D and DOC). Listed individually so they can be evaluated and removed       #
+    # one-by-one as docstrings are added/fixed, instead of blocking the entire D and DOC rule sets.   #
+    ##################################################################################################
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in `__init__`
+    "D205",    # Missing blank line after summary
+    "D301",    # Use `r"""` if any backslashes in a docstring
+    "D400",    # First line should end with a period
+    "D401",    # First line of docstring should be in imperative mood
+    "D404",    # First word of the docstring should not be "This"
+    "D415",    # First line should end with a period, question mark, or exclamation point
+    "D417",    # Missing argument description in the docstring
+    "D420",    # Section name should end with a newline
+    "DOC102",  # Docstring contains extraneous parameter(s)
+    "DOC201",  # `return` is not documented in docstring
+    "DOC402",  # `yield` is not documented in docstring
+    "DOC501",  # Raised exception missing from docstring
+    "DOC502",  # Raised exception is not explicitly raised
 ]
 
 

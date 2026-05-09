@@ -18,6 +18,7 @@ def _coerce_value(value: str) -> Any:
 
     Returns:
         The coerced Python value.
+
     """
     # Try JSON array syntax (e.g. [["blue"], ["red"]] for cardinality-many)
     stripped = value.strip()
@@ -67,6 +68,7 @@ def parse_set_args(set_args: list[str]) -> dict[str, Any]:
 
     Raises:
         typer.BadParameter: If any argument is not in key=value format.
+
     """
     result: dict[str, Any] = {}
     for arg in set_args:
@@ -96,6 +98,7 @@ def parse_filter_args(filter_args: list[str]) -> dict[str, Any]:
 
     Raises:
         typer.BadParameter: If any argument is not in key=value format.
+
     """
     result: dict[str, Any] = {}
     for arg in filter_args:
@@ -124,6 +127,7 @@ def validate_set_fields(
     Raises:
         typer.BadParameter: If any key is not a valid field name,
             with a message listing valid fields.
+
     """
     valid_fields = set(attribute_names) | set(relationship_names)
     invalid_keys = sorted(set(data.keys()) - valid_fields)

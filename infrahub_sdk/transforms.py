@@ -55,7 +55,6 @@ class InfrahubTransform(InfrahubOperation):
 
     async def collect_data(self) -> dict:
         """Query the result of the GraphQL Query defined in self.query and return the result"""
-
         return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name)
 
     async def run(self, data: dict | None = None) -> Any:
@@ -67,8 +66,8 @@ class InfrahubTransform(InfrahubOperation):
             data: The data on which to run the transform. Data will be queried from the API if not provided
 
         Returns: Transformed data
-        """
 
+        """
         if not data:
             data = await self.collect_data()
 

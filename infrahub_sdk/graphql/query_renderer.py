@@ -114,6 +114,7 @@ def render_query_with_fragments(query_str: str, fragment_files: list[str]) -> st
         DuplicateFragmentError: Same fragment name declared in multiple files.
         FragmentNotFoundError: Query references a fragment not found in any declared file.
         CircularFragmentError: Circular dependency detected among fragments.
+
     """
     try:
         query_doc = parse(query_str)
@@ -163,6 +164,7 @@ def render_query(name: str, config: InfrahubRepositoryConfig, relative_path: str
         DuplicateFragmentError: Same fragment name declared in multiple files.
         FragmentNotFoundError: Query references a fragment not found in any declared file.
         CircularFragmentError: Circular dependency detected among fragments.
+
     """
     raw = config.get_query(name).load_query(relative_path=relative_path)
     try:

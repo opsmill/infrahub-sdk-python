@@ -52,6 +52,7 @@ def _paginated_get(client: httpx.Client, url: str) -> list[dict]:
 
     Returns:
         Combined list of JSON objects from all pages.
+
     """
     results: list[dict] = []
     while url:
@@ -72,6 +73,7 @@ def _fetch_infrahub_tags(client: httpx.Client) -> dict[str, str]:
 
     Returns:
         Dict mapping version strings (e.g. "1.8.4") to commit SHAs.
+
     """
     tags = _paginated_get(client, f"{API_BASE}/repos/{INFRAHUB_REPO}/tags?per_page=100")
     result = {}
@@ -90,6 +92,7 @@ def _fetch_sdk_tags(client: httpx.Client) -> dict[str, str]:
 
     Returns:
         Dict mapping commit SHAs to version strings (e.g. "1.19.0").
+
     """
     tags = _paginated_get(client, f"{API_BASE}/repos/{SDK_REPO}/tags?per_page=100")
     result = {}
@@ -109,6 +112,7 @@ def _get_submodule_sha(client: httpx.Client, commit_sha: str) -> str | None:
 
     Returns:
         The submodule commit SHA, or None if not found.
+
     """
     resp = client.get(f"{API_BASE}/repos/{INFRAHUB_REPO}/git/trees/{commit_sha}")
     resp.raise_for_status()
@@ -128,6 +132,7 @@ def _get_commit_date(client: httpx.Client, repo: str, sha: str) -> str:
 
     Returns:
         Date string in YYYY-MM-DD format.
+
     """
     resp = client.get(f"{API_BASE}/repos/{repo}/git/commits/{sha}")
     resp.raise_for_status()
@@ -153,6 +158,7 @@ def _find_nearest_sdk_version(
 
     Returns:
         SDK version string, or None if no version could be resolved.
+
     """
     if submodule_sha in sdk_tag_map:
         return sdk_tag_map[submodule_sha]
@@ -181,6 +187,7 @@ def _version_sort_key(version: str) -> tuple[int, ...]:
 
     Returns:
         Tuple of integers for comparison.
+
     """
     return tuple(int(x) for x in version.split("."))
 
@@ -199,6 +206,7 @@ def _derive_version_ranges(
     Returns:
         List of (infrahub_pattern, min_sdk, month_year) tuples, sorted by
         version descending.
+
     """
     groups: dict[str, list[tuple[str, str]]] = defaultdict(list)
     for infrahub_ver, sdk_ver, date in release_mappings:
@@ -228,6 +236,7 @@ def _format_release_mappings(mappings: list[tuple[str, str, str]]) -> str:
 
     Returns:
         Python source for the RELEASE_MAPPINGS list assignment.
+
     """
     lines = [
         "# Detailed mapping of every Infrahub release to its pinned SDK version.",
@@ -248,6 +257,7 @@ def _format_version_ranges(ranges: list[tuple[str, str, str]]) -> str:
 
     Returns:
         Python source for the VERSION_RANGES list assignment.
+
     """
     lines = [
         "# Mapping of Infrahub minor version series to minimum SDK versions.",
@@ -266,6 +276,7 @@ def _update_file(release_mappings: list[tuple[str, str, str]]) -> None:
     Args:
         release_mappings: List of (infrahub_version, sdk_version, date) tuples,
             sorted by version descending.
+
     """
     content = COMPATIBILITY_FILE.read_text()
 

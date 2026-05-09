@@ -48,6 +48,7 @@ class CsvFormatter:
 
         Returns:
             CSV string with header and data rows.
+
         """
         all_columns = schema.attribute_names + schema.relationship_names
         rows = [extract_node_data(node, schema) for node in nodes]
@@ -74,6 +75,7 @@ class CsvFormatter:
 
         Returns:
             CSV string with field/value columns.
+
         """
         detail = extract_node_detail(node, schema)
         output = io.StringIO()

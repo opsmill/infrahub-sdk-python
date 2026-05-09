@@ -32,9 +32,7 @@ app.command(name="delete")(delete_command)
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage objects in a remote Infrahub instance.
-    """
+    """Manage objects in a remote Infrahub instance."""
 
 
 @app.command()
@@ -46,7 +44,6 @@ async def load(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple objects files into Infrahub."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
@@ -86,7 +83,6 @@ async def validate(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Validate one or multiple objects files."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)

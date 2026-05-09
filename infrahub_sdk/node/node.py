@@ -41,11 +41,11 @@ class InfrahubNodeBase:
     """Base class for InfrahubNode and InfrahubNodeSync"""
 
     def __init__(self, schema: MainSchemaTypesAPI, branch: str, data: dict | None = None) -> None:
-        """
-        Args:
-            schema: The schema of the node.
-            branch: The branch where the node resides.
-            data: Optional data to initialize the node.
+        """Args:
+        schema: The schema of the node.
+        branch: The branch where the node resides.
+        data: Optional data to initialize the node.
+
         """
         self._schema = schema
         self._data = data
@@ -225,6 +225,7 @@ class InfrahubNodeBase:
 
         Example:
             node.upload_from_path(path=Path("/path/to/large_file.pdf"))
+
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -253,6 +254,7 @@ class InfrahubNodeBase:
             >>> # Using file-like object (for large files)
             >>> with open("/path/to/file.bin", "rb") as f:
             ...     node.upload_from_bytes(content=f, name="file.bin")
+
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -287,8 +289,8 @@ class InfrahubNodeBase:
 
         Returns:
             dict[str, Dict]: Representation of an input data in dict format
-        """
 
+        """
         data: dict[str, Any] = {}
         variables: dict[str, Any] = {}
 
@@ -595,12 +597,12 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """
-        Args:
-            client: The client used to interact with the backend.
-            schema: The schema of the node.
-            branch: The branch where the node resides.
-            data: Optional data to initialize the node.
+        """Args:
+        client: The client used to interact with the backend.
+        schema: The schema of the node.
+        branch: The branch where the node resides.
+        data: Optional data to initialize the node.
+
         """
         self._client = client
         self._file_handler = FileHandler(client=client)
@@ -767,6 +769,7 @@ class InfrahubNode(InfrahubNodeBase):
 
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -959,8 +962,8 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
-        """
 
+        """
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
@@ -1199,6 +1202,7 @@ class InfrahubNode(InfrahubNodeBase):
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1246,6 +1250,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             list[InfrahubNode]: The allocated nodes.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
@@ -1304,6 +1309,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -1358,6 +1364,7 @@ class InfrahubNode(InfrahubNodeBase):
         Examples:
             name__value
             module.object.value
+
         """
         if separator not in key:
             return getattr(self, key)
@@ -1412,12 +1419,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """
-        Args:
-            client (InfrahubClientSync): The client used to interact with the backend synchronously.
-            schema (MainSchemaTypes): The schema of the node.
-            branch (Optional[str]): The branch where the node resides.
-            data (Optional[dict]): Optional data to initialize the node.
+        """Args:
+        client (InfrahubClientSync): The client used to interact with the backend synchronously.
+        schema (MainSchemaTypes): The schema of the node.
+        branch (Optional[str]): The branch where the node resides.
+        data (Optional[dict]): Optional data to initialize the node.
+
         """
         self._client = client
         self._file_handler = FileHandlerSync(client=client)
@@ -1582,6 +1589,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1769,8 +1777,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
-        """
 
+        """
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
@@ -2011,6 +2019,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -2058,6 +2067,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             list[InfrahubNodeSync]: The allocated nodes.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
@@ -2116,6 +2126,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -2170,6 +2181,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Examples:
             name__value
             module.object.value
+
         """
         if separator not in key:
             return getattr(self, key)

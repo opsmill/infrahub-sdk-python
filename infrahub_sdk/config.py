@@ -90,8 +90,7 @@ class ConfigBase(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        """
-        Customize settings sources to track which fields were explicitly provided.
+        """Customize settings sources to track which fields were explicitly provided.
         This allows us to properly handle authentication method precedence.
         """
 
@@ -138,8 +137,7 @@ class ConfigBase(BaseSettings):
     @model_validator(mode="before")
     @classmethod
     def validate_mix_authentication_schemes(cls, values: dict[str, Any]) -> dict[str, Any]:
-        """
-        Handle conflicts between token and password authentication methods.
+        """Handle conflicts between token and password authentication methods.
 
         When both methods are present (from explicit args or environment variables),
         we prioritize the explicitly provided method. If we can determine which fields
