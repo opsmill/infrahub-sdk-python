@@ -43,6 +43,7 @@ async def resolve_node(
 
     Raises:
         NodeNotFoundError: If no lookup strategy finds the node.
+
     """
     if schema is None:
         schema = await client.schema.get(kind=kind, branch=branch)
@@ -97,6 +98,7 @@ def prepare_relationship_data(data: dict[str, Any], schema: MainSchemaTypesAPI) 
 
     Returns:
         A new dict with relationship values in SDK-compatible format.
+
     """
     rel_names = schema.relationship_names
     result: dict[str, Any] = {}
@@ -116,6 +118,7 @@ def _to_relationship_value(value: Any) -> Any:
 
     Returns:
         A value suitable for passing to the SDK's node constructor.
+
     """
     if isinstance(value, (dict, list)):
         return value

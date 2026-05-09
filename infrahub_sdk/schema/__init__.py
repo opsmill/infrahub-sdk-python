@@ -136,6 +136,7 @@ class InfrahubSchemaBase:
 
         Returns:
             A :class:`SchemaExport` containing user-defined schemas by namespace.
+
         """
         if namespaces:
             restricted = set(namespaces) & set(RESTRICTED_NAMESPACES)
@@ -176,12 +177,12 @@ class InfrahubSchemaBase:
                 )
 
     def set_cache(self, schema: dict[str, Any] | SchemaRootAPI | BranchSchema, branch: str | None = None) -> None:
-        """
-        Set the cache manually (primarily for unit testing)
+        """Set the cache manually (primarily for unit testing)
 
         Args:
             schema: The schema to set the cache as provided by the /api/schema endpoint either in dict or SchemaRootAPI format
             branch: The name of the branch to set the cache for.
+
         """
         branch = branch or self.client.default_branch
 
@@ -342,6 +343,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         branch = branch or self.client.default_branch
         if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
@@ -530,8 +532,8 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
-        """
 
+        """
         if timeout:
             self._deprecated_schema_timeout()
 
@@ -563,6 +565,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             A :class:`SchemaExport` containing user-defined schemas by namespace.
+
         """
         branch = branch or self.client.default_branch
         schema_nodes = await self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
@@ -576,6 +579,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             The GraphQL schema as a string.
+
         """
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/schema.graphql?branch={branch}"
@@ -623,6 +627,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         branch = branch or self.client.default_branch
         if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
@@ -640,8 +645,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         refresh: bool = False,
         timeout: int | None = None,
     ) -> MainSchemaTypesAPI:
-        """
-        Retrieve a specific schema object from the server.
+        """Retrieve a specific schema object from the server.
 
         Args:
             kind: The kind of schema object to retrieve.
@@ -651,6 +655,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             MainSchemaTypes: The schema object.
+
         """
         branch = branch or self.client.default_branch
 
@@ -799,6 +804,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         if timeout:
             self._deprecated_schema_timeout()
@@ -831,6 +837,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             A :class:`SchemaExport` containing user-defined schemas by namespace.
+
         """
         branch = branch or self.client.default_branch
         schema_nodes = self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
@@ -844,6 +851,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             The GraphQL schema as a string.
+
         """
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/schema.graphql?branch={branch}"

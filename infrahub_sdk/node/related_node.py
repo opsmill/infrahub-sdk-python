@@ -18,12 +18,12 @@ class RelatedNodeBase:
     """Base class for representing a related node in a relationship."""
 
     def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Any | dict, name: str | None = None) -> None:
-        """
-        Args:
-            branch (str): The branch where the related node resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Data representing the related node.
-            name (Optional[str]): The name of the related node.
+        """Args:
+        branch (str): The branch where the related node resides.
+        schema (RelationshipSchema): The schema of the relationship.
+        data (Union[Any, dict]): Data representing the related node.
+        name (Optional[str]): The name of the related node.
+
         """
         self.schema = schema
         self.name = name
@@ -186,6 +186,7 @@ class RelatedNodeBase:
         Returns:
             Dict: A dictionary representing the basic structure of a GraphQL query, including the node's ID, display label,
                 and typename. The method also includes additional properties and any peer_data provided.
+
         """
         data: dict[str, Any] = {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}}
         properties: dict[str, Any] = {}
@@ -221,13 +222,13 @@ class RelatedNode(RelatedNodeBase):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """
-        Args:
-            client (InfrahubClient): The client used to interact with the backend asynchronously.
-            branch (str): The branch where the related node resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Data representing the related node.
-            name (Optional[str]): The name of the related node.
+        """Args:
+        client (InfrahubClient): The client used to interact with the backend asynchronously.
+        branch (str): The branch where the related node resides.
+        schema (RelationshipSchema): The schema of the relationship.
+        data (Union[Any, dict]): Data representing the related node.
+        name (Optional[str]): The name of the related node.
+
         """
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
@@ -268,13 +269,13 @@ class RelatedNodeSync(RelatedNodeBase):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """
-        Args:
-            client (InfrahubClientSync): The client used to interact with the backend synchronously.
-            branch (str): The branch where the related node resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Data representing the related node.
-            name (Optional[str]): The name of the related node.
+        """Args:
+        client (InfrahubClientSync): The client used to interact with the backend synchronously.
+        branch (str): The branch where the related node resides.
+        schema (RelationshipSchema): The schema of the relationship.
+        data (Union[Any, dict]): Data representing the related node.
+        name (Optional[str]): The name of the related node.
+
         """
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)

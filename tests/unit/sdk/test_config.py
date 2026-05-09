@@ -77,8 +77,8 @@ def test_password_auth_overrides_env_token_when_password_env_var_and_username_ex
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment when only username is provided
-    through Config object and password is provided through environment variable"""
-
+    through Config object and password is provided through environment variable
+    """
     # Set environment variable for api_token and password
     monkeypatch.setenv("INFRAHUB_API_TOKEN", "token-from-env")
     monkeypatch.setenv("INFRAHUB_PASSWORD", "testpass")

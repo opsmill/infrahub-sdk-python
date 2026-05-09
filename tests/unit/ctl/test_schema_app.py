@@ -132,7 +132,6 @@ def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock) -> None:
 
 def test_load_valid_generic_schema(httpx_mock: HTTPXMock) -> None:
     """A test which ensures that a generic schema is correctly loaded when loaded from infrahubctl command"""
-
     # Arrange
     fixture_file = get_fixtures_dir() / "models" / "valid_generic_schema.json"
 

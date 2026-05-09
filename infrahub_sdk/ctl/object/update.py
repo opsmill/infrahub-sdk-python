@@ -97,6 +97,7 @@ async def _update_with_set_args(
         identifier: Object UUID or display name.
         set_args: List of "key=value" strings.
         branch: Optional target branch.
+
     """
     data = parse_set_args(set_args)
     schema = await client.schema.get(kind=kind, branch=branch)
@@ -153,6 +154,7 @@ async def _update_with_file(
         client: Initialised async Infrahub client.
         file: Path to the YAML or JSON object file.
         branch: Optional target branch.
+
     """
     files = ObjectFile.load_from_disk(paths=[file])
     for obj_file in files:

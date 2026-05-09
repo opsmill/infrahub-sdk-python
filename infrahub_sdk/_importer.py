@@ -20,6 +20,7 @@ def import_module(module_path: Path, import_root: str | None = None, relative_pa
         module_path (Path): Absolute path of the module to import.
         import_root (Optional[str]): Absolute string path to the current repository.
         relative_path (Optional[str]): Relative string path between module_path and import_root.
+
     """
     import_root = import_root or str(module_path.parent)
 

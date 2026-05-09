@@ -30,9 +30,7 @@ console = Console()
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage the schema in a remote Infrahub instance.
-    """
+    """Manage the schema in a remote Infrahub instance."""
 
 
 def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[SchemaFile]) -> None:
@@ -131,7 +129,6 @@ async def load(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple schema files into Infrahub."""
-
     init_logging(debug=debug)
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
@@ -183,7 +180,6 @@ async def check(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Check if schema files are valid and what would be the impact of loading them with Infrahub."""
-
     init_logging(debug=debug)
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)

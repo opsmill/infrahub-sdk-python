@@ -31,6 +31,7 @@ class BaseFormatter(Protocol):
 
         Returns:
             Formatted string representation of all nodes.
+
         """
         ...
 
@@ -43,6 +44,7 @@ class BaseFormatter(Protocol):
 
         Returns:
             Formatted string with full node details.
+
         """
         ...
 
@@ -61,6 +63,7 @@ def _extract_relationship_value(
 
     Returns:
         Display string for the relationship value.
+
     """
     rel = getattr(node, rel_name, None)
     if rel is None:
@@ -91,6 +94,7 @@ def extract_node_data(
 
     Returns:
         Dict mapping field names to their string display values.
+
     """
     data: dict[str, Any] = {}
 
@@ -115,6 +119,7 @@ def non_empty_columns(rows: list[dict[str, Any]], columns: list[str]) -> list[st
 
     Returns:
         Filtered list of column names with data.
+
     """
     return [col for col in columns if any(str(row.get(col, "")).strip() for row in rows)]
 
@@ -135,6 +140,7 @@ def extract_node_detail(
     Returns:
         Dict with metadata fields (id, display_label, kind) followed
         by attribute and relationship values.
+
     """
     detail: dict[str, Any] = {
         "id": node.id or "",

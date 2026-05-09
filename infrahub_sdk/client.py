@@ -584,8 +584,8 @@ class InfrahubClient(BaseClient):
             ProcessRelationsNodeSync: A TypedDict containing two lists:
                 - 'nodes': A list of InfrahubNode objects representing the nodes processed.
                 - 'related_nodes': A list of InfrahubNode objects representing the related nodes
-        """
 
+        """
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
 
@@ -721,6 +721,7 @@ class InfrahubClient(BaseClient):
 
         Returns:
             list[InfrahubNode]: List of Nodes
+
         """
         if query_name is None:
             query_name = f"All_{get_kind_as_string(kind=kind)}"
@@ -833,6 +834,7 @@ class InfrahubClient(BaseClient):
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
+
         """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
@@ -957,6 +959,7 @@ class InfrahubClient(BaseClient):
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
+
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -1040,6 +1043,7 @@ class InfrahubClient(BaseClient):
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
+
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
@@ -1146,6 +1150,7 @@ class InfrahubClient(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didn't respond before the timeout expired
+
         """
         await self.login()
 
@@ -1168,6 +1173,7 @@ class InfrahubClient(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didnd't respond before the timeout expired
+
         """
         await self.login()
 
@@ -1194,6 +1200,7 @@ class InfrahubClient(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didn't respond before the timeout expired
+
         """
         await self.login()
 
@@ -1543,8 +1550,10 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
+
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -1626,8 +1635,10 @@ class InfrahubClient(BaseClient):
             branch: Name of the branch to allocate from. Defaults to default_branch.
             timeout: Flag to indicate whether to populate the store with the retrieved nodes.
             tracker: The offset for pagination.
+
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
+
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -1738,13 +1749,11 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         fields_mapping: dict[str, ConversionFieldInput] | None = None,
     ) -> InfrahubNode:
-        """
-        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
+        """Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
         and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
         in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
         for more information.
         """
-
         mapping_dict = (
             {}
             if fields_mapping is None
@@ -1864,6 +1873,7 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
+
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
@@ -1947,6 +1957,7 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
+
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
@@ -2156,6 +2167,7 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
+
         """
         if query_name is None:
             query_name = f"All_{get_kind_as_string(kind=kind)}"
@@ -2200,8 +2212,8 @@ class InfrahubClientSync(BaseClient):
             ProcessRelationsNodeSync: A TypedDict containing two lists:
                 - 'nodes': A list of InfrahubNodeSync objects representing the nodes processed.
                 - 'related_nodes': A list of InfrahubNodeSync objects representing the related nodes
-        """
 
+        """
         nodes: list[InfrahubNodeSync] = []
         related_nodes: list[InfrahubNodeSync] = []
 
@@ -2309,6 +2321,7 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
+
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
@@ -2851,8 +2864,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
+
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -2934,8 +2949,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
+
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
+
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -2981,6 +2998,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didnd't respond before the timeout expired
+
         """
         self.login()
 
@@ -3007,6 +3025,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didn't respond before the timeout expired
+
         """
         self.login()
 
@@ -3038,6 +3057,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             ServerNotReachableError if we are not able to connect to the server
             ServerNotResponsiveError if the server didnd't respond before the timeout expired
+
         """
         self.login()
 
@@ -3172,13 +3192,11 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         fields_mapping: dict[str, ConversionFieldInput] | None = None,
     ) -> InfrahubNodeSync:
-        """
-        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
+        """Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
         and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
         in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
         for more information.
         """
-
         mapping_dict = (
             {}
             if fields_mapping is None

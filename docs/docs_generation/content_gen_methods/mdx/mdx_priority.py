@@ -23,6 +23,7 @@ class PagePriority:
         classes: Ordered list of class/function names to appear first on the page.
         methods: Per-class ordered list of method names to appear first.
             Key is class name, value is ordered method name list.
+
     """
 
     sections: list[str] = field(default_factory=list)
@@ -46,6 +47,7 @@ class SectionPriority:
         names: Ordered list of child section names to appear first.
         sub_priorities: Per-child priorities for deeper nesting.
             Key is child name, value is ordered subsection name list.
+
     """
 
     names: list[str] = field(default_factory=list)

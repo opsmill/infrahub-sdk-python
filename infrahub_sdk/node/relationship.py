@@ -23,11 +23,11 @@ class RelationshipManagerBase:
     """Base class for RelationshipManager and RelationshipManagerSync"""
 
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
-        """
-        Args:
-            name (str): The name of the relationship.
-            branch (str): The branch where the relationship resides.
-            schema (RelationshipSchema): The schema of the relationship.
+        """Args:
+        name (str): The name of the relationship.
+        branch (str): The branch where the relationship resides.
+        schema (RelationshipSchema): The schema of the relationship.
+
         """
         self.initialized: bool = False
         self._has_update: bool = False
@@ -88,6 +88,7 @@ class RelationshipManagerBase:
             Dict: A dictionary representing the basic structure of a GraphQL query for multiple related nodes.
                 It includes count, edges, and node information (ID, display label, and typename), along with additional properties
                 and any peer_data provided.
+
         """
         data: dict[str, Any] = {
             "count": None,
@@ -124,14 +125,14 @@ class RelationshipManager(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
-        Args:
-            name (str): The name of the relationship.
-            client (InfrahubClient): The client used to interact with the backend.
-            node (InfrahubNode): The node to which the relationship belongs.
-            branch (str): The branch where the relationship resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Initial data for the relationships.
+        """Args:
+        name (str): The name of the relationship.
+        client (InfrahubClient): The client used to interact with the backend.
+        node (InfrahubNode): The node to which the relationship belongs.
+        branch (str): The branch where the relationship resides.
+        schema (RelationshipSchema): The schema of the relationship.
+        data (Union[Any, dict]): Initial data for the relationships.
+
         """
         self.client = client
         self.node = node
@@ -247,14 +248,14 @@ class RelationshipManagerSync(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
-        Args:
-            name (str): The name of the relationship.
-            client (InfrahubClientSync): The client used to interact with the backend synchronously.
-            node (InfrahubNodeSync): The node to which the relationship belongs.
-            branch (str): The branch where the relationship resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Initial data for the relationships.
+        """Args:
+        name (str): The name of the relationship.
+        client (InfrahubClientSync): The client used to interact with the backend synchronously.
+        node (InfrahubNodeSync): The node to which the relationship belongs.
+        branch (str): The branch where the relationship resides.
+        schema (RelationshipSchema): The schema of the relationship.
+        data (Union[Any, dict]): Initial data for the relationships.
+
         """
         self.client = client
         self.node = node

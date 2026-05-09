@@ -17,6 +17,7 @@ class ReleaseMapping:
         infrahub: Infrahub server version (e.g. "1.8.4").
         sdk: SDK version pinned to this release (e.g. "1.19.0").
         date: Infrahub release date in YYYY-MM-DD format.
+
     """
 
     infrahub: str
@@ -32,6 +33,7 @@ class VersionRange:
         infrahub: Infrahub minor version pattern (e.g. "1.8.x").
         min_sdk: Minimum required SDK version (e.g. "1.19.0").
         date: Approximate release month (e.g. "March 2026").
+
     """
 
     infrahub: str
@@ -46,6 +48,7 @@ class PythonSupport:
     Args:
         sdk_range: SDK version range description (e.g. ">= 1.17.0").
         python_versions: Comma-separated Python versions (e.g. "3.10, 3.11, 3.12, 3.13, 3.14").
+
     """
 
     sdk_range: str
@@ -60,6 +63,7 @@ class FeatureRequirement:
         feature: Feature name or description.
         min_sdk: Minimum SDK version required.
         min_infrahub: Minimum Infrahub version required.
+
     """
 
     feature: str

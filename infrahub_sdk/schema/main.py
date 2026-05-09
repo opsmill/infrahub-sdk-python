@@ -296,14 +296,16 @@ class BaseSchema(BaseModel):
     def supports_artifacts(self) -> bool:
         """Returns True if this schema supports artifact operations via CoreArtifactTarget inheritance.
         Only NodeSchemaAPI overrides this; all other schema types return False by design because
-        artifact capability is tied to node inheritance, not profiles, templates, or generics."""
+        artifact capability is tied to node inheritance, not profiles, templates, or generics.
+        """
         return False
 
     @property
     def supports_file_object(self) -> bool:
         """Returns True if this schema supports file object operations via CoreFileObject inheritance.
         Only NodeSchemaAPI overrides this; all other schema types return False by design because
-        file object capability is tied to node inheritance, not profiles, templates, or generics."""
+        file object capability is tied to node inheritance, not profiles, templates, or generics.
+        """
         return False
 
     @property
@@ -314,7 +316,8 @@ class BaseSchema(BaseModel):
     @property
     def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
         """Returns pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
-        Only NodeSchemaAPI overrides this; all other schema types return an empty list."""
+        Only NodeSchemaAPI overrides this; all other schema types return an empty list.
+        """
         return []
 
 
@@ -437,16 +440,12 @@ class BranchSchema(BaseModel):
 
     @classmethod
     def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
-        """
-        Convert an API response from /api/schema into a BranchSchema object.
-        """
+        """Convert an API response from /api/schema into a BranchSchema object."""
         return cls.from_schema_root_api(data=SchemaRootAPI(**data))
 
     @classmethod
     def from_schema_root_api(cls, data: SchemaRootAPI) -> Self:
-        """
-        Convert a SchemaRootAPI object to a BranchSchema object.
-        """
+        """Convert a SchemaRootAPI object to a BranchSchema object."""
         nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = {}
         for node in data.nodes:
             nodes[node.kind] = node

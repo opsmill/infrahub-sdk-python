@@ -32,7 +32,6 @@ class InfrahubOperation:
     @property
     def branch_name(self) -> str:
         """Return the name of the current git branch."""
-
         if self.branch:
             return self.branch
 

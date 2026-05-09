@@ -18,6 +18,7 @@ class DocPage:
 
         page = DocPage(content_gen_method=Jinja2DocContentGenMethod(...))
         print(page.content())
+
     """
 
     def __init__(self, content_gen_method: ADocContentGenMethod) -> None:
@@ -38,6 +39,7 @@ class MDXDocPage:
 
         mdx = MDXDocPage(page=my_page, output_path=Path("docs/ref/client.mdx"))
         mdx.to_mdx()
+
     """
 
     _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

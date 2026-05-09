@@ -94,7 +94,6 @@ def check(
     ),
 ) -> None:
     """Execute user-defined checks."""
-
     variables_dict = parse_cli_vars(variables)
     run_check(
         path=path,
@@ -150,7 +149,6 @@ async def run(
     ),
 ) -> None:
     """Execute a script."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
     logging.getLogger("httpx").setLevel(logging.ERROR)
     logging.getLogger("httpcore").setLevel(logging.ERROR)
@@ -207,8 +205,7 @@ async def _run_transform(
     debug: bool,
     repository_config: InfrahubRepositoryConfig,
 ) -> Any:
-    """
-    Query GraphQL for the required data then run a transform on that data.
+    """Query GraphQL for the required data then run a transform on that data.
 
     Args:
         query_name: Name of the query to load (e.g. tags_query)
@@ -217,8 +214,8 @@ async def _run_transform(
         branch: Name of the *infrahub* branch that should be queried for data
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
-    """
 
+    """
     try:
         response = execute_graphql_query(
             query=query_name,
@@ -267,7 +264,6 @@ async def render(
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
     """Render a local Jinja2 Transform for debugging purpose."""
-
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(find_repository_config_file())
 
@@ -317,7 +313,6 @@ def transform(
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
     """Render a local transform (TransformPython) for debugging purpose."""
-
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(find_repository_config_file())
 
@@ -373,7 +368,6 @@ def protocols(
     out: str = typer.Option("schema_protocols.py", help="Path to a file to save the result."),
 ) -> None:
     """Export Python protocols corresponding to a schema."""
-
     schema: dict[str, MainSchemaTypesAll] = {}
 
     if schemas:
@@ -404,7 +398,6 @@ def protocols(
 @catch_exception(console=console)
 def version() -> None:
     """Display the version of Python and the version of the Python SDK in use."""
-
     console.print(f"Python: {platform.python_version()}\nPython SDK: v{sdk_version}")
 
 
