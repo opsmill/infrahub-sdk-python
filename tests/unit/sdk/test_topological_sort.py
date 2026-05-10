@@ -74,8 +74,7 @@ def test_topological_sort_disjoint_2() -> None:
 
 
 def test_topological_sort_binary_tree() -> None:
-    """
-                a
+    """A
         b               c
       d   e         f       g
     hi            j   k

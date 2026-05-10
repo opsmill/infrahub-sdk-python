@@ -30,6 +30,7 @@ class MdxSection(ASection):
         name: Item name extracted from the heading (e.g. class or method name).
         heading_level: Markdown heading level (2, 3, or 4).
         _lines: All lines belonging to this section, including the heading.
+
     """
 
     name: str

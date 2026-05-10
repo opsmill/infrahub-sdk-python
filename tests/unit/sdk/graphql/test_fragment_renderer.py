@@ -186,7 +186,7 @@ def test_collect_required_fragments_direct_single() -> None:
 
 
 def test_collect_required_fragments_transitive() -> None:
-    """deviceFragment spreads interfaceFragment — both must be collected."""
+    """DeviceFragment spreads interfaceFragment — both must be collected."""
     index = build_fragment_index([FRAG_INTERFACE, FRAG_DEVICE])
     doc = parse(QUERY_USE_DEVICE)
     required = collect_required_fragments(doc, index)
@@ -260,7 +260,7 @@ def test_render_transitive_dependency_included() -> None:
 
 
 def test_render_surplus_fragment_excluded() -> None:
-    """portFragment is not referenced — it must not appear in output."""
+    """PortFragment is not referenced — it must not appear in output."""
     result = render_query_with_fragments(QUERY_USE_INTERFACE, [FRAG_INTERFACE, FRAG_PORT])
     assert "fragment interfaceFragment" in result
     assert "fragment portFragment" not in result

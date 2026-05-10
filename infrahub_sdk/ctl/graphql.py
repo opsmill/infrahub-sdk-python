@@ -41,14 +41,14 @@ ARIADNE_PLUGINS = [
 
 
 def find_gql_files(query_path: Path) -> list[Path]:
-    """
-    Find all files with .gql extension in the specified directory.
+    """Find all files with .gql extension in the specified directory.
 
     Args:
         query_path: Path to the directory to search for .gql files
 
     Returns:
         List of Path objects for all .gql files found
+
     """
     if not query_path.exists():
         raise FileNotFoundError(f"File or directory not found: {query_path}")
@@ -61,7 +61,6 @@ def find_gql_files(query_path: Path) -> list[Path]:
 
 def get_graphql_query(queries_path: Path, schema: GraphQLSchema) -> tuple[DefinitionNode, ...]:
     """Get GraphQL queries definitions from a single GraphQL file."""
-
     if not queries_path.exists():
         raise FileNotFoundError(f"File not found: {queries_path}")
     if not queries_path.is_file():
@@ -95,9 +94,7 @@ def generate_result_types(directory: Path, package: PackageGenerator, fragment: 
 
 @app.callback()
 def callback() -> None:
-    """
-    Various GraphQL related commands.
-    """
+    """Various GraphQL related commands."""
 
 
 @app.command()
@@ -107,7 +104,6 @@ async def export_schema(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Export the GraphQL schema to a file."""
-
     client = initialize_client()
     schema_text = await client.schema.get_graphql_schema()
 
@@ -126,7 +122,6 @@ async def generate_return_types(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Create Pydantic Models for GraphQL query return types"""
-
     query = Path.cwd() if query is None else query
 
     # Load the GraphQL schema

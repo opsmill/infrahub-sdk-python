@@ -64,7 +64,6 @@ async def test_resolve_by_default_filter(mock_client: MagicMock) -> None:
 
 async def test_resolve_by_hfid(mock_client: MagicMock) -> None:
     """When the schema defines ``human_friendly_id``, ``client.get(hfid=...)`` is used."""
-
     mock_schema = MagicMock(spec=NodeSchemaAPI)
     mock_schema.default_filter = None
     mock_schema.human_friendly_id = ["name__value"]
@@ -87,7 +86,6 @@ async def test_resolve_by_hfid(mock_client: MagicMock) -> None:
 
 async def test_resolve_by_hfid_multi_component(mock_client: MagicMock) -> None:
     """Multi-component HFID strings (``a/b``) are split on ``/``."""
-
     mock_schema = MagicMock(spec=NodeSchemaAPI)
     mock_schema.default_filter = None
     mock_schema.human_friendly_id = ["site__name__value", "name__value"]
@@ -110,7 +108,6 @@ async def test_resolve_by_hfid_multi_component(mock_client: MagicMock) -> None:
 
 async def test_resolve_fallback_raises(mock_client: MagicMock) -> None:
     """When no lookup strategy matches, NodeNotFoundError is raised directly."""
-
     mock_schema = MagicMock(spec=NodeSchemaAPI)
     mock_schema.default_filter = None
     mock_schema.human_friendly_id = None

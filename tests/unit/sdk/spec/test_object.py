@@ -346,7 +346,6 @@ async def test_hfid_normalization_in_object_loading(
     client_with_schema_01: InfrahubClient, test_case: HfidLoadTestCase
 ) -> None:
     """Test that HFIDs are normalized correctly based on cardinality and format."""
-
     root_location = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": "BuiltinLocation", "data": []}}
     location = {
         "apiVersion": root_location["apiVersion"],

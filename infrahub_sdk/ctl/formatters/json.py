@@ -36,6 +36,7 @@ class JsonFormatter:
 
         Returns:
             JSON array string.
+
         """
         items = [extract_node_data(node, schema) for node in nodes]
         return json.dumps(items, indent=2, default=str)
@@ -52,6 +53,7 @@ class JsonFormatter:
 
         Returns:
             JSON object string.
+
         """
         detail = extract_node_detail(node, schema)
         return json.dumps(detail, indent=2, default=str)

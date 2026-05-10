@@ -13,6 +13,7 @@ def get_env_vars() -> dict[str, list[str]]:
 
     Returns:
         Mapping of field name to list of upper-cased environment variable names.
+
     """
     env_vars: dict[str, list[str]] = defaultdict(list)
     settings = ConfigBase()
@@ -47,6 +48,7 @@ def build_config_properties() -> list[dict[str, Any]]:
     Returns:
         List of dicts with keys: ``name``, ``description``, ``type``,
         ``choices``, ``default``, ``env_vars``.
+
     """
     schema = ConfigBase.model_json_schema()
     env_vars = get_env_vars()
