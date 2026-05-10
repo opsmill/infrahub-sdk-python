@@ -42,6 +42,7 @@ class InfrahubGroupContextBase:
         Args:
             identifier: The new value for the identifier.
             params: A dictionary with new values for the params.
+
         """
         self.identifier = identifier
         self.params = params or {}
@@ -70,7 +71,8 @@ class InfrahubGroupContextBase:
 
     def _generate_group_description(self, schema: MainSchemaTypesAPI) -> str:
         """Generate the description of the group from the params
-        and ensure it's not longer than the maximum length of the description field."""
+        and ensure it's not longer than the maximum length of the description field.
+        """
         if not self.params:
             return ""
 
@@ -118,12 +120,12 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                             raise
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
-        """
-        Add related Nodes IDs to the context.
+        """Add related Nodes IDs to the context.
 
         Args:
             ids (list[str]): List of node IDs to be added.
             update_group_context (Optional[bool], optional): Flag to control whether to update the group context.
+
         """
         if update_group_context is not False and (
             self.client.mode == InfrahubClientMode.TRACKING or self.client.update_group_context or update_group_context
@@ -131,12 +133,12 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             self.related_node_ids.extend(ids)
 
     async def add_related_groups(self, ids: list[str], update_group_context: bool | None = None) -> None:
-        """
-        Add related Groups IDs to the context.
+        """Add related Groups IDs to the context.
 
         Args:
             ids (list[str]): List of group IDs to be added.
             update_group_context (Optional[bool], optional): Flag to control whether to update the group context.
+
         """
         if update_group_context is not False and (
             self.client.mode == InfrahubClientMode.TRACKING or self.client.update_group_context or update_group_context
@@ -144,9 +146,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             self.related_group_ids.extend(ids)
 
     async def update_group(self) -> None:
-        """
-        Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
-        """
+        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution."""
         members: list[str] = self.related_group_ids + self.related_node_ids
 
         if not members:
@@ -212,12 +212,12 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
                     self.client.delete(kind=member.typename, id=member.id)
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
-        """
-        Add related Nodes IDs to the context.
+        """Add related Nodes IDs to the context.
 
         Args:
             ids (list[str]): List of node IDs to be added.
             update_group_context (Optional[bool], optional): Flag to control whether to update the group context.
+
         """
         if update_group_context is not False and (
             self.client.mode == InfrahubClientMode.TRACKING or self.client.update_group_context or update_group_context
@@ -225,12 +225,12 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             self.related_node_ids.extend(ids)
 
     def add_related_groups(self, ids: list[str], update_group_context: bool | None = None) -> None:
-        """
-        Add related Groups IDs to the context.
+        """Add related Groups IDs to the context.
 
         Args:
             ids (list[str]): List of group IDs to be added.
             update_group_context (Optional[bool], optional): Flag to control whether to update the group context.
+
         """
         if update_group_context is not False and (
             self.client.mode == InfrahubClientMode.TRACKING or self.client.update_group_context or update_group_context
@@ -238,9 +238,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             self.related_group_ids.extend(ids)
 
     def update_group(self) -> None:
-        """
-        Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
-        """
+        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution."""
         members: list[str] = self.related_node_ids + self.related_group_ids
 
         if not members:

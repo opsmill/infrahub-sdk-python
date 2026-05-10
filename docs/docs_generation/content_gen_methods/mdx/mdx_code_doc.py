@@ -92,6 +92,7 @@ class MdxCodeDocumentation(ACodeDocumentation):
 
         doc = MdxCodeDocumentation()
         files = doc.generate(context=ctx, modules_to_document=["infrahub_sdk.node"])
+
     """
 
     def __init__(

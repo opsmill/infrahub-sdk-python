@@ -67,7 +67,6 @@ class InfrahubGenerator(InfrahubOperation):
 
     async def collect_data(self) -> dict:
         """Query the result of the GraphQL Query defined in self.query and return the result"""
-
         data = await self._init_client.query_gql_query(
             name=self.query,
             branch_name=self.branch_name,
@@ -79,7 +78,6 @@ class InfrahubGenerator(InfrahubOperation):
 
     async def run(self, identifier: str, data: dict | None = None) -> None:
         """Execute the generator after collecting the data from the GraphQL query."""
-
         if not data:
             data = await self.collect_data()
         unpacked = data.get("data") or data

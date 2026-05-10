@@ -135,6 +135,7 @@ def _related_node_ref(rel: Any) -> str | list[str] | None:
 
     Returns:
         A string, list of strings, or None if the relationship is unset.
+
     """
     hfid = getattr(rel, "hfid", None)
     if hfid:

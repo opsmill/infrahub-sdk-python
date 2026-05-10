@@ -43,6 +43,7 @@ class FileHandlerBase:
 
         Returns:
             A PreparedFile containing the file object, filename, and whether it should be closed.
+
         """
         if content is None:
             return PreparedFile(file_object=None, filename=None, should_close=False)
@@ -77,6 +78,7 @@ class FileHandlerBase:
 
         Returns:
             A PreparedFile containing the file object, filename, and whether it should be closed.
+
         """
         if content is None:
             return PreparedFile(file_object=None, filename=None, should_close=False)
@@ -105,6 +107,7 @@ class FileHandlerBase:
             AuthenticationError: If authentication fails (401/403).
             NodeNotFoundError: If the file/node is not found (404).
             httpx.HTTPStatusError: For other HTTP errors.
+
         """
         if exc.response.status_code in {401, 403}:
             response = exc.response.json()
@@ -130,6 +133,7 @@ class FileHandlerBase:
         Raises:
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             resp.raise_for_status()
@@ -150,6 +154,7 @@ class FileHandler(FileHandlerBase):
 
         Args:
             client: The async Infrahub client instance.
+
         """
         self._client = client
 
@@ -162,6 +167,7 @@ class FileHandler(FileHandlerBase):
 
         Returns:
             The complete URL for downloading the file.
+
         """
         url = f"{self._client.address}/api/storage/files/{node_id}"
         if branch:
@@ -193,6 +199,7 @@ class FileHandler(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
+
         """
         effective_branch = branch or self._client.default_branch
         url = self._build_url(node_id=node_id, branch=effective_branch)
@@ -222,6 +229,7 @@ class FileHandler(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             async with self._client._get_streaming(url=url) as resp:
@@ -255,6 +263,7 @@ class FileHandlerSync(FileHandlerBase):
 
         Args:
             client: The sync Infrahub client instance.
+
         """
         self._client = client
 
@@ -267,6 +276,7 @@ class FileHandlerSync(FileHandlerBase):
 
         Returns:
             The complete URL for downloading the file.
+
         """
         url = f"{self._client.address}/api/storage/files/{node_id}"
         if branch:
@@ -298,6 +308,7 @@ class FileHandlerSync(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
+
         """
         effective_branch = branch or self._client.default_branch
         url = self._build_url(node_id=node_id, branch=effective_branch)
@@ -327,6 +338,7 @@ class FileHandlerSync(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             with self._client._get_streaming(url=url) as resp:

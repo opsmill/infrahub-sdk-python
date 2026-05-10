@@ -272,7 +272,6 @@ def _generate_sdk_api_docs(context: Context) -> None:
 @task
 def format(context: Context) -> None:
     """Run RUFF to format all Python files."""
-
     exec_cmds = ["ruff format .", "ruff check . --fix"]
     with context.cd(MAIN_DIRECTORY_PATH):
         for cmd in exec_cmds:

@@ -45,6 +45,7 @@ def detect_output_format() -> OutputFormat:
     Returns:
         ``OutputFormat.TABLE`` when stdout is connected to a terminal,
         ``OutputFormat.JSON`` otherwise (e.g. when piped).
+
     """
     return OutputFormat.TABLE if sys.stdout.isatty() else OutputFormat.JSON
 
@@ -60,6 +61,7 @@ def get_formatter(output_format: OutputFormat) -> BaseFormatter:
 
     Raises:
         ValueError: If *output_format* is not a recognised format.
+
     """
     formatters: dict[OutputFormat, type[BaseFormatter]] = {
         OutputFormat.TABLE: TableFormatter,

@@ -37,6 +37,7 @@ class MultipartBuilder:
 
         Returns:
             JSON string containing the query and variables.
+
         """
         return ujson.dumps({"query": query, "variables": variables})
 
@@ -50,6 +51,7 @@ class MultipartBuilder:
 
         Returns:
             JSON string mapping the file key to the variable path.
+
         """
         return ujson.dumps({file_key: [variable_path]})
 
@@ -84,6 +86,7 @@ class MultipartBuilder:
             ...     file_name="document.pdf",
             ... )
             >>> # payload can be passed to httpx.post(..., files=payload)
+
         """
         # Ensure file variable is null (spec requirement)
         variables = {**variables, "file": None}

@@ -52,7 +52,6 @@ class ConfiguredSettings:
         Configuration is loaded from a config file in toml format that contains the settings,
         or from a dictionary of those settings passed in as "config_data"
         """
-
         if self._settings:
             return
 
@@ -81,8 +80,8 @@ class ConfiguredSettings:
         Args:
             config_file_name (str, optional): [description]. Defaults to "pyprojectctl.toml".
             config_data (dict, optional): [description]. Defaults to None.
-        """
 
+        """
         try:
             self.load(config_file=config_file, config_data=config_data)
         except ValidationError as exc:

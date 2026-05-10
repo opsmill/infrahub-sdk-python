@@ -40,6 +40,7 @@ class TableFormatter:
 
         Returns:
             Rendered table string.
+
         """
         all_columns = schema.attribute_names + schema.relationship_names
         rows = [extract_node_data(node, schema) for node in nodes]
@@ -67,6 +68,7 @@ class TableFormatter:
 
         Returns:
             Rendered detail string.
+
         """
         detail = extract_node_detail(node, schema)
 
@@ -114,6 +116,7 @@ class TableFormatter:
 
         Returns:
             The rendered string output.
+
         """
         buffer = StringIO()
         console = Console(file=buffer, force_terminal=False, width=120)

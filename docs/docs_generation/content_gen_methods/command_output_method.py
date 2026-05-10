@@ -30,6 +30,7 @@ class CommandOutputDocContentGenMethod(ADocContentGenMethod):
             command=TyperCommand(module="infrahub_sdk.ctl.cli_commands", name="dump", app_name="infrahubctl", is_function=True),
         )
         content = method.apply()
+
     """
 
     def __init__(self, context: Context, working_directory: Path, command: ACommand) -> None:

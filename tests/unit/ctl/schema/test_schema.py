@@ -23,6 +23,7 @@ def _make_node_schema(kind: str, namespace: str, name: str, description: str = "
 
     Returns:
         A MagicMock with spec=NodeSchemaAPI and the given property values.
+
     """
     schema = MagicMock(spec=NodeSchemaAPI)
     schema.kind = kind
@@ -50,6 +51,7 @@ def _make_attr(
 
     Returns:
         A plain MagicMock with the given property values.
+
     """
     attr = MagicMock()
     attr.name = name
@@ -71,6 +73,7 @@ def _make_rel(name: str, peer: str, cardinality: str = "one", optional: bool = T
 
     Returns:
         A plain MagicMock with the given property values.
+
     """
     rel = MagicMock()
     rel.name = name
@@ -207,6 +210,7 @@ def _make_full_schema(
 
     Returns:
         A MagicMock configured with all schema_show-required fields.
+
     """
     schema = MagicMock()
     schema.kind = kind
