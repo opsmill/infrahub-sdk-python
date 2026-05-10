@@ -490,6 +490,99 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         assert output == expected_console
 
 
+@mock.patch(
+    "infrahub_sdk.ctl.schema.get_node",
+    return_value={"kind": "DcimGenericDevice", "include_in_menu": False},
+)
+async def test_display_schema_load_errors_details_extensions_top_level(mock_get_node: MagicMock) -> None:
+    """Validate error rendering when the failing path is inside an extensions block at field level."""
+    error = {
+        "detail": [
+            {
+                "type": "extra_forbidden",
+                "loc": ["body", "schemas", 0, "extensions", "generics", 0, "include_in_menu"],
+                "msg": "Extra inputs are not permitted",
+                "input": False,
+            },
+        ]
+    }
+
+    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+        display_schema_load_errors(response=error, schemas_data=[])
+        mock_get_node.assert_called_once()
+        output = console.file.getvalue()
+        expected_console = """Unable to load the schema:
+  Node: DcimGenericDevice (extensions/generics) | include_in_menu (False) | Extra inputs are not permitted (extra_forbidden)
+"""
+        assert output == expected_console
+
+
+@mock.patch(
+    "infrahub_sdk.ctl.schema.get_node",
+    return_value={
+        "kind": "DcimGenericDevice",
+        "attributes": [{"name": "speed", "kind": "Number", "min_value": 0}],
+    },
+)
+async def test_display_schema_load_errors_details_extensions_nested_attribute(mock_get_node: MagicMock) -> None:
+    """Validate error rendering for a nested attribute error inside an extensions block."""
+    error = {
+        "detail": [
+            {
+                "type": "extra_forbidden",
+                "loc": ["body", "schemas", 0, "extensions", "generics", 0, "attributes", "min_value"],
+                "msg": "Extra inputs are not permitted",
+                "input": 0,
+            },
+        ]
+    }
+
+    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+        display_schema_load_errors(response=error, schemas_data=[])
+        mock_get_node.assert_called_once()
+        output = console.file.getvalue()
+        expected_console = """Unable to load the schema:
+  Node: DcimGenericDevice (extensions/generics) | Attribute: speed (0) | Extra inputs are not permitted (extra_forbidden)
+"""
+        assert output == expected_console
+
+
+async def test_display_schema_load_errors_skips_unknown_path_shapes() -> None:
+    """Unknown or malformed loc_path shapes are skipped silently, never crash the renderer."""
+    error = {
+        "detail": [
+            # Wrong root prefix
+            {"type": "value_error", "loc": ["body", "headers", "x-test"], "msg": "bad", "input": "x"},
+            # schema_index is not an int
+            {
+                "type": "value_error",
+                "loc": ["body", "schemas", "not-an-int", "nodes", 0, "name"],
+                "msg": "bad",
+                "input": "x",
+            },
+            # Unknown container
+            {
+                "type": "value_error",
+                "loc": ["body", "schemas", 0, "wat", 0, "name"],
+                "msg": "bad",
+                "input": "x",
+            },
+            # Extensions path with non-int node index — was the original crash
+            {
+                "type": "value_error",
+                "loc": ["body", "schemas", 0, "extensions", "generics", "include_in_menu"],
+                "msg": "bad",
+                "input": "x",
+            },
+        ]
+    }
+
+    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+        display_schema_load_errors(response=error, schemas_data=[])
+        output = console.file.getvalue()
+        assert output == "Unable to load the schema:\n"
+
+
 def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols() -> None:
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTagSync) == "BuiltinTag"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTag) == "BuiltinTag"
