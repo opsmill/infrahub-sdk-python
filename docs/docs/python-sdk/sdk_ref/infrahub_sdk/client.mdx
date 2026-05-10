@@ -241,6 +241,10 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 **Raises:**
 
 - `GraphQLError`: When the GraphQL response contains errors.
+- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `AuthenticationError`: If the server returns a 401 or 403 response.
+- `URLNotFoundError`: If the server returns a 404 response.
+- `Error`: If the response is unexpectedly missing.
 
 **Returns:**
 
@@ -286,6 +290,10 @@ Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
 
+**Raises:**
+
+- `ValueError`: If ``from_time`` is later than ``to_time``.
+
 #### `allocate_next_ip_address`
 
 ```python
@@ -323,6 +331,10 @@ Allocate a new IP address by using the provided resource pool.
 **Returns:**
 
 - Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
 #### `allocate_next_ip_prefix`
@@ -363,6 +375,10 @@ Allocate a new IP prefix by using the provided resource pool.
 **Returns:**
 
 - Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
 #### `create_batch`
@@ -524,6 +540,10 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 **Raises:**
 
 - `GraphQLError`: When the GraphQL response contains errors.
+- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `AuthenticationError`: If the server returns a 401 or 403 response.
+- `URLNotFoundError`: If the server returns a 404 response.
+- `Error`: If the response is unexpectedly missing.
 
 **Returns:**
 
@@ -676,6 +696,10 @@ Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
 
+**Raises:**
+
+- `ValueError`: If ``from_time`` is later than ``to_time``.
+
 #### `allocate_next_ip_address`
 
 ```python
@@ -713,6 +737,10 @@ Allocate a new IP address by using the provided resource pool.
 **Returns:**
 
 - Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
 #### `allocate_next_ip_prefix`
@@ -753,6 +781,10 @@ Allocate a new IP prefix by using the provided resource pool.
 **Returns:**
 
 - Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
 #### `repository_update_commit`

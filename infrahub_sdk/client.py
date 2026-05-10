@@ -956,6 +956,10 @@ class InfrahubClient(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            ServerNotReachableError: If the server is not reachable after exhausting retries.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            URLNotFoundError: If the server returns a 404 response.
+            Error: If the response is unexpectedly missing.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
@@ -1125,7 +1129,13 @@ class InfrahubClient(BaseClient):
     async def _request_multipart(
         self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
     ) -> httpx.Response:
-        """Execute a multipart HTTP POST request."""
+        """Execute a multipart HTTP POST request.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
@@ -1148,8 +1158,8 @@ class InfrahubClient(BaseClient):
         """Execute a HTTP POST with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         await self.login()
@@ -1171,8 +1181,8 @@ class InfrahubClient(BaseClient):
         """Execute a HTTP GET with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         await self.login()
@@ -1198,8 +1208,8 @@ class InfrahubClient(BaseClient):
         Use this for downloading large files without loading into memory.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         await self.login()
@@ -1455,6 +1465,10 @@ class InfrahubClient(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
+
+        Raises:
+            ValueError: If ``from_time`` is later than ``to_time``.
+
         """
         query = get_diff_tree_query()
         input_data = {"branch_name": branch}
@@ -1554,6 +1568,9 @@ class InfrahubClient(BaseClient):
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
 
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPAddressPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -1638,6 +1655,9 @@ class InfrahubClient(BaseClient):
 
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
+
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
@@ -1870,6 +1890,10 @@ class InfrahubClientSync(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            ServerNotReachableError: If the server is not reachable after exhausting retries.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            URLNotFoundError: If the server returns a 404 response.
+            Error: If the response is unexpectedly missing.
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
@@ -2037,7 +2061,13 @@ class InfrahubClientSync(BaseClient):
     def _request_multipart(
         self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
     ) -> httpx.Response:
-        """Execute a multipart HTTP POST request."""
+        """Execute a multipart HTTP POST request.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             try:
                 response = client.post(url=url, headers=headers, timeout=timeout, files=files)
@@ -2769,6 +2799,10 @@ class InfrahubClientSync(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
+
+        Raises:
+            ValueError: If ``from_time`` is later than ``to_time``.
+
         """
         query = get_diff_tree_query()
         input_data = {"branch_name": branch}
@@ -2868,6 +2902,9 @@ class InfrahubClientSync(BaseClient):
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
 
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPAddressPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -2953,6 +2990,9 @@ class InfrahubClientSync(BaseClient):
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
 
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -2996,8 +3036,8 @@ class InfrahubClientSync(BaseClient):
         """Execute a HTTP GET with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         self.login()
@@ -3023,8 +3063,8 @@ class InfrahubClientSync(BaseClient):
         Use this for downloading large files without loading into memory.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         self.login()
@@ -3055,8 +3095,8 @@ class InfrahubClientSync(BaseClient):
         """Execute a HTTP POST with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
         self.login()
