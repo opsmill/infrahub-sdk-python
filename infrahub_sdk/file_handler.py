@@ -36,6 +36,7 @@ def sha1_of_source(source: bytes | Path | BinaryIO) -> str:
 
     Raises:
         TypeError: If ``source`` is not one of the supported types.
+
     """
     hasher = hashlib.sha1(usedforsecurity=False)
 

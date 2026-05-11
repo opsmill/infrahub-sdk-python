@@ -822,6 +822,7 @@ class InfrahubNode(InfrahubNodeBase):
             >>> bytes_written = await contract.download_file(
             ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
             ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -864,6 +865,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -911,6 +913,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1775,6 +1778,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             >>> bytes_written = contract.download_file(
             ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
             ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1817,6 +1821,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
@@ -1864,6 +1869,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
 
