@@ -101,15 +101,17 @@ def _render_schema_error(
     )
     path_suffix = f" (extensions/{container})" if is_extension else ""
     input_str = error.get("input")
+    err_msg = error.get("msg", "No error message")
+    err_type = error.get("type", "unknown")
 
     if len(tail) == 1:
         loc_type = tail[0]
-        error_message = f"{loc_type} ({input_str}) | {error['msg']} ({error['type']})"
+        error_message = f"{loc_type} ({input_str}) | {err_msg} ({err_type})"
     elif len(tail) > 1:
         loc_type = tail[0]
         attribute = tail[1]
         input_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
-        error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {error['msg']} ({error['type']})"
+        error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {err_msg} ({err_type})"
     else:
         return
 
