@@ -94,6 +94,7 @@ def _render_schema_error(
         output.print("Node data not found.")
         return
 
+    # Extensions reference an existing node by `kind`; new top-level nodes are identified by `namespace+name`.
     node_label = (
         (node.get("kind") or node.get("name") or "")
         if is_extension
@@ -105,12 +106,16 @@ def _render_schema_error(
     err_type = error.get("type", "unknown")
 
     if len(tail) == 1:
+        # Error on a direct field of the node (e.g. `name`, `namespace`).
         loc_type = tail[0]
         error_message = f"{loc_type} ({input_str}) | {err_msg} ({err_type})"
     elif len(tail) > 1:
+        # Error nested inside a collection (e.g. attributes[2].kind, relationships[0].peer).
+        # loc_type is the collection name; attribute is either its index or the failing field name.
         loc_type = tail[0]
         attribute = tail[1]
         input_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
+        # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
         error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {err_msg} ({err_type})"
     else:
         return
@@ -124,7 +129,9 @@ def _resolve_attribute_label(error_data: list[dict[str, Any]], attribute: Any) -
             if data.get(attribute) is not None:
                 return data.get("name", None)
         return None
-    return error_data[attribute].get("name", None)
+    if isinstance(attribute, int) and 0 <= attribute < len(error_data):
+        return error_data[attribute].get("name", None)
+    return None
 
 
 def handle_non_detail_errors(response: dict[str, Any], output: Console | None = None) -> None:
