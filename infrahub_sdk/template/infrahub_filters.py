@@ -42,7 +42,13 @@ class InfrahubFilters:
         return self._client
 
     async def artifact_content(self, storage_id: str) -> str:
-        """Retrieve artifact content by storage_id."""
+        """Retrieve artifact content by storage_id.
+
+        Raises:
+            JinjaFilterError: If ``storage_id`` is missing/empty, the request fails authentication,
+                or content retrieval fails for another reason.
+
+        """
         client = self._require_client(filter_name="artifact_content")
         if storage_id is None:
             raise JinjaFilterError(
@@ -120,7 +126,12 @@ class InfrahubFilters:
         )
 
     async def file_object_content_by_hfid(self, hfid: str | list[str], kind: str = "") -> str:
-        """Retrieve file object content by Human-Friendly ID."""
+        """Retrieve file object content by Human-Friendly ID.
+
+        Raises:
+            JinjaFilterError: If ``kind`` is missing or ``hfid`` contains empty elements.
+
+        """
         client = self._require_client(filter_name="file_object_content_by_hfid")
         if not kind:
             raise JinjaFilterError(
@@ -144,7 +155,12 @@ class InfrahubFilters:
 
 
 def from_json(value: str) -> dict | list:
-    """Parse a JSON string into a Python dict or list."""
+    """Parse a JSON string into a Python dict or list.
+
+    Raises:
+        JinjaFilterError: If ``value`` is not valid JSON.
+
+    """
     if not value:
         return {}
     try:
@@ -154,7 +170,12 @@ def from_json(value: str) -> dict | list:
 
 
 def from_yaml(value: str) -> dict | list:
-    """Parse a YAML string into a Python dict or list."""
+    """Parse a YAML string into a Python dict or list.
+
+    Raises:
+        JinjaFilterError: If ``value`` is not valid YAML.
+
+    """
     if not value:
         return {}
     try:

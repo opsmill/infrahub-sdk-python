@@ -133,6 +133,9 @@ class RelationshipManager(RelationshipManagerBase):
         schema (RelationshipSchema): The schema of the relationship.
         data (Union[Any, dict]): Initial data for the relationships.
 
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
+
         """
         self.client = client
         self.node = node
@@ -198,7 +201,12 @@ class RelationshipManager(RelationshipManagerBase):
             pass
 
     def add(self, data: str | RelatedNode | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        Raises:
+            UninitializedError: If ``fetch()`` has not been called on the manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
@@ -255,6 +263,9 @@ class RelationshipManagerSync(RelationshipManagerBase):
         branch (str): The branch where the relationship resides.
         schema (RelationshipSchema): The schema of the relationship.
         data (Union[Any, dict]): Initial data for the relationships.
+
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
 
         """
         self.client = client
@@ -321,7 +332,12 @@ class RelationshipManagerSync(RelationshipManagerBase):
             pass
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        Raises:
+            UninitializedError: If ``fetch()`` has not been called on the manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)

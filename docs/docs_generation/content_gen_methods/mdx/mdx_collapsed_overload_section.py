@@ -48,6 +48,10 @@ class CollapsedOverloadSection(ASection):
 
         Selects the overload with the most parameters as *primary*.
         On ties, the first in source order wins.
+
+        Raises:
+            ValueError: If ``sections`` is empty.
+
         """
         if not sections:
             raise ValueError("Cannot create CollapsedOverloadSection from an empty list")

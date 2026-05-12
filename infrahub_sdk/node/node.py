@@ -734,7 +734,12 @@ class InfrahubNode(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -1416,6 +1421,9 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             list[InfrahubNode]: The allocated nodes.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
@@ -1475,6 +1483,9 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -1524,11 +1535,15 @@ class InfrahubNode(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     async def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
         Examples:
             name__value
             module.object.value
+
+        Raises:
+            ValueError: If ``key`` references an unknown attribute or relationship,
+                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:
@@ -1693,7 +1708,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -2369,6 +2389,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             list[InfrahubNodeSync]: The allocated nodes.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
@@ -2428,6 +2451,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -2477,11 +2503,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
         Examples:
             name__value
             module.object.value
+
+        Raises:
+            ValueError: If ``key`` references an unknown attribute or relationship,
+                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:

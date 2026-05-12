@@ -259,6 +259,10 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - list\[InfrahubNode]: The allocated nodes.
 
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -271,18 +275,27 @@ Fetch the utilization of each resource for the pool.
 
 - list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_flat_value`
 
 ```python
 get_flat_value(self, key: str, separator: str = '__') -> Any
 ```
 
-Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
 **Examples:**
 
 name__value
 module.object.value
+
+**Raises:**
+
+- `ValueError`: If ``key`` references an unknown attribute or relationship,
+or if a referenced relationship is not of cardinality ``ONE``.
 
 #### `extract`
 
@@ -544,6 +557,10 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - list\[InfrahubNodeSync]: The allocated nodes.
 
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -556,18 +573,27 @@ Fetch the utilization of each resource for the pool.
 
 - list\[dict\[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_flat_value`
 
 ```python
 get_flat_value(self, key: str, separator: str = '__') -> Any
 ```
 
-Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
 **Examples:**
 
 name__value
 module.object.value
+
+**Raises:**
+
+- `ValueError`: If ``key`` references an unknown attribute or relationship,
+or if a referenced relationship is not of cardinality ``ONE``.
 
 #### `extract`
 

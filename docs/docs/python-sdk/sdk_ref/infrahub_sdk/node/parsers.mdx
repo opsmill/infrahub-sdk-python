@@ -14,3 +14,7 @@ parse_human_friendly_id(hfid: str | list[str]) -> tuple[str | None, list[str]]
 ```
 
 Parse a human-friendly ID into a kind and an identifier.
+
+**Raises:**
+
+- `ValueError`: If ``hfid`` is neither a string nor a list of strings.
