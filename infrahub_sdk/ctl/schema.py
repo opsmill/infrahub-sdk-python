@@ -4,7 +4,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import typer
 import yaml
@@ -148,11 +148,14 @@ def valid_error_path(loc_path: list[Any]) -> bool:
     return loc_path[3] in {"nodes", "generics"} and isinstance(loc_path[4], int)
 
 
+SchemaContainer = Literal["nodes", "generics", "relationships"]
+
+
 def get_node(
     schemas_data: list[SchemaFile],
     schema_index: int,
     node_index: int,
-    container: str = "nodes",
+    container: SchemaContainer = "nodes",
     is_extension: bool = False,
 ) -> dict | None:
     if schema_index >= len(schemas_data):
