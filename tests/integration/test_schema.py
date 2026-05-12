@@ -1,4 +1,3 @@
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -77,10 +76,10 @@ class TestInfrahubSchemaLoadErrorRendering(TestInfrahubDockerClient):
         assert "detail" in response.errors
 
         schemas_data = [SchemaFile(location=Path("broken.yml"), content=broken_schema)]
-        buffer = StringIO()
-        output = Console(file=buffer, width=1000, force_terminal=False)
-        display_schema_load_errors(response=response.errors, schemas_data=schemas_data, output=output)
-        rendered = buffer.getvalue()
+        console = Console(width=1000)
+        with console.capture() as capture:
+            display_schema_load_errors(response=response.errors, schemas_data=schemas_data, output=console)
+        rendered = capture.get()
 
         assert "Unable to load the schema" in rendered
         assert "BuiltinTag" in rendered
@@ -107,10 +106,10 @@ class TestInfrahubSchemaLoadErrorRendering(TestInfrahubDockerClient):
         assert "detail" in response.errors
 
         schemas_data = [SchemaFile(location=Path("broken.yml"), content=broken_schema)]
-        buffer = StringIO()
-        output = Console(file=buffer, width=1000, force_terminal=False)
-        display_schema_load_errors(response=response.errors, schemas_data=schemas_data, output=output)
-        rendered = buffer.getvalue()
+        console = Console(width=1000)
+        with console.capture() as capture:
+            display_schema_load_errors(response=response.errors, schemas_data=schemas_data, output=console)
+        rendered = capture.get()
 
         assert "Unable to load the schema" in rendered
         assert "BuiltinTag" in rendered

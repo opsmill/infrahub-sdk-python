@@ -24,6 +24,8 @@ from .utils import load_yamlfile_from_disk_and_exit
 if TYPE_CHECKING:
     from .. import InfrahubClient
 
+SchemaContainer = Literal["nodes", "generics", "relationships"]
+
 app = AsyncTyper()
 console = Console()
 
@@ -155,9 +157,6 @@ def valid_error_path(loc_path: list[Any]) -> bool:
             and isinstance(loc_path[5], int)
         )
     return loc_path[3] in {"nodes", "generics"} and isinstance(loc_path[4], int)
-
-
-SchemaContainer = Literal["nodes", "generics", "relationships"]
 
 
 def get_node(
