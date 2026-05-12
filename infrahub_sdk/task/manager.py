@@ -291,7 +291,12 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
     ) -> list[Task]:
-        """Process queries without parallel mode."""
+        """Process queries without parallel mode.
+
+        Raises:
+            ValueError: If the underlying GraphQL query did not return a count.
+
+        """
         tasks = []
         has_remaining_items = True
         page_number = 1
@@ -526,7 +531,12 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
     ) -> list[Task]:
-        """Process queries without parallel mode."""
+        """Process queries without parallel mode.
+
+        Raises:
+            ValueError: If the underlying GraphQL query did not return a count.
+
+        """
         tasks = []
         has_remaining_items = True
         page_number = 1

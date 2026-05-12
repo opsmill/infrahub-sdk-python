@@ -20,6 +20,10 @@ def strip_typename_from_selection_set(selection_set: SelectionSetNode | None) ->
 
     This function removes all __typename fields from the selection set, allowing
     code generation to proceed without errors.
+
+    Raises:
+        TypeError: If the selection set contains an unexpected GraphQL node type.
+
     """
     if selection_set is None:
         return None

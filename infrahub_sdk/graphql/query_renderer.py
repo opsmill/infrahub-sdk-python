@@ -37,7 +37,10 @@ def _collect_spread_names(node: ASTNode) -> list[str]:
 def build_fragment_index(fragment_files: list[str]) -> dict[str, FragmentDefinitionNode]:
     """Parse all fragment file contents and return a mapping from fragment name to its AST node.
 
-    Raises DuplicateFragmentError if the same fragment name appears more than once.
+    Raises:
+        QuerySyntaxError: A fragment file contains invalid GraphQL syntax.
+        DuplicateFragmentError: The same fragment name appears more than once.
+
     """
     index: dict[str, FragmentDefinitionNode] = {}
     for content in fragment_files:
@@ -61,8 +64,11 @@ def collect_required_fragments(
     """Walk query_doc and collect all fragment names required (transitively).
 
     Returns a topologically ordered list of unique fragment names.
-    Raises FragmentNotFoundError for any unresolved name.
-    Raises CircularFragmentError for cyclic dependencies.
+
+    Raises:
+        FragmentNotFoundError: An unresolved fragment name was referenced.
+        CircularFragmentError: A cyclic dependency was detected among fragments.
+
     """
     # Collect spreads only from operation definitions — any fragment definitions already
     # present in the query document are self-contained and do not need external resolution.
