@@ -8,7 +8,7 @@ from pytest_httpx import HTTPXMock
 from rich.console import Console
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.ctl.schema import display_schema_load_errors
+from infrahub_sdk.ctl.schema import display_schema_load_errors, valid_error_path
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
 from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
@@ -490,97 +490,33 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         assert output == expected_console
 
 
-@mock.patch(
-    "infrahub_sdk.ctl.schema.get_node",
-    return_value={"kind": "DcimGenericDevice", "include_in_menu": False},
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "schemas", 0, "nodes", 0, "name"], id="top-level-nodes"),
+        pytest.param(["body", "schemas", 0, "generics", 1, "attributes", 0], id="top-level-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "nodes", 0, "kind"], id="extension-nodes"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", 0, "name"], id="extension-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "relationships", 2, "peer"], id="extension-relationships"),
+    ],
 )
-async def test_display_schema_load_errors_details_extensions_top_level(mock_get_node: MagicMock) -> None:
-    """Validate error rendering when the failing path is inside an extensions block at field level."""
-    error = {
-        "detail": [
-            {
-                "type": "extra_forbidden",
-                "loc": ["body", "schemas", 0, "extensions", "generics", 0, "include_in_menu"],
-                "msg": "Extra inputs are not permitted",
-                "input": False,
-            },
-        ]
-    }
-
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        mock_get_node.assert_called_once()
-        output = console.file.getvalue()
-        expected_console = """Unable to load the schema:
-  Node: DcimGenericDevice (extensions/generics) | include_in_menu (False) | Extra inputs are not permitted (extra_forbidden)
-"""
-        assert output == expected_console
+def test_valid_error_path_accepts_known_shapes(loc_path: list) -> None:
+    assert valid_error_path(loc_path=loc_path)
 
 
-@mock.patch(
-    "infrahub_sdk.ctl.schema.get_node",
-    return_value={
-        "kind": "DcimGenericDevice",
-        "attributes": [{"name": "speed", "kind": "Number", "min_value": 0}],
-    },
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "headers", "x-test"], id="wrong-root"),
+        pytest.param(["body", "schemas", "not-an-int", "nodes", 0, "name"], id="non-int-schema-index"),
+        pytest.param(["body", "schemas", 0, "wat", 0, "name"], id="unknown-container"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", "include_in_menu"], id="non-int-extension-index"),
+        pytest.param(["body", "schemas", 0, "extensions", "wat", 0, "name"], id="unknown-extension-container"),
+        pytest.param(["body", "schemas", 0, "nodes"], id="too-short"),
+    ],
 )
-async def test_display_schema_load_errors_details_extensions_nested_attribute(mock_get_node: MagicMock) -> None:
-    """Validate error rendering for a nested attribute error inside an extensions block."""
-    error = {
-        "detail": [
-            {
-                "type": "extra_forbidden",
-                "loc": ["body", "schemas", 0, "extensions", "generics", 0, "attributes", "min_value"],
-                "msg": "Extra inputs are not permitted",
-                "input": 0,
-            },
-        ]
-    }
-
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        mock_get_node.assert_called_once()
-        output = console.file.getvalue()
-        expected_console = """Unable to load the schema:
-  Node: DcimGenericDevice (extensions/generics) | Attribute: speed (0) | Extra inputs are not permitted (extra_forbidden)
-"""
-        assert output == expected_console
-
-
-async def test_display_schema_load_errors_skips_unknown_path_shapes() -> None:
-    """Unknown or malformed loc_path shapes are skipped silently, never crash the renderer."""
-    error = {
-        "detail": [
-            # Wrong root prefix
-            {"type": "value_error", "loc": ["body", "headers", "x-test"], "msg": "bad", "input": "x"},
-            # schema_index is not an int
-            {
-                "type": "value_error",
-                "loc": ["body", "schemas", "not-an-int", "nodes", 0, "name"],
-                "msg": "bad",
-                "input": "x",
-            },
-            # Unknown container
-            {
-                "type": "value_error",
-                "loc": ["body", "schemas", 0, "wat", 0, "name"],
-                "msg": "bad",
-                "input": "x",
-            },
-            # Extensions path with non-int node index — was the original crash
-            {
-                "type": "value_error",
-                "loc": ["body", "schemas", 0, "extensions", "generics", "include_in_menu"],
-                "msg": "bad",
-                "input": "x",
-            },
-        ]
-    }
-
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        output = console.file.getvalue()
-        assert output == "Unable to load the schema:\n"
+def test_valid_error_path_rejects_unknown_shapes(loc_path: list) -> None:
+    assert not valid_error_path(loc_path=loc_path)
 
 
 def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols() -> None:

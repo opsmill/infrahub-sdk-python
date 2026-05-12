@@ -49,20 +49,25 @@ def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[Schem
         raise typer.Exit(1)
 
 
-def display_schema_load_errors(response: dict[str, Any], schemas_data: list[SchemaFile]) -> None:
-    console.print("[red]Unable to load the schema:")
+def display_schema_load_errors(
+    response: dict[str, Any], schemas_data: list[SchemaFile], output: Console | None = None
+) -> None:
+    out = output or console
+    out.print("[red]Unable to load the schema:")
     if "detail" not in response:
-        handle_non_detail_errors(response=response)
+        handle_non_detail_errors(response=response, output=out)
         return
 
     for error in response["detail"]:
         loc_path = error.get("loc", [])
         if not valid_error_path(loc_path=loc_path):
             continue
-        _render_schema_error(error=error, loc_path=loc_path, schemas_data=schemas_data)
+        _render_schema_error(error=error, loc_path=loc_path, schemas_data=schemas_data, output=out)
 
 
-def _render_schema_error(error: dict[str, Any], loc_path: list[Any], schemas_data: list[SchemaFile]) -> None:
+def _render_schema_error(
+    error: dict[str, Any], loc_path: list[Any], schemas_data: list[SchemaFile], output: Console
+) -> None:
     # Two layout shapes for loc_path. tail is the part after the node index.
     # Top-level: body / schemas / <si> / (nodes|generics) / <ni> / [<subtype> / <attr>]
     # Extensions: body / schemas / <si> / extensions / (nodes|generics|relationships) / <ni> / [<subtype> / <attr>]
@@ -86,7 +91,7 @@ def _render_schema_error(error: dict[str, Any], loc_path: list[Any], schemas_dat
     )
 
     if not node:
-        console.print("Node data not found.")
+        output.print("Node data not found.")
         return
 
     node_label = (
@@ -108,7 +113,7 @@ def _render_schema_error(error: dict[str, Any], loc_path: list[Any], schemas_dat
     else:
         return
 
-    console.print(f"  Node: {node_label}{path_suffix} | {error_message}", markup=False)
+    output.print(f"  Node: {node_label}{path_suffix} | {error_message}", markup=False)
 
 
 def _resolve_attribute_label(error_data: list[dict[str, Any]], attribute: Any) -> str | None:
@@ -120,14 +125,15 @@ def _resolve_attribute_label(error_data: list[dict[str, Any]], attribute: Any) -
     return error_data[attribute].get("name", None)
 
 
-def handle_non_detail_errors(response: dict[str, Any]) -> None:
+def handle_non_detail_errors(response: dict[str, Any], output: Console | None = None) -> None:
+    out = output or console
     if "error" in response:
-        console.print(f"  {response.get('error')}")
+        out.print(f"  {response.get('error')}")
     elif "errors" in response:
         for error in response["errors"]:
-            console.print(f"  {error.get('message')}")
+            out.print(f"  {error.get('message')}")
     else:
-        console.print(f"  '{response}'")
+        out.print(f"  '{response}'")
 
 
 def valid_error_path(loc_path: list[Any]) -> bool:
