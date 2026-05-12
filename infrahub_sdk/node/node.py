@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
 from ..constants import InfrahubClientMode
-from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
+from ..exceptions import (
+    FeatureNotSupportedError,
+    NodeNotFoundError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    ValidationError,
+)
 from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
@@ -973,6 +979,24 @@ class InfrahubNode(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        if allow_upsert and not self.id:
+            for hfid_path in self._schema.human_friendly_id or []:
+                attr_name = hfid_path.split("__")[0]
+                try:
+                    attr = self._get_attribute(attr_name)
+                except ResourceNotDefinedError:
+                    continue
+                if attr.is_from_pool_attribute():
+                    raise ValidationError(
+                        identifier=attr_name,
+                        message=(
+                            f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
+                            "this node's human-friendly identifier. Upsert cannot resolve the HFID "
+                            "without a concrete value. Use an explicit id, or create the node first "
+                            "and update it in a separate call."
+                        ),
+                    )
+
         if self._existing is False or allow_upsert is True:
             await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -1944,6 +1968,24 @@ class InfrahubNodeSync(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        if allow_upsert and not self.id:
+            for hfid_path in self._schema.human_friendly_id or []:
+                attr_name = hfid_path.split("__")[0]
+                try:
+                    attr = self._get_attribute(attr_name)
+                except ResourceNotDefinedError:
+                    continue
+                if attr.is_from_pool_attribute():
+                    raise ValidationError(
+                        identifier=attr_name,
+                        message=(
+                            f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
+                            "this node's human-friendly identifier. Upsert cannot resolve the HFID "
+                            "without a concrete value. Use an explicit id, or create the node first "
+                            "and update it in a separate call."
+                        ),
+                    )
+
         if self._existing is False or allow_upsert is True:
             self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:

@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import pytest
+
+from infrahub_sdk.exceptions import ValidationError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
     from infrahub_sdk.schema import NodeSchemaAPI
 
@@ -201,3 +206,83 @@ async def test_attribute_with_pool_node_generates_mutation_query(
     mutation_query = vlan._generate_mutation_query()
 
     assert mutation_query["object"]["vlan_id"] == {"value": None}
+
+
+UPSERT_MOCK_RESPONSE = {
+    "data": {
+        "InfraVLANUpsert": {
+            "ok": True,
+            "object": {"id": "mock-vlan-uuid", "vlan_id": {"value": 100}},
+        }
+    }
+}
+
+
+@pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
+async def test_save_upsert_no_error_before_fix(
+    client: InfrahubClient,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """FAILS before the guard is added: ValidationError must be raised when HFID attr is NumberPool-sourced."""
+    httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+
+    with pytest.raises(ValidationError, match="vlan_id"):
+        await node.save(allow_upsert=True)
+
+
+async def test_save_upsert_raises_when_numberpool_attr_in_hfid(
+    client: InfrahubClient,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+) -> None:
+    """save(allow_upsert=True) raises ValidationError naming the pool-sourced HFID attribute."""
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+
+    with pytest.raises(ValidationError, match="vlan_id"):
+        await node.save(allow_upsert=True)
+
+
+async def test_save_upsert_proceeds_when_explicit_id_set(
+    client: InfrahubClient,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Guard is bypassed when an explicit node id is already set."""
+    httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+    node.id = "existing-node-uuid"
+
+    await node.save(allow_upsert=True)
+
+    assert node.id == "mock-vlan-uuid"
+
+
+async def test_save_upsert_proceeds_when_numberpool_attr_not_in_hfid(
+    client: InfrahubClient,
+    vlan_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Guard does not fire when the pool-sourced attribute is not part of the HFID."""
+    httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+
+    await node.save(allow_upsert=True)
+
+    assert node.id == "mock-vlan-uuid"
