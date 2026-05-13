@@ -186,7 +186,9 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
 
     async def all(self) -> dict[str, BranchData]:
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
-        data = await self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
+        data = await self.client.execute_graphql(
+            query=query.render(), tracker="query-branch-all", operation_name=query.name
+        )
 
         return {branch["name"]: BranchData(**branch) for branch in data["Branch"]}
 
@@ -196,6 +198,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
             query=query.render(),
             variables={"branch_name": branch_name},
             tracker="query-branch",
+            operation_name=query.name,
         )
 
         if not data["Branch"]:
@@ -226,7 +229,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
 
     def all(self) -> dict[str, BranchData]:
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
-        data = self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
+        data = self.client.execute_graphql(query=query.render(), tracker="query-branch-all", operation_name=query.name)
 
         return {branch["name"]: BranchData(**branch) for branch in data["Branch"]}
 
@@ -236,6 +239,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
             query=query.render(),
             variables={"branch_name": branch_name},
             tracker="query-branch",
+            operation_name=query.name,
         )
 
         if not data["Branch"]:
