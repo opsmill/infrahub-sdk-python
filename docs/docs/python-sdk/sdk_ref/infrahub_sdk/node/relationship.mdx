@@ -65,6 +65,10 @@ add(self, data: str | RelatedNode | dict) -> None
 
 Add a new peer to this relationship.
 
+**Raises:**
+
+- `UninitializedError`: If ``fetch()`` has not been called on the manager yet.
+
 #### `extend`
 
 ```python
@@ -98,6 +102,10 @@ add(self, data: str | RelatedNodeSync | dict) -> None
 ```
 
 Add a new peer to this relationship.
+
+**Raises:**
+
+- `UninitializedError`: If ``fetch()`` has not been called on the manager yet.
 
 #### `extend`
 

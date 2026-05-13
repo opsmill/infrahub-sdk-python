@@ -143,6 +143,10 @@ class ConfigBase(BaseSettings):
         we prioritize the explicitly provided method. If we can determine which fields
         were explicitly set, we use that; otherwise, we prefer password auth when both
         username and password are present.
+
+        Raises:
+            ValueError: If both token and username/password authentication are explicitly configured.
+
         """
         # Extract tracking information about explicitly provided fields
         explicit_fields = values.pop("_explicit_fields", set())

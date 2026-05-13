@@ -580,6 +580,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         Returns:
             The GraphQL schema as a string.
 
+        Raises:
+            ValueError: If the server returns a non-200 response when fetching the schema.
+
         """
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/schema.graphql?branch={branch}"
@@ -655,6 +658,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             MainSchemaTypes: The schema object.
+
+        Raises:
+            SchemaNotFoundError: If the requested schema kind is not present on the branch.
 
         """
         branch = branch or self.client.default_branch
@@ -851,6 +857,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             The GraphQL schema as a string.
+
+        Raises:
+            ValueError: If the server returns a non-200 response when fetching the schema.
 
         """
         branch = branch or self.client.default_branch

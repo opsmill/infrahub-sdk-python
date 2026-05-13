@@ -22,7 +22,12 @@ def _extract_content_type(response: httpx.Response) -> str:
 class ObjectStoreBase:
     @staticmethod
     def _validate_text_content(response: httpx.Response, identifier: str) -> str:
-        """Validate that a file response has a text-based content-type and return the text."""
+        """Validate that a file response has a text-based content-type and return the text.
+
+        Raises:
+            ValueError: If the response content-type is not text-based.
+
+        """
         content_type = _extract_content_type(response)
         if not content_type.startswith("text/") and content_type not in ALLOWED_TEXT_CONTENT_TYPES:
             raise ValueError(
@@ -81,7 +86,14 @@ class ObjectStore(ObjectStoreBase):
         return resp.json()
 
     async def _get_file(self, url: str, identifier: str, tracker: str | None = None) -> str:
-        """Fetch a file endpoint and validate that the response is text-based."""
+        """Fetch a file endpoint and validate that the response is text-based.
+
+        Raises:
+            ServerNotReachableError: If the Infrahub server is not reachable.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            HTTPStatusError: For other non-2xx HTTP responses.
+
+        """
         headers = copy.copy(self.client.headers or {})
         if self.client.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
@@ -169,7 +181,14 @@ class ObjectStoreSync(ObjectStoreBase):
         return resp.json()
 
     def _get_file(self, url: str, identifier: str, tracker: str | None = None) -> str:
-        """Fetch a file endpoint and validate that the response is text-based."""
+        """Fetch a file endpoint and validate that the response is text-based.
+
+        Raises:
+            ServerNotReachableError: If the Infrahub server is not reachable.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            HTTPStatusError: For other non-2xx HTTP responses.
+
+        """
         headers = copy.copy(self.client.headers or {})
         if self.client.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker

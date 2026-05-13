@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from copy import copy, deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
 from ..constants import InfrahubClientMode
 from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
-from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile
+from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
@@ -22,7 +23,9 @@ from .constants import (
     ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
+    MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
+    UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
@@ -35,6 +38,32 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
+
+
+@dataclass(frozen=True)
+class UploadResult:
+    """Outcome of an idempotent upload attempt.
+
+    Returned by :meth:`InfrahubNode.upload_if_changed` and its sync twin.
+    ``was_uploaded`` tells the caller whether a network transfer actually
+    happened; ``checksum`` carries the SHA-1 of the content held on the
+    server after the operation — on skip paths that is the server's
+    pre-existing value, on upload paths it is the locally-computed SHA-1
+    used as a proxy (which matches what a standard CoreFileObject server
+    stores, since the server computes SHA-1 of received bytes). ``None``
+    only when no server checksum was available (either the node was
+    unsaved and nothing was transferred, or the save returned no checksum
+    value).
+
+    The comparison used by ``upload_if_changed`` reads the node's
+    ``checksum`` attribute, which was populated when the node was
+    fetched via ``client.get(...)``. A server-side change to the file
+    between the fetch and the call will not be detected unless the
+    caller re-fetches the node first.
+    """
+
+    was_uploaded: bool
+    checksum: str | None
 
 
 class InfrahubNodeBase:
@@ -705,7 +734,12 @@ class InfrahubNode(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -742,7 +776,17 @@ class InfrahubNode(InfrahubNodeBase):
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
-    async def download_file(self, dest: Path | None = None) -> bytes | int:
+    @overload
+    async def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
+
+    @overload
+    async def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
+
+    async def download_file(
+        self,
+        dest: Path | None = None,
+        skip_if_unchanged: bool = False,
+    ) -> bytes | int:
         """Download the file content from this FileObject node.
 
         This method is only available for nodes that inherit from CoreFileObject.
@@ -753,14 +797,23 @@ class InfrahubNode(InfrahubNodeBase):
                   directly to this path (memory-efficient for large files) and the
                   number of bytes written will be returned. If not provided, the
                   file content will be returned as bytes.
+            skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
+                  ``dest`` (which must be provided) and compare against the
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
-            ValueError: If the node hasn't been saved yet or file not found.
+            ValueError: If the node hasn't been saved yet, file not found, or
+                  ``skip_if_unchanged=True`` was passed without a ``dest``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -770,13 +823,130 @@ class InfrahubNode(InfrahubNodeBase):
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
 
+            >>> # Skip download if local file already matches server checksum
+            >>> bytes_written = await contract.download_file(
+            ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
+            ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         if not self.id:
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
+        if skip_if_unchanged:
+            if dest is None:
+                raise ValueError("skip_if_unchanged requires dest to be provided")
+            if dest.exists() and dest.is_file():
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                    return 0
+
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
+
+    async def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
+
+        Args:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
+
+        """
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
+            raise ValueError(
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
+    async def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
+
+        Args:
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
+
+        Returns:
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
+
+        """
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            self.upload_from_bytes(content=source, name=resolved_name)
+
+        await self.save()
+
+        return UploadResult(was_uploaded=True, checksum=local_digest)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -1251,6 +1421,9 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             list[InfrahubNode]: The allocated nodes.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
@@ -1310,6 +1483,9 @@ class InfrahubNode(InfrahubNodeBase):
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -1359,11 +1535,15 @@ class InfrahubNode(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     async def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
         Examples:
             name__value
             module.object.value
+
+        Raises:
+            ValueError: If ``key`` references an unknown attribute or relationship,
+                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:
@@ -1528,7 +1708,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -1562,7 +1747,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
-    def download_file(self, dest: Path | None = None) -> bytes | int:
+    @overload
+    def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
+
+    @overload
+    def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
+
+    def download_file(
+        self,
+        dest: Path | None = None,
+        skip_if_unchanged: bool = False,
+    ) -> bytes | int:
         """Download the file content from this FileObject node.
 
         This method is only available for nodes that inherit from CoreFileObject.
@@ -1573,14 +1768,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
                   directly to this path (memory-efficient for large files) and the
                   number of bytes written will be returned. If not provided, the
                   file content will be returned as bytes.
+            skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
+                  ``dest`` (which must be provided) and compare against the
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
-            ValueError: If the node hasn't been saved yet or file not found.
+            ValueError: If the node hasn't been saved yet, file not found, or
+                  ``skip_if_unchanged=True`` was passed without a ``dest``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -1590,13 +1794,130 @@ class InfrahubNodeSync(InfrahubNodeBase):
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
 
+            >>> # Skip download if local file already matches server checksum
+            >>> bytes_written = contract.download_file(
+            ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
+            ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         if not self.id:
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
+        if skip_if_unchanged:
+            if dest is None:
+                raise ValueError("skip_if_unchanged requires dest to be provided")
+            if dest.exists() and dest.is_file():
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                    return 0
+
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
+
+    def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
+
+        Args:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
+
+        """
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
+            raise ValueError(
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
+    def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
+
+        Args:
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
+
+        Returns:
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
+
+        """
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            self.upload_from_bytes(content=source, name=resolved_name)
+
+        self.save()
+
+        return UploadResult(was_uploaded=True, checksum=local_digest)
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
         input_data = {"data": {"id": self.id}}
@@ -2068,6 +2389,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             list[InfrahubNodeSync]: The allocated nodes.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
@@ -2127,6 +2451,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
 
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -2176,11 +2503,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
 
         Examples:
             name__value
             module.object.value
+
+        Raises:
+            ValueError: If ``key`` references an unknown attribute or relationship,
+                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:

@@ -13,7 +13,12 @@ def _unescape_brackets(s: str) -> str:
 
 
 def _char_range_expand(char_range_str: str) -> list[str]:
-    """Expands a string of numbers or single-character letters."""
+    """Expands a string of numbers or single-character letters.
+
+    Raises:
+        ValueError: If the input contains non-alphanumeric characters that cannot be expanded.
+
+    """
     expanded_values: list[str] = []
     # Special case: if no dash and no comma, and multiple characters, error if not all alphanumeric
     if "," not in char_range_str and "-" not in char_range_str and len(char_range_str) > 1:

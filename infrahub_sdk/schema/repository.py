@@ -177,7 +177,10 @@ class InfrahubRepositoryFragmentConfig(InfrahubRepositoryConfigElement):
 
         If file_path is a .gql file, returns a single-element list.
         If file_path is a directory, returns one entry per .gql file found (sorted alphabetically).
-        Raises FragmentFileNotFoundError if file_path does not exist.
+
+        Raises:
+            FragmentFileNotFoundError: If ``file_path`` does not exist.
+
         """
         resolved = Path(f"{relative_path}/{self.file_path}")
         if not resolved.exists():

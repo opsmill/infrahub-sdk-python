@@ -135,7 +135,12 @@ def compare_lists(list1: list[Any], list2: list[Any]) -> tuple[list[Any], list[A
 
 def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     """Deep Merge Dictionary B into Dictionary A.
+
     Code is inspired by https://stackoverflow.com/a/7205107
+
+    Raises:
+        ValueError: If both dictionaries hold incompatible non-mergeable values for the same key.
+
     """
     if path is None:
         path = []
@@ -160,7 +165,13 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
 
 
 def str_to_bool(value: str | bool | int) -> bool:
-    """Convert a String to a Boolean"""
+    """Convert a String to a Boolean.
+
+    Raises:
+        TypeError: If ``value`` is not a string, boolean, or integer.
+        ValueError: If ``value`` is a string that doesn't map to a boolean.
+
+    """
     if isinstance(value, bool):
         return value
 
@@ -306,6 +317,10 @@ def write_to_file(path: Path, value: Any) -> bool:
     """Write a given value into a file and return if the operation was successful.
 
     If the file does not exist, the function will attempt to create it.
+
+    Raises:
+        FileExistsError: If ``path`` exists but is a directory.
+
     """
     if not path.exists():
         path.touch()
