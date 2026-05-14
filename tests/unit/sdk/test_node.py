@@ -91,13 +91,13 @@ async def test_method_sanity() -> None:
 
 @pytest.mark.parametrize("value", SAFE_GRAPHQL_VALUES)
 def test_validate_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert SAFE_VALUE.match(value)
 
 
 @pytest.mark.parametrize("value", UNSAFE_GRAPHQL_VALUES)
 def test_identify_unsafe_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert not SAFE_VALUE.match(value)
 
 
@@ -1391,7 +1391,7 @@ async def test_create_input_data(client: InfrahubClient, location_schema: NodeSc
 async def test_create_input_data_with_dropdown(
     client: InfrahubClient, location_schema_with_dropdown: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data including dropdown field"""
+    """Validate input data including dropdown field."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -1453,7 +1453,7 @@ async def test_update_input_data_existing_node_with_optional_relationship(
 async def test_create_input_data__with_relationships_02(
     client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data with variables that needs replacements"""
+    """Validate input data with variables that needs replacements."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK\n Airport"},

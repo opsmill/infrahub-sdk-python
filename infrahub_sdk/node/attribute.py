@@ -45,10 +45,12 @@ class Attribute:
     """Represents an attribute of a Node, including its schema, value, and properties."""
 
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
-        """Args:
-        name (str): The name of the attribute.
-        schema (AttributeSchema): The schema defining the attribute.
-        data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
+        """Initialize the attribute.
+
+        Args:
+            name (str): The name of the attribute.
+            schema (AttributeSchema): The schema defining the attribute.
+            data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
 
         """
         self.name = name

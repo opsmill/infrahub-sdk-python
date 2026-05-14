@@ -7,8 +7,10 @@ class NodeMetadata:
     """Represents metadata about a node (created_at, created_by, updated_at, updated_by)."""
 
     def __init__(self, data: dict | None = None) -> None:
-        """Args:
-        data: Data containing the metadata fields from the GraphQL response.
+        """Initialize the node metadata.
+
+        Args:
+            data: Data containing the metadata fields from the GraphQL response.
 
         """
         self.created_at: str | None = None
@@ -45,8 +47,10 @@ class RelationshipMetadata:
     """Represents metadata about a relationship edge (updated_at, updated_by)."""
 
     def __init__(self, data: dict | None = None) -> None:
-        """Args:
-        data: Data containing the metadata fields from the GraphQL response.
+        """Initialize the relationship metadata.
+
+        Args:
+            data: Data containing the metadata fields from the GraphQL response.
 
         """
         self.updated_at: str | None = None

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class InfrahubGroupContextBase:
-    """Base class for InfrahubGroupContext and InfrahubGroupContextSync"""
+    """Base class for InfrahubGroupContext and InfrahubGroupContextSync."""
 
     def __init__(self) -> None:
         self.related_node_ids: list[str] = []
@@ -52,7 +52,7 @@ class InfrahubGroupContextBase:
         self.branch = branch
 
     def _get_params_as_str(self) -> str:
-        """Convert the params in dict format, into a string"""
+        """Convert the params in dict format, into a string."""
         params_as_str: list[str] = []
         for key, value in self.params.items():
             params_as_str.append(f"{key}: {value!s}")
@@ -70,8 +70,9 @@ class InfrahubGroupContextBase:
         return group_name
 
     def _generate_group_description(self, schema: MainSchemaTypesAPI) -> str:
-        """Generate the description of the group from the params
-        and ensure it's not longer than the maximum length of the description field.
+        """Generate the description of the group from the params.
+
+        The result is truncated so it is not longer than the maximum length of the description field.
         """
         if not self.params:
             return ""
