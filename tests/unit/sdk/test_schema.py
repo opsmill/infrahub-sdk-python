@@ -8,7 +8,7 @@ from pytest_httpx import HTTPXMock
 from rich.console import Console
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.ctl.schema import display_schema_load_errors
+from infrahub_sdk.ctl.schema import display_schema_load_errors, valid_error_path
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
 from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
@@ -488,6 +488,35 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
   Node: SecurityTailscaleSSHRule | Attribute: check_period (10080) | Extra inputs are not permitted (extra_forbidden)
 """
         assert output == expected_console
+
+
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "schemas", 0, "nodes", 0, "name"], id="top-level-nodes"),
+        pytest.param(["body", "schemas", 0, "generics", 1, "attributes", 0], id="top-level-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "nodes", 0, "kind"], id="extension-nodes"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", 0, "name"], id="extension-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "relationships", 2, "peer"], id="extension-relationships"),
+    ],
+)
+def test_valid_error_path_accepts_known_shapes(loc_path: list) -> None:
+    assert valid_error_path(loc_path=loc_path)
+
+
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "headers", "x-test"], id="wrong-root"),
+        pytest.param(["body", "schemas", "not-an-int", "nodes", 0, "name"], id="non-int-schema-index"),
+        pytest.param(["body", "schemas", 0, "wat", 0, "name"], id="unknown-container"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", "include_in_menu"], id="non-int-extension-index"),
+        pytest.param(["body", "schemas", 0, "extensions", "wat", 0, "name"], id="unknown-extension-container"),
+        pytest.param(["body", "schemas", 0, "nodes"], id="too-short"),
+    ],
+)
+def test_valid_error_path_rejects_unknown_shapes(loc_path: list) -> None:
+    assert not valid_error_path(loc_path=loc_path)
 
 
 def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols() -> None:
