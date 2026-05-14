@@ -4,7 +4,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import typer
 import yaml
@@ -23,6 +23,8 @@ from .utils import load_yamlfile_from_disk_and_exit
 
 if TYPE_CHECKING:
     from .. import InfrahubClient
+
+SchemaContainer = Literal["nodes", "generics", "relationships"]
 
 app = AsyncTyper()
 console = Console()
@@ -49,73 +51,127 @@ def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[Schem
         raise typer.Exit(1)
 
 
-def display_schema_load_errors(response: dict[str, Any], schemas_data: list[SchemaFile]) -> None:
-    console.print("[red]Unable to load the schema:")
+def display_schema_load_errors(
+    response: dict[str, Any], schemas_data: list[SchemaFile], output: Console | None = None
+) -> None:
+    out = output or console
+    out.print("[red]Unable to load the schema:")
     if "detail" not in response:
-        handle_non_detail_errors(response=response)
+        handle_non_detail_errors(response=response, output=out)
         return
 
     for error in response["detail"]:
         loc_path = error.get("loc", [])
         if not valid_error_path(loc_path=loc_path):
             continue
+        _render_schema_error(error=error, loc_path=loc_path, schemas_data=schemas_data, output=out)
 
-        # if the len of the path is equal to 6, the error is at the root of the object
-        # if the len of the path is higher than 6, the error is in an attribute or a relationships
-        schema_index = int(loc_path[2])
+
+def _render_schema_error(
+    error: dict[str, Any], loc_path: list[Any], schemas_data: list[SchemaFile], output: Console
+) -> None:
+    # Two layout shapes for loc_path. tail is the part after the node index.
+    # Top-level: body / schemas / <si> / (nodes|generics) / <ni> / [<subtype> / <attr>]
+    # Extensions: body / schemas / <si> / extensions / (nodes|generics|relationships) / <ni> / [<subtype> / <attr>]
+    schema_index = int(loc_path[2])
+    is_extension = loc_path[3] == "extensions"
+    if is_extension:
+        container = loc_path[4]
+        node_index = int(loc_path[5])
+        tail = loc_path[6:]
+    else:
+        container = loc_path[3]
         node_index = int(loc_path[4])
-        node = get_node(schemas_data=schemas_data, schema_index=schema_index, node_index=node_index)
+        tail = loc_path[5:]
 
-        if not node:
-            console.print("Node data not found.")
-            continue
+    node = get_node(
+        schemas_data=schemas_data,
+        schema_index=schema_index,
+        node_index=node_index,
+        container=container,
+        is_extension=is_extension,
+    )
 
-        if len(loc_path) == 6:
-            loc_type = loc_path[-1]
-            input_str = error.get("input", None)
-            error_message = f"{loc_type} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(
-                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
-            )
+    if not node:
+        output.print("Node data not found.")
+        return
 
-        elif len(loc_path) > 6:
-            loc_type = loc_path[5]
-            error_data = node[loc_type]
-            attribute = loc_path[6]
+    # Extensions reference an existing node by `kind`; new top-level nodes are identified by `namespace+name`.
+    node_label = (
+        (node.get("kind") or node.get("name") or "")
+        if is_extension
+        else f"{node.get('namespace', None)}{node.get('name', None)}"
+    )
+    path_suffix = f" (extensions/{container})" if is_extension else ""
+    input_str = error.get("input")
+    err_msg = error.get("msg", "No error message")
+    err_type = error.get("type", "unknown")
 
-            if isinstance(attribute, str):
-                input_label = None
-                for data in error_data:
-                    if data.get(attribute) is not None:
-                        input_label = data.get("name", None)
-                        break
-            else:
-                input_label = error_data[attribute].get("name", None)
+    if len(tail) == 1:
+        # Error on a direct field of the node (e.g. `name`, `namespace`).
+        loc_type = tail[0]
+        error_message = f"{loc_type} ({input_str}) | {err_msg} ({err_type})"
+    elif len(tail) > 1:
+        # Error nested inside a collection (e.g. attributes[2].kind, relationships[0].peer).
+        # loc_type is the collection name; attribute is either its index or the failing field name.
+        loc_type = tail[0]
+        attribute = tail[1]
+        input_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
+        # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
+        error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {err_msg} ({err_type})"
+    else:
+        return
 
-            input_str = error.get("input", None)
-            error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {error['msg']} ({error['type']})"
-            console.print(
-                f"  Node: {node.get('namespace', None)}{node.get('name', None)} | {error_message}", markup=False
-            )
+    output.print(f"  Node: {node_label}{path_suffix} | {error_message}", markup=False)
 
 
-def handle_non_detail_errors(response: dict[str, Any]) -> None:
+def _resolve_attribute_label(error_data: list[dict[str, Any]], attribute: Any) -> str | None:
+    if isinstance(attribute, str):
+        for data in error_data:
+            if data.get(attribute) is not None:
+                return data.get("name", None)
+        return None
+    if isinstance(attribute, int) and 0 <= attribute < len(error_data):
+        return error_data[attribute].get("name", None)
+    return None
+
+
+def handle_non_detail_errors(response: dict[str, Any], output: Console | None = None) -> None:
+    out = output or console
     if "error" in response:
-        console.print(f"  {response.get('error')}")
+        out.print(f"  {response.get('error')}")
     elif "errors" in response:
         for error in response["errors"]:
-            console.print(f"  {error.get('message')}")
+            out.print(f"  {error.get('message')}")
     else:
-        console.print(f"  '{response}'")
+        out.print(f"  '{response}'")
 
 
 def valid_error_path(loc_path: list[Any]) -> bool:
-    return len(loc_path) >= 6 and loc_path[0] == "body" and loc_path[1] == "schemas"
+    if len(loc_path) < 6 or loc_path[0] != "body" or loc_path[1] != "schemas" or not isinstance(loc_path[2], int):
+        return False
+    if loc_path[3] == "extensions":
+        return (
+            len(loc_path) >= 7
+            and loc_path[4] in {"nodes", "generics", "relationships"}
+            and isinstance(loc_path[5], int)
+        )
+    return loc_path[3] in {"nodes", "generics"} and isinstance(loc_path[4], int)
 
 
-def get_node(schemas_data: list[SchemaFile], schema_index: int, node_index: int) -> dict | None:
-    if schema_index < len(schemas_data) and node_index < len(schemas_data[schema_index].payload["nodes"]):
-        return schemas_data[schema_index].payload["nodes"][node_index]
+def get_node(
+    schemas_data: list[SchemaFile],
+    schema_index: int,
+    node_index: int,
+    container: SchemaContainer = "nodes",
+    is_extension: bool = False,
+) -> dict | None:
+    if schema_index >= len(schemas_data):
+        return None
+    payload = schemas_data[schema_index].payload
+    items = payload.get("extensions", {}).get(container, []) if is_extension else payload.get(container, [])
+    if node_index < len(items):
+        return items[node_index]
     return None
 
 
