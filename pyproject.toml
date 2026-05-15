@@ -95,7 +95,7 @@ dev = [
     {include-group = "lint"},
     {include-group = "types"},
     "ipython",
-    "requests",
+    "requests>=2.33.0",
     "prek>=0.3.0",
     "codecov",
     "invoke>=2.2.1",
