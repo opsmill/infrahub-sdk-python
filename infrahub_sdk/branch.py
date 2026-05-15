@@ -90,7 +90,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[True] = True,
     ) -> BranchData: ...
@@ -99,7 +99,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[False] = False,
     ) -> str: ...
@@ -107,7 +107,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: bool = True,
     ) -> BranchData | str:
@@ -245,7 +245,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[True] = True,
     ) -> BranchData: ...
@@ -254,7 +254,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[False] = False,
     ) -> str: ...
@@ -262,7 +262,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: bool = True,
     ) -> BranchData | str:
