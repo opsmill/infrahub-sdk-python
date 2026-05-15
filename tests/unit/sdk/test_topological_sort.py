@@ -74,11 +74,15 @@ def test_topological_sort_disjoint_2() -> None:
 
 
 def test_topological_sort_binary_tree() -> None:
-    """A
-        b               c
-      d   e         f       g
-    hi            j   k
-                  lm
+    """Sort a binary dependency tree with uneven depth on each side.
+
+    The `dependencies` mapping below describes this tree::
+
+            a
+          b               c
+        d   e         f       g
+      h i            j   k
+                    l m
     """
     dependencies = {
         "a": ["b", "c"],

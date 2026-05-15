@@ -27,7 +27,7 @@ def load_template() -> str:
 
 
 def move_to_end_of_list(lst: list, item: str) -> list:
-    """Move an item to the end of a list if it exists in the list"""
+    """Move an item to the end of a list if it exists in the list."""
     if item in lst:
         lst.remove(item)
         lst.append(item)
@@ -93,7 +93,7 @@ class CodeGenerator:
 
     @staticmethod
     def _jinja2_filter_syncify(value: str | list, sync: bool = False) -> str | list:
-        """Filter to help with the convertion to sync
+        """Filter to help with the convertion to sync.
 
         If a string is provided, append Sync to the end of the string
         If a list is provided, search for CoreNode and replace it with CoreNodeSync

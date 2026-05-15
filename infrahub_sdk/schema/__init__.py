@@ -177,7 +177,7 @@ class InfrahubSchemaBase:
                 )
 
     def set_cache(self, schema: dict[str, Any] | SchemaRootAPI | BranchSchema, branch: str | None = None) -> None:
-        """Set the cache manually (primarily for unit testing)
+        """Set the cache manually (primarily for unit testing).
 
         Args:
             schema: The schema to set the cache as provided by the /api/schema endpoint either in dict or SchemaRootAPI format
@@ -369,7 +369,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         return self._validate_load_schema_response(response=response)
 
     async def wait_until_converged(self, branch: str | None = None) -> None:
-        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        """Wait until the schema has converged on the selected branch or the timeout has been reached."""
         waited = 0
         while True:
             if await self.in_sync(branch=branch):
@@ -384,7 +384,7 @@ class InfrahubSchema(InfrahubSchemaBase):
             await asyncio.sleep(delay=1)
 
     async def in_sync(self, branch: str | None = None) -> bool:
-        """Indicate if the schema is in sync across all workers for the provided branch"""
+        """Indicate if the schema is in sync across all workers for the provided branch."""
         response = await self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
         return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 
@@ -899,7 +899,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         return self._validate_load_schema_response(response=response)
 
     def wait_until_converged(self, branch: str | None = None) -> None:
-        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        """Wait until the schema has converged on the selected branch or the timeout has been reached."""
         waited = 0
         while True:
             if self.in_sync(branch=branch):
@@ -914,7 +914,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             sleep(1)
 
     def in_sync(self, branch: str | None = None) -> bool:
-        """Indicate if the schema is in sync across all workers for the provided branch"""
+        """Indicate if the schema is in sync across all workers for the provided branch."""
         response = self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
         return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 

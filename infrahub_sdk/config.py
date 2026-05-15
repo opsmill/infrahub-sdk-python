@@ -91,6 +91,7 @@ class ConfigBase(BaseSettings):
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Customize settings sources to track which fields were explicitly provided.
+
         This allows us to properly handle authentication method precedence.
         """
 

@@ -93,7 +93,7 @@ class RelationshipInfo(BaseModel):
 
     @property
     def is_bidirectional(self) -> bool:
-        """Indicate if a relationship with the same identifier exists on the other side"""
+        """Indicate if a relationship with the same identifier exists on the other side."""
         return bool(self.peer_rel)
 
     @property
@@ -119,7 +119,7 @@ class RelationshipInfo(BaseModel):
         return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
 
     def get_context(self, value: Any) -> dict:
-        """Return a dict to insert to the context if the relationship is mandatory"""
+        """Return a dict to insert to the context if the relationship is mandatory."""
         if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.ONE:
             return {self.peer_rel.name: value}
         if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.MANY:
@@ -129,7 +129,7 @@ class RelationshipInfo(BaseModel):
     def find_matching_relationship(
         self, peer_schema: MainSchemaTypesAPI, force: bool = False
     ) -> RelationshipSchema | None:
-        """Find the matching relationship on the other side of the relationship"""
+        """Find the matching relationship on the other side of the relationship."""
         if self.peer_rel and not force:
             return self.peer_rel
 
@@ -209,7 +209,7 @@ class InfrahubObjectFileData(BaseModel):
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Get data processed according to the strategy"""
+        """Get data processed according to the strategy."""
         return await DataProcessorFactory.process_data(kind=self.kind, parameters=self.parameters, data=data)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
