@@ -9,7 +9,7 @@ PROCESSOR_PER_KIND: dict[str, DataProcessor] = {}
 
 
 class DataProcessorFactory:
-    """Factory to create appropriate data processor based on strategy"""
+    """Factory to create appropriate data processor based on strategy."""
 
     @classmethod
     def get_processors(cls, kind: str, parameters: InfrahubObjectParameters) -> Sequence[DataProcessor]:

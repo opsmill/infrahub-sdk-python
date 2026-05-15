@@ -43,7 +43,7 @@ def test_config_address() -> None:
 
 
 def test_password_auth_overrides_env_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment"""
+    """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment."""
     # Set environment variable for api_token
     monkeypatch.setenv("INFRAHUB_API_TOKEN", "token-from-env")
 
@@ -58,7 +58,7 @@ def test_password_auth_overrides_env_token(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_token_auth_overrides_env_password(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that explicit api_token overrides INFRAHUB_USERNAME and INFRAHUB_PASSWORD from environment"""
+    """Test that explicit api_token overrides INFRAHUB_USERNAME and INFRAHUB_PASSWORD from environment."""
     # Set environment variables for username/password
     monkeypatch.setenv("INFRAHUB_USERNAME", "user-from-env")
     monkeypatch.setenv("INFRAHUB_PASSWORD", "pass-from-env")
@@ -76,8 +76,10 @@ def test_token_auth_overrides_env_password(monkeypatch: pytest.MonkeyPatch) -> N
 def test_password_auth_overrides_env_token_when_password_env_var_and_username_explicit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment when only username is provided
-    through Config object and password is provided through environment variable
+    """Test that explicit username/password overrides INFRAHUB_API_TOKEN from environment.
+
+    The username is provided through the Config object and the password is provided through an
+    environment variable.
     """
     # Set environment variable for api_token and password
     monkeypatch.setenv("INFRAHUB_API_TOKEN", "token-from-env")

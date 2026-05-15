@@ -13,7 +13,7 @@ log = logging.getLogger("infrahub_sdk")
 
 
 class RangeExpandDataProcessor(DataProcessor):
-    """Process data with range expansion"""
+    """Process data with range expansion."""
 
     @classmethod
     async def process_data(

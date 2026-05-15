@@ -99,12 +99,12 @@ class GraphQLQueryAnalyzer:
         return response
 
     async def calculate_depth(self) -> int:
-        """Number of nested levels in the query"""
+        """Number of nested levels in the query."""
         fields = await self.get_fields()
         return calculate_dict_depth(data=fields)
 
     async def calculate_height(self) -> int:
-        """Total number of fields requested in the query"""
+        """Total number of fields requested in the query."""
         fields = await self.get_fields()
         return calculate_dict_height(data=fields)
 

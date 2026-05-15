@@ -78,7 +78,7 @@ class InfrahubItem(pytest.Item):
 
     @property
     def repository_base(self) -> str:
-        """Return the path to the root of the repository
+        """Return the path to the root of the repository.
 
         This will be an absolute path if --infrahub-config-path is an absolute path as happens when
         tests are started from within Infrahub server.

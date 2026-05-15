@@ -691,7 +691,7 @@ async def test_query_echo(httpx_mock: HTTPXMock, echo_clients: BothClients, clie
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_clone(clients: BothClients, client_type: str) -> None:
-    """Validate that the configuration of a cloned client is a replica of the original client"""
+    """Validate that the configuration of a cloned client is a replica of the original client."""
     if client_type == "standard":
         clone = clients.standard.clone()
         assert clone.config == clients.standard.config
@@ -706,7 +706,7 @@ async def test_clone(clients: BothClients, client_type: str) -> None:
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_clone_define_branch(clients: BothClients, client_type: str) -> None:
-    """Validate that the clone branch parameter sets the correct branch of the cloned client"""
+    """Validate that the clone branch parameter sets the correct branch of the cloned client."""
     clone_branch = "my_other_branch"
     if client_type == "standard":
         original_branch = clients.standard.default_branch
