@@ -101,7 +101,7 @@ Return the Infrahub version.
 get_user(self) -> dict
 ```
 
-Return user information
+Return user information.
 
 #### `get_user_permissions`
 
@@ -109,7 +109,7 @@ Return user information
 get_user_permissions(self) -> dict
 ```
 
-Return user permissions
+Return user permissions.
 
 #### `count`
 
@@ -140,7 +140,7 @@ all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeo
 all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None) -> list[InfrahubNode] | list[SchemaType]
 ```
 
-Retrieve all nodes of a given kind
+Retrieve all nodes of a given kind.
 
 **Args:**
 
@@ -219,7 +219,7 @@ Retrieve nodes of a given kind based on provided filters.
 clone(self, branch: str | None = None) -> InfrahubClient
 ```
 
-Return a cloned version of the client using the same configuration
+Return a cloned version of the client using the same configuration.
 
 #### `execute_graphql`
 
@@ -228,6 +228,7 @@ execute_graphql(self, query: str, variables: dict | None = None, branch_name: st
 ```
 
 Execute a GraphQL query (or mutation).
+
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
@@ -238,6 +239,10 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
 
+**Returns:**
+
+- The GraphQL data payload (response["data"]).
+
 **Raises:**
 
 - `GraphQLError`: When the GraphQL response contains errors.
@@ -245,10 +250,6 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `AuthenticationError`: If the server returns a 401 or 403 response.
 - `URLNotFoundError`: If the server returns a 404 response.
 - `Error`: If the response is unexpectedly missing.
-
-**Returns:**
-
-- The GraphQL data payload (response["data"]).
 
 #### `refresh_login`
 
@@ -405,10 +406,11 @@ repository_update_commit(self, branch_name: str, repository_id: str, commit: str
 convert_object_type(self, node_id: str, target_kind: str, branch: str | None = None, fields_mapping: dict[str, ConversionFieldInput] | None = None) -> InfrahubNode
 ```
 
-Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-for more information.
+Convert a given node to another kind on a given branch.
+
+`fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+Any mandatory field not having an equivalent field in the source kind should be specified in this
+mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
 
 ### `InfrahubClientSync`
 
@@ -502,7 +504,7 @@ Return the Infrahub version.
 get_user(self) -> dict
 ```
 
-Return user information
+Return user information.
 
 #### `get_user_permissions`
 
@@ -510,7 +512,7 @@ Return user information
 get_user_permissions(self) -> dict
 ```
 
-Return user permissions
+Return user permissions.
 
 #### `clone`
 
@@ -518,7 +520,7 @@ Return user permissions
 clone(self, branch: str | None = None) -> InfrahubClientSync
 ```
 
-Return a cloned version of the client using the same configuration
+Return a cloned version of the client using the same configuration.
 
 #### `execute_graphql`
 
@@ -527,6 +529,7 @@ execute_graphql(self, query: str, variables: dict | None = None, branch_name: st
 ```
 
 Execute a GraphQL query (or mutation).
+
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
@@ -537,6 +540,10 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
 
+**Returns:**
+
+- The GraphQL data payload (`response["data"]`).
+
 **Raises:**
 
 - `GraphQLError`: When the GraphQL response contains errors.
@@ -544,10 +551,6 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `AuthenticationError`: If the server returns a 401 or 403 response.
 - `URLNotFoundError`: If the server returns a 404 response.
 - `Error`: If the response is unexpectedly missing.
-
-**Returns:**
-
-- The GraphQL data payload (`response["data"]`).
 
 #### `count`
 
@@ -578,7 +581,7 @@ all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeo
 all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
 ```
 
-Retrieve all nodes of a given kind
+Retrieve all nodes of a given kind.
 
 **Args:**
 
@@ -811,10 +814,11 @@ login(self, refresh: bool = False) -> None
 convert_object_type(self, node_id: str, target_kind: str, branch: str | None = None, fields_mapping: dict[str, ConversionFieldInput] | None = None) -> InfrahubNodeSync
 ```
 
-Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-for more information.
+Convert a given node to another kind on a given branch.
+
+`fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+Any mandatory field not having an equivalent field in the source kind should be specified in this
+mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
 
 ### `ProcessRelationsNode`
 
@@ -826,7 +830,7 @@ for more information.
 
 ### `BaseClient`
 
-Base class for InfrahubClient and InfrahubClientSync
+Base class for InfrahubClient and InfrahubClientSync.
 
 **Methods:**
 

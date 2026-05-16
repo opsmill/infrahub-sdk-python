@@ -1,4 +1,7 @@
-"""When using from_pool on a number attribute (e.g. vlan_id), the SDK should generate:
+"""Tests that ``from_pool`` on a number attribute generates the expected GraphQL payload.
+
+When using from_pool on a number attribute (e.g. vlan_id), the SDK should generate::
+
     vlan_id: { from_pool: { id: "...", identifier: "..." } }
 
 There are two ways to request a pool allocation:

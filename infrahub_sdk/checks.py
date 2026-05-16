@@ -147,11 +147,12 @@ class InfrahubCheck:
         """Code to validate the status of this check."""
 
     async def collect_data(self) -> dict:
-        """Query the result of the GraphQL Query defined in self.query and return the result"""
+        """Query the result of the GraphQL Query defined in self.query and return the result."""
         return await self.client.query_gql_query(name=self.query, branch_name=self.branch_name, variables=self.params)
 
     async def run(self, data: dict | None = None) -> bool:
         """Execute the check after collecting the data from the GraphQL query.
+
         The result of the check is determined based on the presence or not of ERROR log messages.
         """
         if not data:

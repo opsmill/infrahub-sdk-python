@@ -211,11 +211,11 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             interval: The interval to check the task state. Defaults to 1.
             timeout: The timeout to wait for the task to complete. Defaults to 60.
 
-        Raises:
-            TaskNotCompletedError: The task did not complete in the given timeout.
-
         Returns:
             The task object.
+
+        Raises:
+            TaskNotCompletedError: The task did not complete in the given timeout.
 
         """
         for _ in range(timeout // interval):
@@ -451,11 +451,11 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             interval: The interval to check the task state. Defaults to 1.
             timeout: The timeout to wait for the task to complete. Defaults to 60.
 
-        Raises:
-            TaskNotCompletedError: The task did not complete in the given timeout.
-
         Returns:
             The task object.
+
+        Raises:
+            TaskNotCompletedError: The task did not complete in the given timeout.
 
         """
         for _ in range(timeout // interval):

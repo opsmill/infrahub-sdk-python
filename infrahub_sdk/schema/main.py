@@ -294,7 +294,8 @@ class BaseSchema(BaseModel):
 
     @property
     def supports_artifacts(self) -> bool:
-        """Returns True if this schema supports artifact operations via CoreArtifactTarget inheritance.
+        """Return True if this schema supports artifact operations via CoreArtifactTarget inheritance.
+
         Only NodeSchemaAPI overrides this; all other schema types return False by design because
         artifact capability is tied to node inheritance, not profiles, templates, or generics.
         """
@@ -302,7 +303,8 @@ class BaseSchema(BaseModel):
 
     @property
     def supports_file_object(self) -> bool:
-        """Returns True if this schema supports file object operations via CoreFileObject inheritance.
+        """Return True if this schema supports file object operations via CoreFileObject inheritance.
+
         Only NodeSchemaAPI overrides this; all other schema types return False by design because
         file object capability is tied to node inheritance, not profiles, templates, or generics.
         """
@@ -315,7 +317,8 @@ class BaseSchema(BaseModel):
 
     @property
     def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
-        """Returns pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
+        """Return pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
+
         Only NodeSchemaAPI overrides this; all other schema types return an empty list.
         """
         return []

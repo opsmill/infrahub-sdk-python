@@ -18,8 +18,9 @@ class StubCommand(ACommand):
 
 class TestCommandOutputDocContentGenMethod:
     def test_apply_runs_command_and_reads_output(self, tmp_path: Path) -> None:
-        """The method executes the command via context.run, then reads
-        the content from the temp file whose path was appended via --output.
+        """The method executes the command via context.run, then reads the output file.
+
+        The content is read from the temp file whose path was appended via --output.
         """
         output_content = "# Generated docs"
 

@@ -30,7 +30,7 @@ def callback() -> None:
 @app.command(name="schema")
 @catch_exception(console=console)
 async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
-    """Validate the format of a schema file either in JSON or YAML"""
+    """Validate the format of a schema file either in JSON or YAML."""
     schema_data = load_yamlfile_from_disk_and_exit(paths=[schema], file_type=SchemaFile, console=console)
     if not schema_data:
         console.print(f"[red]Unable to find {schema}")
@@ -62,7 +62,7 @@ def validate_graphql(
     _: str = CONFIG_PARAM,
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
-    """Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint"""
+    """Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint."""
     try:
         query_str = find_graphql_query(query)
     except QueryNotFoundError:
