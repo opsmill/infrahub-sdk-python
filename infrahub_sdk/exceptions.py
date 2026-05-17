@@ -84,9 +84,16 @@ class NodeNotFoundError(Error):
         super().__init__(self.message)
 
     def __str__(self) -> str:
+        detail_parts = []
+        if self.branch_name:
+            detail_parts.append(f"Branch: {self.branch_name}")
+        if self.node_type:
+            detail_parts.append(f"Kind: {self.node_type}")
+        detail_parts.append(f"Identifier: {self.identifier}")
+        detail = " | ".join(detail_parts)
         return f"""
         {self.message}
-        {self.branch_name} | {self.node_type} | {self.identifier}
+        {detail}
         """
 
 
