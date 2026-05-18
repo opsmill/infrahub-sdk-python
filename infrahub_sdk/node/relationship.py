@@ -20,13 +20,15 @@ if TYPE_CHECKING:
 
 
 class RelationshipManagerBase:
-    """Base class for RelationshipManager and RelationshipManagerSync"""
+    """Base class for RelationshipManager and RelationshipManagerSync."""
 
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
-        """Args:
-        name (str): The name of the relationship.
-        branch (str): The branch where the relationship resides.
-        schema (RelationshipSchema): The schema of the relationship.
+        """Initialize the base relationship manager.
+
+        Args:
+            name (str): The name of the relationship.
+            branch (str): The branch where the relationship resides.
+            schema (RelationshipSchema): The schema of the relationship.
 
         """
         self.initialized: bool = False
@@ -125,13 +127,15 @@ class RelationshipManager(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """Args:
-        name (str): The name of the relationship.
-        client (InfrahubClient): The client used to interact with the backend.
-        node (InfrahubNode): The node to which the relationship belongs.
-        branch (str): The branch where the relationship resides.
-        schema (RelationshipSchema): The schema of the relationship.
-        data (Union[Any, dict]): Initial data for the relationships.
+        """Initialize the async relationship manager.
+
+        Args:
+            name (str): The name of the relationship.
+            client (InfrahubClient): The client used to interact with the backend.
+            node (InfrahubNode): The node to which the relationship belongs.
+            branch (str): The branch where the relationship resides.
+            schema (RelationshipSchema): The schema of the relationship.
+            data (Union[Any, dict]): Initial data for the relationships.
 
         Raises:
             ValueError: If ``data`` is in an unexpected format.
@@ -256,13 +260,15 @@ class RelationshipManagerSync(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """Args:
-        name (str): The name of the relationship.
-        client (InfrahubClientSync): The client used to interact with the backend synchronously.
-        node (InfrahubNodeSync): The node to which the relationship belongs.
-        branch (str): The branch where the relationship resides.
-        schema (RelationshipSchema): The schema of the relationship.
-        data (Union[Any, dict]): Initial data for the relationships.
+        """Initialize the sync relationship manager.
+
+        Args:
+            name (str): The name of the relationship.
+            client (InfrahubClientSync): The client used to interact with the backend synchronously.
+            node (InfrahubNodeSync): The node to which the relationship belongs.
+            branch (str): The branch where the relationship resides.
+            schema (RelationshipSchema): The schema of the relationship.
+            data (Union[Any, dict]): Initial data for the relationships.
 
         Raises:
             ValueError: If ``data`` is in an unexpected format.

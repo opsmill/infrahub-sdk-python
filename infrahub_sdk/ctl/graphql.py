@@ -121,7 +121,7 @@ async def generate_return_types(
     schema: Path = typer.Option("schema.graphql", help="Path to the GraphQL schema file."),
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Create Pydantic Models for GraphQL query return types"""
+    """Create Pydantic Models for GraphQL query return types."""
     query = Path.cwd() if query is None else query
 
     # Load the GraphQL schema
