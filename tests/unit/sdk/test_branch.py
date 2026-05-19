@@ -44,14 +44,16 @@ def test_validate_method_signature(method: str) -> None:
     ["OPEN", "NEED_REBASE", "NEED_UPGRADE_REBASE", "DELETING", "MERGING", "MERGED"],
 )
 def test_branch_data_accepts_all_server_statuses(status_value: str) -> None:
-    branch = BranchData(
-        id="01J0",
-        name="test",
-        sync_with_git=False,
-        is_default=False,
-        has_schema_changes=False,
-        status=status_value,
-        branched_from="2026-01-01T00:00:00Z",
+    branch = BranchData.model_validate(
+        {
+            "id": "01J0",
+            "name": "test",
+            "sync_with_git": False,
+            "is_default": False,
+            "has_schema_changes": False,
+            "status": status_value,
+            "branched_from": "2026-01-01T00:00:00Z",
+        }
     )
     assert branch.status is BranchStatus(status_value)
 
