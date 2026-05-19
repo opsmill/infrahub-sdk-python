@@ -1,0 +1,1 @@
+Add `MERGING` to `infrahub_sdk.branch.BranchStatus` to match the server-side enum (added in Infrahub 1.9.3). Without this, `client.branch.all()` raised `ValidationError` when any branch was returned with `status="MERGING"`, which could strand the task worker in a crashloop if a merge task died mid-flight and left a branch in that state.
