@@ -75,7 +75,11 @@ async def resolve_node(
         if node is not None:
             return node
 
-    raise NodeNotFoundError(node_type=kind, identifier={"id": [identifier]}, branch_name=branch)
+    raise NodeNotFoundError(
+        branch_name=branch or client.default_branch,
+        node_type=kind,
+        identifier={"id": [identifier]},
+    )
 
 
 def prepare_relationship_data(data: dict[str, Any], schema: MainSchemaTypesAPI) -> dict[str, Any]:

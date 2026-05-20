@@ -171,10 +171,8 @@ def test_handle_error_response_401() -> None:
     response = httpx.Response(status_code=401, json={"errors": [{"message": "Invalid token"}]})
     exc = httpx.HTTPStatusError(message="Unauthorized", request=httpx.Request("GET", "http://test"), response=response)
 
-    with pytest.raises(AuthenticationError) as excinfo:
-        FileHandlerBase.handle_error_response(exc=exc)
-
-    assert "Invalid token" in str(excinfo.value)
+    with pytest.raises(AuthenticationError, match="Invalid token"):
+        FileHandlerBase.handle_error_response(exc=exc, branch="main", node_id=NODE_ID)
 
 
 def test_handle_error_response_403() -> None:
@@ -182,10 +180,8 @@ def test_handle_error_response_403() -> None:
     response = httpx.Response(status_code=403, json={"errors": [{"message": "Access denied"}]})
     exc = httpx.HTTPStatusError(message="Forbidden", request=httpx.Request("GET", "http://test"), response=response)
 
-    with pytest.raises(AuthenticationError) as excinfo:
-        FileHandlerBase.handle_error_response(exc=exc)
-
-    assert "Access denied" in str(excinfo.value)
+    with pytest.raises(AuthenticationError, match="Access denied"):
+        FileHandlerBase.handle_error_response(exc=exc, branch="main", node_id=NODE_ID)
 
 
 def test_handle_error_response_404() -> None:
@@ -193,10 +189,19 @@ def test_handle_error_response_404() -> None:
     response = httpx.Response(status_code=404, json={"detail": "File not found with ID abc123"})
     exc = httpx.HTTPStatusError(message="Not Found", request=httpx.Request("GET", "http://test"), response=response)
 
-    with pytest.raises(NodeNotFoundError) as excinfo:
-        FileHandlerBase.handle_error_response(exc=exc)
+    with pytest.raises(NodeNotFoundError, match="File not found with ID abc123") as excinfo:
+        FileHandlerBase.handle_error_response(exc=exc, branch="main", node_id=NODE_ID)
 
-    assert "File not found with ID abc123" in str(excinfo.value)
+    error = excinfo.value
+    assert error.branch_name == "main"
+    assert error.node_type == "FileObject"
+    assert error.identifier == {"id": [NODE_ID]}
+    assert error.message == "File not found with ID abc123"
+    rendered = str(error)
+    assert "Branch: main" in rendered
+    assert "Kind: FileObject" in rendered
+    assert f"Identifier: {{'id': ['{NODE_ID}']}}" in rendered
+    assert "File not found with ID abc123" in rendered
 
 
 def test_handle_error_response_500() -> None:
@@ -204,8 +209,8 @@ def test_handle_error_response_500() -> None:
     response = httpx.Response(status_code=500, json={"error": "Internal server error"})
     exc = httpx.HTTPStatusError(message="Server Error", request=httpx.Request("GET", "http://test"), response=response)
 
-    with pytest.raises(httpx.HTTPStatusError):
-        FileHandlerBase.handle_error_response(exc=exc)
+    with pytest.raises(httpx.HTTPStatusError, match="Server Error"):
+        FileHandlerBase.handle_error_response(exc=exc, branch="main", node_id=NODE_ID)
 
 
 def test_handle_response_success() -> None:
@@ -213,7 +218,7 @@ def test_handle_response_success() -> None:
     request = httpx.Request("GET", "http://test")
     response = httpx.Response(status_code=200, content=FILE_CONTENT_BYTES, request=request)
 
-    result = FileHandlerBase.handle_response(resp=response)
+    result = FileHandlerBase.handle_response(resp=response, branch="main", node_id=NODE_ID)
 
     assert result == FILE_CONTENT_BYTES
 

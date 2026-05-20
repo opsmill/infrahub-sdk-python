@@ -71,29 +71,22 @@ class ModuleImportError(Error):
 class NodeNotFoundError(Error):
     def __init__(
         self,
-        identifier: Mapping[str, list[str]],
+        *,
+        branch_name: str,
+        node_type: str,
+        identifier: Mapping[str, list[str]] | str,
         message: str = "Unable to find the node in the database.",
-        branch_name: str | None = None,
-        node_type: str | None = None,
     ) -> None:
-        self.node_type = node_type or "unknown"
-        self.identifier = identifier
         self.branch_name = branch_name
-
+        self.node_type = node_type
+        self.identifier = identifier
         self.message = message
         super().__init__(self.message)
 
     def __str__(self) -> str:
-        detail_parts = []
-        if self.branch_name:
-            detail_parts.append(f"Branch: {self.branch_name}")
-        if self.node_type:
-            detail_parts.append(f"Kind: {self.node_type}")
-        detail_parts.append(f"Identifier: {self.identifier}")
-        detail = " | ".join(detail_parts)
         return f"""
         {self.message}
-        {detail}
+        Branch: {self.branch_name} | Kind: {self.node_type} | Identifier: {self.identifier}
         """
 
 
