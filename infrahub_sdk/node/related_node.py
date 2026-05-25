@@ -18,11 +18,13 @@ class RelatedNodeBase:
     """Base class for representing a related node in a relationship."""
 
     def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Any | dict, name: str | None = None) -> None:
-        """Args:
-        branch (str): The branch where the related node resides.
-        schema (RelationshipSchema): The schema of the relationship.
-        data (Union[Any, dict]): Data representing the related node.
-        name (Optional[str]): The name of the related node.
+        """Initialize the base related node.
+
+        Args:
+            branch (str): The branch where the related node resides.
+            schema (RelationshipSchema): The schema of the relationship.
+            data (Union[Any, dict]): Data representing the related node.
+            name (Optional[str]): The name of the related node.
 
         """
         self.schema = schema
@@ -222,12 +224,14 @@ class RelatedNode(RelatedNodeBase):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """Args:
-        client (InfrahubClient): The client used to interact with the backend asynchronously.
-        branch (str): The branch where the related node resides.
-        schema (RelationshipSchema): The schema of the relationship.
-        data (Union[Any, dict]): Data representing the related node.
-        name (Optional[str]): The name of the related node.
+        """Initialize the async related node.
+
+        Args:
+            client (InfrahubClient): The client used to interact with the backend asynchronously.
+            branch (str): The branch where the related node resides.
+            schema (RelationshipSchema): The schema of the relationship.
+            data (Union[Any, dict]): Data representing the related node.
+            name (Optional[str]): The name of the related node.
 
         """
         self._client = client
@@ -269,12 +273,14 @@ class RelatedNodeSync(RelatedNodeBase):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """Args:
-        client (InfrahubClientSync): The client used to interact with the backend synchronously.
-        branch (str): The branch where the related node resides.
-        schema (RelationshipSchema): The schema of the relationship.
-        data (Union[Any, dict]): Data representing the related node.
-        name (Optional[str]): The name of the related node.
+        """Initialize the sync related node.
+
+        Args:
+            client (InfrahubClientSync): The client used to interact with the backend synchronously.
+            branch (str): The branch where the related node resides.
+            schema (RelationshipSchema): The schema of the relationship.
+            data (Union[Any, dict]): Data representing the related node.
+            name (Optional[str]): The name of the related node.
 
         """
         self._client = client

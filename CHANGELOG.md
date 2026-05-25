@@ -11,6 +11,24 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.20.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.1) - 2026-05-20
+
+### Added
+
+- Added SHA-1 idempotency primitives for `CoreFileObject` nodes:
+
+  - `InfrahubNode.matches_local_checksum(source)` / sync variant — compare a local `bytes | Path | BinaryIO` source against the node's server-stored checksum without invoking a transfer.
+  - `InfrahubNode.upload_if_changed(source, name=None)` / sync variant — stage + save only when the local source differs from the server, returning an `UploadResult(was_uploaded, checksum)` dataclass.
+  - `download_file(..., skip_if_unchanged=True)` — short-circuit the download when `dest` already exists on disk with a matching SHA-1. Returns `0` bytes written when skipped.
+
+  A shared `sha1_of_source` helper (streaming, 64 KiB chunks) centralises the hashing convention in `infrahub_sdk.file_handler`.
+
+### Fixed
+
+- Skip mandatory field validation during object loading when `object_profile` is specified. ([#908](https://github.com/opsmill/infrahub-sdk-python/issues/908))
+- Render schema rejections originating in an `extensions:` block as a readable one-line message in `infrahubctl schema load`, instead of crashing with `ValueError: invalid literal for int()`. ([#1007](https://github.com/opsmill/infrahub-sdk-python/issues/1007))
+- Add `MERGING` branch status so that a merging branch can still be correctly retrieved. ([#1037](https://github.com/opsmill/infrahub-sdk-python/issues/1037))
+
 ## [1.20.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.0) - 2026-04-24
 
 ### Removed

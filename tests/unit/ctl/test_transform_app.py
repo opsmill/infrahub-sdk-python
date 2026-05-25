@@ -89,7 +89,7 @@ class TestInfrahubctlTransform:
 
     @staticmethod
     def test_gql_query_not_defined(tags_transform_dir: str) -> None:
-        """Case GraphQL Query is not defined"""
+        """Case GraphQL Query is not defined."""
         # Remove GraphQL Query file
         gql_file = Path(Path(tags_transform_dir) / "tags_query.gql")
         Path.unlink(gql_file)
@@ -102,7 +102,7 @@ class TestInfrahubctlTransform:
 
     @staticmethod
     def test_infrahubctl_transform_cmd_success(httpx_mock: HTTPXMock, tags_transform_dir: str) -> None:
-        """Case infrahubctl transform command executes successfully"""
+        """Case infrahubctl transform command executes successfully."""
         httpx_mock.add_response(
             method="POST",
             url="http://mock/graphql/main",

@@ -19,13 +19,13 @@ class RecorderType(str, enum.Enum):
 @runtime_checkable
 class Recorder(Protocol):
     def record(self, response: httpx.Response) -> None:
-        """Record the response from Infrahub"""
+        """Record the response from Infrahub."""
 
 
 class NoRecorder:
     @staticmethod
     def record(response: httpx.Response) -> None:
-        """The NoRecorder just silently returns"""
+        """The NoRecorder just silently returns."""
 
     @classmethod
     def default(cls) -> NoRecorder:

@@ -64,7 +64,7 @@ async def test_fetch_schema(mock_schema_query_01: HTTPXMock, client_type: str) -
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_fetch_schema_conditional_refresh(mock_schema_query_01: HTTPXMock, client_type: str) -> None:
-    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash"""
+    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash."""
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
         nodes = await client.schema.all(branch="main")

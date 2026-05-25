@@ -90,9 +90,9 @@ def _expand_interfaces(pattern: str, interface_constant: list[int], cartesian_li
 
 
 def range_expansion(interface_pattern: str) -> list[str]:
-    """Expand string pattern into a list of strings, supporting both
-    number and single-character alphabet ranges. Heavily inspired by
-    Netutils interface_range_expansion but adapted to support letters.
+    """Expand a string pattern into a list of strings, supporting number and single-character alphabet ranges.
+
+    Heavily inspired by Netutils interface_range_expansion but adapted to support letters.
 
     Args:
         interface_pattern: The string pattern that will be parsed to create the list of interfaces.

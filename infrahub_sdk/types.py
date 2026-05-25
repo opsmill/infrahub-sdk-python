@@ -49,13 +49,13 @@ class AsyncRequester(Protocol):
 @runtime_checkable
 class InfrahubLogger(Protocol):
     def debug(self, event: str | None = None, *args: Any, **kw: Any) -> Any:
-        """Send a debug event"""
+        """Send a debug event."""
 
     def info(self, event: str | None = None, *args: Any, **kw: Any) -> Any:
-        """Send an info event"""
+        """Send an info event."""
 
     def warning(self, event: str | None = None, *args: Any, **kw: Any) -> Any:
-        """Send a warning event"""
+        """Send a warning event."""
 
     def error(self, event: str | None = None, *args: Any, **kw: Any) -> Any:
         """Send an error event."""

@@ -411,7 +411,7 @@ def generate_python_sdk(context: Context) -> None:
 
 @task
 def generate_repository_jsonschema(context: Context) -> None:
-    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema"""
+    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema."""
     from infrahub_sdk.schema.repository import InfrahubRepositoryConfig
 
     repository_jsonschema = MAIN_DIRECTORY_PATH / "generated" / "repository-config" / "develop.json"

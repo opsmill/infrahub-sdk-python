@@ -67,13 +67,15 @@ class UploadResult:
 
 
 class InfrahubNodeBase:
-    """Base class for InfrahubNode and InfrahubNodeSync"""
+    """Base class for InfrahubNode and InfrahubNodeSync."""
 
     def __init__(self, schema: MainSchemaTypesAPI, branch: str, data: dict | None = None) -> None:
-        """Args:
-        schema: The schema of the node.
-        branch: The branch where the node resides.
-        data: Optional data to initialize the node.
+        """Initialize the base node.
+
+        Args:
+            schema: The schema of the node.
+            branch: The branch where the node resides.
+            data: Optional data to initialize the node.
 
         """
         self._schema = schema
@@ -190,7 +192,7 @@ class InfrahubNodeBase:
             )
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for attributes that exist or revert to normal behaviour"""
+        """Set values for attributes that exist or revert to normal behaviour."""
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
             self._attribute_data[name].value = value
             return
@@ -626,11 +628,13 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """Args:
-        client: The client used to interact with the backend.
-        schema: The schema of the node.
-        branch: The branch where the node resides.
-        data: Optional data to initialize the node.
+        """Initialize the async node.
+
+        Args:
+            client: The client used to interact with the backend.
+            schema: The schema of the node.
+            branch: The branch where the node resides.
+            data: Optional data to initialize the node.
 
         """
         self._client = client
@@ -1599,11 +1603,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """Args:
-        client (InfrahubClientSync): The client used to interact with the backend synchronously.
-        schema (MainSchemaTypes): The schema of the node.
-        branch (Optional[str]): The branch where the node resides.
-        data (Optional[dict]): Optional data to initialize the node.
+        """Initialize the sync node.
+
+        Args:
+            client (InfrahubClientSync): The client used to interact with the backend synchronously.
+            schema (MainSchemaTypes): The schema of the node.
+            branch (Optional[str]): The branch where the node resides.
+            data (Optional[dict]): Optional data to initialize the node.
 
         """
         self._client = client

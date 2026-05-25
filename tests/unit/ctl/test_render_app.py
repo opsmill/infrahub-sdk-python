@@ -56,7 +56,7 @@ RENDER_APP_FAIL_TEST_CASES = [
     [pytest.param(tc, id=tc.name) for tc in RENDER_APP_FAIL_TEST_CASES],
 )
 def test_validate_template_not_found(test_case: RenderAppFailure, httpx_mock: HTTPXMock) -> None:
-    """Ensure that the correct errors are caught"""
+    """Ensure that the correct errors are caught."""
     httpx_mock.add_response(
         method="POST",
         url="http://mock/graphql/main",
