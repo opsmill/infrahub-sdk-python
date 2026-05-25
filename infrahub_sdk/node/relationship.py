@@ -163,7 +163,11 @@ class RelationshipManager(RelationshipManagerBase):
                     RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
     def __getitem__(self, item: int) -> RelatedNode:
         return self.peers[item]  # type: ignore[return-value]
@@ -296,7 +300,11 @@ class RelationshipManagerSync(RelationshipManagerBase):
                     RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
     def __getitem__(self, item: int) -> RelatedNodeSync:
         return self.peers[item]  # type: ignore[return-value]
