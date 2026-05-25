@@ -1,6 +1,6 @@
 [project]
 name = "infrahub-sdk"
-version = "1.20.0"
+version = "1.20.1"
 description = "Python Client to interact with Infrahub"
 authors = [
     {name = "OpsMill", email = "info@opsmill.com"}
@@ -48,8 +48,8 @@ ctl = [
     "pyarrow>=14",
     "pyyaml>=6",
     "rich>=12,<14",
-    "typer>=0.12.5",
-    "click==8.1.*",
+    "typer>=0.15.0",
+    "click>=8.2,<9",
     "ariadne-codegen==0.15.3",
     "mdxify>=0.2.23; python_version>='3.10'",
 ]
@@ -62,8 +62,8 @@ all = [
     "pytest",
     "pyyaml>=6",
     "rich>=12,<14",
-    "typer>=0.12.5",
-    "click==8.1.*",
+    "typer>=0.15.0",
+    "click>=8.2,<9",
     "ariadne-codegen==0.15.3",
 ]
 
