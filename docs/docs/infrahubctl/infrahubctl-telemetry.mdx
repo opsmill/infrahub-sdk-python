@@ -14,8 +14,26 @@ $ infrahubctl telemetry [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `export`: Export telemetry snapshots to a JSON file.
 * `list`: List telemetry snapshots with summary...
+* `export`: Export telemetry snapshots to a JSON file.
+
+## `infrahubctl telemetry list`
+
+List telemetry snapshots with summary information.
+
+**Usage**:
+
+```console
+$ infrahubctl telemetry list [OPTIONS]
+```
+
+**Options**:
+
+* `--start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Start date filter (ISO 8601)
+* `--end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: End date filter (ISO 8601)
+* `--limit INTEGER`: Maximum number of results  [default: 50]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl telemetry export`
 
@@ -35,23 +53,5 @@ $ infrahubctl telemetry export [OPTIONS]
 * `--output TEXT`: Output file path  [default: telemetry-export.json]
 * `--start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Start date filter (ISO 8601)
 * `--end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: End date filter (ISO 8601)
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
-* `--help`: Show this message and exit.
-
-## `infrahubctl telemetry list`
-
-List telemetry snapshots with summary information.
-
-**Usage**:
-
-```console
-$ infrahubctl telemetry list [OPTIONS]
-```
-
-**Options**:
-
-* `--start-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: Start date filter (ISO 8601)
-* `--end-date [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%dT%H:%M:%S%z]`: End date filter (ISO 8601)
-* `--limit INTEGER`: Maximum number of results  [default: 50]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
