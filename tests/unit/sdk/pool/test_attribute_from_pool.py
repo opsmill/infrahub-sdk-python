@@ -286,3 +286,34 @@ async def test_save_upsert_proceeds_when_numberpool_attr_not_in_hfid(
     await node.save(allow_upsert=True)
 
     assert node.id == "mock-vlan-uuid"
+
+
+async def test_save_upsert_raises_when_pool_node_object_in_hfid(
+    client: InfrahubClient,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+    ipaddress_pool_schema: NodeSchemaAPI,
+    ipam_ipprefix_schema: NodeSchemaAPI,
+    ipam_ipprefix_data: dict[str, Any],
+) -> None:
+    """Guard fires when vlan_id is set to a pool node object (not a from_pool dict)."""
+    ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
+    ip_pool = InfrahubNode(
+        client=client,
+        schema=ipaddress_pool_schema,
+        data={
+            "id": NODE_POOL_ID,
+            "name": "Core loopbacks",
+            "default_address_type": "IpamIPAddress",
+            "default_prefix_length": 32,
+            "ip_namespace": "ip_namespace",
+            "resources": [ip_prefix],
+        },
+    )
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": ip_pool},
+    )
+
+    with pytest.raises(ValidationError, match="vlan_id"):
+        await node.save(allow_upsert=True)

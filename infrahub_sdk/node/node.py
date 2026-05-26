@@ -986,7 +986,7 @@ class InfrahubNode(InfrahubNodeBase):
                     attr = self._get_attribute(attr_name)
                 except ResourceNotDefinedError:
                     continue
-                if attr.value is None and attr.is_from_pool_attribute():
+                if attr.is_unresolved_pool_attribute():
                     raise ValidationError(
                         identifier=attr_name,
                         message=(
@@ -1975,7 +1975,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     attr = self._get_attribute(attr_name)
                 except ResourceNotDefinedError:
                     continue
-                if attr.value is None and attr.is_from_pool_attribute():
+                if attr.is_unresolved_pool_attribute():
                     raise ValidationError(
                         identifier=attr_name,
                         message=(
