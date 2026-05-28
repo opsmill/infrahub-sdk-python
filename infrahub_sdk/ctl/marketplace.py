@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import sys
+import zipfile
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NoReturn
@@ -205,10 +207,11 @@ async def _download_collection(
     stdout: bool,
     prefetched: httpx.Response | None = None,
 ) -> None:
-    """Download all schemas in a collection to disk or stdout.
+    """Fetch all schemas in a collection, writing to disk or stdout.
 
-    When ``prefetched`` is supplied, reuses the response instead of re-fetching
-    the collection download URL.
+    The marketplace returns a ZIP archive of ``{namespace}-{name}-{semver}.yml`` files.
+    When ``prefetched`` is supplied (from the auto-detect probe), reuses that response
+    instead of re-fetching the collection download URL.
     """
     if prefetched is not None:
         resp = prefetched
@@ -221,38 +224,32 @@ async def _download_collection(
         )
     resp.raise_for_status()
 
-    data = resp.json()
-    meta = data["collection"]
-    schemas = data["schemas"]
-    skipped = meta.get("skipped", [])
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(resp.content))
+    except zipfile.BadZipFile:
+        _fail(_ErrorClass.NETWORK, f"Response from {_collection_url(base_url, namespace, name)} is not a valid ZIP archive")
+
+    schema_names = [info.filename for info in archive.infolist() if not info.is_dir()]
     status = _status_console(stdout)
 
     if stdout:
-        for index, schema in enumerate(schemas):
-            content = schema["content"]
+        for index, schema_name in enumerate(schema_names):
+            content = archive.read(schema_name).decode("utf-8")
             if index > 0 and not content.lstrip().startswith("---"):
                 sys.stdout.write("---\n")
             sys.stdout.write(content)
             if not content.endswith("\n"):
                 sys.stdout.write("\n")
-            err_console.print(f"[green]Fetched {schema['namespace']}/{schema['name']} v{schema['semver']}")
+            err_console.print(f"[green]Fetched {schema_name}")
     else:
-        collection_dir = output_dir / name
-        _mkdir_or_fail(collection_dir)
-        for schema in schemas:
-            filename = f"{schema['name']}.yml"
-            file_path = collection_dir / filename
-            file_path.write_text(schema["content"], encoding="utf-8")
-            console.print(
-                f"[green]Downloaded {schema['namespace']}/{schema['name']} v{schema['semver']} -> {file_path}"
-            )
+        _mkdir_or_fail(output_dir)
+        for schema_name in schema_names:
+            content = archive.read(schema_name).decode("utf-8")
+            file_path = output_dir / schema_name
+            file_path.write_text(content, encoding="utf-8")
+            console.print(f"[green]Downloaded {schema_name} -> {file_path}")
 
-    for item in skipped:
-        status.print(f"[yellow]Skipped {item['namespace']}/{item['name']}: {item['reason']}")
-
-    status.print(
-        f"\n[green]Collection {namespace}/{name}: {meta['downloaded_count']}/{meta['schema_count']} schemas downloaded"
-    )
+    status.print(f"\n[green]Collection {namespace}/{name}: {len(schema_names)} schemas downloaded")
 
 
 @app.command()

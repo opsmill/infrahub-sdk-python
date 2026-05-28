@@ -1,3 +1,5 @@
+import io
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -18,6 +20,14 @@ nodes:
   - name: Device
     namespace: Infra
 """
+
+
+def _make_zip(files: dict[str, str]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        for filename, content in files.items():
+            zf.writestr(filename, content)
+    return buf.getvalue()
 
 
 def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -53,40 +63,21 @@ def test_download_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "starter-pack",
-                "schema_count": 2,
-                "downloaded_count": 2,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "network-base",
-                    "semver": "1.0.0",
-                    "filename": "acme-network-base-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-                {
-                    "namespace": "acme",
-                    "name": "dcim",
-                    "semver": "2.1.0",
-                    "filename": "acme-dcim-2.1.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip(
+            {
+                "acme-network-base-1.0.0.yml": SCHEMA_YAML,
+                "acme-dcim-2.1.0.yml": SCHEMA_YAML,
+            }
+        ),
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded acme/network-base v1.0.0" in result.stdout
-    assert "Downloaded acme/dcim v2.1.0" in result.stdout
-    assert "2/2 schemas downloaded" in result.stdout
-    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
-    assert (tmp_path / "starter-pack" / "dcim.yml").exists()
+    assert "Downloaded acme-network-base-1.0.0.yml" in result.stdout
+    assert "Downloaded acme-dcim-2.1.0.yml" in result.stdout
+    assert "2 schemas downloaded" in result.stdout
+    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
+    assert (tmp_path / "acme-dcim-2.1.0.yml").exists()
 
 
 def test_download_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -191,31 +182,14 @@ def test_autodetect_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "starter-pack",
-                "schema_count": 1,
-                "downloaded_count": 1,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "network-base",
-                    "semver": "1.0.0",
-                    "filename": "acme-network-base-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "Collection acme/starter-pack" in result.stdout
-    assert "1/1 schemas downloaded" in result.stdout
-    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
+    assert "1 schemas downloaded" in result.stdout
+    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
 
 
 def test_autodetect_collision_schema_wins(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -228,16 +202,7 @@ def test_autodetect_collision_schema_wins(httpx_mock: HTTPXMock, tmp_path: Path)
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/network/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "network",
-                "schema_count": 0,
-                "downloaded_count": 0,
-                "skipped": [],
-            },
-            "schemas": [],
-        },
+        content=_make_zip({}),
     )
     result = runner.invoke(app, ["get", "acme/network", "-o", str(tmp_path)])
 
@@ -294,54 +259,20 @@ def test_version_ignored_on_autodetected_collection(httpx_mock: HTTPXMock, tmp_p
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "starter-pack",
-                "schema_count": 1,
-                "downloaded_count": 1,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "network-base",
-                    "semver": "1.0.0",
-                    "filename": "acme-network-base-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-v", "1.0.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "Warning: --version is ignored" in result.stdout
-    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
+    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
 
 
 def test_collection_flag_overrides_autodetect(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "starter-pack",
-                "schema_count": 1,
-                "downloaded_count": 1,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "network-base",
-                    "semver": "1.0.0",
-                    "filename": "acme-network-base-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
     )
     # No schema endpoint mock — if the implementation probes it, pytest-httpx
     # will raise "request not expected".
@@ -425,32 +356,13 @@ def test_download_collection_with_skipped(httpx_mock: HTTPXMock, tmp_path: Path)
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/mixed/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "mixed",
-                "schema_count": 2,
-                "downloaded_count": 1,
-                "skipped": [
-                    {"namespace": "acme", "name": "broken", "reason": "no published version"},
-                ],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "good",
-                    "semver": "1.0.0",
-                    "filename": "acme-good-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip({"acme-good-1.0.0.yml": SCHEMA_YAML}),
     )
     result = runner.invoke(app, ["get", "acme/mixed", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Skipped acme/broken" in result.stdout
-    assert "1/2 schemas downloaded" in result.stdout
+    assert "1 schemas downloaded" in result.stdout
+    assert (tmp_path / "acme-good-1.0.0.yml").exists()
 
 
 def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -532,40 +444,21 @@ def test_get_collection_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "starter-pack",
-                "schema_count": 2,
-                "downloaded_count": 2,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "network-base",
-                    "semver": "1.0.0",
-                    "filename": "acme-network-base-1.0.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-                {
-                    "namespace": "acme",
-                    "name": "dcim",
-                    "semver": "2.1.0",
-                    "filename": "acme-dcim-2.1.0.yml",
-                    "content": SCHEMA_YAML,
-                },
-            ],
-        },
+        content=_make_zip(
+            {
+                "acme-network-base-1.0.0.yml": SCHEMA_YAML,
+                "acme-dcim-2.1.0.yml": SCHEMA_YAML,
+            }
+        ),
     )
     result = split_runner.invoke(app, ["get", "acme/starter-pack", "-c", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     # Both schemas already start with `---`, so no extra separator is injected.
     assert result.stdout == SCHEMA_YAML + SCHEMA_YAML
-    assert "Fetched acme/network-base v1.0.0" in result.stderr
-    assert "Fetched acme/dcim v2.1.0" in result.stderr
-    assert "2/2 schemas downloaded" in result.stderr
+    assert "Fetched acme-network-base-1.0.0.yml" in result.stderr
+    assert "Fetched acme-dcim-2.1.0.yml" in result.stderr
+    assert "2 schemas downloaded" in result.stderr
     assert not any(tmp_path.iterdir())
 
 
@@ -575,31 +468,7 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/bare/download",
-        json={
-            "collection": {
-                "namespace": "acme",
-                "name": "bare",
-                "schema_count": 2,
-                "downloaded_count": 2,
-                "skipped": [],
-            },
-            "schemas": [
-                {
-                    "namespace": "acme",
-                    "name": "a",
-                    "semver": "1.0.0",
-                    "filename": "acme-a-1.0.0.yml",
-                    "content": bare_yaml,
-                },
-                {
-                    "namespace": "acme",
-                    "name": "b",
-                    "semver": "1.0.0",
-                    "filename": "acme-b-1.0.0.yml",
-                    "content": bare_yaml,
-                },
-            ],
-        },
+        content=_make_zip({"acme-a-1.0.0.yml": bare_yaml, "acme-b-1.0.0.yml": bare_yaml}),
     )
     result = split_runner.invoke(app, ["get", "acme/bare", "-c", "--stdout", "-o", str(tmp_path)])
 
