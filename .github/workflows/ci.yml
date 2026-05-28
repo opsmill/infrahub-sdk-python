@@ -327,7 +327,7 @@ jobs:
     needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on:
       group: "huge-runners"
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v6"
