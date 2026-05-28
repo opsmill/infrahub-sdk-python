@@ -12,7 +12,7 @@ from infrahub_sdk.ctl.marketplace import app
 from infrahub_sdk.ctl.marketplace import get as marketplace_get
 
 runner = CliRunner()
-split_runner = CliRunner(mix_stderr=False)
+split_runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
 
 SCHEMA_YAML = """---
 version: "1.0"
