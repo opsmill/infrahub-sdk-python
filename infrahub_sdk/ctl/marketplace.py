@@ -4,6 +4,7 @@ import asyncio
 import io
 import sys
 import zipfile
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NoReturn
@@ -36,6 +37,12 @@ class _ErrorClass(Enum):
         return 2 if self is _ErrorClass.NETWORK else 1
 
 
+@dataclass(frozen=True, slots=True)
+class MarketplaceIdentifier:
+    namespace: str
+    name: str
+
+
 def _fail(error_class: _ErrorClass, message: str) -> NoReturn:
     err_console.print(f"[red]{message}")
     raise typer.Exit(error_class.exit_code)
@@ -50,11 +57,11 @@ def callback() -> None:
     """Browse and download schemas from the Infrahub Marketplace."""
 
 
-def _parse_identifier(identifier: str) -> tuple[str, str]:
+def _parse_identifier(identifier: str) -> MarketplaceIdentifier:
     parts = identifier.split("/")
     if len(parts) != 2 or not all(parts):
         _fail(_ErrorClass.INVALID_INPUT, f"Invalid identifier '{identifier}'. Expected format: namespace/name")
-    return parts[0], parts[1]
+    return MarketplaceIdentifier(namespace=parts[0], name=parts[1])
 
 
 def _host_from(base_url: str) -> str:
@@ -168,7 +175,7 @@ async def _download_schema(
         resp = await client.get(_schema_url(base_url, namespace, name, version=version))
 
     if resp.status_code == 404:
-        if version is not None and schema_confirmed_exists:
+        if version and schema_confirmed_exists:
             _fail(
                 _ErrorClass.NOT_FOUND,
                 f"Schema '{namespace}/{name}' has no published version '{version}'. "
@@ -213,7 +220,7 @@ async def _download_collection(
     When ``prefetched`` is supplied (from the auto-detect probe), reuses that response
     instead of re-fetching the collection download URL.
     """
-    if prefetched is not None:
+    if prefetched:
         resp = prefetched
     else:
         resp = await client.get(_collection_url(base_url, namespace, name))
@@ -259,10 +266,11 @@ async def get(
     version: str | None = typer.Option(
         None, "--version", "-v", help="Specific schema version, for example 1.2.0. Default: latest published."
     ),
-    collection: bool | None = typer.Option(
-        None,
+    collection: bool = typer.Option(
+        False,
         "--collection",
         "-c",
+        is_flag=True,
         help="Force collection download. Default: auto-detect whether the identifier is a schema or collection.",
     ),
     stdout: bool = typer.Option(
@@ -284,7 +292,9 @@ async def get(
     By default, auto-detects whether `namespace/name` is a schema or a collection.
     Pass --collection to force the collection path when an identifier exists as both.
     """
-    namespace, name = _parse_identifier(identifier)
+    parsed = _parse_identifier(identifier)
+    namespace = parsed.namespace
+    name = parsed.name
 
     sdk_cfg = _SdkConfig()
     resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
@@ -292,16 +302,13 @@ async def get(
     async with _make_http_client(sdk_cfg) as client:
         prefetched: httpx.Response | None = None
         schema_confirmed_exists = False
-        if collection is None:
-            item_type, prefetched = await _detect_item_type(client, resolved_url, namespace, name, stdout=stdout)
-            schema_confirmed_exists = item_type == "schema"
-        elif collection:
-            item_type = "collection"
+        if collection:
+            item_type: MarketplaceItemType = "collection"
         else:
-            # Typer exposes only --collection, not --no-collection, so collection=False
-            # is unreachable from the CLI. Kept for defensive completeness against the
-            # bool | None type.
-            item_type = "schema"
+            item_type, prefetched = await _detect_item_type(
+                client=client, base_url=resolved_url, namespace=namespace, name=name, stdout=stdout
+            )
+            schema_confirmed_exists = item_type == "schema"
 
         try:
             if item_type == "collection":
@@ -310,16 +317,22 @@ async def get(
                         "[yellow]Warning: --version is ignored when downloading a collection."
                     )
                 await _download_collection(
-                    client, resolved_url, namespace, name, output_dir, stdout=stdout, prefetched=prefetched
+                    client=client,
+                    base_url=resolved_url,
+                    namespace=namespace,
+                    name=name,
+                    output_dir=output_dir,
+                    stdout=stdout,
+                    prefetched=prefetched,
                 )
             else:
                 await _download_schema(
-                    client,
-                    resolved_url,
-                    namespace,
-                    name,
-                    version,
-                    output_dir,
+                    client=client,
+                    base_url=resolved_url,
+                    namespace=namespace,
+                    name=name,
+                    version=version,
+                    output_dir=output_dir,
                     stdout=stdout,
                     prefetched=prefetched,
                     schema_confirmed_exists=schema_confirmed_exists,

@@ -476,13 +476,19 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
     assert result.stdout == bare_yaml + "---\n" + bare_yaml
 
 
-async def test_collection_false_downloads_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """collection=False is unreachable from CLI but defensively treated as a schema download."""
+async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """collection=False (the default) triggers auto-detect; schema wins when schema endpoint returns 200."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/download",
         text=SCHEMA_YAML,
         headers={"x-schema-version": "1.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        status_code=404,
+        json={"detail": "Collection not found"},
     )
 
     await marketplace_get(
