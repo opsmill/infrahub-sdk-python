@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import typer
-from click.exceptions import Exit
 from httpx import HTTPError
 from rich.console import Console
 from rich.logging import RichHandler
@@ -54,8 +53,6 @@ def init_logging(debug: bool = False) -> None:
 
 def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
     """Handle exception in a different fashion based on its type."""
-    if isinstance(exc, Exit):
-        raise typer.Exit(code=exc.exit_code)
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)
@@ -91,6 +88,8 @@ def catch_exception(
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 try:
                     return await func(*args, **kwargs)
+                except typer.Exit:
+                    raise
                 except (Error, Exception) as exc:
                     return handle_exception(exc=exc, console=console, exit_code=exit_code)
 
@@ -100,6 +99,8 @@ def catch_exception(
         def wrapper(*args: Any, **kwargs: Any) -> T:
             try:
                 return func(*args, **kwargs)
+            except typer.Exit:
+                raise
             except (Error, Exception) as exc:
                 return handle_exception(exc=exc, console=console, exit_code=exit_code)
 
