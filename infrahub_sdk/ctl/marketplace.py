@@ -4,10 +4,9 @@ import asyncio
 import io
 import sys
 import zipfile
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, NoReturn
+from typing import Any, Literal, NamedTuple, NoReturn
 from urllib.parse import urlparse
 
 import httpx
@@ -37,8 +36,7 @@ class _ErrorClass(Enum):
         return 2 if self is _ErrorClass.NETWORK else 1
 
 
-@dataclass(frozen=True, slots=True)
-class MarketplaceIdentifier:
+class MarketplaceIdentifier(NamedTuple):
     namespace: str
     name: str
 
@@ -234,7 +232,10 @@ async def _download_collection(
     try:
         archive = zipfile.ZipFile(io.BytesIO(resp.content))
     except zipfile.BadZipFile:
-        _fail(_ErrorClass.NETWORK, f"Response from {_collection_url(base_url, namespace, name)} is not a valid ZIP archive")
+        _fail(
+            _ErrorClass.NETWORK,
+            f"Response from {_collection_url(base_url, namespace, name)} is not a valid ZIP archive",
+        )
 
     schema_names = [info.filename for info in archive.infolist() if not info.is_dir()]
     status = _status_console(stdout)
