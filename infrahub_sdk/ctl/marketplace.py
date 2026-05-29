@@ -339,4 +339,5 @@ async def get(
                     schema_confirmed_exists=schema_confirmed_exists,
                 )
         except httpx.HTTPError as exc:
-            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {exc}")
+            detail = str(exc) or type(exc).__name__
+            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")

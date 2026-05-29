@@ -404,7 +404,7 @@ def test_versioned_download_network_error(httpx_mock: HTTPXMock, tmp_path: Path)
     result = runner.invoke(app, ["get", "acme/network-base", "-v", "1.0.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed" in result.stdout
+    assert "Marketplace request failed: connection refused" in result.stdout
 
 
 def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -416,7 +416,19 @@ def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) ->
     result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed" in result.stdout
+    assert "Marketplace request failed: connection refused" in result.stdout
+
+
+def test_network_error_empty_message_shows_exception_type(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """When an httpx exception has no message (e.g. ReadTimeout), the type name is shown."""
+    httpx_mock.add_exception(
+        httpx.ReadTimeout(""),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+    )
+    result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "Marketplace request failed: ReadTimeout" in result.stdout
 
 
 def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
