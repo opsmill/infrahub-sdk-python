@@ -11,6 +11,20 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.21.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.0) - 2026-05-29
+
+### Added
+
+- Add `infrahubctl marketplace get` for fetching schemas and collections from the Infrahub Marketplace. Auto-detects schemas vs collections by namespace/name, supports `--version` for pinning, `--collection` to force the collection path, `--stdout` to stream content for piping (status messages on stderr), and `--marketplace-url` / `INFRAHUB_MARKETPLACE_URL` to point at staging or local instances. ([#952](https://github.com/opsmill/infrahub-sdk-python/issues/952))
+
+### Changed
+
+- Change default value of `sync_with_git` parameter in `branch.create()` from `True` to `False` to match UI behavior. ([#224](https://github.com/opsmill/infrahub-sdk-python/issues/224))
+
+### Fixed
+
+- Improve error message when a single node is passed to a cardinality-many relationship. ([#174](https://github.com/opsmill/infrahub-sdk-python/issues/174))
+
 ## [1.20.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.1) - 2026-05-20
 
 ### Added
