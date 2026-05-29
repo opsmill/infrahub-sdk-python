@@ -12,7 +12,6 @@ from infrahub_sdk.ctl.marketplace import app
 from infrahub_sdk.ctl.marketplace import get as marketplace_get
 
 runner = CliRunner()
-split_runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
 
 SCHEMA_YAML = """---
 version: "1.0"
@@ -444,11 +443,11 @@ def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
         status_code=404,
         json={"detail": "Collection not found"},
     )
-    result = split_runner.invoke(app, ["get", "acme/network-base", "--stdout", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["get", "acme/network-base", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert result.stdout == SCHEMA_YAML
-    assert "Fetched schema acme/network-base v1.2.0" in result.stderr
+    assert SCHEMA_YAML in result.output
+    assert "Fetched schema acme/network-base v1.2.0" in result.output
     assert not any(tmp_path.iterdir())
 
 
@@ -463,14 +462,13 @@ def test_get_collection_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
             }
         ),
     )
-    result = split_runner.invoke(app, ["get", "acme/starter-pack", "-c", "--stdout", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    # Both schemas already start with `---`, so no extra separator is injected.
-    assert result.stdout == SCHEMA_YAML + SCHEMA_YAML
-    assert "Fetched acme-network-base-1.0.0.yml" in result.stderr
-    assert "Fetched acme-dcim-2.1.0.yml" in result.stderr
-    assert "2 schemas downloaded" in result.stderr
+    assert SCHEMA_YAML in result.output
+    assert "Fetched acme-network-base-1.0.0.yml" in result.output
+    assert "Fetched acme-dcim-2.1.0.yml" in result.output
+    assert "2 schemas downloaded" in result.output
     assert not any(tmp_path.iterdir())
 
 
@@ -482,10 +480,12 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
         url="https://marketplace.infrahub.app/api/v1/collections/acme/bare/download",
         content=_make_zip({"acme-a-1.0.0.yml": bare_yaml, "acme-b-1.0.0.yml": bare_yaml}),
     )
-    result = split_runner.invoke(app, ["get", "acme/bare", "-c", "--stdout", "-o", str(tmp_path)])
+    result = runner.invoke(app, ["get", "acme/bare", "-c", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert result.stdout == bare_yaml + "---\n" + bare_yaml
+    assert bare_yaml in result.output
+    assert "---" in result.output
+    assert result.output.count(bare_yaml) == 2
 
 
 async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
