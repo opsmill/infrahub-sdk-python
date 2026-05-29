@@ -52,7 +52,7 @@ def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path)
     result = runner.invoke(app, ["get", "acme/network-base", "-v", "0.9.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded schema acme/network-base v0.9.0" in result.stdout
+    assert "Downloaded schema acme/network-base v0.9.0" in result.output
     written = tmp_path / "network-base.yml"
     assert written.exists()
     assert written.read_text() == SCHEMA_YAML
@@ -72,9 +72,9 @@ def test_download_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded acme-network-base-1.0.0.yml" in result.stdout
-    assert "Downloaded acme-dcim-2.1.0.yml" in result.stdout
-    assert "2 schemas downloaded" in result.stdout
+    assert "Downloaded acme-network-base-1.0.0.yml" in result.output
+    assert "Downloaded acme-dcim-2.1.0.yml" in result.output
+    assert "2 schemas downloaded" in result.output
     assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
     assert (tmp_path / "acme-dcim-2.1.0.yml").exists()
 
@@ -95,15 +95,15 @@ def test_download_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/nonexistent", "-o", str(tmp_path)])
 
     assert result.exit_code == 1
-    assert "No schema or collection named 'acme/nonexistent'" in result.stdout
-    assert "marketplace.infrahub.app" in result.stdout
+    assert "No schema or collection named 'acme/nonexistent'" in result.output
+    assert "marketplace.infrahub.app" in result.output
 
 
 def test_download_invalid_identifier(tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "invalid-no-slash", "-o", str(tmp_path)])
 
     assert result.exit_code == 1
-    assert "Invalid identifier" in result.stdout
+    assert "Invalid identifier" in result.output
 
 
 def test_download_custom_marketplace_url(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -125,7 +125,7 @@ def test_download_custom_marketplace_url(httpx_mock: HTTPXMock, tmp_path: Path) 
     )
 
     assert result.exit_code == 0
-    assert "Downloaded schema acme/test v1.0.0" in result.stdout
+    assert "Downloaded schema acme/test v1.0.0" in result.output
 
 
 def test_marketplace_url_from_env(httpx_mock: HTTPXMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -148,7 +148,7 @@ def test_marketplace_url_from_env(httpx_mock: HTTPXMock, tmp_path: Path, monkeyp
     result = runner.invoke(app, ["get", "acme/network-base", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded schema acme/network-base v1.0.0" in result.stdout
+    assert "Downloaded schema acme/network-base v1.0.0" in result.output
 
 
 def test_autodetect_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -167,7 +167,7 @@ def test_autodetect_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/network-base", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded schema acme/network-base v1.2.0" in result.stdout
+    assert "Downloaded schema acme/network-base v1.2.0" in result.output
     assert (tmp_path / "network-base.yml").exists()
 
 
@@ -186,8 +186,8 @@ def test_autodetect_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/starter-pack", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Collection acme/starter-pack" in result.stdout
-    assert "1 schemas downloaded" in result.stdout
+    assert "Collection acme/starter-pack" in result.output
+    assert "1 schemas downloaded" in result.output
     assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
 
 
@@ -206,9 +206,9 @@ def test_autodetect_collision_schema_wins(httpx_mock: HTTPXMock, tmp_path: Path)
     result = runner.invoke(app, ["get", "acme/network", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "both a schema and a collection" in result.stdout
-    assert "--collection" in result.stdout
-    assert "Downloaded schema acme/network v1.0.0" in result.stdout
+    assert "both a schema and a collection" in result.output
+    assert "--collection" in result.output
+    assert "Downloaded schema acme/network v1.0.0" in result.output
 
 
 def test_autodetect_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -217,8 +217,8 @@ def test_autodetect_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None
     result = runner.invoke(app, ["get", "acme/anything", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Could not reach marketplace" in result.stdout
-    assert "marketplace.infrahub.app" in result.stdout
+    assert "Could not reach marketplace" in result.output
+    assert "marketplace.infrahub.app" in result.output
 
 
 def test_version_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -243,9 +243,9 @@ def test_version_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     result = runner.invoke(app, ["get", "acme/network-base", "-v", "9.9.9", "-o", str(tmp_path)])
 
     assert result.exit_code == 1
-    assert "9.9.9" in result.stdout
-    assert "--version" in result.stdout
-    assert "no published version" in result.stdout
+    assert "9.9.9" in result.output
+    assert "--version" in result.output
+    assert "no published version" in result.output
 
 
 def test_version_ignored_on_autodetected_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -263,7 +263,7 @@ def test_version_ignored_on_autodetected_collection(httpx_mock: HTTPXMock, tmp_p
     result = runner.invoke(app, ["get", "acme/starter-pack", "-v", "1.0.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Warning: --version is ignored" in result.stdout
+    assert "Warning: --version is ignored" in result.output
     assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
 
 
@@ -278,7 +278,7 @@ def test_collection_flag_overrides_autodetect(httpx_mock: HTTPXMock, tmp_path: P
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Collection acme/starter-pack" in result.stdout
+    assert "Collection acme/starter-pack" in result.output
 
 
 def test_output_dir_creates_nested_missing_parents(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -347,8 +347,8 @@ def test_output_dir_permission_error(httpx_mock: HTTPXMock, tmp_path: Path, monk
     result = runner.invoke(app, ["get", "acme/network-base", "-o", str(target)])
 
     assert result.exit_code == 1
-    assert "Cannot write" in result.stdout
-    assert "unwritable" in result.stdout
+    assert "Cannot write" in result.output
+    assert "unwritable" in result.output
 
 
 def test_download_collection_with_skipped(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -360,7 +360,7 @@ def test_download_collection_with_skipped(httpx_mock: HTTPXMock, tmp_path: Path)
     result = runner.invoke(app, ["get", "acme/mixed", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "1 schemas downloaded" in result.stdout
+    assert "1 schemas downloaded" in result.output
     assert (tmp_path / "acme-good-1.0.0.yml").exists()
 
 
@@ -379,7 +379,7 @@ def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_
     result = runner.invoke(app, ["get", "acme/foo", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Could not reach marketplace" in result.stdout
+    assert "Could not reach marketplace" in result.output
 
 
 def test_versioned_download_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -403,7 +403,7 @@ def test_versioned_download_network_error(httpx_mock: HTTPXMock, tmp_path: Path)
     result = runner.invoke(app, ["get", "acme/network-base", "-v", "1.0.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed: connection refused" in result.stdout
+    assert "Marketplace request failed: connection refused" in result.output
 
 
 def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -415,7 +415,7 @@ def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) ->
     result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed: connection refused" in result.stdout
+    assert "Marketplace request failed: connection refused" in result.output
 
 
 def test_network_error_empty_message_shows_exception_type(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -427,7 +427,7 @@ def test_network_error_empty_message_shows_exception_type(httpx_mock: HTTPXMock,
     result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed: ReadTimeout" in result.stdout
+    assert "Marketplace request failed: ReadTimeout" in result.output
 
 
 def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
