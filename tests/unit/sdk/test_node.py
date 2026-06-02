@@ -313,6 +313,36 @@ async def test_init_node_data_graphql(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_requires_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": {"id": "pppppppp"},
+    }
+    with pytest.raises(ValueError, match=r"expects a list of nodes"):
+        if client_type == "standard":
+            InfrahubNode(client=client, schema=location_schema, data=data)
+        else:
+            InfrahubNodeSync(client=client, schema=location_schema, data=data)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_accepts_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": [{"id": "aaaaaa"}, {"id": "bbbb"}],
+    }
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+    assert len(node.tags.peers) == 2
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_query_data_no_filters_property(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
