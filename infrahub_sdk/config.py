@@ -70,6 +70,9 @@ class ConfigBase(BaseSettings):
     )
     proxy: str | None = Field(default=None, description="Proxy address")
     proxy_mounts: ProxyMountsConfig = Field(default=ProxyMountsConfig(), description="Proxy mounts configuration")
+    marketplace_url: str = Field(
+        default="https://marketplace.infrahub.app", description="Base URL for the Infrahub Marketplace."
+    )
     update_group_context: bool = Field(default=False, description="Update GraphQL query groups")
     tls_insecure: bool = Field(
         default=False,
