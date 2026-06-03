@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import typer
-from click.exceptions import Exit
 from httpx import HTTPError
 from rich.console import Console
 from rich.logging import RichHandler
@@ -54,8 +53,8 @@ def init_logging(debug: bool = False) -> None:
 
 def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
     """Handle exception in a different fashion based on its type."""
-    if isinstance(exc, Exit):
-        raise typer.Exit(code=exc.exit_code)
+    if isinstance(exc, typer.Exit):
+        raise exc
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)

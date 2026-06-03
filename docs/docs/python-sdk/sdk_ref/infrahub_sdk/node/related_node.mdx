@@ -19,6 +19,12 @@ Base class for representing a related node in a relationship.
 id(self) -> str | None
 ```
 
+Return the parsed peer id without triggering a store lookup.
+
+Returns None when the response carried only hfid_str (no id, no peer)
+— in that case .peer.id would resolve through the store and yield a
+non-None id, so .id and .peer.id are NOT interchangeable.
+
 #### `hfid`
 
 ```python
@@ -95,11 +101,24 @@ fetch(self, timeout: int | None = None) -> None
 peer(self) -> InfrahubNode
 ```
 
+Return the peer node, or raise ValueError if no identifier is available.
+
 #### `get`
 
 ```python
 get(self) -> InfrahubNode
 ```
+
+Return the peer node, performing a store lookup if not materialized.
+
+When resolving via hfid_str the returned node has a non-None id even
+when this RelatedNode's .id is None — that is the case in which
+.peer.id and .id diverge.
+
+**Raises:**
+
+- `ValueError`: when neither a peer, (_id,_typename), nor hfid_str
+is available.
 
 ### `RelatedNodeSync`
 
@@ -119,8 +138,21 @@ fetch(self, timeout: int | None = None) -> None
 peer(self) -> InfrahubNodeSync
 ```
 
+Return the peer node, or raise ValueError if no identifier is available.
+
 #### `get`
 
 ```python
 get(self) -> InfrahubNodeSync
 ```
+
+Return the peer node, performing a store lookup if not materialized.
+
+When resolving via hfid_str the returned node has a non-None id even
+when this RelatedNode's .id is None — that is the case in which
+.peer.id and .id diverge.
+
+**Raises:**
+
+- `ValueError`: when neither a peer, (_id,_typename), nor hfid_str
+is available.
