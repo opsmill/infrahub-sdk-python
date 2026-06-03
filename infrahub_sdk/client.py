@@ -321,7 +321,7 @@ class InfrahubClient(BaseClient):
 
     async def get_user(self) -> dict:
         """Return user information."""
-        return await self.execute_graphql(query=QUERY_USER)
+        return await self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
 
     async def get_user_permissions(self) -> dict:
         """Return user permissions."""
@@ -636,6 +636,7 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             at=at,
             timeout=timeout,
+            operation_name=query_name,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -868,6 +869,7 @@ class InfrahubClient(BaseClient):
                 at=at,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
                 timeout=timeout,
+                operation_name=query.name,
             )
 
             process_result: ProcessRelationsNode = await self._process_nodes_and_relationships(
@@ -943,6 +945,7 @@ class InfrahubClient(BaseClient):
         at: str | Timestamp | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
 
@@ -954,6 +957,8 @@ class InfrahubClient(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
+            operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
+                so tracing/observability tools can identify the operation. Defaults to None.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
@@ -972,6 +977,8 @@ class InfrahubClient(BaseClient):
         payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
+        if operation_name:
+            payload["operationName"] = operation_name
 
         headers = copy.copy(self.headers or {})
         if self.insert_tracker and tracker:
@@ -1028,6 +1035,7 @@ class InfrahubClient(BaseClient):
         branch_name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -1073,6 +1081,7 @@ class InfrahubClient(BaseClient):
             file_name=file_name or "upload",
             headers=headers,
             timeout=timeout,
+            operation_name=operation_name,
         )
 
         resp.raise_for_status()
@@ -1093,6 +1102,7 @@ class InfrahubClient(BaseClient):
         file_name: str,
         headers: dict | None = None,
         timeout: int | None = None,
+        operation_name: str | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -1108,7 +1118,11 @@ class InfrahubClient(BaseClient):
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
-            query=query, variables=variables, file_content=file_content, file_name=file_name
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name,
+            operation_name=operation_name,
         )
 
         return await self._request_multipart(
@@ -1441,6 +1455,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name="GetDiffTree",
         )
 
         node_diffs: list[NodeDiff] = []
@@ -1488,6 +1503,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name=query.name,
         )
 
         diff_tree = response["DiffTree"]
@@ -1819,7 +1835,7 @@ class InfrahubClientSync(BaseClient):
 
     def get_user(self) -> dict:
         """Return user information."""
-        return self.execute_graphql(query=QUERY_USER)
+        return self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
 
     def get_user_permissions(self) -> dict:
         """Return user permissions."""
@@ -1879,6 +1895,7 @@ class InfrahubClientSync(BaseClient):
         at: str | Timestamp | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
 
@@ -1890,6 +1907,8 @@ class InfrahubClientSync(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
+            operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
+                so tracing/observability tools can identify the operation. Defaults to None.
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
@@ -1908,6 +1927,8 @@ class InfrahubClientSync(BaseClient):
         payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
+        if operation_name:
+            payload["operationName"] = operation_name
 
         headers = copy.copy(self.headers or {})
         if self.insert_tracker and tracker:
@@ -1964,6 +1985,7 @@ class InfrahubClientSync(BaseClient):
         branch_name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -2009,6 +2031,7 @@ class InfrahubClientSync(BaseClient):
             file_name=file_name or "upload",
             headers=headers,
             timeout=timeout,
+            operation_name=operation_name,
         )
 
         resp.raise_for_status()
@@ -2029,6 +2052,7 @@ class InfrahubClientSync(BaseClient):
         file_name: str,
         headers: dict | None = None,
         timeout: int | None = None,
+        operation_name: str | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -2044,7 +2068,11 @@ class InfrahubClientSync(BaseClient):
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
-            query=query, variables=variables, file_content=file_content, file_name=file_name
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name,
+            operation_name=operation_name,
         )
 
         return self._request_multipart(url=url, headers=headers, timeout=timeout or self.default_timeout, files=files)
@@ -2115,6 +2143,7 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             at=at,
             timeout=timeout,
+            operation_name=query_name,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -2388,6 +2417,7 @@ class InfrahubClientSync(BaseClient):
                 at=at,
                 timeout=timeout,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
+                operation_name=query.name,
             )
 
             process_result: ProcessRelationsNodeSync = self._process_nodes_and_relationships(
@@ -2777,6 +2807,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name="GetDiffTree",
         )
 
         node_diffs: list[NodeDiff] = []
@@ -2824,6 +2855,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name=query.name,
         )
 
         diff_tree = response["DiffTree"]
