@@ -1,5 +1,3 @@
-import io
-import zipfile
 from pathlib import Path
 
 import httpx
@@ -21,12 +19,17 @@ nodes:
 """
 
 
-def _make_zip(files: dict[str, str]) -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        for filename, content in files.items():
-            zf.writestr(filename, content)
-    return buf.getvalue()
+def _collection_json(members: list[tuple[str, str, str]]) -> dict:
+    """Build collection metadata mimicking the marketplace endpoint.
+
+    ``members`` is a list of ``(namespace, name, semver)`` tuples.
+    """
+    return {
+        "items": [
+            {"schema": {"namespace": ns, "name": name, "latest_version": {"semver": semver}}}
+            for ns, name, semver in members
+        ]
+    }
 
 
 def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -39,7 +42,7 @@ def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path)
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -61,22 +64,27 @@ def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path)
 def test_download_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        content=_make_zip(
-            {
-                "acme-network-base-1.0.0.yml": SCHEMA_YAML,
-                "acme-dcim-2.1.0.yml": SCHEMA_YAML,
-            }
-        ),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "network-base", "1.0.0"), ("acme", "dcim", "2.1.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/versions/2.1.0/download",
+        text=SCHEMA_YAML,
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "Downloaded acme-network-base-1.0.0.yml" in result.output
-    assert "Downloaded acme-dcim-2.1.0.yml" in result.output
+    assert "Downloaded schema acme/network-base v1.0.0" in result.output
+    assert "Downloaded schema acme/dcim v2.1.0" in result.output
     assert "2 schemas downloaded" in result.output
-    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
-    assert (tmp_path / "acme-dcim-2.1.0.yml").exists()
+    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
+    assert (tmp_path / "starter-pack" / "dcim.yml").exists()
 
 
 def test_download_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -88,7 +96,7 @@ def test_download_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/nonexistent/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/nonexistent",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -115,7 +123,7 @@ def test_download_custom_marketplace_url(httpx_mock: HTTPXMock, tmp_path: Path) 
     )
     httpx_mock.add_response(
         method="GET",
-        url="http://localhost:8000/api/v1/collections/acme/test/download",
+        url="http://localhost:8000/api/v1/collections/acme/test",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -141,7 +149,7 @@ def test_marketplace_url_from_env(httpx_mock: HTTPXMock, tmp_path: Path, monkeyp
     )
     httpx_mock.add_response(
         method="GET",
-        url="http://staging.example.com/api/v1/collections/acme/network-base/download",
+        url="http://staging.example.com/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -160,7 +168,7 @@ def test_autodetect_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -180,15 +188,20 @@ def test_autodetect_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "network-base", "1.0.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+        text=SCHEMA_YAML,
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "Collection acme/starter-pack" in result.output
     assert "1 schemas downloaded" in result.output
-    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
+    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
 
 
 def test_autodetect_collision_schema_wins(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -200,8 +213,8 @@ def test_autodetect_collision_schema_wins(httpx_mock: HTTPXMock, tmp_path: Path)
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network/download",
-        content=_make_zip({}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network",
+        json=_collection_json([]),
     )
     result = runner.invoke(app, ["get", "acme/network", "-o", str(tmp_path)])
 
@@ -230,7 +243,7 @@ def test_version_not_found(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -257,23 +270,33 @@ def test_version_ignored_on_autodetected_collection(httpx_mock: HTTPXMock, tmp_p
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "network-base", "1.0.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+        text=SCHEMA_YAML,
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-v", "1.0.0", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "Warning: --version is ignored" in result.output
-    assert (tmp_path / "acme-network-base-1.0.0.yml").exists()
+    assert (tmp_path / "starter-pack" / "network-base.yml").exists()
 
 
 def test_collection_flag_overrides_autodetect(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        content=_make_zip({"acme-network-base-1.0.0.yml": SCHEMA_YAML}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "network-base", "1.0.0")]),
     )
-    # No schema endpoint mock — if the implementation probes it, pytest-httpx
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    # No schema-detect endpoint mock — if the implementation probes it, pytest-httpx
     # will raise "request not expected".
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
@@ -290,7 +313,7 @@ def test_output_dir_creates_nested_missing_parents(httpx_mock: HTTPXMock, tmp_pa
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -310,7 +333,7 @@ def test_output_dir_default_is_schemas(httpx_mock: HTTPXMock, tmp_path: Path, mo
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -330,7 +353,7 @@ def test_output_dir_permission_error(httpx_mock: HTTPXMock, tmp_path: Path, monk
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -351,17 +374,28 @@ def test_output_dir_permission_error(httpx_mock: HTTPXMock, tmp_path: Path, monk
     assert "unwritable" in result.output
 
 
-def test_download_collection_with_skipped(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+def test_download_collection_skips_members_missing_identity(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A member entry missing namespace/name is skipped rather than aborting the download."""
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/mixed/download",
-        content=_make_zip({"acme-good-1.0.0.yml": SCHEMA_YAML}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/mixed",
+        json={
+            "items": [
+                {"schema": {"namespace": "acme", "name": "good", "latest_version": {"semver": "1.0.0"}}},
+                {"schema": {"name": "orphan", "latest_version": {"semver": "1.0.0"}}},
+            ]
+        },
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/good/versions/1.0.0/download",
+        text=SCHEMA_YAML,
     )
     result = runner.invoke(app, ["get", "acme/mixed", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
-    assert "1 schemas downloaded" in result.output
-    assert (tmp_path / "acme-good-1.0.0.yml").exists()
+    assert "Downloaded schema acme/good v1.0.0" in result.output
+    assert (tmp_path / "mixed" / "good.yml").exists()
 
 
 def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -374,7 +408,7 @@ def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_
     )
     httpx_mock.add_exception(
         httpx.ConnectError("connection refused"),
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo",
     )
     result = runner.invoke(app, ["get", "acme/foo", "-o", str(tmp_path)])
 
@@ -392,7 +426,7 @@ def test_versioned_download_network_error(httpx_mock: HTTPXMock, tmp_path: Path)
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -410,7 +444,7 @@ def test_collection_flag_network_error(httpx_mock: HTTPXMock, tmp_path: Path) ->
     """A network failure on the explicit --collection fetch should exit with code 2."""
     httpx_mock.add_exception(
         httpx.ConnectError("connection refused"),
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo",
     )
     result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
 
@@ -422,7 +456,7 @@ def test_network_error_empty_message_shows_exception_type(httpx_mock: HTTPXMock,
     """When an httpx exception has no message (e.g. ReadTimeout), the type name is shown."""
     httpx_mock.add_exception(
         httpx.ReadTimeout(""),
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/foo",
     )
     result = runner.invoke(app, ["get", "acme/foo", "-c", "-o", str(tmp_path)])
 
@@ -439,7 +473,7 @@ def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
@@ -454,20 +488,25 @@ def test_get_schema_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
 def test_get_collection_stdout(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack/download",
-        content=_make_zip(
-            {
-                "acme-network-base-1.0.0.yml": SCHEMA_YAML,
-                "acme-dcim-2.1.0.yml": SCHEMA_YAML,
-            }
-        ),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "network-base", "1.0.0"), ("acme", "dcim", "2.1.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/network-base/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/versions/2.1.0/download",
+        text=SCHEMA_YAML,
     )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert SCHEMA_YAML in result.output
-    assert "Fetched acme-network-base-1.0.0.yml" in result.output
-    assert "Fetched acme-dcim-2.1.0.yml" in result.output
+    assert "Fetched schema acme/network-base v1.0.0" in result.output
+    assert "Fetched schema acme/dcim v2.1.0" in result.output
     assert "2 schemas downloaded" in result.output
     assert not any(tmp_path.iterdir())
 
@@ -477,8 +516,18 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
     bare_yaml = 'version: "1.0"\nnodes: []\n'
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/bare/download",
-        content=_make_zip({"acme-a-1.0.0.yml": bare_yaml, "acme-b-1.0.0.yml": bare_yaml}),
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/bare",
+        json=_collection_json([("acme", "a", "1.0.0"), ("acme", "b", "1.0.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/a/versions/1.0.0/download",
+        text=bare_yaml,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/b/versions/1.0.0/download",
+        text=bare_yaml,
     )
     result = runner.invoke(app, ["get", "acme/bare", "-c", "--stdout", "-o", str(tmp_path)])
 
@@ -498,7 +547,7 @@ async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_pa
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base/download",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/network-base",
         status_code=404,
         json={"detail": "Collection not found"},
     )
