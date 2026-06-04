@@ -69,7 +69,7 @@ class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
         return str(self.template_path)
 
     @property
-    def payload(self) -> dict[str, str]:
+    def payload(self) -> dict[str, Any]:
         data = self.model_dump(exclude_none=True)
         data["template_path"] = self.template_path_value
         return data
