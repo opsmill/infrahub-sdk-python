@@ -395,7 +395,40 @@ def test_download_collection_skips_members_missing_identity(httpx_mock: HTTPXMoc
 
     assert result.exit_code == 0
     assert "Downloaded schema acme/good v1.0.0" in result.output
+    assert "Warning: skipping a collection member" in result.output
+    assert "1 schemas downloaded" in result.output
     assert (tmp_path / "mixed" / "good.yml").exists()
+
+
+def test_download_collection_duplicate_names_across_namespaces(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Members sharing a name across namespaces land in namespace subdirectories instead of overwriting."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/clash",
+        json=_collection_json([("acme", "dcim", "1.0.0"), ("other", "dcim", "2.0.0"), ("acme", "ipam", "1.0.0")]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/other/dcim/versions/2.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/ipam/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    result = runner.invoke(app, ["get", "acme/clash", "-c", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "3 schemas downloaded" in result.output
+    assert (tmp_path / "clash" / "acme" / "dcim.yml").exists()
+    assert (tmp_path / "clash" / "other" / "dcim.yml").exists()
+    assert (tmp_path / "clash" / "ipam.yml").exists()
 
 
 def test_autodetect_partial_probe_failure_is_network(httpx_mock: HTTPXMock, tmp_path: Path) -> None:

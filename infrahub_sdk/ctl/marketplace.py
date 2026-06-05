@@ -221,7 +221,10 @@ async def _download_collection(
     The collection metadata endpoint lists each member schema along with its latest
     published version. Each member is downloaded individually via :func:`_download_schema`
     so naming, versioning, and error handling stay identical to single-schema downloads.
-    On disk, members land in ``output_dir/<collection name>/<schema name>.yml``.
+    On disk, members land in ``output_dir/<collection name>/<schema name>.yml``. If two
+    members share a name across namespaces, those members are disambiguated into
+    ``output_dir/<collection name>/<namespace>/<schema name>.yml`` instead of silently
+    overwriting each other.
     When ``prefetched`` is supplied (from the auto-detect probe), reuses that response
     instead of re-fetching the collection metadata.
     """
@@ -244,29 +247,38 @@ async def _download_collection(
             f"Response from {_collection_url(base_url, namespace, name)} is not valid JSON",
         )
 
-    members = [item.get("schema", {}) for item in payload.get("items", [])]
+    items = payload.get("items", []) if isinstance(payload, dict) else []
+    schemas = [item.get("schema") for item in items if isinstance(item, dict)]
+    members: list[dict[str, Any]] = [schema for schema in schemas if isinstance(schema, dict)]
     status = _status_console(stdout)
     target_dir = output_dir / name
 
-    for index, schema in enumerate(members):
+    member_names = [schema.get("name") for schema in members if schema.get("namespace") and schema.get("name")]
+    duplicated_names = {member_name for member_name in member_names if member_names.count(member_name) > 1}
+
+    downloaded = 0
+    for schema in members:
         member_namespace = schema.get("namespace")
         member_name = schema.get("name")
         if not member_namespace or not member_name:
+            status.print("[yellow]Warning: skipping a collection member with missing namespace or name.")
             continue
         version = (schema.get("latest_version") or {}).get("semver")
+        member_dir = target_dir / member_namespace if member_name in duplicated_names else target_dir
         await _download_schema(
             client=client,
             base_url=base_url,
             namespace=member_namespace,
             name=member_name,
             version=version,
-            output_dir=target_dir,
+            output_dir=member_dir,
             stdout=stdout,
             schema_confirmed_exists=True,
-            needs_separator=index > 0,
+            needs_separator=downloaded > 0,
         )
+        downloaded += 1
 
-    status.print(f"\n[green]Collection {namespace}/{name}: {len(members)} schemas downloaded")
+    status.print(f"\n[green]Collection {namespace}/{name}: {downloaded} schemas downloaded")
 
 
 @app.command()
