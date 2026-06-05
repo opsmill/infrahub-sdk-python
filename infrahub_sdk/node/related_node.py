@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, cast
+
+from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
@@ -12,6 +14,13 @@ if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
     from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
+
+# Type of the related peer node. Defaults to ``InfrahubNode``/``InfrahubNodeSync`` so that
+# existing un-parameterised ``RelatedNode`` / ``RelatedNodeSync`` usage keeps returning the
+# dynamic node, while generated protocols can parameterise it (e.g. ``RelatedNode[CoreDevice]``)
+# to preserve the peer type through ``.peer`` / ``.get()``.
+PeerT = TypeVar("PeerT", default="InfrahubNode")
+PeerTSync = TypeVar("PeerTSync", default="InfrahubNodeSync")
 
 
 class RelatedNodeBase:
@@ -212,7 +221,7 @@ class RelatedNodeBase:
         return data
 
 
-class RelatedNode(RelatedNodeBase):
+class RelatedNode(RelatedNodeBase, Generic[PeerT]):
     """Represents a RelatedNodeBase in an asynchronous context."""
 
     def __init__(
@@ -243,23 +252,23 @@ class RelatedNode(RelatedNodeBase):
         )
 
     @property
-    def peer(self) -> InfrahubNode:
+    def peer(self) -> PeerT:
         return self.get()
 
-    def get(self) -> InfrahubNode:
+    def get(self) -> PeerT:
         if self._peer:
-            return self._peer  # type: ignore[return-value]
+            return cast("PeerT", self._peer)
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerT", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
 
         if self.hfid_str:
-            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerT", self._client.store.get(key=self.hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
 
-class RelatedNodeSync(RelatedNodeBase):
+class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
     """Represents a related node in a synchronous context."""
 
     def __init__(
@@ -290,17 +299,17 @@ class RelatedNodeSync(RelatedNodeBase):
         )
 
     @property
-    def peer(self) -> InfrahubNodeSync:
+    def peer(self) -> PeerTSync:
         return self.get()
 
-    def get(self) -> InfrahubNodeSync:
+    def get(self) -> PeerTSync:
         if self._peer:
-            return self._peer  # type: ignore[return-value]
+            return cast("PeerTSync", self._peer)
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerTSync", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
 
         if self.hfid_str:
-            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerTSync", self._client.store.get(key=self.hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
