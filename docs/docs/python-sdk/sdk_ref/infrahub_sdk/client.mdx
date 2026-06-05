@@ -224,7 +224,7 @@ Return a cloned version of the client using the same configuration.
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -238,6 +238,8 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 
@@ -525,7 +527,7 @@ Return a cloned version of the client using the same configuration.
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -539,6 +541,8 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 

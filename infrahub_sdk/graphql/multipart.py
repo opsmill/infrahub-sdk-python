@@ -28,18 +28,22 @@ class MultipartBuilder:
     """
 
     @staticmethod
-    def build_operations(query: str, variables: dict[str, Any]) -> str:
+    def build_operations(query: str, variables: dict[str, Any], operation_name: str | None = None) -> str:
         """Build the operations JSON string.
 
         Args:
             query: The GraphQL query string.
             variables: The variables dict (file variable should be null).
+            operation_name: Optional GraphQL operation name, included as `operationName` when set.
 
         Returns:
-            JSON string containing the query and variables.
+            JSON string containing the query, variables, and optional operation name.
 
         """
-        return ujson.dumps({"query": query, "variables": variables})
+        operations: dict[str, Any] = {"query": query, "variables": variables}
+        if operation_name:
+            operations["operationName"] = operation_name
+        return ujson.dumps(operations)
 
     @staticmethod
     def build_file_map(file_key: str = "0", variable_path: str = "variables.file") -> str:
@@ -61,6 +65,7 @@ class MultipartBuilder:
         variables: dict[str, Any],
         file_content: BinaryIO | None = None,
         file_name: str = "upload",
+        operation_name: str | None = None,
     ) -> dict[str, Any]:
         """Build the complete multipart form data payload.
 
@@ -91,7 +96,7 @@ class MultipartBuilder:
         # Ensure file variable is null (spec requirement)
         variables = {**variables, "file": None}
 
-        operations = MultipartBuilder.build_operations(query=query, variables=variables)
+        operations = MultipartBuilder.build_operations(query=query, variables=variables, operation_name=operation_name)
         file_map = MultipartBuilder.build_file_map()
 
         files: dict[str, Any] = {"operations": (None, operations), "map": (None, file_map)}
