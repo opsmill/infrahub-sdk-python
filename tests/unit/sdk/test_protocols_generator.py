@@ -64,7 +64,7 @@ class LocationSite(LocationGeneric):
     shortname: String
     children: RelationshipManagerSync[LocationRack]
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    parent: RelatedNodeSync[LocationCountry]
+    parent: RelationshipAttributeSync[LocationCountry]
     profiles: RelationshipManagerSync[CoreProfileSync]
     servers: RelationshipManagerSync[NetworkManagementServer]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
