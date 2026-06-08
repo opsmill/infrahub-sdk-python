@@ -4,7 +4,6 @@ import ipaddress
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
-from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
 from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
 from .property import NodeProperty
@@ -115,7 +114,7 @@ class Attribute:
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
             return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
             return _GraphQLPayloadAttribute(
                 payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
             )
@@ -190,4 +189,6 @@ class Attribute:
             True if the attribute value is a resource pool node or was explicitly allocated from a pool.
 
         """
-        return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None
+        return (
+            hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
+        ) or self._from_pool is not None

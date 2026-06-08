@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
@@ -11,7 +11,7 @@ from .metadata import NodeMetadata, RelationshipMetadata
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
-    from .node import InfrahubNode, InfrahubNodeSync
+    from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
 
 class RelatedNodeBase:
@@ -36,7 +36,7 @@ class RelatedNodeBase:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self._peer = None
+        self._peer: InfrahubNodeBase | CoreNodeBase | None = None
         self._id: str | None = None
         self._hfid: list[str] | None = None
         self._display_label: str | None = None
@@ -45,8 +45,10 @@ class RelatedNodeBase:
         self._source_typename: str | None = None
         self._relationship_metadata: RelationshipMetadata | None = None
 
-        if isinstance(data, (CoreNodeBase)):
-            self._peer = data
+        # Check for InfrahubNodeBase instances using duck-typing (_schema attribute)
+        # to avoid circular imports, or CoreNodeBase instances
+        if isinstance(data, CoreNodeBase) or hasattr(data, "_schema"):
+            self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
             self._relationship_metadata = None
