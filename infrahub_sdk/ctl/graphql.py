@@ -125,7 +125,6 @@ async def query_report(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Run a GraphQL query through InfrahubGraphQLQueryReport and report its analysis."""
-
     client = initialize_client(branch=branch)
 
     if online:
@@ -159,15 +158,9 @@ async def query_report(
     console.print(f"Query {name!r} ({', '.join(header_parts)})")
 
     if targets_unique_nodes:
-        console.print(
-            "Targets unique nodes: [green]true[/green] — "
-            "Infrahub will limit artifact regeneration to changed nodes only."
-        )
+        console.print("Targets unique nodes: [green]true[/green]")
     else:
-        console.print(
-            "Targets unique nodes: [yellow]false[/yellow] — "
-            "all artifacts for the definition will be regenerated on any relevant node change."
-        )
+        console.print("Targets unique nodes: [yellow]false[/yellow]")
 
 
 @app.command()
