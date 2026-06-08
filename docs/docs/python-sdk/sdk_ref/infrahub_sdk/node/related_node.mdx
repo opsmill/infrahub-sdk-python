@@ -98,7 +98,7 @@ fetch(self, timeout: int | None = None) -> None
 #### `peer`
 
 ```python
-peer(self) -> InfrahubNode
+peer(self) -> PeerT
 ```
 
 Return the peer node, or raise ValueError if no identifier is available.
@@ -106,7 +106,7 @@ Return the peer node, or raise ValueError if no identifier is available.
 #### `get`
 
 ```python
-get(self) -> InfrahubNode
+get(self) -> PeerT
 ```
 
 Return the peer node, performing a store lookup if not materialized.
@@ -135,7 +135,7 @@ fetch(self, timeout: int | None = None) -> None
 #### `peer`
 
 ```python
-peer(self) -> InfrahubNodeSync
+peer(self) -> PeerTSync
 ```
 
 Return the peer node, or raise ValueError if no identifier is available.
@@ -143,7 +143,7 @@ Return the peer node, or raise ValueError if no identifier is available.
 #### `get`
 
 ```python
-get(self) -> InfrahubNodeSync
+get(self) -> PeerTSync
 ```
 
 Return the peer node, performing a store lookup if not materialized.
