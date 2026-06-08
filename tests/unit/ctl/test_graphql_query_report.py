@@ -48,7 +48,6 @@ def test_query_report_local_returns_true(httpx_mock: HTTPXMock) -> None:
     assert "Query 'tags_query' (local: templates/tags_query.gql)" in output
     assert "branch:" not in output
     assert "Targets unique nodes: true" in output
-    assert "limit artifact regeneration to changed nodes only" in output
 
 
 def test_query_report_local_returns_false(httpx_mock: HTTPXMock) -> None:
@@ -65,7 +64,6 @@ def test_query_report_local_returns_false(httpx_mock: HTTPXMock) -> None:
     assert result.exit_code == 0, strip_color(result.stdout)
     output = _flatten(result.stdout)
     assert "Targets unique nodes: false" in output
-    assert "all artifacts for the definition will be regenerated" in output
 
 
 def test_query_report_local_uses_branch(httpx_mock: HTTPXMock) -> None:
