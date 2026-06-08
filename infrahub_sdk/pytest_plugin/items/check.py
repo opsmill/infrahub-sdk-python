@@ -12,7 +12,7 @@ from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
 
 if TYPE_CHECKING:
-    from pytest import ExceptionInfo
+    import pytest
 
     from ...checks import InfrahubCheck
     from ...schema.repository import InfrahubRepositoryConfigElement
@@ -46,7 +46,7 @@ class InfrahubCheckItem(InfrahubItem):
         self.instantiate_check()
         return asyncio.run(self.check_instance.run(data=variables))
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
+    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
                 response_content = ujson.dumps(excinfo.value.response.json(), indent=4)

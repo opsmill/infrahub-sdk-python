@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     server_address: str = Field(default="http://localhost:8000", validation_alias="infrahub_address")
     api_token: str | None = Field(default=None)
     default_branch: str = Field(default="main")
+    marketplace_url: str = Field(
+        default="https://marketplace.infrahub.app", description="Base URL for the Infrahub Marketplace."
+    )
 
     @field_validator("server_address")
     @classmethod
@@ -44,7 +47,7 @@ class ConfiguredSettings:
             return self._settings
 
         print("Configuration not properly loaded")
-        raise typer.Abort()
+        raise typer.Abort
 
     def load(self, config_file: str | Path = "infrahubctl.toml", config_data: dict | None = None) -> None:
         """Load configuration.
@@ -52,7 +55,6 @@ class ConfiguredSettings:
         Configuration is loaded from a config file in toml format that contains the settings,
         or from a dictionary of those settings passed in as "config_data"
         """
-
         if self._settings:
             return
 
@@ -81,8 +83,8 @@ class ConfiguredSettings:
         Args:
             config_file_name (str, optional): [description]. Defaults to "pyprojectctl.toml".
             config_data (dict, optional): [description]. Defaults to None.
-        """
 
+        """
         try:
             self.load(config_file=config_file, config_data=config_data)
         except ValidationError as exc:
@@ -90,7 +92,7 @@ class ConfiguredSettings:
             for error in exc.errors():
                 loc_str = [str(item) for item in error["loc"]]
                 print(f"  {'/'.join(loc_str)} | {error['msg']} ({error['type']})")
-            raise typer.Abort()
+            raise typer.Abort from None
 
 
 SETTINGS = ConfiguredSettings()

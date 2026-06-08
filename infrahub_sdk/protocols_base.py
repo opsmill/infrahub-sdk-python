@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     import ipaddress
 
     from .context import RequestContext
+    from .node.metadata import NodeMetadata
     from .schema import MainSchemaTypes
 
 
@@ -124,11 +125,11 @@ class IntegerOptional(Attribute):
 
 
 class IPHost(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface
 
 
 class IPHostOptional(Attribute):
-    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
+    value: ipaddress.IPv4Interface | ipaddress.IPv6Interface | None
 
 
 class IPNetwork(Attribute):
@@ -189,24 +190,26 @@ class CoreNodeBase:
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None: ...
 
     def get_kind(self) -> str:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_all_kinds(self) -> list[str]:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_branch(self) -> str:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_ip_prefix(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_ip_address(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def is_resource_pool(self) -> bool:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def get_raw_graphql_data(self) -> dict | None: ...
+
+    def get_node_metadata(self) -> NodeMetadata | None: ...
 
 
 class CoreNode(CoreNodeBase):

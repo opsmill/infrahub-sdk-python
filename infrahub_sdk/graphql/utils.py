@@ -20,6 +20,10 @@ def strip_typename_from_selection_set(selection_set: SelectionSetNode | None) ->
 
     This function removes all __typename fields from the selection set, allowing
     code generation to proceed without errors.
+
+    Raises:
+        TypeError: If the selection set contains an unexpected GraphQL node type.
+
     """
     if selection_set is None:
         return None
@@ -88,7 +92,9 @@ def strip_typename_from_fragment(fragment: FragmentDefinitionNode) -> FragmentDe
 
 def get_class_def_index(module: ast.Module) -> int:
     """Get the index of the first class definition in the module.
-    It's useful to insert other classes before the first class definition."""
+
+    It's useful to insert other classes before the first class definition.
+    """
     for idx, item in enumerate(module.body):
         if isinstance(item, ast.ClassDef):
             return idx

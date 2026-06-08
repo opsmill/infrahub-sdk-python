@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import ipaddress
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
-from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
 from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
 from .property import NodeProperty
@@ -13,20 +12,54 @@ if TYPE_CHECKING:
     from ..schema import AttributeSchemaAPI
 
 
+class _GraphQLPayloadAttribute(NamedTuple):
+    """Result of resolving an attribute value for a GraphQL mutation.
+
+    Attributes:
+        payload: Key/value entries to include in the mutation payload
+            (e.g. ``{"value": ...}`` or ``{"from_pool": ...}``).
+        variables: GraphQL variable bindings for unsafe string values.
+        needs_metadata: When ``True``, the payload needs to append property flags/objects
+
+    """
+
+    payload: dict[str, Any]
+    variables: dict[str, Any]
+    needs_metadata: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"data": self.payload, "variables": self.variables}
+
+    def add_properties(self, properties_flag: dict[str, Any], properties_object: dict[str, str | None]) -> None:
+        if not self.needs_metadata:
+            return
+        for prop_name, prop in properties_flag.items():
+            self.payload[prop_name] = prop
+
+        for prop_name, prop in properties_object.items():
+            self.payload[prop_name] = prop
+
+
 class Attribute:
     """Represents an attribute of a Node, including its schema, value, and properties."""
 
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
-        """
+        """Initialize the attribute.
+
         Args:
             name (str): The name of the attribute.
             schema (AttributeSchema): The schema defining the attribute.
             data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
+
         """
         self.name = name
         self._schema = schema
+        self._from_pool: dict[str, Any] | None = None
 
-        if not isinstance(data, dict) or "value" not in data:
+        if isinstance(data, dict) and "from_pool" in data:
+            self._from_pool = data.pop("from_pool")
+            data.setdefault("value", None)
+        elif not isinstance(data, dict) or "value" not in data:
             data = {"value": data}
 
         self._properties_flag = PROPERTIES_FLAG
@@ -76,38 +109,54 @@ class Attribute:
         self._value = value
         self.value_has_been_mutated = True
 
-    def _generate_input_data(self) -> dict | None:
-        data: dict[str, Any] = {}
-        variables: dict[str, Any] = {}
+    def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
+        """Resolve the attribute value into a GraphQL mutation payload object."""
+        # Pool-based allocation (dict data or resource-pool node)
+        if self._from_pool is not None:
+            return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
+        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
+            return _GraphQLPayloadAttribute(
+                payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
+            )
 
+        # Null value
         if self.value is None:
-            if self._schema.optional and self.value_has_been_mutated:
-                data["value"] = None
-            return data
+            data = {"value": None} if (self._schema.optional and self.value_has_been_mutated) else {}
+            return _GraphQLPayloadAttribute(payload=data, variables={}, needs_metadata=False)
 
-        if isinstance(self.value, str):
-            if SAFE_VALUE.match(self.value):
-                data["value"] = self.value
-            else:
-                var_name = f"value_{UUIDT.new().hex}"
-                variables[var_name] = self.value
-                data["value"] = f"${var_name}"
-        elif isinstance(self.value, get_args(IP_TYPES)):
-            data["value"] = self.value.with_prefixlen
-        elif isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
-            data["from_pool"] = {"id": self.value.id}
-        else:
-            data["value"] = self.value
+        # Unsafe strings need a variable binding to avoid injection
+        if isinstance(self.value, str) and not SAFE_VALUE.match(self.value):
+            var_name = f"value_{UUIDT.new().hex}"
+            return _GraphQLPayloadAttribute(
+                payload={"value": f"${var_name}"},
+                variables={var_name: self.value},
+                needs_metadata=True,
+            )
 
-        for prop_name in self._properties_flag:
-            if getattr(self, prop_name) is not None:
-                data[prop_name] = getattr(self, prop_name)
+        # Safe strings, IP types, and everything else
+        value = self.value.with_prefixlen if isinstance(self.value, get_args(IP_TYPES)) else self.value
+        return _GraphQLPayloadAttribute(payload={"value": value}, variables={}, needs_metadata=True)
 
-        for prop_name in self._properties_object:
-            if getattr(self, prop_name) is not None:
-                data[prop_name] = getattr(self, prop_name)._generate_input_data()
+    def _generate_input_data(self) -> _GraphQLPayloadAttribute:
+        """Build the input payload for a GraphQL mutation on this attribute.
 
-        return {"data": data, "variables": variables}
+        Returns a ResolvedValue object, which contains all the data required.
+        """
+        graphql_payload = self._initialize_graphql_payload()
+
+        properties_flag: dict[str, Any] = {
+            property_name: getattr(self, property_name)
+            for property_name in self._properties_flag
+            if getattr(self, property_name) is not None
+        }
+        properties_object: dict[str, str | None] = {
+            property_name: getattr(self, property_name)._generate_input_data()
+            for property_name in self._properties_object
+            if getattr(self, property_name) is not None
+        }
+        graphql_payload.add_properties(properties_flag, properties_object)
+
+        return graphql_payload
 
     def _generate_query_data(self, property: bool = False, include_metadata: bool = False) -> dict | None:
         data: dict[str, Any] = {"value": None}
@@ -128,7 +177,18 @@ class Attribute:
         return data
 
     def _generate_mutation_query(self) -> dict[str, Any]:
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if self.is_from_pool_attribute():
             # If it points to a pool, ask for the value of the pool allocated resource
             return {self.name: {"value": None}}
         return {}
+
+    def is_from_pool_attribute(self) -> bool:
+        """Check whether this attribute's value is sourced from a resource pool.
+
+        Returns:
+            True if the attribute value is a resource pool node or was explicitly allocated from a pool.
+
+        """
+        return (
+            hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
+        ) or self._from_pool is not None

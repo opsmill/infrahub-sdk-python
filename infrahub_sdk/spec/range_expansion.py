@@ -13,7 +13,12 @@ def _unescape_brackets(s: str) -> str:
 
 
 def _char_range_expand(char_range_str: str) -> list[str]:
-    """Expands a string of numbers or single-character letters."""
+    """Expands a string of numbers or single-character letters.
+
+    Raises:
+        ValueError: If the input contains non-alphanumeric characters that cannot be expanded.
+
+    """
     expanded_values: list[str] = []
     # Special case: if no dash and no comma, and multiple characters, error if not all alphanumeric
     if "," not in char_range_str and "-" not in char_range_str and len(char_range_str) > 1:
@@ -60,8 +65,7 @@ def _extract_constants(pattern: str, re_compiled: re.Pattern) -> tuple[list[int]
     cartesian_list = []
     interface_constant = [0]
     for match in re_compiled.finditer(pattern):
-        interface_constant.append(match.start())
-        interface_constant.append(match.end())
+        interface_constant.extend((match.start(), match.end()))
         cartesian_list.append(_char_range_expand(match.group()[1:-1]))
     return interface_constant, cartesian_list
 
@@ -86,9 +90,9 @@ def _expand_interfaces(pattern: str, interface_constant: list[int], cartesian_li
 
 
 def range_expansion(interface_pattern: str) -> list[str]:
-    """Expand string pattern into a list of strings, supporting both
-    number and single-character alphabet ranges. Heavily inspired by
-    Netutils interface_range_expansion but adapted to support letters.
+    """Expand a string pattern into a list of strings, supporting number and single-character alphabet ranges.
+
+    Heavily inspired by Netutils interface_range_expansion but adapted to support letters.
 
     Args:
         interface_pattern: The string pattern that will be parsed to create the list of interfaces.
@@ -109,6 +113,7 @@ def range_expansion(interface_pattern: str) -> list[str]:
         ['GigabitEtherneta/0/1', 'GigabitEthernetb/0/1', 'GigabitEthernetc/0/1']
         >>> range_expansion("Eth[a,c,e]/0/1")
         ['Etha/0/1', 'Ethc/0/1', 'Ethe/0/1']
+
     """
     pattern_escaped = _escape_brackets(interface_pattern)
     re_compiled = re.compile(MATCH_PATTERN)

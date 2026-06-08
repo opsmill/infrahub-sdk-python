@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterable
 from typing import Any
 
 import pytest
 import yaml
-from pytest import Item
 
 from .exceptions import InvalidResourceConfigError
 from .items import (
@@ -37,7 +37,7 @@ CONFIG_MAPPING = {
     "PythonTransform": "get_python_transform",
 }
 
-ITEMS_MAPPING = {
+ITEMS_MAPPING: dict[str, type[InfrahubItem]] = {
     "check-smoke": InfrahubCheckSmokeItem,
     "check-unit-process": InfrahubCheckUnitProcessItem,
     "check-integration": InfrahubCheckIntegrationItem,
@@ -60,21 +60,18 @@ class InfrahubYamlFile(pytest.File):
         resource_config = None
         if resource_config_function is not None:
             func = getattr(self.session.infrahub_repo_config, resource_config_function)  # type:ignore[attr-defined]
-            try:
+            with contextlib.suppress(KeyError):
                 resource_config = func(group.resource_name)
-            except KeyError:
-                # Ignore error and just return None
-                pass
 
         return resource_config
 
-    def collect_group(self, group: InfrahubTestGroup) -> Iterable[Item]:
+    def collect_group(self, group: InfrahubTestGroup) -> Iterable[pytest.Item]:
         """Collect all items for a group."""
         marker = MARKER_MAPPING[group.resource]
         resource_config = self.get_resource_config(group)
 
         for test in group.tests:
-            item_class: type[pytest.Item] = ITEMS_MAPPING[test.spec.kind]  # type: ignore[assignment]
+            item_class = ITEMS_MAPPING[test.spec.kind]
             item: InfrahubItem = item_class.from_parent(
                 name=f"{marker.markname}__{group.resource_name}__{test.name}",
                 parent=self,
@@ -100,10 +97,10 @@ class InfrahubYamlFile(pytest.File):
 
             yield item
 
-    def collect(self) -> Iterable[Item]:
+    def collect(self) -> Iterable[pytest.Item]:
         raw = yaml.safe_load(self.path.open(encoding="utf-8"))
 
-        if "infrahub_tests" not in raw:
+        if not raw or "infrahub_tests" not in raw:
             return
 
         content = InfrahubTestFileV1(**raw)

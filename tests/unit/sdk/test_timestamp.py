@@ -28,9 +28,9 @@ def test_init_timestamp() -> None:
 
 
 def test_parse_string() -> None:
-    REF = "2022-01-01T10:00:00.000000Z"
+    ref = "2022-01-01T10:00:00.000000Z"
 
-    assert Timestamp._parse_string(REF).to_instant() == Instant.parse_iso(REF)
+    assert Timestamp._parse_string(ref).to_instant() == Instant.parse_iso(ref)
     assert Timestamp._parse_string("5m")
     assert Timestamp._parse_string("10min")
     assert Timestamp._parse_string("2h")
@@ -43,7 +43,7 @@ def test_parse_string() -> None:
 
 
 @pytest.mark.parametrize(
-    "input_str,expected_datetime",
+    ("input_str", "expected_datetime"),
     [
         pytest.param(
             "2022-01-01T10:01:01.123000Z", datetime(2022, 1, 1, 10, 1, 1, 123000, tzinfo=UTC), id="milliseconds"
@@ -69,7 +69,7 @@ def test_to_datetime(input_str: str, expected_datetime: datetime) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_str,expected_str,expected_str_no_z",
+    ("input_str", "expected_str", "expected_str_no_z"),
     [
         pytest.param(
             "2022-01-01T10:01:01.123000Z",

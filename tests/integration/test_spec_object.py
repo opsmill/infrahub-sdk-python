@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from infrahub_sdk import InfrahubClient
+from infrahub_sdk.exceptions import GraphQLError
 from infrahub_sdk.schema import SchemaRoot
 from infrahub_sdk.spec.menu import MenuFile
 from infrahub_sdk.spec.object import ObjectFile
@@ -148,3 +150,61 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         await menu_by_name["Animals"].children.fetch()
         peer_labels = [peer.display_label for peer in menu_by_name["Animals"].children.peers]
         assert sorted(peer_labels) == sorted(["Dog", "Cat"])
+
+
+def make_object_file(kind: str, data: list[dict[str, Any]]) -> ObjectFile:
+    return ObjectFile(
+        location=Path("inline"),
+        content={"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": kind, "data": data}},
+    )
+
+
+class TestSpecObjectWithTemplate(TestInfrahubDockerClient, SchemaAnimal):
+    @pytest.fixture(scope="class")
+    async def initial_schema(self, default_branch: str, client: InfrahubClient, schema_base: SchemaRoot) -> None:
+        await client.schema.wait_until_converged(branch=default_branch)
+        resp = await client.schema.load(
+            schemas=[schema_base.to_schema_dict()], branch=default_branch, wait_until_converged=True
+        )
+        assert resp.errors == {}
+
+    async def test_create_owner(self, client: InfrahubClient, initial_schema: None) -> None:
+        owner = await client.create(kind="TestingPerson", name="Template Owner")
+        await owner.save()
+
+    async def test_create_templates(self, client: InfrahubClient, initial_schema: None) -> None:
+        complete = make_object_file(
+            kind="TemplateTestingDog", data=[{"template_name": "Complete Dog", "breed": "Labrador"}]
+        )
+        await complete.validate_format(client=client)
+        await complete.process(client=client)
+
+        incomplete = make_object_file(kind="TemplateTestingDog", data=[{"template_name": "Incomplete Dog"}])
+        await incomplete.validate_format(client=client)
+        await incomplete.process(client=client)
+
+    async def test_dog_with_complete_template(self, client: InfrahubClient, initial_schema: None) -> None:
+        """Mandatory field is provided by the template."""
+        obj = make_object_file(
+            kind="TestingDog",
+            data=[{"name": "Rex", "owner": "Template Owner", "object_template": "Complete Dog"}],
+        )
+        await obj.validate_format(client=client)
+        await obj.process(client=client)
+
+        dog = await client.get(kind="TestingDog", name__value="Rex")
+        assert dog.breed.value == "Labrador"
+
+    async def test_dog_with_incomplete_template_fails(self, client: InfrahubClient, initial_schema: None) -> None:
+        """Mandatory field is not provided by the template."""
+        obj = make_object_file(
+            kind="TestingDog",
+            data=[{"name": "Buddy", "owner": "Template Owner", "object_template": "Incomplete Dog"}],
+        )
+        await obj.validate_format(client=client)
+
+        with pytest.raises(GraphQLError) as exc_info:
+            await obj.process(client=client)
+
+        assert len(exc_info.value.errors) == 1
+        assert exc_info.value.errors[0]["message"] == "breed is mandatory for TestingDog at breed"

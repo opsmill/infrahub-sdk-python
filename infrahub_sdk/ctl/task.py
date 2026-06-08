@@ -82,7 +82,6 @@ async def list_tasks(
     _: str = CONFIG_PARAM,
 ) -> None:
     """List Infrahub tasks."""
-
     init_logging(debug=debug)
 
     client = initialize_client()

@@ -50,4 +50,4 @@ def load(
         aiorun(importer.import_data(import_directory=directory, branch=branch))
     except TransferError as exc:
         console.print(f"[red]{exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None

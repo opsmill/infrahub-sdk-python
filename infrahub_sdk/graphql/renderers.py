@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from pathlib import Path
+from typing import Any, BinaryIO
 
 from pydantic import BaseModel
 
@@ -37,6 +38,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
         '[1, 2, 3]'
         >>> convert_to_graphql_as_string(None)
         'null'
+
     """
     if value is None:
         return "null"
@@ -88,7 +90,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
     return str(value)
 
 
-GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | None]
+GRAPHQL_VARIABLE_TYPES = type[str | int | float | bool | datetime | bytes | Path | BinaryIO | None]
 
 
 def render_variables_to_string(data: dict[str, GRAPHQL_VARIABLE_TYPES]) -> str:
@@ -133,31 +135,29 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
         >>> data = {"user": {"@alias": "u", "@filters": {"id": 123}, "name": None}}
         >>> render_query_block(data)
         ['    u: user(id: 123) {', '        name', '    }']
+
     """
-    FILTERS_KEY = "@filters"
-    ALIAS_KEY = "@alias"
-    KEYWORDS_TO_SKIP = [FILTERS_KEY, ALIAS_KEY]
+    filters_key = "@filters"
+    alias_key = "@alias"
+    keywords_to_skip = [filters_key, alias_key]
 
     offset_str = " " * offset
     lines = []
     for key, value in data.items():
-        if key in KEYWORDS_TO_SKIP:
+        if key in keywords_to_skip:
             continue
         if value is None:
             lines.append(f"{offset_str}{key}")
-        elif isinstance(value, dict) and len(value) == 1 and ALIAS_KEY in value and value[ALIAS_KEY]:
-            lines.append(f"{offset_str}{value[ALIAS_KEY]}: {key}")
+        elif isinstance(value, dict) and len(value) == 1 and alias_key in value and value[alias_key]:
+            lines.append(f"{offset_str}{value[alias_key]}: {key}")
         elif isinstance(value, dict):
-            if value.get(ALIAS_KEY):
-                key_str = f"{value[ALIAS_KEY]}: {key}"
-            else:
-                key_str = key
+            key_str = f"{value[alias_key]}: {key}" if value.get(alias_key) else key
 
-            if value.get(FILTERS_KEY):
+            if value.get(filters_key):
                 filters_str = ", ".join(
                     [
                         f"{key2}: {convert_to_graphql_as_string(value=value2, convert_enum=convert_enum)}"
-                        for key2, value2 in value[FILTERS_KEY].items()
+                        for key2, value2 in value[filters_key].items()
                     ]
                 )
                 lines.append(f"{offset_str}{key_str}({filters_str}) " + "{")
@@ -201,6 +201,7 @@ def render_input_block(data: dict, offset: int = 4, indentation: int = 4, conver
         >>> data = {"user": {"name": "John", "hobbies": ["reading", "coding"]}}
         >>> render_input_block(data)
         ['    user: {', '        name: "John"', '        hobbies: [', '            "reading",', '            "coding",', '        ]', '    }']
+
     """
     offset_str = " " * offset
     lines = []

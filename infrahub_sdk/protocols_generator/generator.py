@@ -14,6 +14,7 @@ from ..schema import (
     NodeSchema,
     NodeSchemaAPI,
     ProfileSchemaAPI,
+    RelationshipCardinality,
     RelationshipSchemaAPI,
     TemplateSchemaAPI,
 )
@@ -26,7 +27,7 @@ def load_template() -> str:
 
 
 def move_to_end_of_list(lst: list, item: str) -> list:
-    """Move an item to the end of a list if it exists in the list"""
+    """Move an item to the end of a list if it exists in the list."""
     if item in lst:
         lst.remove(item)
         lst.append(item)
@@ -59,17 +60,22 @@ class CodeGenerator:
             not in {"TYPE_CHECKING", "CoreNode", "Optional", "Protocol", "Union", "annotations", "runtime_checkable"}
         ]
 
-        self.sorted_generics = self._sort_and_filter_models(self.generics, filters=["CoreNode"] + self.base_protocols)
-        self.sorted_nodes = self._sort_and_filter_models(self.nodes, filters=["CoreNode"] + self.base_protocols)
+        self.sorted_generics = self._sort_and_filter_models(self.generics, filters=["CoreNode", *self.base_protocols])
+        self.sorted_nodes = self._sort_and_filter_models(self.nodes, filters=["CoreNode", *self.base_protocols])
         self.sorted_profiles = self._sort_and_filter_models(
-            self.profiles, filters=["CoreProfile"] + self.base_protocols
+            self.profiles, filters=["CoreProfile", *self.base_protocols]
         )
         self.sorted_templates = self._sort_and_filter_models(
-            self.templates, filters=["CoreObjectTemplate"] + self.base_protocols
+            self.templates, filters=["CoreObjectTemplate", *self.base_protocols]
         )
 
     def render(self, sync: bool = True) -> str:
-        jinja2_env = jinja2.Environment(loader=jinja2.BaseLoader(), trim_blocks=True, lstrip_blocks=True)
+        jinja2_env = jinja2.Environment(
+            loader=jinja2.BaseLoader(),
+            trim_blocks=True,
+            lstrip_blocks=True,
+            autoescape=False,  # noqa: S701
+        )
         jinja2_env.filters["render_attribute"] = self._jinja2_filter_render_attribute
         jinja2_env.filters["render_relationship"] = self._jinja2_filter_render_relationship
         jinja2_env.filters["syncify"] = self._jinja2_filter_syncify
@@ -87,7 +93,7 @@ class CodeGenerator:
 
     @staticmethod
     def _jinja2_filter_syncify(value: str | list, sync: bool = False) -> str | list:
-        """Filter to help with the convertion to sync
+        """Filter to help with the convertion to sync.
 
         If a string is provided, append Sync to the end of the string
         If a list is provided, search for CoreNode and replace it with CoreNodeSync
@@ -112,7 +118,7 @@ class CodeGenerator:
     def _jinja2_filter_render_attribute(value: AttributeSchemaAPI) -> str:
         attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
-        if value.optional:
+        if value.optional and value.default_value is None:
             attribute_kind += "Optional"
 
         return f"{value.name}: {attribute_kind}"
@@ -125,7 +131,7 @@ class CodeGenerator:
         # Cardinality-one relationships use a descriptor so they can be assigned an id string,
         # an HFID, a peer node or ``None`` while still reading back as a typed ``RelatedNode``.
         type_ = "RelationshipAttribute"
-        if cardinality == "many":
+        if cardinality == RelationshipCardinality.MANY:
             type_ = "RelationshipManager"
 
         if sync:

@@ -2,21 +2,38 @@
 
 Infrahub Python SDK - async/sync client for Infrahub infrastructure management.
 
+## Product context
+
+The SDK is the foundational library for programmatically interacting with Infrahub. It abstracts away the underlying API so developers can work with infrastructure data using native Python objects.
+
+**Primary audience:** Network automation engineers and software developers.
+
+**Three main use cases:**
+
+- **Automate inside Infrahub** — Write transforms, generators, and checks that run as part of Infrahub's pipeline.
+- **Integrate with external systems** — Query and sync data between Infrahub and existing tools. `infrahubctl` and the Infrahub Ansible collection both use this SDK internally.
+- **Build custom applications** — Use Infrahub as a data backend for Python projects entirely outside of Infrahub's own pipeline.
+
+**Why the SDK over direct API calls:** eliminates the need to learn Infrahub's API structure, provides Python-native interfaces with built-in auth, adds advanced capabilities (batching, caching, tracking), and reduces boilerplate.
+
 ## Commands
 
 ```bash
 uv sync --all-groups --all-extras   # Install all deps
 uv run invoke format                # Format code
-uv run invoke lint                  # Lint (ruff + mypy + yamllint)
+uv run invoke lint                  # Full pipeline: ruff, yamllint, ty, mypy, markdownlint, vale
+uv run invoke lint-code             # All linters for Python code
+uv run invoke docs-generate         # Generate all docs (CLI + SDK)
+uv run invoke docs-validate         # Check generated docs match committed version
 uv run pytest tests/unit/           # Unit tests
 uv run pytest tests/integration/    # Integration tests
 ```
 
-## Tech Stack
+## Tech stack
 
 Python 3.10-3.13, UV, pydantic >=2.0, httpx, graphql-core
 
-## Code Pattern
+## Code pattern
 
 ```python
 # Always provide both async and sync versions
@@ -27,7 +44,7 @@ node = await client.get(kind="NetworkDevice")
 await node.save()
 ```
 
-## Project Structure
+## Project structure
 
 ```text
 infrahub_sdk/
@@ -38,7 +55,7 @@ infrahub_sdk/
 └── pytest_plugin/      # Custom pytest plugin
 ```
 
-## Markdown Style
+## Markdown style
 
 When editing `.md` or `.mdx` files, run `uv run invoke lint-docs` before committing.
 
@@ -52,7 +69,8 @@ Key rules:
 
 ✅ **Always**
 
-- Run `uv run invoke format lint` before committing Python code
+- Run `uv run invoke format lint-code` before committing Python code
+- Run `uv run invoke docs-generate` after creating, modifying or deleting CLI commands, SDK config, or Python docstrings
 - Run markdownlint before committing markdown changes
 - Follow async/sync dual pattern for new features
 - Use type hints on all function signatures
@@ -69,7 +87,15 @@ Key rules:
 - Modify generated code (protocols.py)
 - Bypass type checking without justification
 
-## Subdirectory Guides
+## Knowledge base
+
+Deep-dive docs on architecture and workflows live in `dev/knowledge/`. Read these before making changes to the areas they cover.
+
+- [dev/knowledge/cli-architecture.md](dev/knowledge/cli-architecture.md) - CLI command hierarchy and design rules
+- [dev/knowledge/cli-design-principles.md](dev/knowledge/cli-design-principles.md) - Principles for writing CLI commands (no pre-validation, phrasing, etc.)
+- [dev/knowledge/doc-generation.md](dev/knowledge/doc-generation.md) - How docs are auto-generated from code
+
+## Subdirectory guides
 
 - [docs/AGENTS.md](docs/AGENTS.md) - Documentation (Docusaurus)
 - [infrahub_sdk/ctl/AGENTS.md](infrahub_sdk/ctl/AGENTS.md) - CLI development

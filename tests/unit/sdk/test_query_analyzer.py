@@ -148,7 +148,7 @@ async def test_get_variables(query_01: str, query_04: str, query_05: str, query_
 
 
 @pytest.mark.parametrize(
-    "var_type,var_required",
+    ("var_type", "var_required"),
     [("[ID]", False), ("[ID]!", True), ("[ID!]", False), ("[ID!]!", True)],
 )
 async def test_get_nested_variables(var_type: str, var_required: bool) -> None:

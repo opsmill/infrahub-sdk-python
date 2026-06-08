@@ -35,9 +35,7 @@ class CheckModule:
 
 @app.callback()
 def callback() -> None:
-    """
-    Execute user-defined checks.
-    """
+    """Execute user-defined checks."""
 
 
 @app.command()
@@ -53,10 +51,9 @@ def run(
     branch: str | None = None,
 ) -> None:
     """Locate and execute all checks under the defined path."""
-
     log_level = "DEBUG" if debug else "INFO"
-    FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler()])
+    format_str = "%(message)s"
+    logging.basicConfig(level=log_level, format=format_str, datefmt="[%X]", handlers=[RichHandler()])
 
     repository_config = get_repository_config(find_repository_config_file())
 

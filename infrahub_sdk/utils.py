@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def generate_short_id() -> str:
-    """Generate a short unique ID"""
+    """Generate a short unique ID."""
     return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii").lower()
 
 
@@ -104,7 +104,6 @@ def generate_uuid() -> str:
 
 def duplicates(input_list: list) -> list:
     """Identify and return all the duplicates in a list."""
-
     dups = []
 
     clean_input_list = [item for item in input_list or [] if item is not None]
@@ -122,12 +121,14 @@ def intersection(list1: list[Any], list2: list[Any]) -> list:
 
 
 def compare_lists(list1: list[Any], list2: list[Any]) -> tuple[list[Any], list[Any], list[Any]]:
-    """Compare 2 lists and return :
-    - the intersection of both
-    - the item present only in list1
-    - the item present only in list2
-    """
+    """Compare 2 lists and return the intersection plus items present only in each list.
 
+    Returns:
+        - the intersection of both
+        - the item present only in list1
+        - the item present only in list2
+
+    """
     in_both = intersection(list1=list1, list2=list2)
     in_list_1 = list(set(list1) - set(in_both))
     in_list_2 = list(set(list2) - set(in_both))
@@ -137,16 +138,20 @@ def compare_lists(list1: list[Any], list2: list[Any]) -> tuple[list[Any], list[A
 
 def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     """Deep Merge Dictionary B into Dictionary A.
+
     Code is inspired by https://stackoverflow.com/a/7205107
+
+    Raises:
+        ValueError: If both dictionaries hold incompatible non-mergeable values for the same key.
+
     """
     if path is None:
         path = []
-    for key in dictb:
-        b_val = dictb[key]
+    for key, b_val in dictb.items():
         if key in dicta:
             a_val = dicta[key]
             if isinstance(a_val, dict) and isinstance(b_val, dict):
-                deep_merge_dict(a_val, b_val, path + [str(key)])
+                deep_merge_dict(a_val, b_val, [*path, str(key)])
             elif isinstance(a_val, list) and isinstance(b_val, list):
                 # Merge lists
                 # Cannot use compare_list because list of dicts won't work (dict not hashable)
@@ -156,15 +161,20 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
             elif a_val == b_val or (a_val is not None and b_val is None):
                 continue
             else:
-                raise ValueError("Conflict at %s" % ".".join(path + [str(key)]))
+                raise ValueError("Conflict at %s" % ".".join([*path, str(key)]))
         else:
-            dicta[key] = dictb[key]
+            dicta[key] = b_val
     return dicta
 
 
-def str_to_bool(value: str) -> bool:
-    """Convert a String to a Boolean"""
+def str_to_bool(value: str | bool | int) -> bool:
+    """Convert a String to a Boolean.
 
+    Raises:
+        TypeError: If ``value`` is not a string, boolean, or integer.
+        ValueError: If ``value`` is a string that doesn't map to a boolean.
+
+    """
     if isinstance(value, bool):
         return value
 
@@ -174,7 +184,7 @@ def str_to_bool(value: str) -> bool:
     if not isinstance(value, str):
         raise TypeError(f"{value} must be a string")
 
-    MAP = {
+    str_to_bool_map = {
         "y": True,
         "yes": True,
         "t": True,
@@ -189,13 +199,13 @@ def str_to_bool(value: str) -> bool:
         "0": False,
     }
     try:
-        return MAP[value.lower()]
+        return str_to_bool_map[value.lower()]
     except KeyError as exc:
         raise ValueError(f"{value} can not be converted into a boolean") from exc
 
 
 def generate_request_filename(request: httpx.Request) -> str:
-    """Return a filename for a request sent to the Infrahub API
+    """Return a filename for a request sent to the Infrahub API.
 
     This function is used when recording and playing back requests, as Infrahub is using a GraphQL
     API it's not possible to rely on the URL endpoint alone to separate one request from another,
@@ -254,16 +264,16 @@ def calculate_dict_depth(data: dict, level: int = 1) -> int:
 
 def calculate_dict_height(data: dict, cnt: int = 0) -> int:
     """Calculate the number of fields (height) in a nested Dictionary recursively."""
-    for key in data:
-        if isinstance(data[key], dict):
-            cnt = calculate_dict_height(data=data[key], cnt=cnt + 1)
+    for value in data.values():
+        if isinstance(value, dict):
+            cnt = calculate_dict_height(data=value, cnt=cnt + 1)
         else:
             cnt += 1
     return cnt
 
 
 async def extract_fields(selection_set: SelectionSetNode | None) -> dict[str, dict] | None:
-    """This function extract all the requested fields in a tree of Dict from a SelectionSetNode
+    """This function extract all the requested fields in a tree of Dict from a SelectionSetNode.
 
     The goal of this function is to limit the fields that we need to query from the backend.
 
@@ -273,7 +283,6 @@ async def extract_fields(selection_set: SelectionSetNode | None) -> dict[str, di
 
     In the future we'll probably need to redesign how we read GraphQL queries to generate better Database query.
     """
-
     if not selection_set:
         return None
 
@@ -310,7 +319,12 @@ async def extract_fields_first_node(info: GraphQLResolveInfo) -> dict[str, dict]
 def write_to_file(path: Path, value: Any) -> bool:
     """Write a given value into a file and return if the operation was successful.
 
-    If the file does not exist, the function will attempt to create it."""
+    If the file does not exist, the function will attempt to create it.
+
+    Raises:
+        FileExistsError: If ``path`` exists but is a directory.
+
+    """
     if not path.exists():
         path.touch()
 
@@ -339,13 +353,12 @@ def get_user_permissions(data: list[dict]) -> dict:
     groups = {}
     for group in data:
         group_name = group["node"]["display_label"]
-        permissions = []
+        permissions: list[str] = []
 
         roles = group["node"].get("roles", {}).get("edges", [])
         for role in roles:
             role_permissions = role["node"].get("permissions", {}).get("edges", [])
-            for permission in role_permissions:
-                permissions.append(permission["node"]["identifier"]["value"])
+            permissions.extend(permission["node"]["identifier"]["value"] for permission in role_permissions)
 
         groups[group_name] = permissions
 

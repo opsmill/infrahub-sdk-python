@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -24,7 +25,9 @@ if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
 
-FIXTURE_BASE_DIR = Path(Path(Path(__file__).resolve()).parent / ".." / "fixtures")
+from tests.constants import FIXTURES_DIR
+
+FIXTURE_BASE_DIR = FIXTURES_DIR
 
 
 runner = CliRunner()
@@ -80,7 +83,6 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
 
     def test_infrahubctl_transform_cmd_animal_person(self, repository: str, base_dataset: None) -> None:
         """Test infrahubctl transform without converting nodes."""
-
         with change_directory(repository):
             ethans_output = runner.invoke(app, ["transform", "animal_person", "name=Ethan Carter"])
             structured_ethan_output = json.loads(strip_color(ethans_output.stdout))
@@ -93,7 +95,6 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
 
     def test_infrahubctl_transform_cmd_convert_animal_person(self, repository: str, base_dataset: None) -> None:
         """Test infrahubctl transform when converting nodes."""
-
         with change_directory(repository):
             ethans_output = runner.invoke(app, ["transform", "animal_person_converted", "name=Ethan Carter"])
             structured_ethan_output = json.loads(strip_color(ethans_output.stdout))
@@ -116,11 +117,29 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
                 "person": "Liam Walker",
             }
 
+    def test_infrahubctl_graphql_query_report(self, repository: str, base_dataset: None) -> None:
+        """Run query-report end-to-end against the live backend resolver."""
+        with change_directory(repository):
+            result = runner.invoke(app, ["graphql", "query-report", "tags_query"])
+
+        assert result.exit_code == 0, strip_color(result.stdout)
+        output = re.sub(r"\s+", " ", strip_color(result.stdout))
+        assert "tags_query" in output
+        assert "Targets unique nodes: true" in output
+
+    def test_infrahubctl_graphql_query_report_branch(self, repository: str, base_dataset: None) -> None:
+        """The --branch flag routes the report to the requested branch."""
+        with change_directory(repository):
+            result = runner.invoke(app, ["graphql", "query-report", "tags_query", "--branch", "branch01"])
+
+        assert result.exit_code == 0, strip_color(result.stdout)
+        output = re.sub(r"\s+", " ", strip_color(result.stdout))
+        assert "branch: branch01" in output
+
     async def test_infrahubctl_generator_cmd_animal_tags(
         self, repository: str, base_dataset: None, client: InfrahubClient
     ) -> None:
         """Test infrahubctl generator without converting nodes."""
-
         expected_generated_tags = ["raw-ethan-carter-bella", "raw-ethan-carter-daisy", "raw-ethan-carter-luna"]
         initial_tags = await client.all(kind="BuiltinTag")
 
@@ -142,7 +161,6 @@ class TestInfrahubCtl(TestInfrahubDockerClient, SchemaAnimal):
         self, repository: str, base_dataset: None, client: InfrahubClient
     ) -> None:
         """Test infrahubctl generator with conversion of nodes."""
-
         expected_generated_tags = [
             "converted-ethan-carter-bella",
             "converted-ethan-carter-daisy",

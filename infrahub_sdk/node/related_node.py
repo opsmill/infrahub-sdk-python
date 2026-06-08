@@ -27,12 +27,14 @@ class RelatedNodeBase:
     """Base class for representing a related node in a relationship."""
 
     def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Any | dict, name: str | None = None) -> None:
-        """
+        """Initialize the base related node.
+
         Args:
             branch (str): The branch where the related node resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Data representing the related node.
             name (Optional[str]): The name of the related node.
+
         """
         self.schema = schema
         self.name = name
@@ -101,6 +103,12 @@ class RelatedNodeBase:
 
     @property
     def id(self) -> str | None:
+        """Return the parsed peer id without triggering a store lookup.
+
+        Returns None when the response carried only hfid_str (no id, no peer)
+        — in that case .peer.id would resolve through the store and yield a
+        non-None id, so .id and .peer.id are NOT interchangeable.
+        """
         if self._peer:
             return self._peer.id
         return self._id
@@ -197,6 +205,7 @@ class RelatedNodeBase:
         Returns:
             Dict: A dictionary representing the basic structure of a GraphQL query, including the node's ID, display label,
                 and typename. The method also includes additional properties and any peer_data provided.
+
         """
         data: dict[str, Any] = {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}}
         properties: dict[str, Any] = {}
@@ -232,13 +241,15 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """
+        """Initialize the async related node.
+
         Args:
             client (InfrahubClient): The client used to interact with the backend asynchronously.
             branch (str): The branch where the related node resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Data representing the related node.
             name (Optional[str]): The name of the related node.
+
         """
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
@@ -253,9 +264,21 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
     @property
     def peer(self) -> PeerT:
+        """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
     def get(self) -> PeerT:
+        """Return the peer node, performing a store lookup if not materialized.
+
+        When resolving via hfid_str the returned node has a non-None id even
+        when this RelatedNode's .id is None — that is the case in which
+        .peer.id and .id diverge.
+
+        Raises:
+            ValueError: when neither a peer, (_id, _typename), nor hfid_str
+                is available.
+
+        """
         if self._peer:
             return cast("PeerT", self._peer)
 
@@ -279,13 +302,15 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         data: Any | dict,
         name: str | None = None,
     ) -> None:
-        """
+        """Initialize the sync related node.
+
         Args:
             client (InfrahubClientSync): The client used to interact with the backend synchronously.
             branch (str): The branch where the related node resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Data representing the related node.
             name (Optional[str]): The name of the related node.
+
         """
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
@@ -300,9 +325,21 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
     @property
     def peer(self) -> PeerTSync:
+        """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
     def get(self) -> PeerTSync:
+        """Return the peer node, performing a store lookup if not materialized.
+
+        When resolving via hfid_str the returned node has a non-None id even
+        when this RelatedNode's .id is None — that is the case in which
+        .peer.id and .id diverge.
+
+        Raises:
+            ValueError: when neither a peer, (_id, _typename), nor hfid_str
+                is available.
+
+        """
         if self._peer:
             return cast("PeerTSync", self._peer)
 

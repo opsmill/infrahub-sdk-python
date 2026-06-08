@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 import ssl
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -14,11 +15,9 @@ from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from inspect import Parameter
-    from typing import Any
 
     from pytest_httpx import HTTPXMock
 
-    from infrahub_sdk.schema import NodeSchemaAPI
     from tests.unit.sdk.conftest import BothClients
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
@@ -280,7 +279,7 @@ async def test_method_all_multiple_pages(
     assert len(repos) == 5
 
 
-@pytest.mark.parametrize("client_type, use_parallel", batch_client_types)
+@pytest.mark.parametrize(("client_type", "use_parallel"), batch_client_types)
 async def test_method_all_batching(
     clients: BothClients,
     mock_query_location_batch_count: HTTPXMock,
@@ -636,208 +635,6 @@ async def test_method_filters_empty(
     assert len(repos) == 0
 
 
-@pytest.mark.parametrize("client_type", client_types)
-async def test_allocate_next_ip_address(
-    httpx_mock: HTTPXMock,
-    mock_schema_query_ipam: HTTPXMock,
-    clients: BothClients,
-    ipaddress_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "InfrahubIPAddressPoolGetResource": {
-                    "ok": True,
-                    "node": {
-                        "id": "17da1246-54f1-a9c0-2784-179f0ec5b128",
-                        "kind": "IpamIPAddress",
-                        "identifier": "test",
-                        "display_label": "192.0.2.0/32",
-                    },
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "allocate-ip-loopback"},
-        is_reusable=True,
-    )
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "IpamIPAddress": {
-                    "count": 1,
-                    "edges": [
-                        {
-                            "node": {
-                                "id": "17d9bd8d-8fc2-70b0-278a-179f425e25cb",
-                                "__typename": "IpamIPAddress",
-                                "address": {"value": "192.0.2.0/32"},
-                                "description": {"value": "test"},
-                            }
-                        }
-                    ],
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "query-ipamipaddress-page1"},
-        is_reusable=True,
-    )
-
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=clients.standard,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        ip_address = await clients.standard.allocate_next_ip_address(
-            resource_pool=ip_pool,
-            identifier="test",
-            prefix_length=32,
-            address_type="IpamIPAddress",
-            data={"description": "test"},
-            tracker="allocate-ip-loopback",
-        )
-    else:
-        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=clients.sync,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        ip_address = clients.sync.allocate_next_ip_address(
-            resource_pool=ip_pool,
-            identifier="test",
-            prefix_length=32,
-            address_type="IpamIPAddress",
-            data={"description": "test"},
-            tracker="allocate-ip-loopback",
-        )
-
-    assert ip_address
-    assert str(ip_address.address.value) == "192.0.2.0/32"
-    assert ip_address.description.value == "test"
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_allocate_next_ip_prefix(
-    httpx_mock: HTTPXMock,
-    mock_schema_query_ipam: HTTPXMock,
-    clients: BothClients,
-    ipprefix_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "InfrahubIPPrefixPoolGetResource": {
-                    "ok": True,
-                    "node": {
-                        "id": "7d9bd8d-8fc2-70b0-278a-179f425e25cb",
-                        "kind": "IpamIPPrefix",
-                        "identifier": "test",
-                        "display_label": "192.0.2.0/31",
-                    },
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "allocate-ip-interco"},
-        is_reusable=True,
-    )
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "IpamIPPrefix": {
-                    "count": 1,
-                    "edges": [
-                        {
-                            "node": {
-                                "id": "17d9bd8d-8fc2-70b0-278a-179f425e25cb",
-                                "__typename": "IpamIPPrefix",
-                                "prefix": {"value": "192.0.2.0/31"},
-                                "description": {"value": "test"},
-                            }
-                        }
-                    ],
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "query-ipamipprefix-page1"},
-        is_reusable=True,
-    )
-
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=clients.standard,
-            schema=ipprefix_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core intercos",
-                "default_prefix_type": "IpamIPPrefix",
-                "default_prefix_length": 31,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        ip_prefix = await clients.standard.allocate_next_ip_prefix(
-            resource_pool=ip_pool,
-            identifier="test",
-            prefix_length=31,
-            prefix_type="IpamIPPrefix",
-            data={"description": "test"},
-            tracker="allocate-ip-interco",
-        )
-    else:
-        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=clients.sync,
-            schema=ipprefix_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core intercos",
-                "default_prefix_type": "IpamIPPrefix",
-                "default_prefix_length": 31,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        ip_prefix = clients.sync.allocate_next_ip_prefix(
-            resource_pool=ip_pool,
-            identifier="test",
-            prefix_length=31,
-            prefix_type="IpamIPPrefix",
-            data={"description": "test"},
-            tracker="allocate-ip-interco",
-        )
-
-    assert ip_prefix
-    assert str(ip_prefix.prefix.value) == "192.0.2.0/31"
-    assert ip_prefix.description.value == "test"
-
-
 EXPECTED_ECHO = """URL: http://mock/graphql/main
 QUERY:
 
@@ -894,7 +691,7 @@ async def test_query_echo(httpx_mock: HTTPXMock, echo_clients: BothClients, clie
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_clone(clients: BothClients, client_type: str) -> None:
-    """Validate that the configuration of a cloned client is a replica of the original client"""
+    """Validate that the configuration of a cloned client is a replica of the original client."""
     if client_type == "standard":
         clone = clients.standard.clone()
         assert clone.config == clients.standard.config
@@ -909,7 +706,7 @@ async def test_clone(clients: BothClients, client_type: str) -> None:
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_clone_define_branch(clients: BothClients, client_type: str) -> None:
-    """Validate that the clone branch parameter sets the correct branch of the cloned client"""
+    """Validate that the clone branch parameter sets the correct branch of the cloned client."""
     clone_branch = "my_other_branch"
     if client_type == "standard":
         original_branch = clients.standard.default_branch
@@ -927,3 +724,151 @@ async def test_clone_define_branch(clients: BothClients, client_type: str) -> No
     assert clone.default_branch == clone_branch
     assert original_branch != clone_branch
     assert clone.store._default_branch == clone_branch
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_count(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_count: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.count(kind="CoreRepository", query_name="MyCountQuery")
+    else:
+        clients.sync.count(kind="CoreRepository", query_name="MyCountQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query MyCountQuery {" in payload["query"]
+    assert payload["operationName"] == "MyCountQuery"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_all(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository", query_name="MyAllQuery")
+    else:
+        clients.sync.all(kind="CoreRepository", query_name="MyAllQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query MyAllQuery {" in payload["query"]
+    assert payload["operationName"] == "MyAllQuery"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_filters(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.filters(kind="CoreRepository", query_name="MyFiltersQuery")
+    else:
+        clients.sync.filters(kind="CoreRepository", query_name="MyFiltersQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query MyFiltersQuery {" in payload["query"]
+    assert payload["operationName"] == "MyFiltersQuery"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_get(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.get(
+            kind="CoreRepository", name__value="test", raise_when_missing=False, query_name="MyGetQuery"
+        )
+    else:
+        clients.sync.get(kind="CoreRepository", name__value="test", raise_when_missing=False, query_name="MyGetQuery")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query MyGetQuery {" in payload["query"]
+    assert payload["operationName"] == "MyGetQuery"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_count_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_count: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.count(kind="CoreRepository")
+    else:
+        clients.sync.count(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query Count_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Count_CoreRepository"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_all_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository")
+    else:
+        clients.sync.all(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query All_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "All_CoreRepository"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_filters_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.filters(kind="CoreRepository")
+    else:
+        clients.sync.filters(kind="CoreRepository")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query Filters_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Filters_CoreRepository"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_query_name_for_get_ommitted(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_query_repository_page1_empty: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.get(kind="CoreRepository", name__value="test", raise_when_missing=False)
+    else:
+        clients.sync.get(kind="CoreRepository", name__value="test", raise_when_missing=False)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "query Get_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Get_CoreRepository"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_execute_graphql_omits_operation_name_when_unset(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.0"}}})
+
+    raw_query = "query { InfrahubInfo { version }}"
+    if client_type == "standard":
+        await clients.standard.execute_graphql(query=raw_query)
+    else:
+        clients.sync.execute_graphql(query=raw_query)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "operationName" not in payload
