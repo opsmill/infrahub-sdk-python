@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import contextlib
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..schema import GenericSchemaAPI, RelationshipKind, RelationshipSchema
+from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchema
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
@@ -46,6 +47,7 @@ def normalize_hfid_reference(value: str | list[str]) -> str | list[str]:
         - If value is already a list: returns it unchanged as list[str]
         - If value is a valid UUID string: returns it unchanged as str (will be treated as an ID)
         - If value is a non-UUID string: wraps it in a list as list[str] (single-component HFID)
+
     """
     if isinstance(value, list):
         return value
@@ -91,7 +93,7 @@ class RelationshipInfo(BaseModel):
 
     @property
     def is_bidirectional(self) -> bool:
-        """Indicate if a relationship with the same identifier exists on the other side"""
+        """Indicate if a relationship with the same identifier exists on the other side."""
         return bool(self.peer_rel)
 
     @property
@@ -101,7 +103,10 @@ class RelationshipInfo(BaseModel):
         # For hierarchical node, currently the relationship to the parent is always optional in the schema even if it's mandatory
         # In order to build the tree from top to bottom, we need to consider it as mandatory
         # While it should technically work bottom-up, it created some unexpected behavior while loading the menu
-        if self.peer_rel.cardinality == "one" and self.peer_rel.kind == RelationshipKind.HIERARCHY:
+        if (
+            self.peer_rel.cardinality == RelationshipCardinality.ONE
+            and self.peer_rel.kind == RelationshipKind.HIERARCHY
+        ):
             return True
         return not self.peer_rel.optional
 
@@ -114,26 +119,24 @@ class RelationshipInfo(BaseModel):
         return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
 
     def get_context(self, value: Any) -> dict:
-        """Return a dict to insert to the context if the relationship is mandatory"""
-        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "one":
+        """Return a dict to insert to the context if the relationship is mandatory."""
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.ONE:
             return {self.peer_rel.name: value}
-        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == "many":
+        if self.peer_rel and self.is_mandatory and self.peer_rel.cardinality == RelationshipCardinality.MANY:
             return {self.peer_rel.name: [value]}
         return {}
 
     def find_matching_relationship(
         self, peer_schema: MainSchemaTypesAPI, force: bool = False
     ) -> RelationshipSchema | None:
-        """Find the matching relationship on the other side of the relationship"""
+        """Find the matching relationship on the other side of the relationship."""
         if self.peer_rel and not force:
             return self.peer_rel
 
-        try:
+        with contextlib.suppress(ValueError):
             self.peer_rel = peer_schema.get_matching_relationship(
                 id=self.rel_schema.identifier or "", direction=self.rel_schema.direction
             )
-        except ValueError:
-            pass
 
         return self.peer_rel
 
@@ -141,9 +144,7 @@ class RelationshipInfo(BaseModel):
 async def get_relationship_info(
     client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None
 ) -> RelationshipInfo:
-    """
-    Get the relationship info for a given relationship name.
-    """
+    """Get the relationship info for a given relationship name."""
     rel_schema = schema.get_relationship(name=name)
 
     info = RelationshipInfo(name=name, peer_kind=rel_schema.peer, rel_schema=rel_schema)
@@ -158,28 +159,26 @@ async def get_relationship_info(
     peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
-    try:
+    with contextlib.suppress(ValueError):
         info.peer_rel = peer_schema.get_matching_relationship(
             id=rel_schema.identifier or "", direction=rel_schema.direction
         )
-    except ValueError:
-        pass
 
-    if rel_schema.cardinality == "one" and isinstance(value, list):
+    if rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, list):
         # validate the list is composed of string
         if validate_list_of_scalars(value):
             info.format = RelationshipDataFormat.ONE_REF
         else:
             info.reason_relationship_not_valid = "Too many objects provided for a relationship of cardinality one"
 
-    elif rel_schema.cardinality == "one" and isinstance(value, str):
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, str):
         info.format = RelationshipDataFormat.ONE_REF
 
-    elif rel_schema.cardinality == "one" and isinstance(value, dict) and "data" in value:
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, dict) and "data" in value:
         info.format = RelationshipDataFormat.ONE_OBJ
 
     elif (
-        rel_schema.cardinality == "many"
+        rel_schema.cardinality == RelationshipCardinality.MANY
         and isinstance(value, dict)
         and "data" in value
         and validate_list_of_objects(value["data"])
@@ -188,11 +187,11 @@ async def get_relationship_info(
         # it's helpful if there is only one type of object to manage
         info.format = RelationshipDataFormat.MANY_OBJ_DICT_LIST
 
-    elif rel_schema.cardinality == "many" and isinstance(value, dict) and "data" not in value:
+    elif rel_schema.cardinality == RelationshipCardinality.MANY and isinstance(value, dict) and "data" not in value:
         info.reason_relationship_not_valid = "Invalid structure for a relationship of cardinality many,"
         " either provide a dict with data as a list or a list of objects"
 
-    elif rel_schema.cardinality == "many" and isinstance(value, list):
+    elif rel_schema.cardinality == RelationshipCardinality.MANY and isinstance(value, list):
         if validate_list_of_data_dicts(value):
             info.format = RelationshipDataFormat.MANY_OBJ_LIST_DICT
         elif validate_list_of_hfids(value):
@@ -210,8 +209,7 @@ class InfrahubObjectFileData(BaseModel):
     data: list[dict[str, Any]] = Field(default_factory=list)
 
     async def _get_processed_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Get data processed according to the strategy"""
-
+        """Get data processed according to the strategy."""
         return await DataProcessorFactory.process_data(kind=self.kind, parameters=self.parameters, data=data)
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> list[ObjectValidationError]:
@@ -267,28 +265,32 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
 
         # First validate if all mandatory fields are present
-        for element in schema.mandatory_input_names:
-            if not any([element in data, element in context]):
-                errors.append(ObjectValidationError(position=position + [element], message=f"{element} is mandatory"))
+        # Skip mandatory check when an object_template or object_profile is specified, as the template/profile provides defaults;
+        # we expect the API server to return a failure if the template/profile is not valid or doesn't provide all mandatory fields
+        if "object_template" not in data and "object_profile" not in data:
+            errors.extend(
+                ObjectValidationError(position=[*position, element], message=f"{element} is mandatory")
+                for element in schema.mandatory_input_names
+                if not any([element in data, element in context])
+            )
 
         # Validate if all attributes are valid
         for key, value in data.items():
             if key not in schema.attribute_names and key not in schema.relationship_names:
                 errors.append(
                     ObjectValidationError(
-                        position=position + [key],
+                        position=[*position, key],
                         message=f"{key} is not a valid attribute or relationship for {schema.kind}",
                     )
                 )
 
-            if key in schema.attribute_names:
-                if not isinstance(value, (str, int, float, bool, list, dict)):
-                    errors.append(
-                        ObjectValidationError(
-                            position=position + [key],
-                            message=f"{key} must be a string, int, float, bool, list, or dict",
-                        )
+            if key in schema.attribute_names and not isinstance(value, (str, int, float, bool, list, dict)):
+                errors.append(
+                    ObjectValidationError(
+                        position=[*position, key],
+                        message=f"{key} must be a string, int, float, bool, list, or dict",
                     )
+                )
 
             if key in schema.relationship_names:
                 rel_info = await get_relationship_info(
@@ -297,7 +299,7 @@ class InfrahubObjectFileData(BaseModel):
                 if not rel_info.is_valid:
                     errors.append(
                         ObjectValidationError(
-                            position=position + [key],
+                            position=[*position, key],
                             message=rel_info.reason_relationship_not_valid or "Invalid relationship",
                         )
                     )
@@ -305,7 +307,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_related_nodes(
                         client=client,
-                        position=position + [key],
+                        position=[*position, key],
                         rel_info=rel_info,
                         data=value,
                         context=context,
@@ -380,7 +382,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_object(
                         client=client,
-                        position=position + [idx + 1],
+                        position=[*position, idx + 1],
                         schema=peer_schema,
                         data=peer_data,
                         context=context,
@@ -405,7 +407,7 @@ class InfrahubObjectFileData(BaseModel):
                 errors.extend(
                     await cls.validate_object(
                         client=client,
-                        position=position + [idx + 1],
+                        position=[*position, idx + 1],
                         schema=peer_schema,
                         data=item["data"],
                         context=context,
@@ -615,7 +617,7 @@ class InfrahubObjectFileData(BaseModel):
                     node = await cls.create_node(
                         client=client,
                         schema=peer_schema,
-                        position=position + [rel_info.name, idx + 1],
+                        position=[*position, rel_info.name, idx + 1],
                         data=peer_data,
                         context=context,
                         branch=branch,
@@ -641,7 +643,7 @@ class InfrahubObjectFileData(BaseModel):
                 node = await cls.create_node(
                     client=client,
                     schema=peer_schema,
-                    position=position + [rel_info.name, idx + 1],
+                    position=[*position, rel_info.name, idx + 1],
                     data=item["data"],
                     context=context,
                     branch=branch,
@@ -683,7 +685,7 @@ class ObjectFile(InfrahubFile):
             try:
                 self._spec = InfrahubObjectFileData(**self.data.spec)
             except Exception as exc:
-                raise ValidationError(identifier=str(self.location), message=str(exc))
+                raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
         return self._spec
 
     def validate_content(self) -> None:
@@ -693,7 +695,7 @@ class ObjectFile(InfrahubFile):
         try:
             self._spec = InfrahubObjectFileData(**self.data.spec)
         except Exception as exc:
-            raise ValidationError(identifier=str(self.location), message=str(exc))
+            raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

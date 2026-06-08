@@ -10,6 +10,89 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the changes for the upcoming release can be found in <https://github.com/opsmill/infrahub/tree/develop/infrahub/python_sdk/changelog/>.
 
 <!-- towncrier release notes start -->
+
+## [1.21.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.1) - 2026-06-05
+
+### Changed
+
+- `infrahubctl marketplace get --collection` now downloads each member schema individually into a `<output_dir>/<collection name>/<schema name>.yml` layout (for example `schemas/base-schemas/dcim.yml`), instead of dumping version-suffixed files flat into the output directory. Filenames no longer carry the version, matching single-schema downloads, so re-downloading a collection overwrites cleanly rather than accumulating stale versions. If two members share a schema name across namespaces, those members are written to `<output_dir>/<collection name>/<namespace>/<schema name>.yml` instead of overwriting each other. ([#1057](https://github.com/opsmill/infrahub-sdk-python/issues/1057))
+
+### Fixed
+
+- Fix `infrahubctl` printing a spurious `Error: 1` and Python traceback after the human-readable error message when a command exits with `typer.Exit`. The CLI now exits cleanly with only the intended error output. ([#1047](https://github.com/opsmill/infrahub-sdk-python/issues/1047))
+
+## [1.21.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.0) - 2026-05-29
+
+### Added
+
+- Add `infrahubctl marketplace get` for fetching schemas and collections from the Infrahub Marketplace. Auto-detects schemas vs collections by namespace/name, supports `--version` for pinning, `--collection` to force the collection path, `--stdout` to stream content for piping (status messages on stderr), and `--marketplace-url` / `INFRAHUB_MARKETPLACE_URL` to point at staging or local instances. ([#952](https://github.com/opsmill/infrahub-sdk-python/issues/952))
+
+### Changed
+
+- Change default value of `sync_with_git` parameter in `branch.create()` from `True` to `False` to match UI behavior. ([#224](https://github.com/opsmill/infrahub-sdk-python/issues/224))
+
+### Fixed
+
+- Improve error message when a single node is passed to a cardinality-many relationship. ([#174](https://github.com/opsmill/infrahub-sdk-python/issues/174))
+
+## [1.20.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.1) - 2026-05-20
+
+### Added
+
+- Added SHA-1 idempotency primitives for `CoreFileObject` nodes:
+
+  - `InfrahubNode.matches_local_checksum(source)` / sync variant — compare a local `bytes | Path | BinaryIO` source against the node's server-stored checksum without invoking a transfer.
+  - `InfrahubNode.upload_if_changed(source, name=None)` / sync variant — stage + save only when the local source differs from the server, returning an `UploadResult(was_uploaded, checksum)` dataclass.
+  - `download_file(..., skip_if_unchanged=True)` — short-circuit the download when `dest` already exists on disk with a matching SHA-1. Returns `0` bytes written when skipped.
+
+  A shared `sha1_of_source` helper (streaming, 64 KiB chunks) centralises the hashing convention in `infrahub_sdk.file_handler`.
+
+### Fixed
+
+- Skip mandatory field validation during object loading when `object_profile` is specified. ([#908](https://github.com/opsmill/infrahub-sdk-python/issues/908))
+- Render schema rejections originating in an `extensions:` block as a readable one-line message in `infrahubctl schema load`, instead of crashing with `ValueError: invalid literal for int()`. ([#1007](https://github.com/opsmill/infrahub-sdk-python/issues/1007))
+- Add `MERGING` branch status so that a merging branch can still be correctly retrieved. ([#1037](https://github.com/opsmill/infrahub-sdk-python/issues/1037))
+
+## [1.20.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.0) - 2026-04-24
+
+### Removed
+
+- Removed the deprecated `raise_for_error` argument from `execute_graphql`, `query_gql_query`, `get_diff_summary`, `allocate_next_ip_address`, and `allocate_next_ip_prefix` client methods. HTTP errors are now always raised via `resp.raise_for_status()`.
+
+### Added
+
+- Add `infrahubctl schema export` command to export schemas from Infrahub. ([#151](https://github.com/opsmill/infrahub-sdk-python/issues/151))
+- Add `artifact_content`, `file_object_content`, `from_json`, and `from_yaml` Jinja2 filters for artifact content composition in templates.
+
+### Changed
+
+- Replace `FilterDefinition.trusted: bool` with flag-based `ExecutionContext` model (`CORE`, `WORKER`, `LOCAL`) for context-aware template validation. `validate()` now accepts an optional `context` parameter. Backward compatible.
+
+### Fixed
+
+- Allow direct assignment of authentication method to the configuration to override settings from environment variables. ([#654](https://github.com/opsmill/infrahub-sdk-python/issues/654))
+- Corrected protocol typing for IPHost.value IPAddress -> IPInterface ([#891](https://github.com/opsmill/infrahub-sdk-python/issues/891))
+- Generate protocols so that optional attributes with a default value are rendered as required (not nullable). ([#894](https://github.com/opsmill/infrahub-sdk-python/issues/894))
+- Fixed `ObjectStore.get()` and `ObjectStore.upload()` silently swallowing non-2xx HTTP errors instead of raising them. ([#958](https://github.com/opsmill/infrahub-sdk-python/issues/958))
+- Skip mandatory field validation during object loading when `object_template` is specified.
+
+## [1.19.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.19.0) - 2026-03-16
+
+### Added
+
+- Added support for FileObject nodes with file upload and download capabilities. New methods `upload_from_path(path)` and `upload_from_bytes(content, name)` allow setting file content before saving, while `download_file(dest)` enables downloading files to memory or streaming to disk for large files. ([#ihs193](https://github.com/opsmill/infrahub-sdk-python/issues/ihs193))
+- Python SDK API documentation is now generated directly from the docstrings of the classes, functions, and methods contained in the code. ([#201](https://github.com/opsmill/infrahub-sdk-python/issues/201))
+- Added a 'py.typed' file to the project. This is to enable type checking when the Infrahub SDK is imported from other projects. The addition of this file could cause new typing issues in external projects until all typing issues have been resolved. Adding it to the project now to better highlight remaining issues.
+
+### Changed
+
+- Updated branch report command to use node metadata for proposed change creator information instead of the deprecated relationship-based approach. Requires Infrahub 1.7 or above.
+
+### Fixed
+
+- Allow SDK tracking feature to continue after encountering delete errors due to impacted nodes having already been deleted by cascade delete. ([#265](https://github.com/opsmill/infrahub-sdk-python/issues/265))
+- Fixed Python SDK query generation regarding from_pool generated attribute value ([#497](https://github.com/opsmill/infrahub-sdk-python/issues/497))
+
 ## [1.18.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.18.1) - 2026-01-08
 
 ### Fixed

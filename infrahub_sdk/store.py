@@ -175,9 +175,7 @@ class NodeStoreBranch:
     def _get_by_hfid(
         self, hfid: str | list[str], kind: str | None = None
     ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
-        if not kind:
-            node_kind, node_hfid = parse_human_friendly_id(hfid)
-        elif kind and isinstance(hfid, str) and hfid.startswith(kind):
+        if not kind or (kind and isinstance(hfid, str) and hfid.startswith(kind)):
             node_kind, node_hfid = parse_human_friendly_id(hfid)
         else:
             node_kind = kind

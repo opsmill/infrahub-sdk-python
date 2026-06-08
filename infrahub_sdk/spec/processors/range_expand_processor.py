@@ -13,14 +13,21 @@ log = logging.getLogger("infrahub_sdk")
 
 
 class RangeExpandDataProcessor(DataProcessor):
-    """Process data with range expansion"""
+    """Process data with range expansion."""
 
     @classmethod
     async def process_data(
         cls,
         data: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        """Expand any item in data with range pattern in any value. Supports multiple fields, requires equal expansion length."""
+        """Expand any item in data with range pattern in any value.
+
+        Supports multiple fields, requires equal expansion length.
+
+        Raises:
+            ValidationError: If multiple range fields on the same item expand to different lengths.
+
+        """
         range_pattern = re.compile(MATCH_PATTERN)
         expanded = []
         for item in data:

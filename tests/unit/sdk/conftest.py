@@ -1016,115 +1016,6 @@ async def ipam_ipprefix_data() -> dict[str, Any]:
 
 
 @pytest.fixture
-async def ipaddress_pool_schema() -> NodeSchemaAPI:
-    data = {
-        "name": "IPAddressPool",
-        "namespace": "Core",
-        "description": "A pool of IP address resources",
-        "label": "IP Address Pool",
-        "default_filter": "name__value",
-        "order_by": ["name__value"],
-        "display_labels": ["name__value"],
-        "include_in_menu": False,
-        "branch": BranchSupportType.AGNOSTIC.value,
-        "inherit_from": ["CoreResourcePool"],
-        "attributes": [
-            {
-                "name": "default_address_type",
-                "kind": "Text",
-                "optional": False,
-                "description": "The object type to create when reserving a resource in the pool",
-            },
-            {
-                "name": "default_prefix_length",
-                "kind": "Number",
-                "optional": True,
-            },
-        ],
-        "relationships": [
-            {
-                "name": "resources",
-                "peer": "BuiltinIPPrefix",
-                "kind": "Attribute",
-                "identifier": "ipaddresspool__resource",
-                "cardinality": "many",
-                "optional": False,
-                "order_weight": 4000,
-            },
-            {
-                "name": "ip_namespace",
-                "peer": "BuiltinIPNamespace",
-                "kind": "Attribute",
-                "identifier": "ipaddresspool__ipnamespace",
-                "cardinality": "one",
-                "optional": False,
-                "order_weight": 5000,
-            },
-        ],
-    }
-    return NodeSchema(**data).convert_api()
-
-
-@pytest.fixture
-async def ipprefix_pool_schema() -> NodeSchemaAPI:
-    data = {
-        "name": "IPPrefixPool",
-        "namespace": "Core",
-        "description": "A pool of IP prefix resources",
-        "label": "IP Prefix Pool",
-        "include_in_menu": False,
-        "branch": BranchSupportType.AGNOSTIC.value,
-        "inherit_from": ["CoreResourcePool"],
-        "attributes": [
-            {
-                "name": "default_prefix_length",
-                "kind": "Number",
-                "description": "The default prefix length as an integer for prefixes allocated from this pool.",
-                "optional": True,
-                "order_weight": 5000,
-            },
-            {
-                "name": "default_member_type",
-                "kind": "Text",
-                "enum": ["prefix", "address"],
-                "default_value": "prefix",
-                "optional": True,
-                "order_weight": 3000,
-            },
-            {
-                "name": "default_prefix_type",
-                "kind": "Text",
-                "optional": True,
-                "order_weight": 4000,
-            },
-        ],
-        "relationships": [
-            {
-                "name": "resources",
-                "peer": "BuiltinIPPrefix",
-                "kind": "Attribute",
-                "identifier": "prefixpool__resource",
-                "cardinality": "many",
-                "branch": BranchSupportType.AGNOSTIC.value,
-                "optional": False,
-                "order_weight": 6000,
-            },
-            {
-                "name": "ip_namespace",
-                "peer": "BuiltinIPNamespace",
-                "kind": "Attribute",
-                "identifier": "prefixpool__ipnamespace",
-                "cardinality": "one",
-                "branch": BranchSupportType.AGNOSTIC.value,
-                "optional": False,
-                "order_weight": 7000,
-            },
-        ],
-    }
-    return NodeSchema(**data).convert_api()
-
-
-@pytest.fixture
 async def address_schema() -> NodeSchemaAPI:
     data = {
         "name": "Address",
@@ -2188,7 +2079,7 @@ async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 @pytest.fixture
 def query_01() -> str:
-    """Simple query with one document"""
+    """Simple query with one document."""
     return """
     query {
         TestPerson {
@@ -2260,7 +2151,7 @@ def query_02() -> str:
 
 @pytest.fixture
 def query_03() -> str:
-    """Advanced Query with 2 documents"""
+    """Advanced Query with 2 documents."""
     return """
     query FirstQuery {
         TestPerson {
@@ -2299,7 +2190,7 @@ def query_03() -> str:
 
 @pytest.fixture
 def query_04() -> str:
-    """Simple query with variables"""
+    """Simple query with variables."""
     return """
     query ($person: String!){
         TestPerson(name__value: $person) {
@@ -2349,7 +2240,7 @@ def query_05() -> str:
 
 @pytest.fixture
 def query_06() -> str:
-    """Simple query with variables"""
+    """Simple query with variables."""
     return """
     query (
         $str1: String,
@@ -2643,5 +2534,71 @@ async def nested_device_with_interfaces_schema() -> NodeSchemaAPI:
                 "kind": "Component",
             },
         ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def file_object_schema() -> NodeSchemaAPI:
+    """Schema for a node that inherits from CoreFileObject."""
+    data = {
+        "name": "CircuitContract",
+        "namespace": "Network",
+        "label": "Circuit Contract",
+        "default_filter": "file_name__value",
+        "inherit_from": ["CoreFileObject"],
+        "order_by": ["file_name__value"],
+        "display_labels": ["file_name__value"],
+        "attributes": [
+            # Simulate inherited attributes from CoreFileObject
+            {"name": "file_name", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "checksum", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "file_size", "kind": "Number", "read_only": True, "optional": False},
+            {"name": "file_type", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "storage_id", "kind": "Text", "read_only": True, "optional": False},
+            {"name": "contract_start", "kind": "DateTime", "optional": False},
+            {"name": "contract_end", "kind": "DateTime", "optional": False},
+        ],
+        "relationships": [],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def non_file_object_schema() -> NodeSchemaAPI:
+    """Schema for a regular node that does not inherit from CoreFileObject."""
+    data = {
+        "name": "Device",
+        "namespace": "Infra",
+        "label": "Device",
+        "default_filter": "name__value",
+        "inherit_from": [],
+        "order_by": ["name__value"],
+        "display_labels": ["name__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+        ],
+        "relationships": [],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def vlan_schema() -> NodeSchemaAPI:
+    data = {
+        "name": "VLAN",
+        "namespace": "Infra",
+        "label": "VLAN",
+        "default_filter": "name__value",
+        "order_by": ["name__value"],
+        "display_labels": ["name__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "vlan_id", "kind": "Number"},
+            {"name": "role", "kind": "Text", "optional": True},
+            {"name": "status", "kind": "Text", "optional": True},
+        ],
+        "relationships": [],
     }
     return NodeSchema(**data).convert_api()

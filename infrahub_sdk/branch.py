@@ -19,6 +19,8 @@ class BranchStatus(str, Enum):
     NEED_REBASE = "NEED_REBASE"
     NEED_UPGRADE_REBASE = "NEED_UPGRADE_REBASE"
     DELETING = "DELETING"
+    MERGING = "MERGING"
+    MERGED = "MERGED"
 
 
 class BranchData(BaseModel):
@@ -89,7 +91,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[True] = True,
     ) -> BranchData: ...
@@ -98,7 +100,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[False] = False,
     ) -> str: ...
@@ -106,7 +108,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
     async def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: bool = True,
     ) -> BranchData | str:
@@ -184,7 +186,9 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
 
     async def all(self) -> dict[str, BranchData]:
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
-        data = await self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
+        data = await self.client.execute_graphql(
+            query=query.render(), tracker="query-branch-all", operation_name=query.name
+        )
 
         return {branch["name"]: BranchData(**branch) for branch in data["Branch"]}
 
@@ -194,6 +198,7 @@ class InfrahubBranchManager(InfraHubBranchManagerBase):
             query=query.render(),
             variables={"branch_name": branch_name},
             tracker="query-branch",
+            operation_name=query.name,
         )
 
         if not data["Branch"]:
@@ -224,7 +229,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
 
     def all(self) -> dict[str, BranchData]:
         query = Query(name="GetAllBranch", query=QUERY_ALL_BRANCHES_DATA)
-        data = self.client.execute_graphql(query=query.render(), tracker="query-branch-all")
+        data = self.client.execute_graphql(query=query.render(), tracker="query-branch-all", operation_name=query.name)
 
         return {branch["name"]: BranchData(**branch) for branch in data["Branch"]}
 
@@ -234,6 +239,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
             query=query.render(),
             variables={"branch_name": branch_name},
             tracker="query-branch",
+            operation_name=query.name,
         )
 
         if not data["Branch"]:
@@ -244,7 +250,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[True] = True,
     ) -> BranchData: ...
@@ -253,7 +259,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: Literal[False] = False,
     ) -> str: ...
@@ -261,7 +267,7 @@ class InfrahubBranchManagerSync(InfraHubBranchManagerBase):
     def create(
         self,
         branch_name: str,
-        sync_with_git: bool = True,
+        sync_with_git: bool = False,
         description: str = "",
         wait_until_completion: bool = True,
     ) -> BranchData | str:

@@ -61,9 +61,9 @@ def _get_cycles(dependency_dict: dict[str, Iterable[str]], path: list[str]) -> l
     cycles = []
     for next_node in next_nodes:
         if next_node in path:
-            cycles.append(path[path.index(next_node) :] + [next_node])
+            cycles.append([*path[path.index(next_node) :], next_node])
         else:
-            next_cycles = _get_cycles(dependency_dict, path + [next_node])
+            next_cycles = _get_cycles(dependency_dict, [*path, next_node])
             if next_cycles:
                 cycles += next_cycles
     return cycles

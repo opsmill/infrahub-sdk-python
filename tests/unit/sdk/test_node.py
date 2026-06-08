@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import inspect
 import ipaddress
+import tempfile
+from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
 from infrahub_sdk.node import (
     InfrahubNode,
     InfrahubNodeBase,
@@ -88,13 +91,13 @@ async def test_method_sanity() -> None:
 
 @pytest.mark.parametrize("value", SAFE_GRAPHQL_VALUES)
 def test_validate_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert SAFE_VALUE.match(value)
 
 
 @pytest.mark.parametrize("value", UNSAFE_GRAPHQL_VALUES)
 def test_identify_unsafe_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert not SAFE_VALUE.match(value)
 
 
@@ -106,7 +109,7 @@ async def test_validate_method_signature(
     replace_async_return_annotation: Callable[[str], str],
     replace_sync_return_annotation: Callable[[str], str],
 ) -> None:
-    EXCLUDE_PARAMETERS = ["client"]
+    exclude_parameters = ["client"]
     async_method = getattr(InfrahubNode, method)
     sync_method = getattr(InfrahubNodeSync, method)
     async_sig = inspect.signature(async_method)
@@ -115,8 +118,8 @@ async def test_validate_method_signature(
     # Extract names of parameters and exclude some from the comparaison like client
     async_params_name = async_sig.parameters.keys()
     sync_params_name = sync_sig.parameters.keys()
-    async_params = {key: value for key, value in async_sig.parameters.items() if key not in EXCLUDE_PARAMETERS}
-    sync_params = {key: value for key, value in sync_sig.parameters.items() if key not in EXCLUDE_PARAMETERS}
+    async_params = {key: value for key, value in async_sig.parameters.items() if key not in exclude_parameters}
+    sync_params = {key: value for key, value in sync_sig.parameters.items() if key not in exclude_parameters}
 
     assert async_params_name == sync_params_name
     assert replace_sync_parameter_annotations(async_params) == replace_sync_parameter_annotations(sync_params)
@@ -129,7 +132,9 @@ async def test_validate_method_signature(
     )
 
 
-@pytest.mark.parametrize("hfid,expected_kind,expected_hfid", [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])])
+@pytest.mark.parametrize(
+    ("hfid", "expected_kind", "expected_hfid"), [("BuiltinLocation__JFK1", "BuiltinLocation", ["JFK1"])]
+)
 def test_parse_human_friendly_id(hfid: str, expected_kind: str, expected_hfid: list[str]) -> None:
     kind, hfid = parse_human_friendly_id(hfid)
     assert kind == expected_kind
@@ -305,6 +310,36 @@ async def test_init_node_data_graphql(
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"
     assert node.primary_tag.typename == "BuiltinTag"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_requires_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": {"id": "pppppppp"},
+    }
+    with pytest.raises(ValueError, match=r"expects a list of nodes"):
+        if client_type == "standard":
+            InfrahubNode(client=client, schema=location_schema, data=data)
+        else:
+            InfrahubNodeSync(client=client, schema=location_schema, data=data)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_accepts_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": [{"id": "aaaaaa"}, {"id": "bbbb"}],
+    }
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+    assert len(node.tags.peers) == 2
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -1386,7 +1421,7 @@ async def test_create_input_data(client: InfrahubClient, location_schema: NodeSc
 async def test_create_input_data_with_dropdown(
     client: InfrahubClient, location_schema_with_dropdown: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data including dropdown field"""
+    """Validate input data including dropdown field."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -1448,7 +1483,7 @@ async def test_update_input_data_existing_node_with_optional_relationship(
 async def test_create_input_data__with_relationships_02(
     client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data with variables that needs replacements"""
+    """Validate input data with variables that needs replacements."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK\n Airport"},
@@ -2209,289 +2244,6 @@ async def test_relationships_excluded_input_data(
         node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
 
     assert node.tags.has_update is False
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_resource_pool_relationship(
-    client: InfrahubClient,
-    ipaddress_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    simple_device_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=client,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        device = InfrahubNode(
-            client=client,
-            schema=simple_device_schema,
-            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
-        )
-    else:
-        ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=client,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        device = InfrahubNode(
-            client=client,
-            schema=simple_device_schema,
-            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
-        )
-
-    assert device._generate_input_data()["data"] == {
-        "data": {
-            "name": {"value": "device-01"},
-            "primary_address": {"from_pool": {"id": "pppppppp-pppp-pppp-pppp-pppppppppppp"}},
-            "ip_address_pool": {"id": "pppppppp-pppp-pppp-pppp-pppppppppppp"},
-        },
-    }
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_create_mutation_query_with_resource_pool_relationship(
-    client: InfrahubClient,
-    ipaddress_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    simple_device_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=client,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        device = InfrahubNode(
-            client=client,
-            schema=simple_device_schema,
-            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
-        )
-    else:
-        ip_prefix = InfrahubNodeSync(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=client,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-        device = InfrahubNode(
-            client=client,
-            schema=simple_device_schema,
-            data={"name": "device-01", "primary_address": ip_pool, "ip_address_pool": ip_pool},
-        )
-
-    assert device._generate_mutation_query() == {
-        "object": {
-            "id": None,
-            "primary_address": {"node": {"__typename": None, "display_label": None, "id": None}},
-            "ip_address_pool": {"node": {"__typename": None, "display_label": None, "id": None}},
-        },
-        "ok": None,
-    }
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_get_pool_allocated_resources(
-    httpx_mock: HTTPXMock,
-    mock_schema_query_ipam: HTTPXMock,
-    clients: BothClients,
-    ipaddress_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "InfrahubResourcePoolAllocated": {
-                    "count": 2,
-                    "edges": [
-                        {
-                            "node": {
-                                "id": "17d9bd8d-8fc2-70b0-278a-179f425e25cb",
-                                "kind": "IpamIPAddress",
-                                "branch": "main",
-                                "identifier": "ip-1",
-                            }
-                        },
-                        {
-                            "node": {
-                                "id": "17d9bd8e-31ee-acf0-2786-179fb76f2f67",
-                                "kind": "IpamIPAddress",
-                                "branch": "main",
-                                "identifier": "ip-2",
-                            }
-                        },
-                    ],
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "get-allocated-resources-page1"},
-    )
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "IpamIPAddress": {
-                    "count": 2,
-                    "edges": [
-                        {"node": {"id": "17d9bd8d-8fc2-70b0-278a-179f425e25cb", "__typename": "IpamIPAddress"}},
-                        {"node": {"id": "17d9bd8e-31ee-acf0-2786-179fb76f2f67", "__typename": "IpamIPAddress"}},
-                    ],
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "query-ipamipaddress-page1"},
-    )
-
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=clients.standard,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-
-        resources = await ip_pool.get_pool_allocated_resources(resource=ip_prefix)
-        assert len(resources) == 2
-        assert [resource.id for resource in resources] == [
-            "17d9bd8d-8fc2-70b0-278a-179f425e25cb",
-            "17d9bd8e-31ee-acf0-2786-179fb76f2f67",
-        ]
-    else:
-        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=clients.sync,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-
-        resources = ip_pool.get_pool_allocated_resources(resource=ip_prefix)
-        assert len(resources) == 2
-        assert [resource.id for resource in resources] == [
-            "17d9bd8d-8fc2-70b0-278a-179f425e25cb",
-            "17d9bd8e-31ee-acf0-2786-179fb76f2f67",
-        ]
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_get_pool_resources_utilization(
-    httpx_mock: HTTPXMock,
-    clients: BothClients,
-    ipaddress_pool_schema: NodeSchemaAPI,
-    ipam_ipprefix_schema: NodeSchemaAPI,
-    ipam_ipprefix_data: dict[str, Any],
-    client_type: str,
-) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        json={
-            "data": {
-                "InfrahubResourcePoolUtilization": {
-                    "count": 1,
-                    "edges": [
-                        {
-                            "node": {
-                                "id": "17d9bd86-3471-a020-2782-179ff078e58f",
-                                "utilization": 93.75,
-                                "utilization_branches": 0,
-                                "utilization_default_branch": 93.75,
-                            }
-                        }
-                    ],
-                }
-            }
-        },
-        match_headers={"X-Infrahub-Tracker": "get-pool-utilization"},
-    )
-
-    if client_type == "standard":
-        ip_prefix = InfrahubNode(client=clients.standard, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNode(
-            client=clients.standard,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-
-        utilizations = await ip_pool.get_pool_resources_utilization()
-        assert len(utilizations) == 1
-        assert utilizations[0]["utilization"] == 93.75
-    else:
-        ip_prefix = InfrahubNodeSync(client=clients.sync, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
-        ip_pool = InfrahubNodeSync(
-            client=clients.sync,
-            schema=ipaddress_pool_schema,
-            data={
-                "id": "pppppppp-pppp-pppp-pppp-pppppppppppp",
-                "name": "Core loopbacks",
-                "default_address_type": "IpamIPAddress",
-                "default_prefix_length": 32,
-                "ip_namespace": "ip_namespace",
-                "resources": [ip_prefix],
-            },
-        )
-
-        utilizations = ip_pool.get_pool_resources_utilization()
-        assert len(utilizations) == 1
-        assert utilizations[0]["utilization"] == 93.75
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -3271,3 +3023,253 @@ def test_relationship_manager_generate_query_data_without_include_metadata() -> 
     assert "count" in data
     assert "edges" in data
     assert "node" in data["edges"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_is_file_object_true(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that is_file_object returns True for nodes inheriting from CoreFileObject."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    assert node.is_file_object()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_is_file_object_false(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that is_file_object returns False for regular nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    assert not node.is_file_object()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_upload_from_bytes_with_bytes(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that upload_from_bytes works with bytes on FileObject nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"PDF content here"
+    node.upload_from_bytes(content=file_content, name="contract.pdf")
+
+    assert node._file_content == file_content
+    assert node._file_name == "contract.pdf"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_upload_from_path(client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI) -> None:
+    """Test that upload_from_path works with a Path object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from file path"
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(file_content)
+        tmp.flush()
+        tmp_path = Path(tmp.name)
+
+        node.upload_from_path(path=tmp_path)
+        assert node._file_content == tmp_path
+        assert node._file_name == tmp_path.name
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_upload_from_bytes_with_binary_io(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that upload_from_bytes works with a BinaryIO object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from BinaryIO"
+    file_obj = BytesIO(file_content)
+
+    node.upload_from_bytes(content=file_obj, name="uploaded.pdf")
+
+    assert node._file_content == file_obj
+    assert node._file_name == "uploaded.pdf"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_upload_from_bytes_on_non_file_object_raises(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that upload_from_bytes raises FeatureNotSupportedError on non-FileObject nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    with pytest.raises(FeatureNotSupportedError, match=r"File upload is not supported"):
+        node.upload_from_bytes(content=b"some content", name="file.txt")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_upload_from_path_on_non_file_object_raises(
+    client_type: str, clients: BothClients, non_file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test that upload_from_path raises FeatureNotSupportedError on non-FileObject nodes."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=non_file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=non_file_object_schema, branch="main")
+
+    with pytest.raises(FeatureNotSupportedError, match=r"File upload is not supported"):
+        node.upload_from_path(path=Path("/some/file.txt"))
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_clear_file(client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI) -> None:
+    """Test that clear_file removes pending file content."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Test content"
+    file_name = "file.txt"
+
+    node.upload_from_bytes(content=file_content, name=file_name)
+    assert node._file_content == file_content
+    assert node._file_name == file_name
+
+    node.clear_file()
+    assert node._file_content is None
+    assert node._file_name is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_bytes(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with bytes returns PreparedFile with BytesIO."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Test content"
+    file_name = "test.txt"
+    node.upload_from_bytes(content=file_content, name=file_name)
+
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
+
+    assert prepared.file_object
+    assert prepared.filename == file_name
+    assert not prepared.should_close
+    assert prepared.file_object.read() == file_content
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_path(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with Path returns PreparedFile with opened file handle."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from path"
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+        tmp.write(file_content)
+        tmp.flush()
+        tmp_path = Path(tmp.name)
+
+        node.upload_from_path(path=tmp_path)
+
+        if isinstance(node, InfrahubNode):
+            prepared = await node._get_file_for_upload()
+        else:
+            prepared = node._get_file_for_upload_sync()
+
+        assert prepared.file_object
+        assert prepared.filename == tmp_path.name
+        assert prepared.should_close  # Path files should be closed after upload
+        assert prepared.file_object.read() == file_content
+        prepared.file_object.close()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_binary_io(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with BinaryIO returns PreparedFile with the same object."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    file_content = b"Content from BinaryIO"
+    file_name = "test.bin"
+    file_obj_input = BytesIO(file_content)
+    node.upload_from_bytes(content=file_obj_input, name=file_name)
+
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
+
+    assert prepared.file_object is file_obj_input  # Should be the same object
+    assert prepared.filename == file_name
+    assert not prepared.should_close  # BinaryIO provided by user shouldn't be closed
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_get_file_for_upload_none(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _get_file_for_upload with no file set returns PreparedFile with None values."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    if isinstance(node, InfrahubNode):
+        prepared = await node._get_file_for_upload()
+    else:
+        prepared = node._get_file_for_upload_sync()
+
+    assert prepared.file_object is None
+    assert prepared.filename is None
+    assert not prepared.should_close
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_generate_input_data_with_file(
+    client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
+) -> None:
+    """Test _generate_input_data places file at mutation level, not inside data."""
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=file_object_schema, branch="main")
+
+    node.upload_from_bytes(content=b"test content", name="test.txt")
+
+    input_data = node._generate_input_data()
+
+    assert "file" in input_data["data"], "file should be at mutation payload level"
+    assert input_data["data"]["file"] == "$file"
+    assert "file" not in input_data["data"]["data"], "file should not be inside nested data dict"
+    assert "file" in input_data["mutation_variables"]
+    assert input_data["mutation_variables"]["file"] is bytes

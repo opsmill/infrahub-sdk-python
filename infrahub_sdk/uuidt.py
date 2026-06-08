@@ -23,8 +23,9 @@ def generate_uuid() -> str:
 
 def encode_number(number: int, min_length: int) -> str:
     """Encode a number into a base16 string and ensure the result has a minimum size.
-    If the initial response produced doesn't match the min requirement,
-    random number will be used to fill the gap
+
+    If the initial response produced doesn't match the min requirement, a random number is
+    used to fill the gap.
     """
     response = base16encode(number=number).lower()
     if len(response) >= min_length:
@@ -56,7 +57,7 @@ class UUIDT:
         return f"{timestamp_str[:8]}-{timestamp_str[8:12]}-{timestamp_str[-4:]}-{hostname_str[:4]}-{namespace_str[:4]}{self.random_chars[:8]}"
 
     def short(self) -> str:
-        """Return the last 8 digit of the UUID (the most random part)"""
+        """Return the last 8 digit of the UUID (the most random part)."""
         return str(self)[-8:]
 
     @classmethod

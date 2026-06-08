@@ -22,9 +22,7 @@ console = Console()
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage the menu in a remote Infrahub instance.
-    """
+    """Manage the menu in a remote Infrahub instance."""
 
 
 @app.command()
@@ -36,7 +34,6 @@ async def load(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple menu files into Infrahub."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
@@ -76,7 +73,6 @@ async def validate(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Validate one or multiple menu files."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)

@@ -23,6 +23,7 @@ from ..exceptions import (
 from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
+from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
@@ -55,6 +56,7 @@ __all__ = [
     "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
+    "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",
@@ -62,9 +64,11 @@ __all__ = [
     "RelationshipKind",
     "RelationshipSchema",
     "RelationshipSchemaAPI",
+    "SchemaExport",
     "SchemaRoot",
     "SchemaRootAPI",
     "TemplateSchemaAPI",
+    "schema_to_export_dict",
 ]
 
 
@@ -119,6 +123,48 @@ class InfrahubSchemaBase:
         self.client = client
         self.cache = {}
 
+    @staticmethod
+    def _build_export_schemas(
+        schema_nodes: MutableMapping[str, MainSchemaTypesAPI],
+        namespaces: list[str] | None = None,
+    ) -> SchemaExport:
+        """Organize fetched schemas into a per-namespace export structure.
+
+        Filters out system types (Profile/Template) and restricted namespaces
+        (see :data:`RESTRICTED_NAMESPACES`), and optionally limits to specific
+        namespaces.  If the caller requests restricted namespaces they are
+        silently excluded and a :func:`warnings.warn` is emitted.
+
+        Returns:
+            A :class:`SchemaExport` containing user-defined schemas by namespace.
+
+        """
+        if namespaces:
+            restricted = set(namespaces) & set(RESTRICTED_NAMESPACES)
+            if restricted:
+                warnings.warn(
+                    f"Restricted namespace(s) {sorted(restricted)} requested but will be excluded from export",
+                    stacklevel=3,
+                )
+
+        ns_map: dict[str, NamespaceExport] = {}
+        for schema in schema_nodes.values():
+            if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
+                continue
+            if schema.namespace in RESTRICTED_NAMESPACES:
+                continue
+            if namespaces and schema.namespace not in namespaces:
+                continue
+            ns = schema.namespace
+            if ns not in ns_map:
+                ns_map[ns] = NamespaceExport()
+            schema_dict = schema_to_export_dict(schema)
+            if isinstance(schema, GenericSchemaAPI):
+                ns_map[ns].generics.append(schema_dict)
+            else:
+                ns_map[ns].nodes.append(schema_dict)
+        return SchemaExport(namespaces=ns_map)
+
     def validate(self, data: dict[str, Any]) -> None:
         SchemaRoot(**data)
 
@@ -132,12 +178,12 @@ class InfrahubSchemaBase:
                 )
 
     def set_cache(self, schema: dict[str, Any] | SchemaRootAPI | BranchSchema, branch: str | None = None) -> None:
-        """
-        Set the cache manually (primarily for unit testing)
+        """Set the cache manually (primarily for unit testing).
 
         Args:
             schema: The schema to set the cache as provided by the /api/schema endpoint either in dict or SchemaRootAPI format
             branch: The name of the branch to set the cache for.
+
         """
         branch = branch or self.client.default_branch
 
@@ -173,10 +219,10 @@ class InfrahubSchemaBase:
             elif key in schema.relationship_names:
                 rel = schema.get_relationship(name=key)
                 if rel:
-                    if rel.cardinality == "one":
+                    if rel.cardinality == RelationshipCardinality.ONE:
                         obj_data[key] = {"id": str(value)}
                         obj_data[key].update(item_metadata)
-                    elif rel.cardinality == "many":
+                    elif rel.cardinality == RelationshipCardinality.MANY:
                         obj_data[key] = [{"id": str(item)} for item in value]
                         for item in obj_data[key]:
                             item.update(item_metadata)
@@ -298,6 +344,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         branch = branch or self.client.default_branch
         if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
@@ -323,7 +370,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         return self._validate_load_schema_response(response=response)
 
     async def wait_until_converged(self, branch: str | None = None) -> None:
-        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        """Wait until the schema has converged on the selected branch or the timeout has been reached."""
         waited = 0
         while True:
             if await self.in_sync(branch=branch):
@@ -338,7 +385,7 @@ class InfrahubSchema(InfrahubSchemaBase):
             await asyncio.sleep(delay=1)
 
     async def in_sync(self, branch: str | None = None) -> bool:
-        """Indicate if the schema is in sync across all workers for the provided branch"""
+        """Indicate if the schema is in sync across all workers for the provided branch."""
         response = await self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
         return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 
@@ -486,8 +533,8 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
-        """
 
+        """
         if timeout:
             self._deprecated_schema_timeout()
 
@@ -498,6 +545,33 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         return branch_schema.nodes
 
+    async def export(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+    ) -> SchemaExport:
+        """Export user-defined schemas organized by namespace.
+
+        Fetches schemas from the server, filters out system types and
+        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
+        a :class:`SchemaExport` object with per-namespace data.  Restricted
+        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
+        explicitly listed in *namespaces*; a warning is emitted when this
+        happens.
+
+        Args:
+            branch: Branch to export from. Defaults to default_branch.
+            namespaces: Optional list of namespaces to include. If empty/None,
+                all user-defined namespaces are exported.
+
+        Returns:
+            A :class:`SchemaExport` containing user-defined schemas by namespace.
+
+        """
+        branch = branch or self.client.default_branch
+        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
+        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+
     async def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
 
@@ -506,6 +580,10 @@ class InfrahubSchema(InfrahubSchemaBase):
 
         Returns:
             The GraphQL schema as a string.
+
+        Raises:
+            ValueError: If the server returns a non-200 response when fetching the schema.
+
         """
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/schema.graphql?branch={branch}"
@@ -553,6 +631,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         branch = branch or self.client.default_branch
         if refresh and branch in self.cache and schema_hash and self.cache[branch].hash == schema_hash:
@@ -570,8 +649,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         refresh: bool = False,
         timeout: int | None = None,
     ) -> MainSchemaTypesAPI:
-        """
-        Retrieve a specific schema object from the server.
+        """Retrieve a specific schema object from the server.
 
         Args:
             kind: The kind of schema object to retrieve.
@@ -581,6 +659,10 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             MainSchemaTypes: The schema object.
+
+        Raises:
+            SchemaNotFoundError: If the requested schema kind is not present on the branch.
+
         """
         branch = branch or self.client.default_branch
 
@@ -729,6 +811,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             dict[str, MainSchemaTypes]: Dictionary of all schema organized by kind
+
         """
         if timeout:
             self._deprecated_schema_timeout()
@@ -740,6 +823,33 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         return branch_schema.nodes
 
+    def export(
+        self,
+        branch: str | None = None,
+        namespaces: list[str] | None = None,
+    ) -> SchemaExport:
+        """Export user-defined schemas organized by namespace.
+
+        Fetches schemas from the server, filters out system types and
+        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
+        a :class:`SchemaExport` object with per-namespace data.  Restricted
+        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
+        explicitly listed in *namespaces*; a warning is emitted when this
+        happens.
+
+        Args:
+            branch: Branch to export from. Defaults to default_branch.
+            namespaces: Optional list of namespaces to include. If empty/None,
+                all user-defined namespaces are exported.
+
+        Returns:
+            A :class:`SchemaExport` containing user-defined schemas by namespace.
+
+        """
+        branch = branch or self.client.default_branch
+        schema_nodes = self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
+        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+
     def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
 
@@ -748,6 +858,10 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
 
         Returns:
             The GraphQL schema as a string.
+
+        Raises:
+            ValueError: If the server returns a non-200 response when fetching the schema.
+
         """
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/schema.graphql?branch={branch}"
@@ -786,7 +900,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         return self._validate_load_schema_response(response=response)
 
     def wait_until_converged(self, branch: str | None = None) -> None:
-        """Wait until the schema has converged on the selected branch or the timeout has been reached"""
+        """Wait until the schema has converged on the selected branch or the timeout has been reached."""
         waited = 0
         while True:
             if self.in_sync(branch=branch):
@@ -801,7 +915,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
             sleep(1)
 
     def in_sync(self, branch: str | None = None) -> bool:
-        """Indicate if the schema is in sync across all workers for the provided branch"""
+        """Indicate if the schema is in sync across all workers for the provided branch."""
         response = self.client.execute_graphql(query=SCHEMA_HASH_SYNC_STATUS, branch_name=branch)
         return response["InfrahubStatus"]["summary"]["schema_hash_synced"]
 

@@ -29,7 +29,6 @@ if TYPE_CHECKING:
         StringOptional,
     )
 
-# pylint: disable=too-many-ancestors
 
 # ---------------------------------------------
 # ASYNC
@@ -98,14 +97,20 @@ class CoreCheck(CoreNode):
 
 class CoreComment(CoreNode):
     text: String
-    created_at: DateTimeOptional
-    created_by: RelatedNode
 
 
 class CoreCredential(CoreNode):
     name: String
     label: StringOptional
     description: StringOptional
+
+
+class CoreFileObject(CoreNode):
+    file_name: String
+    checksum: String
+    file_size: Integer
+    file_type: String
+    storage_id: String
 
 
 class CoreGenericAccount(CoreNode):
@@ -143,6 +148,13 @@ class CoreGroup(CoreNode):
     subscribers: RelationshipManager
     parent: RelatedNode
     children: RelationshipManager
+
+
+class CoreKeyValue(CoreNode):
+    name: String
+    key: String
+    description: StringOptional
+    value: String
 
 
 class CoreMenu(CoreNode):
@@ -190,10 +202,8 @@ class CoreTaskTarget(CoreNode):
 class CoreThread(CoreNode):
     label: StringOptional
     resolved: Boolean
-    created_at: DateTimeOptional
     change: RelatedNode
     comments: RelationshipManager
-    created_by: RelatedNode
 
 
 class CoreTransformation(CoreNode):
@@ -227,11 +237,13 @@ class CoreValidator(CoreNode):
 class CoreWebhook(CoreNode):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
+    headers: RelationshipManager
 
 
 class CoreWeightedPoolResource(CoreNode):
@@ -337,6 +349,10 @@ class CoreDataCheck(CoreCheck):
 
 
 class CoreDataValidator(CoreValidator):
+    pass
+
+
+class CoreEnvKeyValue(CoreKeyValue):
     pass
 
 
@@ -499,7 +515,6 @@ class CoreProposedChange(CoreTaskTarget):
     approved_by: RelationshipManager
     rejected_by: RelationshipManager
     reviewers: RelationshipManager
-    created_by: RelatedNode
     comments: RelationshipManager
     threads: RelationshipManager
     validations: RelationshipManager
@@ -543,6 +558,10 @@ class CoreStandardGroup(CoreGroup):
 
 class CoreStandardWebhook(CoreWebhook, CoreTaskTarget):
     shared_key: String
+
+
+class CoreStaticKeyValue(CoreKeyValue):
+    pass
 
 
 class CoreThreadComment(CoreComment):
@@ -655,14 +674,20 @@ class CoreCheckSync(CoreNodeSync):
 
 class CoreCommentSync(CoreNodeSync):
     text: String
-    created_at: DateTimeOptional
-    created_by: RelatedNodeSync
 
 
 class CoreCredentialSync(CoreNodeSync):
     name: String
     label: StringOptional
     description: StringOptional
+
+
+class CoreFileObjectSync(CoreNodeSync):
+    file_name: String
+    checksum: String
+    file_size: Integer
+    file_type: String
+    storage_id: String
 
 
 class CoreGenericAccountSync(CoreNodeSync):
@@ -700,6 +725,13 @@ class CoreGroupSync(CoreNodeSync):
     subscribers: RelationshipManagerSync
     parent: RelatedNodeSync
     children: RelationshipManagerSync
+
+
+class CoreKeyValueSync(CoreNodeSync):
+    name: String
+    key: String
+    description: StringOptional
+    value: String
 
 
 class CoreMenuSync(CoreNodeSync):
@@ -747,10 +779,8 @@ class CoreTaskTargetSync(CoreNodeSync):
 class CoreThreadSync(CoreNodeSync):
     label: StringOptional
     resolved: Boolean
-    created_at: DateTimeOptional
     change: RelatedNodeSync
     comments: RelationshipManagerSync
-    created_by: RelatedNodeSync
 
 
 class CoreTransformationSync(CoreNodeSync):
@@ -784,11 +814,13 @@ class CoreValidatorSync(CoreNodeSync):
 class CoreWebhookSync(CoreNodeSync):
     name: String
     event_type: Enum
+    active: Boolean
     branch_scope: Dropdown
     node_kind: StringOptional
     description: StringOptional
     url: URL
     validate_certificates: BooleanOptional
+    headers: RelationshipManagerSync
 
 
 class CoreWeightedPoolResourceSync(CoreNodeSync):
@@ -894,6 +926,10 @@ class CoreDataCheckSync(CoreCheckSync):
 
 
 class CoreDataValidatorSync(CoreValidatorSync):
+    pass
+
+
+class CoreEnvKeyValueSync(CoreKeyValueSync):
     pass
 
 
@@ -1056,7 +1092,6 @@ class CoreProposedChangeSync(CoreTaskTargetSync):
     approved_by: RelationshipManagerSync
     rejected_by: RelationshipManagerSync
     reviewers: RelationshipManagerSync
-    created_by: RelatedNodeSync
     comments: RelationshipManagerSync
     threads: RelationshipManagerSync
     validations: RelationshipManagerSync
@@ -1100,6 +1135,10 @@ class CoreStandardGroupSync(CoreGroupSync):
 
 class CoreStandardWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
     shared_key: String
+
+
+class CoreStaticKeyValueSync(CoreKeyValueSync):
+    pass
 
 
 class CoreThreadCommentSync(CoreCommentSync):

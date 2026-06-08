@@ -29,6 +29,7 @@ ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
 
 def format_timestamp(timestamp: str) -> str:
     """Format ISO timestamp to 'YYYY-MM-DD HH:MM:SS'.
+
     Args:
         timestamp (str): ISO fromatted timestamp
 
@@ -37,6 +38,7 @@ def format_timestamp(timestamp: str) -> str:
 
     Raises:
         Any execptions returned from formatting the timestamp are propogated to the caller
+
     """
     dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     return dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -54,6 +56,7 @@ async def check_git_files_changed(client: "InfrahubClient", branch: str) -> bool
 
     Raises:
         Any exceptions from the API call are propagated to the caller
+
     """
     url = f"{client.address}/api/diff/files?branch={branch}"
     resp = await client._get(url=url, timeout=client.default_timeout)
@@ -110,6 +113,10 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
     proposed_change_tables: list[Table] = []
 
     for pc in proposed_changes:
+        metadata = pc.get_node_metadata()
+        created_by = metadata.created_by.display_label if metadata and metadata.created_by else "-"
+        created_at = format_timestamp(metadata.created_at) if metadata and metadata.created_at else "-"
+
         # Create proposal table
         proposed_change_table = Table(show_header=False, box=None)
         proposed_change_table.add_column(justify="left")
@@ -119,8 +126,8 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
         proposed_change_table.add_row("Name", pc.name.value)
         proposed_change_table.add_row("State", str(pc.state.value))
         proposed_change_table.add_row("Is draft", "Yes" if pc.is_draft.value else "No")
-        proposed_change_table.add_row("Created by", pc.created_by.peer.name.value)  # type: ignore[union-attr]
-        proposed_change_table.add_row("Created at", format_timestamp(str(pc.created_by.updated_at)))
+        proposed_change_table.add_row("Created by", created_by)
+        proposed_change_table.add_row("Created at", created_at)
         proposed_change_table.add_row("Approvals", str(len(pc.approved_by.peers)))
         proposed_change_table.add_row("Rejections", str(len(pc.rejected_by.peers)))
 
@@ -131,8 +138,7 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage the branches in a remote Infrahub instance.
+    """Manage the branches in a remote Infrahub instance.
 
     List, create, merge, rebase ..
     """
@@ -142,7 +148,6 @@ def callback() -> None:
 @catch_exception(console=console)
 async def list_branch(_: str = CONFIG_PARAM) -> None:
     """List all existing branches."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -202,7 +207,6 @@ async def create(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Create a new branch."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -214,7 +218,6 @@ async def create(
 @catch_exception(console=console)
 async def delete(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Delete a branch."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -226,7 +229,6 @@ async def delete(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def rebase(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Rebase a Branch with main."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -238,7 +240,6 @@ async def rebase(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Merge a Branch with main."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -250,7 +251,6 @@ async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def validate(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET)."""
-
     client = initialize_client()
     await client.branch.validate(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' is valid.")
@@ -264,7 +264,6 @@ async def report(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Generate branch cleanup status report."""
-
     client = initialize_client()
 
     # Fetch branch metadata first (needed for diff creation)
@@ -295,9 +294,9 @@ async def report(
     proposed_changes = await client.filters(
         kind=CoreProposedChange,
         source_branch__value=branch_name,
-        include=["created_by"],
         prefetch_relationships=True,
         property=True,
+        include_metadata=True,
     )
 
     branch_table = generate_branch_report_table(branch=branch, diff_tree=diff_tree, git_files_changed=git_files_changed)

@@ -8,7 +8,7 @@ from pytest_httpx import HTTPXMock
 from rich.console import Console
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.ctl.schema import display_schema_load_errors
+from infrahub_sdk.ctl.schema import display_schema_load_errors, valid_error_path
 from infrahub_sdk.exceptions import SchemaNotFoundError, ValidationError
 from infrahub_sdk.protocols import BuiltinIPAddress, BuiltinIPAddressSync, BuiltinTag, BuiltinTagSync
 from infrahub_sdk.schema import BranchSchema, InfrahubSchema, InfrahubSchemaBase, InfrahubSchemaSync, NodeSchemaAPI
@@ -64,7 +64,7 @@ async def test_fetch_schema(mock_schema_query_01: HTTPXMock, client_type: str) -
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_fetch_schema_conditional_refresh(mock_schema_query_01: HTTPXMock, client_type: str) -> None:
-    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash"""
+    """Verify that only one schema request is sent if we request to update the schema but already have the correct hash."""
     if client_type == "standard":
         client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
         nodes = await client.schema.all(branch="main")
@@ -243,10 +243,7 @@ async def test_schema_wait_happy_path(clients: BothClients, client_type: list[st
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_schema_set_cache_dict(clients: BothClients, client_type: list[str], schema_query_01_data: dict) -> None:
-    if client_type == "standard":
-        client = clients.standard
-    else:
-        client = clients.sync
+    client = clients.standard if client_type == "standard" else clients.sync
 
     client.schema.set_cache(schema_query_01_data, branch="branch1")
     assert "branch1" in client.schema.cache
@@ -257,10 +254,7 @@ async def test_schema_set_cache_dict(clients: BothClients, client_type: list[str
 async def test_schema_set_cache_branch_schema(
     clients: BothClients, client_type: list[str], schema_query_01_data: dict
 ) -> None:
-    if client_type == "standard":
-        client = clients.standard
-    else:
-        client = clients.sync
+    client = clients.standard if client_type == "standard" else clients.sync
 
     schema = BranchSchema.from_api_response(schema_query_01_data)
 
@@ -345,6 +339,27 @@ async def test_infrahub_repository_config_dups() -> None:
         )
 
     assert "Found multiples element with the same names: ['check01', 'check02']" in str(exc.value)
+
+
+async def test_python_transform_config_description() -> None:
+    """Verify InfrahubPythonTransformConfig supports an optional description field."""
+    # With description
+    config_with_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description="A useful transform"
+    )
+    assert config_with_desc.description == "A useful transform"
+
+    # Without description (default None)
+    config_without_desc = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform"
+    )
+    assert config_without_desc.description is None
+
+    # Explicit None
+    config_explicit_none = InfrahubPythonTransformConfig(
+        name="my_transform", file_path="transforms/my.py", class_name="MyTransform", description=None
+    )
+    assert config_explicit_none.description is None
 
 
 @mock.patch(
@@ -475,6 +490,35 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         assert output == expected_console
 
 
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "schemas", 0, "nodes", 0, "name"], id="top-level-nodes"),
+        pytest.param(["body", "schemas", 0, "generics", 1, "attributes", 0], id="top-level-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "nodes", 0, "kind"], id="extension-nodes"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", 0, "name"], id="extension-generics"),
+        pytest.param(["body", "schemas", 0, "extensions", "relationships", 2, "peer"], id="extension-relationships"),
+    ],
+)
+def test_valid_error_path_accepts_known_shapes(loc_path: list) -> None:
+    assert valid_error_path(loc_path=loc_path)
+
+
+@pytest.mark.parametrize(
+    "loc_path",
+    [
+        pytest.param(["body", "headers", "x-test"], id="wrong-root"),
+        pytest.param(["body", "schemas", "not-an-int", "nodes", 0, "name"], id="non-int-schema-index"),
+        pytest.param(["body", "schemas", 0, "wat", 0, "name"], id="unknown-container"),
+        pytest.param(["body", "schemas", 0, "extensions", "generics", "include_in_menu"], id="non-int-extension-index"),
+        pytest.param(["body", "schemas", 0, "extensions", "wat", 0, "name"], id="unknown-extension-container"),
+        pytest.param(["body", "schemas", 0, "nodes"], id="too-short"),
+    ],
+)
+def test_valid_error_path_rejects_unknown_shapes(loc_path: list) -> None:
+    assert not valid_error_path(loc_path=loc_path)
+
+
 def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols() -> None:
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTagSync) == "BuiltinTag"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinTag) == "BuiltinTag"
@@ -482,3 +526,28 @@ def test_schema_base__get_schema_name__returns_correct_schema_name_for_protocols
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddressSync) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema=BuiltinIPAddress) == "BuiltinIPAddress"
     assert InfrahubSchemaBase._get_schema_name(schema="BuiltinIPAddress") == "BuiltinIPAddress"
+
+
+async def test_schema_load_surfaces_api_error_on_422(client: InfrahubClient, httpx_mock: HTTPXMock) -> None:
+    """Validate that schema.load surfaces API error responses to the caller."""
+    # Arrange
+    schema_payload = {"version": "1.0", "nodes": [{"name": "Dummy", "namespace": "Test"}]}
+    api_error_message = "Something went wrong on the server side."
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/api/schema/load?branch=main",
+        status_code=422,
+        json={
+            "data": None,
+            "errors": [{"message": api_error_message, "extensions": {"code": 422}}],
+        },
+    )
+
+    # Act
+    response = await client.schema.load(schemas=[schema_payload])
+
+    # Assert
+    assert response.errors
+    assert response.errors["errors"][0]["message"] == api_error_message
+    assert not response.schema_updated

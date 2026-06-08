@@ -24,16 +24,13 @@ console = Console()
 
 @app.callback()
 def callback() -> None:
-    """
-    Helper to validate the format of various files.
-    """
+    """Helper to validate the format of various files."""
 
 
 @app.command(name="schema")
 @catch_exception(console=console)
 async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
-    """Validate the format of a schema file either in JSON or YAML"""
-
+    """Validate the format of a schema file either in JSON or YAML."""
     schema_data = load_yamlfile_from_disk_and_exit(paths=[schema], file_type=SchemaFile, console=console)
     if not schema_data:
         console.print(f"[red]Unable to find {schema}")
@@ -48,7 +45,7 @@ async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
         for error in exc.errors():
             loc_str = [str(item) for item in error["loc"]]
             console.print(f"  '{'/'.join(loc_str)}' | {error['msg']} ({error['type']})")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     console.print("[green]Schema is valid !!")
 
@@ -65,8 +62,7 @@ def validate_graphql(
     _: str = CONFIG_PARAM,
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
-    """Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint"""
-
+    """Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint."""
     try:
         query_str = find_graphql_query(query)
     except QueryNotFoundError:
@@ -87,7 +83,6 @@ def validate_graphql(
             query=query_str,
             branch_name=branch,
             variables=variables_dict,
-            raise_for_error=False,
         )
     except GraphQLError as exc:
         console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")

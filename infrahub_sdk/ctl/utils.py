@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 
 import typer
-from click.exceptions import Exit
 from httpx import HTTPError
 from rich.console import Console
 from rich.logging import RichHandler
@@ -20,6 +19,7 @@ from ..exceptions import (
     Error,
     FileNotValidError,
     GraphQLError,
+    GraphQLQueryError,
     NodeNotFoundError,
     ResourceNotDefinedError,
     SchemaNotFoundError,
@@ -27,6 +27,7 @@ from ..exceptions import (
     ServerNotResponsiveError,
     ValidationError,
 )
+from ..graphql.query_renderer import render_query
 from ..yaml import YamlFile
 from .client import initialize_client_sync
 from .exceptions import QueryNotFoundError
@@ -45,15 +46,15 @@ def init_logging(debug: bool = False) -> None:
     logging.getLogger("httpcore").setLevel(logging.ERROR)
 
     log_level = "DEBUG" if debug else "INFO"
-    FORMAT = "%(message)s"
-    logging.basicConfig(level=log_level, format=FORMAT, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
+    format_str = "%(message)s"
+    logging.basicConfig(level=log_level, format=format_str, datefmt="[%X]", handlers=[RichHandler(show_path=debug)])
     logging.getLogger("infrahubctl")
 
 
 def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
-    """Handle exeception in a different fashion based on its type."""
-    if isinstance(exc, Exit):
-        raise typer.Exit(code=exc.exit_code)
+    """Handle exception in a different fashion based on its type."""
+    if isinstance(exc, typer.Exit):
+        raise exc
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)
@@ -66,7 +67,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors)
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError)):
+    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError, GraphQLQueryError)):
         console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
@@ -114,8 +115,7 @@ def execute_graphql_query(
     debug: bool = False,
 ) -> dict:
     console = Console()
-    query_object = repository_config.get_query(name=query)
-    query_str = query_object.load_query()
+    query_str = render_query(name=query, config=repository_config)
 
     client = initialize_client_sync()
 
@@ -126,7 +126,6 @@ def execute_graphql_query(
         query=query_str,
         branch_name=branch,
         variables=variables_dict,
-        raise_for_error=False,
     )
 
     if debug:

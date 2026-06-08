@@ -161,7 +161,6 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
         obj1 = client_sync.get(kind=TESTING_DOG, id=obj.id)
         assert obj1.color.value == "#222222"
 
-    @pytest.mark.xfail(reason="Require Infrahub v1.7")
     def test_profile_relationship_is_from_profile(
         self, client_sync: InfrahubClientSync, base_dataset: None, person_liam: InfrahubNode
     ) -> None:

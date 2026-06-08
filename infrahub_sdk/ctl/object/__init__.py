@@ -4,27 +4,35 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from ..async_typer import AsyncTyper
-from ..ctl.client import initialize_client
-from ..ctl.utils import catch_exception, init_logging
-from ..exceptions import ObjectValidationError, ValidationError
-from ..spec.object import ObjectFile
-from .parameters import CONFIG_PARAM
-from .utils import (
+from infrahub_sdk.async_typer import AsyncTyper
+from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.object.create import create_command
+from infrahub_sdk.ctl.object.delete import delete_command
+from infrahub_sdk.ctl.object.get import get_command
+from infrahub_sdk.ctl.object.update import update_command
+from infrahub_sdk.ctl.parameters import CONFIG_PARAM
+from infrahub_sdk.ctl.utils import (
+    catch_exception,
     display_object_validate_format_error,
     display_object_validate_format_success,
+    init_logging,
     load_yamlfile_from_disk_and_exit,
 )
+from infrahub_sdk.exceptions import ObjectValidationError, ValidationError
+from infrahub_sdk.spec.object import ObjectFile
 
 app = AsyncTyper()
 console = Console()
 
+app.command(name="get")(get_command)
+app.command(name="create")(create_command)
+app.command(name="update")(update_command)
+app.command(name="delete")(delete_command)
+
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage objects in a remote Infrahub instance.
-    """
+    """Manage objects in a remote Infrahub instance."""
 
 
 @app.command()
@@ -36,7 +44,6 @@ async def load(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Load one or multiple objects files into Infrahub."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)
@@ -76,7 +83,6 @@ async def validate(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Validate one or multiple objects files."""
-
     init_logging(debug=debug)
 
     logging.getLogger("infrahub_sdk").setLevel(logging.INFO)

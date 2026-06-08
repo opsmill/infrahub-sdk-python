@@ -20,14 +20,16 @@ if TYPE_CHECKING:
 
 
 class RelationshipManagerBase(Generic[PeerT]):
-    """Base class for RelationshipManager and RelationshipManagerSync"""
+    """Base class for RelationshipManager and RelationshipManagerSync."""
 
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
-        """
+        """Initialize the base relationship manager.
+
         Args:
             name (str): The name of the relationship.
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
+
         """
         self.initialized: bool = False
         self._has_update: bool = False
@@ -88,6 +90,7 @@ class RelationshipManagerBase(Generic[PeerT]):
             Dict: A dictionary representing the basic structure of a GraphQL query for multiple related nodes.
                 It includes count, edges, and node information (ID, display label, and typename), along with additional properties
                 and any peer_data provided.
+
         """
         data: dict[str, Any] = {
             "count": None,
@@ -124,7 +127,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
+        """Initialize the async relationship manager.
+
         Args:
             name (str): The name of the relationship.
             client (InfrahubClient): The client used to interact with the backend.
@@ -132,6 +136,10 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
+
         """
         self.client = client
         self.node = node
@@ -161,7 +169,11 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                     )
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
     def __getitem__(self, item: int) -> RelatedNode[PeerT]:
         return cast("RelatedNode[PeerT]", self.peers[item])
@@ -203,7 +215,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             pass
 
     def add(self, data: str | RelatedNode | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        Raises:
+            UninitializedError: If ``fetch()`` has not been called on the manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(
@@ -255,7 +272,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
+        """Initialize the sync relationship manager.
+
         Args:
             name (str): The name of the relationship.
             client (InfrahubClientSync): The client used to interact with the backend synchronously.
@@ -263,6 +281,10 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
+
         """
         self.client = client
         self.node = node
@@ -292,7 +314,11 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                     )
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
     def __getitem__(self, item: int) -> RelatedNodeSync[PeerTSync]:
         return cast("RelatedNodeSync[PeerTSync]", self.peers[item])
@@ -334,7 +360,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             pass
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        Raises:
+            UninitializedError: If ``fetch()`` has not been called on the manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(

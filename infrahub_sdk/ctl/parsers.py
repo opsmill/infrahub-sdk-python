@@ -1,0 +1,138 @@
+from __future__ import annotations
+
+import json
+from typing import Any
+
+import typer
+
+
+def _coerce_value(value: str) -> Any:
+    """Attempt to coerce a string value to an appropriate Python type.
+
+    Tries, in order: JSON array (for relationship lists), int, float,
+    bool (true/false), None (null/none).
+    Falls back to the original string if no conversion matches.
+
+    Args:
+        value: The raw string value from the CLI.
+
+    Returns:
+        The coerced Python value.
+
+    """
+    # Try JSON array syntax (e.g. [["blue"], ["red"]] for cardinality-many)
+    stripped = value.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        try:
+            return json.loads(stripped)
+        except json.JSONDecodeError:
+            pass
+
+    # Try integer (preserve leading zeros — "00123" stays a string)
+    try:
+        int_val = int(value)
+        if str(int_val) == value:
+            return int_val
+    except ValueError:
+        pass
+
+    # Try float (preserve leading zeros)
+    try:
+        float_val = float(value)
+        if str(float_val) == value:
+            return float_val
+    except ValueError:
+        pass
+
+    # Try boolean / null
+    keyword_map = {"true": True, "yes": True, "false": False, "no": False, "null": None, "none": None}
+    lower = value.lower()
+    if lower in keyword_map:
+        return keyword_map[lower]
+
+    return value
+
+
+def parse_set_args(set_args: list[str]) -> dict[str, Any]:
+    """Parse --set key=value arguments into a dictionary.
+
+    Splits each argument on the first ``=`` sign, allowing values
+    to contain additional ``=`` characters. Values are automatically
+    coerced to int, float, bool, or None where possible.
+
+    Args:
+        set_args: List of "key=value" strings from the CLI.
+
+    Returns:
+        Dictionary mapping field names to coerced Python values.
+
+    Raises:
+        typer.BadParameter: If any argument is not in key=value format.
+
+    """
+    result: dict[str, Any] = {}
+    for arg in set_args:
+        if "=" not in arg:
+            raise typer.BadParameter(f"Invalid format '{arg}'. Expected key=value.")
+        key, value = arg.split("=", maxsplit=1)
+        key = key.strip()
+        if not key:
+            raise typer.BadParameter(f"Invalid format '{arg}'. Key must not be empty.")
+        result[key] = _coerce_value(value)
+    return result
+
+
+def parse_filter_args(filter_args: list[str]) -> dict[str, Any]:
+    """Parse --filter arguments into kwargs for client.filters().
+
+    Uses the same split-on-first-``=`` logic as :func:`parse_set_args`.
+    Keys are expected to follow SDK filter conventions
+    (e.g. ``attribute__value``, ``relationship__id``) but format
+    validation is left to the SDK.
+
+    Args:
+        filter_args: List of "attr__value=x" strings from the CLI.
+
+    Returns:
+        Dictionary of filter kwargs to pass to client.filters().
+
+    Raises:
+        typer.BadParameter: If any argument is not in key=value format.
+
+    """
+    result: dict[str, Any] = {}
+    for arg in filter_args:
+        if "=" not in arg:
+            raise typer.BadParameter(f"Invalid format '{arg}'. Expected key=value.")
+        key, value = arg.split("=", maxsplit=1)
+        key = key.strip()
+        if not key:
+            raise typer.BadParameter(f"Invalid format '{arg}'. Key must not be empty.")
+        result[key] = value
+    return result
+
+
+def validate_set_fields(
+    data: dict[str, Any],
+    attribute_names: list[str],
+    relationship_names: list[str],
+) -> None:
+    """Validate that all keys in data are valid attribute or relationship names.
+
+    Args:
+        data: Parsed set data from parse_set_args.
+        attribute_names: Valid attribute names from schema.
+        relationship_names: Valid relationship names from schema.
+
+    Raises:
+        typer.BadParameter: If any key is not a valid field name,
+            with a message listing valid fields.
+
+    """
+    valid_fields = set(attribute_names) | set(relationship_names)
+    invalid_keys = sorted(set(data.keys()) - valid_fields)
+    if invalid_keys:
+        valid_sorted = sorted(valid_fields)
+        raise typer.BadParameter(
+            f"Unknown field(s): {', '.join(invalid_keys)}. Valid fields: {', '.join(valid_sorted)}"
+        )

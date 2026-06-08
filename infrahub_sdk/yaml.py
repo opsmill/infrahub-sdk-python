@@ -92,10 +92,10 @@ class YamlFile(LocalFile):
             has_multiple_document = bool(file_content.count("---") > 1)
 
             if has_multiple_document:
-                for content in yaml.safe_load_all(file_content):
-                    yaml_files.append(
-                        cls.init(location=path, multiple_documents=has_multiple_document, content=content)
-                    )
+                yaml_files.extend(
+                    cls.init(location=path, multiple_documents=has_multiple_document, content=content)
+                    for content in yaml.safe_load_all(file_content)
+                )
 
             else:
                 yaml_files.append(

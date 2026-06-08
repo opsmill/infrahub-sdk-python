@@ -68,13 +68,13 @@ spec:
 
 > Multiple documents in a single YAML file are also supported, each document will be loaded separately. Documents are separated by `---`
 
-### Data Processing Parameters
+### Data processing parameters
 
 The `parameters` field controls how the data in the object file is processed before loading into Infrahub:
 
-| Parameter      | Description                                                                                             | Default |
-| -------------- | ------------------------------------------------------------------------------------------------------- | ------- |
-| `expand_range` | When set to `true`, range patterns (e.g., `[1-5]`) in string fields are expanded into multiple objects. | `false` |
+| Parameter      | Description                                                                                                    | Default |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ------- |
+| `expand_range` | When set to `true`, range patterns (for example, `[1-5]`) in string fields are expanded into multiple objects. | `false` |
 
 When `expand_range` is not specified, it defaults to `false`.
 
@@ -208,9 +208,9 @@ Metadata support is planned for future releases. Currently, the Object file does
 3. Validate object files before loading them into production environments.
 4. Use comments in your YAML files to document complex relationships or dependencies.
 
-## Range Expansion in Object Files
+## Range expansion in object files
 
-The Infrahub Python SDK supports **range expansion** for string fields in object files when the `parameters > expand_range` is set to `true`. This feature allows you to specify a range pattern (e.g., `[1-5]`) in any string value, and the SDK will automatically expand it into multiple objects during validation and processing.
+The Infrahub Python SDK supports **range expansion** for string fields in object files when the `parameters > expand_range` is set to `true`. This feature allows you to specify a range pattern (for example, `[1-5]`) in any string value, and the SDK will automatically expand it into multiple objects during validation and processing.
 
 ```yaml
 ---
@@ -225,7 +225,7 @@ spec:
       type: Country
 ```
 
-### How Range Expansion Works
+### How range expansion works
 
 - Any string field containing a pattern like `[1-5]`, `[10-15]`, or `[1,3,5]` will be expanded into multiple objects.
 - If multiple fields in the same object use range expansion, **all expanded lists must have the same length**. If not, validation will fail.
@@ -233,7 +233,7 @@ spec:
 
 ### Examples
 
-#### Single Field Expansion
+#### Single field expansion
 
 ```yaml
 spec:
@@ -256,7 +256,7 @@ This will expand to:
   type: Country
 ```
 
-#### Multiple Field Expansion (Matching Lengths)
+#### Multiple field expansion (matching lengths)
 
 ```yaml
 spec:
@@ -283,7 +283,7 @@ This will expand to:
   type: Country
 ```
 
-#### Error: Mismatched Range Lengths
+#### Error: mismatched range lengths
 
 If you use ranges of different lengths in multiple fields:
 

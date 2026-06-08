@@ -16,12 +16,31 @@ $ infrahubctl validate [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `graphql-query`: Validate the format of a GraphQL Query...
 * `schema`: Validate the format of a schema file...
+* `graphql-query`: Validate the format of a GraphQL Query...
+
+## `infrahubctl validate schema`
+
+Validate the format of a schema file either in JSON or YAML.
+
+**Usage**:
+
+```console
+$ infrahubctl validate schema [OPTIONS] SCHEMA
+```
+
+**Arguments**:
+
+* `SCHEMA`: [required]
+
+**Options**:
+
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl validate graphql-query`
 
-Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint
+Validate the format of a GraphQL Query stored locally by executing it on a remote GraphQL endpoint.
 
 **Usage**:
 
@@ -40,23 +59,4 @@ $ infrahubctl validate graphql-query [OPTIONS] QUERY [VARIABLES]...
 * `--branch TEXT`: Branch on which to validate the GraphQL Query.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--out TEXT`: Path to a file to save the result.
-* `--help`: Show this message and exit.
-
-## `infrahubctl validate schema`
-
-Validate the format of a schema file either in JSON or YAML
-
-**Usage**:
-
-```console
-$ infrahubctl validate schema [OPTIONS] SCHEMA
-```
-
-**Arguments**:
-
-* `SCHEMA`: [required]
-
-**Options**:
-
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

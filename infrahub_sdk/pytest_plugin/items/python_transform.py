@@ -13,7 +13,7 @@ from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
 
 if TYPE_CHECKING:
-    from pytest import ExceptionInfo
+    import pytest
 
     from ...schema.repository import InfrahubRepositoryConfigElement
     from ...transforms import InfrahubTransform
@@ -48,7 +48,7 @@ class InfrahubPythonTransformItem(InfrahubItem):
         self.instantiate_transform()
         return asyncio.run(self.transform_instance.run(data=variables))
 
-    def repr_failure(self, excinfo: ExceptionInfo, style: str | None = None) -> str:
+    def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
                 response_content = ujson.dumps(excinfo.value.response.json(), indent=4)
@@ -89,6 +89,7 @@ class InfrahubPythonTransformUnitProcessItem(InfrahubPythonTransformItem):
 
 class InfrahubPythonTransformIntegrationItem(InfrahubPythonTransformItem):
     def runtest(self) -> None:
+        self.instantiate_transform()
         input_data = self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
             self.transform_instance.query,
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]

@@ -16,8 +16,142 @@ $ infrahubctl object [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `get`: Query and display Infrahub objects.
+* `create`: Create a new object in Infrahub.
+* `update`: Update an existing object in Infrahub.
+* `delete`: Delete an Infrahub object.
 * `load`: Load one or multiple objects files into...
 * `validate`: Validate one or multiple objects files.
+
+## `infrahubctl object get`
+
+Query and display Infrahub objects.
+
+When IDENTIFIER is omitted the command lists all objects of the given
+KIND. When IDENTIFIER is provided it displays a single object in
+detail view. Empty columns are hidden by default (use --all-columns).
+
+Examples:
+  infrahubctl object get InfraDevice
+  infrahubctl object get InfraDevice spine01
+  infrahubctl object get InfraDevice --filter name__value=spine01
+  infrahubctl object get InfraDevice --output json
+  infrahubctl object get InfraDevice --output yaml &gt; backup.yml
+
+Exit codes: 0 = results found, 1 = error (including not found in detail
+mode), 80 = list query succeeded but returned zero objects.
+
+**Usage**:
+
+```console
+$ infrahubctl object get [OPTIONS] KIND [IDENTIFIER]
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind to query  [required]
+* `[IDENTIFIER]`: UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)
+
+**Options**:
+
+* `--filter TEXT`: Filter in attr__value=x format
+* `-o, --output [table|json|csv|yaml]`: Output format
+* `-b, --branch TEXT`: Target branch
+* `--limit INTEGER`: Maximum results
+* `--offset INTEGER`: Skip first N results
+* `--all-columns`: Show all columns including empty ones
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl object create`
+
+Create a new object in Infrahub.
+
+Provide field values with repeatable --set flags or supply a
+JSON/YAML object file via --file. The two modes are mutually exclusive.
+
+Examples:
+  infrahubctl object create InfraDevice --set name=spine01 --set status=active
+  infrahubctl object create InfraDevice --set name=spine01 --set location=DC1
+  infrahubctl object create InfraDevice --file devices.yml
+
+**Usage**:
+
+```console
+$ infrahubctl object create [OPTIONS] KIND
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind to create  [required]
+
+**Options**:
+
+* `--set TEXT`: Field value in key=value format
+* `-f, --file PATH`: JSON or YAML file with object data
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl object update`
+
+Update an existing object in Infrahub.
+
+Fetches the object by KIND and IDENTIFIER, applies the requested
+changes, and saves back to the server. Use --set or --file.
+
+Examples:
+  infrahubctl object update InfraDevice spine01 --set status=active
+  infrahubctl object update InfraDevice spine01 --set location=DC1
+  infrahubctl object update InfraDevice spine01 --file updates.yml
+
+**Usage**:
+
+```console
+$ infrahubctl object update [OPTIONS] KIND IDENTIFIER
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind  [required]
+* `IDENTIFIER`: UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)  [required]
+
+**Options**:
+
+* `--set TEXT`: Field value in key=value format
+* `-f, --file PATH`: JSON or YAML file with update data
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl object delete`
+
+Delete an Infrahub object.
+
+Fetches the object by KIND and IDENTIFIER, then deletes it.
+Unless --yes is provided, a confirmation prompt is shown first.
+
+Examples:
+  infrahubctl object delete InfraDevice spine01
+  infrahubctl object delete InfraDevice spine01 --yes
+
+**Usage**:
+
+```console
+$ infrahubctl object delete [OPTIONS] KIND IDENTIFIER
+```
+
+**Arguments**:
+
+* `KIND`: Infrahub schema kind  [required]
+* `IDENTIFIER`: UUID, name, or HFID (use / for multi-part, for example: Cisco/NX-OS)  [required]
+
+**Options**:
+
+* `-y, --yes`: Skip confirmation prompt
+* `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl object load`
 
