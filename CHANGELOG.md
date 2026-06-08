@@ -11,6 +11,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.21.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.1) - 2026-06-05
+
+### Changed
+
+- `infrahubctl marketplace get --collection` now downloads each member schema individually into a `<output_dir>/<collection name>/<schema name>.yml` layout (for example `schemas/base-schemas/dcim.yml`), instead of dumping version-suffixed files flat into the output directory. Filenames no longer carry the version, matching single-schema downloads, so re-downloading a collection overwrites cleanly rather than accumulating stale versions. If two members share a schema name across namespaces, those members are written to `<output_dir>/<collection name>/<namespace>/<schema name>.yml` instead of overwriting each other. ([#1057](https://github.com/opsmill/infrahub-sdk-python/issues/1057))
+
+### Fixed
+
+- Fix `infrahubctl` printing a spurious `Error: 1` and Python traceback after the human-readable error message when a command exits with `typer.Exit`. The CLI now exits cleanly with only the intended error output. ([#1047](https://github.com/opsmill/infrahub-sdk-python/issues/1047))
+
 ## [1.21.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.0) - 2026-05-29
 
 ### Added
