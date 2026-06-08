@@ -113,13 +113,13 @@ class LocationSite(LocationGeneric):
     name: String
     physical_address: StringOptional
     shortname: String
-    children: RelationshipManagerSync
-    member_of_groups: RelationshipManagerSync
-    parent: RelatedNodeSync
-    profiles: RelationshipManagerSync
-    servers: RelationshipManagerSync
-    subscriber_of_groups: RelationshipManagerSync
-    tags: RelationshipManagerSync
+    children: RelationshipManagerSync[LocationRack]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelatedNodeSync[LocationCountry]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    servers: RelationshipManagerSync[NetworkManagementServer]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 """
 
     assert location_site_sync in sync_protocols
