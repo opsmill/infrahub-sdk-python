@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, cast
+
+from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
@@ -11,7 +13,14 @@ from .metadata import NodeMetadata, RelationshipMetadata
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
-    from .node import InfrahubNode, InfrahubNodeSync
+    from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
+
+# Type of the related peer node. Defaults to ``InfrahubNode``/``InfrahubNodeSync`` so that
+# existing un-parameterised ``RelatedNode`` / ``RelatedNodeSync`` usage keeps returning the
+# dynamic node, while generated protocols can parameterise it (e.g. ``RelatedNode[CoreDevice]``)
+# to preserve the peer type through ``.peer`` / ``.get()``.
+PeerT = TypeVar("PeerT", default="InfrahubNode")
+PeerTSync = TypeVar("PeerTSync", default="InfrahubNodeSync")
 
 
 class RelatedNodeBase:
@@ -36,7 +45,7 @@ class RelatedNodeBase:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self._peer = None
+        self._peer: InfrahubNodeBase | CoreNodeBase | None = None
         self._id: str | None = None
         self._hfid: list[str] | None = None
         self._display_label: str | None = None
@@ -45,8 +54,10 @@ class RelatedNodeBase:
         self._source_typename: str | None = None
         self._relationship_metadata: RelationshipMetadata | None = None
 
-        if isinstance(data, (CoreNodeBase)):
-            self._peer = data
+        # Check for InfrahubNodeBase instances using duck-typing (_schema attribute)
+        # to avoid circular imports, or CoreNodeBase instances
+        if isinstance(data, CoreNodeBase) or hasattr(data, "_schema"):
+            self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
             self._relationship_metadata = None
@@ -219,7 +230,7 @@ class RelatedNodeBase:
         return data
 
 
-class RelatedNode(RelatedNodeBase):
+class RelatedNode(RelatedNodeBase, Generic[PeerT]):
     """Represents a RelatedNodeBase in an asynchronous context."""
 
     def __init__(
@@ -252,11 +263,11 @@ class RelatedNode(RelatedNodeBase):
         )
 
     @property
-    def peer(self) -> InfrahubNode:
+    def peer(self) -> PeerT:
         """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
-    def get(self) -> InfrahubNode:
+    def get(self) -> PeerT:
         """Return the peer node, performing a store lookup if not materialized.
 
         When resolving via hfid_str the returned node has a non-None id even
@@ -269,18 +280,18 @@ class RelatedNode(RelatedNodeBase):
 
         """
         if self._peer:
-            return self._peer  # type: ignore[return-value]
+            return cast("PeerT", self._peer)
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerT", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
 
         if self.hfid_str:
-            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerT", self._client.store.get(key=self.hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
 
-class RelatedNodeSync(RelatedNodeBase):
+class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
     """Represents a related node in a synchronous context."""
 
     def __init__(
@@ -313,11 +324,11 @@ class RelatedNodeSync(RelatedNodeBase):
         )
 
     @property
-    def peer(self) -> InfrahubNodeSync:
+    def peer(self) -> PeerTSync:
         """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
-    def get(self) -> InfrahubNodeSync:
+    def get(self) -> PeerTSync:
         """Return the peer node, performing a store lookup if not materialized.
 
         When resolving via hfid_str the returned node has a non-None id even
@@ -330,12 +341,12 @@ class RelatedNodeSync(RelatedNodeBase):
 
         """
         if self._peer:
-            return self._peer  # type: ignore[return-value]
+            return cast("PeerTSync", self._peer)
 
         if self.id and self.typename:
-            return self._client.store.get(key=self.id, kind=self.typename, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerTSync", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
 
         if self.hfid_str:
-            return self._client.store.get(key=self.hfid_str, branch=self._branch)  # type: ignore[return-value]
+            return cast("PeerTSync", self._client.store.get(key=self.hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from ..exceptions import (
     Error,
@@ -11,7 +11,7 @@ from ..exceptions import (
 from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
-from .related_node import RelatedNode, RelatedNodeSync
+from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from .node import InfrahubNode, InfrahubNodeSync
 
 
-class RelationshipManagerBase:
+class RelationshipManagerBase(Generic[PeerT]):
     """Base class for RelationshipManager and RelationshipManagerSync."""
 
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
@@ -41,7 +41,7 @@ class RelationshipManagerBase:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self.peers: list[RelatedNode | RelatedNodeSync] = []
+        self.peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
 
     @property
     def peer_ids(self) -> list[str]:
@@ -115,7 +115,7 @@ class RelationshipManagerBase:
         return data
 
 
-class RelationshipManager(RelationshipManagerBase):
+class RelationshipManager(RelationshipManagerBase[PeerT]):
     """Manages relationships of a node in an asynchronous context."""
 
     def __init__(
@@ -155,12 +155,18 @@ class RelationshipManager(RelationshipManagerBase):
         if isinstance(data, list):
             for item in data:
                 self.peers.append(
-                    RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNode[PeerT]",
+                        RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
                 self.peers.append(
-                    RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNode[PeerT]",
+                        RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         else:
             raise ValueError(
@@ -169,8 +175,8 @@ class RelationshipManager(RelationshipManagerBase):
                 f"Wrap the value in a list, e.g. {name}=[value]."
             )
 
-    def __getitem__(self, item: int) -> RelatedNode:
-        return self.peers[item]  # type: ignore[return-value]
+    def __getitem__(self, item: int) -> RelatedNode[PeerT]:
+        return cast("RelatedNode[PeerT]", self.peers[item])
 
     async def fetch(self) -> None:
         if not self.initialized:
@@ -217,7 +223,9 @@ class RelationshipManager(RelationshipManagerBase):
         """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
-        new_node = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        new_node = cast(
+            "RelatedNode[PeerT]", RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        )
 
         if (new_node.id and new_node.id not in self.peer_ids) or (
             new_node.hfid and new_node.hfid not in self.peer_hfids
@@ -252,7 +260,7 @@ class RelationshipManager(RelationshipManagerBase):
             self._has_update = True
 
 
-class RelationshipManagerSync(RelationshipManagerBase):
+class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
     """Manages relationships of a node in a synchronous context."""
 
     def __init__(
@@ -292,12 +300,18 @@ class RelationshipManagerSync(RelationshipManagerBase):
         if isinstance(data, list):
             for item in data:
                 self.peers.append(
-                    RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNodeSync[PeerTSync]",
+                        RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
                 self.peers.append(
-                    RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNodeSync[PeerTSync]",
+                        RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         else:
             raise ValueError(
@@ -306,8 +320,8 @@ class RelationshipManagerSync(RelationshipManagerBase):
                 f"Wrap the value in a list, e.g. {name}=[value]."
             )
 
-    def __getitem__(self, item: int) -> RelatedNodeSync:
-        return self.peers[item]  # type: ignore[return-value]
+    def __getitem__(self, item: int) -> RelatedNodeSync[PeerTSync]:
+        return cast("RelatedNodeSync[PeerTSync]", self.peers[item])
 
     def fetch(self) -> None:
         if not self.initialized:
@@ -354,7 +368,10 @@ class RelationshipManagerSync(RelationshipManagerBase):
         """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
-        new_node = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        new_node = cast(
+            "RelatedNodeSync[PeerTSync]",
+            RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data),
+        )
 
         if (new_node.id and new_node.id not in self.peer_ids) or (
             new_node.hfid and new_node.hfid not in self.peer_hfids
