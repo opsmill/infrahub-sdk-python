@@ -128,7 +128,9 @@ class CodeGenerator:
         cardinality = value.cardinality
         peer = value.peer
 
-        type_ = "RelatedNode"
+        # Cardinality-one relationships use a descriptor so they can be assigned an id string,
+        # an HFID, a peer node or ``None`` while still reading back as a typed ``RelatedNode``.
+        type_ = "RelationshipAttribute"
         if cardinality == RelationshipCardinality.MANY:
             type_ = "RelationshipManager"
 

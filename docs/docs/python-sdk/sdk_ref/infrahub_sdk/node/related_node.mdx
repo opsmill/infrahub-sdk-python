@@ -156,3 +156,18 @@ when this RelatedNode's .id is None — that is the case in which
 
 - `ValueError`: when neither a peer, (_id,_typename), nor hfid_str
 is available.
+
+### `RelationshipAttribute`
+
+Typing descriptor for a cardinality-one relationship on a generated protocol.
+
+It reads back as ``RelatedNode[PeerT]`` (so ``.peer`` keeps the peer type) but accepts
+assignment of an id string, an HFID, a peer node, or ``None`` — mirroring the runtime
+``InfrahubNode.__setattr__`` behaviour, which wraps the assigned value in a ``RelatedNode``.
+
+This type only appears in generated protocols (it is never instantiated at runtime), so it
+exists purely to give ``node.rel`` separate read and assignment types under a type checker.
+
+### `RelationshipAttributeSync`
+
+Synchronous counterpart of :class:`RelationshipAttribute`.
