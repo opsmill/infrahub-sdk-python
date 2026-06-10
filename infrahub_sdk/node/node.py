@@ -1009,8 +1009,6 @@ class InfrahubNode(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
-        self._validate_upsert(allow_upsert=allow_upsert)
-
         if self._existing is False or allow_upsert is True:
             await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -1299,6 +1297,8 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
@@ -1982,8 +1982,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
-        self._validate_upsert(allow_upsert=allow_upsert)
-
         if self._existing is False or allow_upsert is True:
             self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -2271,6 +2269,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "

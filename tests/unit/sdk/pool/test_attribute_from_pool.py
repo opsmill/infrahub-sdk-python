@@ -317,3 +317,33 @@ async def test_save_upsert_raises_when_pool_node_object_in_hfid(
 
     with pytest.raises(ValidationError, match="vlan_id"):
         await node.save(allow_upsert=True)
+
+
+async def test_create_upsert_raises_when_numberpool_attr_in_hfid(
+    client: InfrahubClient,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+) -> None:
+    """create(allow_upsert=True) is guarded directly, not only through save()."""
+    node = InfrahubNode(
+        client=client,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+
+    with pytest.raises(ValidationError, match="vlan_id"):
+        await node.create(allow_upsert=True)
+
+
+def test_create_upsert_raises_when_numberpool_attr_in_hfid_sync(
+    client_sync: InfrahubClientSync,
+    vlan_schema_with_pool_hfid: NodeSchemaAPI,
+) -> None:
+    """Sync create(allow_upsert=True) is guarded directly, not only through save()."""
+    node = InfrahubNodeSync(
+        client=client_sync,
+        schema=vlan_schema_with_pool_hfid,
+        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
+    )
+
+    with pytest.raises(ValidationError, match="vlan_id"):
+        node.create(allow_upsert=True)
