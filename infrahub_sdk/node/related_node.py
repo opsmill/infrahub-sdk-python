@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import TypeVar
 
@@ -350,3 +350,45 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             return cast("PeerTSync", self._client.store.get(key=self.hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
+
+
+class RelationshipAttribute(Generic[PeerT]):
+    """Typing descriptor for a cardinality-one relationship on a generated protocol.
+
+    It reads back as ``RelatedNode[PeerT]`` (so ``.peer`` keeps the peer type) but accepts
+    assignment of an id string, an HFID, a peer node, or ``None`` — mirroring the runtime
+    ``InfrahubNode.__setattr__`` behaviour, which wraps the assigned value in a ``RelatedNode``.
+
+    This type only appears in generated protocols (it is never instantiated at runtime), so it
+    exists purely to give ``node.rel`` separate read and assignment types under a type checker.
+    """
+
+    @overload
+    def __get__(self, instance: None, owner: Any = None) -> RelationshipAttribute[PeerT]: ...
+
+    @overload
+    def __get__(self, instance: object, owner: Any = None) -> RelatedNode[PeerT]: ...
+
+    def __get__(self, instance: object | None, owner: Any = None) -> RelationshipAttribute[PeerT] | RelatedNode[PeerT]:
+        raise NotImplementedError  # typing-only descriptor; never invoked at runtime
+
+    def __set__(self, instance: object, value: str | list[str] | PeerT | None) -> None:
+        raise NotImplementedError  # typing-only descriptor; never invoked at runtime
+
+
+class RelationshipAttributeSync(Generic[PeerTSync]):
+    """Synchronous counterpart of :class:`RelationshipAttribute`."""
+
+    @overload
+    def __get__(self, instance: None, owner: Any = None) -> RelationshipAttributeSync[PeerTSync]: ...
+
+    @overload
+    def __get__(self, instance: object, owner: Any = None) -> RelatedNodeSync[PeerTSync]: ...
+
+    def __get__(
+        self, instance: object | None, owner: Any = None
+    ) -> RelationshipAttributeSync[PeerTSync] | RelatedNodeSync[PeerTSync]:
+        raise NotImplementedError  # typing-only descriptor; never invoked at runtime
+
+    def __set__(self, instance: object, value: str | list[str] | PeerTSync | None) -> None:
+        raise NotImplementedError  # typing-only descriptor; never invoked at runtime
