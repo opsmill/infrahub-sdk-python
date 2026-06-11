@@ -8,6 +8,7 @@ There are two ways to request a pool allocation:
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -218,24 +219,6 @@ UPSERT_MOCK_RESPONSE = {
 }
 
 
-@pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
-async def test_save_upsert_no_error_before_fix(
-    client: InfrahubClient,
-    vlan_schema_with_pool_hfid: NodeSchemaAPI,
-    httpx_mock: HTTPXMock,
-) -> None:
-    """FAILS before the guard is added: ValidationError must be raised when HFID attr is NumberPool-sourced."""
-    httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
-    node = InfrahubNode(
-        client=client,
-        schema=vlan_schema_with_pool_hfid,
-        data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
-    )
-
-    with pytest.raises(ValidationError, match="vlan_id"):
-        await node.save(allow_upsert=True)
-
-
 async def test_save_upsert_raises_when_numberpool_attr_in_hfid(
     client: InfrahubClient,
     vlan_schema_with_pool_hfid: NodeSchemaAPI,
@@ -247,7 +230,7 @@ async def test_save_upsert_raises_when_numberpool_attr_in_hfid(
         data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
     )
 
-    with pytest.raises(ValidationError, match="vlan_id"):
+    with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         await node.save(allow_upsert=True)
 
 
@@ -256,7 +239,7 @@ async def test_save_upsert_proceeds_when_explicit_id_set(
     vlan_schema_with_pool_hfid: NodeSchemaAPI,
     httpx_mock: HTTPXMock,
 ) -> None:
-    """Guard is bypassed when an explicit node id is already set."""
+    """Upsert proceeds when an explicit node id is already set."""
     httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
     node = InfrahubNode(
         client=client,
@@ -275,7 +258,7 @@ async def test_save_upsert_proceeds_when_numberpool_attr_not_in_hfid(
     vlan_schema: NodeSchemaAPI,
     httpx_mock: HTTPXMock,
 ) -> None:
-    """Guard does not fire when the pool-sourced attribute is not part of the HFID."""
+    """Upsert proceeds when the pool-sourced attribute is not part of the HFID."""
     httpx_mock.add_response(method="POST", json=UPSERT_MOCK_RESPONSE)
     node = InfrahubNode(
         client=client,
@@ -295,7 +278,7 @@ async def test_save_upsert_raises_when_pool_node_object_in_hfid(
     ipam_ipprefix_schema: NodeSchemaAPI,
     ipam_ipprefix_data: dict[str, Any],
 ) -> None:
-    """Guard fires when vlan_id is set to a pool node object (not a from_pool dict)."""
+    """save(allow_upsert=True) raises ValidationError when vlan_id is set to a pool node object (not a from_pool dict)."""
     ip_prefix = InfrahubNode(client=client, schema=ipam_ipprefix_schema, data=ipam_ipprefix_data)
     ip_pool = InfrahubNode(
         client=client,
@@ -315,7 +298,7 @@ async def test_save_upsert_raises_when_pool_node_object_in_hfid(
         data={"name": "Test VLAN", "vlan_id": ip_pool},
     )
 
-    with pytest.raises(ValidationError, match="vlan_id"):
+    with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         await node.save(allow_upsert=True)
 
 
@@ -323,14 +306,14 @@ async def test_create_upsert_raises_when_numberpool_attr_in_hfid(
     client: InfrahubClient,
     vlan_schema_with_pool_hfid: NodeSchemaAPI,
 ) -> None:
-    """create(allow_upsert=True) is guarded directly, not only through save()."""
+    """create(allow_upsert=True) raises ValidationError directly, not only through save()."""
     node = InfrahubNode(
         client=client,
         schema=vlan_schema_with_pool_hfid,
         data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
     )
 
-    with pytest.raises(ValidationError, match="vlan_id"):
+    with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         await node.create(allow_upsert=True)
 
 
@@ -338,12 +321,12 @@ def test_create_upsert_raises_when_numberpool_attr_in_hfid_sync(
     client_sync: InfrahubClientSync,
     vlan_schema_with_pool_hfid: NodeSchemaAPI,
 ) -> None:
-    """Sync create(allow_upsert=True) is guarded directly, not only through save()."""
+    """Sync create(allow_upsert=True) raises ValidationError directly, not only through save()."""
     node = InfrahubNodeSync(
         client=client_sync,
         schema=vlan_schema_with_pool_hfid,
         data={"name": "Test VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}},
     )
 
-    with pytest.raises(ValidationError, match="vlan_id"):
+    with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         node.create(allow_upsert=True)
