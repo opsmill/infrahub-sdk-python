@@ -309,3 +309,58 @@ query {
 ```
 
 Notice that we have one IP address allocated by the Resource manager in the test branch. The query in the main branch shows us this allocation, indicating that it has been allocated and the resource cannot be allocated again. However, the IP address does not exist itself within the main branch.
+
+## CoreNumberPool and attribute allocation
+
+`CoreNumberPool` allocates integer values (such as VLAN IDs or AS numbers) directly to node attributes. The pool assigns the integer value at the moment the node is created on the server.
+
+```python
+vlan = await client.create(
+    kind="InfraVLAN",
+    name="VLAN-100",
+    vlan_id={"from_pool": {"id": pool_id}},
+)
+await vlan.save()
+```
+
+### Limitation: `allow_upsert=True` with a pool-sourced HFID attribute
+
+`CoreNumberPool` assigns the integer value at server creation time. The SDK does not know the assigned value before the node exists. When a node's human-friendly identifier (HFID) includes a pool-sourced attribute, the SDK cannot construct the HFID needed to look up an existing node for upsert.
+
+:::warning
+
+Calling `save(allow_upsert=True)` on a node whose HFID contains a `CoreNumberPool`-sourced attribute raises `ValidationError` before any network call is made.
+
+```python
+# Schema has human_friendly_id: ["vlan_id__value"]
+vlan = await client.create(
+    kind="InfraVLAN",
+    name="VLAN-100",
+    vlan_id={"from_pool": {"id": pool_id}},
+)
+
+# This raises ValidationError — the pool-assigned vlan_id is unknown client-side
+await vlan.save(allow_upsert=True)
+```
+
+**Alternatives:**
+
+- **Two-step pattern** — create the node first, then update it in a separate call:
+
+  ```python
+  await vlan.save()           # creates node, pool assigns vlan_id
+  # later, if you need to update:
+  vlan.name.value = "VLAN-100-updated"
+  await vlan.save()           # now _existing=True, calls update
+  ```
+
+- **Explicit id** — if you already know the node's UUID, set `node.id` before saving. The upsert will use the UUID directly and skip HFID lookup:
+
+  ```python
+  vlan.id = "known-uuid"
+  await vlan.save(allow_upsert=True)  # guard bypassed
+  ```
+
+- **Deterministic identifier** — if possible, design your schema so the HFID uses a non-pool attribute (for example, a human-assigned `name`) and keep `vlan_id` out of the HFID.
+
+:::
