@@ -37,7 +37,7 @@ class Timestamp:
         elif isinstance(value, str):
             self._obj = self._parse_string(value)
         else:
-            self._obj = ZonedDateTime.now("UTC").round(unit="microsecond")
+            self._obj = ZonedDateTime.now("UTC").round("microsecond")
 
     @property
     def obj(self) -> ZonedDateTime:
@@ -114,7 +114,7 @@ class Timestamp:
         return self._obj.timestamp()
 
     def to_datetime(self) -> datetime:
-        return self._obj.py_datetime()
+        return self._obj.to_stdlib()
 
     def get_obj(self) -> ZonedDateTime:
         return self._obj
