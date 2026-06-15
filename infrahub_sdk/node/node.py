@@ -350,9 +350,11 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                # Only include None for existing nodes to allow clearing relationships
-                # For new nodes, omit the field to allow object template defaults to be applied
-                if self._existing:
+                # Emit `None` only when the caller has explicitly cleared the relationship
+                # (tracked by `_peer_has_been_mutated`). Without this guard, a node hydrated
+                # from a partial GraphQL payload — one that didn't fetch this relationship —
+                # would silently clear it on save.
+                if self._existing and isinstance(rel, RelatedNodeBase) and rel._peer_has_been_mutated:
                     data[item_name] = None
                 continue
 
@@ -788,9 +790,11 @@ class InfrahubNode(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNode(
+            new_rel = RelatedNode(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
@@ -1766,9 +1770,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNodeSync(
+            new_rel = RelatedNodeSync(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
