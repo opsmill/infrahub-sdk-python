@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
 from ..constants import InfrahubClientMode
-from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
+from ..exceptions import (
+    FeatureNotSupportedError,
+    NodeNotFoundError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    ValidationError,
+)
 from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
@@ -344,9 +350,11 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                # Only include None for existing nodes to allow clearing relationships
-                # For new nodes, omit the field to allow object template defaults to be applied
-                if self._existing:
+                # Emit `None` only when the caller has explicitly cleared the relationship
+                # (tracked by `_peer_has_been_mutated`). Without this guard, a node hydrated
+                # from a partial GraphQL payload — one that didn't fetch this relationship —
+                # would silently clear it on save.
+                if self._existing and isinstance(rel, RelatedNodeBase) and rel._peer_has_been_mutated:
                     data[item_name] = None
                 continue
 
@@ -591,6 +599,36 @@ class InfrahubNodeBase:
 
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
+    def _validate_upsert(self, allow_upsert: bool) -> None:
+        """Ensure an upsert can resolve the HFID before attempting to save.
+
+        An attribute sourced from a CoreNumberPool has no concrete value until the node is
+        created, so it cannot be used to look up an existing node by its human-friendly identifier.
+
+        Raises:
+            ValidationError: If an HFID attribute is sourced from an unresolved CoreNumberPool.
+
+        """
+        if not (allow_upsert and not self.id):
+            return
+
+        for hfid_path in self._schema.human_friendly_id or []:
+            attr_name = hfid_path.split("__")[0]
+            try:
+                attr = self._get_attribute(attr_name)
+            except ResourceNotDefinedError:
+                continue
+            if attr.is_unresolved_pool_attribute():
+                raise ValidationError(
+                    identifier=attr_name,
+                    message=(
+                        f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
+                        "this node's human-friendly identifier. Upsert cannot resolve the HFID "
+                        "without a concrete value. Use an explicit id, or create the node first "
+                        "and update it in a separate call."
+                    ),
+                )
+
     @staticmethod
     def _build_rel_query_data(
         rel_schema: RelationshipSchemaAPI,
@@ -752,9 +790,11 @@ class InfrahubNode(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNode(
+            new_rel = RelatedNode(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
@@ -1265,6 +1305,8 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
@@ -1728,9 +1770,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNodeSync(
+            new_rel = RelatedNodeSync(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
@@ -2237,6 +2281,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
