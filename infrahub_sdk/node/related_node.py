@@ -44,6 +44,10 @@ class RelatedNodeBase:
         self._kind: str | None = None
         self._source_typename: str | None = None
         self._relationship_metadata: RelationshipMetadata | None = None
+        # True once the user has assigned to this relationship via Node.__setattr__.
+        # Distinguishes "never loaded" (partial GraphQL payload) from "explicitly cleared"
+        # so we don't silently null-clear unfetched relationships on save.
+        self._peer_has_been_mutated: bool = False
 
         if isinstance(data, (CoreNodeBase)):
             self._peer = data

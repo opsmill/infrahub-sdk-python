@@ -1450,11 +1450,7 @@ async def test_create_input_data_with_dropdown(
 async def test_update_input_data_existing_node_with_optional_relationship(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate that existing nodes include None for uninitialized optional relationships.
-
-    This ensures that we can explicitly clear optional relationships when updating existing nodes.
-    """
-    # Simulate an existing node by including an id
+    """An explicit `node.rel = None` on an existing node still clears the relationship."""
     data = {
         "id": "existing-node-id",
         "name": {"value": "JFK1"},
@@ -1467,7 +1463,8 @@ async def test_update_input_data_existing_node_with_optional_relationship(
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
 
-    # For existing nodes, optional uninitialized relationships should include None
+    node.primary_tag = None
+
     assert node._generate_input_data()["data"] == {
         "data": {
             "id": "existing-node-id",
@@ -1477,6 +1474,27 @@ async def test_update_input_data_existing_node_with_optional_relationship(
             "primary_tag": None,
         }
     }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_input_data_existing_node_preserves_untouched_optional_relationship(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """A partial payload that omits an optional one-cardinality rel must NOT silently clear it on save."""
+    data = {
+        "id": "existing-node-id",
+        "name": {"value": "JFK1"},
+        "description": {"value": "JFK Airport"},
+        "type": {"value": "SITE"},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
+
+    payload = node._generate_input_data()["data"]["data"]
+    assert "primary_tag" not in payload
 
 
 @pytest.mark.parametrize("client_type", client_types)
