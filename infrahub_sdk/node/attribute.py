@@ -189,12 +189,9 @@ class Attribute:
             True if the attribute value is a resource pool node or was explicitly allocated from a pool.
 
         """
-<<<<<<< HEAD
         return (
             hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
         ) or self._from_pool is not None
-=======
-        return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None
 
     def is_unresolved_pool_attribute(self) -> bool:
         """Return True when pool-backed but no concrete scalar value is available yet.
@@ -206,7 +203,6 @@ class Attribute:
         An attribute whose _from_pool dict is set but whose value has already been populated
         with the allocated scalar (e.g. after a prior save) is considered resolved.
         """
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
             return True
         return self._from_pool is not None and self.value is None
->>>>>>> origin/stable
