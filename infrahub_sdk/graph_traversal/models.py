@@ -61,9 +61,7 @@ class PathNode(GraphTraversalModel):
         """
         if self._client is None:
             raise Error("This PathNode is not bound to a client and cannot be fetched.")
-        return self._client.get(
-            kind=self.kind, id=self.id, populate_store=True, branch=self._branch, timeout=timeout
-        )
+        return self._client.get(kind=self.kind, id=self.id, populate_store=True, branch=self._branch, timeout=timeout)
 
 
 class PathRelationship(GraphTraversalModel):
