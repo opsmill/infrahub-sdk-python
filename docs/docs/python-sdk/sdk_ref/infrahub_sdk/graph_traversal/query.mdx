@@ -1,0 +1,43 @@
+---
+title: query
+sidebarTitle: query
+---
+
+# `infrahub_sdk.graph_traversal.query`
+
+GraphQL query strings and variable builders for graph traversal (Infrahub 1.10+).
+
+Both server queries accept a single complex input object passed as the GraphQL
+variable ``$data``. The input field names are snake_case on the wire, matching
+the SDK keyword arguments, so the variable dict is built directly with unset
+optional fields omitted (the server applies its own defaults).
+
+## Functions
+
+### `is_unknown_field_error`
+
+```python
+is_unknown_field_error(errors: list[dict[str, Any]], field_name: str) -> bool
+```
+
+Return True if the GraphQL errors indicate ``field_name`` is an unknown query field.
+
+Used to detect a pre-1.10 server that lacks the traversal queries, so the SDK can
+raise a clear version error instead of surfacing an opaque validation failure. The
+server's own runtime errors (such as "Source node not found") do not match.
+
+### `build_path_traversal_input`
+
+```python
+build_path_traversal_input(source_id: str, destination_id: str) -> dict[str, Any]
+```
+
+Build the ``PathTraversalInput`` variable, omitting unset optional fields.
+
+### `build_reachable_nodes_input`
+
+```python
+build_reachable_nodes_input(source_id: str, target_kinds: list[str]) -> dict[str, Any]
+```
+
+Build the ``ReachableNodesInput`` variable, omitting unset optional fields.

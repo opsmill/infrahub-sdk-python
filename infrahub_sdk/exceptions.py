@@ -48,6 +48,16 @@ class GraphQLError(Error):
         super().__init__(self.message)
 
 
+class VersionNotSupportedError(Error):
+    """Raised when a feature is used against an Infrahub server version that does not support it."""
+
+    def __init__(self, feature: str, required_version: str) -> None:
+        self.feature = feature
+        self.required_version = required_version
+        self.message = f"{feature} requires Infrahub {required_version} or later."
+        super().__init__(self.message)
+
+
 class BranchNotFoundError(Error):
     def __init__(self, identifier: str, message: str | None = None) -> None:
         self.identifier = identifier

@@ -119,6 +119,64 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 
 Return the number of nodes of a given kind.
 
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+``source`` and ``destination`` accept either a node UUID string or an
+``InfrahubNode`` instance. Kind filters (``kind_filter``, ``excluded_kinds``,
+``included_kinds``) accept kind-name strings and/or generated protocol classes.
+``relationship_filter`` matches schema relationship identifiers (for example
+``dcimconnector__dcimendpoint``), not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNode, target_kinds: list[str | type[SchemaType]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``source`` accepts either a node UUID string or an ``InfrahubNode`` instance.
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
 #### `all`
 
 ```python
@@ -563,6 +621,64 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 ```
 
 Return the number of nodes of a given kind.
+
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+``source`` and ``destination`` accept either a node UUID string or an
+``InfrahubNode`` instance. Kind filters (``kind_filter``, ``excluded_kinds``,
+``included_kinds``) accept kind-name strings and/or generated protocol classes.
+``relationship_filter`` matches schema relationship identifiers (for example
+``dcimconnector__dcimendpoint``), not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNodeSync, target_kinds: list[str | type[SchemaTypeSync]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``source`` accepts either a node UUID string or an ``InfrahubNode`` instance.
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
 #### `all`
 
