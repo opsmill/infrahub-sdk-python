@@ -220,7 +220,7 @@ To get the full node, call `.fetch()` on any `PathNode`. It resolves the node th
 
 ### Detecting truncated results
 
-The server caps the number of results. Note that `result.count` is the number of *paths* returned, not the number of distinct nodes — when several paths lead to the same node, one node is reported multiple times. To check whether `max_results` (the cap on distinct target nodes) was reached, count the distinct node UUIDs:
+The server caps the number of results. Note that `result.count` is the number of *paths* returned, not the number of distinct nodes — when several paths lead to the same node, one node is reported multiple times. To check whether `max_results` (the cap on distinct target nodes) was reached, count the distinct nodes by their UUID:
 
 ```python
 result = await client.reachable_nodes(source=src, target_kinds=["InfraDevice"], max_results=50)
