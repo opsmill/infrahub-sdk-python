@@ -29,6 +29,7 @@ from .exceptions import (
     Error,
     GraphQLError,
     NodeNotFoundError,
+    NodeNotSavedError,
     ServerNotReachableError,
     ServerNotResponsiveError,
     URLNotFoundError,
@@ -139,14 +140,27 @@ def _resolve_node_id(node: str | InfrahubNode | InfrahubNodeSync) -> str:
     """Return a node UUID from either an id string or an InfrahubNode instance.
 
     Raises:
-        Error: If a node instance without an id is provided.
+        NodeNotSavedError: If a node instance without an id is provided.
 
     """
     if isinstance(node, str):
         return node
     if node.id is None:
-        raise Error("Cannot use a node without an id as a traversal source or destination.")
+        raise NodeNotSavedError("Cannot resolve the id of a node that has not been saved yet.")
     return node.id
+
+
+def _resolve_traversal_node_id(node: str | InfrahubNode | InfrahubNodeSync, *, role: str) -> str:
+    """Resolve a node id for graph traversal, adding traversal context to unsaved-node errors.
+
+    Raises:
+        Error: If a node instance without an id is provided.
+
+    """
+    try:
+        return _resolve_node_id(node)
+    except NodeNotSavedError as exc:
+        raise Error(f"Cannot use an unsaved node as the graph traversal {role}; save it first.") from exc
 
 
 class BaseClient:
@@ -690,13 +704,26 @@ class InfrahubClient(BaseClient):
     ) -> PathTraversalResult:
         """Find the shortest path(s) between two nodes in the graph.
 
-        ``source`` and ``destination`` accept either a node UUID string or an
-        ``InfrahubNode`` instance. Kind filters (``kind_filter``, ``excluded_kinds``,
-        ``included_kinds``) accept kind-name strings and/or generated protocol classes.
-        ``relationship_filter`` matches schema relationship identifiers (for example
-        ``dcimconnector__dcimendpoint``), not the per-side names shown in the result.
+        Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+        kind-name strings and/or generated protocol classes. ``relationship_filter``
+        matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+        not the per-side names shown in the result.
 
-        Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            max_paths: Maximum number of paths to return.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
 
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
@@ -704,8 +731,8 @@ class InfrahubClient(BaseClient):
 
         """
         data = build_path_traversal_input(
-            _resolve_node_id(source),
-            _resolve_node_id(destination),
+            _resolve_traversal_node_id(source, role="source"),
+            _resolve_traversal_node_id(destination, role="destination"),
             max_depth=max_depth,
             max_paths=max_paths,
             kind_filter=_normalize_kinds(kind_filter),
@@ -754,6 +781,19 @@ class InfrahubClient(BaseClient):
 
         Requires Infrahub 1.10 or later.
 
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
             GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
@@ -790,10 +830,20 @@ class InfrahubClient(BaseClient):
     ) -> ReachableNodesResult:
         """Find all nodes of the given kinds reachable from a source node.
 
-        ``source`` accepts either a node UUID string or an ``InfrahubNode`` instance.
         ``target_kinds`` accepts kind-name strings and/or generated protocol classes.
 
-        Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            target_kinds: Kinds of nodes to look for, as kind-name strings or protocol classes.
+            max_depth: Maximum number of relationship hops to explore.
+            max_results: Maximum number of reachable nodes to return.
+            max_paths: Maximum number of paths to compute per reachable node.
+            shortest_paths_only: When True, only return the shortest path(s) to each node.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
 
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
@@ -801,7 +851,7 @@ class InfrahubClient(BaseClient):
 
         """
         data = build_reachable_nodes_input(
-            _resolve_node_id(source),
+            _resolve_traversal_node_id(source, role="source"),
             _normalize_kinds(target_kinds) or [],
             max_depth=max_depth,
             max_results=max_results,
@@ -2350,13 +2400,26 @@ class InfrahubClientSync(BaseClient):
     ) -> PathTraversalResult:
         """Find the shortest path(s) between two nodes in the graph.
 
-        ``source`` and ``destination`` accept either a node UUID string or an
-        ``InfrahubNode`` instance. Kind filters (``kind_filter``, ``excluded_kinds``,
-        ``included_kinds``) accept kind-name strings and/or generated protocol classes.
-        ``relationship_filter`` matches schema relationship identifiers (for example
-        ``dcimconnector__dcimendpoint``), not the per-side names shown in the result.
+        Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+        kind-name strings and/or generated protocol classes. ``relationship_filter``
+        matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+        not the per-side names shown in the result.
 
-        Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            max_paths: Maximum number of paths to return.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
 
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
@@ -2364,8 +2427,8 @@ class InfrahubClientSync(BaseClient):
 
         """
         data = build_path_traversal_input(
-            _resolve_node_id(source),
-            _resolve_node_id(destination),
+            _resolve_traversal_node_id(source, role="source"),
+            _resolve_traversal_node_id(destination, role="destination"),
             max_depth=max_depth,
             max_paths=max_paths,
             kind_filter=_normalize_kinds(kind_filter),
@@ -2414,6 +2477,19 @@ class InfrahubClientSync(BaseClient):
 
         Requires Infrahub 1.10 or later.
 
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
             GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
@@ -2450,10 +2526,20 @@ class InfrahubClientSync(BaseClient):
     ) -> ReachableNodesResult:
         """Find all nodes of the given kinds reachable from a source node.
 
-        ``source`` accepts either a node UUID string or an ``InfrahubNode`` instance.
         ``target_kinds`` accepts kind-name strings and/or generated protocol classes.
 
-        Requires Infrahub 1.10 or later. See https://docs.infrahub.app for details.
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            target_kinds: Kinds of nodes to look for, as kind-name strings or protocol classes.
+            max_depth: Maximum number of relationship hops to explore.
+            max_results: Maximum number of reachable nodes to return.
+            max_paths: Maximum number of paths to compute per reachable node.
+            shortest_paths_only: When True, only return the shortest path(s) to each node.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
 
         Raises:
             VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
@@ -2461,7 +2547,7 @@ class InfrahubClientSync(BaseClient):
 
         """
         data = build_reachable_nodes_input(
-            _resolve_node_id(source),
+            _resolve_traversal_node_id(source, role="source"),
             _normalize_kinds(target_kinds) or [],
             max_depth=max_depth,
             max_results=max_results,

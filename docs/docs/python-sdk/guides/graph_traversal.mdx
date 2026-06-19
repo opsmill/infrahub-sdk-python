@@ -64,7 +64,7 @@ await client.traverse_paths(src_id, dst_id)        # id + id
 
 ### Constraining the traversal
 
-All limits and filters are optional; when omitted, the server applies its own defaults. Unknown kinds (for example IP namespaces) are excluded by default and reported back in `result.excluded_kinds`.
+All limits and filters are optional; when omitted, the server applies its own defaults. By default the server excludes IP namespaces — they act as hubs and are rarely useful for path tracing — along with internal namespaces such as `Builtin`, `Internal`, and `Core`. The excluded kinds are reported back in `result.excluded_kinds`, and any of them can be brought back into the traversal with `included_kinds`.
 
 The kind filters (`kind_filter`, `excluded_kinds`, `included_kinds`, and `target_kinds` on `reachable_nodes`) accept either kind-name strings or generated protocol classes — mix them freely:
 
@@ -220,11 +220,12 @@ To get the full node, call `.fetch()` on any `PathNode`. It resolves the node th
 
 ### Detecting truncated results
 
-The server caps the number of paths/results. Compare `count` to your requested limit to know whether more may exist:
+The server caps the number of results. Note that `result.count` is the number of *paths* returned, not the number of distinct nodes — when several paths lead to the same node, one node is reported multiple times. To check whether `max_results` (the cap on distinct target nodes) was reached, count the distinct node UUIDs:
 
 ```python
 result = await client.reachable_nodes(source=src, target_kinds=["InfraDevice"], max_results=50)
-if result.count >= 50:
+reached = {dep.node.id for dep in result.dependencies}
+if len(reached) >= 50:
     print("Result may be truncated — increase max_results to see more.")
 ```
 

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.exceptions import Error, GraphQLError, VersionNotSupportedError
+from infrahub_sdk.exceptions import Error, GraphQLError, NodeNotSavedError, VersionNotSupportedError
 from infrahub_sdk.graph_traversal.models import PathNode, PathTraversalResult, ReachableNodesResult
 from infrahub_sdk.graph_traversal.query import (
     build_path_traversal_input,
@@ -207,8 +207,10 @@ async def test_traverse_paths_accepts_node_objects(
 
 async def test_traverse_paths_node_without_id_raises(clients: BothClients, location_schema: NodeSchemaAPI) -> None:
     node = InfrahubNode(client=clients.standard, schema=location_schema, data={})
-    with pytest.raises(Error, match="without an id"):
+    with pytest.raises(Error, match="unsaved node as the graph traversal source") as exc_info:
         await clients.standard.traverse_paths(node, "dst-uuid")
+    # The generic NodeNotSavedError is wrapped with traversal-specific context.
+    assert isinstance(exc_info.value.__cause__, NodeNotSavedError)
 
 
 # --- client methods (httpx_mock at the transport boundary) ------------------

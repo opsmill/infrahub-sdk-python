@@ -104,6 +104,14 @@ class NodeInvalidError(NodeNotFoundError):
     pass
 
 
+class NodeNotSavedError(Error):
+    """Raised when an operation requires a node that has been saved (has an id) but it has not."""
+
+    def __init__(self, message: str | None = None) -> None:
+        self.message = message or "The node has not been saved yet and does not have an id."
+        super().__init__(self.message)
+
+
 class ResourceNotDefinedError(Error):
     """Raised when trying to access a resource that hasn't been defined."""
 
