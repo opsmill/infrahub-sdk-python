@@ -1,0 +1,331 @@
+---
+title: Traversing the graph
+---
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Traversing the graph
+
+Graph traversal lets you discover how nodes are connected without knowing the relationship path in advance. The SDK exposes two client methods:
+
+- `traverse_paths` — find the shortest path(s) between a **source** and a **destination** node.
+- `reachable_nodes` — find every node of given **kinds** that is reachable from a **source** node, with the path used to reach each one.
+
+:::note
+
+Graph traversal requires **Infrahub 1.10 or later**. Calling either method against an older server raises `VersionNotSupportedError`.
+
+:::
+
+## Finding the path between two nodes
+
+Pass the source and destination as node UUID strings **or** `InfrahubNode` instances (the SDK reads the node's id for you). Paths are returned shortest-first. Each path is a list of `hops`, and each hop exposes the `node` visited and the `relationship` traversed to reach it (the first hop's `relationship` is `None`).
+
+```python
+# both of these work — and you can mix them
+device = await client.get(kind="InterfacePhysical", id=src_id)
+await client.traverse_paths(device, dst_id)        # node + id
+await client.traverse_paths(src_id, dst_id)        # id + id
+```
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  result = await client.traverse_paths(
+      source="1891a122-8875-bae7-3866-10658751d7cc",
+      destination="1891a12b-27e5-fe3e-386c-1065983045b0",
+      max_depth=8,
+  )
+
+  print(f"{result.count} path(s) found")
+  for path in result.paths:
+      for hop in path.hops:
+          arrow = f" --[{hop.relationship.from_rel}]--> " if hop.relationship else ""
+          print(f"{arrow}{hop.node.display_label}", end="")
+      print()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  result = client.traverse_paths(
+      source="1891a122-8875-bae7-3866-10658751d7cc",
+      destination="1891a12b-27e5-fe3e-386c-1065983045b0",
+      max_depth=8,
+  )
+
+  print(f"{result.count} path(s) found")
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Constraining the traversal
+
+All limits and filters are optional; when omitted, the server applies its own defaults. By default the server excludes IP namespaces — they act as hubs and are rarely useful for path tracing — along with internal namespaces such as `Builtin`, `Internal`, and `Core`. The excluded kinds are reported back in `result.excluded_kinds`, and any of them can be brought back into the traversal with `included_kinds`.
+
+The kind filters (`kind_filter`, `excluded_kinds`, `included_kinds`, and `target_kinds` on `reachable_nodes`) accept either kind-name strings or generated protocol classes — mix them freely:
+
+```python
+from infrahub_sdk.protocols import DcimCable, InterfacePhysical
+
+result = await client.traverse_paths(
+    source=src,
+    destination=dst,
+    kind_filter=[DcimCable, InterfacePhysical, "DcimFrontPatchPanelInterface"],
+)
+```
+
+:::note
+
+`relationship_filter` matches the schema **relationship identifier** (the canonical name shared by both sides of a relationship, for example `dcimconnector__dcimendpoint`) — **not** the per-side `from_rel` / `to_rel` names shown in the result. Find identifiers via the schema: `(await client.schema.get(kind="InterfacePhysical")).relationships[i].identifier`.
+
+:::
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  result = await client.traverse_paths(
+      source=src,
+      destination=dst,
+      max_depth=10,
+      max_paths=5,
+      kind_filter=["DcimCable", "InterfacePhysical"],          # only traverse through these kinds
+      relationship_filter=["dcimconnector__dcimendpoint"],     # schema relationship identifier
+      included_kinds=["IpamIPPrefix"],                         # re-include a default-excluded kind
+  )
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  result = client.traverse_paths(
+      source=src,
+      destination=dst,
+      max_depth=10,
+      max_paths=5,
+      kind_filter=["DcimCable", "InterfacePhysical"],
+      relationship_filter=["dcimconnector__dcimendpoint"],
+      included_kinds=["IpamIPPrefix"],
+  )
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Checking that a path exists
+
+A common use in an Infrahub check is "is A still connected to B?". `path_exists` answers that in one call — it requests a single path (the cheapest way to know) and returns a boolean. It takes the same source/destination and filter arguments as `traverse_paths`.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  connected = await client.path_exists(
+      device_a,
+      device_b,
+      max_depth=8,
+      kind_filter=["DcimCable", "InterfacePhysical"],
+  )
+  if not connected:
+      self.log_error(message=f"No path between {device_a.display_label} and {device_b.display_label}")
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  connected = client.path_exists(device_a, device_b, max_depth=8)
+  if not connected:
+      self.log_error(message="Expected path is missing")
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Discovering reachable nodes
+
+Use `reachable_nodes` for impact or dependency analysis: "what nodes of these kinds can I reach from here?" Each entry includes the reachable `node`, the `depth` at which it was found, and the full `path` from the source.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  result = await client.reachable_nodes(
+      source=device_id,
+      target_kinds=["DcimCable", "InfraCircuit"],
+      max_depth=5,
+      max_results=100,
+      shortest_paths_only=True,
+  )
+
+  for dep in result.dependencies:
+      print(f"{dep.node.kind:20} {dep.node.display_label} (depth {dep.depth})")
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  result = client.reachable_nodes(
+      source=device_id,
+      target_kinds=["DcimCable", "InfraCircuit"],
+      max_depth=5,
+      max_results=100,
+      shortest_paths_only=True,
+  )
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Working with the results
+
+Results are typed objects, not raw dictionaries. A returned `PathNode` is a lightweight identity (`id`, `kind`, `label`, `display_label`, `hfid`) — it does not carry the node's attributes or relationships.
+
+To get the full node, call `.fetch()` on any `PathNode`. It resolves the node through the same client (and branch) that produced the traversal and adds it to the client store, so fetching the same id again is served from the store.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  for hop in result.paths[0].hops:
+      print(hop.node.display_label)        # identity, no request
+      full = await hop.node.fetch()        # resolve the full node
+      print(full.name.value)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  for hop in result.paths[0].hops:
+      print(hop.node.display_label)        # identity, no request
+      full = hop.node.fetch()              # resolve the full node
+      print(full.name.value)
+  ```
+
+  </TabItem>
+</Tabs>
+
+:::note
+
+`.fetch()` issues one request per node. For large results where you need many full nodes, prefer fetching only the ones you actually need, or batch them with `client.get` inside an `InfrahubBatch`.
+
+:::
+
+### Detecting truncated results
+
+The server caps the number of results. Note that `result.count` is the number of *paths* returned, not the number of distinct nodes — when several paths lead to the same node, one node is reported multiple times. To check whether `max_results` (the cap on distinct target nodes) was reached, count the distinct nodes by their UUID:
+
+```python
+result = await client.reachable_nodes(source=src, target_kinds=["InfraDevice"], max_results=50)
+reached = {dep.node.id for dep in result.dependencies}
+if len(reached) >= 50:
+    print("Result may be truncated — increase max_results to see more.")
+```
+
+## Common check patterns
+
+These are the recurring questions graph traversal answers in an Infrahub check. The examples are async; the sync client mirrors them without `await`.
+
+**Connectivity required** — A must reach B:
+
+```python
+if not await client.path_exists(a, b):
+    self.log_error(message="A is no longer connected to B")
+```
+
+**Isolation / segmentation** — A must *not* reach B (the same primitive, negated):
+
+```python
+if await client.path_exists(a, b):
+    self.log_error(message="A and B must remain isolated")
+```
+
+**Path must avoid a kind** — no path may pass through a given kind:
+
+```python
+if not await client.path_exists(a, b, excluded_kinds=["LabReservedThing"]):
+    self.log_error(message="No compliant path that avoids lab-reserved nodes")
+```
+
+**Path must traverse a kind** — every A→B path must pass through, for example, a firewall:
+
+```python
+result = await client.traverse_paths(a, b)
+for path in result.paths:
+    if not any(hop.node.kind == "SecurityFirewall" for hop in path.hops):
+        self.log_error(message="Found a path that bypasses the firewall")
+```
+
+**Within N hops** — A and B must be no more than 3 hops apart:
+
+```python
+result = await client.traverse_paths(a, b, max_depth=3)
+if not result.paths:
+    self.log_error(message="A and B are more than 3 hops apart (or not connected)")
+```
+
+**Reach all required targets** — several required services must each be reachable from a device:
+
+```python
+for service_id in dns_and_ntp_ids:
+    if not await client.path_exists(device, service_id):
+        self.log_error(message=f"{device.display_label} cannot reach required service {service_id}")
+```
+
+The patterns above use `path_exists` because they ask about a *specific* destination. When the check is about a *kind* of node rather than a specific one, use `reachable_nodes` instead.
+
+**Reach at least one node of a kind** — a device must be able to reach some DNS server:
+
+```python
+result = await client.reachable_nodes(device, target_kinds=["NetworkDnsServer"], max_results=1)
+if result.count == 0:
+    self.log_error(message=f"{device.display_label} cannot reach any DNS server")
+```
+
+**Redundancy by kind** — at least two NTP servers must be reachable:
+
+```python
+result = await client.reachable_nodes(device, target_kinds=["NetworkNtpServer"])
+if result.count < 2:
+    self.log_error(message=f"{device.display_label} reaches only {result.count} NTP server(s); expected at least 2")
+```
+
+**Forbidden reach (blast radius / segmentation)** — a device must not reach any sensitive asset:
+
+```python
+result = await client.reachable_nodes(device, target_kinds=["SecuritySensitiveAsset"], max_results=1)
+if result.count:
+    self.log_error(message=f"{device.display_label} can reach a sensitive asset it should be isolated from")
+```
+
+**Report dependencies** — enumerate what a node depends on, with how far away each is:
+
+```python
+result = await client.reachable_nodes(device, target_kinds=["InfraCircuit", "DcimCable"])
+for dep in result.dependencies:
+    self.log_info(message=f"depends on {dep.node.display_label} ({dep.node.kind}) at depth {dep.depth}")
+```
+
+## Handling older servers
+
+```python
+from infrahub_sdk.exceptions import VersionNotSupportedError
+
+try:
+    result = await client.traverse_paths(source=src, destination=dst)
+except VersionNotSupportedError as exc:
+    print(exc)  # Graph path traversal requires Infrahub 1.10 or later.
+```
+
+:::note
+
+An empty result is **not** an error: when no path or no reachable node exists within the limits, `count` is `0` and the list is empty. A request for a node that does not exist raises a `GraphQLError`.
+
+:::

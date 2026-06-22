@@ -36,3 +36,19 @@ Check whether this attribute's value is sourced from a resource pool.
 **Returns:**
 
 - True if the attribute value is a resource pool node or was explicitly allocated from a pool.
+
+#### `is_unresolved_pool_attribute`
+
+```python
+is_unresolved_pool_attribute(self) -> bool
+```
+
+Return True when pool-backed but no concrete scalar value is available yet.
+
+A pool-backed attribute is unresolved when:
+
+- its value is a pool node object (the pool reference itself, not an allocated scalar), or
+- its value is None and the from_pool allocation dict is set.
+
+An attribute whose _from_pool dict is set but whose value has already been populated
+with the allocated scalar (e.g. after a prior save) is considered resolved.

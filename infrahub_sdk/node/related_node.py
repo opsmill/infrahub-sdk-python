@@ -53,10 +53,16 @@ class RelatedNodeBase:
         self._kind: str | None = None
         self._source_typename: str | None = None
         self._relationship_metadata: RelationshipMetadata | None = None
+        # True once the user has assigned to this relationship via Node.__setattr__.
+        # Distinguishes "never loaded" (partial GraphQL payload) from "explicitly cleared"
+        # so we don't silently null-clear unfetched relationships on save.
+        self._peer_has_been_mutated: bool = False
 
-        # Check for InfrahubNodeBase instances using duck-typing (_schema attribute)
-        # to avoid circular imports, or CoreNodeBase instances
-        if isinstance(data, CoreNodeBase) or hasattr(data, "_schema"):
+        # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
+        # circular import (node.py imports this module at load time).
+        from .node import InfrahubNodeBase as _InfrahubNodeBase  # noqa: PLC0415
+
+        if isinstance(data, (CoreNodeBase, _InfrahubNodeBase)):
             self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
