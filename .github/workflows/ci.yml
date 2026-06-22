@@ -112,6 +112,8 @@ jobs:
           globs: |
             **/*.{md,mdx}
             !changelog/*.md
+            !.agents/commands/**
+            !.agents/skills/**
             !.claude/commands/**
             !.claude/skills/**
             !dev/commands/**
