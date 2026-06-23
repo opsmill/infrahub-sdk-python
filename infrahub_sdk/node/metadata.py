@@ -4,13 +4,27 @@ from .property import NodeProperty
 
 
 class NodeMetadata:
-    """Represents metadata about a node (created_at, created_by, updated_at, updated_by)."""
+    """Represents metadata about a node (created_at, created_by, updated_at, updated_by).
+
+    Populated from the ``node_metadata`` GraphQL block when ``include_metadata=True``
+    is passed to a query. The ``*_by`` fields point to the user who created or last
+    updated the node, exposed as :class:`NodeProperty` references.
+
+    Attributes:
+        created_at (str | None): ISO-8601 timestamp of node creation.
+        created_by (NodeProperty | None): The account that created the node.
+        updated_at (str | None): ISO-8601 timestamp of the most recent update.
+        updated_by (NodeProperty | None): The account that performed the most recent update.
+
+    """
 
     def __init__(self, data: dict | None = None) -> None:
-        """Initialize the node metadata.
+        """Build a ``NodeMetadata`` from raw GraphQL data.
 
         Args:
-            data: Data containing the metadata fields from the GraphQL response.
+            data (dict | None): Mapping with ``created_at``, ``created_by``, ``updated_at``,
+                and ``updated_by`` keys as returned by the GraphQL API. When ``None`` or
+                empty, all fields default to ``None``.
 
         """
         self.created_at: str | None = None
@@ -44,13 +58,25 @@ class NodeMetadata:
 
 
 class RelationshipMetadata:
-    """Represents metadata about a relationship edge (updated_at, updated_by)."""
+    """Represents metadata about a relationship edge (updated_at, updated_by).
+
+    Populated from the ``relationship_metadata`` GraphQL block when ``include_metadata=True``
+    is passed to a query. Unlike :class:`NodeMetadata`, this only carries update info because
+    the creation timestamp of an edge is not tracked separately from its peer node.
+
+    Attributes:
+        updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
+        updated_by (NodeProperty | None): The account that performed the most recent edge update.
+
+    """
 
     def __init__(self, data: dict | None = None) -> None:
-        """Initialize the relationship metadata.
+        """Build a ``RelationshipMetadata`` from raw GraphQL data.
 
         Args:
-            data: Data containing the metadata fields from the GraphQL response.
+            data (dict | None): Mapping with ``updated_at`` and ``updated_by`` keys as
+                returned by the GraphQL API. When ``None`` or empty, all fields default
+                to ``None``.
 
         """
         self.updated_at: str | None = None

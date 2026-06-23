@@ -1,0 +1,1 @@
+Add `infrahubctl graphql query-report` to analyze a GraphQL query and report whether it targets unique nodes, which controls whether Infrahub limits artifact regeneration to changed nodes or regenerates all artifacts on any relevant node change. Supports `--online` to fetch the query from the server by name.

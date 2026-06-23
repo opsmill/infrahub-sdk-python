@@ -188,6 +188,7 @@ def get_modules_to_document() -> list[str]:
     # Packages (sub-folders of infrahub_sdk/) to document.
     # Passed to mdxify as "infrahub_sdk.<name>".
     packages_to_document = [
+        "graph_traversal",
         "node",
     ]
 

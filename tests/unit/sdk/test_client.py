@@ -737,8 +737,9 @@ async def test_query_name_count(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query MyCountQuery {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query MyCountQuery {" in payload["query"]
+    assert payload["operationName"] == "MyCountQuery"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -752,8 +753,9 @@ async def test_query_name_all(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query MyAllQuery {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query MyAllQuery {" in payload["query"]
+    assert payload["operationName"] == "MyAllQuery"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -767,8 +769,9 @@ async def test_query_name_filters(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query MyFiltersQuery {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query MyFiltersQuery {" in payload["query"]
+    assert payload["operationName"] == "MyFiltersQuery"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -784,8 +787,9 @@ async def test_query_name_get(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query MyGetQuery {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query MyGetQuery {" in payload["query"]
+    assert payload["operationName"] == "MyGetQuery"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -799,8 +803,9 @@ async def test_query_name_for_count_ommitted(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query Count_CoreRepository {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query Count_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Count_CoreRepository"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -814,8 +819,9 @@ async def test_query_name_for_all_ommitted(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query All_CoreRepository {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query All_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "All_CoreRepository"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -829,8 +835,9 @@ async def test_query_name_for_filters_ommitted(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query Filters_CoreRepository {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query Filters_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Filters_CoreRepository"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -844,5 +851,24 @@ async def test_query_name_for_get_ommitted(
 
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
-    query = json.loads(post_requests[0].content)["query"]
-    assert "query Get_CoreRepository {" in query
+    payload = json.loads(post_requests[0].content)
+    assert "query Get_CoreRepository {" in payload["query"]
+    assert payload["operationName"] == "Get_CoreRepository"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_execute_graphql_omits_operation_name_when_unset(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.0"}}})
+
+    raw_query = "query { InfrahubInfo { version }}"
+    if client_type == "standard":
+        await clients.standard.execute_graphql(query=raw_query)
+    else:
+        clients.sync.execute_graphql(query=raw_query)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "operationName" not in payload

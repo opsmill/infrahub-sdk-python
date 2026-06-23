@@ -123,19 +123,26 @@ class CodeGenerator:
 
         return f"{value.name}: {attribute_kind}"
 
-    @staticmethod
-    def _jinja2_filter_render_relationship(value: RelationshipSchemaAPI, sync: bool = False) -> str:
+    def _jinja2_filter_render_relationship(self, value: RelationshipSchemaAPI, sync: bool = False) -> str:
         name = value.name
         cardinality = value.cardinality
+        peer = value.peer
 
-        type_ = "RelatedNode"
+        # Cardinality-one relationships use a descriptor so they can be assigned an id string,
+        # an HFID, a peer node or ``None`` while still reading back as a typed ``RelatedNode``.
+        type_ = "RelationshipAttribute"
         if cardinality == RelationshipCardinality.MANY:
             type_ = "RelationshipManager"
 
         if sync:
             type_ += "Sync"
+            # Core peer protocols expose a dedicated ``*Sync`` variant; reference it in sync
+            # output. Locally generated node/generic classes keep their name (they already
+            # inherit the sync base class), so only swap when a ``*Sync`` peer actually exists.
+            if f"{peer}Sync" in self.base_protocols:
+                peer = f"{peer}Sync"
 
-        return f"{name}: {type_}"
+        return f"{name}: {type_}[{peer}]"
 
     @staticmethod
     def _sort_and_filter_models(

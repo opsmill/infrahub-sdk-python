@@ -10,3 +10,13 @@ sidebarTitle: property
 ### `NodeProperty`
 
 Represents a property of a node, typically used for metadata like display labels.
+
+A ``NodeProperty`` is a lightweight pointer to another node, used to expose attribute and
+relationship metadata such as ``source``, ``owner``, ``created_by``, or ``updated_by``
+without loading the full peer node.
+
+**Attributes:**
+
+- `id`: The identifier of the referenced node.
+- `display_label`: A human-readable label for the referenced node.
+- `typename`: The GraphQL ``__typename`` of the referenced node.

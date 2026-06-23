@@ -4,7 +4,6 @@ import ipaddress
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
-from ..protocols_base import CoreNodeBase
 from ..uuidt import UUIDT
 from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
 from .property import NodeProperty
@@ -42,15 +41,41 @@ class _GraphQLPayloadAttribute(NamedTuple):
 
 
 class Attribute:
-    """Represents an attribute of a Node, including its schema, value, and properties."""
+    """Represents an attribute of a Node, including its schema, value, and properties.
+
+    An ``Attribute`` wraps a single attribute on an :class:`InfrahubNode`. It tracks the
+    current value, the metadata properties (``source``, ``owner``, ``is_protected``, ...),
+    and whether the value has been mutated since the node was loaded. Mutation tracking is
+    used by ``InfrahubNode.update()`` to send only the changed fields to the API.
+
+    Attributes:
+        name (str): The name of the attribute.
+        id (str | None): The unique identifier of the attribute, when known.
+        value (Any): The current attribute value. Setting this marks the attribute as mutated.
+        value_has_been_mutated (bool): True when ``value`` has been assigned after construction.
+        is_default (bool | None): True when the value comes from the schema default.
+        is_from_profile (bool | None): True when the value is inherited from a profile.
+        is_inherited (bool | None): True when the attribute is inherited from a generic.
+        is_protected (bool | None): True when the attribute is protected from modification.
+        updated_at (str | None): ISO-8601 timestamp of the most recent update.
+        source (NodeProperty | None): The node that supplied this attribute value.
+        owner (NodeProperty | None): The node that owns this attribute.
+        updated_by (NodeProperty | None): The account that performed the most recent update.
+
+    """
 
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
-        """Initialize the attribute.
+        """Build an ``Attribute`` from raw GraphQL data.
+
+        IP-typed attributes (``IPHost``, ``IPNetwork``) are parsed via the standard
+        ``ipaddress`` module so the in-memory value is a network/interface object.
 
         Args:
             name (str): The name of the attribute.
-            schema (AttributeSchema): The schema defining the attribute.
-            data (Union[Any, dict]): The data for the attribute, either in raw form or as a dictionary.
+            schema (AttributeSchemaAPI): The schema defining the attribute.
+            data (Any | dict): The data for the attribute. Either a scalar value, a dict
+                with a ``value`` key (and optional metadata properties), or a dict with a
+                ``from_pool`` key to allocate the value from a resource pool when saving.
 
         """
         self.name = name
@@ -115,7 +140,7 @@ class Attribute:
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
             return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
             return _GraphQLPayloadAttribute(
                 payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
             )
@@ -190,7 +215,9 @@ class Attribute:
             True if the attribute value is a resource pool node or was explicitly allocated from a pool.
 
         """
-        return (isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool()) or self._from_pool is not None
+        return (
+            hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
+        ) or self._from_pool is not None
 
     def is_unresolved_pool_attribute(self) -> bool:
         """Return True when pool-backed but no concrete scalar value is available yet.
@@ -202,6 +229,6 @@ class Attribute:
         An attribute whose _from_pool dict is set but whose value has already been populated
         with the allocated scalar (e.g. after a prior save) is considered resolved.
         """
-        if isinstance(self.value, CoreNodeBase) and self.value.is_resource_pool():
+        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
             return True
         return self._from_pool is not None and self.value is None

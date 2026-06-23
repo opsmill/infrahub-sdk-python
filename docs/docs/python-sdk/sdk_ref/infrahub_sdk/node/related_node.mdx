@@ -11,6 +11,18 @@ sidebarTitle: related_node
 
 Base class for representing a related node in a relationship.
 
+A ``RelatedNodeBase`` is the peer end of a cardinality-one relationship. It carries
+the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
+with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
+The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
+:meth:`RelatedNodeSync.fetch`.
+
+**Attributes:**
+
+- `schema`: The schema describing the relationship.
+- `name`: The name of the relationship slot on the parent node.
+- `updated_at`: ISO-8601 timestamp of the most recent edge update.
+
 **Methods:**
 
 #### `id`
@@ -25,11 +37,21 @@ Returns None when the response carried only hfid_str (no id, no peer)
 — in that case .peer.id would resolve through the store and yield a
 non-None id, so .id and .peer.id are NOT interchangeable.
 
+**Returns:**
+
+- str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
+
 #### `hfid`
 
 ```python
 hfid(self) -> list[Any] | None
 ```
+
+Return the human-friendly ID of the related node.
+
+**Returns:**
+
+- list\[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
 
 #### `hfid_str`
 
@@ -37,11 +59,27 @@ hfid(self) -> list[Any] | None
 hfid_str(self) -> str | None
 ```
 
+Return the human-friendly ID of the related node as a separator-joined string.
+
+The returned string includes the kind prefix and is therefore suitable as a key
+for the client store.
+
+**Returns:**
+
+- str | None: The peer HFID joined with the HFID separator, or ``None`` when
+- unavailable (no resolved peer or missing HFID).
+
 #### `is_resource_pool`
 
 ```python
 is_resource_pool(self) -> bool
 ```
+
+Return whether the related node is a resource pool.
+
+**Returns:**
+
+- ``True`` when the resolved peer inherits from ``CoreResourcePool``.
 
 #### `initialized`
 
@@ -49,11 +87,23 @@ is_resource_pool(self) -> bool
 initialized(self) -> bool
 ```
 
+Return whether this related node has an identifier.
+
+**Returns:**
+
+- ``True`` when an ID or HFID is known and the relationship can be referenced.
+
 #### `display_label`
 
 ```python
 display_label(self) -> str | None
 ```
+
+Return the human-readable label of the related node.
+
+**Returns:**
+
+- str | None: The peer display label, or ``None`` when not provided.
 
 #### `typename`
 
@@ -61,11 +111,23 @@ display_label(self) -> str | None
 typename(self) -> str | None
 ```
 
+Return the GraphQL ``__typename`` of the related node.
+
+**Returns:**
+
+- str | None: The peer typename, or ``None`` when not provided.
+
 #### `kind`
 
 ```python
 kind(self) -> str | None
 ```
+
+Return the schema kind of the related node.
+
+**Returns:**
+
+- str | None: The peer schema kind, or ``None`` when not provided.
 
 #### `is_from_profile`
 
@@ -73,7 +135,14 @@ kind(self) -> str | None
 is_from_profile(self) -> bool
 ```
 
-Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind.
+Return whether this relationship was set from a profile.
+
+A relationship is considered profile-sourced when the typename of its ``source``
+property starts with the profile kind prefix.
+
+**Returns:**
+
+- ``True`` when the relationship's source is a profile node.
 
 #### `get_relationship_metadata`
 
@@ -81,11 +150,23 @@ Return whether this relationship was set from a profile. Done by checking if the
 get_relationship_metadata(self) -> RelationshipMetadata | None
 ```
 
-Returns the relationship metadata (updated_at, updated_by) if fetched.
+Return the relationship-edge metadata (``updated_at``, ``updated_by``).
+
+The metadata is populated only when the parent query was executed with
+``include_metadata=True``.
+
+**Returns:**
+
+- RelationshipMetadata | None: The edge metadata if fetched, otherwise ``None``.
 
 ### `RelatedNode`
 
-Represents a RelatedNodeBase in an asynchronous context.
+Asynchronous related node bound to an :class:`InfrahubClient`.
+
+Extends :class:`RelatedNodeBase` with the ability to lazily resolve the peer node:
+:meth:`fetch` retrieves the full peer from the backend, :meth:`get` returns it from
+the local cache or the client store, and :attr:`peer` is a convenience accessor
+around :meth:`get`.
 
 **Methods:**
 
@@ -95,34 +176,69 @@ Represents a RelatedNodeBase in an asynchronous context.
 fetch(self, timeout: int | None = None) -> None
 ```
 
+Fetch the full peer node from the backend and cache it on this object.
+
+After ``fetch()`` completes, attribute and relationship access on the peer is
+available via :attr:`peer` or :meth:`get`.
+
+**Args:**
+
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+
+**Raises:**
+
+- `Error`: If neither ``id`` nor ``typename`` is set on this related node.
+
 #### `peer`
 
 ```python
-peer(self) -> InfrahubNode
+peer(self) -> PeerT
 ```
 
-Return the peer node, or raise ValueError if no identifier is available.
+Return the resolved peer node.
+
+This is a convenience accessor for :meth:`get`; the peer must already have been
+fetched or stored in the client store.
+
+**Returns:**
+
+- The resolved peer node.
 
 #### `get`
 
 ```python
-get(self) -> InfrahubNode
+get(self) -> PeerT
 ```
 
-Return the peer node, performing a store lookup if not materialized.
+Return the resolved peer node from cache or the client store.
 
-When resolving via hfid_str the returned node has a non-None id even
-when this RelatedNode's .id is None — that is the case in which
-.peer.id and .id diverge.
+Lookup order:
+
+1. The peer cached locally after a successful :meth:`fetch`.
+2. The client store keyed by ``id`` and ``typename``.
+3. The client store keyed by ``hfid_str``.
+
+When resolving via ``hfid_str`` the returned node has a non-None id even when
+this ``RelatedNode``'s ``.id`` is None — that is the case in which ``.peer.id``
+and ``.id`` diverge.
+
+**Returns:**
+
+- The resolved peer node.
 
 **Raises:**
 
-- `ValueError`: when neither a peer, (_id,_typename), nor hfid_str
-is available.
+- `ValueError`: If neither an ID nor an HFID is available to look up the peer.
 
 ### `RelatedNodeSync`
 
-Represents a related node in a synchronous context.
+Synchronous related node bound to an :class:`InfrahubClientSync`.
+
+Synchronous counterpart of :class:`RelatedNode`. Extends :class:`RelatedNodeBase`
+with the ability to lazily resolve the peer node: :meth:`fetch` retrieves the full
+peer from the backend, :meth:`get` returns it from the local cache or the client
+store, and :attr:`peer` is a convenience accessor around :meth:`get`.
 
 **Methods:**
 
@@ -132,27 +248,72 @@ Represents a related node in a synchronous context.
 fetch(self, timeout: int | None = None) -> None
 ```
 
+Fetch the full peer node from the backend and cache it on this object.
+
+After ``fetch()`` completes, attribute and relationship access on the peer is
+available via :attr:`peer` or :meth:`get`.
+
+**Args:**
+
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+
+**Raises:**
+
+- `Error`: If neither ``id`` nor ``typename`` is set on this related node.
+
 #### `peer`
 
 ```python
-peer(self) -> InfrahubNodeSync
+peer(self) -> PeerTSync
 ```
 
-Return the peer node, or raise ValueError if no identifier is available.
+Return the resolved peer node.
+
+This is a convenience accessor for :meth:`get`; the peer must already have been
+fetched or stored in the client store.
+
+**Returns:**
+
+- The resolved peer node.
 
 #### `get`
 
 ```python
-get(self) -> InfrahubNodeSync
+get(self) -> PeerTSync
 ```
 
-Return the peer node, performing a store lookup if not materialized.
+Return the resolved peer node from cache or the client store.
 
-When resolving via hfid_str the returned node has a non-None id even
-when this RelatedNode's .id is None — that is the case in which
-.peer.id and .id diverge.
+Lookup order:
+
+1. The peer cached locally after a successful :meth:`fetch`.
+2. The client store keyed by ``id`` and ``typename``.
+3. The client store keyed by ``hfid_str``.
+
+When resolving via ``hfid_str`` the returned node has a non-None id even when
+this ``RelatedNode``'s ``.id`` is None — that is the case in which ``.peer.id``
+and ``.id`` diverge.
+
+**Returns:**
+
+- The resolved peer node.
 
 **Raises:**
 
-- `ValueError`: when neither a peer, (_id,_typename), nor hfid_str
-is available.
+- `ValueError`: If neither an ID nor an HFID is available to look up the peer.
+
+### `RelationshipAttribute`
+
+Typing descriptor for a cardinality-one relationship on a generated protocol.
+
+It reads back as ``RelatedNode[PeerT]`` (so ``.peer`` keeps the peer type) but accepts
+assignment of an id string, an HFID, a peer node, or ``None`` — mirroring the runtime
+``InfrahubNode.__setattr__`` behaviour, which wraps the assigned value in a ``RelatedNode``.
+
+This type only appears in generated protocols (it is never instantiated at runtime), so it
+exists purely to give ``node.rel`` separate read and assignment types under a type checker.
+
+### `RelationshipAttributeSync`
+
+Synchronous counterpart of :class:`RelationshipAttribute`.
