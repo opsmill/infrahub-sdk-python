@@ -24,16 +24,31 @@ PeerTSync = TypeVar("PeerTSync", default="InfrahubNodeSync")
 
 
 class RelatedNodeBase:
-    """Base class for representing a related node in a relationship."""
+    """Base class for representing a related node in a relationship.
+
+    A ``RelatedNodeBase`` is the peer end of a cardinality-one relationship. It carries
+    the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
+    with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
+    The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
+    :meth:`RelatedNodeSync.fetch`.
+
+    Attributes:
+        schema (RelationshipSchemaAPI): The schema describing the relationship.
+        name (str | None): The name of the relationship slot on the parent node.
+        updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
+
+    """
 
     def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Any | dict, name: str | None = None) -> None:
-        """Initialize the base related node.
+        """Build a ``RelatedNodeBase`` from raw data.
 
         Args:
             branch (str): The branch where the related node resides.
-            schema (RelationshipSchema): The schema of the relationship.
-            data (Union[Any, dict]): Data representing the related node.
-            name (Optional[str]): The name of the related node.
+            schema (RelationshipSchemaAPI): The schema of the relationship.
+            data (Any | dict): Data representing the related node. Accepts a peer
+                :class:`CoreNodeBase` instance, a list (treated as an HFID), a string
+                (treated as an ID), or a dict in either paginated or flat GraphQL format.
+            name (str, optional): The name of the relationship slot on the parent node.
 
         """
         self.schema = schema
@@ -112,6 +127,10 @@ class RelatedNodeBase:
         Returns None when the response carried only hfid_str (no id, no peer)
         — in that case .peer.id would resolve through the store and yield a
         non-None id, so .id and .peer.id are NOT interchangeable.
+
+        Returns:
+            str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
+
         """
         if self._peer:
             return self._peer.id
@@ -119,53 +138,115 @@ class RelatedNodeBase:
 
     @property
     def hfid(self) -> list[Any] | None:
+        """Return the human-friendly ID of the related node.
+
+        Returns:
+            list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
+
+        """
         if self._peer:
             return self._peer.hfid
         return self._hfid
 
     @property
     def hfid_str(self) -> str | None:
+        """Return the human-friendly ID of the related node as a separator-joined string.
+
+        The returned string includes the kind prefix and is therefore suitable as a key
+        for the client store.
+
+        Returns:
+            str | None: The peer HFID joined with the HFID separator, or ``None`` when
+            unavailable (no resolved peer or missing HFID).
+
+        """
         if self._peer and self.hfid:
             return self._peer.get_human_friendly_id_as_string(include_kind=True)
         return None
 
     @property
     def is_resource_pool(self) -> bool:
+        """Return whether the related node is a resource pool.
+
+        Returns:
+            bool: ``True`` when the resolved peer inherits from ``CoreResourcePool``.
+
+        """
         if self._peer:
             return self._peer.is_resource_pool()
         return False
 
     @property
     def initialized(self) -> bool:
+        """Return whether this related node has an identifier.
+
+        Returns:
+            bool: ``True`` when an ID or HFID is known and the relationship can be referenced.
+
+        """
         return bool(self.id) or bool(self.hfid)
 
     @property
     def display_label(self) -> str | None:
+        """Return the human-readable label of the related node.
+
+        Returns:
+            str | None: The peer display label, or ``None`` when not provided.
+
+        """
         if self._peer:
             return self._peer.display_label
         return self._display_label
 
     @property
     def typename(self) -> str | None:
+        """Return the GraphQL ``__typename`` of the related node.
+
+        Returns:
+            str | None: The peer typename, or ``None`` when not provided.
+
+        """
         if self._peer:
             return self._peer.typename
         return self._typename
 
     @property
     def kind(self) -> str | None:
+        """Return the schema kind of the related node.
+
+        Returns:
+            str | None: The peer schema kind, or ``None`` when not provided.
+
+        """
         if self._peer:
             return self._peer.get_kind()
         return self._kind
 
     @property
     def is_from_profile(self) -> bool:
-        """Return whether this relationship was set from a profile. Done by checking if the source is of a profile kind."""
+        """Return whether this relationship was set from a profile.
+
+        A relationship is considered profile-sourced when the typename of its ``source``
+        property starts with the profile kind prefix.
+
+        Returns:
+            bool: ``True`` when the relationship's source is a profile node.
+
+        """
         if not self._source_typename:
             return False
         return bool(re.match(rf"^{PROFILE_KIND_PREFIX}[A-Z]", self._source_typename))
 
     def get_relationship_metadata(self) -> RelationshipMetadata | None:
-        """Returns the relationship metadata (updated_at, updated_by) if fetched."""
+        """Return the relationship-edge metadata (``updated_at``, ``updated_by``).
+
+        The metadata is populated only when the parent query was executed with
+        ``include_metadata=True``.
+
+        Returns:
+            RelationshipMetadata | None: The edge metadata if fetched, otherwise ``None``.
+
+        """
         return self._relationship_metadata
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
@@ -235,7 +316,13 @@ class RelatedNodeBase:
 
 
 class RelatedNode(RelatedNodeBase, Generic[PeerT]):
-    """Represents a RelatedNodeBase in an asynchronous context."""
+    """Asynchronous related node bound to an :class:`InfrahubClient`.
+
+    Extends :class:`RelatedNodeBase` with the ability to lazily resolve the peer node:
+    :meth:`fetch` retrieves the full peer from the backend, :meth:`get` returns it from
+    the local cache or the client store, and :attr:`peer` is a convenience accessor
+    around :meth:`get`.
+    """
 
     def __init__(
         self,
@@ -259,6 +346,19 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
     async def fetch(self, timeout: int | None = None) -> None:
+        """Fetch the full peer node from the backend and cache it on this object.
+
+        After ``fetch()`` completes, attribute and relationship access on the peer is
+        available via :attr:`peer` or :meth:`get`.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+
+        Raises:
+            Error: If neither ``id`` nor ``typename`` is set on this related node.
+
+        """
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
@@ -268,19 +368,35 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
     @property
     def peer(self) -> PeerT:
-        """Return the peer node, or raise ValueError if no identifier is available."""
+        """Return the resolved peer node.
+
+        This is a convenience accessor for :meth:`get`; the peer must already have been
+        fetched or stored in the client store.
+
+        Returns:
+            PeerT: The resolved peer node.
+
+        """
         return self.get()
 
     def get(self) -> PeerT:
-        """Return the peer node, performing a store lookup if not materialized.
+        """Return the resolved peer node from cache or the client store.
 
-        When resolving via hfid_str the returned node has a non-None id even
-        when this RelatedNode's .id is None — that is the case in which
-        .peer.id and .id diverge.
+        Lookup order:
+
+        1. The peer cached locally after a successful :meth:`fetch`.
+        2. The client store keyed by ``id`` and ``typename``.
+        3. The client store keyed by ``hfid_str``.
+
+        When resolving via ``hfid_str`` the returned node has a non-None id even when
+        this ``RelatedNode``'s ``.id`` is None — that is the case in which ``.peer.id``
+        and ``.id`` diverge.
+
+        Returns:
+            PeerT: The resolved peer node.
 
         Raises:
-            ValueError: when neither a peer, (_id, _typename), nor hfid_str
-                is available.
+            ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
         if self._peer:
@@ -296,7 +412,13 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
 
 class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
-    """Represents a related node in a synchronous context."""
+    """Synchronous related node bound to an :class:`InfrahubClientSync`.
+
+    Synchronous counterpart of :class:`RelatedNode`. Extends :class:`RelatedNodeBase`
+    with the ability to lazily resolve the peer node: :meth:`fetch` retrieves the full
+    peer from the backend, :meth:`get` returns it from the local cache or the client
+    store, and :attr:`peer` is a convenience accessor around :meth:`get`.
+    """
 
     def __init__(
         self,
@@ -320,6 +442,19 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
     def fetch(self, timeout: int | None = None) -> None:
+        """Fetch the full peer node from the backend and cache it on this object.
+
+        After ``fetch()`` completes, attribute and relationship access on the peer is
+        available via :attr:`peer` or :meth:`get`.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+
+        Raises:
+            Error: If neither ``id`` nor ``typename`` is set on this related node.
+
+        """
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
@@ -329,19 +464,35 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
     @property
     def peer(self) -> PeerTSync:
-        """Return the peer node, or raise ValueError if no identifier is available."""
+        """Return the resolved peer node.
+
+        This is a convenience accessor for :meth:`get`; the peer must already have been
+        fetched or stored in the client store.
+
+        Returns:
+            PeerTSync: The resolved peer node.
+
+        """
         return self.get()
 
     def get(self) -> PeerTSync:
-        """Return the peer node, performing a store lookup if not materialized.
+        """Return the resolved peer node from cache or the client store.
 
-        When resolving via hfid_str the returned node has a non-None id even
-        when this RelatedNode's .id is None — that is the case in which
-        .peer.id and .id diverge.
+        Lookup order:
+
+        1. The peer cached locally after a successful :meth:`fetch`.
+        2. The client store keyed by ``id`` and ``typename``.
+        3. The client store keyed by ``hfid_str``.
+
+        When resolving via ``hfid_str`` the returned node has a non-None id even when
+        this ``RelatedNode``'s ``.id`` is None — that is the case in which ``.peer.id``
+        and ``.id`` diverge.
+
+        Returns:
+            PeerTSync: The resolved peer node.
 
         Raises:
-            ValueError: when neither a peer, (_id, _typename), nor hfid_str
-                is available.
+            ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
         if self._peer:
