@@ -1,1 +1,0 @@
-Added `OrderByEntry` and an `Order.by` field so query results can be ordered by attributes, related-node attributes, or node metadata, e.g. `Order(by=[OrderByEntry(field="name__value", direction=OrderDirection.DESC)])`. The `Order.node_metadata` field is deprecated; use `by` with the `node_metadata__created_at` / `node_metadata__updated_at` fields instead.

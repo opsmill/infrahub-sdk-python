@@ -11,6 +11,29 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.22.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.0) - 2026-06-23
+
+### Added
+
+- Added `query_name` parameter to `all()`, `filters()`, `count()` and `get()` methods in `InfrahubClient` and `InfrahubClientSync` to be used as meaningful GraphQL operation name for observability ([#923](https://github.com/opsmill/infrahub-sdk-python/issues/923))
+- Add `infrahubctl graphql query-report` to analyze a GraphQL query and report whether it targets unique nodes, which controls whether Infrahub limits artifact regeneration to changed nodes or regenerates all artifacts on any relevant node change. Supports `--online` to fetch the query from the server by name.
+- Added `OrderByEntry` and an `Order.by` field so query results can be ordered by attributes, related-node attributes, or node metadata, e.g. `Order(by=[OrderByEntry(field="name__value", direction=OrderDirection.DESC)])`. The `Order.node_metadata` field is deprecated; use `by` with the `node_metadata__created_at` / `node_metadata__updated_at` fields instead.
+- Added graph traversal support for Infrahub 1.10: `InfrahubClient.traverse_paths()` (shortest path(s) between two nodes), `InfrahubClient.reachable_nodes()` (nodes of given kinds reachable from a source), and `InfrahubClient.path_exists()` (boolean convenience for checks) — all with sync equivalents. Source and destination accept either a node id or an `InfrahubNode`; kind filters accept kind strings or protocol classes; each `PathNode` in the result exposes `.fetch()` to resolve the full node (store-backed). Calling these against a pre-1.10 server raises a clear `VersionNotSupportedError`.
+
+### Fixed
+
+- Calling `.save(allow_upsert=True)` on a node whose human-friendly identifier contains a CoreNumberPool-sourced attribute now raises a clear `ValidationError` instead of crashing with an opaque backend error. ([#339](https://github.com/opsmill/infrahub-sdk-python/issues/339))
+- `RelatedNode`, `RelatedNodeSync`, `RelationshipManager` and `RelationshipManagerSync` are now generic over their peer type, and `infrahubctl protocols` parameterises generated relationships accordingly (e.g. `device: RelatedNode[NetworkDevice]`, `interfaces: RelationshipManager[NetworkInterface]`).
+
+  Traversing a relationship via `.peer`, `.peers` or indexing now preserves the peer's type instead of collapsing to the dynamic `InfrahubNode`, so chains such as `device.rack.peer.name.value` type-check under mypy/ty without casts. Existing un-parameterised `RelatedNode` / `RelationshipManager` usage is unaffected — the peer type defaults to `InfrahubNode` / `InfrahubNodeSync`, preserving current behaviour. ([#1063](https://github.com/opsmill/infrahub-sdk-python/issues/1063)) ([#1063](https://github.com/opsmill/infrahub-sdk-python/issues/1063))
+- Cardinality-one relationships in generated protocols are now typed with a `RelationshipAttribute[...]` descriptor. It still reads back as a typed `RelatedNode[Peer]` (so `.peer` keeps the peer type), but it accepts assignment of an id string, an HFID, a peer node, or `None` — mirroring the runtime `InfrahubNode.__setattr__`, which wraps the assigned value in a `RelatedNode`.
+
+  Previously relationships were typed read-only as `RelatedNode`, so the documented way of setting a relationship (`node.rel = "<id>"` or `node.rel = peer_node`) failed under mypy/ty with an `assignment` error. The descriptor only appears in generated protocols and is never instantiated at runtime.
+
+  Because the new typing lives in the generated protocols, existing projects must regenerate them with `infrahubctl protocols` to pick up the change — it does not take effect for already-generated protocol files. ([#1064](https://github.com/opsmill/infrahub-sdk-python/issues/1064)) ([#1064](https://github.com/opsmill/infrahub-sdk-python/issues/1064))
+- Calling `.save(allow_upsert=True)` on a node hydrated by `from_graphql` no longer silently clears optional one-cardinality relationships that the GraphQL response didn't fetch. Explicitly assigning `node.rel = None` still clears the relationship. ([#1080](https://github.com/opsmill/infrahub-sdk-python/issues/1080))
+- Send the GraphQL operation name as `operationName` in the request payload so tracing and observability tools can identify each query.
+
 ## [1.21.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.1) - 2026-06-05
 
 ### Changed
