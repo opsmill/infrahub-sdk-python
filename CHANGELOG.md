@@ -11,6 +11,30 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.21.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.1) - 2026-06-05
+
+### Changed
+
+- `infrahubctl marketplace get --collection` now downloads each member schema individually into a `<output_dir>/<collection name>/<schema name>.yml` layout (for example `schemas/base-schemas/dcim.yml`), instead of dumping version-suffixed files flat into the output directory. Filenames no longer carry the version, matching single-schema downloads, so re-downloading a collection overwrites cleanly rather than accumulating stale versions. If two members share a schema name across namespaces, those members are written to `<output_dir>/<collection name>/<namespace>/<schema name>.yml` instead of overwriting each other. ([#1057](https://github.com/opsmill/infrahub-sdk-python/issues/1057))
+
+### Fixed
+
+- Fix `infrahubctl` printing a spurious `Error: 1` and Python traceback after the human-readable error message when a command exits with `typer.Exit`. The CLI now exits cleanly with only the intended error output. ([#1047](https://github.com/opsmill/infrahub-sdk-python/issues/1047))
+
+## [1.21.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.0) - 2026-05-29
+
+### Added
+
+- Add `infrahubctl marketplace get` for fetching schemas and collections from the Infrahub Marketplace. Auto-detects schemas vs collections by namespace/name, supports `--version` for pinning, `--collection` to force the collection path, `--stdout` to stream content for piping (status messages on stderr), and `--marketplace-url` / `INFRAHUB_MARKETPLACE_URL` to point at staging or local instances. ([#952](https://github.com/opsmill/infrahub-sdk-python/issues/952))
+
+### Changed
+
+- Change default value of `sync_with_git` parameter in `branch.create()` from `True` to `False` to match UI behavior. ([#224](https://github.com/opsmill/infrahub-sdk-python/issues/224))
+
+### Fixed
+
+- Improve error message when a single node is passed to a cardinality-many relationship. ([#174](https://github.com/opsmill/infrahub-sdk-python/issues/174))
+
 ## [1.20.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.20.1) - 2026-05-20
 
 ### Added

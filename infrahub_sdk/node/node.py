@@ -7,7 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
 from ..constants import InfrahubClientMode
-from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
+from ..exceptions import (
+    FeatureNotSupportedError,
+    NodeNotFoundError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    ValidationError,
+)
 from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
@@ -590,6 +596,36 @@ class InfrahubNodeBase:
             return self._attribute_data[name]
 
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
+
+    def _validate_upsert(self, allow_upsert: bool) -> None:
+        """Ensure an upsert can resolve the HFID before attempting to save.
+
+        An attribute sourced from a CoreNumberPool has no concrete value until the node is
+        created, so it cannot be used to look up an existing node by its human-friendly identifier.
+
+        Raises:
+            ValidationError: If an HFID attribute is sourced from an unresolved CoreNumberPool.
+
+        """
+        if not (allow_upsert and not self.id):
+            return
+
+        for hfid_path in self._schema.human_friendly_id or []:
+            attr_name = hfid_path.split("__")[0]
+            try:
+                attr = self._get_attribute(attr_name)
+            except ResourceNotDefinedError:
+                continue
+            if attr.is_unresolved_pool_attribute():
+                raise ValidationError(
+                    identifier=attr_name,
+                    message=(
+                        f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
+                        "this node's human-friendly identifier. Upsert cannot resolve the HFID "
+                        "without a concrete value. Use an explicit id, or create the node first "
+                        "and update it in a separate call."
+                    ),
+                )
 
     @staticmethod
     def _build_rel_query_data(
@@ -1265,6 +1301,8 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
@@ -2237,6 +2275,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "

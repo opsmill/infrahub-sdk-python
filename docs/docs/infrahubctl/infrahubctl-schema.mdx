@@ -16,11 +16,33 @@ $ infrahubctl schema [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `load`: Load one or multiple schema files into...
 * `check`: Check if schema files are valid and what...
 * `export`: Export the schema from Infrahub as YAML...
 * `list`: List all available schema kinds.
-* `load`: Load one or multiple schema files into...
 * `show`: Show details for a specific schema kind.
+
+## `infrahubctl schema load`
+
+Load one or multiple schema files into Infrahub.
+
+**Usage**:
+
+```console
+$ infrahubctl schema load [OPTIONS] SCHEMAS...
+```
+
+**Arguments**:
+
+* `SCHEMAS...`: [required]
+
+**Options**:
+
+* `--debug / --no-debug`: [default: no-debug]
+* `--branch TEXT`: Branch on which to load the schema.
+* `--wait INTEGER`: Time in seconds to wait until the schema has converged across all workers  [default: 0]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl schema check`
 
@@ -83,28 +105,6 @@ $ infrahubctl schema list [OPTIONS]
 
 * `--filter TEXT`: Filter kinds by name
 * `-b, --branch TEXT`: Target branch
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
-* `--help`: Show this message and exit.
-
-## `infrahubctl schema load`
-
-Load one or multiple schema files into Infrahub.
-
-**Usage**:
-
-```console
-$ infrahubctl schema load [OPTIONS] SCHEMAS...
-```
-
-**Arguments**:
-
-* `SCHEMAS...`: [required]
-
-**Options**:
-
-* `--debug / --no-debug`: [default: no-debug]
-* `--branch TEXT`: Branch on which to load the schema.
-* `--wait INTEGER`: Time in seconds to wait until the schema has converged across all workers  [default: 0]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 

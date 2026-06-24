@@ -28,6 +28,7 @@ from ..ctl.client import initialize_client, initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.generator import run as run_generator
 from ..ctl.graphql import app as graphql_app
+from ..ctl.marketplace import app as marketplace_app
 from ..ctl.menu import app as menu_app
 from ..ctl.object import app as object_app
 from ..ctl.render import list_jinja2_transforms, print_template_errors
@@ -71,6 +72,7 @@ app.add_typer(menu_app, name="menu")
 app.add_typer(object_app, name="object")
 app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
+app.add_typer(marketplace_app, name="marketplace")
 app.add_typer(telemetry_app, name="telemetry")
 
 app.command(name="dump")(dump)

@@ -92,6 +92,12 @@ class RelatedNodeBase:
 
     @property
     def id(self) -> str | None:
+        """Return the parsed peer id without triggering a store lookup.
+
+        Returns None when the response carried only hfid_str (no id, no peer)
+        — in that case .peer.id would resolve through the store and yield a
+        non-None id, so .id and .peer.id are NOT interchangeable.
+        """
         if self._peer:
             return self._peer.id
         return self._id
@@ -247,9 +253,21 @@ class RelatedNode(RelatedNodeBase):
 
     @property
     def peer(self) -> InfrahubNode:
+        """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
     def get(self) -> InfrahubNode:
+        """Return the peer node, performing a store lookup if not materialized.
+
+        When resolving via hfid_str the returned node has a non-None id even
+        when this RelatedNode's .id is None — that is the case in which
+        .peer.id and .id diverge.
+
+        Raises:
+            ValueError: when neither a peer, (_id, _typename), nor hfid_str
+                is available.
+
+        """
         if self._peer:
             return self._peer  # type: ignore[return-value]
 
@@ -296,9 +314,21 @@ class RelatedNodeSync(RelatedNodeBase):
 
     @property
     def peer(self) -> InfrahubNodeSync:
+        """Return the peer node, or raise ValueError if no identifier is available."""
         return self.get()
 
     def get(self) -> InfrahubNodeSync:
+        """Return the peer node, performing a store lookup if not materialized.
+
+        When resolving via hfid_str the returned node has a non-None id even
+        when this RelatedNode's .id is None — that is the case in which
+        .peer.id and .id diverge.
+
+        Raises:
+            ValueError: when neither a peer, (_id, _typename), nor hfid_str
+                is available.
+
+        """
         if self._peer:
             return self._peer  # type: ignore[return-value]
 

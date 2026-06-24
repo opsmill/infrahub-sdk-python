@@ -19,8 +19,8 @@ $ infrahubctl repository [OPTIONS] COMMAND [ARGS]...
 **Commands**:
 
 * `add`: Add a new repository.
-* `init`: Initialize a new Infrahub repository.
 * `list`
+* `init`: Initialize a new Infrahub repository.
 
 ## `infrahubctl repository add`
 
@@ -48,20 +48,6 @@ $ infrahubctl repository add [OPTIONS] NAME LOCATION
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
-## `infrahubctl repository init`
-
-Initialize a new Infrahub repository.
-
-**Usage**:
-
-```console
-$ infrahubctl repository init [OPTIONS]
-```
-
-**Options**:
-
-* `--help`: Show this message and exit.
-
 ## `infrahubctl repository list`
 
 **Usage**:
@@ -75,4 +61,18 @@ $ infrahubctl repository list [OPTIONS]
 * `--branch TEXT`: Branch on which to list repositories.
 * `--debug / --no-debug`: [default: no-debug]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl repository init`
+
+Initialize a new Infrahub repository.
+
+**Usage**:
+
+```console
+$ infrahubctl repository init [OPTIONS]
+```
+
+**Options**:
+
 * `--help`: Show this message and exit.
