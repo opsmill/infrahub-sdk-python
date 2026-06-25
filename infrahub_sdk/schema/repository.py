@@ -131,6 +131,10 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
         default=True,
         description="When true (default), the Generator runs after a branch merge. Set to false for Generators that only run via event triggers.",
     )
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        description="Extra files and directories this generator depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
