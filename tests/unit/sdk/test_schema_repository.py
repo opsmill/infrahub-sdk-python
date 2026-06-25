@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNotFoundError, ResourceNotDefinedError
 from infrahub_sdk.schema.repository import (
+    InfrahubGeneratorDefinitionConfig,
     InfrahubJinja2TransformConfig,
     InfrahubPythonTransformConfig,
     InfrahubRepositoryConfig,
@@ -392,3 +393,47 @@ def test_jinja2_transform_payload_includes_declared_watch() -> None:
         }
     )
     assert config.payload["watch"] == {"files": ["templates/partials/"]}
+
+
+def test_generator_watch_omitted_defaults_to_none() -> None:
+    """A generator definition without a watch block parses, with watch defaulting to None.
+
+    The generator config sets extra="forbid", so this also proves watch is a recognised optional
+    field rather than a rejected extra key.
+    """
+    config = InfrahubGeneratorDefinitionConfig.model_validate(
+        {"name": "my_generator", "file_path": "generators/g.py", "query": "q", "targets": "grp"}
+    )
+    assert config.watch is None
+
+
+def test_generator_watch_parses_object_form() -> None:
+    """The object form `watch: {files: [...]}` parses into an InfrahubWatchConfig with the files preserved."""
+    config = InfrahubGeneratorDefinitionConfig.model_validate(
+        {
+            "name": "my_generator",
+            "file_path": "generators/g.py",
+            "query": "q",
+            "targets": "grp",
+            "watch": {"files": ["a", "dir/"]},
+        }
+    )
+    assert config.watch is not None
+    assert config.watch.files == ["a", "dir/"]
+
+
+def test_generator_watch_list_form_rejected() -> None:
+    """A bare list `watch: [a, b]` is rejected: the realistic YAML mistake of a list instead of an object.
+
+    Matching the message confirms the rejection is the watch model-type error, not some unrelated failure.
+    """
+    with pytest.raises(ValidationError, match="valid dictionary or instance of InfrahubWatchConfig"):
+        InfrahubGeneratorDefinitionConfig.model_validate(
+            {
+                "name": "my_generator",
+                "file_path": "generators/g.py",
+                "query": "q",
+                "targets": "grp",
+                "watch": ["a", "b"],
+            }
+        )
