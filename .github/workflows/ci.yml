@@ -112,9 +112,14 @@ jobs:
           globs: |
             **/*.{md,mdx}
             !changelog/*.md
+            !.agents/commands/**
+            !.agents/skills/**
             !.claude/commands/**
+            !.claude/skills/**
             !dev/commands/**
+            !dev/skills/**
             !.specify/templates/**
+            !.specify/extensions/**
 
   action-lint:
     if: needs.files-changed.outputs.github_workflows == 'true'

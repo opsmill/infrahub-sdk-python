@@ -111,6 +111,8 @@ REST
 resources
 schema_mapping
 sdk
+stderr
+stdout
 subcommand
 subnet
 subtyping
@@ -133,6 +135,7 @@ validators
 Version Control
 Vitest
 VLANs
+yaml
 Yaml
 yamllint
 YouTube

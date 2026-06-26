@@ -145,7 +145,18 @@ def _generate_infrahub_sdk_template_documentation() -> None:
     from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
     from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
-    from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
+    from infrahub_sdk.template.filters import BUILTIN_FILTERS, INFRAHUB_FILTERS, NETUTILS_FILTERS, ExecutionContext
+
+    def _filters_with_contexts(filters: list) -> list[dict]:
+        return [
+            {
+                "name": f.name,
+                "core": bool(f.allowed_contexts & ExecutionContext.CORE),
+                "worker": bool(f.allowed_contexts & ExecutionContext.WORKER),
+                "local": bool(f.allowed_contexts & ExecutionContext.LOCAL),
+            }
+            for f in filters
+        ]
 
     print(" - Generate Infrahub SDK template documentation")
     # Generating one documentation page for template documentation
@@ -155,7 +166,11 @@ def _generate_infrahub_sdk_template_documentation() -> None:
                 template=Path("sdk_template_reference.j2"),
                 template_directory=DOCUMENTATION_DIRECTORY / "_templates",
             ),
-            template_variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS},
+            template_variables={
+                "builtin": _filters_with_contexts(BUILTIN_FILTERS),
+                "netutils": _filters_with_contexts(NETUTILS_FILTERS),
+                "infrahub": _filters_with_contexts(INFRAHUB_FILTERS),
+            },
         ),
     )
     output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"
@@ -173,6 +188,7 @@ def get_modules_to_document() -> list[str]:
     # Packages (sub-folders of infrahub_sdk/) to document.
     # Passed to mdxify as "infrahub_sdk.<name>".
     packages_to_document = [
+        "graph_traversal",
         "node",
     ]
 
@@ -257,7 +273,6 @@ def _generate_sdk_api_docs(context: Context) -> None:
 @task
 def format(context: Context) -> None:
     """Run RUFF to format all Python files."""
-
     exec_cmds = ["ruff format .", "ruff check . --fix"]
     with context.cd(MAIN_DIRECTORY_PATH):
         for cmd in exec_cmds:
@@ -397,7 +412,7 @@ def generate_python_sdk(context: Context) -> None:
 
 @task
 def generate_repository_jsonschema(context: Context) -> None:
-    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema"""
+    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema."""
     from infrahub_sdk.schema.repository import InfrahubRepositoryConfig
 
     repository_jsonschema = MAIN_DIRECTORY_PATH / "generated" / "repository-config" / "develop.json"

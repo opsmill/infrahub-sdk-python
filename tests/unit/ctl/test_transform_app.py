@@ -12,15 +12,13 @@ from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.cli_commands import app
 from infrahub_sdk.repository import GitRepoManager
+from tests.constants import FIXTURES_DIR
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory, strip_color
 
 runner = CliRunner()
 
-
-FIXTURE_BASE_DIR = Path(
-    Path(Path(__file__).resolve()).parent / ".." / ".." / "fixtures" / "integration" / "test_infrahubctl"
-)
+FIXTURE_BASE_DIR = FIXTURES_DIR / "integration" / "test_infrahubctl"
 
 
 @pytest.fixture
@@ -91,7 +89,7 @@ class TestInfrahubctlTransform:
 
     @staticmethod
     def test_gql_query_not_defined(tags_transform_dir: str) -> None:
-        """Case GraphQL Query is not defined"""
+        """Case GraphQL Query is not defined."""
         # Remove GraphQL Query file
         gql_file = Path(Path(tags_transform_dir) / "tags_query.gql")
         Path.unlink(gql_file)
@@ -104,7 +102,7 @@ class TestInfrahubctlTransform:
 
     @staticmethod
     def test_infrahubctl_transform_cmd_success(httpx_mock: HTTPXMock, tags_transform_dir: str) -> None:
-        """Case infrahubctl transform command executes successfully"""
+        """Case infrahubctl transform command executes successfully."""
         httpx_mock.add_response(
             method="POST",
             url="http://mock/graphql/main",

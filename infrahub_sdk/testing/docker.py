@@ -12,9 +12,7 @@ INFRAHUB_VERSION = os.getenv("INFRAHUB_TESTING_IMAGE_VER")
 
 
 def skip_version(min_infrahub_version: str | None = None, max_infrahub_version: str | None = None) -> bool:
-    """
-    Check if a test should be skipped depending on Infrahub version.
-    """
+    """Check if a test should be skipped depending on Infrahub version."""
     if INFRAHUB_VERSION is None:
         return True
 

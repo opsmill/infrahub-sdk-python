@@ -346,7 +346,6 @@ async def test_hfid_normalization_in_object_loading(
     client_with_schema_01: InfrahubClient, test_case: HfidLoadTestCase
 ) -> None:
     """Test that HFIDs are normalized correctly based on cardinality and format."""
-
     root_location = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": "BuiltinLocation", "data": []}}
     location = {
         "apiVersion": root_location["apiVersion"],
@@ -466,6 +465,21 @@ async def test_validate_object_skips_mandatory_check_with_object_template(
     schema = await client_with_schema_01.schema.get(kind="BuiltinLocation")
 
     data = {"name": "Site1", "object_template": "Standard Site"}
+    errors = await InfrahubObjectFileData.validate_object(
+        client=client_with_schema_01, position=[1], schema=schema, data=data
+    )
+
+    mandatory_errors = [e for e in errors if e.message == "type is mandatory"]
+    assert mandatory_errors == []
+
+
+async def test_validate_object_skips_mandatory_check_with_object_profile(
+    client_with_schema_01: InfrahubClient,
+) -> None:
+    """When object_profile is present, mandatory field validation should be skipped."""
+    schema = await client_with_schema_01.schema.get(kind="BuiltinLocation")
+
+    data = {"name": "Site1", "object_profile": "Standard Site"}
     errors = await InfrahubObjectFileData.validate_object(
         client=client_with_schema_01, position=[1], schema=schema, data=data
     )

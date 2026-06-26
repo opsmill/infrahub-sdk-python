@@ -16,7 +16,7 @@ GraphQL Client to interact with Infrahub.
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaType | None
+get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaType | None
 ```
 
 <details>
@@ -25,37 +25,37 @@ get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timest
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaType
+get(self, kind: type[SchemaType], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaType
 ```
 
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaType
+get(self, kind: type[SchemaType], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaType
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNode | None
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNode | None
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNode
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNode
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNode
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNode
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, **kwargs: Any) -> InfrahubNode | SchemaType | None
+get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, **kwargs: Any) -> InfrahubNode | SchemaType | None
 ```
 
 </details>
@@ -101,7 +101,7 @@ Return the Infrahub version.
 get_user(self) -> dict
 ```
 
-Return user information
+Return user information.
 
 #### `get_user_permissions`
 
@@ -109,20 +109,117 @@ Return user information
 get_user_permissions(self) -> dict
 ```
 
-Return user permissions
+Return user permissions.
 
 #### `count`
 
 ```python
-count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, **kwargs: Any) -> int
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, **kwargs: Any) -> int
 ```
 
 Return the number of nodes of a given kind.
 
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+kind-name strings and/or generated protocol classes. ``relationship_filter``
+matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_paths`: Maximum number of paths to return.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNode, target_kinds: list[str | type[SchemaType]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_results`: Maximum number of reachable nodes to return.
+- `max_paths`: Maximum number of paths to compute per reachable node.
+- `shortest_paths_only`: When True, only return the shortest path(s) to each node.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
 #### `all`
 
 ```python
-all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ...) -> list[SchemaType]
+all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ...) -> list[SchemaType]
 ```
 
 <details>
@@ -131,16 +228,16 @@ all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None
 #### `all`
 
 ```python
-all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ...) -> list[InfrahubNode]
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ...) -> list[InfrahubNode]
 ```
 
 #### `all`
 
 ```python
-all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False) -> list[InfrahubNode] | list[SchemaType]
+all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None) -> list[InfrahubNode] | list[SchemaType]
 ```
 
-Retrieve all nodes of a given kind
+Retrieve all nodes of a given kind.
 
 **Args:**
 
@@ -158,6 +255,7 @@ Retrieve all nodes of a given kind
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else All_&lt;kind&gt; is used.
 
 **Returns:**
 
@@ -167,7 +265,7 @@ Retrieve all nodes of a given kind
 #### `filters`
 
 ```python
-filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., **kwargs: Any) -> list[SchemaType]
+filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> list[SchemaType]
 ```
 
 <details>
@@ -176,13 +274,13 @@ filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | 
 #### `filters`
 
 ```python
-filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., **kwargs: Any) -> list[InfrahubNode]
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> list[InfrahubNode]
 ```
 
 #### `filters`
 
 ```python
-filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, **kwargs: Any) -> list[InfrahubNode] | list[SchemaType]
+filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, **kwargs: Any) -> list[InfrahubNode] | list[SchemaType]
 ```
 
 Retrieve nodes of a given kind based on provided filters.
@@ -204,6 +302,7 @@ Retrieve nodes of a given kind based on provided filters.
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else Filters_&lt;kind&gt; is used.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
@@ -217,15 +316,16 @@ Retrieve nodes of a given kind based on provided filters.
 clone(self, branch: str | None = None) -> InfrahubClient
 ```
 
-Return a cloned version of the client using the same configuration
+Return a cloned version of the client using the same configuration.
 
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
+
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
@@ -235,17 +335,20 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
-- `raise_for_error`: Deprecated. Controls only HTTP status handling.
-- None (default) or True\: HTTP errors raise via resp.raise_for_status().
-- False\: HTTP errors are not automatically raised. Defaults to None.
-
-**Raises:**
-
-- `GraphQLError`: When the GraphQL response contains errors.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 
 - The GraphQL data payload (response["data"]).
+
+**Raises:**
+
+- `GraphQLError`: When the GraphQL response contains errors.
+- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `AuthenticationError`: If the server returns a 401 or 403 response.
+- `URLNotFoundError`: If the server returns a 404 response.
+- `Error`: If the response is unexpectedly missing.
 
 #### `refresh_login`
 
@@ -262,7 +365,7 @@ login(self, refresh: bool = False) -> None
 #### `query_gql_query`
 
 ```python
-query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> dict
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 #### `create_diff`
@@ -274,7 +377,7 @@ create_diff(self, branch: str, name: str, from_time: datetime, to_time: datetime
 #### `get_diff_summary`
 
 ```python
-get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> list[NodeDiff]
+get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None) -> list[NodeDiff]
 ```
 
 #### `get_diff_tree`
@@ -287,49 +390,29 @@ Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
 
+**Raises:**
+
+- `ValueError`: If ``from_time`` is later than ``to_time``.
+
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaType | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNode | None
 ```
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaType
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNode | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNode | SchemaType | None
+allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNode | SchemaType | None
 ```
 
 Allocate a new IP address by using the provided resource pool.
@@ -344,55 +427,35 @@ Allocate a new IP address by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: Deprecated, raise an error if the HTTP status is not 2XX.
 
-Returns:
-    InfrahubNode: Node corresponding to the allocated resource.
+**Returns:**
+
+- Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaType
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaType | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaType | None
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNode | None
 ```
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaType
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNode
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNode | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNode | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNode | SchemaType | None
+allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNode | SchemaType | None
 ```
 
 Allocate a new IP prefix by using the provided resource pool.
@@ -408,10 +471,14 @@ Allocate a new IP prefix by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: Deprecated, raise an error if the HTTP status is not 2XX.
 
-Returns:
-    InfrahubNode: Node corresponding to the allocated resource.
+**Returns:**
+
+- Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
 #### `create_batch`
@@ -438,10 +505,11 @@ repository_update_commit(self, branch_name: str, repository_id: str, commit: str
 convert_object_type(self, node_id: str, target_kind: str, branch: str | None = None, fields_mapping: dict[str, ConversionFieldInput] | None = None) -> InfrahubNode
 ```
 
-Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-for more information.
+Convert a given node to another kind on a given branch.
+
+`fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+Any mandatory field not having an equivalent field in the source kind should be specified in this
+mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
 
 ### `InfrahubClientSync`
 
@@ -450,7 +518,7 @@ for more information.
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync | None
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaTypeSync | None
 ```
 
 <details>
@@ -459,37 +527,37 @@ get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Ti
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaTypeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> SchemaTypeSync
+get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> SchemaTypeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync | None
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNodeSync | None
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNodeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., **kwargs: Any) -> InfrahubNodeSync
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> InfrahubNodeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
+get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
 ```
 
 </details>
@@ -535,7 +603,7 @@ Return the Infrahub version.
 get_user(self) -> dict
 ```
 
-Return user information
+Return user information.
 
 #### `get_user_permissions`
 
@@ -543,7 +611,7 @@ Return user information
 get_user_permissions(self) -> dict
 ```
 
-Return user permissions
+Return user permissions.
 
 #### `clone`
 
@@ -551,15 +619,16 @@ Return user permissions
 clone(self, branch: str | None = None) -> InfrahubClientSync
 ```
 
-Return a cloned version of the client using the same configuration
+Return a cloned version of the client using the same configuration.
 
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, raise_for_error: bool | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
+
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
@@ -569,31 +638,130 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
-- `raise_for_error`: Deprecated. Controls only HTTP status handling.
-- None (default) or True\: HTTP errors raise via `resp.raise_for_status()`.
-- False\: HTTP errors are not automatically raised.
-GraphQL errors always raise `GraphQLError`. Defaults to None.
-
-**Raises:**
-
-- `GraphQLError`: When the GraphQL response contains errors.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 
 - The GraphQL data payload (`response["data"]`).
 
+**Raises:**
+
+- `GraphQLError`: When the GraphQL response contains errors.
+- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `AuthenticationError`: If the server returns a 401 or 403 response.
+- `URLNotFoundError`: If the server returns a 404 response.
+- `Error`: If the response is unexpectedly missing.
+
 #### `count`
 
 ```python
-count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, **kwargs: Any) -> int
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, **kwargs: Any) -> int
 ```
 
 Return the number of nodes of a given kind.
 
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+kind-name strings and/or generated protocol classes. ``relationship_filter``
+matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_paths`: Maximum number of paths to return.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNodeSync, target_kinds: list[str | type[SchemaTypeSync]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_results`: Maximum number of reachable nodes to return.
+- `max_paths`: Maximum number of paths to compute per reachable node.
+- `shortest_paths_only`: When True, only return the shortest path(s) to each node.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
 #### `all`
 
 ```python
-all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ...) -> list[SchemaTypeSync]
+all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ...) -> list[SchemaTypeSync]
 ```
 
 <details>
@@ -602,16 +770,16 @@ all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | 
 #### `all`
 
 ```python
-all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ...) -> list[InfrahubNodeSync]
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ...) -> list[InfrahubNodeSync]
 ```
 
 #### `all`
 
 ```python
-all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
 ```
 
-Retrieve all nodes of a given kind
+Retrieve all nodes of a given kind.
 
 **Args:**
 
@@ -629,6 +797,7 @@ Retrieve all nodes of a given kind
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else All_&lt;kind&gt; is used.
 
 **Returns:**
 
@@ -638,7 +807,7 @@ Retrieve all nodes of a given kind
 #### `filters`
 
 ```python
-filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., **kwargs: Any) -> list[SchemaTypeSync]
+filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> list[SchemaTypeSync]
 ```
 
 <details>
@@ -647,13 +816,13 @@ filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: st
 #### `filters`
 
 ```python
-filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., **kwargs: Any) -> list[InfrahubNodeSync]
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., **kwargs: Any) -> list[InfrahubNodeSync]
 ```
 
 #### `filters`
 
 ```python
-filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, **kwargs: Any) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, **kwargs: Any) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
 ```
 
 Retrieve nodes of a given kind based on provided filters.
@@ -675,6 +844,7 @@ Retrieve nodes of a given kind based on provided filters.
 - `parallel`: Whether to use parallel processing for the query.
 - `order`: Ordering related options. Setting `disable=True` enhances performances.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else Filters_&lt;kind&gt; is used.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
@@ -702,7 +872,7 @@ get_list_repositories(self, branches: dict[str, BranchData] | None = None, kind:
 #### `query_gql_query`
 
 ```python
-query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> dict
+query_gql_query(self, name: str, variables: dict | None = None, update_group: bool = False, subscribers: list[str] | None = None, params: dict | None = None, branch_name: str | None = None, at: str | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
 ```
 
 #### `create_diff`
@@ -714,7 +884,7 @@ create_diff(self, branch: str, name: str, from_time: datetime, to_time: datetime
 #### `get_diff_summary`
 
 ```python
-get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> list[NodeDiff]
+get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None) -> list[NodeDiff]
 ```
 
 #### `get_diff_tree`
@@ -727,49 +897,29 @@ Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
 
+**Raises:**
+
+- `ValueError`: If ``from_time`` is later than ``to_time``.
+
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaTypeSync | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNodeSync | None
 ```
 
 #### `allocate_next_ip_address`
 
 ```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaTypeSync
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., address_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_address`
-
-```python
-allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNodeSync | SchemaTypeSync | None
+allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, address_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNodeSync | SchemaTypeSync | None
 ```
 
 Allocate a new IP address by using the provided resource pool.
@@ -784,55 +934,35 @@ Allocate a new IP address by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: The limit for pagination.
 
-Returns:
-    InfrahubNodeSync: Node corresponding to the allocated resource.
+**Returns:**
+
+- Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> SchemaTypeSync
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> SchemaTypeSync | None
 ```
 
 <details>
-<summary>Show 6 other overloads</summary>
+<summary>Show 2 other overloads</summary>
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> SchemaTypeSync | None
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ...) -> CoreNodeSync | None
 ```
 
 #### `allocate_next_ip_prefix`
 
 ```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync], identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> SchemaTypeSync
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[True] = True) -> CoreNodeSync
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: Literal[False] = False) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: None = ..., identifier: str | None = ..., prefix_length: int | None = ..., member_type: str | None = ..., prefix_type: str | None = ..., data: dict[str, Any] | None = ..., branch: str | None = ..., timeout: int | None = ..., tracker: str | None = ..., raise_for_error: bool | None = ...) -> CoreNodeSync | None
-```
-
-#### `allocate_next_ip_prefix`
-
-```python
-allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None, raise_for_error: bool | None = None) -> CoreNodeSync | SchemaTypeSync | None
+allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaTypeSync] | None = None, identifier: str | None = None, prefix_length: int | None = None, member_type: str | None = None, prefix_type: str | None = None, data: dict[str, Any] | None = None, branch: str | None = None, timeout: int | None = None, tracker: str | None = None) -> CoreNodeSync | SchemaTypeSync | None
 ```
 
 Allocate a new IP prefix by using the provided resource pool.
@@ -848,10 +978,14 @@ Allocate a new IP prefix by using the provided resource pool.
 - `branch`: Name of the branch to allocate from. Defaults to default_branch.
 - `timeout`: Flag to indicate whether to populate the store with the retrieved nodes.
 - `tracker`: The offset for pagination.
-- `raise_for_error`: The limit for pagination.
 
-Returns:
-    InfrahubNodeSync: Node corresponding to the allocated resource.
+**Returns:**
+
+- Node corresponding to the allocated resource.
+
+**Raises:**
+
+- `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
 #### `repository_update_commit`
@@ -878,10 +1012,11 @@ login(self, refresh: bool = False) -> None
 convert_object_type(self, node_id: str, target_kind: str, branch: str | None = None, fields_mapping: dict[str, ConversionFieldInput] | None = None) -> InfrahubNodeSync
 ```
 
-Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-for more information.
+Convert a given node to another kind on a given branch.
+
+`fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+Any mandatory field not having an equivalent field in the source kind should be specified in this
+mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
 
 ### `ProcessRelationsNode`
 
@@ -893,7 +1028,7 @@ for more information.
 
 ### `BaseClient`
 
-Base class for InfrahubClient and InfrahubClientSync
+Base class for InfrahubClient and InfrahubClientSync.
 
 **Methods:**
 
@@ -935,8 +1070,8 @@ handle_relogin(func: Callable[..., Coroutine[Any, Any, httpx.Response]]) -> Call
 handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.Response]
 ```
 
-### `raise_for_error_deprecation_warning`
+### `get_kind_as_string`
 
 ```python
-raise_for_error_deprecation_warning(value: bool | None) -> None
+get_kind_as_string(kind: str | type[SchemaType | SchemaTypeSync]) -> str
 ```

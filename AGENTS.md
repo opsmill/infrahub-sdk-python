@@ -4,7 +4,7 @@ Infrahub Python SDK - async/sync client for Infrahub infrastructure management.
 
 ## Product context
 
-The SDK is the foundational library for programmatically interacting with Infrahub. It abstracts away the underlying API so developers can work with infrastructure data using native Python objects.
+Foundational library for programmatically interacting with Infrahub. Abstracts the underlying API so developers work with infrastructure data as native Python objects (built-in auth, batching, caching, tracking).
 
 **Primary audience:** Network automation engineers and software developers.
 
@@ -13,8 +13,6 @@ The SDK is the foundational library for programmatically interacting with Infrah
 - **Automate inside Infrahub** — Write transforms, generators, and checks that run as part of Infrahub's pipeline.
 - **Integrate with external systems** — Query and sync data between Infrahub and existing tools. `infrahubctl` and the Infrahub Ansible collection both use this SDK internally.
 - **Build custom applications** — Use Infrahub as a data backend for Python projects entirely outside of Infrahub's own pipeline.
-
-**Why the SDK over direct API calls:** eliminates the need to learn Infrahub's API structure, provides Python-native interfaces with built-in auth, adds advanced capabilities (batching, caching, tracking), and reduces boilerplate.
 
 ## Commands
 
@@ -57,9 +55,7 @@ infrahub_sdk/
 
 ## Markdown style
 
-When editing `.md` or `.mdx` files, run `uv run invoke lint-docs` before committing.
-
-Key rules:
+When editing `.md` or `.mdx` files (`uv run invoke lint-docs` enforces these):
 
 - Use `text` language for directory structure code blocks
 - Add blank lines before and after lists
@@ -71,7 +67,7 @@ Key rules:
 
 - Run `uv run invoke format lint-code` before committing Python code
 - Run `uv run invoke docs-generate` after creating, modifying or deleting CLI commands, SDK config, or Python docstrings
-- Run markdownlint before committing markdown changes
+- Run `uv run invoke lint-docs` before committing markdown changes
 - Follow async/sync dual pattern for new features
 - Use type hints on all function signatures
 

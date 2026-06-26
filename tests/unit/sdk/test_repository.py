@@ -41,6 +41,26 @@ def test_initialize_repo_uses_existing_repo(temp_dir: str) -> None:
     assert (Path(temp_dir) / ".git").is_dir()
 
 
+def test_initialize_repo_uses_existing_repo_in_worktree(temp_dir: str) -> None:
+    """A git worktree has a `.git` file (gitlink), not a directory.
+
+    GitRepoManager must open the existing repo via the gitlink instead of trying
+    to re-initialize one, which would crash on `mkdir` because the file already exists.
+    """
+    main_path = Path(temp_dir) / "main"
+    worktree_path = Path(temp_dir) / "worktree"
+    main_path.mkdir()
+    worktree_path.mkdir()
+    Repo.init(str(main_path), default_branch=b"main")
+    (worktree_path / ".git").write_text(f"gitdir: {main_path}/.git\n")
+
+    manager = GitRepoManager(str(worktree_path))
+
+    assert manager.git is not None
+    assert isinstance(manager.git, Repo)
+    assert (worktree_path / ".git").is_file()
+
+
 def test_active_branch_returns_correct_branch(temp_dir: str) -> None:
     """Test that the active branch is correctly returned."""
     manager = GitRepoManager(temp_dir, branch="develop")

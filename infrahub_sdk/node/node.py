@@ -2,20 +2,25 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from copy import copy, deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
 from ..constants import InfrahubClientMode
-from ..exceptions import FeatureNotSupportedError, NodeNotFoundError, ResourceNotDefinedError, SchemaNotFoundError
-from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile
+from ..exceptions import (
+    FeatureNotSupportedError,
+    NodeNotFoundError,
+    ResourceNotDefinedError,
+    SchemaNotFoundError,
+    ValidationError,
+)
+from ..file_handler import FileHandler, FileHandlerBase, FileHandlerSync, PreparedFile, sha1_of_source
 from ..graphql import Mutation, Query
 from ..schema import (
     GenericSchemaAPI,
-    ProfileSchemaAPI,
     RelationshipCardinality,
     RelationshipKind,
     RelationshipSchemaAPI,
-    TemplateSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
 from .attribute import Attribute
@@ -24,7 +29,9 @@ from .constants import (
     ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE,
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
+    MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_OBJECT,
+    UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
@@ -39,15 +46,56 @@ if TYPE_CHECKING:
     from ..types import Order
 
 
+@dataclass(frozen=True)
+class UploadResult:
+    """Outcome of an idempotent upload attempt.
+
+    Returned by :meth:`InfrahubNode.upload_if_changed` and its sync twin.
+    ``was_uploaded`` tells the caller whether a network transfer actually
+    happened; ``checksum`` carries the SHA-1 of the content held on the
+    server after the operation — on skip paths that is the server's
+    pre-existing value, on upload paths it is the locally-computed SHA-1
+    used as a proxy (which matches what a standard CoreFileObject server
+    stores, since the server computes SHA-1 of received bytes). ``None``
+    only when no server checksum was available (either the node was
+    unsaved and nothing was transferred, or the save returned no checksum
+    value).
+
+    The comparison used by ``upload_if_changed`` reads the node's
+    ``checksum`` attribute, which was populated when the node was
+    fetched via ``client.get(...)``. A server-side change to the file
+    between the fetch and the call will not be detected unless the
+    caller re-fetches the node first.
+    """
+
+    was_uploaded: bool
+    checksum: str | None
+
+
 class InfrahubNodeBase:
-    """Base class for InfrahubNode and InfrahubNodeSync"""
+    """Base class for :class:`InfrahubNode` and :class:`InfrahubNodeSync`.
+
+    Owns the schema-driven state shared between the async and sync clients: attributes,
+    relationships, identity (``id``, ``hfid``), node metadata, and the helpers that turn
+    the in-memory state into GraphQL query and mutation payloads. This class is not
+    meant to be instantiated directly; use :class:`InfrahubNode` or
+    :class:`InfrahubNodeSync` instead.
+
+    Attributes:
+        id (str | None): The unique identifier of the node, when known.
+        display_label (str | None): Human-readable label of the node.
+        typename (str | None): The GraphQL ``__typename`` of the node.
+
+    """
 
     def __init__(self, schema: MainSchemaTypesAPI, branch: str, data: dict | None = None) -> None:
-        """
+        """Initialize the base node.
+
         Args:
             schema: The schema of the node.
             branch: The branch where the node resides.
             data: Optional data to initialize the node.
+
         """
         self._schema = schema
         self._data = data
@@ -68,20 +116,13 @@ class InfrahubNodeBase:
         self._attributes = [item.name for item in self._schema.attributes]
         self._relationships = [item.name for item in self._schema.relationships]
 
-        # GenericSchemaAPI doesn't have inherit_from
-        inherit_from: list[str] = getattr(schema, "inherit_from", None) or []
-        self._artifact_support = "CoreArtifactTarget" in inherit_from
-        self._file_object_support = "CoreFileObject" in inherit_from
-        self._artifact_definition_support = schema.kind == "CoreArtifactDefinition"
+        self._artifact_support = schema.supports_artifacts
+        self._file_object_support = schema.supports_file_object
+        self._hierarchy_support = schema.supports_hierarchy
+        self._artifact_definition_support = schema.supports_artifact_definition
 
         self._file_content: bytes | Path | BinaryIO | None = None
         self._file_name: str | None = None
-
-        # Check if this node is hierarchical (supports parent/children and ancestors/descendants)
-        if not isinstance(schema, (ProfileSchemaAPI, GenericSchemaAPI, TemplateSchemaAPI)):
-            self._hierarchy_support = getattr(schema, "hierarchy", None) is not None
-        else:
-            self._hierarchy_support = False
 
         if not self.id:
             self._existing = False
@@ -90,9 +131,30 @@ class InfrahubNodeBase:
         self._init_relationships(data)
 
     def get_branch(self) -> str:
+        """Return the branch this node is bound to.
+
+        Returns:
+            str: The name of the branch.
+
+        """
         return self._branch
 
     def get_path_value(self, path: str) -> Any:
+        """Resolve a value addressed by a dunder-separated path on this node.
+
+        The path can target an attribute (``name__value``, ``name__source``), a
+        cardinality-one related node (``parent``), an attribute of that related node
+        (``parent__name__value``), or a property of one of its attributes
+        (``parent__name__source``).
+
+        Args:
+            path (str): A path with components separated by ``__``.
+
+        Returns:
+            Any: The resolved value, or ``None`` when any path component cannot be
+            resolved (for example, an unfetched related node not present in the store).
+
+        """
         path_parts = path.split("__")
         return_value = None
 
@@ -130,6 +192,17 @@ class InfrahubNodeBase:
         return return_value
 
     def get_human_friendly_id(self) -> list[str] | None:
+        """Compute the human-friendly ID for this node from its schema.
+
+        The HFID is composed of the values addressed by the schema's
+        ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
+        considered invalid and ``None`` is returned.
+
+        Returns:
+            list[str] | None: The HFID as a list of stringified components, or ``None``
+            when the schema does not define an HFID or a component is missing.
+
+        """
         if not hasattr(self._schema, "human_friendly_id"):
             return None
 
@@ -143,6 +216,17 @@ class InfrahubNodeBase:
         return [str(hfid) for hfid in hfid_components]
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None:
+        """Return the human-friendly ID joined into a single string.
+
+        Args:
+            include_kind (bool, optional): When ``True``, the node kind is prepended as
+                the first component of the resulting string. Defaults to ``False``.
+
+        Returns:
+            str | None: The HFID joined with the HFID separator, or ``None`` when no
+            HFID is available.
+
+        """
         hfid = self.get_human_friendly_id()
         if not hfid:
             return None
@@ -152,14 +236,34 @@ class InfrahubNodeBase:
 
     @property
     def hfid(self) -> list[str] | None:
+        """Return the human-friendly ID of this node as a list of components.
+
+        Returns:
+            list[str] | None: The HFID components, or ``None`` when unavailable.
+
+        """
         return self.get_human_friendly_id()
 
     @property
     def hfid_str(self) -> str | None:
+        """Return the human-friendly ID of this node as a string, including the kind prefix.
+
+        Returns:
+            str | None: The HFID as ``Kind__part1__part2``, or ``None`` when unavailable.
+
+        """
         return self.get_human_friendly_id_as_string(include_kind=True)
 
     def get_node_metadata(self) -> NodeMetadata | None:
-        """Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched."""
+        """Return the node metadata (``created_at``, ``created_by``, ``updated_at``, ``updated_by``).
+
+        The metadata is populated only when the parent query was executed with
+        ``include_metadata=True``.
+
+        Returns:
+            NodeMetadata | None: The node metadata if fetched, otherwise ``None``.
+
+        """
         return self._metadata
 
     def _init_attributes(self, data: dict | None = None) -> None:
@@ -170,7 +274,7 @@ class InfrahubNodeBase:
             )
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for attributes that exist or revert to normal behaviour"""
+        """Set values for attributes that exist or revert to normal behaviour."""
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
             self._attribute_data[name].value = value
             return
@@ -199,26 +303,62 @@ class InfrahubNodeBase:
         return f"{self._schema.kind} ({self.id}) "
 
     def get_kind(self) -> str:
+        """Return the schema kind of this node.
+
+        Returns:
+            str: The schema kind (for example ``"CoreAccount"``).
+
+        """
         return self._schema.kind
 
     def get_all_kinds(self) -> list[str]:
+        """Return this node's kind plus all generic kinds it inherits from.
+
+        Returns:
+            list[str]: The node's own kind followed by the inherited kinds, in the order
+            declared on the schema.
+
+        """
         if inherit_from := getattr(self._schema, "inherit_from", None):
             return [self._schema.kind, *inherit_from]
         return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
+        """Return whether this node represents an IP prefix.
+
+        Returns:
+            bool: ``True`` when the node kind is ``BuiltinIPPrefix`` or inherits from it.
+
+        """
         builtin_ipprefix_kind = "BuiltinIPPrefix"
         return self.get_kind() == builtin_ipprefix_kind or builtin_ipprefix_kind in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_ip_address(self) -> bool:
+        """Return whether this node represents an IP address.
+
+        Returns:
+            bool: ``True`` when the node kind is ``BuiltinIPAddress`` or inherits from it.
+
+        """
         builtin_ipaddress_kind = "BuiltinIPAddress"
         return self.get_kind() == builtin_ipaddress_kind or builtin_ipaddress_kind in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_resource_pool(self) -> bool:
+        """Return whether this node is a resource pool.
+
+        Returns:
+            bool: ``True`` when the node inherits from ``CoreResourcePool``.
+
+        """
         return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_file_object(self) -> bool:
-        """Check if this node inherits from CoreFileObject and supports file uploads."""
+        """Return whether this node inherits from ``CoreFileObject`` and supports file uploads.
+
+        Returns:
+            bool: ``True`` when file upload/download operations are supported on this node.
+
+        """
         return self._file_object_support
 
     def upload_from_path(self, path: Path) -> None:
@@ -234,6 +374,7 @@ class InfrahubNodeBase:
 
         Example:
             node.upload_from_path(path=Path("/path/to/large_file.pdf"))
+
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -262,6 +403,7 @@ class InfrahubNodeBase:
             >>> # Using file-like object (for large files)
             >>> with open("/path/to/file.bin", "rb") as f:
             ...     node.upload_from_bytes(content=f, name="file.bin")
+
         """
         if not self._file_object_support:
             raise FeatureNotSupportedError(
@@ -284,6 +426,13 @@ class InfrahubNodeBase:
         return FileHandlerBase.prepare_upload_sync(content=self._file_content, name=self._file_name)
 
     def get_raw_graphql_data(self) -> dict | None:
+        """Return the raw GraphQL payload used to build this node.
+
+        Returns:
+            dict | None: The original GraphQL data, or ``None`` when the node was
+            constructed without payload (for example, a brand-new node).
+
+        """
         return self._data
 
     def _generate_input_data(  # noqa: C901
@@ -296,8 +445,8 @@ class InfrahubNodeBase:
 
         Returns:
             dict[str, Dict]: Representation of an input data in dict format
-        """
 
+        """
         data: dict[str, Any] = {}
         variables: dict[str, Any] = {}
 
@@ -320,9 +469,11 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                # Only include None for existing nodes to allow clearing relationships
-                # For new nodes, omit the field to allow object template defaults to be applied
-                if self._existing:
+                # Emit `None` only when the caller has explicitly cleared the relationship
+                # (tracked by `_peer_has_been_mutated`). Without this guard, a node hydrated
+                # from a partial GraphQL payload — one that didn't fetch this relationship —
+                # would silently clear it on save.
+                if self._existing and isinstance(rel, RelatedNodeBase) and rel._peer_has_been_mutated:
                     data[item_name] = None
                 continue
 
@@ -508,6 +659,32 @@ class InfrahubNodeBase:
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
+
+        The returned dict is the outer structure consumed by
+        :meth:`generate_query_data`; it carries the ``@filters`` block and the empty
+        ``edges.node`` placeholder that will later be filled by the caller.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` in
+                the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: The query skeleton ready to be combined with node-level
+            attributes and relationships.
+
+        Raises:
+            ValueError: If the same name appears in both ``include`` and ``exclude``.
+
+        """
         data: dict[str, Any] = {
             "count": None,
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
@@ -567,9 +744,75 @@ class InfrahubNodeBase:
 
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
+    def _validate_upsert(self, allow_upsert: bool) -> None:
+        """Ensure an upsert can resolve the HFID before attempting to save.
+
+        An attribute sourced from a CoreNumberPool has no concrete value until the node is
+        created, so it cannot be used to look up an existing node by its human-friendly identifier.
+
+        Raises:
+            ValidationError: If an HFID attribute is sourced from an unresolved CoreNumberPool.
+
+        """
+        if not (allow_upsert and not self.id):
+            return
+
+        for hfid_path in self._schema.human_friendly_id or []:
+            attr_name = hfid_path.split("__")[0]
+            try:
+                attr = self._get_attribute(attr_name)
+            except ResourceNotDefinedError:
+                continue
+            if attr.is_unresolved_pool_attribute():
+                raise ValidationError(
+                    identifier=attr_name,
+                    message=(
+                        f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
+                        "this node's human-friendly identifier. Upsert cannot resolve the HFID "
+                        "without a concrete value. Use an explicit id, or create the node first "
+                        "and update it in a separate call."
+                    ),
+                )
+
+    @staticmethod
+    def _build_rel_query_data(
+        rel_schema: RelationshipSchemaAPI,
+        peer_data: dict[str, Any],
+        property: bool,
+        include_metadata: bool,
+    ) -> dict[str, Any] | None:
+        if rel_schema.cardinality == RelationshipCardinality.ONE:
+            rel_data = RelatedNodeBase._generate_query_data(
+                peer_data=peer_data, property=property, include_metadata=include_metadata
+            )
+            # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
+            # tries to resolve attributes in this ancestor instead of actual node. To avoid
+            # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
+            # to explicit actual node kind we are querying.
+            if rel_schema.kind == RelationshipKind.HIERARCHY:
+                data_node = rel_data["node"]
+                rel_data["node"] = {}
+                rel_data["node"][f"...on {rel_schema.peer}"] = data_node
+            return rel_data
+        if rel_schema.cardinality == RelationshipCardinality.MANY:
+            return RelationshipManagerBase._generate_query_data(
+                peer_data=peer_data, property=property, include_metadata=include_metadata
+            )
+        return None
+
 
 class InfrahubNode(InfrahubNodeBase):
-    """Represents a Infrahub node in an asynchronous context."""
+    """Asynchronous Infrahub node bound to an :class:`InfrahubClient`.
+
+    Provides full CRUD against the backend (:meth:`save`, :meth:`create`, :meth:`update`,
+    :meth:`delete`) along with relationship traversal (:meth:`get_flat_value`,
+    :meth:`extract`), feature-gated artifact and resource-pool helpers
+    (:meth:`artifact_generate`, :meth:`get_pool_allocated_resources`), and file upload
+    or download for nodes inheriting from ``CoreFileObject``.
+
+    Attributes and relationships defined on the schema are exposed as instance
+    attributes via attribute-style access (``node.name.value``, ``node.parent``).
+    """
 
     def __init__(
         self,
@@ -578,12 +821,14 @@ class InfrahubNode(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """
+        """Initialize the async node.
+
         Args:
             client: The client used to interact with the backend.
             schema: The schema of the node.
             branch: The branch where the node resides.
             data: Optional data to initialize the node.
+
         """
         self._client = client
         self._file_handler = FileHandler(client=client)
@@ -614,6 +859,27 @@ class InfrahubNode(InfrahubNodeBase):
         schema: MainSchemaTypesAPI | None = None,
         timeout: int | None = None,
     ) -> Self:
+        """Build an :class:`InfrahubNode` from a raw GraphQL response.
+
+        When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+        payload and the schema is fetched from the client.
+
+        Args:
+            client (InfrahubClient): The client used to interact with the backend.
+            branch (str): The branch the node belongs to.
+            data (dict): The GraphQL payload describing the node.
+            schema (MainSchemaTypesAPI, optional): Pre-fetched schema for the node kind.
+                Skips the schema lookup when provided.
+            timeout (int, optional): Overrides the default timeout used when fetching the
+                schema. Specified in seconds.
+
+        Returns:
+            InfrahubNode: The hydrated node instance.
+
+        Raises:
+            ValueError: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
+        """
         if not schema:
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
@@ -626,7 +892,7 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
-            if rel_schema.cardinality == "one":
+            if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNode):
                     peer_id_data: dict[str, Any] = {
                         key: value
@@ -653,74 +919,25 @@ class InfrahubNode(InfrahubNodeBase):
                     data=rel_data,
                 )
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
-        if self._hierarchy_support:
-            # Create pseudo-schema for parent (cardinality one)
-            parent_schema = RelationshipSchemaAPI(
-                name="parent",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="one",
-                optional=True,
-            )
-            parent_data = data.get("parent", None) if isinstance(data, dict) else None
-            self._hierarchical_data["parent"] = RelatedNode(
-                name="parent",
-                client=self._client,
-                branch=self._branch,
-                schema=parent_schema,
-                data=parent_data,
-            )
-            # Create pseudo-schema for children (many cardinality)
-            children_schema = RelationshipSchemaAPI(
-                name="children",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="many",
-                optional=True,
-            )
-            children_data = data.get("children", None) if isinstance(data, dict) else None
-            self._hierarchical_data["children"] = RelationshipManager(
-                name="children",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=children_schema,
-                data=children_data,
-            )
-            # Create pseudo-schema for ancestors (read-only, many cardinality)
-            ancestors_schema = RelationshipSchemaAPI(
-                name="ancestors",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
-            self._hierarchical_data["ancestors"] = RelationshipManager(
-                name="ancestors",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=ancestors_schema,
-                data=ancestors_data,
-            )
-            # Create pseudo-schema for descendants (read-only, many cardinality)
-            descendants_schema = RelationshipSchemaAPI(
-                name="descendants",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
-            self._hierarchical_data["descendants"] = RelationshipManager(
-                name="descendants",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=descendants_schema,
-                data=descendants_data,
-            )
+        for rel_schema in self._schema.hierarchical_relationship_schemas:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            if rel_schema.cardinality_is_one:
+                self._hierarchical_data[rel_schema.name] = RelatedNode(
+                    name=rel_schema.name,
+                    client=self._client,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
+            else:
+                self._hierarchical_data[rel_schema.name] = RelationshipManager(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -735,7 +952,12 @@ class InfrahubNode(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -744,14 +966,29 @@ class InfrahubNode(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNode(
+            new_rel = RelatedNode(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
 
     async def generate(self, nodes: list[str] | None = None) -> None:
+        """Trigger artifact generation for this artifact definition.
+
+        Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+        Args:
+            nodes (list[str], optional): The IDs of target nodes to generate artifacts
+                for. When omitted, generation runs for all targets matched by the
+                definition.
+
+        Raises:
+            FeatureNotSupportedError: If this node is not a ``CoreArtifactDefinition``.
+
+        """
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         nodes = nodes or []
@@ -760,6 +997,18 @@ class InfrahubNode(InfrahubNodeBase):
         resp.raise_for_status()
 
     async def artifact_generate(self, name: str) -> None:
+        """Regenerate a named artifact targeting this node.
+
+        Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+        :meth:`generate` on the related definition with this artifact's ID.
+
+        Args:
+            name (str): The name of the artifact to regenerate.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
@@ -767,12 +1016,35 @@ class InfrahubNode(InfrahubNodeBase):
         await artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
+        """Fetch the stored content of a named artifact for this node.
+
+        Args:
+            name (str): The name of the artifact to fetch.
+
+        Returns:
+            str | dict[str, Any]: The artifact content. Returns a parsed object for
+            JSON-typed artifacts and a string for text-typed artifacts.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
-    async def download_file(self, dest: Path | None = None) -> bytes | int:
+    @overload
+    async def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
+
+    @overload
+    async def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
+
+    async def download_file(
+        self,
+        dest: Path | None = None,
+        skip_if_unchanged: bool = False,
+    ) -> bytes | int:
         """Download the file content from this FileObject node.
 
         This method is only available for nodes that inherit from CoreFileObject.
@@ -783,14 +1055,23 @@ class InfrahubNode(InfrahubNodeBase):
                   directly to this path (memory-efficient for large files) and the
                   number of bytes written will be returned. If not provided, the
                   file content will be returned as bytes.
+            skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
+                  ``dest`` (which must be provided) and compare against the
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
-            ValueError: If the node hasn't been saved yet or file not found.
+            ValueError: If the node hasn't been saved yet, file not found, or
+                  ``skip_if_unchanged=True`` was passed without a ``dest``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -799,15 +1080,142 @@ class InfrahubNode(InfrahubNodeBase):
 
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = await contract.download_file(dest=Path("/tmp/contract.pdf"))
+
+            >>> # Skip download if local file already matches server checksum
+            >>> bytes_written = await contract.download_file(
+            ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
+            ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         if not self.id:
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
+        if skip_if_unchanged:
+            if dest is None:
+                raise ValueError("skip_if_unchanged requires dest to be provided")
+            if dest.exists() and dest.is_file():
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                    return 0
+
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 
+    async def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
+
+        Args:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
+
+        """
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
+            raise ValueError(
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
+    async def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
+
+        Args:
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
+
+        Returns:
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
+
+        """
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            self.upload_from_bytes(content=source, name=resolved_name)
+
+        await self.save()
+
+        return UploadResult(was_uploaded=True, checksum=local_digest)
+
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+        """Delete this node on the backend.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):
             input_data["context"] = context_data
@@ -832,6 +1240,25 @@ class InfrahubNode(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        """Persist this node to the backend, creating or updating it as appropriate.
+
+        New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+        nodes are updated with only the modified fields. After a successful save, the
+        node is added to the client store and, when applicable, to the active group
+        context for tracking.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, an existing node is upserted
+                instead of failing with a duplicate. Defaults to ``False``.
+            update_group_context (bool, optional): Whether to update the group context
+                with this node. When ``None`` and the client is in tracking mode, defaults
+                to ``True``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         if self._existing is False or allow_upsert is True:
             await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -919,6 +1346,36 @@ class InfrahubNode(InfrahubNodeBase):
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Generate the full GraphQL query payload for this node kind.
+
+        The returned dict combines :meth:`generate_query_data_init` with
+        :meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+        ``True``, ``...on Kind`` fragments are added for every implementing kind so the
+        relevant attributes are returned alongside the generic fields.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            fragment (bool, optional): When ``True`` and the schema is a generic, emit
+                ``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+            prefetch_relationships (bool, optional): When ``True``, pre-fetch related node
+                data instead of returning only their identifiers. Defaults to ``False``.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            property (bool, optional): When ``True``, include attribute and relationship
+                properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
+                ``relationship_metadata`` in the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
+            rendered as GraphQL.
+
+        """
         data = self.generate_query_data_init(
             filters=filters,
             offset=offset,
@@ -991,8 +1448,8 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
-        """
 
+        """
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
@@ -1010,8 +1467,7 @@ class InfrahubNode(InfrahubNodeBase):
                 if insert_alias:
                     data[attr_name]["@alias"] = f"__alias__{self._schema.kind}__{attr_name}"
             elif insert_alias:
-                if insert_alias:
-                    data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
+                data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
             if exclude and rel_name in exclude:
@@ -1039,24 +1495,8 @@ class InfrahubNode(InfrahubNodeBase):
                     include_metadata=include_metadata,
                 )
 
-            rel_data: dict[str, Any]
-            if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNode._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
-                # tries to resolve attributes in this ancestor instead of actual node. To avoid
-                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
-                # to explicit actual node kind we are querying.
-                if rel_schema.kind == RelationshipKind.HIERARCHY:
-                    data_node = rel_data["node"]
-                    rel_data["node"] = {}
-                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
-            elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManager._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-            else:
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is None:
                 continue
 
             data[rel_name] = rel_data
@@ -1077,6 +1517,16 @@ class InfrahubNode(InfrahubNodeBase):
         return data
 
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Add peers to a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only adds
+        peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to add.
+
+        """
         query = self._relationship_mutation(
             action="Add", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -1084,6 +1534,16 @@ class InfrahubNode(InfrahubNodeBase):
         await self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
     async def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only removes
+        the listed peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to remove.
+
+        """
         query = self._relationship_mutation(
             action="Remove", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -1137,6 +1597,29 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Create this node on the backend.
+
+        For nodes inheriting from ``CoreFileObject``, the file content set with
+        :meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+        mutation and cleared from the node afterward.
+
+        Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, the operation upserts instead of
+                erroring on a duplicate. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        Raises:
+            ValueError: If this is a file-object node and no file content has been set.
+
+        """
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
@@ -1193,6 +1676,24 @@ class InfrahubNode(InfrahubNodeBase):
     async def update(
         self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Update this node on the backend.
+
+        By default only the modified attributes and relationships are sent so the server
+        can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+        when unchanged, which is useful when forcing relationship reconciliation.
+
+        Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            do_full_update (bool, optional): When ``True``, send every field even when
+                unmodified. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -1248,6 +1749,7 @@ class InfrahubNode(InfrahubNodeBase):
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -1295,6 +1797,10 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             list[InfrahubNode]: The allocated nodes.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
@@ -1353,6 +1859,10 @@ class InfrahubNode(InfrahubNodeBase):
 
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -1402,11 +1912,29 @@ class InfrahubNode(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     async def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Resolve a value addressed by a flat key over this node and its related nodes.
+
+        Walks attributes on this node, descending through cardinality-one relationships
+        (which are fetched on demand) until the final component is reached. Each
+        relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+        rather than bulk traversal.
+
+        Args:
+            key (str): The flat key to resolve (for example ``"name__value"`` or
+                ``"site__name__value"``).
+            separator (str, optional): Component separator in ``key``. Defaults to ``"__"``.
+
+        Returns:
+            Any: The resolved value.
+
+        Raises:
+            ValueError: If a component does not match an attribute or relationship, or if
+                a relationship hop targets a non cardinality-one relationship.
 
         Examples:
             name__value
             module.object.value
+
         """
         if separator not in key:
             return getattr(self, key)
@@ -1434,7 +1962,18 @@ class InfrahubNode(InfrahubNodeBase):
         return await related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     async def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some data points defined in a flat notation."""
+        """Extract several values addressed by flat keys into a labeled dict.
+
+        Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+        corresponding key is preserved as the output label.
+
+        Args:
+            params (dict[str, str]): A mapping of output label to flat key to resolve.
+
+        Returns:
+            dict[str, Any]: The resolved values keyed by their output label.
+
+        """
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = await self.get_flat_value(key=value)
@@ -1452,7 +1991,18 @@ class InfrahubNode(InfrahubNodeBase):
 
 
 class InfrahubNodeSync(InfrahubNodeBase):
-    """Represents a Infrahub node in a synchronous context."""
+    """Synchronous Infrahub node bound to an :class:`InfrahubClientSync`.
+
+    Synchronous counterpart of :class:`InfrahubNode`. Provides full CRUD against the
+    backend (:meth:`save`, :meth:`create`, :meth:`update`, :meth:`delete`) along with
+    relationship traversal (:meth:`get_flat_value`, :meth:`extract`), feature-gated
+    artifact and resource-pool helpers (:meth:`artifact_generate`,
+    :meth:`get_pool_allocated_resources`), and file upload or download for nodes
+    inheriting from ``CoreFileObject``.
+
+    Attributes and relationships defined on the schema are exposed as instance
+    attributes via attribute-style access (``node.name.value``, ``node.parent``).
+    """
 
     def __init__(
         self,
@@ -1461,12 +2011,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
         branch: str | None = None,
         data: dict | None = None,
     ) -> None:
-        """
+        """Initialize the sync node.
+
         Args:
             client (InfrahubClientSync): The client used to interact with the backend synchronously.
             schema (MainSchemaTypes): The schema of the node.
             branch (Optional[str]): The branch where the node resides.
             data (Optional[dict]): Optional data to initialize the node.
+
         """
         self._client = client
         self._file_handler = FileHandlerSync(client=client)
@@ -1497,6 +2049,27 @@ class InfrahubNodeSync(InfrahubNodeBase):
         schema: MainSchemaTypesAPI | None = None,
         timeout: int | None = None,
     ) -> Self:
+        """Build an :class:`InfrahubNodeSync` from a raw GraphQL response.
+
+        When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+        payload and the schema is fetched from the client.
+
+        Args:
+            client (InfrahubClientSync): The client used to interact with the backend.
+            branch (str): The branch the node belongs to.
+            data (dict): The GraphQL payload describing the node.
+            schema (MainSchemaTypesAPI, optional): Pre-fetched schema for the node kind.
+                Skips the schema lookup when provided.
+            timeout (int, optional): Overrides the default timeout used when fetching the
+                schema. Specified in seconds.
+
+        Returns:
+            InfrahubNodeSync: The hydrated node instance.
+
+        Raises:
+            ValueError: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
+        """
         if not schema:
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
@@ -1509,7 +2082,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
-            if rel_schema.cardinality == "one":
+            if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNodeSync):
                     peer_id_data: dict[str, Any] = {
                         key: value
@@ -1537,77 +2110,25 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 )
 
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
-        if self._hierarchy_support:
-            # Create pseudo-schema for parent (cardinality one)
-            parent_schema = RelationshipSchemaAPI(
-                name="parent",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="one",
-                optional=True,
-            )
-            parent_data = data.get("parent", None) if isinstance(data, dict) else None
-            self._hierarchical_data["parent"] = RelatedNodeSync(
-                name="parent",
-                client=self._client,
-                branch=self._branch,
-                schema=parent_schema,
-                data=parent_data,
-            )
-
-            # Create pseudo-schema for children (many cardinality)
-            children_schema = RelationshipSchemaAPI(
-                name="children",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                kind=RelationshipKind.HIERARCHY,
-                cardinality="many",
-                optional=True,
-            )
-            children_data = data.get("children", None) if isinstance(data, dict) else None
-            self._hierarchical_data["children"] = RelationshipManagerSync(
-                name="children",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=children_schema,
-                data=children_data,
-            )
-
-            # Create pseudo-schema for ancestors (read-only, many cardinality)
-            ancestors_schema = RelationshipSchemaAPI(
-                name="ancestors",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            ancestors_data = data.get("ancestors", None) if isinstance(data, dict) else None
-            self._hierarchical_data["ancestors"] = RelationshipManagerSync(
-                name="ancestors",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=ancestors_schema,
-                data=ancestors_data,
-            )
-
-            # Create pseudo-schema for descendants (read-only, many cardinality)
-            descendants_schema = RelationshipSchemaAPI(
-                name="descendants",
-                peer=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
-                cardinality="many",
-                read_only=True,
-                optional=True,
-            )
-            descendants_data = data.get("descendants", None) if isinstance(data, dict) else None
-            self._hierarchical_data["descendants"] = RelationshipManagerSync(
-                name="descendants",
-                client=self._client,
-                node=self,
-                branch=self._branch,
-                schema=descendants_schema,
-                data=descendants_data,
-            )
+        for rel_schema in self._schema.hierarchical_relationship_schemas:
+            rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            if rel_schema.cardinality_is_one:
+                self._hierarchical_data[rel_schema.name] = RelatedNodeSync(
+                    name=rel_schema.name,
+                    client=self._client,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
+            else:
+                self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
+                    name=rel_schema.name,
+                    client=self._client,
+                    node=self,
+                    branch=self._branch,
+                    schema=rel_schema,
+                    data=rel_data,
+                )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -1622,7 +2143,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Set values for relationship names that exist or revert to normal behaviour"""
+        """Set values for relationship names that exist or revert to normal behaviour.
+
+        Raises:
+            SchemaNotFoundError: If a matching relationship schema cannot be found for ``name``.
+
+        """
         if "_relationship_cardinality_one_data" in self.__dict__ and name in self._relationship_cardinality_one_data:
             rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
             if not rel_schemas:
@@ -1631,14 +2157,29 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNodeSync(
+            new_rel = RelatedNodeSync(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
 
     def generate(self, nodes: list[str] | None = None) -> None:
+        """Trigger artifact generation for this artifact definition.
+
+        Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+        Args:
+            nodes (list[str], optional): The IDs of target nodes to generate artifacts
+                for. When omitted, generation runs for all targets matched by the
+                definition.
+
+        Raises:
+            FeatureNotSupportedError: If this node is not a ``CoreArtifactDefinition``.
+
+        """
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         nodes = nodes or []
         payload = {"nodes": nodes}
@@ -1646,17 +2187,52 @@ class InfrahubNodeSync(InfrahubNodeBase):
         resp.raise_for_status()
 
     def artifact_generate(self, name: str) -> None:
+        """Regenerate a named artifact targeting this node.
+
+        Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+        :meth:`generate` on the related definition with this artifact's ID.
+
+        Args:
+            name (str): The name of the artifact to regenerate.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         artifact._get_relationship_one(name="definition").fetch()
         artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
+        """Fetch the stored content of a named artifact for this node.
+
+        Args:
+            name (str): The name of the artifact to fetch.
+
+        Returns:
+            str | dict[str, Any]: The artifact content. Returns a parsed object for
+            JSON-typed artifacts and a string for text-typed artifacts.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
 
-    def download_file(self, dest: Path | None = None) -> bytes | int:
+    @overload
+    def download_file(self, dest: None = None, skip_if_unchanged: bool = ...) -> bytes: ...
+
+    @overload
+    def download_file(self, dest: Path, skip_if_unchanged: bool = ...) -> int: ...
+
+    def download_file(
+        self,
+        dest: Path | None = None,
+        skip_if_unchanged: bool = False,
+    ) -> bytes | int:
         """Download the file content from this FileObject node.
 
         This method is only available for nodes that inherit from CoreFileObject.
@@ -1667,14 +2243,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
                   directly to this path (memory-efficient for large files) and the
                   number of bytes written will be returned. If not provided, the
                   file content will be returned as bytes.
+            skip_if_unchanged: When ``True``, compute the SHA-1 of the file at
+                  ``dest`` (which must be provided) and compare against the
+                  node's ``checksum`` attribute. If they match, return ``0``
+                  without hitting the network. The ``checksum`` is the value
+                  loaded when this node was fetched — a later server-side
+                  change to the file will not be detected unless the caller
+                  re-fetches the node first.
 
         Returns:
             If ``dest`` is None: The file content as bytes.
             If ``dest`` is provided: The number of bytes written to the file.
+            If ``skip_if_unchanged=True`` and the local file matches the server checksum: ``0``.
 
         Raises:
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
-            ValueError: If the node hasn't been saved yet or file not found.
+            ValueError: If the node hasn't been saved yet, file not found, or
+                  ``skip_if_unchanged=True`` was passed without a ``dest``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -1683,15 +2268,142 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
             >>> # Stream to file (memory-efficient for large files)
             >>> bytes_written = contract.download_file(dest=Path("/tmp/contract.pdf"))
+
+            >>> # Skip download if local file already matches server checksum
+            >>> bytes_written = contract.download_file(
+            ...     dest=Path("/tmp/contract.pdf"), skip_if_unchanged=True
+            ... )
+
         """
         self._validate_file_object_support(message=FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         if not self.id:
             raise ValueError("Cannot download file for a node that hasn't been saved yet.")
 
+        if skip_if_unchanged:
+            if dest is None:
+                raise ValueError("skip_if_unchanged requires dest to be provided")
+            if dest.exists() and dest.is_file():
+                server_checksum = self.checksum  # type: ignore[attr-defined]
+                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                    return 0
+
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
 
+    def matches_local_checksum(self, source: bytes | Path | BinaryIO) -> bool:
+        """Return True if ``source``'s SHA-1 matches this node's server checksum.
+
+        Only available for nodes inheriting from ``CoreFileObject``. Callers
+        that want to branch on the comparison without invoking a transfer
+        should use this primitive instead of reading ``node.checksum.value``
+        and hashing ``source`` themselves, so the hashing convention stays
+        centralised in the SDK.
+
+        The comparison is against the ``checksum`` attribute as loaded
+        when this node was retrieved from the server. If the server's
+        file has been replaced since the node was fetched, this method
+        will not see that change — re-fetch the node to refresh the
+        checksum before comparing.
+
+        Args:
+            source: Local content to hash and compare. Accepts the same
+                shapes as :func:`infrahub_sdk.file_handler.sha1_of_source`.
+
+        Returns:
+            True if the local digest equals the server's stored checksum.
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: Node has no server-side checksum yet (unsaved or
+                file never attached).
+
+        """
+        self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        if server_checksum.value is None:  # type: ignore[union-attr]
+            raise ValueError(
+                f"{self._schema.kind} node has no server-side checksum; "
+                "ensure the node has been saved with file content attached before comparing."
+            )
+
+        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+
+    def upload_if_changed(
+        self,
+        source: bytes | Path | BinaryIO,
+        name: str | None = None,
+    ) -> UploadResult:
+        """Upload ``source`` only if its SHA-1 differs from the server checksum.
+
+        Composes :meth:`matches_local_checksum` with :meth:`upload_from_path`
+        (or :meth:`upload_from_bytes`) and :meth:`save`. For unsaved nodes or
+        nodes that have no prior server-side file, the upload is always
+        performed — there is nothing to compare against.
+
+        Idempotency is content-only: when the local SHA-1 matches the server
+        checksum the upload is skipped even if ``name`` differs from the
+        server-side filename. Use a regular :meth:`upload_from_path` /
+        :meth:`save` round-trip if you need to rename without changing
+        content.
+
+        Args:
+            source: Content to upload. ``bytes`` and ``BinaryIO`` sources
+                must supply ``name``; for a ``Path`` the filename is derived
+                from ``source.name`` when ``name`` is omitted.
+            name: Filename to use on the server. Required for ``bytes`` /
+                ``BinaryIO`` sources.
+
+        Returns:
+            :class:`UploadResult` with ``was_uploaded=False`` (skipped) or
+            ``was_uploaded=True`` (transfer occurred), and the resulting server
+            checksum (``None`` only when no server checksum was available
+            after the operation).
+
+        Raises:
+            FeatureNotSupportedError: Node is not a ``CoreFileObject``.
+            ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
+                ``name`` was supplied.
+
+        """
+        self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
+
+        resolved_name: str | None = name
+        if resolved_name is None and isinstance(source, Path):
+            resolved_name = source.name
+        if resolved_name is None:
+            raise ValueError("name is required when source is bytes or BinaryIO")
+
+        # Short-circuit only if we have a server checksum to compare against.
+        server_checksum = self.checksum  # type: ignore[attr-defined]
+        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+
+        # Compute digest before staging — source may only be readable once.
+        local_digest = sha1_of_source(source)
+
+        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
+            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+
+        # Either no server state, or checksum mismatched — stage + save.
+        if isinstance(source, Path):
+            self.upload_from_path(path=source)
+        else:
+            self.upload_from_bytes(content=source, name=resolved_name)
+
+        self.save()
+
+        return UploadResult(was_uploaded=True, checksum=local_digest)
+
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+        """Delete this node on the backend.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):
             input_data["context"] = context_data
@@ -1716,6 +2428,25 @@ class InfrahubNodeSync(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        """Persist this node to the backend, creating or updating it as appropriate.
+
+        New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+        nodes are updated with only the modified fields. After a successful save, the
+        node is added to the client store and, when applicable, to the active group
+        context for tracking.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, an existing node is upserted
+                instead of failing with a duplicate. Defaults to ``False``.
+            update_group_context (bool, optional): Whether to update the group context
+                with this node. When ``None`` and the client is in tracking mode, defaults
+                to ``True``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         if self._existing is False or allow_upsert is True:
             self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -1799,6 +2530,36 @@ class InfrahubNodeSync(InfrahubNodeBase):
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Generate the full GraphQL query payload for this node kind.
+
+        The returned dict combines :meth:`generate_query_data_init` with
+        :meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+        ``True``, ``...on Kind`` fragments are added for every implementing kind so the
+        relevant attributes are returned alongside the generic fields.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            fragment (bool, optional): When ``True`` and the schema is a generic, emit
+                ``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+            prefetch_relationships (bool, optional): When ``True``, pre-fetch related node
+                data instead of returning only their identifiers. Defaults to ``False``.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            property (bool, optional): When ``True``, include attribute and relationship
+                properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
+                ``relationship_metadata`` in the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
+            rendered as GraphQL.
+
+        """
         data = self.generate_query_data_init(
             filters=filters,
             offset=offset,
@@ -1870,8 +2631,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
-        """
 
+        """
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
@@ -1889,8 +2650,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 if insert_alias:
                     data[attr_name]["@alias"] = f"__alias__{self._schema.kind}__{attr_name}"
             elif insert_alias:
-                if insert_alias:
-                    data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
+                data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
             if exclude and rel_name in exclude:
@@ -1918,24 +2678,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     include_metadata=include_metadata,
                 )
 
-            rel_data: dict[str, Any]
-            if rel_schema and rel_schema.cardinality == "one":
-                rel_data = RelatedNodeSync._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-                # Nodes involved in a hierarchy are required to inherit from a common ancestor node, and graphql
-                # tries to resolve attributes in this ancestor instead of actual node. To avoid
-                # invalid queries issues when attribute is missing in the common ancestor, we use a fragment
-                # to explicit actual node kind we are querying.
-                if rel_schema.kind == RelationshipKind.HIERARCHY:
-                    data_node = rel_data["node"]
-                    rel_data["node"] = {}
-                    rel_data["node"][f"...on {rel_schema.peer}"] = data_node
-            elif rel_schema and rel_schema.cardinality == "many":
-                rel_data = RelationshipManagerSync._generate_query_data(
-                    peer_data=peer_data, property=property, include_metadata=include_metadata
-                )
-            else:
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is None:
                 continue
 
             data[rel_name] = rel_data
@@ -1960,6 +2704,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         relation_to_update: str,
         related_nodes: list[str],
     ) -> None:
+        """Add peers to a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only adds
+        peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to add.
+
+        """
         query = self._relationship_mutation(
             action="Add", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -1967,6 +2721,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
     def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only removes
+        the listed peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to remove.
+
+        """
         query = self._relationship_mutation(
             action="Remove", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -2020,6 +2784,29 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Create this node on the backend.
+
+        For nodes inheriting from ``CoreFileObject``, the file content set with
+        :meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+        mutation and cleared from the node afterward.
+
+        Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, the operation upserts instead of
+                erroring on a duplicate. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        Raises:
+            ValueError: If this is a file-object node and no file content has been set.
+
+        """
+        self._validate_upsert(allow_upsert=allow_upsert)
+
         if self._file_object_support and self._file_content is None:
             raise ValueError(
                 f"Cannot create {self._schema.kind} without file content. Use upload_from_path() or upload_from_bytes() to provide "
@@ -2074,6 +2861,24 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def update(
         self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Update this node on the backend.
+
+        By default only the modified attributes and relationships are sent so the server
+        can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+        when unchanged, which is useful when forcing relationship reconciliation.
+
+        Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            do_full_update (bool, optional): When ``True``, send every field even when
+                unmodified. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -2129,6 +2934,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+
         """
         for rel_name in self._relationships:
             rel = getattr(self, rel_name)
@@ -2176,6 +2982,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             list[InfrahubNodeSync]: The allocated nodes.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
@@ -2234,6 +3044,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Returns:
             list[dict[str, Any]]: A list containing the allocation numbers for each resource of the pool.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
         """
         if not self.is_resource_pool():
             raise ValueError("Pool utilization can only be fetched for resource pool nodes.")
@@ -2283,11 +3097,29 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects
+        """Resolve a value addressed by a flat key over this node and its related nodes.
+
+        Walks attributes on this node, descending through cardinality-one relationships
+        (which are fetched on demand) until the final component is reached. Each
+        relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+        rather than bulk traversal.
+
+        Args:
+            key (str): The flat key to resolve (for example ``"name__value"`` or
+                ``"site__name__value"``).
+            separator (str, optional): Component separator in ``key``. Defaults to ``"__"``.
+
+        Returns:
+            Any: The resolved value.
+
+        Raises:
+            ValueError: If a component does not match an attribute or relationship, or if
+                a relationship hop targets a non cardinality-one relationship.
 
         Examples:
             name__value
             module.object.value
+
         """
         if separator not in key:
             return getattr(self, key)
@@ -2315,7 +3147,18 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some data points defined in a flat notation."""
+        """Extract several values addressed by flat keys into a labeled dict.
+
+        Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+        corresponding key is preserved as the output label.
+
+        Args:
+            params (dict[str, str]): A mapping of output label to flat key to resolve.
+
+        Returns:
+            dict[str, Any]: The resolved values keyed by their output label.
+
+        """
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = self.get_flat_value(key=value)

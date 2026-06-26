@@ -19,8 +19,8 @@ CONVERT_OBJECT_MUTATION = """
 
 
 class ConversionFieldValue(BaseModel):  # Only one of these fields can be not None
-    """
-    Holds the new value of the destination field during an object conversion.
+    """Holds the new value of the destination field during an object conversion.
+
     Use `attribute_value` to specify the new raw value of an attribute.
     Use `peer_id` to specify new peer of a cardinality one relationship.
     Use `peers_ids` to specify new peers of a cardinality many relationship.
@@ -41,8 +41,8 @@ class ConversionFieldValue(BaseModel):  # Only one of these fields can be not No
 
 
 class ConversionFieldInput(BaseModel):
-    """
-    Indicates how to fill in the value of the destination field during an object conversion.
+    """Indicates how to fill in the value of the destination field during an object conversion.
+
     Use `source_field` to reuse the value of the corresponding field of the object being converted.
     Use `data` to specify the new value for the field.
     Use `use_default_value` to set the destination field to its schema default.

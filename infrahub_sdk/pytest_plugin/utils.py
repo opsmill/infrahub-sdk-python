@@ -19,6 +19,7 @@ def find_repository_config_file(base_path: Path | None = None) -> Path:
 
     Raises:
         FileNotFoundError: If neither .infrahub.yml nor .infrahub.yaml exists.
+
     """
     if base_path is None:
         base_path = Path()

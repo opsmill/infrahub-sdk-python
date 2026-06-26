@@ -5,8 +5,6 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pytest
-
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.file_object import (
     PDF_MAGIC_BYTES,
@@ -20,7 +18,6 @@ if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
 
 
-@pytest.mark.xfail(reason="Requires Infrahub 1.8+")
 class TestFileObjectAsync(TestInfrahubDockerClient, SchemaFileObject):
     """Async integration tests for FileObject functionality."""
 
@@ -138,7 +135,6 @@ class TestFileObjectAsync(TestInfrahubDockerClient, SchemaFileObject):
         assert updated.checksum.value == contract_to_update.checksum.value
 
 
-@pytest.mark.xfail(reason="Requires Infrahub 1.8+")
 class TestFileObjectSync(TestInfrahubDockerClient, SchemaFileObject):
     """Sync integration tests for FileObject functionality."""
 

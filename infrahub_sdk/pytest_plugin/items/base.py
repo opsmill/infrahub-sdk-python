@@ -36,7 +36,12 @@ class InfrahubItem(pytest.Item):
             self.test.spec.update_paths(base_dir=self.path.parent)
 
     def validate_resource_config(self) -> None:
-        """Make sure that a test resource config is properly defined."""
+        """Make sure that a test resource config is properly defined.
+
+        Raises:
+            InvalidResourceConfigError: If the resource config is missing.
+
+        """
         if self.resource_config is None:
             raise InvalidResourceConfigError(self.resource_name)
 
@@ -73,7 +78,7 @@ class InfrahubItem(pytest.Item):
 
     @property
     def repository_base(self) -> str:
-        """Return the path to the root of the repository
+        """Return the path to the root of the repository.
 
         This will be an absolute path if --infrahub-config-path is an absolute path as happens when
         tests are started from within Infrahub server.

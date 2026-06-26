@@ -82,6 +82,9 @@ def return_annotation_map() -> dict[str, str]:
         "InfrahubBatch": "InfrahubBatchSync",
         "CoreNode | None": "CoreNodeSync | None",
         "str | type[SchemaType]": "str | type[SchemaTypeSync]",
+        "str | InfrahubNode": "str | InfrahubNodeSync",
+        "list[str | type[SchemaType]]": "list[str | type[SchemaTypeSync]]",
+        "list[str | type[SchemaType]] | None": "list[str | type[SchemaTypeSync]] | None",
         "InfrahubNode | SchemaType": "InfrahubNodeSync | SchemaTypeSync",
         "InfrahubNode | SchemaType | None": "InfrahubNodeSync | SchemaTypeSync | None",
         "list[InfrahubNode] | list[SchemaType]": "list[InfrahubNodeSync] | list[SchemaTypeSync]",
@@ -2079,7 +2082,7 @@ async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 @pytest.fixture
 def query_01() -> str:
-    """Simple query with one document"""
+    """Simple query with one document."""
     return """
     query {
         TestPerson {
@@ -2151,7 +2154,7 @@ def query_02() -> str:
 
 @pytest.fixture
 def query_03() -> str:
-    """Advanced Query with 2 documents"""
+    """Advanced Query with 2 documents."""
     return """
     query FirstQuery {
         TestPerson {
@@ -2190,7 +2193,7 @@ def query_03() -> str:
 
 @pytest.fixture
 def query_04() -> str:
-    """Simple query with variables"""
+    """Simple query with variables."""
     return """
     query ($person: String!){
         TestPerson(name__value: $person) {
@@ -2240,7 +2243,7 @@ def query_05() -> str:
 
 @pytest.fixture
 def query_06() -> str:
-    """Simple query with variables"""
+    """Simple query with variables."""
     return """
     query (
         $str1: String,

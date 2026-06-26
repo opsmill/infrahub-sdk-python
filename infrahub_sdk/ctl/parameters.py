@@ -4,7 +4,7 @@ from ..ctl import config
 
 
 def load_configuration(value: str) -> str:
-    """Load the configuration file using default environment variables or from the specified configuration file"""
+    """Load the configuration file using default environment variables or from the specified configuration file."""
     config.SETTINGS.load_and_exit(config_file=value)
     return value
 
