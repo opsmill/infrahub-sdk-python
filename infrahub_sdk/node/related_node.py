@@ -73,9 +73,11 @@ class RelatedNodeBase:
         # so we don't silently null-clear unfetched relationships on save.
         self._peer_has_been_mutated: bool = False
 
-        # Check for InfrahubNodeBase instances using duck-typing (_schema attribute)
-        # to avoid circular imports, or CoreNodeBase instances
-        if isinstance(data, CoreNodeBase) or hasattr(data, "_schema"):
+        # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
+        # circular import (node.py imports this module at load time).
+        from .node import InfrahubNodeBase as _InfrahubNodeBase  # noqa: PLC0415
+
+        if isinstance(data, (CoreNodeBase, _InfrahubNodeBase)):
             self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)

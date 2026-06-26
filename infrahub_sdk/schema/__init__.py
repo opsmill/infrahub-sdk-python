@@ -254,8 +254,9 @@ class InfrahubSchemaBase:
         if isinstance(schema, str):
             return schema
 
-        if issubclass(schema, CoreNodeBase):
-            if inspect.iscoroutinefunction(schema.save):
+        if isinstance(schema, type) and issubclass(schema, CoreNodeBase):
+            save = getattr(schema, "save", None)
+            if save is not None and inspect.iscoroutinefunction(save):
                 return schema.__name__
             if schema.__name__[-4:] == "Sync":
                 return schema.__name__[:-4]

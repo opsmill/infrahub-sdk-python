@@ -37,19 +37,39 @@ class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement
     transformation: str = Field(..., description="The transformation to use.")
 
 
+class InfrahubWatchConfig(BaseModel):
+    """Extra files and directories a transform depends on.
+
+    Infrahub already detects the files a transform reads directly. Use this when a transform also
+    depends on files that cannot be detected automatically, such as templates pulled in dynamically
+    or helper modules imported at runtime. When any watched file changes, the transform's artifacts
+    are regenerated.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    files: list[str] = Field(
+        default_factory=list,
+        description="Files or directories the transform depends on, relative to the repository root. A directory watches every file beneath it.",
+    )
+
+
 class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the transform")
     query: str = Field(..., description="The name of the GraphQL Query")
     template_path: Path = Field(..., description="The path within the repository of the template file")
     description: str | None = Field(default=None, description="Description for this transform")
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     @property
     def template_path_value(self) -> str:
         return str(self.template_path)
 
     @property
-    def payload(self) -> dict[str, str]:
+    def payload(self) -> dict[str, Any]:
         data = self.model_dump(exclude_none=True)
         data["template_path"] = self.template_path_value
         return data
@@ -137,6 +157,10 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
         description="Decide if the transform should convert the result of the GraphQL query to SDK InfrahubNode objects.",
     )
     description: str | None = Field(default=None, description="Description for this transform")
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubTransform]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
