@@ -745,10 +745,13 @@ class InfrahubNodeBase:
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
     def _validate_upsert(self, allow_upsert: bool) -> None:
-        """Ensure an upsert can resolve the HFID before attempting to save.
+        """Block an upsert that would silently duplicate because an HFID attribute is pool-sourced.
 
-        An attribute sourced from a CoreNumberPool has no concrete value until the node is
-        created, so it cannot be used to look up an existing node by its human-friendly identifier.
+        A CoreNumberPool assigns its value when the node is created on the server, and a new
+        value on every creation. When such an attribute is part of the human-friendly identifier,
+        the HFID is never stable, so an upsert can never match an existing node by it: instead of
+        updating, each call creates another node. Fail fast with guidance rather than duplicating
+        data silently.
 
         Raises:
             ValidationError: If an HFID attribute is sourced from an unresolved CoreNumberPool.
@@ -768,9 +771,11 @@ class InfrahubNodeBase:
                     identifier=attr_name,
                     message=(
                         f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
-                        "this node's human-friendly identifier. Upsert cannot resolve the HFID "
-                        "without a concrete value. Use an explicit id, or create the node first "
-                        "and update it in a separate call."
+                        "this node's human-friendly identifier (HFID). The pool assigns a new value "
+                        "each time the node is created, so the HFID is never stable: an upsert cannot "
+                        "match an existing node by it, and every run would silently create a duplicate. "
+                        "To manage this node idempotently, look it up first by a stable attribute or "
+                        "relationship and reuse it, or set an explicit id before saving."
                     ),
                 )
 
