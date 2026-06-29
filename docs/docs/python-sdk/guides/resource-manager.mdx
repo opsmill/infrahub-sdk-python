@@ -325,7 +325,7 @@ await vlan.save()
 
 ### Limitation: `allow_upsert=True` with a pool-sourced HFID attribute
 
-`CoreNumberPool` assigns the integer value at server creation time. The SDK does not know the assigned value before the node exists. When a node's human-friendly identifier (HFID) includes a pool-sourced attribute, the SDK cannot construct the HFID needed to look up an existing node for upsert.
+`CoreNumberPool` assigns the integer value at server creation time, and a new value on each creation. When a node's human-friendly identifier (HFID) includes a pool-sourced attribute, the HFID is never stable, so an upsert can never match an existing node by it. Rather than updating, each `save(allow_upsert=True)` would create another node. The SDK blocks this up front to avoid silently duplicating data.
 
 :::warning
 
@@ -339,28 +339,31 @@ vlan = await client.create(
     vlan_id={"from_pool": {"id": pool_id}},
 )
 
-# This raises ValidationError — the pool-assigned vlan_id is unknown client-side
+# This raises ValidationError - vlan_id is pool-sourced and in the HFID, so the upsert can't be idempotent
 await vlan.save(allow_upsert=True)
 ```
 
 **Alternatives:**
 
-- **Two-step pattern** — create the node first, then update it in a separate call:
+- **Look up and reuse** - find the existing node by a stable attribute or relationship and reuse it, otherwise create it once. This is the idempotent pattern to use in generators:
 
   ```python
-  await vlan.save()           # creates node, pool assigns vlan_id
-  # later, if you need to update:
-  vlan.name.value = "VLAN-100-updated"
-  await vlan.save()           # now _existing=True, calls update
+  existing = await client.filters(kind="InfraVLAN", service__ids=[service.id])
+  vlan = existing[0] if existing else await client.create(
+      kind="InfraVLAN",
+      name="VLAN-100",
+      vlan_id={"from_pool": {"id": pool_id}},
+  )
+  await vlan.save()           # creates on first run, pool assigns vlan_id; reuses afterwards
   ```
 
-- **Explicit id** — if you already know the node's UUID, set `node.id` before saving. The upsert will use the UUID directly and skip HFID lookup:
+- **Explicit id** - if you already know the node's UUID, set `node.id` before saving. The upsert will use the UUID directly and skip HFID lookup:
 
   ```python
   vlan.id = "known-uuid"
-  await vlan.save(allow_upsert=True)  # guard bypassed
+  await vlan.save(allow_upsert=True)  # matches on the id directly, no HFID lookup needed
   ```
 
-- **Deterministic identifier** — if possible, design your schema so the HFID uses a non-pool attribute (for example, a human-assigned `name`) and keep `vlan_id` out of the HFID.
+- **Deterministic identifier** - if possible, design your schema so the HFID uses a non-pool attribute (for example, a human-assigned `name`) and keep `vlan_id` out of the HFID.
 
 :::
