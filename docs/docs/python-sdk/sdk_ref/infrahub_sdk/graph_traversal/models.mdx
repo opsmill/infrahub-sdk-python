@@ -1,0 +1,70 @@
+---
+title: models
+sidebarTitle: models
+---
+
+# `infrahub_sdk.graph_traversal.models`
+
+Pydantic models for the Infrahub graph-traversal queries (Infrahub 1.10+).
+
+These mirror the server GraphQL types for ``InfrahubPathTraversal`` and
+``InfrahubReachableNodes``. The server returns snake_case field names, so the
+Python attributes map directly without aliasing. Models ignore unknown fields
+so additive server changes do not break parsing.
+
+## Classes
+
+### `GraphTraversalModel`
+
+Base for all traversal models: tolerate unknown/extra server fields.
+
+### `PathNode`
+
+Identity of a node encountered during a traversal.
+
+This is a lightweight identity (no attributes or relationships). Use
+:meth:`fetch` to resolve it into the full SDK node when needed.
+
+**Methods:**
+
+#### `fetch`
+
+```python
+fetch(self, timeout: int | None = None) -> Any
+```
+
+Resolve this node into the full SDK node.
+
+On an async client you await the return value (``await node.fetch()``); on a
+sync client it returns the node directly. The result is added to the client store,
+so fetching the same id again is served from the store.
+
+**Raises:**
+
+- `Error`: If this node is not bound to a client (for example, constructed manually).
+
+### `PathRelationship`
+
+A relationship (edge) traversed between two nodes.
+
+### `PathHop`
+
+A single step in a path: the node visited and the relationship used to reach it.
+
+``relationship`` is ``None`` for the source-anchored first hop.
+
+### `Path`
+
+One route between two nodes, as an ordered list of hops.
+
+### `PathTraversalResult`
+
+Result of :meth:`InfrahubClient.traverse_paths`.
+
+### `ReachableNode`
+
+A node reachable from the source, with the path used to reach it.
+
+### `ReachableNodesResult`
+
+Result of :meth:`InfrahubClient.reachable_nodes`.

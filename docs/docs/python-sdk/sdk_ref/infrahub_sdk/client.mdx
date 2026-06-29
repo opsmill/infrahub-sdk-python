@@ -119,6 +119,103 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 
 Return the number of nodes of a given kind.
 
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+kind-name strings and/or generated protocol classes. ``relationship_filter``
+matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_paths`: Maximum number of paths to return.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNode, destination: str | InfrahubNode) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNode, target_kinds: list[str | type[SchemaType]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_results`: Maximum number of reachable nodes to return.
+- `max_paths`: Maximum number of paths to compute per reachable node.
+- `shortest_paths_only`: When True, only return the shortest path(s) to each node.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
 #### `all`
 
 ```python
@@ -224,7 +321,7 @@ Return a cloned version of the client using the same configuration.
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -238,6 +335,8 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 
@@ -525,7 +624,7 @@ Return a cloned version of the client using the same configuration.
 #### `execute_graphql`
 
 ```python
-execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None) -> dict
+execute_graphql(self, query: str, variables: dict | None = None, branch_name: str | None = None, at: str | Timestamp | None = None, timeout: int | None = None, tracker: str | None = None, operation_name: str | None = None) -> dict
 ```
 
 Execute a GraphQL query (or mutation).
@@ -539,6 +638,8 @@ If retry_on_failure is True, the query will retry until the server becomes reach
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
 - `at`: Time when the query should be executed. Defaults to None.
 - `timeout`: Timeout in second for the query. Defaults to None.
+- `operation_name`: GraphQL operation name, sent as `operationName` in the request payload
+so tracing/observability tools can identify the operation. Defaults to None.
 
 **Returns:**
 
@@ -559,6 +660,103 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 ```
 
 Return the number of nodes of a given kind.
+
+#### `traverse_paths`
+
+```python
+traverse_paths(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> PathTraversalResult
+```
+
+Find the shortest path(s) between two nodes in the graph.
+
+Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+kind-name strings and/or generated protocol classes. ``relationship_filter``
+matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+not the per-side names shown in the result.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_paths`: Maximum number of paths to return.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `path_exists`
+
+```python
+path_exists(self, source: str | InfrahubNodeSync, destination: str | InfrahubNodeSync) -> bool
+```
+
+Return whether at least one path connects ``source`` to ``destination``.
+
+Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `kind_filter`: Only traverse through nodes of these kinds.
+- `relationship_filter`: Only traverse through these schema relationship identifiers.
+- `excluded_namespaces`: Schema namespaces to exclude from traversal.
+- `excluded_kinds`: Node kinds to exclude from traversal.
+- `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
+
+#### `reachable_nodes`
+
+```python
+reachable_nodes(self, source: str | InfrahubNodeSync, target_kinds: list[str | type[SchemaTypeSync]]) -> ReachableNodesResult
+```
+
+Find all nodes of the given kinds reachable from a source node.
+
+``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+Requires Infrahub 1.10 or later.
+
+**Args:**
+
+- `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+- `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
+- `max_depth`: Maximum number of relationship hops to explore.
+- `max_results`: Maximum number of reachable nodes to return.
+- `max_paths`: Maximum number of paths to compute per reachable node.
+- `shortest_paths_only`: When True, only return the shortest path(s) to each node.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+
+**Raises:**
+
+- `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
+- `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
 #### `all`
 

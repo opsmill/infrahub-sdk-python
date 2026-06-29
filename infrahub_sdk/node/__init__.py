@@ -16,7 +16,13 @@ from .constants import (
 from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync, UploadResult
 from .parsers import parse_human_friendly_id
 from .property import NodeProperty
-from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
+from .related_node import (
+    RelatedNode,
+    RelatedNodeBase,
+    RelatedNodeSync,
+    RelationshipAttribute,
+    RelationshipAttributeSync,
+)
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
 
 __all__ = [
@@ -38,6 +44,8 @@ __all__ = [
     "RelatedNode",
     "RelatedNodeBase",
     "RelatedNodeSync",
+    "RelationshipAttribute",
+    "RelationshipAttributeSync",
     "RelationshipManager",
     "RelationshipManagerBase",
     "RelationshipManagerSync",

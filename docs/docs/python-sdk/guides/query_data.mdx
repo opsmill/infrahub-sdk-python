@@ -668,29 +668,50 @@ Relationship metadata tracks changes to the relationship edge itself (for exampl
 
 ## Ordering query results
 
-You can control the order in which query results are returned using the `order` argument. This is particularly useful when you need results sorted by metadata fields like creation or update timestamps.
+You can control the order in which query results are returned using the `order` argument. Results can be ordered by attributes, related-node attributes, or object metadata such as creation and update timestamps.
 
-### Ordering by node metadata
+### Ordering by fields
 
-Use the `Order` and `NodeMetaOrder` classes along with `OrderDirection` to specify how results should be ordered.
+Use the `Order` and `OrderByEntry` classes along with `OrderDirection` to order results by one or more fields. Each `OrderByEntry` takes a `field` and an optional `direction` (defaulting to `OrderDirection.ASC`). The entries are applied in order, so the first entry is the primary sort key.
+
+A `field` can reference:
+
+- an attribute, e.g. `name__value`
+- a related-node attribute, e.g. `owner__name__value`
+- node metadata, e.g. `node_metadata__created_at` or `node_metadata__updated_at`
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
   ```python
   from infrahub_sdk.enums import OrderDirection
-  from infrahub_sdk.types import NodeMetaOrder, Order
+  from infrahub_sdk.types import Order, OrderByEntry
+
+  # Get devices ordered by name (ascending is the default)
+  devices = await client.all(
+      kind="TestDevice",
+      order=Order(by=[OrderByEntry(field="name__value")])
+  )
 
   # Get devices ordered by creation time (oldest first)
   devices = await client.all(
       kind="TestDevice",
-      order=Order(node_metadata=NodeMetaOrder(created_at=OrderDirection.ASC))
+      order=Order(by=[OrderByEntry(field="node_metadata__created_at", direction=OrderDirection.ASC)])
   )
 
   # Get devices ordered by last update time (most recent first)
   devices = await client.all(
       kind="TestDevice",
-      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+      order=Order(by=[OrderByEntry(field="node_metadata__updated_at", direction=OrderDirection.DESC)])
+  )
+
+  # Order by name ascending, then by creation time descending
+  devices = await client.all(
+      kind="TestDevice",
+      order=Order(by=[
+          OrderByEntry(field="name__value", direction=OrderDirection.ASC),
+          OrderByEntry(field="node_metadata__created_at", direction=OrderDirection.DESC),
+      ])
   )
   ```
 
@@ -699,18 +720,33 @@ Use the `Order` and `NodeMetaOrder` classes along with `OrderDirection` to speci
 
   ```python
   from infrahub_sdk.enums import OrderDirection
-  from infrahub_sdk.types import NodeMetaOrder, Order
+  from infrahub_sdk.types import Order, OrderByEntry
+
+  # Get devices ordered by name (ascending is the default)
+  devices = client.all(
+      kind="TestDevice",
+      order=Order(by=[OrderByEntry(field="name__value")])
+  )
 
   # Get devices ordered by creation time (oldest first)
   devices = client.all(
       kind="TestDevice",
-      order=Order(node_metadata=NodeMetaOrder(created_at=OrderDirection.ASC))
+      order=Order(by=[OrderByEntry(field="node_metadata__created_at", direction=OrderDirection.ASC)])
   )
 
   # Get devices ordered by last update time (most recent first)
   devices = client.all(
       kind="TestDevice",
-      order=Order(node_metadata=NodeMetaOrder(updated_at=OrderDirection.DESC))
+      order=Order(by=[OrderByEntry(field="node_metadata__updated_at", direction=OrderDirection.DESC)])
+  )
+
+  # Order by name ascending, then by creation time descending
+  devices = client.all(
+      kind="TestDevice",
+      order=Order(by=[
+          OrderByEntry(field="name__value", direction=OrderDirection.ASC),
+          OrderByEntry(field="node_metadata__created_at", direction=OrderDirection.DESC),
+      ])
   )
   ```
 
@@ -723,7 +759,7 @@ The available order directions are:
 - `OrderDirection.DESC`: Descending order (newest/largest first)
 
 :::note
-You can only order by one metadata field at a time. Specifying both `created_at` and `updated_at` in the same `NodeMetaOrder` will raise a validation error, as they are mutually exclusive.
+The `node_metadata` argument on `Order` is deprecated in favor of the `by` form shown above. It cannot be combined with `by` in the same `Order`.
 :::
 
 ### Disabling default ordering

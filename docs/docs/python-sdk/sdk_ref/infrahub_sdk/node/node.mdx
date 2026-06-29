@@ -9,7 +9,16 @@ sidebarTitle: node
 
 ### `InfrahubNode`
 
-Represents a Infrahub node in an asynchronous context.
+Asynchronous Infrahub node bound to an :class:`InfrahubClient`.
+
+Provides full CRUD against the backend (:meth:`save`, :meth:`create`, :meth:`update`,
+:meth:`delete`) along with relationship traversal (:meth:`get_flat_value`,
+:meth:`extract`), feature-gated artifact and resource-pool helpers
+(:meth:`artifact_generate`, :meth:`get_pool_allocated_resources`), and file upload
+or download for nodes inheriting from ``CoreFileObject``.
+
+Attributes and relationships defined on the schema are exposed as instance
+attributes via attribute-style access (``node.name.value``, ``node.parent``).
 
 **Methods:**
 
@@ -19,11 +28,48 @@ Represents a Infrahub node in an asynchronous context.
 from_graphql(cls, client: InfrahubClient, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
 ```
 
+Build an :class:`InfrahubNode` from a raw GraphQL response.
+
+When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+payload and the schema is fetched from the client.
+
+**Args:**
+
+- `client`: The client used to interact with the backend.
+- `branch`: The branch the node belongs to.
+- `data`: The GraphQL payload describing the node.
+- `schema`: Pre-fetched schema for the node kind.
+Skips the schema lookup when provided.
+- `timeout`: Overrides the default timeout used when fetching the
+schema. Specified in seconds.
+
+**Returns:**
+
+- The hydrated node instance.
+
+**Raises:**
+
+- `ValueError`: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
 #### `generate`
 
 ```python
 generate(self, nodes: list[str] | None = None) -> None
 ```
+
+Trigger artifact generation for this artifact definition.
+
+Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+**Args:**
+
+- `nodes`: The IDs of target nodes to generate artifacts
+for. When omitted, generation runs for all targets matched by the
+definition.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node is not a ``CoreArtifactDefinition``.
 
 #### `artifact_generate`
 
@@ -31,11 +77,39 @@ generate(self, nodes: list[str] | None = None) -> None
 artifact_generate(self, name: str) -> None
 ```
 
+Regenerate a named artifact targeting this node.
+
+Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+:meth:`generate` on the related definition with this artifact's ID.
+
+**Args:**
+
+- `name`: The name of the artifact to regenerate.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node does not inherit from ``CoreArtifactTarget``.
+
 #### `artifact_fetch`
 
 ```python
 artifact_fetch(self, name: str) -> str | dict[str, Any]
 ```
+
+Fetch the stored content of a named artifact for this node.
+
+**Args:**
+
+- `name`: The name of the artifact to fetch.
+
+**Returns:**
+
+- str | dict\[str, Any]: The artifact content. Returns a parsed object for
+- JSON-typed artifacts and a string for text-typed artifacts.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node does not inherit from ``CoreArtifactTarget``.
 
 #### `download_file`
 
@@ -185,17 +259,76 @@ from ``source.name`` when ``name`` is omitted.
 delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Delete this node on the backend.
+
+**Args:**
+
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
 #### `save`
 
 ```python
 save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Persist this node to the backend, creating or updating it as appropriate.
+
+New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+nodes are updated with only the modified fields. After a successful save, the
+node is added to the client store and, when applicable, to the active group
+context for tracking.
+
+**Args:**
+
+- `allow_upsert`: When ``True``, an existing node is upserted
+instead of failing with a duplicate. Defaults to ``False``.
+- `update_group_context`: Whether to update the group context
+with this node. When ``None`` and the client is in tracking mode, defaults
+to ``True``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
 #### `generate_query_data`
 
 ```python
 generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
+
+Generate the full GraphQL query payload for this node kind.
+
+The returned dict combines :meth:`generate_query_data_init` with
+:meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+``True``, ``...on Kind`` fragments are added for every implementing kind so the
+relevant attributes are returned alongside the generic fields.
+
+**Args:**
+
+- `filters`: Filters to apply to the query.
+- `offset`: Pagination offset.
+- `limit`: Pagination limit.
+- `include`: Attributes or relationships to include.
+- `exclude`: Attributes or relationships to exclude.
+- `fragment`: When ``True`` and the schema is a generic, emit
+``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+- `prefetch_relationships`: When ``True``, pre-fetch related node
+data instead of returning only their identifiers. Defaults to ``False``.
+- `partial_match`: When ``True``, allow partial matches on filter
+criteria. Defaults to ``False``.
+- `property`: When ``True``, include attribute and relationship
+properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+- `order`: Ordering options to apply to the query.
+- `include_metadata`: When ``True``, include ``node_metadata`` and
+``relationship_metadata`` in the result. Defaults to ``False``.
+
+**Returns:**
+
+- dict\[str, Any | dict]: A query payload keyed by the node kind, ready to be
+- rendered as GraphQL.
 
 #### `generate_query_data_node`
 
@@ -225,11 +358,31 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
 ```
 
+Add peers to a cardinality-many relationship through a dedicated mutation.
+
+Unlike :meth:`save`, this method targets a single relationship and only adds
+peers, leaving every other field untouched.
+
+**Args:**
+
+- `relation_to_update`: The name of the relationship to update.
+- `related_nodes`: The IDs of the peers to add.
+
 #### `remove_relationships`
 
 ```python
 remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
 ```
+
+Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+Unlike :meth:`save`, this method targets a single relationship and only removes
+the listed peers, leaving every other field untouched.
+
+**Args:**
+
+- `relation_to_update`: The name of the relationship to update.
+- `related_nodes`: The IDs of the peers to remove.
 
 #### `create`
 
@@ -237,11 +390,51 @@ remove_relationships(self, relation_to_update: str, related_nodes: list[str]) ->
 create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Create this node on the backend.
+
+For nodes inheriting from ``CoreFileObject``, the file content set with
+:meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+mutation and cleared from the node afterward.
+
+Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+is handled for you.
+
+**Args:**
+
+- `allow_upsert`: When ``True``, the operation upserts instead of
+erroring on a duplicate. Defaults to ``False``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
+**Raises:**
+
+- `ValueError`: If this is a file-object node and no file content has been set.
+
 #### `update`
 
 ```python
 update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
+
+Update this node on the backend.
+
+By default only the modified attributes and relationships are sent so the server
+can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+when unchanged, which is useful when forcing relationship reconciliation.
+
+Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+is handled for you.
+
+**Args:**
+
+- `do_full_update`: When ``True``, send every field even when
+unmodified. Defaults to ``False``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
 
 #### `get_pool_allocated_resources`
 
@@ -285,17 +478,32 @@ Fetch the utilization of each resource for the pool.
 get_flat_value(self, key: str, separator: str = '__') -> Any
 ```
 
-Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
+Resolve a value addressed by a flat key over this node and its related nodes.
+
+Walks attributes on this node, descending through cardinality-one relationships
+(which are fetched on demand) until the final component is reached. Each
+relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+rather than bulk traversal.
+
+**Args:**
+
+- `key`: The flat key to resolve (for example ``"name__value"`` or
+``"site__name__value"``).
+- `separator`: Component separator in ``key``. Defaults to ``"__"``.
+
+**Returns:**
+
+- The resolved value.
+
+**Raises:**
+
+- `ValueError`: If a component does not match an attribute or relationship, or if
+a relationship hop targets a non cardinality-one relationship.
 
 **Examples:**
 
 name__value
 module.object.value
-
-**Raises:**
-
-- `ValueError`: If ``key`` references an unknown attribute or relationship,
-or if a referenced relationship is not of cardinality ``ONE``.
 
 #### `extract`
 
@@ -303,11 +511,32 @@ or if a referenced relationship is not of cardinality ``ONE``.
 extract(self, params: dict[str, str]) -> dict[str, Any]
 ```
 
-Extract some data points defined in a flat notation.
+Extract several values addressed by flat keys into a labeled dict.
+
+Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+corresponding key is preserved as the output label.
+
+**Args:**
+
+- `params`: A mapping of output label to flat key to resolve.
+
+**Returns:**
+
+- dict\[str, Any]: The resolved values keyed by their output label.
 
 ### `InfrahubNodeSync`
 
-Represents a Infrahub node in a synchronous context.
+Synchronous Infrahub node bound to an :class:`InfrahubClientSync`.
+
+Synchronous counterpart of :class:`InfrahubNode`. Provides full CRUD against the
+backend (:meth:`save`, :meth:`create`, :meth:`update`, :meth:`delete`) along with
+relationship traversal (:meth:`get_flat_value`, :meth:`extract`), feature-gated
+artifact and resource-pool helpers (:meth:`artifact_generate`,
+:meth:`get_pool_allocated_resources`), and file upload or download for nodes
+inheriting from ``CoreFileObject``.
+
+Attributes and relationships defined on the schema are exposed as instance
+attributes via attribute-style access (``node.name.value``, ``node.parent``).
 
 **Methods:**
 
@@ -317,11 +546,48 @@ Represents a Infrahub node in a synchronous context.
 from_graphql(cls, client: InfrahubClientSync, branch: str, data: dict, schema: MainSchemaTypesAPI | None = None, timeout: int | None = None) -> Self
 ```
 
+Build an :class:`InfrahubNodeSync` from a raw GraphQL response.
+
+When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+payload and the schema is fetched from the client.
+
+**Args:**
+
+- `client`: The client used to interact with the backend.
+- `branch`: The branch the node belongs to.
+- `data`: The GraphQL payload describing the node.
+- `schema`: Pre-fetched schema for the node kind.
+Skips the schema lookup when provided.
+- `timeout`: Overrides the default timeout used when fetching the
+schema. Specified in seconds.
+
+**Returns:**
+
+- The hydrated node instance.
+
+**Raises:**
+
+- `ValueError`: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
 #### `generate`
 
 ```python
 generate(self, nodes: list[str] | None = None) -> None
 ```
+
+Trigger artifact generation for this artifact definition.
+
+Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+**Args:**
+
+- `nodes`: The IDs of target nodes to generate artifacts
+for. When omitted, generation runs for all targets matched by the
+definition.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node is not a ``CoreArtifactDefinition``.
 
 #### `artifact_generate`
 
@@ -329,11 +595,39 @@ generate(self, nodes: list[str] | None = None) -> None
 artifact_generate(self, name: str) -> None
 ```
 
+Regenerate a named artifact targeting this node.
+
+Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+:meth:`generate` on the related definition with this artifact's ID.
+
+**Args:**
+
+- `name`: The name of the artifact to regenerate.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node does not inherit from ``CoreArtifactTarget``.
+
 #### `artifact_fetch`
 
 ```python
 artifact_fetch(self, name: str) -> str | dict[str, Any]
 ```
+
+Fetch the stored content of a named artifact for this node.
+
+**Args:**
+
+- `name`: The name of the artifact to fetch.
+
+**Returns:**
+
+- str | dict\[str, Any]: The artifact content. Returns a parsed object for
+- JSON-typed artifacts and a string for text-typed artifacts.
+
+**Raises:**
+
+- `FeatureNotSupportedError`: If this node does not inherit from ``CoreArtifactTarget``.
 
 #### `download_file`
 
@@ -483,17 +777,76 @@ from ``source.name`` when ``name`` is omitted.
 delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Delete this node on the backend.
+
+**Args:**
+
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
 #### `save`
 
 ```python
 save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Persist this node to the backend, creating or updating it as appropriate.
+
+New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+nodes are updated with only the modified fields. After a successful save, the
+node is added to the client store and, when applicable, to the active group
+context for tracking.
+
+**Args:**
+
+- `allow_upsert`: When ``True``, an existing node is upserted
+instead of failing with a duplicate. Defaults to ``False``.
+- `update_group_context`: Whether to update the group context
+with this node. When ``None`` and the client is in tracking mode, defaults
+to ``True``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
 #### `generate_query_data`
 
 ```python
 generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
+
+Generate the full GraphQL query payload for this node kind.
+
+The returned dict combines :meth:`generate_query_data_init` with
+:meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+``True``, ``...on Kind`` fragments are added for every implementing kind so the
+relevant attributes are returned alongside the generic fields.
+
+**Args:**
+
+- `filters`: Filters to apply to the query.
+- `offset`: Pagination offset.
+- `limit`: Pagination limit.
+- `include`: Attributes or relationships to include.
+- `exclude`: Attributes or relationships to exclude.
+- `fragment`: When ``True`` and the schema is a generic, emit
+``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+- `prefetch_relationships`: When ``True``, pre-fetch related node
+data instead of returning only their identifiers. Defaults to ``False``.
+- `partial_match`: When ``True``, allow partial matches on filter
+criteria. Defaults to ``False``.
+- `property`: When ``True``, include attribute and relationship
+properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+- `order`: Ordering options to apply to the query.
+- `include_metadata`: When ``True``, include ``node_metadata`` and
+``relationship_metadata`` in the result. Defaults to ``False``.
+
+**Returns:**
+
+- dict\[str, Any | dict]: A query payload keyed by the node kind, ready to be
+- rendered as GraphQL.
 
 #### `generate_query_data_node`
 
@@ -523,11 +876,31 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
 ```
 
+Add peers to a cardinality-many relationship through a dedicated mutation.
+
+Unlike :meth:`save`, this method targets a single relationship and only adds
+peers, leaving every other field untouched.
+
+**Args:**
+
+- `relation_to_update`: The name of the relationship to update.
+- `related_nodes`: The IDs of the peers to add.
+
 #### `remove_relationships`
 
 ```python
 remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None
 ```
+
+Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+Unlike :meth:`save`, this method targets a single relationship and only removes
+the listed peers, leaving every other field untouched.
+
+**Args:**
+
+- `relation_to_update`: The name of the relationship to update.
+- `related_nodes`: The IDs of the peers to remove.
 
 #### `create`
 
@@ -535,11 +908,51 @@ remove_relationships(self, relation_to_update: str, related_nodes: list[str]) ->
 create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
 
+Create this node on the backend.
+
+For nodes inheriting from ``CoreFileObject``, the file content set with
+:meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+mutation and cleared from the node afterward.
+
+Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+is handled for you.
+
+**Args:**
+
+- `allow_upsert`: When ``True``, the operation upserts instead of
+erroring on a duplicate. Defaults to ``False``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
+
+**Raises:**
+
+- `ValueError`: If this is a file-object node and no file content has been set.
+
 #### `update`
 
 ```python
 update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
 ```
+
+Update this node on the backend.
+
+By default only the modified attributes and relationships are sent so the server
+can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+when unchanged, which is useful when forcing relationship reconciliation.
+
+Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+is handled for you.
+
+**Args:**
+
+- `do_full_update`: When ``True``, send every field even when
+unmodified. Defaults to ``False``.
+- `timeout`: Overrides the default timeout used when querying the
+GraphQL API. Specified in seconds.
+- `request_context`: Request-level context passed through
+to the mutation. When omitted, the client's request context is used.
 
 #### `get_pool_allocated_resources`
 
@@ -583,17 +996,32 @@ Fetch the utilization of each resource for the pool.
 get_flat_value(self, key: str, separator: str = '__') -> Any
 ```
 
-Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
+Resolve a value addressed by a flat key over this node and its related nodes.
+
+Walks attributes on this node, descending through cardinality-one relationships
+(which are fetched on demand) until the final component is reached. Each
+relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+rather than bulk traversal.
+
+**Args:**
+
+- `key`: The flat key to resolve (for example ``"name__value"`` or
+``"site__name__value"``).
+- `separator`: Component separator in ``key``. Defaults to ``"__"``.
+
+**Returns:**
+
+- The resolved value.
+
+**Raises:**
+
+- `ValueError`: If a component does not match an attribute or relationship, or if
+a relationship hop targets a non cardinality-one relationship.
 
 **Examples:**
 
 name__value
 module.object.value
-
-**Raises:**
-
-- `ValueError`: If ``key`` references an unknown attribute or relationship,
-or if a referenced relationship is not of cardinality ``ONE``.
 
 #### `extract`
 
@@ -601,7 +1029,18 @@ or if a referenced relationship is not of cardinality ``ONE``.
 extract(self, params: dict[str, str]) -> dict[str, Any]
 ```
 
-Extract some data points defined in a flat notation.
+Extract several values addressed by flat keys into a labeled dict.
+
+Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+corresponding key is preserved as the output label.
+
+**Args:**
+
+- `params`: A mapping of output label to flat key to resolve.
+
+**Returns:**
+
+- dict\[str, Any]: The resolved values keyed by their output label.
 
 ### `UploadResult`
 
@@ -626,7 +1065,19 @@ caller re-fetches the node first.
 
 ### `InfrahubNodeBase`
 
-Base class for InfrahubNode and InfrahubNodeSync.
+Base class for :class:`InfrahubNode` and :class:`InfrahubNodeSync`.
+
+Owns the schema-driven state shared between the async and sync clients: attributes,
+relationships, identity (``id``, ``hfid``), node metadata, and the helpers that turn
+the in-memory state into GraphQL query and mutation payloads. This class is not
+meant to be instantiated directly; use :class:`InfrahubNode` or
+:class:`InfrahubNodeSync` instead.
+
+**Attributes:**
+
+- `id`: The unique identifier of the node, when known.
+- `display_label`: Human-readable label of the node.
+- `typename`: The GraphQL ``__typename`` of the node.
 
 **Methods:**
 
@@ -636,11 +1087,33 @@ Base class for InfrahubNode and InfrahubNodeSync.
 get_branch(self) -> str
 ```
 
+Return the branch this node is bound to.
+
+**Returns:**
+
+- The name of the branch.
+
 #### `get_path_value`
 
 ```python
 get_path_value(self, path: str) -> Any
 ```
+
+Resolve a value addressed by a dunder-separated path on this node.
+
+The path can target an attribute (``name__value``, ``name__source``), a
+cardinality-one related node (``parent``), an attribute of that related node
+(``parent__name__value``), or a property of one of its attributes
+(``parent__name__source``).
+
+**Args:**
+
+- `path`: A path with components separated by ``__``.
+
+**Returns:**
+
+- The resolved value, or ``None`` when any path component cannot be
+- resolved (for example, an unfetched related node not present in the store).
 
 #### `get_human_friendly_id`
 
@@ -648,11 +1121,34 @@ get_path_value(self, path: str) -> Any
 get_human_friendly_id(self) -> list[str] | None
 ```
 
+Compute the human-friendly ID for this node from its schema.
+
+The HFID is composed of the values addressed by the schema's
+``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
+considered invalid and ``None`` is returned.
+
+**Returns:**
+
+- list[str] | None: The HFID as a list of stringified components, or ``None``
+- when the schema does not define an HFID or a component is missing.
+
 #### `get_human_friendly_id_as_string`
 
 ```python
 get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
 ```
+
+Return the human-friendly ID joined into a single string.
+
+**Args:**
+
+- `include_kind`: When ``True``, the node kind is prepended as
+the first component of the resulting string. Defaults to ``False``.
+
+**Returns:**
+
+- str | None: The HFID joined with the HFID separator, or ``None`` when no
+- HFID is available.
 
 #### `hfid`
 
@@ -660,11 +1156,23 @@ get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None
 hfid(self) -> list[str] | None
 ```
 
+Return the human-friendly ID of this node as a list of components.
+
+**Returns:**
+
+- list\[str] | None: The HFID components, or ``None`` when unavailable.
+
 #### `hfid_str`
 
 ```python
 hfid_str(self) -> str | None
 ```
+
+Return the human-friendly ID of this node as a string, including the kind prefix.
+
+**Returns:**
+
+- str | None: The HFID as ``Kind__part1__part2``, or ``None`` when unavailable.
 
 #### `get_node_metadata`
 
@@ -672,7 +1180,14 @@ hfid_str(self) -> str | None
 get_node_metadata(self) -> NodeMetadata | None
 ```
 
-Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched.
+Return the node metadata (``created_at``, ``created_by``, ``updated_at``, ``updated_by``).
+
+The metadata is populated only when the parent query was executed with
+``include_metadata=True``.
+
+**Returns:**
+
+- NodeMetadata | None: The node metadata if fetched, otherwise ``None``.
 
 #### `get_kind`
 
@@ -680,11 +1195,24 @@ Returns the node metadata (created_at, created_by, updated_at, updated_by) if fe
 get_kind(self) -> str
 ```
 
+Return the schema kind of this node.
+
+**Returns:**
+
+- The schema kind (for example ``"CoreAccount"``).
+
 #### `get_all_kinds`
 
 ```python
 get_all_kinds(self) -> list[str]
 ```
+
+Return this node's kind plus all generic kinds it inherits from.
+
+**Returns:**
+
+- list\[str]: The node's own kind followed by the inherited kinds, in the order
+- declared on the schema.
 
 #### `is_ip_prefix`
 
@@ -692,11 +1220,23 @@ get_all_kinds(self) -> list[str]
 is_ip_prefix(self) -> bool
 ```
 
+Return whether this node represents an IP prefix.
+
+**Returns:**
+
+- ``True`` when the node kind is ``BuiltinIPPrefix`` or inherits from it.
+
 #### `is_ip_address`
 
 ```python
 is_ip_address(self) -> bool
 ```
+
+Return whether this node represents an IP address.
+
+**Returns:**
+
+- ``True`` when the node kind is ``BuiltinIPAddress`` or inherits from it.
 
 #### `is_resource_pool`
 
@@ -704,13 +1244,23 @@ is_ip_address(self) -> bool
 is_resource_pool(self) -> bool
 ```
 
+Return whether this node is a resource pool.
+
+**Returns:**
+
+- ``True`` when the node inherits from ``CoreResourcePool``.
+
 #### `is_file_object`
 
 ```python
 is_file_object(self) -> bool
 ```
 
-Check if this node inherits from CoreFileObject and supports file uploads.
+Return whether this node inherits from ``CoreFileObject`` and supports file uploads.
+
+**Returns:**
+
+- ``True`` when file upload/download operations are supported on this node.
 
 #### `upload_from_path`
 
@@ -774,8 +1324,43 @@ Clear any pending file content.
 get_raw_graphql_data(self) -> dict | None
 ```
 
+Return the raw GraphQL payload used to build this node.
+
+**Returns:**
+
+- dict | None: The original GraphQL data, or ``None`` when the node was
+- constructed without payload (for example, a brand-new node).
+
 #### `generate_query_data_init`
 
 ```python
 generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
+
+Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
+
+The returned dict is the outer structure consumed by
+:meth:`generate_query_data`; it carries the ``@filters`` block and the empty
+``edges.node`` placeholder that will later be filled by the caller.
+
+**Args:**
+
+- `filters`: Filters to apply to the query.
+- `offset`: Pagination offset.
+- `limit`: Pagination limit.
+- `include`: Attributes or relationships to include.
+- `exclude`: Attributes or relationships to exclude.
+- `partial_match`: When ``True``, allow partial matches on filter
+criteria. Defaults to ``False``.
+- `order`: Ordering options to apply to the query.
+- `include_metadata`: When ``True``, include ``node_metadata`` in
+the result. Defaults to ``False``.
+
+**Returns:**
+
+- dict[str, Any | dict]: The query skeleton ready to be combined with node-level
+- attributes and relationships.
+
+**Raises:**
+
+- `ValueError`: If the same name appears in both ``include`` and ``exclude``.

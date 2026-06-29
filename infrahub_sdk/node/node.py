@@ -73,7 +73,20 @@ class UploadResult:
 
 
 class InfrahubNodeBase:
-    """Base class for InfrahubNode and InfrahubNodeSync."""
+    """Base class for :class:`InfrahubNode` and :class:`InfrahubNodeSync`.
+
+    Owns the schema-driven state shared between the async and sync clients: attributes,
+    relationships, identity (``id``, ``hfid``), node metadata, and the helpers that turn
+    the in-memory state into GraphQL query and mutation payloads. This class is not
+    meant to be instantiated directly; use :class:`InfrahubNode` or
+    :class:`InfrahubNodeSync` instead.
+
+    Attributes:
+        id (str | None): The unique identifier of the node, when known.
+        display_label (str | None): Human-readable label of the node.
+        typename (str | None): The GraphQL ``__typename`` of the node.
+
+    """
 
     def __init__(self, schema: MainSchemaTypesAPI, branch: str, data: dict | None = None) -> None:
         """Initialize the base node.
@@ -118,9 +131,30 @@ class InfrahubNodeBase:
         self._init_relationships(data)
 
     def get_branch(self) -> str:
+        """Return the branch this node is bound to.
+
+        Returns:
+            str: The name of the branch.
+
+        """
         return self._branch
 
     def get_path_value(self, path: str) -> Any:
+        """Resolve a value addressed by a dunder-separated path on this node.
+
+        The path can target an attribute (``name__value``, ``name__source``), a
+        cardinality-one related node (``parent``), an attribute of that related node
+        (``parent__name__value``), or a property of one of its attributes
+        (``parent__name__source``).
+
+        Args:
+            path (str): A path with components separated by ``__``.
+
+        Returns:
+            Any: The resolved value, or ``None`` when any path component cannot be
+            resolved (for example, an unfetched related node not present in the store).
+
+        """
         path_parts = path.split("__")
         return_value = None
 
@@ -158,6 +192,17 @@ class InfrahubNodeBase:
         return return_value
 
     def get_human_friendly_id(self) -> list[str] | None:
+        """Compute the human-friendly ID for this node from its schema.
+
+        The HFID is composed of the values addressed by the schema's
+        ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
+        considered invalid and ``None`` is returned.
+
+        Returns:
+            list[str] | None: The HFID as a list of stringified components, or ``None``
+            when the schema does not define an HFID or a component is missing.
+
+        """
         if not hasattr(self._schema, "human_friendly_id"):
             return None
 
@@ -171,6 +216,17 @@ class InfrahubNodeBase:
         return [str(hfid) for hfid in hfid_components]
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None:
+        """Return the human-friendly ID joined into a single string.
+
+        Args:
+            include_kind (bool, optional): When ``True``, the node kind is prepended as
+                the first component of the resulting string. Defaults to ``False``.
+
+        Returns:
+            str | None: The HFID joined with the HFID separator, or ``None`` when no
+            HFID is available.
+
+        """
         hfid = self.get_human_friendly_id()
         if not hfid:
             return None
@@ -180,14 +236,34 @@ class InfrahubNodeBase:
 
     @property
     def hfid(self) -> list[str] | None:
+        """Return the human-friendly ID of this node as a list of components.
+
+        Returns:
+            list[str] | None: The HFID components, or ``None`` when unavailable.
+
+        """
         return self.get_human_friendly_id()
 
     @property
     def hfid_str(self) -> str | None:
+        """Return the human-friendly ID of this node as a string, including the kind prefix.
+
+        Returns:
+            str | None: The HFID as ``Kind__part1__part2``, or ``None`` when unavailable.
+
+        """
         return self.get_human_friendly_id_as_string(include_kind=True)
 
     def get_node_metadata(self) -> NodeMetadata | None:
-        """Returns the node metadata (created_at, created_by, updated_at, updated_by) if fetched."""
+        """Return the node metadata (``created_at``, ``created_by``, ``updated_at``, ``updated_by``).
+
+        The metadata is populated only when the parent query was executed with
+        ``include_metadata=True``.
+
+        Returns:
+            NodeMetadata | None: The node metadata if fetched, otherwise ``None``.
+
+        """
         return self._metadata
 
     def _init_attributes(self, data: dict | None = None) -> None:
@@ -227,26 +303,62 @@ class InfrahubNodeBase:
         return f"{self._schema.kind} ({self.id}) "
 
     def get_kind(self) -> str:
+        """Return the schema kind of this node.
+
+        Returns:
+            str: The schema kind (for example ``"CoreAccount"``).
+
+        """
         return self._schema.kind
 
     def get_all_kinds(self) -> list[str]:
+        """Return this node's kind plus all generic kinds it inherits from.
+
+        Returns:
+            list[str]: The node's own kind followed by the inherited kinds, in the order
+            declared on the schema.
+
+        """
         if inherit_from := getattr(self._schema, "inherit_from", None):
             return [self._schema.kind, *inherit_from]
         return [self._schema.kind]
 
     def is_ip_prefix(self) -> bool:
+        """Return whether this node represents an IP prefix.
+
+        Returns:
+            bool: ``True`` when the node kind is ``BuiltinIPPrefix`` or inherits from it.
+
+        """
         builtin_ipprefix_kind = "BuiltinIPPrefix"
         return self.get_kind() == builtin_ipprefix_kind or builtin_ipprefix_kind in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_ip_address(self) -> bool:
+        """Return whether this node represents an IP address.
+
+        Returns:
+            bool: ``True`` when the node kind is ``BuiltinIPAddress`` or inherits from it.
+
+        """
         builtin_ipaddress_kind = "BuiltinIPAddress"
         return self.get_kind() == builtin_ipaddress_kind or builtin_ipaddress_kind in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_resource_pool(self) -> bool:
+        """Return whether this node is a resource pool.
+
+        Returns:
+            bool: ``True`` when the node inherits from ``CoreResourcePool``.
+
+        """
         return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
 
     def is_file_object(self) -> bool:
-        """Check if this node inherits from CoreFileObject and supports file uploads."""
+        """Return whether this node inherits from ``CoreFileObject`` and supports file uploads.
+
+        Returns:
+            bool: ``True`` when file upload/download operations are supported on this node.
+
+        """
         return self._file_object_support
 
     def upload_from_path(self, path: Path) -> None:
@@ -314,6 +426,13 @@ class InfrahubNodeBase:
         return FileHandlerBase.prepare_upload_sync(content=self._file_content, name=self._file_name)
 
     def get_raw_graphql_data(self) -> dict | None:
+        """Return the raw GraphQL payload used to build this node.
+
+        Returns:
+            dict | None: The original GraphQL data, or ``None`` when the node was
+            constructed without payload (for example, a brand-new node).
+
+        """
         return self._data
 
     def _generate_input_data(  # noqa: C901
@@ -350,9 +469,11 @@ class InfrahubNodeBase:
             rel: RelatedNodeBase | RelationshipManagerBase = getattr(self, item_name)
 
             if rel_schema.cardinality == RelationshipCardinality.ONE and rel_schema.optional and not rel.initialized:
-                # Only include None for existing nodes to allow clearing relationships
-                # For new nodes, omit the field to allow object template defaults to be applied
-                if self._existing:
+                # Emit `None` only when the caller has explicitly cleared the relationship
+                # (tracked by `_peer_has_been_mutated`). Without this guard, a node hydrated
+                # from a partial GraphQL payload — one that didn't fetch this relationship —
+                # would silently clear it on save.
+                if self._existing and isinstance(rel, RelatedNodeBase) and rel._peer_has_been_mutated:
                     data[item_name] = None
                 continue
 
@@ -538,6 +659,32 @@ class InfrahubNodeBase:
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
+
+        The returned dict is the outer structure consumed by
+        :meth:`generate_query_data`; it carries the ``@filters`` block and the empty
+        ``edges.node`` placeholder that will later be filled by the caller.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` in
+                the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: The query skeleton ready to be combined with node-level
+            attributes and relationships.
+
+        Raises:
+            ValueError: If the same name appears in both ``include`` and ``exclude``.
+
+        """
         data: dict[str, Any] = {
             "count": None,
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
@@ -598,10 +745,13 @@ class InfrahubNodeBase:
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
     def _validate_upsert(self, allow_upsert: bool) -> None:
-        """Ensure an upsert can resolve the HFID before attempting to save.
+        """Block an upsert that would silently duplicate because an HFID attribute is pool-sourced.
 
-        An attribute sourced from a CoreNumberPool has no concrete value until the node is
-        created, so it cannot be used to look up an existing node by its human-friendly identifier.
+        A CoreNumberPool assigns its value when the node is created on the server, and a new
+        value on every creation. When such an attribute is part of the human-friendly identifier,
+        the HFID is never stable, so an upsert can never match an existing node by it: instead of
+        updating, each call creates another node. Fail fast with guidance rather than duplicating
+        data silently.
 
         Raises:
             ValidationError: If an HFID attribute is sourced from an unresolved CoreNumberPool.
@@ -621,9 +771,11 @@ class InfrahubNodeBase:
                     identifier=attr_name,
                     message=(
                         f"Attribute '{attr_name}' is sourced from a CoreNumberPool and is part of "
-                        "this node's human-friendly identifier. Upsert cannot resolve the HFID "
-                        "without a concrete value. Use an explicit id, or create the node first "
-                        "and update it in a separate call."
+                        "this node's human-friendly identifier (HFID). The pool assigns a new value "
+                        "each time the node is created, so the HFID is never stable: an upsert cannot "
+                        "match an existing node by it, and every run would silently create a duplicate. "
+                        "To manage this node idempotently, look it up first by a stable attribute or "
+                        "relationship and reuse it, or set an explicit id before saving."
                     ),
                 )
 
@@ -655,7 +807,17 @@ class InfrahubNodeBase:
 
 
 class InfrahubNode(InfrahubNodeBase):
-    """Represents a Infrahub node in an asynchronous context."""
+    """Asynchronous Infrahub node bound to an :class:`InfrahubClient`.
+
+    Provides full CRUD against the backend (:meth:`save`, :meth:`create`, :meth:`update`,
+    :meth:`delete`) along with relationship traversal (:meth:`get_flat_value`,
+    :meth:`extract`), feature-gated artifact and resource-pool helpers
+    (:meth:`artifact_generate`, :meth:`get_pool_allocated_resources`), and file upload
+    or download for nodes inheriting from ``CoreFileObject``.
+
+    Attributes and relationships defined on the schema are exposed as instance
+    attributes via attribute-style access (``node.name.value``, ``node.parent``).
+    """
 
     def __init__(
         self,
@@ -702,6 +864,27 @@ class InfrahubNode(InfrahubNodeBase):
         schema: MainSchemaTypesAPI | None = None,
         timeout: int | None = None,
     ) -> Self:
+        """Build an :class:`InfrahubNode` from a raw GraphQL response.
+
+        When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+        payload and the schema is fetched from the client.
+
+        Args:
+            client (InfrahubClient): The client used to interact with the backend.
+            branch (str): The branch the node belongs to.
+            data (dict): The GraphQL payload describing the node.
+            schema (MainSchemaTypesAPI, optional): Pre-fetched schema for the node kind.
+                Skips the schema lookup when provided.
+            timeout (int, optional): Overrides the default timeout used when fetching the
+                schema. Specified in seconds.
+
+        Returns:
+            InfrahubNode: The hydrated node instance.
+
+        Raises:
+            ValueError: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
+        """
         if not schema:
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
@@ -788,14 +971,29 @@ class InfrahubNode(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNode(
+            new_rel = RelatedNode(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
 
     async def generate(self, nodes: list[str] | None = None) -> None:
+        """Trigger artifact generation for this artifact definition.
+
+        Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+        Args:
+            nodes (list[str], optional): The IDs of target nodes to generate artifacts
+                for. When omitted, generation runs for all targets matched by the
+                definition.
+
+        Raises:
+            FeatureNotSupportedError: If this node is not a ``CoreArtifactDefinition``.
+
+        """
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         nodes = nodes or []
@@ -804,6 +1002,18 @@ class InfrahubNode(InfrahubNodeBase):
         resp.raise_for_status()
 
     async def artifact_generate(self, name: str) -> None:
+        """Regenerate a named artifact targeting this node.
+
+        Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+        :meth:`generate` on the related definition with this artifact's ID.
+
+        Args:
+            name (str): The name of the artifact to regenerate.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
@@ -811,6 +1021,19 @@ class InfrahubNode(InfrahubNodeBase):
         await artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     async def artifact_fetch(self, name: str) -> str | dict[str, Any]:
+        """Fetch the stored content of a named artifact for this node.
+
+        Args:
+            name (str): The name of the artifact to fetch.
+
+        Returns:
+            str | dict[str, Any]: The artifact content. Returns a parsed object for
+            JSON-typed artifacts and a string for text-typed artifacts.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
@@ -989,6 +1212,15 @@ class InfrahubNode(InfrahubNodeBase):
         return UploadResult(was_uploaded=True, checksum=local_digest)
 
     async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+        """Delete this node on the backend.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):
             input_data["context"] = context_data
@@ -1013,6 +1245,25 @@ class InfrahubNode(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        """Persist this node to the backend, creating or updating it as appropriate.
+
+        New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+        nodes are updated with only the modified fields. After a successful save, the
+        node is added to the client store and, when applicable, to the active group
+        context for tracking.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, an existing node is upserted
+                instead of failing with a duplicate. Defaults to ``False``.
+            update_group_context (bool, optional): Whether to update the group context
+                with this node. When ``None`` and the client is in tracking mode, defaults
+                to ``True``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         if self._existing is False or allow_upsert is True:
             await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -1100,6 +1351,36 @@ class InfrahubNode(InfrahubNodeBase):
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Generate the full GraphQL query payload for this node kind.
+
+        The returned dict combines :meth:`generate_query_data_init` with
+        :meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+        ``True``, ``...on Kind`` fragments are added for every implementing kind so the
+        relevant attributes are returned alongside the generic fields.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            fragment (bool, optional): When ``True`` and the schema is a generic, emit
+                ``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+            prefetch_relationships (bool, optional): When ``True``, pre-fetch related node
+                data instead of returning only their identifiers. Defaults to ``False``.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            property (bool, optional): When ``True``, include attribute and relationship
+                properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
+                ``relationship_metadata`` in the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
+            rendered as GraphQL.
+
+        """
         data = self.generate_query_data_init(
             filters=filters,
             offset=offset,
@@ -1241,6 +1522,16 @@ class InfrahubNode(InfrahubNodeBase):
         return data
 
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Add peers to a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only adds
+        peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to add.
+
+        """
         query = self._relationship_mutation(
             action="Add", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -1248,6 +1539,16 @@ class InfrahubNode(InfrahubNodeBase):
         await self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
     async def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only removes
+        the listed peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to remove.
+
+        """
         query = self._relationship_mutation(
             action="Remove", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -1301,6 +1602,27 @@ class InfrahubNode(InfrahubNodeBase):
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Create this node on the backend.
+
+        For nodes inheriting from ``CoreFileObject``, the file content set with
+        :meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+        mutation and cleared from the node afterward.
+
+        Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, the operation upserts instead of
+                erroring on a duplicate. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        Raises:
+            ValueError: If this is a file-object node and no file content has been set.
+
+        """
         self._validate_upsert(allow_upsert=allow_upsert)
 
         if self._file_object_support and self._file_content is None:
@@ -1359,6 +1681,24 @@ class InfrahubNode(InfrahubNodeBase):
     async def update(
         self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Update this node on the backend.
+
+        By default only the modified attributes and relationships are sent so the server
+        can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+        when unchanged, which is useful when forcing relationship reconciliation.
+
+        Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            do_full_update (bool, optional): When ``True``, send every field even when
+                unmodified. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -1577,15 +1917,28 @@ class InfrahubNode(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     async def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
+        """Resolve a value addressed by a flat key over this node and its related nodes.
+
+        Walks attributes on this node, descending through cardinality-one relationships
+        (which are fetched on demand) until the final component is reached. Each
+        relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+        rather than bulk traversal.
+
+        Args:
+            key (str): The flat key to resolve (for example ``"name__value"`` or
+                ``"site__name__value"``).
+            separator (str, optional): Component separator in ``key``. Defaults to ``"__"``.
+
+        Returns:
+            Any: The resolved value.
+
+        Raises:
+            ValueError: If a component does not match an attribute or relationship, or if
+                a relationship hop targets a non cardinality-one relationship.
 
         Examples:
             name__value
             module.object.value
-
-        Raises:
-            ValueError: If ``key`` references an unknown attribute or relationship,
-                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:
@@ -1614,7 +1967,18 @@ class InfrahubNode(InfrahubNodeBase):
         return await related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     async def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some data points defined in a flat notation."""
+        """Extract several values addressed by flat keys into a labeled dict.
+
+        Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+        corresponding key is preserved as the output label.
+
+        Args:
+            params (dict[str, str]): A mapping of output label to flat key to resolve.
+
+        Returns:
+            dict[str, Any]: The resolved values keyed by their output label.
+
+        """
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = await self.get_flat_value(key=value)
@@ -1632,7 +1996,18 @@ class InfrahubNode(InfrahubNodeBase):
 
 
 class InfrahubNodeSync(InfrahubNodeBase):
-    """Represents a Infrahub node in a synchronous context."""
+    """Synchronous Infrahub node bound to an :class:`InfrahubClientSync`.
+
+    Synchronous counterpart of :class:`InfrahubNode`. Provides full CRUD against the
+    backend (:meth:`save`, :meth:`create`, :meth:`update`, :meth:`delete`) along with
+    relationship traversal (:meth:`get_flat_value`, :meth:`extract`), feature-gated
+    artifact and resource-pool helpers (:meth:`artifact_generate`,
+    :meth:`get_pool_allocated_resources`), and file upload or download for nodes
+    inheriting from ``CoreFileObject``.
+
+    Attributes and relationships defined on the schema are exposed as instance
+    attributes via attribute-style access (``node.name.value``, ``node.parent``).
+    """
 
     def __init__(
         self,
@@ -1679,6 +2054,27 @@ class InfrahubNodeSync(InfrahubNodeBase):
         schema: MainSchemaTypesAPI | None = None,
         timeout: int | None = None,
     ) -> Self:
+        """Build an :class:`InfrahubNodeSync` from a raw GraphQL response.
+
+        When no ``schema`` is provided, the node kind is read from ``__typename`` in the
+        payload and the schema is fetched from the client.
+
+        Args:
+            client (InfrahubClientSync): The client used to interact with the backend.
+            branch (str): The branch the node belongs to.
+            data (dict): The GraphQL payload describing the node.
+            schema (MainSchemaTypesAPI, optional): Pre-fetched schema for the node kind.
+                Skips the schema lookup when provided.
+            timeout (int, optional): Overrides the default timeout used when fetching the
+                schema. Specified in seconds.
+
+        Returns:
+            InfrahubNodeSync: The hydrated node instance.
+
+        Raises:
+            ValueError: If ``__typename`` is missing from ``data`` and no ``schema`` was provided.
+
+        """
         if not schema:
             node_kind = data.get("__typename") or data.get("node", {}).get("__typename", None)
             if not node_kind:
@@ -1766,14 +2162,29 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
                 )
             rel_schema = rel_schemas[0]
-            self._relationship_cardinality_one_data[name] = RelatedNodeSync(
+            new_rel = RelatedNodeSync(
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
+            new_rel._peer_has_been_mutated = True
+            self._relationship_cardinality_one_data[name] = new_rel
             return
 
         super().__setattr__(name, value)
 
     def generate(self, nodes: list[str] | None = None) -> None:
+        """Trigger artifact generation for this artifact definition.
+
+        Only available on nodes whose kind is ``CoreArtifactDefinition``.
+
+        Args:
+            nodes (list[str], optional): The IDs of target nodes to generate artifacts
+                for. When omitted, generation runs for all targets matched by the
+                definition.
+
+        Raises:
+            FeatureNotSupportedError: If this node is not a ``CoreArtifactDefinition``.
+
+        """
         self._validate_artifact_definition_support(ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         nodes = nodes or []
         payload = {"nodes": nodes}
@@ -1781,12 +2192,37 @@ class InfrahubNodeSync(InfrahubNodeBase):
         resp.raise_for_status()
 
     def artifact_generate(self, name: str) -> None:
+        """Regenerate a named artifact targeting this node.
+
+        Looks up the ``CoreArtifact`` named ``name`` for this node, then calls
+        :meth:`generate` on the related definition with this artifact's ID.
+
+        Args:
+            name (str): The name of the artifact to regenerate.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         artifact._get_relationship_one(name="definition").fetch()
         artifact._get_relationship_one(name="definition").peer.generate([artifact.id])
 
     def artifact_fetch(self, name: str) -> str | dict[str, Any]:
+        """Fetch the stored content of a named artifact for this node.
+
+        Args:
+            name (str): The name of the artifact to fetch.
+
+        Returns:
+            str | dict[str, Any]: The artifact content. Returns a parsed object for
+            JSON-typed artifacts and a string for text-typed artifacts.
+
+        Raises:
+            FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
+
+        """
         self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
         artifact = self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
@@ -1964,6 +2400,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return UploadResult(was_uploaded=True, checksum=local_digest)
 
     def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+        """Delete this node on the backend.
+
+        Args:
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = {"data": {"id": self.id}}
         if context_data := self._get_request_context(request_context=request_context):
             input_data["context"] = context_data
@@ -1988,6 +2433,25 @@ class InfrahubNodeSync(InfrahubNodeBase):
         timeout: int | None = None,
         request_context: RequestContext | None = None,
     ) -> None:
+        """Persist this node to the backend, creating or updating it as appropriate.
+
+        New nodes are created (or upserted when ``allow_upsert`` is set), and existing
+        nodes are updated with only the modified fields. After a successful save, the
+        node is added to the client store and, when applicable, to the active group
+        context for tracking.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, an existing node is upserted
+                instead of failing with a duplicate. Defaults to ``False``.
+            update_group_context (bool, optional): Whether to update the group context
+                with this node. When ``None`` and the client is in tracking mode, defaults
+                to ``True``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         if self._existing is False or allow_upsert is True:
             self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
         else:
@@ -2071,6 +2535,36 @@ class InfrahubNodeSync(InfrahubNodeBase):
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
+        """Generate the full GraphQL query payload for this node kind.
+
+        The returned dict combines :meth:`generate_query_data_init` with
+        :meth:`generate_query_data_node`. When the node is a generic and ``fragment`` is
+        ``True``, ``...on Kind`` fragments are added for every implementing kind so the
+        relevant attributes are returned alongside the generic fields.
+
+        Args:
+            filters (dict[str, Any], optional): Filters to apply to the query.
+            offset (int, optional): Pagination offset.
+            limit (int, optional): Pagination limit.
+            include (list[str], optional): Attributes or relationships to include.
+            exclude (list[str], optional): Attributes or relationships to exclude.
+            fragment (bool, optional): When ``True`` and the schema is a generic, emit
+                ``...on Kind`` fragments for each implementing kind. Defaults to ``False``.
+            prefetch_relationships (bool, optional): When ``True``, pre-fetch related node
+                data instead of returning only their identifiers. Defaults to ``False``.
+            partial_match (bool, optional): When ``True``, allow partial matches on filter
+                criteria. Defaults to ``False``.
+            property (bool, optional): When ``True``, include attribute and relationship
+                properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``.
+            order (Order, optional): Ordering options to apply to the query.
+            include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
+                ``relationship_metadata`` in the result. Defaults to ``False``.
+
+        Returns:
+            dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
+            rendered as GraphQL.
+
+        """
         data = self.generate_query_data_init(
             filters=filters,
             offset=offset,
@@ -2215,6 +2709,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         relation_to_update: str,
         related_nodes: list[str],
     ) -> None:
+        """Add peers to a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only adds
+        peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to add.
+
+        """
         query = self._relationship_mutation(
             action="Add", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -2222,6 +2726,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
         self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
     def remove_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
+        """Remove peers from a cardinality-many relationship through a dedicated mutation.
+
+        Unlike :meth:`save`, this method targets a single relationship and only removes
+        the listed peers, leaving every other field untouched.
+
+        Args:
+            relation_to_update (str): The name of the relationship to update.
+            related_nodes (list[str]): The IDs of the peers to remove.
+
+        """
         query = self._relationship_mutation(
             action="Remove", relation_to_update=relation_to_update, related_nodes=related_nodes
         )
@@ -2275,6 +2789,27 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Create this node on the backend.
+
+        For nodes inheriting from ``CoreFileObject``, the file content set with
+        :meth:`upload_from_path` or :meth:`upload_from_bytes` is uploaded as part of the
+        mutation and cleared from the node afterward.
+
+        Prefer :meth:`save` over calling ``create()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            allow_upsert (bool, optional): When ``True``, the operation upserts instead of
+                erroring on a duplicate. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        Raises:
+            ValueError: If this is a file-object node and no file content has been set.
+
+        """
         self._validate_upsert(allow_upsert=allow_upsert)
 
         if self._file_object_support and self._file_content is None:
@@ -2331,6 +2866,24 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def update(
         self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
+        """Update this node on the backend.
+
+        By default only the modified attributes and relationships are sent so the server
+        can compute a minimal diff. Setting ``do_full_update`` re-sends every field even
+        when unchanged, which is useful when forcing relationship reconciliation.
+
+        Prefer :meth:`save` over calling ``update()`` directly so existing-vs-new logic
+        is handled for you.
+
+        Args:
+            do_full_update (bool, optional): When ``True``, send every field even when
+                unmodified. Defaults to ``False``.
+            timeout (int, optional): Overrides the default timeout used when querying the
+                GraphQL API. Specified in seconds.
+            request_context (RequestContext, optional): Request-level context passed through
+                to the mutation. When omitted, the client's request context is used.
+
+        """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
         mutation_query = self._generate_mutation_query()
         mutation_name = f"{self._schema.kind}Update"
@@ -2549,15 +3102,28 @@ class InfrahubNodeSync(InfrahubNodeBase):
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=one relationship for {name}")
 
     def get_flat_value(self, key: str, separator: str = "__") -> Any:
-        """Query recursively a value defined in a flat notation (string), on a hierarchy of objects.
+        """Resolve a value addressed by a flat key over this node and its related nodes.
+
+        Walks attributes on this node, descending through cardinality-one relationships
+        (which are fetched on demand) until the final component is reached. Each
+        relationship hop incurs a backend call, so this is intended for ad-hoc lookups
+        rather than bulk traversal.
+
+        Args:
+            key (str): The flat key to resolve (for example ``"name__value"`` or
+                ``"site__name__value"``).
+            separator (str, optional): Component separator in ``key``. Defaults to ``"__"``.
+
+        Returns:
+            Any: The resolved value.
+
+        Raises:
+            ValueError: If a component does not match an attribute or relationship, or if
+                a relationship hop targets a non cardinality-one relationship.
 
         Examples:
             name__value
             module.object.value
-
-        Raises:
-            ValueError: If ``key`` references an unknown attribute or relationship,
-                or if a referenced relationship is not of cardinality ``ONE``.
 
         """
         if separator not in key:
@@ -2586,7 +3152,18 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return related_node.peer.get_flat_value(key=remaining, separator=separator)
 
     def extract(self, params: dict[str, str]) -> dict[str, Any]:
-        """Extract some data points defined in a flat notation."""
+        """Extract several values addressed by flat keys into a labeled dict.
+
+        Each value in ``params`` is resolved with :meth:`get_flat_value`, and the
+        corresponding key is preserved as the output label.
+
+        Args:
+            params (dict[str, str]): A mapping of output label to flat key to resolve.
+
+        Returns:
+            dict[str, Any]: The resolved values keyed by their output label.
+
+        """
         result: dict[str, Any] = {}
         for key, value in params.items():
             result[key] = self.get_flat_value(key=value)

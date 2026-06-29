@@ -236,6 +236,10 @@ async def test_save_upsert_raises_when_numberpool_attr_in_hfid(
     with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         await node.save(allow_upsert=True)
 
+    # The message should explain the real problem (non-idempotent, silently duplicates) and the fix.
+    with pytest.raises(ValidationError, match=re.escape("every run would silently create a duplicate")):
+        await node.save(allow_upsert=True)
+
 
 async def test_save_upsert_proceeds_when_explicit_id_set(
     client: InfrahubClient,

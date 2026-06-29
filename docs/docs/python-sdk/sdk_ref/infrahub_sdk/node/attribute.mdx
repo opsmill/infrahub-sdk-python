@@ -11,6 +11,26 @@ sidebarTitle: attribute
 
 Represents an attribute of a Node, including its schema, value, and properties.
 
+An ``Attribute`` wraps a single attribute on an :class:`InfrahubNode`. It tracks the
+current value, the metadata properties (``source``, ``owner``, ``is_protected``, ...),
+and whether the value has been mutated since the node was loaded. Mutation tracking is
+used by ``InfrahubNode.update()`` to send only the changed fields to the API.
+
+**Attributes:**
+
+- `name`: The name of the attribute.
+- `id`: The unique identifier of the attribute, when known.
+- `value`: The current attribute value. Setting this marks the attribute as mutated.
+- `value_has_been_mutated`: True when ``value`` has been assigned after construction.
+- `is_default`: True when the value comes from the schema default.
+- `is_from_profile`: True when the value is inherited from a profile.
+- `is_inherited`: True when the attribute is inherited from a generic.
+- `is_protected`: True when the attribute is protected from modification.
+- `updated_at`: ISO-8601 timestamp of the most recent update.
+- `source`: The node that supplied this attribute value.
+- `owner`: The node that owns this attribute.
+- `updated_by`: The account that performed the most recent update.
+
 **Methods:**
 
 #### `value`
