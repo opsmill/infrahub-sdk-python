@@ -78,6 +78,7 @@ JSONSchema
 kbps
 Keycloak
 Loopbacks
+loopless
 markdownlint
 MDX
 max_count
