@@ -698,6 +698,7 @@ class InfrahubClient(BaseClient):
         excluded_namespaces: list[str] | None = None,
         excluded_kinds: list[str | type[SchemaType]] | None = None,
         included_kinds: list[str | type[SchemaType]] | None = None,
+        shortest_paths_only: bool | None = None,
         branch: str | None = None,
         at: Timestamp | str | None = None,
         timeout: int | None = None,
@@ -721,6 +722,8 @@ class InfrahubClient(BaseClient):
             excluded_namespaces: Schema namespaces to exclude from traversal.
             excluded_kinds: Node kinds to exclude from traversal.
             included_kinds: Node kinds to re-include when otherwise excluded by default.
+            shortest_paths_only: When True (the server default), only return the shortest
+                path(s); when False, return all loopless paths (exhaustive mode).
             branch: Name of the branch to query from. Defaults to default_branch.
             at: Time of the query. Defaults to now.
             timeout: Overrides the default GraphQL timeout, in seconds.
@@ -740,6 +743,7 @@ class InfrahubClient(BaseClient):
             excluded_namespaces=excluded_namespaces,
             excluded_kinds=_normalize_kinds(excluded_kinds),
             included_kinds=_normalize_kinds(included_kinds),
+            shortest_paths_only=shortest_paths_only,
         )
         try:
             response = await self.execute_graphql(
@@ -2394,6 +2398,7 @@ class InfrahubClientSync(BaseClient):
         excluded_namespaces: list[str] | None = None,
         excluded_kinds: list[str | type[SchemaTypeSync]] | None = None,
         included_kinds: list[str | type[SchemaTypeSync]] | None = None,
+        shortest_paths_only: bool | None = None,
         branch: str | None = None,
         at: Timestamp | str | None = None,
         timeout: int | None = None,
@@ -2417,6 +2422,8 @@ class InfrahubClientSync(BaseClient):
             excluded_namespaces: Schema namespaces to exclude from traversal.
             excluded_kinds: Node kinds to exclude from traversal.
             included_kinds: Node kinds to re-include when otherwise excluded by default.
+            shortest_paths_only: When True (the server default), only return the shortest
+                path(s); when False, return all loopless paths (exhaustive mode).
             branch: Name of the branch to query from. Defaults to default_branch.
             at: Time of the query. Defaults to now.
             timeout: Overrides the default GraphQL timeout, in seconds.
@@ -2436,6 +2443,7 @@ class InfrahubClientSync(BaseClient):
             excluded_namespaces=excluded_namespaces,
             excluded_kinds=_normalize_kinds(excluded_kinds),
             included_kinds=_normalize_kinds(included_kinds),
+            shortest_paths_only=shortest_paths_only,
         )
         try:
             response = self.execute_graphql(

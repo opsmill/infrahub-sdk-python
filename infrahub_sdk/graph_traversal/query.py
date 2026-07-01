@@ -22,6 +22,7 @@ PATH_TRAVERSAL_QUERY = f"""query InfrahubPathTraversal($data: PathTraversalInput
     destination {{ {_PATH_NODE_FIELDS} }}
     count
     excluded_kinds
+    truncated_at_depth
   }}
 }}"""
 
@@ -64,6 +65,7 @@ def build_path_traversal_input(
     excluded_namespaces: list[str] | None = None,
     excluded_kinds: list[str] | None = None,
     included_kinds: list[str] | None = None,
+    shortest_paths_only: bool | None = None,
 ) -> dict[str, Any]:
     """Build the ``PathTraversalInput`` variable, omitting unset optional fields."""
     data: dict[str, Any] = {"source_id": source_id, "destination_id": destination_id}
@@ -75,6 +77,7 @@ def build_path_traversal_input(
         "excluded_namespaces": excluded_namespaces,
         "excluded_kinds": excluded_kinds,
         "included_kinds": included_kinds,
+        "shortest_paths_only": shortest_paths_only,
     }
     data.update({key: value for key, value in optional.items() if value is not None})
     return data
