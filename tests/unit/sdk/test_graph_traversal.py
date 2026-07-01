@@ -121,6 +121,16 @@ def test_build_path_traversal_input_includes_set_values() -> None:
     }
 
 
+def test_build_path_traversal_input_includes_shortest_paths_only() -> None:
+    data = build_path_traversal_input("a", "b", shortest_paths_only=False)
+    assert data == {"source_id": "a", "destination_id": "b", "shortest_paths_only": False}
+
+
+def test_build_path_traversal_input_omits_shortest_paths_only_when_none() -> None:
+    data = build_path_traversal_input("a", "b", shortest_paths_only=None)
+    assert "shortest_paths_only" not in data
+
+
 def test_build_reachable_nodes_input() -> None:
     data = build_reachable_nodes_input("a", ["DcimCable"], max_results=10, shortest_paths_only=True)
     assert data == {
@@ -159,6 +169,20 @@ def test_path_traversal_result_parsing() -> None:
     assert result.source.hfid == []
 
 
+def test_path_traversal_result_parses_truncated_at_depth() -> None:
+    result = PathTraversalResult.model_validate({**PATH_RESULT, "truncated_at_depth": 5})
+    assert result.truncated_at_depth == 5
+
+
+def test_path_traversal_result_truncated_at_depth_defaults_none() -> None:
+    # Absent field (older server / completed search) parses as None.
+    result = PathTraversalResult.model_validate(PATH_RESULT)
+    assert result.truncated_at_depth is None
+    # Explicit null (search completed within budget) also parses as None.
+    result_null = PathTraversalResult.model_validate({**PATH_RESULT, "truncated_at_depth": None})
+    assert result_null.truncated_at_depth is None
+
+
 def test_reachable_nodes_result_parsing() -> None:
     result = ReachableNodesResult.model_validate(REACHABLE_RESULT)
     assert result.count == 1
@@ -185,6 +209,44 @@ async def test_kind_filter_accepts_protocol_classes(clients: BothClients, httpx_
 
     sent = json.loads(httpx_mock.get_requests()[0].content)
     assert sent["variables"]["data"]["kind_filter"] == ["DcimCable", "InterfacePhysical"]
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+async def test_traverse_paths_sends_shortest_paths_only(
+    clients: BothClients, client_type: str, httpx_mock: HTTPXMock
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=PATH_TRAVERSAL_URL,
+        match_headers={"X-Infrahub-Tracker": "query-path-traversal"},
+        json={"data": {"InfrahubPathTraversal": PATH_RESULT}},
+    )
+    if client_type == "standard":
+        await clients.standard.traverse_paths("a", "b", shortest_paths_only=False)
+    else:
+        clients.sync.traverse_paths("a", "b", shortest_paths_only=False)
+
+    sent = json.loads(httpx_mock.get_requests()[0].content)
+    assert sent["variables"]["data"]["shortest_paths_only"] is False
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+async def test_traverse_paths_omits_shortest_paths_only_by_default(
+    clients: BothClients, client_type: str, httpx_mock: HTTPXMock
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url=PATH_TRAVERSAL_URL,
+        match_headers={"X-Infrahub-Tracker": "query-path-traversal"},
+        json={"data": {"InfrahubPathTraversal": PATH_RESULT}},
+    )
+    if client_type == "standard":
+        await clients.standard.traverse_paths("a", "b")
+    else:
+        clients.sync.traverse_paths("a", "b")
+
+    sent = json.loads(httpx_mock.get_requests()[0].content)
+    assert "shortest_paths_only" not in sent["variables"]["data"]
 
 
 async def test_traverse_paths_accepts_node_objects(
