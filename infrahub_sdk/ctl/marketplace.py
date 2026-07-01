@@ -353,6 +353,7 @@ async def _download_schema_set(
     seen: set[tuple[str, str]] | None = None,
     already_written: int = 0,
     soft_fail: bool = False,
+    reserved_names: set[str] | None = None,
 ) -> int:
     """Download a resolved set of schemas into ``target_dir``, returning the count written.
 
@@ -363,7 +364,10 @@ async def _download_schema_set(
     ``seen`` deduplicates ``(namespace, name)`` across multiple calls so a schema already
     downloaded (e.g. as a member of another collection) is skipped. ``already_written`` is the
     running total written by prior calls, used so the ``---`` stdout separator is inserted
-    before every document except the very first across the whole download.
+    before every document except the very first across the whole download. ``reserved_names``
+    are names already written into ``target_dir`` by a prior call (e.g. the requested schema),
+    so a pending schema sharing one is disambiguated into a namespace subdirectory rather than
+    overwriting it.
     """
     if seen is None:
         seen = set()
@@ -376,6 +380,8 @@ async def _download_schema_set(
         pending.append(schema)
 
     name_counts = Counter(schema["name"] for schema in pending)
+    for reserved in reserved_names or ():
+        name_counts[reserved] += 1
 
     written_here = 0
     for schema in pending:
@@ -583,6 +589,68 @@ async def _download_collection_tree(
     _report_collection_tree(status, namespace, name, total_written, requested_member_count, prerequisites, unresolved)
 
 
+async def _download_schema_tree(
+    client: httpx.AsyncClient,
+    base_url: str,
+    namespace: str,
+    name: str,
+    version: str | None,
+    output_dir: Path,
+    *,
+    stdout: bool,
+    prefetched: httpx.Response | None = None,
+    schema_confirmed_exists: bool = False,
+) -> None:
+    """Download a single schema together with its transitive dependencies.
+
+    The requested schema downloads strictly (it is the primary target); its transitively
+    resolved dependency schemas soft-fail and are written to the output root alongside it,
+    deduplicated and cycle-safe. Referenced kinds the marketplace cannot resolve are reported.
+    """
+    status = _status_console(stdout)
+    requested_written = await _download_schema(
+        client=client,
+        base_url=base_url,
+        namespace=namespace,
+        name=name,
+        version=version,
+        output_dir=output_dir,
+        stdout=stdout,
+        prefetched=prefetched,
+        schema_confirmed_exists=schema_confirmed_exists,
+    )
+    total_written = 1 if requested_written else 0
+
+    # Resolve the transitive closure from the requested schema; it is already downloaded, so
+    # ``seen`` skips it and only its dependencies are written (soft-fail, to the output root).
+    seen: set[tuple[str, str]] = {(namespace, name)}
+    seed = [{"namespace": namespace, "name": name, "version": version}]
+    closure, unresolved = await _resolve_dependency_closure(client, base_url, seed, status=status)
+    reserved = {name} if requested_written else None
+    total_written += await _download_schema_set(
+        client,
+        base_url,
+        closure,
+        output_dir,
+        stdout=stdout,
+        seen=seen,
+        already_written=total_written,
+        soft_fail=True,
+        reserved_names=reserved,
+    )
+
+    dependency_count = total_written - (1 if requested_written else 0)
+    noun = "dependency" if dependency_count == 1 else "dependencies"
+    status.print(
+        f"\n[green]Schema {namespace}/{name}: {total_written} schemas downloaded ({dependency_count} {noun} resolved)"
+    )
+    if unresolved:
+        status.print(
+            "[yellow]Unresolved dependencies (referenced kinds the marketplace could not resolve to a schema): "
+            + ", ".join(sorted(unresolved))
+        )
+
+
 async def _download_collection(
     client: httpx.AsyncClient,
     base_url: str,
@@ -653,7 +721,7 @@ async def get(
     dependencies: bool = typer.Option(
         False,
         "--dependencies",
-        help="Also download the schemas this collection depends on (collections only).",
+        help="Also download the schemas this schema or collection depends on.",
     ),
     stdout: bool = typer.Option(
         False,
@@ -708,12 +776,19 @@ async def get(
                     prefetched=prefetched,
                     with_dependencies=dependencies,
                 )
+            elif dependencies:
+                await _download_schema_tree(
+                    client=client,
+                    base_url=resolved_url,
+                    namespace=namespace,
+                    name=name,
+                    version=version,
+                    output_dir=output_dir,
+                    stdout=stdout,
+                    prefetched=prefetched,
+                    schema_confirmed_exists=schema_confirmed_exists,
+                )
             else:
-                if dependencies:
-                    _status_console(stdout).print(
-                        "[yellow]Note: --dependencies applies only to collections; "
-                        f"'{namespace}/{name}' is a schema. Downloading the schema only."
-                    )
                 await _download_schema(
                     client=client,
                     base_url=resolved_url,
