@@ -84,6 +84,8 @@ result = await client.traverse_paths(
 
 :::
 
+`shortest_paths_only` controls how many paths are considered through each intermediate node. When `True` (the server default), only the shortest path through each intermediate object is returned; when `False`, every loopless path up to `max_paths` is returned (exhaustive mode).
+
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
@@ -96,6 +98,7 @@ result = await client.traverse_paths(
       kind_filter=["DcimCable", "InterfacePhysical"],          # only traverse through these kinds
       relationship_filter=["dcimconnector__dcimendpoint"],     # schema relationship identifier
       included_kinds=["IpamIPPrefix"],                         # re-include a default-excluded kind
+      shortest_paths_only=False,                               # return all loopless paths, not just the shortest
   )
   ```
 
@@ -111,6 +114,7 @@ result = await client.traverse_paths(
       kind_filter=["DcimCable", "InterfacePhysical"],
       relationship_filter=["dcimconnector__dcimendpoint"],
       included_kinds=["IpamIPPrefix"],
+      shortest_paths_only=False,
   )
   ```
 
@@ -227,6 +231,14 @@ result = await client.reachable_nodes(source=src, target_kinds=["InfraDevice"], 
 reached = {dep.node.id for dep in result.dependencies}
 if len(reached) >= 50:
     print("Result may be truncated — increase max_results to see more.")
+```
+
+For `traverse_paths`, the `PathTraversalResult` reports truncation directly via `result.truncated_at_depth`. It is `None` when the search completed within budget; otherwise it is the depth at which the server ran out of budget. In that case the returned paths are complete only for depths *less than* that value, and deeper paths may exist.
+
+```python
+result = await client.traverse_paths(source=src, destination=dst)
+if result.truncated_at_depth is not None:
+    print(f"Search ran out of budget at depth {result.truncated_at_depth}; deeper paths may exist.")
 ```
 
 ## Common check patterns
