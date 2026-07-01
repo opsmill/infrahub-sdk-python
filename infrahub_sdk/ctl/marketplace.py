@@ -320,14 +320,14 @@ async def _read_schema_dependencies(
     name: str,
     *,
     status: Console,
-) -> tuple[list[tuple[str, str]], list[str]]:
+) -> tuple[list[tuple[str, str, str]], list[str]]:
     """Read a schema's latest-version dependencies from the marketplace API.
 
     Returns ``(resolved, unresolved_kinds)`` where ``resolved`` is a list of
-    ``(namespace, name)`` for dependencies the marketplace can supply, and ``unresolved_kinds``
-    are referenced kinds that are not available (including ones hidden by visibility). A read
-    failure is reported as an informational note and treated as "no dependencies" so the rest
-    of the resolution continues.
+    ``(namespace, name, schema_id)`` for dependencies the marketplace can supply, and
+    ``unresolved_kinds`` are referenced kinds that are not available (including ones hidden by
+    visibility). A read failure is reported as an informational note and treated as "no
+    dependencies" so the rest of the resolution continues.
     """
     try:
         resp = await client.get(_schema_detail_url(base_url, namespace, name))
@@ -344,7 +344,7 @@ async def _read_schema_dependencies(
         versions[0] if versions and isinstance(versions[0], dict) else {}
     )
 
-    resolved: list[tuple[str, str]] = []
+    resolved: list[tuple[str, str, str]] = []
     unresolved: list[str] = []
     for dep in deps_source.get("dependencies") or []:
         if not isinstance(dep, dict):
@@ -354,7 +354,7 @@ async def _read_schema_dependencies(
             dep_namespace = resolved_schema.get("namespace")
             dep_name = resolved_schema.get("name")
             if dep_namespace and dep_name:
-                resolved.append((dep_namespace, dep_name))
+                resolved.append((dep_namespace, dep_name, resolved_schema.get("id") or ""))
                 continue
         referenced_kind = dep.get("referenced_kind")
         if referenced_kind:
@@ -396,12 +396,12 @@ async def _resolve_dependency_closure(
             client, base_url, current["namespace"], current["name"], status=status
         )
         unresolved.update(kinds)
-        for dep_namespace, dep_name in resolved:
+        for dep_namespace, dep_name, dep_id in resolved:
             key = (dep_namespace, dep_name)
             if key in seen:
                 continue
             seen.add(key)
-            entry = {"namespace": dep_namespace, "name": dep_name, "version": None}
+            entry = {"namespace": dep_namespace, "name": dep_name, "version": None, "schema_id": dep_id}
             ordered.append(entry)
             queue.append(entry)
 
@@ -655,6 +655,28 @@ async def _download_collection_tree(
     _report_collection_tree(status, namespace, name, total_written, requested_member_count, prerequisites, unresolved)
 
 
+async def _owning_collection_name(
+    client: httpx.AsyncClient,
+    base_url: str,
+    schema_id: str,
+) -> str | None:
+    """Return the name of a collection the schema belongs to, if any (first by name).
+
+    Used to group a schema's dependencies under their collection's directory, mirroring a
+    collection download. A lookup failure is treated as "no collection" (write to the root).
+    """
+    if not schema_id:
+        return None
+    try:
+        resp = await client.get(f"{base_url}/api/v1/collections/for-schema/{schema_id}")
+        resp.raise_for_status()
+        items = resp.json().get("items") or []
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return None
+    names = sorted(entry["name"] for entry in items if isinstance(entry, dict) and entry.get("name"))
+    return names[0] if names else None
+
+
 async def _download_schema_tree(
     client: httpx.AsyncClient,
     base_url: str,
@@ -670,9 +692,10 @@ async def _download_schema_tree(
 ) -> None:
     """Download a single schema together with its transitive dependencies.
 
-    The requested schema downloads strictly (it is the primary target); its transitively
-    resolved dependency schemas soft-fail and are written to the output root alongside it,
-    deduplicated and cycle-safe. Referenced kinds the marketplace cannot resolve are reported.
+    The requested schema downloads strictly (it is the primary target) to the output root. Its
+    transitively resolved dependency schemas soft-fail and are grouped by the collection they
+    belong to (``output_dir/<collection>/``, like a collection download); dependencies not in
+    any collection go to the output root. Referenced kinds that cannot be resolved are reported.
     """
     status = _status_console(stdout)
     requested_written = await _download_schema(
@@ -689,24 +712,32 @@ async def _download_schema_tree(
     )
     total_written = 1 if requested_written else 0
 
-    # Resolve the transitive closure from the requested schema; it is already downloaded, so
-    # ``seen`` skips it and only its dependencies are written (soft-fail, to the output root).
+    # Resolve the transitive closure from the requested schema (it is already downloaded, so
+    # ``seen`` skips it), then bucket each dependency under its owning collection's directory.
     seen: set[tuple[str, str]] = {(namespace, name)}
     seed = [{"namespace": namespace, "name": name, "version": version}]
     closure, unresolved = await _resolve_dependency_closure(client, base_url, seed, status=status)
-    reserved = {name} if requested_written else None
-    total_written += await _download_schema_set(
-        client,
-        base_url,
-        closure,
-        output_dir,
-        stdout=stdout,
-        seen=seen,
-        already_written=total_written,
-        soft_fail=True,
-        reserved_names=reserved,
-        write_ctx=write_ctx,
-    )
+
+    buckets: dict[Path, list[dict[str, Any]]] = {}
+    for dep in closure:
+        if (dep["namespace"], dep["name"]) == (namespace, name):
+            continue
+        owning = await _owning_collection_name(client, base_url, dep.get("schema_id", ""))
+        buckets.setdefault(output_dir / owning if owning else output_dir, []).append(dep)
+
+    for target, group in buckets.items():
+        total_written += await _download_schema_set(
+            client,
+            base_url,
+            group,
+            target,
+            stdout=stdout,
+            seen=seen,
+            already_written=total_written,
+            soft_fail=True,
+            reserved_names={name} if target == output_dir and requested_written else None,
+            write_ctx=write_ctx,
+        )
 
     dependency_count = total_written - (1 if requested_written else 0)
     noun = "dependency" if dependency_count == 1 else "dependencies"

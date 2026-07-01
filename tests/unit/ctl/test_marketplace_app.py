@@ -82,6 +82,16 @@ def _schema_detail(namespace: str, name: str, *, semver: str = "1.0.0", deps: li
     }
 
 
+def _stub_for_schema(httpx_mock: HTTPXMock, ns: str, name: str, collection: str | None = None) -> None:
+    """Stub GET /collections/for-schema/{id} for a dependency (id matches _resolved_dep)."""
+    items = [{"namespace": "infrahub", "name": collection}] if collection else []
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://marketplace.infrahub.app/api/v1/collections/for-schema/s-{ns}-{name}",
+        json={"items": items},
+    )
+
+
 def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     # Auto-detect probes
     httpx_mock.add_response(
@@ -951,6 +961,9 @@ def test_dependencies_on_schema_resolves_transitively(httpx_mock: HTTPXMock, tmp
             url=f"https://marketplace.infrahub.app/api/v1/schemas/acme/{dep}/download",
             text=SCHEMA_YAML,
         )
+    # Neither dependency belongs to a collection → both stay at the output root.
+    _stub_for_schema(httpx_mock, "acme", "ipam")
+    _stub_for_schema(httpx_mock, "acme", "location")
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -959,6 +972,30 @@ def test_dependencies_on_schema_resolves_transitively(httpx_mock: HTTPXMock, tmp
     assert (tmp_path / "app.yml").exists()
     assert (tmp_path / "ipam.yml").exists()
     assert (tmp_path / "location.yml").exists()
+
+
+def test_dependencies_on_schema_groups_deps_by_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A dependency that belongs to a collection is placed under that collection's directory."""
+    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
+        json=_schema_detail("acme", "dcim", deps=[]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/download",
+        text=SCHEMA_YAML,
+    )
+    # dcim belongs to the base-schemas collection → grouped under base-schemas/.
+    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
+    result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "1 dependency resolved" in result.output
+    assert (tmp_path / "app.yml").exists()  # requested schema at the root
+    assert (tmp_path / "base-schemas" / "dcim.yml").exists()  # dependency grouped by collection
+    assert not (tmp_path / "dcim.yml").exists()
 
 
 def test_dependencies_on_schema_with_no_dependencies(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -1017,6 +1054,7 @@ def test_dependencies_on_schema_disambiguates_same_name_dependency(httpx_mock: H
         url="https://marketplace.infrahub.app/api/v1/schemas/other/thing/download",
         text=SCHEMA_YAML,
     )
+    _stub_for_schema(httpx_mock, "other", "thing")  # not in a collection → stays at root
     result = runner.invoke(app, ["get", "acme/thing", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1060,6 +1098,7 @@ def test_dependencies_existing_file_kept_without_yes(httpx_mock: HTTPXMock, tmp_
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
         json=_schema_detail("acme", "dcim", deps=[]),
     )
+    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
     # Non-interactive (CliRunner stdin is not a tty) and no --yes → dcim is kept, not re-fetched.
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
 
@@ -1086,6 +1125,7 @@ def test_dependencies_existing_file_overwritten_with_yes(httpx_mock: HTTPXMock, 
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/download",
         text=SCHEMA_YAML,
     )
+    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "--yes", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
