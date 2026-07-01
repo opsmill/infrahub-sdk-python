@@ -106,6 +106,9 @@ class PathTraversalResult(GraphTraversalModel):
     destination: PathNode
     count: int
     excluded_kinds: list[str] = Field(default_factory=list)
+    # None when the search completed within budget; otherwise the depth at which the
+    # server ran out of budget. Returned paths are complete only for depths below this value.
+    truncated_at_depth: int | None = None
 
     def _bind(self, client: InfrahubClient | InfrahubClientSync, branch: str | None) -> PathTraversalResult:
         self.source._bind(client, branch)
