@@ -116,6 +116,15 @@ def _snapshot_existing_schemas(output_root: Path) -> dict[str, Path]:
     return existing
 
 
+def _print_unresolved(status: Console, unresolved: set[str] | list[str]) -> None:
+    """Report referenced kinds the marketplace could not resolve to a schema, if any."""
+    if unresolved:
+        status.print(
+            "[yellow]Unresolved dependencies (referenced kinds the marketplace could not resolve to a schema): "
+            + ", ".join(sorted(unresolved))
+        )
+
+
 def _confirm_overwrite(prompt: str, *, assume_yes: bool) -> bool:
     """Return whether to overwrite an existing schema file.
 
@@ -329,17 +338,15 @@ async def _read_schema_dependencies(
         status.print(f"[yellow]Note: could not read dependencies for {namespace}/{name}: {detail}")
         return [], []
 
-    versions = payload.get("versions") or [] if isinstance(payload, dict) else []
+    versions = (payload.get("versions") or []) if isinstance(payload, dict) else []
     latest_id = (payload.get("latest_version") or {}).get("id") if isinstance(payload, dict) else None
-    deps_source: dict[str, Any] | None = None
-    if latest_id:
-        deps_source = next((v for v in versions if isinstance(v, dict) and v.get("id") == latest_id), None)
-    if deps_source is None and versions and isinstance(versions[0], dict):
-        deps_source = versions[0]
+    deps_source = next((v for v in versions if isinstance(v, dict) and v.get("id") == latest_id), None) or (
+        versions[0] if versions and isinstance(versions[0], dict) else {}
+    )
 
     resolved: list[tuple[str, str]] = []
     unresolved: list[str] = []
-    for dep in (deps_source or {}).get("dependencies") or []:
+    for dep in deps_source.get("dependencies") or []:
         if not isinstance(dep, dict):
             continue
         resolved_schema = dep.get("resolved_schema")
@@ -571,11 +578,7 @@ def _report_collection_tree(
     )
     if prerequisites:
         status.print("[green]Prerequisite collections: " + ", ".join(prerequisites))
-    if unresolved:
-        status.print(
-            "[yellow]Unresolved dependencies (referenced kinds the marketplace could not resolve to a schema): "
-            + ", ".join(sorted(unresolved))
-        )
+    _print_unresolved(status, unresolved)
 
 
 async def _download_collection_tree(
@@ -710,11 +713,7 @@ async def _download_schema_tree(
     status.print(
         f"\n[green]Schema {namespace}/{name}: {total_written} schemas downloaded ({dependency_count} {noun} resolved)"
     )
-    if unresolved:
-        status.print(
-            "[yellow]Unresolved dependencies (referenced kinds the marketplace could not resolve to a schema): "
-            + ", ".join(sorted(unresolved))
-        )
+    _print_unresolved(status, unresolved)
 
 
 async def _download_collection(
