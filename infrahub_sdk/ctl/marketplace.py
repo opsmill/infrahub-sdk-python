@@ -92,6 +92,44 @@ def _mkdir_or_fail(path: Path) -> None:
         _fail(_ErrorClass.INVALID_INPUT, f"Cannot write to '{path}': {exc}")
 
 
+class _WriteContext(NamedTuple):
+    """Controls overwriting when a schema already exists in the output tree.
+
+    ``preexisting`` maps a schema filename (``<name>.yml``) to the path where it was found in
+    the output directory *before* this command ran, so a schema being written now that already
+    exists elsewhere (e.g. a dependency at the root vs. a copy under a collection directory) is
+    reconciled to a single file instead of duplicated. Only files present before the run are
+    considered, so schemas written during this same run never trigger a prompt.
+    """
+
+    assume_yes: bool
+    preexisting: dict[str, Path]
+
+
+def _snapshot_existing_schemas(output_root: Path) -> dict[str, Path]:
+    """Map ``<name>.yml`` -> existing path for every schema already under ``output_root``."""
+    existing: dict[str, Path] = {}
+    if output_root.exists():
+        for path in sorted(output_root.rglob("*.yml")):
+            if path.is_file():
+                existing.setdefault(path.name, path)
+    return existing
+
+
+def _confirm_overwrite(prompt: str, *, assume_yes: bool) -> bool:
+    """Return whether to overwrite an existing schema file.
+
+    ``--yes`` overwrites unconditionally; an interactive terminal is prompted; a
+    non-interactive run without ``--yes`` declines (keep the existing file) so scripts and CI
+    never block or clobber.
+    """
+    if assume_yes:
+        return True
+    if not sys.stdin.isatty():
+        return False
+    return typer.confirm(prompt, default=False)
+
+
 def _make_http_client(sdk_cfg: _SdkConfig) -> httpx.AsyncClient:
     """Build an httpx client that inherits the SDK's proxy and TLS configuration."""
     proxy_kwargs: dict[str, Any] = {}
@@ -163,6 +201,7 @@ async def _download_schema(
     schema_confirmed_exists: bool = False,
     needs_separator: bool = False,
     soft_fail: bool = False,
+    write_ctx: _WriteContext | None = None,
 ) -> bool:
     """Download a single schema and write it to disk or stdout.
 
@@ -179,8 +218,23 @@ async def _download_schema(
     from a collection) form a valid multi-document YAML stream.
     ``soft_fail`` downgrades a 404 to an informational note and a ``False`` return instead of
     aborting — used for resolved dependencies so one missing dependency does not fail the
-    whole download.
+    whole download. ``write_ctx`` reconciles against schemas already present on disk: an
+    already-present schema is overwritten (``--yes``/prompt) or kept, decided before fetching
+    so a kept schema costs no download.
     """
+    filename = f"{name}.yml"
+
+    # Reconcile with a pre-existing copy before fetching (disk mode only).
+    existing_path = write_ctx.preexisting.get(filename) if write_ctx is not None and not stdout else None
+    if existing_path is not None and not _confirm_overwrite(
+        f"{namespace}/{name} already exists at {existing_path}. Overwrite?",
+        assume_yes=write_ctx.assume_yes if write_ctx else False,
+    ):
+        _status_console(stdout).print(
+            f"[yellow]Kept existing {existing_path}; skipped {namespace}/{name} (pass --yes to overwrite)."
+        )
+        return False
+
     if prefetched is not None and version is None:
         resp = prefetched
     else:
@@ -215,7 +269,11 @@ async def _download_schema(
         err_console.print(f"[green]Fetched schema {namespace}/{name} v{resolved_version}")
         return True
 
-    filename = f"{name}.yml"
+    if existing_path is not None:
+        existing_path.write_text(resp.text, encoding="utf-8")
+        console.print(f"[green]Updated schema {namespace}/{name} v{resolved_version} -> {existing_path}")
+        return True
+
     _mkdir_or_fail(output_dir)
     file_path = output_dir / filename
     file_path.write_text(resp.text, encoding="utf-8")
@@ -354,6 +412,7 @@ async def _download_schema_set(
     already_written: int = 0,
     soft_fail: bool = False,
     reserved_names: set[str] | None = None,
+    write_ctx: _WriteContext | None = None,
 ) -> int:
     """Download a resolved set of schemas into ``target_dir``, returning the count written.
 
@@ -398,6 +457,7 @@ async def _download_schema_set(
             schema_confirmed_exists=True,
             needs_separator=already_written + written_here > 0,
             soft_fail=soft_fail,
+            write_ctx=write_ctx,
         )
         if written:
             written_here += 1
@@ -527,6 +587,7 @@ async def _download_collection_tree(
     output_dir: Path,
     *,
     stdout: bool,
+    write_ctx: _WriteContext | None = None,
 ) -> None:
     """Download a collection together with its dependencies, grouped by source collection.
 
@@ -567,6 +628,7 @@ async def _download_collection_tree(
             seen=seen_schemas,
             already_written=total_written,
             soft_fail=False,
+            write_ctx=write_ctx,
         )
 
     # Loose schema dependencies (standalone + transitively discovered) soft-fail: a referenced
@@ -584,6 +646,7 @@ async def _download_collection_tree(
         seen=seen_schemas,
         already_written=total_written,
         soft_fail=True,
+        write_ctx=write_ctx,
     )
 
     _report_collection_tree(status, namespace, name, total_written, requested_member_count, prerequisites, unresolved)
@@ -600,6 +663,7 @@ async def _download_schema_tree(
     stdout: bool,
     prefetched: httpx.Response | None = None,
     schema_confirmed_exists: bool = False,
+    write_ctx: _WriteContext | None = None,
 ) -> None:
     """Download a single schema together with its transitive dependencies.
 
@@ -618,6 +682,7 @@ async def _download_schema_tree(
         stdout=stdout,
         prefetched=prefetched,
         schema_confirmed_exists=schema_confirmed_exists,
+        write_ctx=write_ctx,
     )
     total_written = 1 if requested_written else 0
 
@@ -637,6 +702,7 @@ async def _download_schema_tree(
         already_written=total_written,
         soft_fail=True,
         reserved_names=reserved,
+        write_ctx=write_ctx,
     )
 
     dependency_count = total_written - (1 if requested_written else 0)
@@ -661,6 +727,7 @@ async def _download_collection(
     stdout: bool,
     prefetched: httpx.Response | None = None,
     with_dependencies: bool = False,
+    write_ctx: _WriteContext | None = None,
 ) -> None:
     """Fetch every schema in a collection, writing to disk or stdout.
 
@@ -696,7 +763,9 @@ async def _download_collection(
     status = _status_console(stdout)
 
     if with_dependencies:
-        await _download_collection_tree(client, base_url, namespace, name, payload, output_dir, stdout=stdout)
+        await _download_collection_tree(
+            client, base_url, namespace, name, payload, output_dir, stdout=stdout, write_ctx=write_ctx
+        )
         return
 
     members = _collection_members(payload, status)
@@ -722,6 +791,12 @@ async def get(
         False,
         "--dependencies",
         help="Also download the schemas this schema or collection depends on.",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Overwrite schemas that already exist in the output directory without prompting.",
     ),
     stdout: bool = typer.Option(
         False,
@@ -749,6 +824,12 @@ async def get(
     sdk_cfg = _SdkConfig()
     resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
 
+    # When resolving dependencies to disk, reconcile against schemas already present so a
+    # dependency is not duplicated across directories; overwriting is gated by --yes/prompt.
+    write_ctx: _WriteContext | None = None
+    if dependencies and not stdout:
+        write_ctx = _WriteContext(assume_yes=yes, preexisting=_snapshot_existing_schemas(output_dir))
+
     async with _make_http_client(sdk_cfg) as client:
         prefetched: httpx.Response | None = None
         schema_confirmed_exists = False
@@ -775,6 +856,7 @@ async def get(
                     stdout=stdout,
                     prefetched=prefetched,
                     with_dependencies=dependencies,
+                    write_ctx=write_ctx,
                 )
             elif dependencies:
                 await _download_schema_tree(
@@ -787,6 +869,7 @@ async def get(
                     stdout=stdout,
                     prefetched=prefetched,
                     schema_confirmed_exists=schema_confirmed_exists,
+                    write_ctx=write_ctx,
                 )
             else:
                 await _download_schema(

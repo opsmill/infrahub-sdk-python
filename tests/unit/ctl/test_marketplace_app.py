@@ -1024,3 +1024,71 @@ def test_dependencies_on_schema_disambiguates_same_name_dependency(httpx_mock: H
     # Requested schema at the root; the same-named dependency disambiguated into its namespace.
     assert (tmp_path / "thing.yml").exists()
     assert (tmp_path / "other" / "thing.yml").exists()
+
+
+def _stub_schema_get(httpx_mock: HTTPXMock, ns: str, name: str, *, deps: list[dict] | None = None) -> None:
+    """Register the auto-detect (download + collection-404) and dependency-read stubs for a schema."""
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://marketplace.infrahub.app/api/v1/schemas/{ns}/{name}/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://marketplace.infrahub.app/api/v1/collections/{ns}/{name}",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"https://marketplace.infrahub.app/api/v1/schemas/{ns}/{name}",
+        json=_schema_detail(ns, name, deps=deps or []),
+    )
+
+
+def test_dependencies_existing_file_kept_without_yes(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A schema already present in the output tree is kept (not overwritten/duplicated) without --yes."""
+    # Pre-existing copy from a prior download, in a collection subdirectory.
+    (tmp_path / "base-schemas").mkdir()
+    existing = tmp_path / "base-schemas" / "dcim.yml"
+    existing.write_text("OLD CONTENT\n")
+
+    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
+        json=_schema_detail("acme", "dcim", deps=[]),
+    )
+    # Non-interactive (CliRunner stdin is not a tty) and no --yes → dcim is kept, not re-fetched.
+    result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Kept existing" in result.output
+    assert existing.read_text() == "OLD CONTENT\n"  # untouched
+    assert not (tmp_path / "dcim.yml").exists()  # no duplicate created at the root
+
+
+def test_dependencies_existing_file_overwritten_with_yes(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """With --yes, an existing schema is overwritten in place rather than duplicated."""
+    (tmp_path / "base-schemas").mkdir()
+    existing = tmp_path / "base-schemas" / "dcim.yml"
+    existing.write_text("OLD CONTENT\n")
+
+    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
+        json=_schema_detail("acme", "dcim", deps=[]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/download",
+        text=SCHEMA_YAML,
+    )
+    result = runner.invoke(app, ["get", "acme/app", "--dependencies", "--yes", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Updated schema acme/dcim" in result.output
+    assert existing.read_text() == SCHEMA_YAML  # overwritten in place
+    assert not (tmp_path / "dcim.yml").exists()  # still no duplicate at the root
