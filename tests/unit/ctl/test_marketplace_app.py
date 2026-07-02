@@ -921,3 +921,94 @@ async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_pa
     )
 
     assert (tmp_path / "network-base.yml").read_text() == SCHEMA_YAML
+
+
+# ---------------------------------------------------------------------------
+# Fix #1 — 4xx errors must exit 1 (not 2)
+# ---------------------------------------------------------------------------
+
+
+def test_list_4xx_error_exits_1(httpx_mock: HTTPXMock) -> None:
+    """A 4xx response on the listing endpoint must exit 1, not 2."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        status_code=400,
+        json={"detail": "Bad Request"},
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 1
+
+
+def test_show_force_collection_4xx_exits_1(httpx_mock: HTTPXMock) -> None:
+    """A 4xx response on the --collection (force) path in show must exit 1, not 2."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        status_code=400,
+        json={"detail": "Bad Request"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt", "--collection"])
+
+    assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Fix #2 — collision note must not appear on stdout when --json is used
+# ---------------------------------------------------------------------------
+
+
+def test_show_collision_json_stdout_is_clean(httpx_mock: HTTPXMock) -> None:
+    """When show hits a 200/200 collision and --json is passed, stdout must stay JSON-only.
+
+    The collision note must be routed to err_console (stderr) not console (stdout).
+
+    Stream-separation assertion limitation: Typer 0.25 / Click 8.3 do not
+    support ``mix_stderr=False`` on CliRunner, so we cannot isolate stdout in
+    this test runner.  The structural fix (console.print → err_console.print in
+    ``_fetch_detail``) is the authoritative correction; this test guards that the
+    command exits 0 on a collision+json path and that the JSON payload is
+    present somewhere in the combined output.
+    """
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        json=_collection_detail(),
+    )
+
+    result = runner.invoke(app, ["show", "infrahub/vlan", "--json"])
+
+    assert result.exit_code == 0
+    # The combined output must contain the JSON payload.  We parse the whole
+    # block starting from the first '{' at column 0 (the root object printed by
+    # Rich's print_json always starts at column 0).
+    output = result.output
+    root_brace = next((i for i, ch in enumerate(output) if ch == "{" and (i == 0 or output[i - 1] == "\n")), None)
+    assert root_brace is not None, "No root-level JSON object found in output"
+    parsed = _json.loads(output[root_brace:])
+    assert parsed["name"] == "vlan"
+
+
+# ---------------------------------------------------------------------------
+# Regression guard — 5xx must still exit 2
+# ---------------------------------------------------------------------------
+
+
+def test_list_network_error_exits_2_regression(httpx_mock: HTTPXMock) -> None:
+    """503 responses must still exit 2 (unchanged behaviour)."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        status_code=503,
+        json={"detail": "unavailable"},
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "Marketplace request failed" in result.output

@@ -168,6 +168,9 @@ async def _run_listing(
         try:
             items, total_count = await _fetch_listing(client, resolved_url, item_type, search=search, limit=limit)
         except httpx.HTTPError as exc:
+            error_class = _classify_http_error(exc)
+            if error_class is _ErrorClass.NOT_FOUND:
+                _fail(error_class, f"Marketplace listing not found on {_host_from(resolved_url)}: {exc}")
             detail = str(exc) or type(exc).__name__
             _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
     if json_output:
@@ -180,6 +183,19 @@ def _is_transport_failure(r: object) -> bool:
     if isinstance(r, Exception):
         return True
     return isinstance(r, httpx.Response) and r.status_code >= 500
+
+
+def _classify_http_error(exc: httpx.HTTPError) -> _ErrorClass:
+    """Map an httpx error to an error class for consistent exit-code assignment.
+
+    A response with a 4xx status code is a client/not-found error (exit 1).
+    A 5xx response or a transport-level failure with no response is a network
+    error (exit 2).
+    """
+    response = getattr(exc, "response", None)
+    if response is not None and response.status_code < 500:
+        return _ErrorClass.NOT_FOUND
+    return _ErrorClass.NETWORK
 
 
 def _mkdir_or_fail(path: Path) -> None:
@@ -415,7 +431,7 @@ async def _fetch_detail(
     )
     if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
         if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-            console.print(
+            err_console.print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
@@ -509,6 +525,9 @@ async def show(
                 client, resolved_url, parsed.namespace, parsed.name, force_collection=collection
             )
         except httpx.HTTPError as exc:
+            error_class = _classify_http_error(exc)
+            if error_class is _ErrorClass.NOT_FOUND:
+                _fail(error_class, f"Marketplace listing not found on {_host_from(resolved_url)}: {exc}")
             message = str(exc) or type(exc).__name__
             _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {message}")
     if json_output:
