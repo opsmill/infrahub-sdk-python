@@ -32,7 +32,7 @@ All commands live in `infrahub_sdk/ctl/marketplace.py`, registered on the existi
 `AsyncTyper` `app`, alongside `get`.
 
 | Command | Purpose |
-|---|---|
+| --- | --- |
 | `marketplace list [--collections] [--limit N] [--json]` | Browse all schemas (default) or collections |
 | `marketplace search <term> [--collections] [--limit N] [--json]` | Browse filtered by the API `search=` param |
 | `marketplace show <namespace/name> [--collection] [--json]` | Full detail of one schema or collection |
