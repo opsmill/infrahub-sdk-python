@@ -1,3 +1,4 @@
+import json as _json
 from pathlib import Path
 
 import httpx
@@ -697,6 +698,53 @@ def test_list_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
 
     assert result.exit_code == 2
     assert "Marketplace request failed" in result.output
+
+
+def test_search_passes_term_and_renders(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?search=vlan",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "vlan", display="VLAN", semver="1.0.0", downloads=3, tags=[])],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["search", "vlan"])
+
+    assert result.exit_code == 0
+    assert "infrahub/vlan" in result.output
+
+
+def test_search_empty_results(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?search=nomatch",
+        json=_listing_json("schemas", [], total=0),
+    )
+    result = runner.invoke(app, ["search", "nomatch"])
+
+    assert result.exit_code == 0
+    # An empty catalog is not an error; the table renders with no data rows.
+    assert "Identifier" in result.output
+
+
+def test_list_json_output_is_parseable(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "dcim", display="DCIM", semver="1.2.0", downloads=42, tags=["core"])],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["list", "--json"])
+
+    assert result.exit_code == 0
+    parsed = _json.loads(result.output)
+    assert parsed[0]["name"] == "dcim"
+    assert parsed[0]["latest_version"]["semver"] == "1.2.0"
 
 
 async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
