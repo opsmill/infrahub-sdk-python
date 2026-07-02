@@ -996,22 +996,28 @@ def test_show_collision_json_stdout_is_clean(httpx_mock: HTTPXMock) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Regression guard — 5xx must still exit 2
+# 5xx on the show (detail) path must be a network error (exit 2)
 # ---------------------------------------------------------------------------
 
 
-def test_list_network_error_exits_2_regression(httpx_mock: HTTPXMock) -> None:
-    """503 responses must still exit 2 (unchanged behaviour)."""
+def test_show_network_error_5xx_exits_2(httpx_mock: HTTPXMock) -> None:
+    """A 5xx from both detail probes classifies as a network error (exit 2)."""
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
         status_code=503,
         json={"detail": "unavailable"},
     )
-    result = runner.invoke(app, ["list"])
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=503,
+        json={"detail": "unavailable"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
 
     assert result.exit_code == 2
-    assert "Marketplace request failed" in result.output
+    assert "Could not reach marketplace" in result.output
 
 
 def test_list_stops_when_next_page_has_null_cursor(httpx_mock: HTTPXMock) -> None:
