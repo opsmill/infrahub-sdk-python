@@ -1012,3 +1012,56 @@ def test_list_network_error_exits_2_regression(httpx_mock: HTTPXMock) -> None:
 
     assert result.exit_code == 2
     assert "Marketplace request failed" in result.output
+
+
+def test_list_stops_when_next_page_has_null_cursor(httpx_mock: HTTPXMock) -> None:
+    """has_next_page=true with a null end_cursor must not loop forever.
+
+    Only one page is mocked. If the loop followed the (null) cursor it would issue
+    a second request that pytest-httpx has no response for, failing the test.
+    """
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        json={
+            "items": [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
+            "page_info": {"has_next_page": True, "end_cursor": None},
+            "total_count": 1,
+        },
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "infrahub/a" in result.output
+
+
+def test_list_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A 200 response with a non-JSON body is reported as a clean network error (exit 2)."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        text="<html>not json</html>",
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "not valid JSON" in result.output
+
+
+def test_show_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A schema detail endpoint returning 200 with a malformed body exits 2, not a traceback."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        text="<html>not json</html>",
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 2
+    assert "not valid JSON" in result.output
