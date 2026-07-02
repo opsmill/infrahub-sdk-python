@@ -747,6 +747,78 @@ def test_list_json_output_is_parseable(httpx_mock: HTTPXMock) -> None:
     assert parsed[0]["latest_version"]["semver"] == "1.2.0"
 
 
+def _schema_detail() -> dict:
+    return {
+        "namespace": "infrahub",
+        "name": "vlan",
+        "display_name": "VLAN",
+        "description": "VLAN schema.",
+        "download_count": 105,
+        "tags": [{"name": "experimental"}],
+        "versions": [
+            {
+                "semver": "1.0.0",
+                "status": "published",
+                "created_at": "2026-04-20T23:54:19+00:00",
+                "changelog": "Initial",
+            },
+        ],
+        "dependencies": {"schemas": [{"namespace": "infrahub", "name": "dcim"}], "collections": []},
+    }
+
+
+def test_show_schema_autodetect(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 0
+    assert "infrahub/vlan" in result.output
+    assert "VLAN" in result.output
+    assert "1.0.0" in result.output
+    assert "published" in result.output
+    assert "experimental" in result.output
+    assert "infrahub/dcim" in result.output  # dependency
+
+
+def test_show_schema_json(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan", "--json"])
+
+    assert result.exit_code == 0
+    parsed = _json.loads(result.output)
+    assert parsed["name"] == "vlan"
+    assert parsed["versions"][0]["semver"] == "1.0.0"
+
+
+def test_show_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 2
+    assert "Could not reach marketplace" in result.output
+
+
 async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """collection=False (the default) triggers auto-detect; schema wins when schema endpoint returns 200."""
     httpx_mock.add_response(

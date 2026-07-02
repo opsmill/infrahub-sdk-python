@@ -383,6 +383,140 @@ async def _download_collection(
     status.print(f"\n[green]Collection {namespace}/{name}: {downloaded} schemas downloaded")
 
 
+def _detail_url(base_url: str, item_type: MarketplaceItemType, namespace: str, name: str) -> str:
+    return f"{base_url}/api/v1/{item_type}s/{namespace}/{name}"
+
+
+async def _fetch_detail(
+    client: httpx.AsyncClient,
+    base_url: str,
+    namespace: str,
+    name: str,
+    *,
+    force_collection: bool,
+) -> tuple[MarketplaceItemType, dict[str, Any]]:
+    """Fetch full detail for a schema or collection.
+
+    With ``force_collection`` the collection detail endpoint is used directly.
+    Otherwise both detail endpoints are probed in parallel; a schema wins a
+    200/200 collision (consistent with ``get``'s auto-detection).
+    """
+    if force_collection:
+        resp = await client.get(_detail_url(base_url, "collection", namespace, name))
+        if resp.status_code == 404:
+            _fail(_ErrorClass.NOT_FOUND, f"No collection named '{namespace}/{name}' found on {_host_from(base_url)}.")
+        resp.raise_for_status()
+        return "collection", resp.json()
+
+    schema_resp, collection_resp = await asyncio.gather(
+        client.get(_detail_url(base_url, "schema", namespace, name)),
+        client.get(_detail_url(base_url, "collection", namespace, name)),
+        return_exceptions=True,
+    )
+    if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
+        if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
+            console.print(
+                f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
+                "Resolving as schema. Pass --collection to force the collection path."
+            )
+        return "schema", schema_resp.json()
+    if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
+        return "collection", collection_resp.json()
+
+    if _is_transport_failure(schema_resp) or _is_transport_failure(collection_resp):
+        _fail(
+            _ErrorClass.NETWORK,
+            f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
+        )
+    _fail(
+        _ErrorClass.NOT_FOUND,
+        f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
+    )
+
+
+def _render_detail(detail: dict[str, Any], item_type: MarketplaceItemType) -> None:
+    namespace = detail.get("namespace", "")
+    name = detail.get("name", "")
+    console.print(f"[bold]{namespace}/{name}[/] — {detail.get('display_name', '')}")
+    if detail.get("description"):
+        console.print(detail["description"])
+    console.print(f"Downloads: {detail.get('download_count', 0)}")
+
+    if item_type == "schema":
+        tags = ", ".join(tag.get("name", "") for tag in detail.get("tags") or [])
+        if tags:
+            console.print(f"Tags: {tags}")
+        versions = detail.get("versions") or []
+        if versions:
+            table = Table(title="Versions")
+            table.add_column("Version")
+            table.add_column("Status")
+            table.add_column("Released")
+            table.add_column("Changelog")
+            for version in versions:
+                table.add_row(
+                    version.get("semver", ""),
+                    version.get("status", ""),
+                    (version.get("created_at") or "")[:10],
+                    version.get("changelog") or "",
+                )
+            console.print(table)
+    else:
+        members = detail.get("items") or []
+        console.print(f"Schemas: {len(members)}")
+        if members:
+            table = Table(title="Members")
+            table.add_column("Identifier")
+            table.add_column("Name")
+            for member in members:
+                schema = member.get("schema") or {}
+                table.add_row(
+                    f"{schema.get('namespace', '')}/{schema.get('name', '')}",
+                    schema.get("display_name", ""),
+                )
+            console.print(table)
+
+    deps = (detail.get("dependencies") or {}).get("schemas") or []
+    if deps:
+        dep_list = ", ".join(f"{dep.get('namespace', '')}/{dep.get('name', '')}" for dep in deps)
+        console.print(f"Dependencies: {dep_list}")
+
+
+@app.command()
+@catch_exception(console=console)
+async def show(
+    identifier: str = typer.Argument(help="Schema or collection identifier in namespace/name format"),
+    collection: bool = typer.Option(
+        False,
+        "--collection",
+        "-c",
+        is_flag=True,
+        help="Force collection lookup. Default: auto-detect whether the identifier is a schema or collection.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Show full details of a schema or collection from the Infrahub Marketplace."""
+    parsed = _parse_identifier(identifier)
+    sdk_cfg = _SdkConfig()
+    resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
+    async with _make_http_client(sdk_cfg) as client:
+        try:
+            item_type, detail = await _fetch_detail(
+                client, resolved_url, parsed.namespace, parsed.name, force_collection=collection
+            )
+        except httpx.HTTPError as exc:
+            message = str(exc) or type(exc).__name__
+            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {message}")
+    if json_output:
+        _print_json(detail)
+        return
+    _render_detail(detail, item_type)
+
+
 @app.command(name="list")
 @catch_exception(console=console)
 async def list_items(
