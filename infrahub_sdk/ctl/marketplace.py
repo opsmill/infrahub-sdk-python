@@ -105,13 +105,17 @@ async def _fetch_listing(
     while True:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
-        payload = resp.json()
+        payload = _json_or_fail(resp, url)
         items.extend(payload.get("items", []))
         total_count = payload.get("total_count", len(items))
         page_info = payload.get("page_info") or {}
-        if limit is not None or not page_info.get("has_next_page"):
+        cursor = page_info.get("end_cursor")
+        # Stop when a single page was requested, when the server reports no more
+        # pages, or when it claims a next page but gives no cursor to follow
+        # (guards against an infinite loop re-requesting the same page).
+        if limit is not None or not page_info.get("has_next_page") or not cursor:
             break
-        params = {**params, "cursor": page_info.get("end_cursor")}
+        params = {**params, "cursor": cursor}
     return items, total_count
 
 
@@ -170,7 +174,7 @@ async def _run_listing(
         except httpx.HTTPError as exc:
             error_class = _classify_http_error(exc)
             if error_class is _ErrorClass.NOT_FOUND:
-                _fail(error_class, f"Marketplace listing not found on {_host_from(resolved_url)}: {exc}")
+                _fail(error_class, f"Marketplace request to {_host_from(resolved_url)} failed: {exc}")
             detail = str(exc) or type(exc).__name__
             _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
     if json_output:
@@ -196,6 +200,19 @@ def _classify_http_error(exc: httpx.HTTPError) -> _ErrorClass:
     if response is not None and response.status_code < 500:
         return _ErrorClass.NOT_FOUND
     return _ErrorClass.NETWORK
+
+
+def _json_or_fail(resp: httpx.Response, source_url: str) -> Any:
+    """Parse a JSON response body, failing with a network-class error on invalid JSON.
+
+    A 200 with a malformed body is a broken response, not user error, so it is
+    reported cleanly (exit 2) rather than leaking a raw ``JSONDecodeError`` and
+    traceback — which would also corrupt ``--json`` output.
+    """
+    try:
+        return resp.json()
+    except ValueError:
+        _fail(_ErrorClass.NETWORK, f"Response from {_host_from(source_url)} is not valid JSON.")
 
 
 def _mkdir_or_fail(path: Path) -> None:
@@ -422,7 +439,7 @@ async def _fetch_detail(
         if resp.status_code == 404:
             _fail(_ErrorClass.NOT_FOUND, f"No collection named '{namespace}/{name}' found on {_host_from(base_url)}.")
         resp.raise_for_status()
-        return "collection", resp.json()
+        return "collection", _json_or_fail(resp, base_url)
 
     schema_resp, collection_resp = await asyncio.gather(
         client.get(_detail_url(base_url, "schema", namespace, name)),
@@ -435,9 +452,9 @@ async def _fetch_detail(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
-        return "schema", schema_resp.json()
+        return "schema", _json_or_fail(schema_resp, base_url)
     if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-        return "collection", collection_resp.json()
+        return "collection", _json_or_fail(collection_resp, base_url)
 
     if _is_transport_failure(schema_resp) or _is_transport_failure(collection_resp):
         _fail(
@@ -527,7 +544,7 @@ async def show(
         except httpx.HTTPError as exc:
             error_class = _classify_http_error(exc)
             if error_class is _ErrorClass.NOT_FOUND:
-                _fail(error_class, f"Marketplace listing not found on {_host_from(resolved_url)}: {exc}")
+                _fail(error_class, f"Marketplace request for '{parsed.namespace}/{parsed.name}' failed: {exc}")
             message = str(exc) or type(exc).__name__
             _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {message}")
     if json_output:
