@@ -819,6 +819,82 @@ def test_show_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
     assert "Could not reach marketplace" in result.output
 
 
+def _collection_detail() -> dict:
+    return {
+        "namespace": "infrahub",
+        "name": "security-mgmt",
+        "display_name": "Security & Management",
+        "description": "Security and device management.",
+        "download_count": 2,
+        "items": [
+            {"schema": {"namespace": "infrahub", "name": "security", "display_name": "Security"}},
+            {"schema": {"namespace": "infrahub", "name": "qos", "display_name": "QoS"}},
+        ],
+        "dependencies": {"schemas": [{"namespace": "infrahub", "name": "location"}], "collections": []},
+    }
+
+
+def test_show_collection_force_flag(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        json=_collection_detail(),
+    )
+    # No schema-detail mock: --collection must not probe the schema endpoint.
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt", "--collection"])
+
+    assert result.exit_code == 0
+    assert "infrahub/security-mgmt" in result.output
+    assert "infrahub/security" in result.output
+    assert "infrahub/qos" in result.output
+    assert "Schemas: 2" in result.output
+    assert "infrahub/location" in result.output  # dependency
+
+
+def test_show_collection_autodetect(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/security-mgmt",
+        status_code=404,
+        json={"detail": "Schema not found"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        json=_collection_detail(),
+    )
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt"])
+
+    assert result.exit_code == 0
+    assert "infrahub/qos" in result.output
+
+
+def test_show_not_found(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/nope",
+        status_code=404,
+        json={"detail": "Schema not found"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/nope",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/nope"])
+
+    assert result.exit_code == 1
+    assert "No schema or collection named 'infrahub/nope'" in result.output
+
+
+def test_show_invalid_identifier() -> None:
+    result = runner.invoke(app, ["show", "no-slash"])
+
+    assert result.exit_code == 1
+    assert "Invalid identifier" in result.output
+
+
 async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """collection=False (the default) triggers auto-detect; schema wins when schema endpoint returns 200."""
     httpx_mock.add_response(
