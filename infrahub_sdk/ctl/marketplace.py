@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import httpx
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from ..async_typer import AsyncTyper
 from ..config import ConfigBase as _SdkConfig
@@ -72,6 +73,107 @@ def _schema_url(base_url: str, namespace: str, name: str, version: str | None = 
 
 def _collection_url(base_url: str, namespace: str, name: str) -> str:
     return f"{base_url}/api/v1/collections/{namespace}/{name}"
+
+
+def _list_url(base_url: str, item_type: MarketplaceItemType) -> str:
+    return f"{base_url}/api/v1/{item_type}s"
+
+
+async def _fetch_listing(
+    client: httpx.AsyncClient,
+    base_url: str,
+    item_type: MarketplaceItemType,
+    *,
+    search: str | None,
+    limit: int | None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Fetch marketplace listing items, following cursor pagination.
+
+    When ``limit`` is given, a single page of that size is requested (no cursor
+    loop). Otherwise every page is fetched until ``has_next_page`` is false.
+    Returns the accumulated items and the reported ``total_count``.
+    """
+    url = _list_url(base_url, item_type)
+    params: dict[str, Any] = {}
+    if search:
+        params["search"] = search
+    if limit is not None:
+        params["limit"] = limit
+
+    items: list[dict[str, Any]] = []
+    total_count = 0
+    while True:
+        resp = await client.get(url, params=params)
+        resp.raise_for_status()
+        payload = resp.json()
+        items.extend(payload.get("items", []))
+        total_count = payload.get("total_count", len(items))
+        page_info = payload.get("page_info") or {}
+        if limit is not None or not page_info.get("has_next_page"):
+            break
+        params = {**params, "cursor": page_info.get("end_cursor")}
+    return items, total_count
+
+
+def _print_json(data: Any) -> None:
+    console.print_json(data=data)
+
+
+def _render_list_table(items: list[dict[str, Any]], item_type: MarketplaceItemType, total_count: int) -> None:
+    table = Table()
+    if item_type == "schema":
+        table.add_column("Identifier")
+        table.add_column("Name")
+        table.add_column("Version")
+        table.add_column("Downloads", justify="right")
+        table.add_column("Tags")
+        for item in items:
+            latest = item.get("latest_version") or {}
+            tags = ", ".join(tag.get("name", "") for tag in item.get("tags") or [])
+            table.add_row(
+                f"{item.get('namespace', '')}/{item.get('name', '')}",
+                item.get("display_name", ""),
+                latest.get("semver", ""),
+                str(item.get("download_count", 0)),
+                tags,
+            )
+    else:
+        table.add_column("Identifier")
+        table.add_column("Name")
+        table.add_column("Schemas", justify="right")
+        table.add_column("Downloads", justify="right")
+        for item in items:
+            table.add_row(
+                f"{item.get('namespace', '')}/{item.get('name', '')}",
+                item.get("display_name", ""),
+                str(item.get("schema_count", 0)),
+                str(item.get("download_count", 0)),
+            )
+    console.print(table)
+    if len(items) < total_count:
+        console.print(f"[dim]Showing {len(items)} of {total_count}.")
+
+
+async def _run_listing(
+    *,
+    item_type: MarketplaceItemType,
+    search: str | None,
+    limit: int | None,
+    json_output: bool,
+    marketplace_url: str | None,
+) -> None:
+    sdk_cfg = _SdkConfig()
+    resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
+    async with _make_http_client(sdk_cfg) as client:
+        try:
+            items, total_count = await _fetch_listing(client, resolved_url, item_type, search=search, limit=limit)
+        except httpx.HTTPError as exc:
+            detail = str(exc) or type(exc).__name__
+            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
+    if json_output:
+        _print_json(items)
+        return
+    _render_list_table(items, item_type, total_count)
 
 
 def _is_transport_failure(r: object) -> bool:
@@ -279,6 +381,27 @@ async def _download_collection(
         downloaded += 1
 
     status.print(f"\n[green]Collection {namespace}/{name}: {downloaded} schemas downloaded")
+
+
+@app.command(name="list")
+@catch_exception(console=console)
+async def list_items(
+    collections: bool = typer.Option(False, "--collections", is_flag=True, help="List collections instead of schemas."),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Maximum number of results to display."),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """List schemas (default) or collections available on the Infrahub Marketplace."""
+    await _run_listing(
+        item_type="collection" if collections else "schema",
+        search=None,
+        limit=limit,
+        json_output=json_output,
+        marketplace_url=marketplace_url,
+    )
 
 
 @app.command()
