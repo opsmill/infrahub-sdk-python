@@ -35,10 +35,12 @@
 Adds the core listing machinery plus the `list` command. `search` (Task 2) reuses `_run_listing`.
 
 **Files:**
+
 - Modify: `infrahub_sdk/ctl/marketplace.py`
 - Test: `tests/unit/ctl/test_marketplace_app.py`
 
 **Interfaces:**
+
 - Produces:
   - `_list_url(base_url: str, item_type: MarketplaceItemType) -> str`
   - `_fetch_listing(client: httpx.AsyncClient, base_url: str, item_type: MarketplaceItemType, *, search: str | None, limit: int | None) -> tuple[list[dict[str, Any]], int]`
@@ -357,10 +359,12 @@ git commit -m "feat(ctl): add marketplace list command"
 Thin command over `_run_listing` with the `search=` term.
 
 **Files:**
+
 - Modify: `infrahub_sdk/ctl/marketplace.py`
 - Test: `tests/unit/ctl/test_marketplace_app.py`
 
 **Interfaces:**
+
 - Consumes: `_run_listing` (Task 1), `_listing_json`/`_schema_item` test helpers (Task 1).
 - Produces: `search` command (function `search`).
 
@@ -477,10 +481,12 @@ git commit -m "feat(ctl): add marketplace search command"
 ### Task 3: `show` command — schema (auto-detect, versions, tags, dependencies, `--json`)
 
 **Files:**
+
 - Modify: `infrahub_sdk/ctl/marketplace.py`
 - Test: `tests/unit/ctl/test_marketplace_app.py`
 
 **Interfaces:**
+
 - Produces:
   - `_detail_url(base_url: str, item_type: MarketplaceItemType, namespace: str, name: str) -> str`
   - `_fetch_detail(client: httpx.AsyncClient, base_url: str, namespace: str, name: str, *, force_collection: bool) -> tuple[MarketplaceItemType, dict[str, Any]]`
@@ -731,9 +737,11 @@ git commit -m "feat(ctl): add marketplace show command for schemas"
 ### Task 4: `show` collection (members, `--collection` force, not-found)
 
 **Files:**
+
 - Modify: `tests/unit/ctl/test_marketplace_app.py` (behaviour already implemented in Task 3; this task proves the collection path and not-found handling)
 
 **Interfaces:**
+
 - Consumes: `show` command, `_fetch_detail`, `_render_detail` (Task 3).
 
 - [ ] **Step 1: Write the collection `show` tests**
@@ -838,6 +846,7 @@ git commit -m "test(ctl): cover marketplace show for collections and errors"
 ### Task 5: Docs regeneration and changelog
 
 **Files:**
+
 - Modify (generated): `docs/docs/infrahubctl/infrahubctl-marketplace.mdx`
 - Create: `changelog/<issue>.added.md`
 
