@@ -406,6 +406,30 @@ async def list_items(
 
 @app.command()
 @catch_exception(console=console)
+async def search(
+    term: str = typer.Argument(help="Search term matched against name, display name, and description."),
+    collections: bool = typer.Option(
+        False, "--collections", is_flag=True, help="Search collections instead of schemas."
+    ),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Maximum number of results to display."),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Search the Infrahub Marketplace for schemas (default) or collections."""
+    await _run_listing(
+        item_type="collection" if collections else "schema",
+        search=term,
+        limit=limit,
+        json_output=json_output,
+        marketplace_url=marketplace_url,
+    )
+
+
+@app.command()
+@catch_exception(console=console)
 async def get(
     identifier: str = typer.Argument(help="Schema or collection identifier in namespace/name format"),
     version: str | None = typer.Option(
