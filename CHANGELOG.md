@@ -11,6 +11,16 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.21.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.21.1) - 2026-07-03
+
+### Added
+
+- Added a `shortest_paths_only` parameter to `InfrahubClient.traverse_paths()` and its sync equivalent (default `None`, deferring to the server). Set it to `False` to return all loopless paths up to `max_paths` instead of only the shortest one(s); previously path traversal always returned the shortest path(s) because the flag could not be set. `PathTraversalResult` now also parses `truncated_at_depth`, which is set when the search stopped at `max_depth` before exhausting the graph and `None` when it completed within budget. ([#1119](https://github.com/opsmill/infrahub-sdk-python/issues/1119))
+
+### Fixed
+
+- Clarified the `ValidationError` raised when calling `save(allow_upsert=True)` on a node whose human-friendly identifier includes a `CoreNumberPool`-sourced attribute. The message now explains that the pool assigns a new value on every creation, so the HFID is never stable and the upsert would silently create a duplicate on each run, and points to the idempotent alternatives (look the node up by a stable field and reuse it, or set an explicit id). The resource manager guide was updated to match.
+
 ## [1.22.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.0) - 2026-06-23
 
 ### Added
