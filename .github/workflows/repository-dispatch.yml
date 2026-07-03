@@ -38,7 +38,6 @@ jobs:
           - "opsmill/emma"
           - "opsmill/infrahub-demo-dc"
           - "INFRAHUB_CUSTOMER1_REPOSITORY"
-          - "INFRAHUB_CUSTOMER3_REPOSITORY"
 
     steps:
       - name: Checkout code
