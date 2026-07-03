@@ -42,6 +42,7 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
+from .validate import SchemaValidationErrorDetail, SchemaValidationResult, validate_schema
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -67,8 +68,11 @@ __all__ = [
     "SchemaExport",
     "SchemaRoot",
     "SchemaRootAPI",
+    "SchemaValidationErrorDetail",
+    "SchemaValidationResult",
     "TemplateSchemaAPI",
     "schema_to_export_dict",
+    "validate_schema",
 ]
 
 
