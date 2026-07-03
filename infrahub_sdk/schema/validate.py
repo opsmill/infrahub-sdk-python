@@ -15,7 +15,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
-from .generated.write import GeneratedGenericSchema, GeneratedNodeSchema
+from .generated.write import (
+    GeneratedAttributeSchema,
+    GeneratedGenericSchema,
+    GeneratedNodeSchema,
+    GeneratedRelationshipSchema,
+)
 
 # Maps each collection in a schema-root payload to the write model its items must satisfy.
 _WRITE_MODELS_BY_COLLECTION: dict[str, type[BaseModel]] = {
@@ -54,14 +59,70 @@ class SchemaValidationResult(BaseModel):
             raise ValueError("; ".join(self.messages))
 
 
-def _format_error_location(collection: str, index: int, loc: tuple[Any, ...]) -> str:
-    parts = [f"{collection}[{index}]"]
+def _format_error_location(prefix: str, loc: tuple[Any, ...]) -> str:
+    """Render a dotted field path from a base prefix and a pydantic error location.
+
+    Integer elements index into the preceding segment (``attributes`` + ``1`` becomes
+    ``attributes[1]``); everything else is appended as a new dotted segment.
+    """
+    parts = [prefix]
     for element in loc:
         if isinstance(element, int):
             parts[-1] = f"{parts[-1]}[{element}]"
         else:
             parts.append(str(element))
     return ".".join(parts)
+
+
+def _validate_item(model: type[BaseModel], item: Any, prefix: str, errors: list[SchemaValidationErrorDetail]) -> None:
+    """Validate a single mapping against a write model, appending field-level errors under ``prefix``."""
+    if not isinstance(item, dict):
+        return
+    try:
+        model.model_validate(item)
+    except PydanticValidationError as exc:
+        for error in exc.errors():
+            location = _format_error_location(prefix=prefix, loc=error["loc"])
+            message = f"{location}: {error['msg']}"
+            if error["type"] != "missing" and "input" in error:
+                message += f" (received: {error['input']!r})"
+            errors.append(SchemaValidationErrorDetail(field=location, message=message))
+
+
+def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDetail]) -> None:
+    """Validate the nested attributes/relationships of every extension node.
+
+    Extension nodes carry only a ``kind`` (no namespace/name), so the whole-node write model
+    does not apply; instead each nested attribute/relationship is user-submittable and is held
+    to the same write contract as one declared on a node.
+    """
+    if not isinstance(extensions, dict):
+        return
+    nodes = extensions.get("nodes")
+    if not isinstance(nodes, list):
+        return
+    for node_index, node in enumerate(nodes):
+        if not isinstance(node, dict):
+            continue
+        node_prefix = f"extensions.nodes[{node_index}]"
+        attributes = node.get("attributes")
+        if isinstance(attributes, list):
+            for attr_index, attribute in enumerate(attributes):
+                _validate_item(
+                    model=GeneratedAttributeSchema,
+                    item=attribute,
+                    prefix=f"{node_prefix}.attributes[{attr_index}]",
+                    errors=errors,
+                )
+        relationships = node.get("relationships")
+        if isinstance(relationships, list):
+            for rel_index, relationship in enumerate(relationships):
+                _validate_item(
+                    model=GeneratedRelationshipSchema,
+                    item=relationship,
+                    prefix=f"{node_prefix}.relationships[{rel_index}]",
+                    errors=errors,
+                )
 
 
 def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> SchemaValidationResult:
@@ -74,7 +135,8 @@ def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> 
     Returns:
         A :class:`SchemaValidationResult` with a field-level message for every field that is not
         settable (read-level, internal, or unknown) and for every constrained field set outside
-        its allowed set.
+        its allowed set. Nodes, generics, and the attributes/relationships nested under
+        ``extensions.nodes`` are all held to the write contract.
 
     Raises:
         ValueError: When ``raise_on_error`` is True and the payload is invalid.
@@ -86,17 +148,9 @@ def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> 
         if not isinstance(items, list):
             continue
         for index, item in enumerate(items):
-            if not isinstance(item, dict):
-                continue
-            try:
-                model.model_validate(item)
-            except PydanticValidationError as exc:
-                for error in exc.errors():
-                    location = _format_error_location(collection=collection, index=index, loc=error["loc"])
-                    message = f"{location}: {error['msg']}"
-                    if error["type"] != "missing" and "input" in error:
-                        message += f" (received: {error['input']!r})"
-                    errors.append(SchemaValidationErrorDetail(field=location, message=message))
+            _validate_item(model=model, item=item, prefix=f"{collection}[{index}]", errors=errors)
+
+    _validate_extensions(extensions=schema.get("extensions"), errors=errors)
 
     result = SchemaValidationResult(valid=not errors, errors=errors)
     if raise_on_error:
