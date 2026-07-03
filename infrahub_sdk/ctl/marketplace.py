@@ -24,6 +24,11 @@ err_console = Console(stderr=True)
 
 MarketplaceItemType = Literal["schema", "collection"]
 
+# Per-request page size used when paginating through a full listing (no user
+# --limit). Set explicitly so bulk fetches don't inherit the marketplace's
+# UI-tuned default page size, which would mean many more round-trips.
+_PAGE_SIZE = 100
+
 
 class _ErrorClass(Enum):
     INVALID_INPUT = "invalid-input"
@@ -90,15 +95,15 @@ async def _fetch_listing(
     """Fetch marketplace listing items, following cursor pagination.
 
     When ``limit`` is given, a single page of that size is requested (no cursor
-    loop). Otherwise every page is fetched until ``has_next_page`` is false.
-    Returns the accumulated items and the reported ``total_count``.
+    loop). Otherwise every page is fetched — ``_PAGE_SIZE`` items at a time — until
+    ``has_next_page`` is false. Returns the accumulated items and the reported
+    ``total_count``.
     """
     url = _list_url(base_url, item_type)
-    params: dict[str, Any] = {}
+    single_page = limit is not None
+    params: dict[str, Any] = {"limit": limit if single_page else _PAGE_SIZE}
     if search:
         params["search"] = search
-    if limit is not None:
-        params["limit"] = limit
 
     items: list[dict[str, Any]] = []
     total_count = 0
@@ -115,7 +120,7 @@ async def _fetch_listing(
         # Stop when a single page was requested, when the server reports no more
         # pages, or when it claims a next page but gives no cursor to follow
         # (guards against an infinite loop re-requesting the same page).
-        if limit is not None or not page_info.get("has_next_page") or not cursor:
+        if single_page or not page_info.get("has_next_page") or not cursor:
             break
         params = {**params, "cursor": cursor}
     return items, total_count

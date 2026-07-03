@@ -594,7 +594,7 @@ def _schema_item(namespace: str, name: str, *, display: str, semver: str, downlo
 def test_list_schemas(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         json=_listing_json(
             "schemas",
             [_schema_item("infrahub", "dcim", display="DCIM", semver="1.2.0", downloads=42, tags=["core"])],
@@ -624,7 +624,7 @@ def _collection_item(namespace: str, name: str, *, display: str, schema_count: i
 def test_list_collections(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections",
+        url="https://marketplace.infrahub.app/api/v1/collections?limit=100",
         json=_listing_json(
             "collections",
             [_collection_item("infrahub", "security-mgmt", display="Security", schema_count=5, downloads=7)],
@@ -643,7 +643,7 @@ def test_list_collections(httpx_mock: HTTPXMock) -> None:
 def test_list_follows_cursor_pagination(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         json=_listing_json(
             "schemas",
             [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
@@ -653,7 +653,7 @@ def test_list_follows_cursor_pagination(httpx_mock: HTTPXMock) -> None:
     )
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas?cursor=CURSOR1",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&cursor=CURSOR1",
         json=_listing_json(
             "schemas",
             [_schema_item("infrahub", "b", display="B", semver="1.0.0", downloads=1, tags=[])],
@@ -690,7 +690,7 @@ def test_list_limit_requests_single_page_and_shows_footer(httpx_mock: HTTPXMock)
 def test_list_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         status_code=503,
         json={"detail": "unavailable"},
     )
@@ -703,7 +703,7 @@ def test_list_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
 def test_search_passes_term_and_renders(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas?search=vlan",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&search=vlan",
         json=_listing_json(
             "schemas",
             [_schema_item("infrahub", "vlan", display="VLAN", semver="1.0.0", downloads=3, tags=[])],
@@ -719,7 +719,7 @@ def test_search_passes_term_and_renders(httpx_mock: HTTPXMock) -> None:
 def test_search_empty_results(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas?search=nomatch",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&search=nomatch",
         json=_listing_json("schemas", [], total=0),
     )
     result = runner.invoke(app, ["search", "nomatch"])
@@ -732,7 +732,7 @@ def test_search_empty_results(httpx_mock: HTTPXMock) -> None:
 def test_list_json_output_is_parseable(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         json=_listing_json(
             "schemas",
             [_schema_item("infrahub", "dcim", display="DCIM", semver="1.2.0", downloads=42, tags=["core"])],
@@ -932,7 +932,7 @@ def test_list_4xx_error_exits_1(httpx_mock: HTTPXMock) -> None:
     """A 4xx response on the listing endpoint must exit 1, not 2."""
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         status_code=400,
         json={"detail": "Bad Request"},
     )
@@ -1028,7 +1028,7 @@ def test_list_stops_when_next_page_has_null_cursor(httpx_mock: HTTPXMock) -> Non
     """
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         json={
             "items": [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
             "page_info": {"has_next_page": True, "end_cursor": None},
@@ -1045,7 +1045,7 @@ def test_list_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
     """A 200 response with a non-JSON body is reported as a clean network error (exit 2)."""
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         text="<html>not json</html>",
     )
     result = runner.invoke(app, ["list"])
@@ -1058,7 +1058,7 @@ def test_list_non_dict_payload_is_network_error(httpx_mock: HTTPXMock) -> None:
     """A 200 response whose body is valid JSON but not an object exits 2 cleanly, not a traceback."""
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
         json=[{"namespace": "infrahub", "name": "dcim"}],
     )
     result = runner.invoke(app, ["list"])
