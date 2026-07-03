@@ -106,6 +106,8 @@ async def _fetch_listing(
         resp = await client.get(url, params=params)
         resp.raise_for_status()
         payload = _json_or_fail(resp, url)
+        if not isinstance(payload, dict):
+            _fail(_ErrorClass.NETWORK, f"Response from {_host_from(url)} is not a valid marketplace listing.")
         items.extend(payload.get("items", []))
         total_count = payload.get("total_count", len(items))
         page_info = payload.get("page_info") or {}
@@ -172,11 +174,7 @@ async def _run_listing(
         try:
             items, total_count = await _fetch_listing(client, resolved_url, item_type, search=search, limit=limit)
         except httpx.HTTPError as exc:
-            error_class = _classify_http_error(exc)
-            if error_class is _ErrorClass.NOT_FOUND:
-                _fail(error_class, f"Marketplace request to {_host_from(resolved_url)} failed: {exc}")
-            detail = str(exc) or type(exc).__name__
-            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
+            _fail_http_error(exc, f"Marketplace request to {_host_from(resolved_url)} failed: {exc}")
     if json_output:
         _print_json(items)
         return
@@ -200,6 +198,14 @@ def _classify_http_error(exc: httpx.HTTPError) -> _ErrorClass:
     if response is not None and response.status_code < 500:
         return _ErrorClass.NOT_FOUND
     return _ErrorClass.NETWORK
+
+
+def _fail_http_error(exc: httpx.HTTPError, not_found_message: str) -> NoReturn:
+    """Fail with the right exit code for an httpx error: 4xx → exit 1, 5xx/transport → exit 2."""
+    if _classify_http_error(exc) is _ErrorClass.NOT_FOUND:
+        _fail(_ErrorClass.NOT_FOUND, not_found_message)
+    detail = str(exc) or type(exc).__name__
+    _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
 
 
 def _json_or_fail(resp: httpx.Response, source_url: str) -> Any:
@@ -236,22 +242,24 @@ def _make_http_client(sdk_cfg: _SdkConfig) -> httpx.AsyncClient:
     return httpx.AsyncClient(follow_redirects=True, verify=sdk_cfg.tls_context, **proxy_kwargs)
 
 
-async def _detect_item_type(
+async def _probe_item_type(
     client: httpx.AsyncClient,
     base_url: str,
     namespace: str,
     name: str,
     *,
-    stdout: bool,
+    schema_url: str,
+    collection_url: str,
+    collision_console: Console,
 ) -> tuple[MarketplaceItemType, httpx.Response]:
-    """Probe schema and collection endpoints in parallel. Schema wins on 200-200.
+    """Probe the given schema and collection URLs in parallel. Schema wins on 200-200.
 
     Returns the resolved type and the winning 200 response so the caller can reuse
-    it instead of re-fetching the same URL.
+    it instead of re-fetching the same URL. On a 200-200 collision the note is
+    printed to ``collision_console`` (stderr, so it never pollutes stdout/--json).
+    Fails with a network error on transport failure and not-found when neither
+    endpoint returns 200.
     """
-    schema_url = _schema_url(base_url, namespace, name)
-    collection_url = _collection_url(base_url, namespace, name)
-
     schema_resp, collection_resp = await asyncio.gather(
         client.get(schema_url),
         client.get(collection_url),
@@ -260,7 +268,7 @@ async def _detect_item_type(
 
     if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
         if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-            _status_console(stdout).print(
+            collision_console.print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
@@ -277,6 +285,30 @@ async def _detect_item_type(
     _fail(
         _ErrorClass.NOT_FOUND,
         f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
+    )
+
+
+async def _detect_item_type(
+    client: httpx.AsyncClient,
+    base_url: str,
+    namespace: str,
+    name: str,
+    *,
+    stdout: bool,
+) -> tuple[MarketplaceItemType, httpx.Response]:
+    """Auto-detect whether ``namespace/name`` is a schema or collection via the download endpoints.
+
+    Returns the resolved type and the winning 200 response so the caller can reuse
+    it instead of re-fetching the same URL.
+    """
+    return await _probe_item_type(
+        client,
+        base_url,
+        namespace,
+        name,
+        schema_url=_schema_url(base_url, namespace, name),
+        collection_url=_collection_url(base_url, namespace, name),
+        collision_console=_status_console(stdout),
     )
 
 
@@ -441,30 +473,16 @@ async def _fetch_detail(
         resp.raise_for_status()
         return "collection", _json_or_fail(resp, base_url)
 
-    schema_resp, collection_resp = await asyncio.gather(
-        client.get(_detail_url(base_url, "schema", namespace, name)),
-        client.get(_detail_url(base_url, "collection", namespace, name)),
-        return_exceptions=True,
+    item_type, resp = await _probe_item_type(
+        client,
+        base_url,
+        namespace,
+        name,
+        schema_url=_detail_url(base_url, "schema", namespace, name),
+        collection_url=_detail_url(base_url, "collection", namespace, name),
+        collision_console=err_console,
     )
-    if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
-        if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-            err_console.print(
-                f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
-                "Resolving as schema. Pass --collection to force the collection path."
-            )
-        return "schema", _json_or_fail(schema_resp, base_url)
-    if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-        return "collection", _json_or_fail(collection_resp, base_url)
-
-    if _is_transport_failure(schema_resp) or _is_transport_failure(collection_resp):
-        _fail(
-            _ErrorClass.NETWORK,
-            f"Could not reach marketplace at {base_url}. Check your connection or --marketplace-url.",
-        )
-    _fail(
-        _ErrorClass.NOT_FOUND,
-        f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
-    )
+    return item_type, _json_or_fail(resp, base_url)
 
 
 def _render_detail(detail: dict[str, Any], item_type: MarketplaceItemType) -> None:
@@ -542,11 +560,7 @@ async def show(
                 client, resolved_url, parsed.namespace, parsed.name, force_collection=collection
             )
         except httpx.HTTPError as exc:
-            error_class = _classify_http_error(exc)
-            if error_class is _ErrorClass.NOT_FOUND:
-                _fail(error_class, f"Marketplace request for '{parsed.namespace}/{parsed.name}' failed: {exc}")
-            message = str(exc) or type(exc).__name__
-            _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {message}")
+            _fail_http_error(exc, f"Marketplace request for '{parsed.namespace}/{parsed.name}' failed: {exc}")
     if json_output:
         _print_json(detail)
         return

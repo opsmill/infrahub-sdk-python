@@ -1054,6 +1054,19 @@ def test_list_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
     assert "not valid JSON" in result.output
 
 
+def test_list_non_dict_payload_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A 200 response whose body is valid JSON but not an object exits 2 cleanly, not a traceback."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas",
+        json=[{"namespace": "infrahub", "name": "dcim"}],
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "not a valid marketplace listing" in result.output
+
+
 def test_show_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
     """A schema detail endpoint returning 200 with a malformed body exits 2, not a traceback."""
     httpx_mock.add_response(
