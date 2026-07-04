@@ -22,6 +22,9 @@ used by ``InfrahubNode.update()`` to send only the changed fields to the API.
 - `id`: The unique identifier of the attribute, when known.
 - `value`: The current attribute value. Setting this marks the attribute as mutated.
 - `value_has_been_mutated`: True when ``value`` has been assigned after construction.
+- `is_fetched`: True when this attribute was present in the response the node
+was built from. Used by the client store to decide whether a re-fetch carried
+fresh data for this attribute.
 - `is_default`: True when the value comes from the schema default.
 - `is_from_profile`: True when the value is inherited from a profile.
 - `is_inherited`: True when the attribute is inherited from a generic.
