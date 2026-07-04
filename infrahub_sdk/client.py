@@ -355,7 +355,7 @@ class InfrahubClient(BaseClient):
         self.schema = InfrahubSchema(self)
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
-        self.store = NodeStore(default_branch=self.default_branch)
+        self.store = NodeStore(default_branch=self.default_branch, default_merge=self.config.store_merge)
         self.task = InfrahubTaskManager(self)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
@@ -429,6 +429,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -450,6 +451,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -471,6 +473,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -492,6 +495,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -513,6 +517,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -534,6 +539,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -554,6 +560,7 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
@@ -589,6 +596,7 @@ class InfrahubClient(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             include=include,
             exclude=exclude,
             fragment=fragment,
@@ -883,6 +891,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -904,6 +913,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -924,6 +934,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -943,6 +954,10 @@ class InfrahubClient(BaseClient):
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
+                does not match that context skips the store with a warning instead of blending inconsistent data.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -967,6 +982,7 @@ class InfrahubClient(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             offset=offset,
             limit=limit,
             include=include,
@@ -988,6 +1004,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1011,6 +1028,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1033,6 +1051,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -1055,6 +1074,10 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
+                does not match that context skips the store with a warning instead of blending inconsistent data.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -1158,14 +1181,18 @@ class InfrahubClient(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
-        if populate_store:
+        if (
+            populate_store
+            and (nodes or related_nodes)
+            and self.store._reserve_at_context(at=at.to_string() if at else None, branch=branch)
+        ):
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge)
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -2058,7 +2085,7 @@ class InfrahubClientSync(BaseClient):
         self.schema = InfrahubSchemaSync(self)
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
-        self.store = NodeStoreSync(default_branch=self.default_branch)
+        self.store = NodeStoreSync(default_branch=self.default_branch, default_merge=self.config.store_merge)
         self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
@@ -2579,6 +2606,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2600,6 +2628,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2620,6 +2649,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -2640,6 +2670,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
+                does not match that context skips the store with a warning instead of blending inconsistent data.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -2663,6 +2697,7 @@ class InfrahubClientSync(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             offset=offset,
             limit=limit,
             include=include,
@@ -2725,6 +2760,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2748,6 +2784,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2770,6 +2807,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -2792,6 +2830,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
+                does not match that context skips the store with a warning instead of blending inconsistent data.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -2897,14 +2939,18 @@ class InfrahubClientSync(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = process_batch() if parallel else process_non_batch()
 
-        if populate_store:
+        if (
+            populate_store
+            and (nodes or related_nodes)
+            and self.store._reserve_at_context(at=at.to_string() if at else None, branch=branch)
+        ):
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge)
         return nodes
 
     @overload
@@ -2920,6 +2966,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -2941,6 +2988,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -2962,6 +3010,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -2983,6 +3032,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -3004,6 +3054,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -3025,6 +3076,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
+        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
@@ -3045,6 +3097,7 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         populate_store: bool = True,
+        merge: bool | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
@@ -3080,6 +3133,7 @@ class InfrahubClientSync(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             include=include,
             exclude=exclude,
             fragment=fragment,

@@ -58,6 +58,20 @@ class RelationshipManagerBase(Generic[PeerT]):
         self.peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
 
     @property
+    def is_fetched(self) -> bool:
+        """Return whether this relationship was present in the response the node was built from.
+
+        Alias of ``initialized`` (which already means "was fetched" for cardinality-many
+        relationships), exposed under the same name as on ``Attribute`` and
+        ``RelatedNode`` so merge logic can branch uniformly on ``is_fetched``.
+
+        Returns:
+            bool: ``True`` when the peer set was populated from a response.
+
+        """
+        return self.initialized
+
+    @property
     def peer_ids(self) -> list[str]:
         """Return the IDs of all peers that have one.
 
@@ -112,6 +126,18 @@ class RelationshipManagerBase(Generic[PeerT]):
             return False
         all_profiles = [p.is_from_profile for p in self.peers]
         return bool(all_profiles) and all(all_profiles)
+
+    def _merge(self, incoming: RelationshipManagerBase[PeerT]) -> None:
+        """Merge a fresher copy of this relationship into this one.
+
+        The fetched member list replaces the stored one, never unions with it, so a peer
+        removed on the server is correctly dropped. An incoming unsaved add()/remove()
+        keeps its pending-update marker. Callers are responsible for the higher-level
+        gates (``is_fetched`` on the incoming manager, ``has_update`` on this one).
+        """
+        self.peers = list(incoming.peers)
+        self.initialized = True
+        self._has_update = incoming._has_update
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]

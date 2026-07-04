@@ -64,6 +64,15 @@ class ConfigBase(BaseSettings):
     schema_converge_timeout: int = Field(
         default=60, description="Number of seconds to wait for schema to have converged"
     )
+    store_merge: bool = Field(
+        default=True,
+        description=(
+            "When True, re-querying a node already in the client store updates only the "
+            "fields that were fetched and preserves previously fetched attributes and "
+            "relationships. When False, the latest query fully replaces the stored node, "
+            "which can drop data fetched by earlier queries (the pre-1.23.0 behaviour)."
+        ),
+    )
     timeout: int = Field(default=60, description="Default connection timeout in seconds")
     transport: RequesterTransport = Field(
         default=RequesterTransport.HTTPX, description="Set an alternate transport using a predefined option"

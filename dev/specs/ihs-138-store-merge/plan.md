@@ -4,7 +4,7 @@
 - **Priority:** High
 - **Affected versions:** observed on SDK 1.12.1
 - **Target version:** SDK 1.23.0 (ships alongside Infrahub 1.11.0)
-- **Status:** plan / not started
+- **Status:** implemented (2026-07-02); hardened after code review (2026-07-04, section 13)
 
 > The SDK is versioned independently of Infrahub core. 1.23.0 is a semver *minor*
 > bump even though it rides the Infrahub 1.11.0 release. Because it changes
@@ -108,14 +108,17 @@ for each field on the incoming node:
 
 - Within a fetched cardinality-many relationship, the member list is *replaced*,
   never unioned, so a peer removed on the server is correctly dropped.
-- For attributes, the cleanest implementation is to swap the whole `Attribute`
-  object when it should be taken, so metadata (`is_default`, `is_from_profile`,
-  `id`) refreshes with the value, not just `_value`. Caveat: if the re-fetch
-  selected the value but not the property metadata, swapping wholesale can null
-  those flags - preserve them from the stored attribute when the incoming ones are
-  absent.
+- For attributes, merge **field-by-field into the existing `Attribute`**, not by
+  swapping the whole object (grill 4, 2026-07-02). An attribute carries more than a
+  value - properties (`source`, `owner`, `is_protected`, `is_visible`) and metadata
+  (`is_default`, `is_from_profile`). A query can fetch the value without the
+  properties; a blind object-swap would then null previously-fetched properties -
+  the same silent-loss bug one level down. Rule: overwrite the value when the
+  attribute is fetched; overwrite each property/metadata sub-field only when the
+  re-fetch actually included it, otherwise keep the stored one. The same applies to
+  relationship properties and `node_metadata`.
 
-### "Field" means all three relationship buckets
+### "Field" means all three relationship buckets *and* node-level scalars
 
 A node holds relationships in **three** separate containers, and the merge must
 iterate all of them or it reintroduces the bug on the ones it skips:
@@ -127,6 +130,29 @@ iterate all of them or it reintroduces the bug on the ones it skips:
 Note `self._relationships` (`node.py:117`) lists **only** `schema.relationships`,
 so it does *not* include the hierarchical bucket. Do not drive the merge off
 `self._relationships` alone.
+
+It must **also** cover node-level scalars set directly in `__init__` - `display_label`
+and `typename` (`node.py:113-114`) - which live on neither `_attribute_data` nor a
+relationship bucket (grill 1, 2026-07-02). They are gated on presence like any other
+field: refresh `display_label` when the response carried it, keep it otherwise.
+`display_label` is user-visible (it drives `__repr__`, `node.py:298`), so leaving it
+stale after a refresh would visibly violate the guiding rule. `id` is exempt (it is
+the merge key). `hfid` is derived from attributes, so it refreshes once attributes
+merge.
+
+### Kind change -> full replace, not merge
+
+If the incoming node's concrete kind (`get_kind()`, == GraphQL `__typename`) differs
+from the stored node's kind for the same uuid, the node was migrated to another kind
+(the `ConvertObjectType` mutation, `convert_object_type.py`, converts in place and
+preserves the uuid). Merging field-by-field across two schemas is incoherent - it
+would leave phantom attributes/relationships from the old kind. In that case
+**discard the stored entry and store the incoming node wholesale**, regardless of the
+`merge` setting (grill 1b, 2026-07-02). This is the one case where the store object
+identity is replaced even in merge mode - a deliberate exception to "mutate in place"
+(D2). Purge the old kind's `_hfids` entries on replace so the index does not point at
+the discarded object. Misfire risk is low: GraphQL `__typename` is always the concrete
+kind, so a peer fetched via a generic relationship still reports its concrete kind.
 
 ### Object identity
 
@@ -451,13 +477,15 @@ store (which is why the store-level merge fixes the ticket), so this affects onl
 explicitly fetched/assigned peers. Document the limitation; do not try to
 invalidate `_peer` caches as part of this change.
 
-### C5 - Manual `store.set()` should default to replace, not merge
+### C5 - `store.set()` default (RESOLVED: merge by default, uniformly)
 
-`store.set(key=..., node=...)` is documented as "store this object"
-(`store.mdx:147`). Defaulting it to merge would silently change that. Proposal:
-the query-population path merges by default; the public `set()` defaults to
-`merge=False` (explicit replace) and accepts `merge=True` opt-in. Revisit when
-finalising the section 3 escape-hatch API.
+Originally proposed as replace-by-default for the explicit `set()`. **Decided
+otherwise (see `decisions.md` D3):** the store merges uniformly, with no
+entry-point special-casing - `store.set()` merges just like the query path. Replace
+is opt-in only, via `store.set(node, merge=False)` or `store_merge=False`. The
+`store.set()` docstring must state that it merges by default and how to force
+replace. Update the `store.mdx:147` example accordingly so "store this object"
+does not read as "replace."
 
 ### C6 - Aliased fields / fragment inlining vs the presence check
 
@@ -490,25 +518,159 @@ is the single most likely "looks correct, ships a bug" mistake in this work.
 
 ## 11. Open questions
 
-Decided:
+Decided (see `decisions.md`, all settled 2026-07-01):
 
 - **Version / classification:** SDK 1.23.0, semver minor, shipped as a bug fix with
   a required opt-out and a required behaviour-change note (see top + section 6).
 - **Where the merge option lives:** `Config` default -> store default -> per-call
-  `merge=` override (see section 3). Public API change -> needs `AGENTS.md` sign-off.
+  `merge=` override (see section 3).
+- **D1 - returned vs stored object:** query methods return the per-query object;
+  the store holds the merged canonical copy.
+- **D2 - living objects:** accepted; one always-current merged object per node,
+  local edits protected.
+- **D3 / C5 - `store.set()` default:** merge by default, uniformly; replace is
+  opt-in via `merge=False` / `store_merge=False`.
+- **D4 - config option:** bool `store_merge` with a full description.
+- **D5 - presence-flag name:** `is_fetched`, uniform accessor on all three field
+  types.
+- **D6 - `merge=False` scope:** node entry only; peers handled independently.
 
-Still open:
+Decided during implementation (see section 13 and `decisions.md`):
 
-- **C2 decision:** accept return-value vs store divergence (option a) or return
-  the canonical object (option b)? Blocks stage 2. The minor-version framing favours
-  (a) (it leaves query return values unchanged from today).
-- **C3 decision:** confirm in-place mutation of held objects is the intended model
-  (it follows from a shared store), and that it is documented as such.
-- **C5 decision:** default `merge=False` for the public `store.set()` while the
-  query-population path defaults to merge?
-- **Config option naming:** terse bool `store_merge` (with the descriptive
-  `description` in section 3) vs a clearer name vs a `StoreUpdateMode` enum.
-- Naming of the attribute / `RelatedNode` presence flags: `initialized` (symmetry
-  with `RelationshipManager`) vs `is_fetched` (clearer intent).
-- Whether `merge=False` should also drop the node's relationship peers from the
-  store, or only reset the node itself.
+- **Public API sign-off:** granted with the go-ahead to implement the full plan.
+  Shipped surfaces: `merge: bool | None` on `get`/`all`/`filters` and `store.set`,
+  and `Config.store_merge`. `populate_store` keeps its `bool = True` signature.
+- **D7 - mutation-flag lifecycle:** reset on successful save; merge propagates
+  pending markers.
+- **D8 - same-peer identity fields:** presence-gated; full refresh on peer change.
+- **D9 - timestamp-coherent store:** supersedes grill item 3's skip-by-default
+  mechanism; the store holds one `at` context per branch and refuses (warn + skip)
+  mismatching populations.
+
+## 12. Grill review outcomes (2026-07-02)
+
+Stress-tested the plan against overall impact and the other in-flight specs
+(`infp-496-graphql-fragment-inlining` is Implemented; `infp-504-artifact-composition`
+in flight). Findings, all accepted:
+
+1. **Node-level scalars in merge scope.** `display_label` / `typename` are merged,
+   gated on presence (section 3). Folded in.
+2. **Kind change -> full replace.** `typename` differing for the same uuid means a
+   `ConvertObjectType` migration; replace wholesale instead of merging (section 3).
+   Folded in.
+3. **`at` (time-travel) queries skip the store by default.** The store is not
+   `at`-aware, so a historical read must not blend into the live cache. New rule:
+   when `at` is set, default `populate_store=False`; if the caller explicitly passes
+   `populate_store=True`, honour it but force `merge=False` (replace, never blend).
+   This is itself a behaviour change from today (where `at` reads populate the store)
+   and must be in the migration note. *Superseded during implementation by D9
+   (section 13): the shipped mechanism is a timestamp-coherent store instead.*
+4. **Attribute property/metadata fidelity.** Merge field-by-field into the existing
+   `Attribute`, not a blind object-swap, so value-only re-fetches don't null cached
+   `source`/`owner`/`is_protected` etc. (section 3). Folded in.
+5. **Blast radius / release gate.** Internal SDK reliance is minimal and additive
+   (only `related_node` peer resolution and `save()` touch the store, both benefit).
+   Risk is external: `client.get(id) is client.store.get(id)` identity loss (D1) and
+   `at` no longer populating (item 3). Make the **Ansible collection** and
+   **`infrahubctl`** integration suites a pre-release gate for 1.23.0, and enumerate
+   both changes with before/after in the migration note.
+
+Lower-priority (noted, not blockers):
+
+- **Unbounded store growth.** Merge reduces growth (dedups today's duplicates) and
+  the store is per-client, so generator/transform runs stay bounded. Out of scope;
+  possible future `store.clear()` / eviction.
+- **Fragment inlining / custom aliases (downgrades C6).** Store population uses
+  SDK-generated queries (canonical field names + `__alias__`, normalised by
+  `_strip_alias`); fragment inlining acts on hand-authored `.gql` via
+  `execute_graphql`, which does not feed store population the same way. Downgrade C6
+  to a verification test, not a risk.
+- **Thread-safety.** Merge adds a read-modify-write in `set()`; fine under asyncio,
+  and sharing one sync client across threads was already unsafe. Document "the store
+  is not thread-safe"; do not fix here.
+
+### Additional tests from the grill
+
+- `display_label` refreshes on re-fetch that includes it; is kept when absent.
+- Kind conversion: convert a node to another kind, re-fetch -> store holds the
+  new-kind object, old-kind-only attributes are gone, `_hfids` has no stale entry.
+- Value-only re-fetch preserves previously fetched attribute `source`/`owner`.
+- `at` query does not populate the store by default; `populate_store=True` + `at`
+  replaces (does not blend).
+- SDK prefetch/hierarchical queries still map to schema names after `_strip_alias`
+  (guards the fragment/alias concern).
+
+## 13. Implementation outcomes (2026-07-02 .. 2026-07-04)
+
+The feature was implemented as planned (stages 1-6, single PR, all D1-D6 decisions
+honoured), then hardened after a full code review. What shipped differs from the
+plan above in the following ways; the new decisions are recorded as D7/D8 in
+`decisions.md`.
+
+### Corrections found by the review
+
+1. **Mutation-flag lifecycle (D7, new decision).** The plan gated "local edits win"
+   on `value_has_been_mutated` / `_peer_has_been_mutated` / `_has_update`, assuming
+   those flags meant "unsaved edit". They were in fact sticky - nothing ever reset
+   them after a successful save - so any saved edit would have blocked merge
+   refreshes of that field forever (permanent store staleness; the pre-merge replace
+   semantics had masked this). Shipped fix, two halves: a successful
+   `create()`/`update()`/`save()` now calls `_reset_mutation_tracking()`
+   (`_process_mutation_result`, async and sync), and the merge *propagates* the
+   markers from an unsaved incoming copy instead of clearing them, so a merged
+   unsaved edit is still sent by the store copy's next save. This is a user-visible
+   behaviour change (listed in the changelog): mutation tracking resets on save.
+2. **Same-peer identity gating (D8, refines section 3).** "Peer identity always
+   refreshes" was too coarse: a payload carrying only `node { id }` for the same
+   peer would have nulled previously fetched `hfid`/`display_label`/`typename` and
+   dropped the cached `_peer` (unreachable via SDK-generated queries, which always
+   select all four, but reachable via `from_graphql` on custom payloads +
+   `store.set`). Shipped rule: a *changed* peer takes the full incoming identity
+   (moves and clears still work); the *same* peer only refreshes identity fields the
+   incoming payload actually carried.
+3. **`_data` baseline merges key-wise.** Section 3's field-by-field fidelity rule is
+   also applied to the raw `_data` dict (the baseline `update()` diffs against), so
+   a value-only re-fetch does not shrink `_data[name]` and cause `update()` to
+   re-send untouched properties.
+
+### Performance constraints added (not covered by the plan)
+
+- `NodeStoreBranch.set()` is the hottest path in the SDK; the first implementation
+  made store population O(N^2) via a linear hfid-index scan per set (measured: 30k
+  inserts = 4.9s). The store now keeps reverse indexes (`_hfids_by_internal_id`,
+  `_keys_by_internal_id`) so set/evict are O(1) per call (30k inserts = 0.03s).
+- The per-field presence sets (`_fetched_fields` / `_fetched_properties`) are
+  interned via `utils.intern_frozenset` - objects built from the same query shape
+  share one instance. Without this the bookkeeping measured ~64% of an Attribute's
+  memory footprint (~0.5 GB per 50k-node sync).
+
+### Timestamp-coherent store (D9, supersedes grill item 3's mechanism)
+
+Grill item 3 was first implemented as "skip the store when `at` is set unless the
+caller explicitly opts in (then replace)", which required widening `populate_store`
+to `bool | None` to detect an explicit `True`, and left `at` +
+`prefetch_relationships` without working `.peer` resolution. Review discussion
+replaced that mechanism: the store now holds **one timestamp context per branch**
+(live, or one `at` instant), stamped by the first population. Same-context queries
+use the store normally - a fully historical script gets complete store
+functionality including merge and peer resolution, which the first mechanism could
+not offer (its opt-in forced replace, quietly reviving the IHS-138 bug for
+historical work). A mismatching population (live vs historical, or two different
+instants) warns and skips the store, so nothing ever blends across timestamps -
+strictly safer than both pre-1.23 (silent overwrite) and the first mechanism.
+`populate_store` stays `bool = True` with no signature change. Known footgun,
+documented: a per-call recomputed relative timestamp trips the mismatch warning;
+compute `at` once and reuse it, or use one `client.clone()` per timestamp.
+
+### Minor deviations from the plan text
+
+- The presence flag on `RelatedNode` is a constructor parameter (like `Attribute`),
+  not a post-construction assignment; presence detection lives in one helper
+  (`InfrahubNodeBase._field_was_fetched`).
+- Each field type owns its merge: `Attribute._merge`, `RelatedNodeBase._merge`,
+  and `RelationshipManagerBase._merge` (the plan only implied the first two).
+- Follow-up filed separately: generated typed protocols for test schemas
+  (GitHub #1132), prompted by the test suite written for this feature.
+
+Still pending from section 12: the 1.23.0 pre-release gate (Ansible collection +
+`infrahubctl` integration suites).
