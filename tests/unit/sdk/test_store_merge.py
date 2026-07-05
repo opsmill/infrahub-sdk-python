@@ -393,6 +393,86 @@ def test_merge_same_peer_keeps_identity_details_not_carried(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+def test_merge_clears_pool_allocation_intent_on_refetch(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A fetched value clears a stale from_pool request.
+
+    A surviving from_pool would take precedence over the value in the next mutation
+    payload and trigger a re-allocation.
+    """
+    client, store, node_class = setup_store(client_type, clients)
+
+    pool_data = deep_location_data()
+    pool_data["node"]["description"] = {"from_pool": {"id": "pppppppp-pppp-pppp-pppp-pppppppppppp"}}
+    stored_node = node_class(client=client, schema=location_schema, data=pool_data)
+    assert stored_node._attribute_data["description"]._from_pool is not None
+    store.set(node=stored_node)
+
+    refetch = shallow_location_data()
+    refetch["node"]["description"] = {"value": "allocated-value"}
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    assert get_location(store) is stored_node
+    assert stored_node._attribute_data["description"].value == "allocated-value"
+    assert stored_node._attribute_data["description"]._from_pool is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_peer_change_drops_old_edge_properties(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A changed peer is a different edge: the old edge's properties must not survive."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    with_properties = deep_location_data()
+    with_properties["node"]["primary_tag"] = {
+        "properties": {
+            "is_protected": True,
+            "source": {
+                "id": "ssssssss-ssss-ssss-ssss-ssssssssssss",
+                "display_label": "crm",
+                "__typename": "CoreAccount",
+            },
+        },
+        "node": {"id": TAG_RED_ID, "display_label": "red", "__typename": "BuiltinTag"},
+    }
+    store.set(node=node_class(client=client, schema=location_schema, data=with_properties))
+
+    refetch = shallow_location_data()
+    refetch["node"]["primary_tag"] = {
+        "node": {"id": TAG_GREEN_ID, "display_label": "green", "__typename": "BuiltinTag"}
+    }
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    stored = get_location(store)
+    assert stored.primary_tag.id == TAG_GREEN_ID
+    assert stored.primary_tag.is_protected is None
+    assert stored.primary_tag.source is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_clears_hfid_only_relationship(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A cleared relationship tracked only by hfid (no id on either side) is reflected."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    hfid_only = deep_location_data()
+    hfid_only["node"]["primary_tag"] = {"node": {"hfid": ["red"], "__typename": "BuiltinTag"}}
+    store.set(node=node_class(client=client, schema=location_schema, data=hfid_only))
+    assert get_location(store).primary_tag.hfid == ["red"]
+
+    refetch = shallow_location_data()
+    refetch["node"]["primary_tag"] = {"node": None}
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    stored = get_location(store)
+    assert stored.primary_tag.hfid is None
+    assert stored.primary_tag.initialized is False
+
+
+@pytest.mark.parametrize("client_type", client_types)
 def test_merge_propagates_unsaved_edits(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
     """Unsaved edits merged into the store keep their pending-mutation markers.
 

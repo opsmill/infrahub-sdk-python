@@ -44,6 +44,14 @@ class RelatedNodeBase:
 
     """
 
+    # Relationship-edge properties, assigned dynamically in _init_properties from
+    # PROPERTIES_FLAG / PROPERTIES_OBJECT; declared here so they are part of the
+    # visible class surface.
+    is_protected: bool | None
+    updated_at: str | None
+    source: str | None
+    owner: str | None
+
     def __init__(
         self,
         branch: str,
@@ -283,21 +291,32 @@ class RelatedNodeBase:
         """Merge a fresher copy of this relationship into this one.
 
         Which peer the relationship points at always refreshes (even to no peer, so a
-        cleared relationship or a move-to-root is reflected). When the peer stays the
-        same, its descriptive identity fields (hfid, display label, typename, kind) and
-        the edge properties are only overwritten when the incoming fetch actually
-        carried them, so a narrow payload does not null out previously fetched data.
-        An incoming unsaved edit keeps its pending-mutation marker. Callers are
-        responsible for the higher-level gates (``is_fetched`` on the incoming
-        relationship, ``_peer_has_been_mutated`` on this one).
+        cleared relationship or a move-to-root is reflected). A changed peer means a
+        different relationship edge, so the incoming edge is taken wholesale,
+        properties included. When the peer stays the same, its descriptive identity
+        fields (hfid, display label, typename, kind) and the edge properties are only
+        overwritten when the incoming fetch actually carried them, so a narrow payload
+        does not null out previously fetched data. An incoming unsaved edit keeps its
+        pending-mutation marker. Callers are responsible for the higher-level gates
+        (``is_fetched`` on the incoming relationship, ``_peer_has_been_mutated`` on
+        this one).
         """
-        if incoming._id != self._id:
+        # An hfid-only relationship (no id on either side) changes peer when the hfid does.
+        peer_changed = incoming._id != self._id or (incoming._id is None and incoming._hfid != self._hfid)
+        if peer_changed:
             self._peer = incoming._peer
             self._id = incoming._id
             self._hfid = incoming._hfid
             self._display_label = incoming._display_label
             self._typename = incoming._typename
             self._kind = incoming._kind
+            # The stored properties and metadata described the edge to the old peer;
+            # they must not survive onto the new edge.
+            for prop in self._properties:
+                setattr(self, prop, getattr(incoming, prop))
+            self._source_typename = incoming._source_typename
+            self._relationship_metadata = incoming._relationship_metadata
+            self._fetched_properties = incoming._fetched_properties
         else:
             if incoming._peer is not None:
                 self._peer = incoming._peer
@@ -309,14 +328,14 @@ class RelatedNodeBase:
                 self._typename = incoming._typename
             if incoming._kind is not None:
                 self._kind = incoming._kind
-        for prop in self._properties:
-            if prop in incoming._fetched_properties:
-                setattr(self, prop, getattr(incoming, prop))
-                if prop == "source":
-                    self._source_typename = incoming._source_typename
-        if incoming._relationship_metadata is not None:
-            self._relationship_metadata = incoming._relationship_metadata
-        self._fetched_properties = intern_frozenset(self._fetched_properties | incoming._fetched_properties)
+            for prop in self._properties:
+                if prop in incoming._fetched_properties:
+                    setattr(self, prop, getattr(incoming, prop))
+                    if prop == "source":
+                        self._source_typename = incoming._source_typename
+            if incoming._relationship_metadata is not None:
+                self._relationship_metadata = incoming._relationship_metadata
+            self._fetched_properties = intern_frozenset(self._fetched_properties | incoming._fetched_properties)
         self.is_fetched = True
         self._peer_has_been_mutated = incoming._peer_has_been_mutated
 

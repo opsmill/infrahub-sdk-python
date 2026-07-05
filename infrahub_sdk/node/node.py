@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from ..client import InfrahubClient, InfrahubClientSync
     from ..context import RequestContext
+    from ..protocols_base import CoreNodeBase
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
 
@@ -276,7 +277,7 @@ class InfrahubNodeBase:
         return self._metadata
 
     @staticmethod
-    def _field_was_fetched(data: Any, name: str) -> bool:
+    def _field_was_fetched(data: object, name: str) -> bool:
         """Return whether a field was present in the response a node was built from.
 
         Key-presence is the only unambiguous "was fetched" signal: an absent field and
@@ -316,7 +317,7 @@ class InfrahubNodeBase:
     def _init_relationships(self, data: dict | None = None) -> None:
         pass
 
-    def _merge(self, node: InfrahubNodeBase) -> None:
+    def _merge(self, node: InfrahubNodeBase | CoreNodeBase) -> None:
         """Merge a fresher copy of the same node into this one, field by field.
 
         Used by the client store when a node with this UUID is fetched again: fields the
@@ -348,8 +349,8 @@ class InfrahubNodeBase:
                 self._merge_raw_field(name=name, stored_data=stored_data, incoming_data=incoming_data)
 
         for container_field in RELATIONSHIP_CONTAINER_FIELDS:
-            incoming_bucket: dict[str, Any] = getattr(node, container_field, {})
-            stored_bucket: dict[str, Any] = getattr(self, container_field, {})
+            incoming_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(node, container_field, {})
+            stored_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(self, container_field, {})
             for name, incoming_rel in incoming_bucket.items():
                 if self._merge_relationship(stored_bucket, name, incoming_rel):
                     self._merge_raw_field(name=name, stored_data=stored_data, incoming_data=incoming_data)
@@ -385,13 +386,17 @@ class InfrahubNodeBase:
         return True
 
     @staticmethod
-    def _merge_relationship(stored_bucket: dict[str, Any], name: str, incoming_rel: Any) -> bool:
+    def _merge_relationship(
+        stored_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase],
+        name: str,
+        incoming_rel: RelatedNodeBase | RelationshipManagerBase,
+    ) -> bool:
         """Merge one relationship entry into ``stored_bucket``; return whether it was taken."""
+        stored_rel = stored_bucket.get(name)
         if isinstance(incoming_rel, RelatedNodeBase):
             if not incoming_rel.is_fetched and not incoming_rel._peer_has_been_mutated:
                 return False
-            stored_rel = stored_bucket.get(name)
-            if stored_rel is None:
+            if not isinstance(stored_rel, RelatedNodeBase):
                 stored_bucket[name] = incoming_rel
             elif stored_rel._peer_has_been_mutated:
                 return False
@@ -399,15 +404,14 @@ class InfrahubNodeBase:
                 stored_rel._merge(incoming_rel)
             return True
 
-        if not isinstance(incoming_rel, RelationshipManagerBase) or not incoming_rel.is_fetched:
+        if not incoming_rel.is_fetched:
             return False
-        stored_manager = stored_bucket.get(name)
-        if stored_manager is None:
+        if not isinstance(stored_rel, RelationshipManagerBase):
             stored_bucket[name] = incoming_rel
-        elif stored_manager.has_update:
+        elif stored_rel.has_update:
             return False
         else:
-            stored_manager._merge(incoming_rel)
+            stored_rel._merge(incoming_rel)
         return True
 
     def _reset_mutation_tracking(self) -> None:
@@ -421,7 +425,8 @@ class InfrahubNodeBase:
         for attr in self._attribute_data.values():
             attr.value_has_been_mutated = False
         for container_field in RELATIONSHIP_CONTAINER_FIELDS:
-            for rel in getattr(self, container_field, {}).values():
+            container: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(self, container_field, {})
+            for rel in container.values():
                 if isinstance(rel, RelatedNodeBase):
                     rel._peer_has_been_mutated = False
                 elif isinstance(rel, RelationshipManagerBase):

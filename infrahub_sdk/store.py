@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from infrahub_sdk.protocols_base import CoreNodeBase
 
@@ -68,7 +68,7 @@ class NodeStoreBranch:
                 if merge and existing.get_kind() == node.get_kind():
                     # Merge into the existing object and keep its internal id so every
                     # reference already handed out by the store stays current.
-                    existing._merge(cast("Any", node))
+                    existing._merge(node)
                     node = existing
                 else:
                     # Replace wholesale: explicit merge=False, or the node was converted

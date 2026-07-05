@@ -163,6 +163,10 @@ class Attribute:
         fetched = incoming._fetched_fields
         if "value" in fetched or incoming.value_has_been_mutated:
             self._value = incoming._value
+            # The pool-allocation intent travels with the value: a fetched copy carries
+            # None, clearing any stale allocation request that would otherwise take
+            # precedence over the value in the next mutation payload.
+            self._from_pool = incoming._from_pool
             if incoming.value_has_been_mutated:
                 self.value_has_been_mutated = True
         for field_name in (
