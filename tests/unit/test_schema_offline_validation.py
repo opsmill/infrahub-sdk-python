@@ -69,9 +69,10 @@ def test_out_of_enum_value_is_rejected_naming_field_and_value() -> None:
     result = validate_schema(schema=schema)
 
     assert result.valid is False
-    assert any("nodes[0].attributes[0].kind" in message for message in result.messages), result.messages
-    # The invalid value is echoed back to the caller.
-    assert any("NotARealKind" in message for message in result.messages), result.messages
+    # `kind` is the attribute union's discriminator, so an unknown kind is reported against the
+    # attribute itself, with the discriminator field and the invalid value named in the message.
+    assert "nodes[0].attributes[0]" in _fields_named(result), result.messages
+    assert any("kind" in message and "NotARealKind" in message for message in result.messages), result.messages
 
 
 def test_unknown_field_on_node_is_rejected() -> None:
@@ -112,7 +113,8 @@ def test_extension_attribute_read_level_field_is_rejected_with_dotted_location()
     result = validate_schema(schema=schema)
 
     assert result.valid is False
-    assert "extensions.nodes[0].attributes[0].inherited" in _fields_named(result), result.messages
+    # The matched variant's tag (the attribute kind) is part of the discriminated-union error path.
+    assert "extensions.nodes[0].attributes[0].Text.inherited" in _fields_named(result), result.messages
 
 
 def test_extension_attribute_unknown_field_is_rejected_with_dotted_location() -> None:
@@ -131,7 +133,7 @@ def test_extension_attribute_unknown_field_is_rejected_with_dotted_location() ->
     result = validate_schema(schema=schema)
 
     assert result.valid is False
-    assert "extensions.nodes[0].attributes[0].not_a_field" in _fields_named(result), result.messages
+    assert "extensions.nodes[0].attributes[0].Text.not_a_field" in _fields_named(result), result.messages
 
 
 def test_extension_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
@@ -150,7 +152,8 @@ def test_extension_attribute_out_of_enum_kind_is_rejected_naming_field_and_value
     result = validate_schema(schema=schema)
 
     assert result.valid is False
-    assert "extensions.nodes[0].attributes[0].kind" in _fields_named(result), result.messages
+    # An unknown kind fails the union discriminator, reported against the attribute itself.
+    assert "extensions.nodes[0].attributes[0]" in _fields_named(result), result.messages
     assert any("NotARealKind" in message for message in result.messages), result.messages
 
 
@@ -273,7 +276,7 @@ def test_computed_attribute_out_of_enum_kind_is_rejected_naming_field_and_value(
     result = validate_schema(schema=_schema_with_computed_attribute({"kind": "NotARealKind"}))
 
     assert result.valid is False
-    assert "nodes[0].attributes[0].computed_attribute" in _fields_named(result), result.messages
+    assert "nodes[0].attributes[0].Text.computed_attribute" in _fields_named(result), result.messages
     assert any("NotARealKind" in message for message in result.messages), result.messages
 
 
@@ -317,3 +320,46 @@ def test_parameters_unknown_field_is_rejected() -> None:
 
     assert result.valid is False
     assert any("not_a_real_param" in message for message in result.messages), result.messages
+
+
+def _schema_with_kind_and_parameters(kind: str, parameters: dict) -> dict:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["kind"] = kind
+    schema["nodes"][0]["attributes"][0]["parameters"] = parameters
+    return schema
+
+
+def test_number_attribute_accepts_number_parameters() -> None:
+    result = validate_schema(schema=_schema_with_kind_and_parameters("Number", {"min_value": 1}))
+
+    assert result.valid is True, result.messages
+
+
+def test_number_attribute_rejects_number_pool_parameters() -> None:
+    # NumberPool-only parameters must not validate against a Number attribute.
+    result = validate_schema(schema=_schema_with_kind_and_parameters("Number", {"start_range": 1, "end_range": 9}))
+
+    assert result.valid is False
+    assert any("start_range" in message for message in result.messages), result.messages
+
+
+def test_text_attribute_rejects_number_parameters() -> None:
+    # A Number-only parameter must not validate against a Text attribute.
+    result = validate_schema(schema=_schema_with_kind_and_parameters("Text", {"min_value": 1}))
+
+    assert result.valid is False
+    assert any("min_value" in message for message in result.messages), result.messages
+
+
+def test_generic_attribute_rejects_any_parameters() -> None:
+    # A kind that maps to the plain parameters model accepts no parameter fields at all.
+    result = validate_schema(schema=_schema_with_kind_and_parameters("Dropdown", {"regex": "x"}))
+
+    assert result.valid is False
+    assert any("regex" in message for message in result.messages), result.messages
+
+
+def test_number_pool_attribute_accepts_number_pool_parameters() -> None:
+    result = validate_schema(schema=_schema_with_kind_and_parameters("NumberPool", {"start_range": 1, "end_range": 9}))
+
+    assert result.valid is True, result.messages

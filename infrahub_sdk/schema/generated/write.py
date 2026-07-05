@@ -121,21 +121,7 @@ class ComputedAttributeTransformPythonWrite(BaseModel):
     )
 
 
-AttributeParametersUnionWrite = (
-    NumberPoolParametersWrite
-    | NumberAttributeParametersWrite
-    | TextAttributeParametersWrite
-    | ListAttributeParametersWrite
-    | AttributeParametersWrite
-)
-
-ComputedAttributeWrite = Annotated[
-    ComputedAttributeUserWrite | ComputedAttributeJinja2Write | ComputedAttributeTransformPythonWrite,
-    Field(discriminator="kind"),
-]
-
-
-class AttributeSchemaWrite(BaseModel):
+class AttributeSchemaBaseWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | None = Field(
         default=None,
@@ -241,10 +227,6 @@ class AttributeSchemaWrite(BaseModel):
         default="any",
         description="Type of allowed override for the attribute.",
     )
-    parameters: AttributeParametersUnionWrite | None = Field(
-        default=None,
-        description="Extra parameters specific to this kind of attribute",
-    )
     deprecation: str | None = Field(
         default=None,
         description="Mark attribute as deprecated and provide a user-friendly message to display",
@@ -254,6 +236,95 @@ class AttributeSchemaWrite(BaseModel):
         default="default",
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
+
+
+class TextAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["Text", "TextArea"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: TextAttributeParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class NumberAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["Number"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: NumberAttributeParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class ListAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["List"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: ListAttributeParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["NumberPool"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: NumberPoolParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class GenericAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal[
+        "ID",
+        "Dropdown",
+        "DateTime",
+        "Email",
+        "Password",
+        "HashedPassword",
+        "URL",
+        "File",
+        "MacAddress",
+        "Color",
+        "Bandwidth",
+        "IPHost",
+        "IPNetwork",
+        "Boolean",
+        "Checkbox",
+        "JSON",
+        "Any",
+    ] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: AttributeParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+ComputedAttributeWrite = Annotated[
+    ComputedAttributeUserWrite | ComputedAttributeJinja2Write | ComputedAttributeTransformPythonWrite,
+    Field(discriminator="kind"),
+]
+
+AttributeSchemaWrite = Annotated[
+    TextAttributeWrite | NumberAttributeWrite | ListAttributeWrite | NumberPoolAttributeWrite | GenericAttributeWrite,
+    Field(discriminator="kind"),
+]
 
 
 class RelationshipSchemaWrite(BaseModel):
