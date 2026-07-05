@@ -16,7 +16,14 @@ if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
-    from infrahub_sdk.node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
+    from infrahub_sdk.node import (
+        RelatedNode,
+        RelatedNodeSync,
+        RelationshipManager,
+        RelationshipManagerSync,
+    )
+    from infrahub_sdk.node.related_node import RelatedNodeBase
+    from infrahub_sdk.node.relationship import RelationshipManagerBase
     from infrahub_sdk.protocols_base import String, StringOptional
     from infrahub_sdk.schema import NodeSchemaAPI
 
@@ -473,6 +480,255 @@ def test_merge_clears_hfid_only_relationship(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+def test_merge_local_manager_edits_win(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    """An unsaved add()/remove() on the stored member list is not clobbered by a re-fetch."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    stored_node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=stored_node)
+    stored_node._relationship_cardinality_many_data["tags"].add(TAG_RED_ID)
+
+    refetch = shallow_location_data()
+    refetch["node"]["tags"] = {"count": 0, "edges": []}
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    stored = get_location(store)
+    assert TAG_RED_ID in stored.tags.peer_ids
+    assert stored.tags.has_update is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_same_peer_refreshes_carried_identity_and_properties(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A same-peer re-fetch refreshes the identity details and properties it carried."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    refetch = shallow_location_data()
+    refetch["node"]["primary_tag"] = {
+        "properties": {
+            "is_protected": True,
+            "source": {
+                "id": "ssssssss-ssss-ssss-ssss-ssssssssssss",
+                "display_label": "crm",
+                "__typename": "CoreAccount",
+            },
+        },
+        "node": {
+            "id": TAG_RED_ID,
+            "hfid": ["crimson"],
+            "kind": "BuiltinTag",
+            "display_label": "crimson",
+            "__typename": "BuiltinTag",
+        },
+        "relationship_metadata": {"updated_at": "2026-07-04T00:00:00.000000Z"},
+    }
+    incoming = node_class(client=client, schema=location_schema, data=refetch)
+    # Simulate a previously fetch()ed peer riding along with the relationship
+    peer = node_class(client=client, schema=location_schema, data=deep_location_data())
+    incoming._relationship_cardinality_one_data["primary_tag"]._peer = peer
+    store.set(node=incoming)
+
+    stored = get_location(store)
+    inner_rel = store.get(key=LOCATION_ID)._relationship_cardinality_one_data["primary_tag"]
+    assert inner_rel._id == TAG_RED_ID
+    assert inner_rel._display_label == "crimson"
+    assert inner_rel._hfid == ["crimson"]
+    assert inner_rel._kind == "BuiltinTag"
+    assert inner_rel._peer is peer
+    assert stored.primary_tag.is_protected is True
+    assert stored.primary_tag.source == "ssssssss-ssss-ssss-ssss-ssssssssssss"
+    metadata = inner_rel.get_relationship_metadata()
+    assert metadata is not None
+    assert metadata.updated_at == "2026-07-04T00:00:00.000000Z"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_refreshes_attribute_properties(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A re-fetch that carries attribute properties updates the stored ones."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    refetch = shallow_location_data()
+    refetch["node"]["name"] = {
+        "value": "JFK1",
+        "is_protected": True,
+        "source": {"id": "ssssssss-ssss-ssss-ssss-ssssssssssss", "display_label": "crm", "__typename": "CoreAccount"},
+    }
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    stored_name = store.get(key=LOCATION_ID)._attribute_data["name"]
+    assert stored_name.is_protected is True
+    assert stored_name.source is not None
+    assert stored_name.source.id == "ssssssss-ssss-ssss-ssss-ssssssssssss"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_propagates_edit_on_unfetched_attribute(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """An unsaved edit on an attribute the incoming fetch did not carry still merges."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    incoming = node_class(client=client, schema=location_schema, data=shallow_location_data())
+    assert incoming._attribute_data["description"].is_fetched is False
+    incoming._attribute_data["description"].value = "draft"
+    store.set(node=incoming)
+
+    stored = get_location(store)
+    assert stored.description.value == "draft"
+    inner = store.get(key=LOCATION_ID)
+    assert inner._attribute_data["description"].value_has_been_mutated is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_into_node_created_without_data(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A locally created node (no raw payload) accepts merges once it has an id."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    created = node_class(client=client, schema=location_schema, data=None)
+    created.id = LOCATION_ID
+    store.set(node=created)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    stored = get_location(store)
+    assert stored is created
+    assert stored.name.value == "JFK1"
+    assert stored.primary_tag.id == TAG_RED_ID
+    assert isinstance(created._data, dict)
+    assert created._data["name"] == {"value": "JFK1"}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_updates_node_metadata(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+    assert get_location(store).get_node_metadata() is None
+
+    refetch = shallow_location_data()
+    refetch["node_metadata"] = {"updated_at": "2026-07-04T00:00:00.000000Z"}
+    # A payload without __typename leaves the stored typename untouched
+    del refetch["node"]["__typename"]
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    stored = get_location(store)
+    assert stored.typename == "BuiltinLocation"
+    metadata = stored.get_node_metadata()
+    assert metadata is not None
+    assert metadata.updated_at == "2026-07-04T00:00:00.000000Z"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_from_locally_created_copy_keeps_existing_flag(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """Merging a locally created (never persisted) copy does not unmark the stored node."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    created = node_class(client=client, schema=location_schema, data=None)
+    created.id = LOCATION_ID
+    created._attribute_data["description"].value = "draft"
+    store.set(node=created)
+
+    stored = get_location(store)
+    assert store.get(key=LOCATION_ID)._existing is True
+    assert stored.description.value == "draft"
+
+
+def test_merge_helpers_insert_into_empty_containers(clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    """The per-field merge helpers insert wholesale when no stored entry exists.
+
+    The helpers live on the shared InfrahubNodeBase, so one flavour covers both.
+    """
+    target = InfrahubNode(client=clients.standard, schema=location_schema, data=shallow_location_data())
+    incoming = InfrahubNode(client=clients.standard, schema=location_schema, data=deep_location_data())
+
+    target._attribute_data.pop("description")
+    assert target._merge_attribute("description", incoming._attribute_data["description"]) is True
+    assert target._attribute_data["description"] is incoming._attribute_data["description"]
+
+    empty_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = {}
+    incoming_rel = incoming._relationship_cardinality_one_data["primary_tag"]
+    assert target._merge_relationship(empty_bucket, "primary_tag", incoming_rel) is True
+    assert empty_bucket["primary_tag"] is incoming_rel
+
+    incoming_manager = incoming._relationship_cardinality_many_data["tags"]
+    assert target._merge_relationship(empty_bucket, "tags", incoming_manager) is True
+    assert empty_bucket["tags"] is incoming_manager
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_store_set_same_object_twice_is_stable(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    client, store, node_class = setup_store(client_type, clients)
+
+    stored_node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=stored_node)
+    store.set(node=stored_node)
+
+    assert get_location(store) is stored_node
+    assert len(store._branches["main"]._objs) == 1
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_store_custom_key_reassignment(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    """Reassigning a custom key to another node keeps the reverse index consistent."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    first = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=first, key="mykey")
+
+    other_data = shallow_location_data()
+    other_data["node"]["id"] = "oooooooo-oooo-oooo-oooo-oooooooooooo"
+    second = node_class(client=client, schema=location_schema, data=other_data)
+    store.set(node=second, key="mykey")
+
+    assert store.get(key="mykey") is second
+    branch = store._branches["main"]
+    assert "mykey" not in branch._keys_by_internal_id.get(first._internal_id, set())
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_store_hfid_claimed_by_other_node_is_kept(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    """Re-setting a renamed node must not drop an hfid entry another node now owns."""
+    client, store, node_class = setup_store(client_type, clients)
+    schema = schema_with_hfid["location"]
+
+    store.set(node=node_class(client=client, schema=schema, data=deep_location_data()))
+
+    # Another node claims the JFK1 hfid
+    other_data = deep_location_data()
+    other_data["node"]["id"] = "oooooooo-oooo-oooo-oooo-oooooooooooo"
+    other = node_class(client=client, schema=schema, data=other_data)
+    store.set(node=other)
+
+    # The first node is re-fetched under a new name; its stale JFK1 entry must not
+    # remove the entry now owned by the other node
+    refetch = shallow_location_data()
+    refetch["node"]["name"] = {"value": "JFK2"}
+    store.set(node=node_class(client=client, schema=schema, data=refetch))
+
+    assert store.get(key="BuiltinLocation__JFK1") is other
+    assert store.get(key="BuiltinLocation__JFK2").id == LOCATION_ID
+
+
+@pytest.mark.parametrize("client_type", client_types)
 def test_merge_propagates_unsaved_edits(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
     """Unsaved edits merged into the store keep their pending-mutation markers.
 
@@ -780,6 +1036,36 @@ async def test_query_merges_into_store_and_returns_per_query_object(
     assert second is not stored
     assert second == stored
     assert second.location.value is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_prefetched_related_nodes_merge_into_store(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
+) -> None:
+    """Related nodes from a prefetch go through the same store merge as top-level nodes."""
+    response = repository_response(include_location=True)
+    response["data"]["CoreRepository"]["edges"][0]["node"]["tags"] = {
+        "count": 1,
+        "edges": [{"node": {"id": TAG_RED_ID, "display_label": "red", "__typename": "BuiltinTag"}}],
+    }
+    httpx_mock.add_response(
+        method="POST",
+        json=response,
+        match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        is_reusable=True,
+    )
+
+    if client_type == "standard":
+        repo = await clients.standard.get(kind="CoreRepository", id=REPOSITORY_ID, prefetch_relationships=True)
+        tag = clients.standard.store.get(key=TAG_RED_ID, raise_when_missing=False)
+    else:
+        repo = clients.sync.get(kind="CoreRepository", id=REPOSITORY_ID, prefetch_relationships=True)
+        tag = clients.sync.store.get(key=TAG_RED_ID, raise_when_missing=False)
+
+    assert repo.id == REPOSITORY_ID
+    assert tag is not None
+    assert tag.id == TAG_RED_ID
+    assert tag.display_label == "red"
 
 
 @pytest.mark.parametrize("client_type", client_types)
