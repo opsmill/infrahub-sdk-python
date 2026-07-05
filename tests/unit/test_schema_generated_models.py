@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite
 from infrahub_sdk.schema.generated import read as read_module
 from infrahub_sdk.schema.generated import write as write_module
 
@@ -22,13 +23,15 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 _GENERATED_DIR = Path(write_module.__file__).parent
-_EXPECTED_FAMILIES = [
-    "GeneratedAttributeSchema",
-    "GeneratedRelationshipSchema",
-    "GeneratedBaseNodeSchema",
-    "GeneratedNodeSchema",
-    "GeneratedGenericSchema",
+# Each family pairs its write-variant class name with its read-variant class name.
+_FAMILY_PAIRS = [
+    ("AttributeSchemaWrite", "AttributeSchemaRead"),
+    ("RelationshipSchemaWrite", "RelationshipSchemaRead"),
+    ("BaseNodeSchemaWrite", "BaseNodeSchemaRead"),
+    ("NodeSchemaWrite", "NodeSchemaRead"),
+    ("GenericSchemaWrite", "GenericSchemaRead"),
 ]
+_WRITE_FAMILIES = [write for write, _ in _FAMILY_PAIRS]
 
 
 @pytest.mark.parametrize("filename", ["write.py", "read.py"])
@@ -38,13 +41,13 @@ def test_generated_files_present_with_do_not_edit_header(filename: str) -> None:
     assert "do not edit" in path.read_text().splitlines()[0].lower()
 
 
-@pytest.mark.parametrize("family", _EXPECTED_FAMILIES)
-def test_expected_model_families_present_in_both_variants(family: str) -> None:
-    assert hasattr(write_module, family), f"write variant is missing {family}"
-    assert hasattr(read_module, family), f"read variant is missing {family}"
+@pytest.mark.parametrize(("write_family", "read_family"), _FAMILY_PAIRS)
+def test_expected_model_families_present_in_each_variant(write_family: str, read_family: str) -> None:
+    assert hasattr(write_module, write_family), f"write variant is missing {write_family}"
+    assert hasattr(read_module, read_family), f"read variant is missing {read_family}"
 
 
-@pytest.mark.parametrize("family", _EXPECTED_FAMILIES)
+@pytest.mark.parametrize("family", _WRITE_FAMILIES)
 def test_write_variant_forbids_extra_fields(family: str) -> None:
     model: type[BaseModel] = getattr(write_module, family)
     assert model.model_config.get("extra") == "forbid", (
@@ -52,17 +55,25 @@ def test_write_variant_forbids_extra_fields(family: str) -> None:
     )
 
 
-@pytest.mark.parametrize("family", _EXPECTED_FAMILIES)
-def test_read_variant_is_superset_of_write_variant(family: str) -> None:
-    write_model: type[BaseModel] = getattr(write_module, family)
-    read_model: type[BaseModel] = getattr(read_module, family)
+@pytest.mark.parametrize(("write_family", "read_family"), _FAMILY_PAIRS)
+def test_read_variant_is_superset_of_write_variant(write_family: str, read_family: str) -> None:
+    write_model: type[BaseModel] = getattr(write_module, write_family)
+    read_model: type[BaseModel] = getattr(read_module, read_family)
     write_fields = set(write_model.model_fields)
     read_fields = set(read_model.model_fields)
     missing = write_fields - read_fields
-    assert not missing, f"read variant {family} must expose every write field; missing: {sorted(missing)}"
+    assert not missing, f"read variant {read_family} must expose every write field; missing: {sorted(missing)}"
 
 
 def test_write_variant_carries_read_level_fields_absent() -> None:
     # `inherited` is a read-level attribute field and must not exist on the write variant.
-    assert "inherited" not in write_module.GeneratedAttributeSchema.model_fields
-    assert "inherited" in read_module.GeneratedAttributeSchema.model_fields
+    assert "inherited" not in write_module.AttributeSchemaWrite.model_fields
+    assert "inherited" in read_module.AttributeSchemaRead.model_fields
+
+
+def test_document_root_models_import_with_nodes_and_generics() -> None:
+    for root in (InfrahubSchemaWrite, InfrahubSchemaRead):
+        assert "nodes" in root.model_fields, f"{root.__name__} must expose a 'nodes' field"
+        assert "generics" in root.model_fields, f"{root.__name__} must expose a 'generics' field"
+    # The write root is not extra=forbid so schema-level keys outside the model are tolerated.
+    assert InfrahubSchemaWrite.model_config.get("extra") != "forbid"

@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GeneratedAttributeSchema(BaseModel):
+class AttributeSchemaRead(BaseModel):
     model_config = ConfigDict()
     id: str | None = Field(
         default=None,
@@ -132,7 +132,7 @@ class GeneratedAttributeSchema(BaseModel):
     )
 
 
-class GeneratedRelationshipSchema(BaseModel):
+class RelationshipSchemaRead(BaseModel):
     model_config = ConfigDict()
     id: str | None = Field(
         default=None,
@@ -241,7 +241,7 @@ class GeneratedRelationshipSchema(BaseModel):
     )
 
 
-class GeneratedBaseNodeSchema(BaseModel):
+class BaseNodeSchemaRead(BaseModel):
     model_config = ConfigDict()
     id: str | None = Field(
         default=None,
@@ -320,17 +320,17 @@ class GeneratedBaseNodeSchema(BaseModel):
         default="present",
         description="Expected state of the node/generic after loading the schema",
     )
-    attributes: list[GeneratedAttributeSchema] = Field(
+    attributes: list[AttributeSchemaRead] = Field(
         default_factory=list,
         description="Node attributes",
     )
-    relationships: list[GeneratedRelationshipSchema] = Field(
+    relationships: list[RelationshipSchemaRead] = Field(
         default_factory=list,
         description="Node Relationships",
     )
 
 
-class GeneratedNodeSchema(GeneratedBaseNodeSchema):
+class NodeSchemaRead(BaseNodeSchemaRead):
     model_config = ConfigDict()
     inherit_from: list[str] = Field(
         default_factory=list,
@@ -358,7 +358,7 @@ class GeneratedNodeSchema(GeneratedBaseNodeSchema):
     )
 
 
-class GeneratedGenericSchema(GeneratedBaseNodeSchema):
+class GenericSchemaRead(BaseNodeSchemaRead):
     model_config = ConfigDict()
     hierarchical: bool = Field(
         default=False,
@@ -376,3 +376,8 @@ class GeneratedGenericSchema(GeneratedBaseNodeSchema):
         default=None,
         description="Nodes inheriting from this Generic schema must belong to one of the listed namespaces",
     )
+
+
+class InfrahubSchemaRead(BaseModel):
+    nodes: list[NodeSchemaRead] = Field(default_factory=list)
+    generics: list[GenericSchemaRead] = Field(default_factory=list)

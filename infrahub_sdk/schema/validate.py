@@ -16,16 +16,16 @@ from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
 from .generated.write import (
-    GeneratedAttributeSchema,
-    GeneratedGenericSchema,
-    GeneratedNodeSchema,
-    GeneratedRelationshipSchema,
+    AttributeSchemaWrite,
+    GenericSchemaWrite,
+    NodeSchemaWrite,
+    RelationshipSchemaWrite,
 )
 
 # Maps each collection in a schema-root payload to the write model its items must satisfy.
 _WRITE_MODELS_BY_COLLECTION: dict[str, type[BaseModel]] = {
-    "nodes": GeneratedNodeSchema,
-    "generics": GeneratedGenericSchema,
+    "nodes": NodeSchemaWrite,
+    "generics": GenericSchemaWrite,
 }
 
 
@@ -109,7 +109,7 @@ def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDeta
         if isinstance(attributes, list):
             for attr_index, attribute in enumerate(attributes):
                 _validate_item(
-                    model=GeneratedAttributeSchema,
+                    model=AttributeSchemaWrite,
                     item=attribute,
                     prefix=f"{node_prefix}.attributes[{attr_index}]",
                     errors=errors,
@@ -118,7 +118,7 @@ def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDeta
         if isinstance(relationships, list):
             for rel_index, relationship in enumerate(relationships):
                 _validate_item(
-                    model=GeneratedRelationshipSchema,
+                    model=RelationshipSchemaWrite,
                     item=relationship,
                     prefix=f"{node_prefix}.relationships[{rel_index}]",
                     errors=errors,

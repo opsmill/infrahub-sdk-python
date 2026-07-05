@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from infrahub_sdk.schema import validate_schema
+from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite, validate_schema
 from infrahub_sdk.schema.validate import SchemaValidationResult
 
 
@@ -32,6 +32,12 @@ def _valid_schema() -> dict:
             {"name": "Endpoint", "namespace": "Infra", "attributes": [{"name": "role", "kind": "Text"}]},
         ],
     }
+
+
+def test_schema_root_models_are_importable_with_nodes_and_generics() -> None:
+    for root in (InfrahubSchemaWrite, InfrahubSchemaRead):
+        assert "nodes" in root.model_fields
+        assert "generics" in root.model_fields
 
 
 def test_valid_payload_passes() -> None:

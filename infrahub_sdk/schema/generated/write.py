@@ -7,7 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GeneratedAttributeSchema(BaseModel):
+class AttributeSchemaWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | None = Field(
         default=None,
@@ -128,7 +128,7 @@ class GeneratedAttributeSchema(BaseModel):
     )
 
 
-class GeneratedRelationshipSchema(BaseModel):
+class RelationshipSchemaWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | None = Field(
         default=None,
@@ -229,7 +229,7 @@ class GeneratedRelationshipSchema(BaseModel):
     )
 
 
-class GeneratedBaseNodeSchema(BaseModel):
+class BaseNodeSchemaWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | None = Field(
         default=None,
@@ -308,17 +308,17 @@ class GeneratedBaseNodeSchema(BaseModel):
         default="present",
         description="Expected state of the node/generic after loading the schema",
     )
-    attributes: list[GeneratedAttributeSchema] = Field(
+    attributes: list[AttributeSchemaWrite] = Field(
         default_factory=list,
         description="Node attributes",
     )
-    relationships: list[GeneratedRelationshipSchema] = Field(
+    relationships: list[RelationshipSchemaWrite] = Field(
         default_factory=list,
         description="Node Relationships",
     )
 
 
-class GeneratedNodeSchema(GeneratedBaseNodeSchema):
+class NodeSchemaWrite(BaseNodeSchemaWrite):
     model_config = ConfigDict(extra="forbid")
     inherit_from: list[str] = Field(
         default_factory=list,
@@ -342,7 +342,7 @@ class GeneratedNodeSchema(GeneratedBaseNodeSchema):
     )
 
 
-class GeneratedGenericSchema(GeneratedBaseNodeSchema):
+class GenericSchemaWrite(BaseNodeSchemaWrite):
     model_config = ConfigDict(extra="forbid")
     hierarchical: bool = Field(
         default=False,
@@ -356,3 +356,9 @@ class GeneratedGenericSchema(GeneratedBaseNodeSchema):
         default=None,
         description="Nodes inheriting from this Generic schema must belong to one of the listed namespaces",
     )
+
+
+class InfrahubSchemaWrite(BaseModel):
+    version: str | None = None
+    nodes: list[NodeSchemaWrite] = Field(default_factory=list)
+    generics: list[GenericSchemaWrite] = Field(default_factory=list)

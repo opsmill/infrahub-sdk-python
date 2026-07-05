@@ -24,6 +24,8 @@ from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
+from .generated.read import InfrahubSchemaRead
+from .generated.write import InfrahubSchemaWrite
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
@@ -57,6 +59,8 @@ __all__ = [
     "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
+    "InfrahubSchemaRead",
+    "InfrahubSchemaWrite",
     "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
