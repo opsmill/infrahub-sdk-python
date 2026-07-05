@@ -17,16 +17,9 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .generated.write import (
     AttributeSchemaWrite,
-    GenericSchemaWrite,
-    NodeSchemaWrite,
+    InfrahubSchemaWrite,
     RelationshipSchemaWrite,
 )
-
-# Maps each collection in a schema-root payload to the write model its items must satisfy.
-_WRITE_MODELS_BY_COLLECTION: dict[str, type[BaseModel]] = {
-    "nodes": NodeSchemaWrite,
-    "generics": GenericSchemaWrite,
-}
 
 
 class SchemaValidationErrorDetail(BaseModel):
@@ -59,19 +52,35 @@ class SchemaValidationResult(BaseModel):
             raise ValueError("; ".join(self.messages))
 
 
-def _format_error_location(prefix: str, loc: tuple[Any, ...]) -> str:
-    """Render a dotted field path from a base prefix and a pydantic error location.
+def _format_error_location(loc: tuple[Any, ...], prefix: str = "") -> str:
+    """Render a dotted field path from a pydantic error location, optionally under a base prefix.
 
     Integer elements index into the preceding segment (``attributes`` + ``1`` becomes
-    ``attributes[1]``); everything else is appended as a new dotted segment.
+    ``attributes[1]``); everything else is appended as a new dotted segment. A ``prefix`` is used
+    when the location is relative to an item validated on its own (e.g. an extension attribute).
     """
-    parts = [prefix]
+    parts = [prefix] if prefix else []
     for element in loc:
         if isinstance(element, int):
-            parts[-1] = f"{parts[-1]}[{element}]"
+            if parts:
+                parts[-1] = f"{parts[-1]}[{element}]"
+            else:
+                parts.append(f"[{element}]")
         else:
             parts.append(str(element))
     return ".".join(parts)
+
+
+def _collect_validation_errors(
+    exc: PydanticValidationError, errors: list[SchemaValidationErrorDetail], prefix: str = ""
+) -> None:
+    """Append a field-level detail for every problem in a pydantic validation error."""
+    for error in exc.errors():
+        location = _format_error_location(loc=error["loc"], prefix=prefix)
+        message = f"{location}: {error['msg']}"
+        if error["type"] != "missing" and "input" in error:
+            message += f" (received: {error['input']!r})"
+        errors.append(SchemaValidationErrorDetail(field=location, message=message))
 
 
 def _validate_item(model: type[BaseModel], item: Any, prefix: str, errors: list[SchemaValidationErrorDetail]) -> None:
@@ -81,12 +90,7 @@ def _validate_item(model: type[BaseModel], item: Any, prefix: str, errors: list[
     try:
         model.model_validate(item)
     except PydanticValidationError as exc:
-        for error in exc.errors():
-            location = _format_error_location(prefix=prefix, loc=error["loc"])
-            message = f"{location}: {error['msg']}"
-            if error["type"] != "missing" and "input" in error:
-                message += f" (received: {error['input']!r})"
-            errors.append(SchemaValidationErrorDetail(field=location, message=message))
+        _collect_validation_errors(exc=exc, errors=errors, prefix=prefix)
 
 
 def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDetail]) -> None:
@@ -126,7 +130,7 @@ def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDeta
 
 
 def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> SchemaValidationResult:
-    """Validate a single schema-root payload against the generated write models.
+    """Validate a single schema-root payload against the generated write contract.
 
     Args:
         schema: A schema-root mapping, e.g. ``{"version": "1.0", "nodes": [...], "generics": [...]}``.
@@ -135,20 +139,21 @@ def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> 
     Returns:
         A :class:`SchemaValidationResult` with a field-level message for every field that is not
         settable (read-level, internal, or unknown) and for every constrained field set outside
-        its allowed set. Nodes, generics, and the attributes/relationships nested under
-        ``extensions.nodes`` are all held to the write contract.
+        its allowed set. The nodes and generics are validated together against the write
+        document model; the attributes/relationships nested under ``extensions.nodes`` are held to
+        the same write contract (extension nodes are ``kind``-only, so the document model cannot
+        cover them).
 
     Raises:
         ValueError: When ``raise_on_error`` is True and the payload is invalid.
 
     """
     errors: list[SchemaValidationErrorDetail] = []
-    for collection, model in _WRITE_MODELS_BY_COLLECTION.items():
-        items = schema.get(collection)
-        if not isinstance(items, list):
-            continue
-        for index, item in enumerate(items):
-            _validate_item(model=model, item=item, prefix=f"{collection}[{index}]", errors=errors)
+
+    try:
+        InfrahubSchemaWrite.model_validate(schema)
+    except PydanticValidationError as exc:
+        _collect_validation_errors(exc=exc, errors=errors)
 
     _validate_extensions(extensions=schema.get("extensions"), errors=errors)
 
