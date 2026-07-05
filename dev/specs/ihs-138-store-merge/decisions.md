@@ -270,7 +270,7 @@ its results.
 ## Summary table
 
 | ID | Decision | Outcome |
-|----|----------|---------|
+| -- | -------- | ------- |
 | D1 | Returned vs stored object | Return per-query object; store holds the merged canonical copy |
 | D2 | In-place mutation model | Accept; one always-current merged object per node; protect local edits |
 | D3 | `store.set()` default | **Merge by default, uniformly** (override); replace is opt-in via `merge=False` |
