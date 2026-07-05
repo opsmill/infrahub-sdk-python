@@ -6,6 +6,11 @@ the generated files are present, carry the do-not-edit header, expose the expect
 model families, and satisfy the write/read structural invariants (write forbids extra
 fields; read is a superset of write). The full regeneration drift is enforced by the
 monorepo's generated-file CI, which regenerates and fails on any diff.
+
+The attribute family is a discriminated union on ``kind``: a shared ``AttributeSchemaBase``
+carries every field except ``parameters``, and each variant narrows ``kind`` and adds its own
+``parameters`` model. The public ``AttributeSchema{Write,Read}`` name is the union alias, so
+class-level checks introspect the base and the variants rather than the alias.
 """
 
 from __future__ import annotations
@@ -23,15 +28,44 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
 _GENERATED_DIR = Path(write_module.__file__).parent
-# Each family pairs its write-variant class name with its read-variant class name.
+# Plain (non-union) families pair their write-variant class name with their read-variant class name.
 _FAMILY_PAIRS = [
-    ("AttributeSchemaWrite", "AttributeSchemaRead"),
     ("RelationshipSchemaWrite", "RelationshipSchemaRead"),
     ("BaseNodeSchemaWrite", "BaseNodeSchemaRead"),
     ("NodeSchemaWrite", "NodeSchemaRead"),
     ("GenericSchemaWrite", "GenericSchemaRead"),
 ]
 _WRITE_FAMILIES = [write for write, _ in _FAMILY_PAIRS]
+
+# The attribute union's shared base plus its kind-discriminated variants (bare names; a variant's
+# class is ``<name>Write`` / ``<name>Read``).
+_ATTRIBUTE_BASE = "AttributeSchemaBase"
+_ATTRIBUTE_VARIANTS = [
+    "TextAttribute",
+    "NumberAttribute",
+    "ListAttribute",
+    "NumberPoolAttribute",
+    "GenericAttribute",
+]
+
+
+def _attribute_write_classes() -> list[type[BaseModel]]:
+    return [getattr(write_module, _ATTRIBUTE_BASE + "Write")] + [
+        getattr(write_module, variant + "Write") for variant in _ATTRIBUTE_VARIANTS
+    ]
+
+
+def _attribute_read_classes() -> list[type[BaseModel]]:
+    return [getattr(read_module, _ATTRIBUTE_BASE + "Read")] + [
+        getattr(read_module, variant + "Read") for variant in _ATTRIBUTE_VARIANTS
+    ]
+
+
+def _aggregate_fields(models: list[type[BaseModel]]) -> set[str]:
+    fields: set[str] = set()
+    for model in models:
+        fields |= set(model.model_fields)
+    return fields
 
 
 @pytest.mark.parametrize("filename", ["write.py", "read.py"])
@@ -47,12 +81,26 @@ def test_expected_model_families_present_in_each_variant(write_family: str, read
     assert hasattr(read_module, read_family), f"read variant is missing {read_family}"
 
 
+def test_attribute_union_families_present_in_each_variant() -> None:
+    # The public union alias and every variant (plus the shared base) must exist in both variants.
+    for name in ["AttributeSchema", _ATTRIBUTE_BASE, *_ATTRIBUTE_VARIANTS]:
+        assert hasattr(write_module, name + "Write"), f"write variant is missing {name}Write"
+        assert hasattr(read_module, name + "Read"), f"read variant is missing {name}Read"
+
+
 @pytest.mark.parametrize("family", _WRITE_FAMILIES)
 def test_write_variant_forbids_extra_fields(family: str) -> None:
     model: type[BaseModel] = getattr(write_module, family)
     assert model.model_config.get("extra") == "forbid", (
         f"write variant {family} must set extra='forbid' so non-settable fields are rejected"
     )
+
+
+def test_attribute_write_base_and_variants_forbid_extra_fields() -> None:
+    for model in _attribute_write_classes():
+        assert model.model_config.get("extra") == "forbid", (
+            f"write attribute model {model.__name__} must set extra='forbid'"
+        )
 
 
 @pytest.mark.parametrize(("write_family", "read_family"), _FAMILY_PAIRS)
@@ -65,10 +113,30 @@ def test_read_variant_is_superset_of_write_variant(write_family: str, read_famil
     assert not missing, f"read variant {read_family} must expose every write field; missing: {sorted(missing)}"
 
 
+def test_attribute_read_is_superset_of_attribute_write() -> None:
+    # Aggregated across the base and every variant, read must expose every write field.
+    write_fields = _aggregate_fields(_attribute_write_classes())
+    read_fields = _aggregate_fields(_attribute_read_classes())
+    missing = write_fields - read_fields
+    assert not missing, f"read attribute variants must expose every write field; missing: {sorted(missing)}"
+
+
 def test_write_variant_carries_read_level_fields_absent() -> None:
-    # `inherited` is a read-level attribute field and must not exist on the write variant.
-    assert "inherited" not in write_module.AttributeSchemaWrite.model_fields
-    assert "inherited" in read_module.AttributeSchemaRead.model_fields
+    # `inherited` is a read-level attribute field carried on the shared base; it must be absent on
+    # the write base and present on the read base.
+    write_base = getattr(write_module, _ATTRIBUTE_BASE + "Write")
+    read_base = getattr(read_module, _ATTRIBUTE_BASE + "Read")
+    assert "inherited" not in write_base.model_fields
+    assert "inherited" in read_base.model_fields
+
+
+def test_attribute_parameters_only_on_variants_not_base() -> None:
+    # `parameters` is what the union discriminates, so it lives on the variants, not the base.
+    write_base = getattr(write_module, _ATTRIBUTE_BASE + "Write")
+    assert "parameters" not in write_base.model_fields
+    for variant in _ATTRIBUTE_VARIANTS:
+        model = getattr(write_module, variant + "Write")
+        assert "parameters" in model.model_fields, f"{model.__name__} must carry a parameters field"
 
 
 def test_document_root_models_import_with_nodes_and_generics() -> None:

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 
 from .generated.write import (
@@ -83,12 +83,16 @@ def _collect_validation_errors(
         errors.append(SchemaValidationErrorDetail(field=location, message=message))
 
 
-def _validate_item(model: type[BaseModel], item: Any, prefix: str, errors: list[SchemaValidationErrorDetail]) -> None:
-    """Validate a single mapping against a write model, appending field-level errors under ``prefix``."""
+def _validate_item(model: Any, item: Any, prefix: str, errors: list[SchemaValidationErrorDetail]) -> None:
+    """Validate a single mapping against a write model, appending field-level errors under ``prefix``.
+
+    ``model`` may be a plain model class or a discriminated-union alias (which has no
+    ``model_validate``), so validation goes through a ``TypeAdapter`` that handles both.
+    """
     if not isinstance(item, dict):
         return
     try:
-        model.model_validate(item)
+        TypeAdapter(model).validate_python(item)
     except PydanticValidationError as exc:
         _collect_validation_errors(exc=exc, errors=errors, prefix=prefix)
 

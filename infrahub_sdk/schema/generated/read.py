@@ -121,21 +121,7 @@ class ComputedAttributeTransformPythonRead(BaseModel):
     )
 
 
-AttributeParametersUnionRead = (
-    NumberPoolParametersRead
-    | NumberAttributeParametersRead
-    | TextAttributeParametersRead
-    | ListAttributeParametersRead
-    | AttributeParametersRead
-)
-
-ComputedAttributeRead = Annotated[
-    ComputedAttributeUserRead | ComputedAttributeJinja2Read | ComputedAttributeTransformPythonRead,
-    Field(discriminator="kind"),
-]
-
-
-class AttributeSchemaRead(BaseModel):
+class AttributeSchemaBaseRead(BaseModel):
     model_config = ConfigDict()
     id: str | None = Field(
         default=None,
@@ -245,10 +231,6 @@ class AttributeSchemaRead(BaseModel):
         default="any",
         description="Type of allowed override for the attribute.",
     )
-    parameters: AttributeParametersUnionRead | None = Field(
-        default=None,
-        description="Extra parameters specific to this kind of attribute",
-    )
     deprecation: str | None = Field(
         default=None,
         description="Mark attribute as deprecated and provide a user-friendly message to display",
@@ -258,6 +240,95 @@ class AttributeSchemaRead(BaseModel):
         default="default",
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
+
+
+class TextAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict()
+    kind: Literal["Text", "TextArea"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: TextAttributeParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class NumberAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict()
+    kind: Literal["Number"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: NumberAttributeParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class ListAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict()
+    kind: Literal["List"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: ListAttributeParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class NumberPoolAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict()
+    kind: Literal["NumberPool"] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: NumberPoolParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+class GenericAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict()
+    kind: Literal[
+        "ID",
+        "Dropdown",
+        "DateTime",
+        "Email",
+        "Password",
+        "HashedPassword",
+        "URL",
+        "File",
+        "MacAddress",
+        "Color",
+        "Bandwidth",
+        "IPHost",
+        "IPNetwork",
+        "Boolean",
+        "Checkbox",
+        "JSON",
+        "Any",
+    ] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: AttributeParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
+ComputedAttributeRead = Annotated[
+    ComputedAttributeUserRead | ComputedAttributeJinja2Read | ComputedAttributeTransformPythonRead,
+    Field(discriminator="kind"),
+]
+
+AttributeSchemaRead = Annotated[
+    TextAttributeRead | NumberAttributeRead | ListAttributeRead | NumberPoolAttributeRead | GenericAttributeRead,
+    Field(discriminator="kind"),
+]
 
 
 class RelationshipSchemaRead(BaseModel):
