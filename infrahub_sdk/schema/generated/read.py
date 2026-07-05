@@ -2,25 +2,137 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class ComputedAttributeRead(BaseModel):
+class AttributeParametersRead(BaseModel):
     model_config = ConfigDict()
-    kind: Literal["User", "Jinja2", "TransformPython"] = Field(
+
+
+class ListAttributeParametersRead(AttributeParametersRead):
+    model_config = ConfigDict()
+    regex: str | None = Field(
+        default=None,
+        description="Regular expression that each list item value must match if defined",
+    )
+
+
+class TextAttributeParametersRead(AttributeParametersRead):
+    model_config = ConfigDict()
+    regex: str | None = Field(
+        default=None,
+        description="Regular expression that attribute value must match if defined",
+    )
+    min_length: int | None = Field(
+        default=None,
+        description="Set a minimum number of characters allowed.",
+    )
+    max_length: int | None = Field(
+        default=None,
+        description="Set a maximum number of characters allowed.",
+    )
+
+
+class NumberAttributeParametersRead(AttributeParametersRead):
+    model_config = ConfigDict()
+    min_value: int | None = Field(
+        default=None,
+        description="Set a minimum value allowed.",
+    )
+    max_value: int | None = Field(
+        default=None,
+        description="Set a maximum value allowed.",
+    )
+    excluded_values: str | None = Field(
+        default=None,
+        description="List of values or range of values not allowed for the attribute, format is: '100,150-200,280,300-400'",
+        pattern=r"^(\d+(?:-\d+)?)(?:,\d+(?:-\d+)?)*$",
+    )
+
+
+class NumberPoolParametersRead(AttributeParametersRead):
+    model_config = ConfigDict()
+    end_range: int = Field(
+        default=9223372036854775807,
+        description="End range for numbers for the associated NumberPool",
+    )
+    start_range: int = Field(
+        default=1,
+        description="Start range for numbers for the associated NumberPool",
+    )
+    number_pool_id: str | None = Field(
+        default=None,
+        description="The ID of the numberpool associated with this attribute. Only set after the number pool has been provisioned.",
+    )
+
+
+class DropdownChoiceRead(BaseModel):
+    model_config = ConfigDict()
+    name: str = Field(
+        ...,
+        description="Name of the choice, must be unique within the dropdown.",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Description of the choice.",
+    )
+    color: str | None = Field(
+        default=None,
+        description="Color of the choice, must be a valid HTML color code.",
+        pattern=r"#[0-9a-fA-F]{6}\b",
+    )
+    label: str | None = Field(
+        default=None,
+        description="Human friendly representation of the choice.",
+    )
+
+
+class ComputedAttributeUserRead(BaseModel):
+    model_config = ConfigDict()
+    kind: Literal["User"] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
-    jinja2_template: str | None = Field(
-        default=None,
+
+
+class ComputedAttributeJinja2Read(BaseModel):
+    model_config = ConfigDict()
+    kind: Literal["Jinja2"] = Field(
+        ...,
+        description="Defines how the value of the attribute is computed.",
+    )
+    jinja2_template: str = Field(
+        ...,
         description="Jinja2 template used to compute the value, required when kind is Jinja2.",
     )
-    transform: str | None = Field(
-        default=None,
+
+
+class ComputedAttributeTransformPythonRead(BaseModel):
+    model_config = ConfigDict()
+    kind: Literal["TransformPython"] = Field(
+        ...,
+        description="Defines how the value of the attribute is computed.",
+    )
+    transform: str = Field(
+        ...,
         description="Python transform name or ID, required when kind is TransformPython.",
     )
+
+
+AttributeParametersUnionRead = (
+    NumberPoolParametersRead
+    | NumberAttributeParametersRead
+    | TextAttributeParametersRead
+    | ListAttributeParametersRead
+    | AttributeParametersRead
+)
+
+ComputedAttributeRead = Annotated[
+    ComputedAttributeUserRead | ComputedAttributeJinja2Read | ComputedAttributeTransformPythonRead,
+    Field(discriminator="kind"),
+]
 
 
 class AttributeSchemaRead(BaseModel):
@@ -71,7 +183,7 @@ class AttributeSchemaRead(BaseModel):
         default=None,
         description="Defines how the value of this attribute will be populated.",
     )
-    choices: list[dict[str, Any]] | None = Field(
+    choices: list[DropdownChoiceRead] | None = Field(
         default=None,
         description="Define a list of valid choices for a dropdown attribute.",
     )
@@ -133,7 +245,7 @@ class AttributeSchemaRead(BaseModel):
         default="any",
         description="Type of allowed override for the attribute.",
     )
-    parameters: dict[str, Any] | None = Field(
+    parameters: AttributeParametersUnionRead | None = Field(
         default=None,
         description="Extra parameters specific to this kind of attribute",
     )
@@ -164,7 +276,7 @@ class RelationshipSchemaRead(BaseModel):
     peer: str = Field(
         ...,
         description="Type (kind) of objects supported on the other end of the relationship.",
-        pattern="^[A-Z][a-zA-Z0-9]+$",
+        pattern=r"^[A-Z][a-zA-Z0-9]+$",
     )
     kind: Literal["Generic", "Attribute", "Component", "Parent", "Group", "Hierarchy", "Profile", "Template"] = Field(
         default="Generic",
@@ -266,14 +378,14 @@ class BaseNodeSchemaRead(BaseModel):
     name: str = Field(
         ...,
         description="Node name, must be unique within a namespace and must start with an uppercase letter.",
-        pattern="^[A-Z][a-zA-Z0-9]+$",
+        pattern=r"^[A-Z][a-zA-Z0-9]+$",
         min_length=2,
         max_length=32,
     )
     namespace: str = Field(
         ...,
         description="Node Namespace, Namespaces are used to organize models into logical groups and to prevent name collisions.",
-        pattern="^[A-Z][a-z0-9]+$",
+        pattern=r"^[A-Z][a-z0-9]+$",
         min_length=3,
         max_length=64,
     )

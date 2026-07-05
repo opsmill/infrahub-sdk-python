@@ -229,31 +229,91 @@ def test_node_read_level_field_hierarchy_is_rejected() -> None:
     assert "nodes[0].hierarchy" in _fields_named(result), result.messages
 
 
-def test_valid_computed_attribute_block_passes() -> None:
+def _schema_with_computed_attribute(computed_attribute: dict) -> dict:
     schema = _valid_schema()
-    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "Jinja2", "jinja2_template": "{{ name }}"}
+    schema["nodes"][0]["attributes"][0]["computed_attribute"] = computed_attribute
+    return schema
 
-    result = validate_schema(schema=schema)
+
+def _schema_with_choices(choices: list[dict]) -> dict:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["choices"] = choices
+    return schema
+
+
+def _schema_with_parameters(parameters: dict) -> dict:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["parameters"] = parameters
+    return schema
+
+
+def test_valid_computed_attribute_block_passes() -> None:
+    result = validate_schema(
+        schema=_schema_with_computed_attribute({"kind": "Jinja2", "jinja2_template": "{{ name }}"})
+    )
 
     assert result.valid is True, result.messages
 
 
-def test_computed_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
-    schema = _valid_schema()
-    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "NotARealKind"}
-
-    result = validate_schema(schema=schema)
+def test_computed_attribute_jinja2_without_template_is_rejected() -> None:
+    result = validate_schema(schema=_schema_with_computed_attribute({"kind": "Jinja2"}))
 
     assert result.valid is False
-    assert "nodes[0].attributes[0].computed_attribute.kind" in _fields_named(result), result.messages
+    assert any("jinja2_template" in message for message in result.messages), result.messages
+
+
+def test_computed_attribute_transform_python_without_transform_is_rejected() -> None:
+    result = validate_schema(schema=_schema_with_computed_attribute({"kind": "TransformPython"}))
+
+    assert result.valid is False
+    assert any("transform" in message for message in result.messages), result.messages
+
+
+def test_computed_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
+    result = validate_schema(schema=_schema_with_computed_attribute({"kind": "NotARealKind"}))
+
+    assert result.valid is False
+    assert "nodes[0].attributes[0].computed_attribute" in _fields_named(result), result.messages
     assert any("NotARealKind" in message for message in result.messages), result.messages
 
 
-def test_computed_attribute_unknown_field_is_rejected_with_dotted_location() -> None:
-    schema = _valid_schema()
-    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "Jinja2", "not_a_real_field": "x"}
-
-    result = validate_schema(schema=schema)
+def test_computed_attribute_unknown_field_is_rejected() -> None:
+    result = validate_schema(
+        schema=_schema_with_computed_attribute({"kind": "Jinja2", "jinja2_template": "x", "not_a_real_field": "x"})
+    )
 
     assert result.valid is False
-    assert "nodes[0].attributes[0].computed_attribute.not_a_real_field" in _fields_named(result), result.messages
+    assert any("not_a_real_field" in message for message in result.messages), result.messages
+
+
+def test_valid_choice_passes() -> None:
+    result = validate_schema(schema=_schema_with_choices([{"name": "active", "color": "#aabbcc", "label": "Active"}]))
+
+    assert result.valid is True, result.messages
+
+
+def test_choice_unknown_field_is_rejected() -> None:
+    result = validate_schema(schema=_schema_with_choices([{"name": "active", "not_a_real_field": "x"}]))
+
+    assert result.valid is False
+    assert any("not_a_real_field" in message for message in result.messages), result.messages
+
+
+def test_choice_bad_color_is_rejected() -> None:
+    result = validate_schema(schema=_schema_with_choices([{"name": "active", "color": "not-a-color"}]))
+
+    assert result.valid is False
+    assert any("color" in message for message in result.messages), result.messages
+
+
+def test_valid_text_parameters_pass() -> None:
+    result = validate_schema(schema=_schema_with_parameters({"min_length": 1}))
+
+    assert result.valid is True, result.messages
+
+
+def test_parameters_unknown_field_is_rejected() -> None:
+    result = validate_schema(schema=_schema_with_parameters({"not_a_real_param": 1}))
+
+    assert result.valid is False
+    assert any("not_a_real_param" in message for message in result.messages), result.messages
