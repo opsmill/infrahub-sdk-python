@@ -7,6 +7,22 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ComputedAttributeRead(BaseModel):
+    model_config = ConfigDict()
+    kind: Literal["User", "Jinja2", "TransformPython"] = Field(
+        ...,
+        description="Defines how the value of the attribute is computed.",
+    )
+    jinja2_template: str | None = Field(
+        default=None,
+        description="Jinja2 template used to compute the value, required when kind is Jinja2.",
+    )
+    transform: str | None = Field(
+        default=None,
+        description="Python transform name or ID, required when kind is TransformPython.",
+    )
+
+
 class AttributeSchemaRead(BaseModel):
     model_config = ConfigDict()
     id: str | None = Field(
@@ -51,7 +67,7 @@ class AttributeSchemaRead(BaseModel):
         default=None,
         description="Define a list of valid values for the attribute.",
     )
-    computed_attribute: dict[str, Any] | None = Field(
+    computed_attribute: ComputedAttributeRead | None = Field(
         default=None,
         description="Defines how the value of this attribute will be populated.",
     )
