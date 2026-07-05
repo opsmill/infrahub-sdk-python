@@ -227,3 +227,33 @@ def test_node_read_level_field_hierarchy_is_rejected() -> None:
 
     assert result.valid is False
     assert "nodes[0].hierarchy" in _fields_named(result), result.messages
+
+
+def test_valid_computed_attribute_block_passes() -> None:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "Jinja2", "jinja2_template": "{{ name }}"}
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+
+
+def test_computed_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "NotARealKind"}
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert "nodes[0].attributes[0].computed_attribute.kind" in _fields_named(result), result.messages
+    assert any("NotARealKind" in message for message in result.messages), result.messages
+
+
+def test_computed_attribute_unknown_field_is_rejected_with_dotted_location() -> None:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["computed_attribute"] = {"kind": "Jinja2", "not_a_real_field": "x"}
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert "nodes[0].attributes[0].computed_attribute.not_a_real_field" in _fields_named(result), result.messages
