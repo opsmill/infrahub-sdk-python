@@ -143,5 +143,35 @@ def test_document_root_models_import_with_nodes_and_generics() -> None:
     for root in (InfrahubSchemaWrite, InfrahubSchemaRead):
         assert "nodes" in root.model_fields, f"{root.__name__} must expose a 'nodes' field"
         assert "generics" in root.model_fields, f"{root.__name__} must expose a 'generics' field"
-    # The write root is not extra=forbid so schema-level keys outside the model are tolerated.
-    assert InfrahubSchemaWrite.model_config.get("extra") != "forbid"
+    # The write root forbids extra keys so unknown top-level keys are rejected as part of the contract.
+    assert InfrahubSchemaWrite.model_config.get("extra") == "forbid"
+
+
+def test_write_root_exposes_extensions_field() -> None:
+    # Extensions are part of the write contract (write-only); the read root does not carry them.
+    assert "extensions" in InfrahubSchemaWrite.model_fields
+    assert "extensions" not in InfrahubSchemaRead.model_fields
+
+
+@pytest.mark.parametrize("name", ["NodeExtensionWrite", "SchemaExtensionWrite"])
+def test_extension_models_present_on_write_variant_only(name: str) -> None:
+    assert hasattr(write_module, name), f"write variant is missing {name}"
+    assert not hasattr(read_module, name.replace("Write", "Read")), (
+        f"extension models are write-only; read variant must not define {name.replace('Write', 'Read')}"
+    )
+
+
+@pytest.mark.parametrize("name", ["NodeExtensionWrite", "SchemaExtensionWrite"])
+def test_extension_models_forbid_extra_fields(name: str) -> None:
+    model: type[BaseModel] = getattr(write_module, name)
+    assert model.model_config.get("extra") == "forbid", f"extension model {name} must set extra='forbid'"
+
+
+@pytest.mark.parametrize("name", ["ProfileSchemaRead", "TemplateSchemaRead"])
+def test_profile_template_read_models_present_on_read_variant_only(name: str) -> None:
+    # Profiles and templates are read-only projections; only the read variant defines them.
+    model: type[BaseModel] = getattr(read_module, name)
+    assert "inherit_from" in model.model_fields, f"{name} must expose an 'inherit_from' field"
+    assert not hasattr(write_module, name.replace("Read", "Write")), (
+        f"profile/template models are read-only; write variant must not define {name.replace('Read', 'Write')}"
+    )

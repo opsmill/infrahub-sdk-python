@@ -577,6 +577,22 @@ class GenericSchemaRead(BaseNodeSchemaRead):
     )
 
 
+class ProfileSchemaRead(BaseNodeSchemaRead):
+    model_config = ConfigDict()
+    inherit_from: list[str] = Field(
+        default_factory=list,
+        description="List of Generic Kind that this profile is inheriting from",
+    )
+
+
+class TemplateSchemaRead(BaseNodeSchemaRead):
+    model_config = ConfigDict()
+    inherit_from: list[str] = Field(
+        default_factory=list,
+        description="List of Generic Kind that this template is inheriting from",
+    )
+
+
 class InfrahubSchemaRead(BaseModel):
     nodes: list[NodeSchemaRead] = Field(default_factory=list)
     generics: list[GenericSchemaRead] = Field(default_factory=list)

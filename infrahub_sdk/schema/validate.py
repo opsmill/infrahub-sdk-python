@@ -12,14 +12,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
-from .generated.write import (
-    AttributeSchemaWrite,
-    InfrahubSchemaWrite,
-    RelationshipSchemaWrite,
-)
+from .generated.write import InfrahubSchemaWrite
 
 
 class SchemaValidationErrorDetail(BaseModel):
@@ -83,56 +79,6 @@ def _collect_validation_errors(
         errors.append(SchemaValidationErrorDetail(field=location, message=message))
 
 
-def _validate_item(model: Any, item: Any, prefix: str, errors: list[SchemaValidationErrorDetail]) -> None:
-    """Validate a single mapping against a write model, appending field-level errors under ``prefix``.
-
-    ``model`` may be a plain model class or a discriminated-union alias (which has no
-    ``model_validate``), so validation goes through a ``TypeAdapter`` that handles both.
-    """
-    if not isinstance(item, dict):
-        return
-    try:
-        TypeAdapter(model).validate_python(item)
-    except PydanticValidationError as exc:
-        _collect_validation_errors(exc=exc, errors=errors, prefix=prefix)
-
-
-def _validate_extensions(extensions: Any, errors: list[SchemaValidationErrorDetail]) -> None:
-    """Validate the nested attributes/relationships of every extension node.
-
-    Extension nodes carry only a ``kind`` (no namespace/name), so the whole-node write model
-    does not apply; instead each nested attribute/relationship is user-submittable and is held
-    to the same write contract as one declared on a node.
-    """
-    if not isinstance(extensions, dict):
-        return
-    nodes = extensions.get("nodes")
-    if not isinstance(nodes, list):
-        return
-    for node_index, node in enumerate(nodes):
-        if not isinstance(node, dict):
-            continue
-        node_prefix = f"extensions.nodes[{node_index}]"
-        attributes = node.get("attributes")
-        if isinstance(attributes, list):
-            for attr_index, attribute in enumerate(attributes):
-                _validate_item(
-                    model=AttributeSchemaWrite,
-                    item=attribute,
-                    prefix=f"{node_prefix}.attributes[{attr_index}]",
-                    errors=errors,
-                )
-        relationships = node.get("relationships")
-        if isinstance(relationships, list):
-            for rel_index, relationship in enumerate(relationships):
-                _validate_item(
-                    model=RelationshipSchemaWrite,
-                    item=relationship,
-                    prefix=f"{node_prefix}.relationships[{rel_index}]",
-                    errors=errors,
-                )
-
-
 def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> SchemaValidationResult:
     """Validate a single schema-root payload against the generated write contract.
 
@@ -143,10 +89,8 @@ def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> 
     Returns:
         A :class:`SchemaValidationResult` with a field-level message for every field that is not
         settable (read-level, internal, or unknown) and for every constrained field set outside
-        its allowed set. The nodes and generics are validated together against the write
-        document model; the attributes/relationships nested under ``extensions.nodes`` are held to
-        the same write contract (extension nodes are ``kind``-only, so the document model cannot
-        cover them).
+        its allowed set. The whole root -- nodes, generics and the attributes/relationships nested
+        under ``extensions.nodes`` -- is validated against the write document model in one pass.
 
     Raises:
         ValueError: When ``raise_on_error`` is True and the payload is invalid.
@@ -158,8 +102,6 @@ def validate_schema(schema: dict[str, Any], *, raise_on_error: bool = False) -> 
         InfrahubSchemaWrite.model_validate(schema)
     except PydanticValidationError as exc:
         _collect_validation_errors(exc=exc, errors=errors)
-
-    _validate_extensions(extensions=schema.get("extensions"), errors=errors)
 
     result = SchemaValidationResult(valid=not errors, errors=errors)
     if raise_on_error:

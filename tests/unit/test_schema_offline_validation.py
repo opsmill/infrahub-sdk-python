@@ -97,6 +97,33 @@ def _fields_named(result: SchemaValidationResult) -> set[str]:
     return {error.field for error in result.errors}
 
 
+def test_valid_payload_with_extensions_block_passes() -> None:
+    schema = _valid_schema()
+    schema["extensions"] = {
+        "nodes": [
+            {
+                "kind": "InfraDevice",
+                "attributes": [{"name": "extra", "kind": "Text"}],
+                "relationships": [{"name": "peers", "peer": "InfraDevice", "cardinality": "many", "optional": True}],
+            }
+        ]
+    }
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+
+
+def test_unknown_top_level_key_is_rejected() -> None:
+    schema = _valid_schema()
+    schema["not_a_root_field"] = "boom"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert any("not_a_root_field" in message for message in result.messages), result.messages
+
+
 def test_extension_attribute_read_level_field_is_rejected_with_dotted_location() -> None:
     schema = {
         "version": "1.0",
