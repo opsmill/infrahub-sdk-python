@@ -154,9 +154,9 @@ async def location_schema() -> NodeSchemaAPI:
         "namespace": "Builtin",
         "default_filter": "name__value",
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
-            {"name": "type", "kind": "String"},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+            {"name": "type", "kind": "Text"},
         ],
         "relationships": [
             {
@@ -190,9 +190,9 @@ async def location_schema_with_dropdown() -> NodeSchemaAPI:
         "namespace": "Builtin",
         "default_filter": "name__value",
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
-            {"name": "type", "kind": "String"},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+            {"name": "type", "kind": "Text"},
             {
                 "name": "status",
                 "kind": "Dropdown",
@@ -234,9 +234,9 @@ async def schema_with_hfid() -> dict[str, NodeSchemaAPI]:
             "default_filter": "name__value",
             "human_friendly_id": ["name__value"],
             "attributes": [
-                {"name": "name", "kind": "String", "unique": True},
-                {"name": "description", "kind": "String", "optional": True},
-                {"name": "type", "kind": "String"},
+                {"name": "name", "kind": "Text", "unique": True},
+                {"name": "description", "kind": "Text", "optional": True},
+                {"name": "type", "kind": "Text"},
             ],
             "relationships": [
                 {
@@ -266,8 +266,8 @@ async def schema_with_hfid() -> dict[str, NodeSchemaAPI]:
             "default_filter": "facility_id__value",
             "human_friendly_id": ["facility_id__value", "location__name__value"],
             "attributes": [
-                {"name": "facility_id", "kind": "String", "unique": True},
-                {"name": "description", "kind": "String", "optional": True},
+                {"name": "facility_id", "kind": "Text", "unique": True},
+                {"name": "description", "kind": "Text", "optional": True},
             ],
             "relationships": [
                 {"name": "location", "peer": "BuiltinLocation", "cardinality": "one"},
@@ -297,8 +297,8 @@ async def std_group_schema() -> NodeSchemaAPI:
         "namespace": "Core",
         "default_filter": "name__value",
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
         ],
     }
     return NodeSchema(**data).convert_api()
@@ -831,9 +831,9 @@ async def rfile_schema() -> NodeSchemaAPI:
         "display_labels": ["label__value"],
         "branch": BranchSupportType.AWARE.value,
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
-            {"name": "template_path", "kind": "String"},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
+            {"name": "template_path", "kind": "Text"},
         ],
         "relationships": [
             {
@@ -1042,10 +1042,10 @@ async def address_schema() -> NodeSchemaAPI:
         "display_labels": ["network_value"],
         "order_by": ["network_value"],
         "attributes": [
-            {"name": "street_number", "kind": "String", "optional": True},
-            {"name": "street_name", "kind": "String", "optional": True},
-            {"name": "postal_code", "kind": "String", "optional": True},
-            {"name": "computed_address", "kind": "String", "optional": True, "read_only": True},
+            {"name": "street_number", "kind": "Text", "optional": True},
+            {"name": "street_name", "kind": "Text", "optional": True},
+            {"name": "postal_code", "kind": "Text", "optional": True},
+            {"name": "computed_address", "kind": "Text", "optional": True, "read_only": True},
         ],
         "relationships": [],
     }

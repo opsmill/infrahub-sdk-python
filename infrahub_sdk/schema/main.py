@@ -1,156 +1,141 @@
 from __future__ import annotations
 
-import warnings
 from collections.abc import MutableMapping
-from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Self
+
+from .generated.enums import (
+    AllowOverrideType,
+    AttributeKind,
+    BranchSupportType,
+    ComputedAttributeKind,
+    RelationshipCardinality,
+    RelationshipDeleteBehavior,
+    RelationshipDirection,
+    RelationshipKind,
+    SchemaAttributeDisplay,
+    SchemaState,
+)
+from .generated.read import (
+    AttributeSchemaBaseRead,
+    ComputedAttributeRead,  # noqa: F401  (re-exported here to resolve the inherited forward reference)
+    GenericSchemaRead,
+    NodeSchemaRead,
+    ProfileSchemaRead,
+    RelationshipSchemaRead,
+    TemplateSchemaRead,
+)
+from .generated.write import (
+    AttributeSchemaBaseWrite,
+    ComputedAttributeWrite,  # noqa: F401  (re-exported here to resolve the inherited forward reference)
+    GenericSchemaWrite,
+    NodeSchemaWrite,
+    RelationshipSchemaWrite,
+)
 
 if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = InfrahubNode | InfrahubNodeSync
 
-
-class RelationshipCardinality(str, Enum):
-    ONE = "one"
-    MANY = "many"
-
-
-class BranchSupportType(str, Enum):
-    AWARE = "aware"
-    AGNOSTIC = "agnostic"
-    LOCAL = "local"
-
-
-class RelationshipKind(str, Enum):
-    GENERIC = "Generic"
-    ATTRIBUTE = "Attribute"
-    COMPONENT = "Component"
-    PARENT = "Parent"
-    GROUP = "Group"
-    HIERARCHY = "Hierarchy"
-    PROFILE = "Profile"
-    TEMPLATE = "Template"
-
-
-class RelationshipDirection(str, Enum):
-    BIDIR = "bidirectional"
-    OUTBOUND = "outbound"
-    INBOUND = "inbound"
-
-
-class AttributeKind(str, Enum):
-    ID = "ID"
-    TEXT = "Text"
-    STRING = "String"  # deprecated
-    TEXTAREA = "TextArea"
-    DATETIME = "DateTime"
-    NUMBER = "Number"
-    NUMBERPOOL = "NumberPool"
-    DROPDOWN = "Dropdown"
-    EMAIL = "Email"
-    PASSWORD = "Password"  # noqa: S105
-    HASHEDPASSWORD = "HashedPassword"
-    URL = "URL"
-    FILE = "File"
-    MAC_ADDRESS = "MacAddress"
-    COLOR = "Color"
-    BANDWIDTH = "Bandwidth"
-    IPHOST = "IPHost"
-    IPNETWORK = "IPNetwork"
-    IPADDRESS = "IPAddress"
-    BOOLEAN = "Boolean"
-    CHECKBOX = "Checkbox"
-    LIST = "List"
-    JSON = "JSON"
-    ANY = "Any"
-
-    def __getattr__(self, name: str) -> Any:
-        if name == "STRING":
-            warnings.warn(
-                f"{name} is deprecated and will be removed in future versions.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return super().__getattribute__(name)
+# The enum classes and the generated write/read data models now live in the generated modules.
+# ``main.py`` keeps the public names stable by re-exporting the enums and by pairing the generated
+# data models with the hand-written behavior mixins below. The historical import paths
+# (``from infrahub_sdk.schema.main import AttributeKind, NodeSchema, ...``) keep working.
+__all__ = [
+    "AllowOverrideType",
+    "AttributeKind",
+    "AttributeSchema",
+    "AttributeSchemaAPI",
+    "BranchSchema",
+    "BranchSupportType",
+    "ComputedAttributeKind",
+    "GenericSchema",
+    "GenericSchemaAPI",
+    "NodeExtensionSchema",
+    "NodeSchema",
+    "NodeSchemaAPI",
+    "ProfileSchemaAPI",
+    "RelationshipCardinality",
+    "RelationshipDeleteBehavior",
+    "RelationshipDirection",
+    "RelationshipKind",
+    "RelationshipSchema",
+    "RelationshipSchemaAPI",
+    "SchemaAttributeDisplay",
+    "SchemaRoot",
+    "SchemaRootAPI",
+    "SchemaState",
+    "TemplateSchemaAPI",
+]
 
 
-class SchemaState(str, Enum):
-    PRESENT = "present"
-    ABSENT = "absent"
+# ---------------------------------------------------------------------------
+# Behavior mixins
+#
+# These carry the hand-written helper methods that the generated data models do not provide.
+# They are plain (non-pydantic) classes: they declare no fields, so pydantic never treats them as
+# model bases. The ``TYPE_CHECKING`` annotations only inform the type checker which fields the
+# concrete model they are mixed into is guaranteed to expose.
+# ---------------------------------------------------------------------------
 
 
-class AllowOverrideType(str, Enum):
-    NONE = "none"
-    ANY = "any"
+class _SchemaKindMixin:
+    """``kind`` and capability flags shared by node/generic/profile/template schemas."""
+
+    if TYPE_CHECKING:
+        name: str
+        namespace: str
+        inherit_from: list[str]
+
+    @property
+    def kind(self) -> str:
+        return self.namespace + self.name
+
+    @property
+    def supports_artifact_definition(self) -> bool:
+        """Returns True if this schema represents CoreArtifactDefinition. Only meaningful for NodeSchemaAPI."""
+        return self.kind == "CoreArtifactDefinition"
+
+    @property
+    def supports_artifacts(self) -> bool:
+        """Return True if this schema supports artifact operations via CoreArtifactTarget inheritance.
+
+        Only NodeSchemaAPI overrides this; all other schema types return False by design because
+        artifact capability is tied to node inheritance, not profiles, templates, or generics.
+        """
+        return False
+
+    @property
+    def supports_file_object(self) -> bool:
+        """Return True if this schema supports file object operations via CoreFileObject inheritance.
+
+        Only NodeSchemaAPI overrides this; all other schema types return False by design because
+        file object capability is tied to node inheritance, not profiles, templates, or generics.
+        """
+        return False
+
+    @property
+    def supports_hierarchy(self) -> bool:
+        """Returns True if this schema participates in a hierarchy. Only NodeSchemaAPI overrides this."""
+        return False
+
+    @property
+    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
+        """Return pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
+
+        Only NodeSchemaAPI overrides this; all other schema types return an empty list.
+        """
+        return []
 
 
-class RelationshipDeleteBehavior(str, Enum):
-    NO_ACTION = "no-action"
-    CASCADE = "cascade"
+class _CardinalityMixin:
+    """Cardinality helpers for the relationship read model."""
 
-
-class AttributeSchema(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-
-    id: str | None = None
-    state: SchemaState = SchemaState.PRESENT
-    name: str
-    kind: AttributeKind
-    label: str | None = None
-    description: str | None = None
-    default_value: Any | None = None
-    unique: bool = False
-    branch: BranchSupportType | None = None
-    optional: bool = False
-    choices: list[dict[str, Any]] | None = None
-    enum: list[str | int] | None = None
-    max_length: int | None = None
-    min_length: int | None = None
-    regex: str | None = None
-    order_weight: int | None = None
-    ordered: bool = True
-
-
-class AttributeSchemaAPI(AttributeSchema):
-    model_config = ConfigDict(use_enum_values=True)
-
-    inherited: bool = False
-    read_only: bool = False
-    allow_override: AllowOverrideType = AllowOverrideType.ANY
-
-
-class RelationshipSchema(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-
-    id: str | None = None
-    state: SchemaState = SchemaState.PRESENT
-    name: str
-    peer: str
-    kind: RelationshipKind = RelationshipKind.GENERIC
-    label: str | None = None
-    description: str | None = None
-    identifier: str | None = None
-    min_count: int | None = None
-    max_count: int | None = None
-    direction: RelationshipDirection = RelationshipDirection.BIDIR
-    on_delete: RelationshipDeleteBehavior | None = None
-    cardinality: str = "many"
-    branch: BranchSupportType | None = None
-    optional: bool = True
-    order_weight: int | None = None
-
-
-class RelationshipSchemaAPI(RelationshipSchema):
-    model_config = ConfigDict(use_enum_values=True)
-
-    inherited: bool = False
-    read_only: bool = False
-    hierarchical: str | None = None
-    allow_override: AllowOverrideType = AllowOverrideType.ANY
+    if TYPE_CHECKING:
+        cardinality: RelationshipCardinality
 
     @property
     def cardinality_is_one(self) -> bool:
@@ -161,14 +146,12 @@ class RelationshipSchemaAPI(RelationshipSchema):
         return self.cardinality == RelationshipCardinality.MANY
 
 
-class BaseSchemaAttrRel(BaseModel):
-    attributes: list[AttributeSchema] = Field(default_factory=list)
-    relationships: list[RelationshipSchema] = Field(default_factory=list)
+class _SchemaAttrRelMixin:
+    """The attribute/relationship lookup helpers used across the SDK, backend and ``infrahubctl``."""
 
-
-class BaseSchemaAttrRelAPI(BaseModel):
-    attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
-    relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
+    if TYPE_CHECKING:
+        attributes: list[AttributeSchemaAPI]
+        relationships: list[RelationshipSchemaAPI]
 
     def get_field(self, name: str, raise_on_error: bool = True) -> AttributeSchemaAPI | RelationshipSchemaAPI | None:
         if attribute_field := self.get_attribute_or_none(name=name):
@@ -266,139 +249,47 @@ class BaseSchemaAttrRelAPI(BaseModel):
         return [item for item in self.attributes if item.unique]
 
 
-class BaseSchema(BaseModel):
+# ---------------------------------------------------------------------------
+# Write models (user-facing construction entry points)
+# ---------------------------------------------------------------------------
+
+
+class AttributeSchema(AttributeSchemaBaseWrite):
+    """Thin, constructible attribute model kept for backward compatibility.
+
+    ``AttributeSchemaWrite`` (from the generated module) is a non-constructible discriminated union.
+    This class keeps ``AttributeSchema(name=..., kind=AttributeKind.TEXT, ...)`` working by exposing
+    the shared write base plus a permissive ``parameters``/``choices``. ``extra="forbid"`` from the
+    base is relaxed here so the historical construction keyword arguments keep working.
+    """
+
     model_config = ConfigDict(use_enum_values=True)
 
-    id: str | None = None
-    state: SchemaState = SchemaState.PRESENT
-    name: str
-    label: str | None = None
-    namespace: str
-    description: str | None = None
-    include_in_menu: bool | None = None
-    menu_placement: str | None = None
-    display_label: str | None = None
-    display_labels: list[str] | None = None
-    human_friendly_id: list[str] | None = None
-    icon: str | None = None
-    uniqueness_constraints: list[list[str]] | None = None
-    documentation: str | None = None
-    order_by: list[str] | None = None
-
-    @property
-    def kind(self) -> str:
-        return self.namespace + self.name
-
-    @property
-    def supports_artifact_definition(self) -> bool:
-        """Returns True if this schema represents CoreArtifactDefinition. Only meaningful for NodeSchemaAPI."""
-        return self.kind == "CoreArtifactDefinition"
-
-    @property
-    def supports_artifacts(self) -> bool:
-        """Return True if this schema supports artifact operations via CoreArtifactTarget inheritance.
-
-        Only NodeSchemaAPI overrides this; all other schema types return False by design because
-        artifact capability is tied to node inheritance, not profiles, templates, or generics.
-        """
-        return False
-
-    @property
-    def supports_file_object(self) -> bool:
-        """Return True if this schema supports file object operations via CoreFileObject inheritance.
-
-        Only NodeSchemaAPI overrides this; all other schema types return False by design because
-        file object capability is tied to node inheritance, not profiles, templates, or generics.
-        """
-        return False
-
-    @property
-    def supports_hierarchy(self) -> bool:
-        """Returns True if this schema participates in a hierarchy. Only NodeSchemaAPI overrides this."""
-        return False
-
-    @property
-    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
-        """Return pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
-
-        Only NodeSchemaAPI overrides this; all other schema types return an empty list.
-        """
-        return []
+    choices: list[dict[str, Any]] | None = None
+    parameters: dict[str, Any] | None = None
 
 
-class GenericSchema(BaseSchema, BaseSchemaAttrRel):
-    def convert_api(self) -> GenericSchemaAPI:
-        return GenericSchemaAPI(**self.model_dump())
+class RelationshipSchema(RelationshipSchemaWrite):
+    """Constructible relationship write model (kept as a distinct public name)."""
 
 
-class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
-    """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
+class NodeSchema(NodeSchemaWrite, _SchemaKindMixin):
+    # ``attributes`` accepts the constructible ``AttributeSchema`` (the generated discriminated union
+    # cannot be built from an ``AttributeSchema`` instance); dumping still validates server-side.
+    # ``relationships`` keeps the historical constructible ``RelationshipSchema`` item type.
+    attributes: list[AttributeSchema] = Field(default_factory=list)
+    relationships: list[RelationshipSchema] = Field(default_factory=list)
 
-    hash: str | None = None
-    hierarchical: bool | None = None
-    used_by: list[str] = Field(default_factory=list)
-    restricted_namespaces: list[str] | None = None
-
-
-class BaseNodeSchema(BaseSchema):
-    model_config = ConfigDict(use_enum_values=True)
-
-    inherit_from: list[str] = Field(default_factory=list)
-    branch: BranchSupportType | None = None
-    default_filter: str | None = None
-    generate_profile: bool | None = None
-    generate_template: bool | None = None
-    parent: str | None = None
-    children: str | None = None
-
-
-class NodeSchema(BaseNodeSchema, BaseSchemaAttrRel):
     def convert_api(self) -> NodeSchemaAPI:
         return NodeSchemaAPI(**self.model_dump())
 
 
-class NodeSchemaAPI(BaseNodeSchema, BaseSchemaAttrRelAPI):
-    hash: str | None = None
-    hierarchy: str | None = None
+class GenericSchema(GenericSchemaWrite, _SchemaKindMixin):
+    attributes: list[AttributeSchema] = Field(default_factory=list)
+    relationships: list[RelationshipSchema] = Field(default_factory=list)
 
-    @property
-    def supports_artifacts(self) -> bool:
-        return "CoreArtifactTarget" in self.inherit_from
-
-    @property
-    def supports_file_object(self) -> bool:
-        return "CoreFileObject" in self.inherit_from
-
-    @property
-    def supports_hierarchy(self) -> bool:
-        return self.hierarchy is not None
-
-    @property
-    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
-        if self.hierarchy is None:
-            return []
-        return [
-            RelationshipSchemaAPI(
-                name="parent", peer=self.hierarchy, kind=RelationshipKind.HIERARCHY, cardinality="one", optional=True
-            ),
-            RelationshipSchemaAPI(
-                name="children", peer=self.hierarchy, kind=RelationshipKind.HIERARCHY, cardinality="many", optional=True
-            ),
-            RelationshipSchemaAPI(
-                name="ancestors", peer=self.hierarchy, cardinality="many", read_only=True, optional=True
-            ),
-            RelationshipSchemaAPI(
-                name="descendants", peer=self.hierarchy, cardinality="many", read_only=True, optional=True
-            ),
-        ]
-
-
-class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
-    inherit_from: list[str] = Field(default_factory=list)
-
-
-class TemplateSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
-    inherit_from: list[str] = Field(default_factory=list)
+    def convert_api(self) -> GenericSchemaAPI:
+        return GenericSchemaAPI(**self.model_dump())
 
 
 class NodeExtensionSchema(BaseModel):
@@ -425,6 +316,103 @@ class SchemaRoot(BaseModel):
 
     def to_schema_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_unset=True, exclude_defaults=True)
+
+
+# ---------------------------------------------------------------------------
+# Read models (``*API``) -- concrete subclasses so ``isinstance`` keeps working
+# ---------------------------------------------------------------------------
+
+
+class AttributeSchemaAPI(AttributeSchemaBaseRead):
+    """Thin, constructible read-side attribute model kept for backward compatibility.
+
+    ``AttributeSchemaRead`` (from the generated module) is a non-constructible discriminated union.
+    This class keeps ``AttributeSchemaAPI(name=..., kind=..., ...)`` working and is used as the item
+    type on the read schema models. It exposes the shared read base plus a permissive
+    ``parameters``/``choices``. No code performs ``isinstance`` on it.
+    """
+
+    model_config = ConfigDict(use_enum_values=True)
+
+    choices: list[dict[str, Any]] | None = None
+    parameters: dict[str, Any] | None = None
+
+
+class RelationshipSchemaAPI(RelationshipSchemaRead, _CardinalityMixin):
+    pass
+
+
+class NodeSchemaAPI(NodeSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
+    hash: str | None = None
+    # Narrow the attribute/relationship item types to the API variants so the behavior helpers
+    # (``cardinality_is_*``, ``inherited`` filtering, ...) are available on the returned items.
+    attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
+    relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
+
+    @property
+    def supports_artifacts(self) -> bool:
+        return "CoreArtifactTarget" in self.inherit_from
+
+    @property
+    def supports_file_object(self) -> bool:
+        return "CoreFileObject" in self.inherit_from
+
+    @property
+    def supports_hierarchy(self) -> bool:
+        return self.hierarchy is not None
+
+    @property
+    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
+        if self.hierarchy is None:
+            return []
+        return [
+            RelationshipSchemaAPI(
+                name="parent",
+                peer=self.hierarchy,
+                kind=RelationshipKind.HIERARCHY,
+                cardinality=RelationshipCardinality.ONE,
+                optional=True,
+            ),
+            RelationshipSchemaAPI(
+                name="children",
+                peer=self.hierarchy,
+                kind=RelationshipKind.HIERARCHY,
+                cardinality=RelationshipCardinality.MANY,
+                optional=True,
+            ),
+            RelationshipSchemaAPI(
+                name="ancestors",
+                peer=self.hierarchy,
+                cardinality=RelationshipCardinality.MANY,
+                read_only=True,
+                optional=True,
+            ),
+            RelationshipSchemaAPI(
+                name="descendants",
+                peer=self.hierarchy,
+                cardinality=RelationshipCardinality.MANY,
+                read_only=True,
+                optional=True,
+            ),
+        ]
+
+
+class GenericSchemaAPI(GenericSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
+    """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
+
+    hash: str | None = None
+    attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
+    relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
+
+
+class ProfileSchemaAPI(ProfileSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
+    attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
+    relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
+
+
+class TemplateSchemaAPI(TemplateSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
+    attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
+    relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
 
 
 class SchemaRootAPI(BaseModel):
