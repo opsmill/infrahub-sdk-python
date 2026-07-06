@@ -214,11 +214,11 @@ class AttributeSchemaBaseRead(BaseModel):
         description="Internal value to indicate if the attribute was inherited from a Generic node.",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the attribute after loading the schema",
     )
     allow_override: AllowOverrideType = Field(
-        default="any",
+        default=AllowOverrideType.ANY,
         description="Type of allowed override for the attribute.",
     )
     deprecation: str | None = Field(
@@ -227,7 +227,7 @@ class AttributeSchemaBaseRead(BaseModel):
         max_length=128,
     )
     display: SchemaAttributeDisplay = Field(
-        default="default",
+        default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
@@ -340,7 +340,7 @@ class RelationshipSchemaRead(BaseModel):
         pattern=r"^[A-Z][a-zA-Z0-9]+$",
     )
     kind: RelationshipKind = Field(
-        default="Generic",
+        default=RelationshipKind.GENERIC,
         description="Defines the type of the relationship.",
     )
     label: str | None = Field(
@@ -360,7 +360,7 @@ class RelationshipSchemaRead(BaseModel):
         max_length=128,
     )
     cardinality: RelationshipCardinality = Field(
-        default="many",
+        default=RelationshipCardinality.MANY,
         description="Defines how many objects are expected on the other side of the relationship.",
     )
     min_count: int = Field(
@@ -396,7 +396,7 @@ class RelationshipSchemaRead(BaseModel):
         description="Internal value to indicate if the relationship was inherited from a Generic node.",
     )
     direction: RelationshipDirection = Field(
-        default="bidirectional",
+        default=RelationshipDirection.BIDIR,
         description="Defines the direction of the relationship,  Unidirectional relationship are required when the same model is on both side.",
     )
     hierarchical: str | None = Field(
@@ -404,7 +404,7 @@ class RelationshipSchemaRead(BaseModel):
         description="Internal attribute to track the type of hierarchy this relationship is part of, must match a valid Generic Kind",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the relationship after loading the schema",
     )
     on_delete: RelationshipDeleteBehavior | None = Field(
@@ -412,7 +412,7 @@ class RelationshipSchemaRead(BaseModel):
         description="Default is no-action. If cascade, related node(s) are deleted when this node is deleted.",
     )
     allow_override: AllowOverrideType = Field(
-        default="any",
+        default=AllowOverrideType.ANY,
         description="Type of allowed override for the relationship.",
     )
     read_only: bool = Field(
@@ -425,7 +425,7 @@ class RelationshipSchemaRead(BaseModel):
         max_length=128,
     )
     display: SchemaAttributeDisplay = Field(
-        default="default",
+        default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the relationship is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
@@ -461,7 +461,7 @@ class BaseNodeSchemaRead(BaseModel):
         max_length=64,
     )
     branch: BranchSupportType = Field(
-        default="aware",
+        default=BranchSupportType.AWARE,
         description="Type of branch support for the model.",
     )
     default_filter: str | None = Field(
@@ -506,7 +506,7 @@ class BaseNodeSchemaRead(BaseModel):
         description="Link to a documentation associated with this object, can be internal or external.",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the node/generic after loading the schema",
     )
     attributes: list[AttributeSchemaRead] = Field(
