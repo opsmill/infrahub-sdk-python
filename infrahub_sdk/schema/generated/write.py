@@ -210,11 +210,11 @@ class AttributeSchemaBaseWrite(BaseModel):
         description="Default value of the attribute.",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the attribute after loading the schema",
     )
     allow_override: AllowOverrideType = Field(
-        default="any",
+        default=AllowOverrideType.ANY,
         description="Type of allowed override for the attribute.",
     )
     deprecation: str | None = Field(
@@ -223,7 +223,7 @@ class AttributeSchemaBaseWrite(BaseModel):
         max_length=128,
     )
     display: SchemaAttributeDisplay = Field(
-        default="default",
+        default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
@@ -336,7 +336,7 @@ class RelationshipSchemaWrite(BaseModel):
         pattern=r"^[A-Z][a-zA-Z0-9]+$",
     )
     kind: RelationshipKind = Field(
-        default="Generic",
+        default=RelationshipKind.GENERIC,
         description="Defines the type of the relationship.",
     )
     label: str | None = Field(
@@ -356,7 +356,7 @@ class RelationshipSchemaWrite(BaseModel):
         max_length=128,
     )
     cardinality: RelationshipCardinality = Field(
-        default="many",
+        default=RelationshipCardinality.MANY,
         description="Defines how many objects are expected on the other side of the relationship.",
     )
     min_count: int = Field(
@@ -388,11 +388,11 @@ class RelationshipSchemaWrite(BaseModel):
         description="Type of branch support for the relationship. If not defined, it will be determined based on both peers.",
     )
     direction: RelationshipDirection = Field(
-        default="bidirectional",
+        default=RelationshipDirection.BIDIR,
         description="Defines the direction of the relationship,  Unidirectional relationship are required when the same model is on both side.",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the relationship after loading the schema",
     )
     on_delete: RelationshipDeleteBehavior | None = Field(
@@ -400,7 +400,7 @@ class RelationshipSchemaWrite(BaseModel):
         description="Default is no-action. If cascade, related node(s) are deleted when this node is deleted.",
     )
     allow_override: AllowOverrideType = Field(
-        default="any",
+        default=AllowOverrideType.ANY,
         description="Type of allowed override for the relationship.",
     )
     read_only: bool = Field(
@@ -413,7 +413,7 @@ class RelationshipSchemaWrite(BaseModel):
         max_length=128,
     )
     display: SchemaAttributeDisplay = Field(
-        default="default",
+        default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the relationship is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
@@ -449,7 +449,7 @@ class BaseNodeSchemaWrite(BaseModel):
         max_length=64,
     )
     branch: BranchSupportType = Field(
-        default="aware",
+        default=BranchSupportType.AWARE,
         description="Type of branch support for the model.",
     )
     default_filter: str | None = Field(
@@ -494,7 +494,7 @@ class BaseNodeSchemaWrite(BaseModel):
         description="Link to a documentation associated with this object, can be internal or external.",
     )
     state: SchemaState = Field(
-        default="present",
+        default=SchemaState.PRESENT,
         description="Expected state of the node/generic after loading the schema",
     )
     attributes: list[AttributeSchemaWrite] = Field(
