@@ -557,7 +557,33 @@ class GenericSchemaWrite(BaseNodeSchemaWrite):
     )
 
 
+class NodeExtensionWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: str = Field(
+        ...,
+        description="Kind of the existing node to extend.",
+    )
+    attributes: list[AttributeSchemaWrite] = Field(
+        default_factory=list,
+        description="Attributes to add to the existing node.",
+    )
+    relationships: list[RelationshipSchemaWrite] = Field(
+        default_factory=list,
+        description="Relationships to add to the existing node.",
+    )
+
+
+class SchemaExtensionWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    nodes: list[NodeExtensionWrite] = Field(
+        default_factory=list,
+        description="Nodes to extend with additional attributes and relationships.",
+    )
+
+
 class InfrahubSchemaWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     version: str | None = None
     nodes: list[NodeSchemaWrite] = Field(default_factory=list)
     generics: list[GenericSchemaWrite] = Field(default_factory=list)
+    extensions: SchemaExtensionWrite | None = None
