@@ -275,6 +275,14 @@ disable_error_code = ["call-overload"]
 module = "infrahub_sdk.utils"
 disable_error_code = ["arg-type", "attr-defined", "return-value", "union-attr"]
 
+[[tool.mypy.overrides]]
+# ``main.py`` intentionally narrows the ``attributes``/``relationships``/``choices`` fields inherited
+# from the generated write/read models to the user-facing constructible variants (``AttributeSchema``,
+# ``RelationshipSchema``, and the ``*API`` read models). pydantic invariance makes mypy flag these
+# deliberate overrides; the narrowed types are a superset-safe refinement validated at runtime.
+module = "infrahub_sdk.schema.main"
+disable_error_code = ["assignment"]
+
 [tool.ruff]
 line-length = 120
 

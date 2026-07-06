@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchema
+from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
@@ -16,7 +16,7 @@ from .processors.factory import DataProcessorFactory
 if TYPE_CHECKING:
     from ..client import InfrahubClient
     from ..node import InfrahubNode
-    from ..schema import MainSchemaTypesAPI, RelationshipSchema
+    from ..schema import MainSchemaTypesAPI
 
 
 def validate_list_of_scalars(value: list[Any]) -> bool:
@@ -79,9 +79,9 @@ class RelationshipDataFormat(str, Enum):
 
 class RelationshipInfo(BaseModel):
     name: str
-    rel_schema: RelationshipSchema
+    rel_schema: RelationshipSchemaAPI
     peer_kind: str
-    peer_rel: RelationshipSchema | None = None
+    peer_rel: RelationshipSchemaAPI | None = None
     reason_relationship_not_valid: str | None = None
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
     peer_human_friendly_id: list[str] | None = None
@@ -128,7 +128,7 @@ class RelationshipInfo(BaseModel):
 
     def find_matching_relationship(
         self, peer_schema: MainSchemaTypesAPI, force: bool = False
-    ) -> RelationshipSchema | None:
+    ) -> RelationshipSchemaAPI | None:
         """Find the matching relationship on the other side of the relationship."""
         if self.peer_rel and not force:
             return self.peer_rel
