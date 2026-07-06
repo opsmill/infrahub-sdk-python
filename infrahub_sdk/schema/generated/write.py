@@ -6,13 +6,26 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .enums import (
+    AllowOverrideType,
+    AttributeKind,
+    BranchSupportType,
+    ComputedAttributeKind,
+    RelationshipCardinality,
+    RelationshipDeleteBehavior,
+    RelationshipDirection,
+    RelationshipKind,
+    SchemaAttributeDisplay,
+    SchemaState,
+)
+
 
 class AttributeParametersWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
 
 
 class ListAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that each list item value must match if defined",
@@ -20,7 +33,7 @@ class ListAttributeParametersWrite(AttributeParametersWrite):
 
 
 class TextAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that attribute value must match if defined",
@@ -36,7 +49,7 @@ class TextAttributeParametersWrite(AttributeParametersWrite):
 
 
 class NumberAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     min_value: int | None = Field(
         default=None,
         description="Set a minimum value allowed.",
@@ -53,7 +66,7 @@ class NumberAttributeParametersWrite(AttributeParametersWrite):
 
 
 class NumberPoolParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     end_range: int = Field(
         default=9223372036854775807,
         description="End range for numbers for the associated NumberPool",
@@ -69,7 +82,7 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
 
 
 class DropdownChoiceWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     name: str = Field(
         ...,
         description="Name of the choice, must be unique within the dropdown.",
@@ -90,16 +103,16 @@ class DropdownChoiceWrite(BaseModel):
 
 
 class ComputedAttributeUserWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["User"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.USER] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
 
 
 class ComputedAttributeJinja2Write(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["Jinja2"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.JINJA2] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
@@ -110,8 +123,8 @@ class ComputedAttributeJinja2Write(BaseModel):
 
 
 class ComputedAttributeTransformPythonWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["TransformPython"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.TRANSFORM_PYTHON] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
@@ -122,7 +135,7 @@ class ComputedAttributeTransformPythonWrite(BaseModel):
 
 
 class AttributeSchemaBaseWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the attribute",
@@ -134,30 +147,7 @@ class AttributeSchemaBaseWrite(BaseModel):
         min_length=3,
         max_length=64,
     )
-    kind: Literal[
-        "ID",
-        "Dropdown",
-        "Text",
-        "TextArea",
-        "DateTime",
-        "Email",
-        "Password",
-        "HashedPassword",
-        "URL",
-        "File",
-        "MacAddress",
-        "Color",
-        "Number",
-        "NumberPool",
-        "Bandwidth",
-        "IPHost",
-        "IPNetwork",
-        "Boolean",
-        "Checkbox",
-        "List",
-        "JSON",
-        "Any",
-    ] = Field(
+    kind: AttributeKind = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -207,7 +197,7 @@ class AttributeSchemaBaseWrite(BaseModel):
         default=False,
         description="Indicate if this attribute is mandatory or optional.",
     )
-    branch: Literal["aware", "agnostic", "local"] | None = Field(
+    branch: BranchSupportType | None = Field(
         default=None,
         description="Type of branch support for the attribute, if not defined it will be inherited from the node.",
     )
@@ -219,11 +209,11 @@ class AttributeSchemaBaseWrite(BaseModel):
         default=None,
         description="Default value of the attribute.",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the attribute after loading the schema",
     )
-    allow_override: Literal["none", "any"] = Field(
+    allow_override: AllowOverrideType = Field(
         default="any",
         description="Type of allowed override for the attribute.",
     )
@@ -232,15 +222,15 @@ class AttributeSchemaBaseWrite(BaseModel):
         description="Mark attribute as deprecated and provide a user-friendly message to display",
         max_length=128,
     )
-    display: Literal["default", "extra"] = Field(
+    display: SchemaAttributeDisplay = Field(
         default="default",
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
 
 class TextAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["Text", "TextArea"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[AttributeKind.TEXT, AttributeKind.TEXTAREA] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -251,8 +241,8 @@ class TextAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class NumberAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["Number"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[AttributeKind.NUMBER] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -263,8 +253,8 @@ class NumberAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class ListAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["List"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[AttributeKind.LIST] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -275,8 +265,8 @@ class ListAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid")
-    kind: Literal["NumberPool"] = Field(
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    kind: Literal[AttributeKind.NUMBERPOOL] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -287,25 +277,25 @@ class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class GenericAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     kind: Literal[
-        "ID",
-        "Dropdown",
-        "DateTime",
-        "Email",
-        "Password",
-        "HashedPassword",
-        "URL",
-        "File",
-        "MacAddress",
-        "Color",
-        "Bandwidth",
-        "IPHost",
-        "IPNetwork",
-        "Boolean",
-        "Checkbox",
-        "JSON",
-        "Any",
+        AttributeKind.ID,
+        AttributeKind.DROPDOWN,
+        AttributeKind.DATETIME,
+        AttributeKind.EMAIL,
+        AttributeKind.PASSWORD,
+        AttributeKind.HASHEDPASSWORD,
+        AttributeKind.URL,
+        AttributeKind.FILE,
+        AttributeKind.MAC_ADDRESS,
+        AttributeKind.COLOR,
+        AttributeKind.BANDWIDTH,
+        AttributeKind.IPHOST,
+        AttributeKind.IPNETWORK,
+        AttributeKind.BOOLEAN,
+        AttributeKind.CHECKBOX,
+        AttributeKind.JSON,
+        AttributeKind.ANY,
     ] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -328,7 +318,7 @@ AttributeSchemaWrite = Annotated[
 
 
 class RelationshipSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the relationship schema",
@@ -345,7 +335,7 @@ class RelationshipSchemaWrite(BaseModel):
         description="Type (kind) of objects supported on the other end of the relationship.",
         pattern=r"^[A-Z][a-zA-Z0-9]+$",
     )
-    kind: Literal["Generic", "Attribute", "Component", "Parent", "Group", "Hierarchy", "Profile", "Template"] = Field(
+    kind: RelationshipKind = Field(
         default="Generic",
         description="Defines the type of the relationship.",
     )
@@ -365,7 +355,7 @@ class RelationshipSchemaWrite(BaseModel):
         pattern=r"^[a-z0-9\_]+$",
         max_length=128,
     )
-    cardinality: Literal["one", "many"] = Field(
+    cardinality: RelationshipCardinality = Field(
         default="many",
         description="Defines how many objects are expected on the other side of the relationship.",
     )
@@ -393,23 +383,23 @@ class RelationshipSchemaWrite(BaseModel):
         default=True,
         description="Indicate if this relationship is mandatory or optional.",
     )
-    branch: Literal["aware", "agnostic", "local"] | None = Field(
+    branch: BranchSupportType | None = Field(
         default=None,
         description="Type of branch support for the relationship. If not defined, it will be determined based on both peers.",
     )
-    direction: Literal["bidirectional", "outbound", "inbound"] = Field(
+    direction: RelationshipDirection = Field(
         default="bidirectional",
         description="Defines the direction of the relationship,  Unidirectional relationship are required when the same model is on both side.",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the relationship after loading the schema",
     )
-    on_delete: Literal["no-action", "cascade"] | None = Field(
+    on_delete: RelationshipDeleteBehavior | None = Field(
         default=None,
         description="Default is no-action. If cascade, related node(s) are deleted when this node is deleted.",
     )
-    allow_override: Literal["none", "any"] = Field(
+    allow_override: AllowOverrideType = Field(
         default="any",
         description="Type of allowed override for the relationship.",
     )
@@ -422,14 +412,14 @@ class RelationshipSchemaWrite(BaseModel):
         description="Mark relationship as deprecated and provide a user-friendly message to display",
         max_length=128,
     )
-    display: Literal["default", "extra"] = Field(
+    display: SchemaAttributeDisplay = Field(
         default="default",
         description="Controls where the relationship is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
 
 class BaseNodeSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the node",
@@ -458,7 +448,7 @@ class BaseNodeSchemaWrite(BaseModel):
         description="Human friendly representation of the name/kind",
         max_length=64,
     )
-    branch: Literal["aware", "agnostic", "local"] = Field(
+    branch: BranchSupportType = Field(
         default="aware",
         description="Type of branch support for the model.",
     )
@@ -503,7 +493,7 @@ class BaseNodeSchemaWrite(BaseModel):
         default=None,
         description="Link to a documentation associated with this object, can be internal or external.",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the node/generic after loading the schema",
     )
@@ -518,7 +508,7 @@ class BaseNodeSchemaWrite(BaseModel):
 
 
 class NodeSchemaWrite(BaseNodeSchemaWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this node is inheriting from",
@@ -542,7 +532,7 @@ class NodeSchemaWrite(BaseNodeSchemaWrite):
 
 
 class GenericSchemaWrite(BaseNodeSchemaWrite):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     hierarchical: bool = Field(
         default=False,
         description="Defines if the Generic support the hierarchical mode.",
@@ -558,7 +548,7 @@ class GenericSchemaWrite(BaseNodeSchemaWrite):
 
 
 class NodeExtensionWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     kind: str = Field(
         ...,
         description="Kind of the existing node to extend.",
@@ -574,7 +564,7 @@ class NodeExtensionWrite(BaseModel):
 
 
 class SchemaExtensionWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     nodes: list[NodeExtensionWrite] = Field(
         default_factory=list,
         description="Nodes to extend with additional attributes and relationships.",
@@ -582,7 +572,7 @@ class SchemaExtensionWrite(BaseModel):
 
 
 class InfrahubSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", use_enum_values=True)
     version: str | None = None
     nodes: list[NodeSchemaWrite] = Field(default_factory=list)
     generics: list[GenericSchemaWrite] = Field(default_factory=list)

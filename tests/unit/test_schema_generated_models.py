@@ -15,12 +15,14 @@ class-level checks introspect the base and the variants rather than the alias.
 
 from __future__ import annotations
 
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite
+from infrahub_sdk.schema.generated import enums as enums_module
 from infrahub_sdk.schema.generated import read as read_module
 from infrahub_sdk.schema.generated import write as write_module
 
@@ -165,6 +167,61 @@ def test_extension_models_present_on_write_variant_only(name: str) -> None:
 def test_extension_models_forbid_extra_fields(name: str) -> None:
     model: type[BaseModel] = getattr(write_module, name)
     assert model.model_config.get("extra") == "forbid", f"extension model {name} must set extra='forbid'"
+
+
+# Constrained fields are typed with dedicated (str, Enum) classes emitted into enums.py rather
+# than inline Literals. Each generated enum's ordered values must match this contract.
+_EXPECTED_ENUM_VALUES = {
+    "BranchSupportType": ["aware", "agnostic", "local"],
+    "RelationshipKind": ["Generic", "Attribute", "Component", "Parent", "Group", "Hierarchy", "Profile", "Template"],
+    "RelationshipCardinality": ["one", "many"],
+    "RelationshipDirection": ["bidirectional", "outbound", "inbound"],
+    "RelationshipDeleteBehavior": ["no-action", "cascade"],
+    "AllowOverrideType": ["none", "any"],
+    "SchemaState": ["present", "absent"],
+    "SchemaAttributeDisplay": ["default", "extra"],
+    "ComputedAttributeKind": ["User", "Jinja2", "TransformPython"],
+}
+
+
+@pytest.mark.parametrize("enum_name", sorted(_EXPECTED_ENUM_VALUES))
+def test_generated_enums_are_str_enum_classes_with_expected_values(enum_name: str) -> None:
+    enum_cls = getattr(enums_module, enum_name)
+    assert issubclass(enum_cls, Enum), f"{enum_name} must be an Enum class"
+    assert issubclass(enum_cls, str), f"{enum_name} must be a str-backed enum"
+    assert [member.value for member in enum_cls] == _EXPECTED_ENUM_VALUES[enum_name]
+
+
+def test_attribute_kind_enum_present_without_deprecated_string_member() -> None:
+    assert issubclass(enums_module.AttributeKind, Enum)
+    assert issubclass(enums_module.AttributeKind, str)
+    values = [member.value for member in enums_module.AttributeKind]
+    # The deprecated "String" kind is dropped from the generated enum.
+    assert "String" not in values
+    assert "Text" in values
+
+
+def test_constrained_fields_are_typed_with_generated_enums() -> None:
+    # The constrained fields reference the dedicated enum classes, not inline Literals.
+    assert (
+        write_module.RelationshipSchemaWrite.model_fields["cardinality"].annotation
+        is enums_module.RelationshipCardinality
+    )
+    assert write_module.RelationshipSchemaWrite.model_fields["kind"].annotation is enums_module.RelationshipKind
+    assert write_module.AttributeSchemaBaseWrite.model_fields["kind"].annotation is enums_module.AttributeKind
+    assert (
+        read_module.RelationshipSchemaRead.model_fields["cardinality"].annotation
+        is enums_module.RelationshipCardinality
+    )
+
+
+def test_use_enum_values_keeps_runtime_field_values_as_plain_strings() -> None:
+    # use_enum_values means a constructed model stores the plain string, so equality against
+    # both the raw string and the enum member holds and serialization is unchanged.
+    relationship = write_module.RelationshipSchemaWrite(name="interfaces", peer="InfraInterface", cardinality="one")
+    assert relationship.cardinality == "one"
+    assert relationship.cardinality == enums_module.RelationshipCardinality.ONE
+    assert isinstance(relationship.cardinality, str)
 
 
 @pytest.mark.parametrize("name", ["ProfileSchemaRead", "TemplateSchemaRead"])

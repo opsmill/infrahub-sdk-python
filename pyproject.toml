@@ -389,6 +389,15 @@ max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
 
+"infrahub_sdk/schema/generated/*.py" = [
+    # Generated pydantic models use `from __future__ import annotations`, so the enum imports
+    # they reference are required at runtime for pydantic to resolve the annotations; moving
+    # them into a type-checking block would break model construction.
+    "TC001", # Move application import into a type-checking block
+    # The AttributeKind enum carries a member whose value is the literal string "Password".
+    "S105", # Possible hardcoded password assigned to a variable
+]
+
 "infrahub_sdk/**/*.py" = [
     ##################################################################################################
     # Review and change the below later                                                              #
