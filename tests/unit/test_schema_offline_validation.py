@@ -75,6 +75,27 @@ def test_out_of_enum_value_is_rejected_naming_field_and_value() -> None:
     assert any("kind" in message and "NotARealKind" in message for message in result.messages), result.messages
 
 
+def test_enum_backed_relationship_cardinality_valid_value_passes() -> None:
+    # cardinality is typed with the RelationshipCardinality enum (use_enum_values keeps the runtime
+    # value a plain string); a valid enum value must still validate.
+    schema = _valid_schema()
+    schema["nodes"][0]["relationships"][0]["cardinality"] = "one"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+
+
+def test_enum_backed_relationship_cardinality_out_of_enum_value_is_rejected() -> None:
+    schema = _valid_schema()
+    schema["nodes"][0]["relationships"][0]["cardinality"] = "both"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert any("cardinality" in message for message in result.messages), result.messages
+
+
 def test_unknown_field_on_node_is_rejected() -> None:
     schema = _valid_schema()
     schema["nodes"][0]["not_a_field"] = "boom"

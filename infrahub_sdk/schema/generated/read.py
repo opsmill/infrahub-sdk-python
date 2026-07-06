@@ -6,13 +6,26 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .enums import (
+    AllowOverrideType,
+    AttributeKind,
+    BranchSupportType,
+    ComputedAttributeKind,
+    RelationshipCardinality,
+    RelationshipDeleteBehavior,
+    RelationshipDirection,
+    RelationshipKind,
+    SchemaAttributeDisplay,
+    SchemaState,
+)
+
 
 class AttributeParametersRead(BaseModel):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class ListAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that each list item value must match if defined",
@@ -20,7 +33,7 @@ class ListAttributeParametersRead(AttributeParametersRead):
 
 
 class TextAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that attribute value must match if defined",
@@ -36,7 +49,7 @@ class TextAttributeParametersRead(AttributeParametersRead):
 
 
 class NumberAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     min_value: int | None = Field(
         default=None,
         description="Set a minimum value allowed.",
@@ -53,7 +66,7 @@ class NumberAttributeParametersRead(AttributeParametersRead):
 
 
 class NumberPoolParametersRead(AttributeParametersRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     end_range: int = Field(
         default=9223372036854775807,
         description="End range for numbers for the associated NumberPool",
@@ -69,7 +82,7 @@ class NumberPoolParametersRead(AttributeParametersRead):
 
 
 class DropdownChoiceRead(BaseModel):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     name: str = Field(
         ...,
         description="Name of the choice, must be unique within the dropdown.",
@@ -90,16 +103,16 @@ class DropdownChoiceRead(BaseModel):
 
 
 class ComputedAttributeUserRead(BaseModel):
-    model_config = ConfigDict()
-    kind: Literal["User"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.USER] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
 
 
 class ComputedAttributeJinja2Read(BaseModel):
-    model_config = ConfigDict()
-    kind: Literal["Jinja2"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.JINJA2] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
@@ -110,8 +123,8 @@ class ComputedAttributeJinja2Read(BaseModel):
 
 
 class ComputedAttributeTransformPythonRead(BaseModel):
-    model_config = ConfigDict()
-    kind: Literal["TransformPython"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[ComputedAttributeKind.TRANSFORM_PYTHON] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
     )
@@ -122,7 +135,7 @@ class ComputedAttributeTransformPythonRead(BaseModel):
 
 
 class AttributeSchemaBaseRead(BaseModel):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the attribute",
@@ -134,30 +147,7 @@ class AttributeSchemaBaseRead(BaseModel):
         min_length=3,
         max_length=64,
     )
-    kind: Literal[
-        "ID",
-        "Dropdown",
-        "Text",
-        "TextArea",
-        "DateTime",
-        "Email",
-        "Password",
-        "HashedPassword",
-        "URL",
-        "File",
-        "MacAddress",
-        "Color",
-        "Number",
-        "NumberPool",
-        "Bandwidth",
-        "IPHost",
-        "IPNetwork",
-        "Boolean",
-        "Checkbox",
-        "List",
-        "JSON",
-        "Any",
-    ] = Field(
+    kind: AttributeKind = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -207,7 +197,7 @@ class AttributeSchemaBaseRead(BaseModel):
         default=False,
         description="Indicate if this attribute is mandatory or optional.",
     )
-    branch: Literal["aware", "agnostic", "local"] | None = Field(
+    branch: BranchSupportType | None = Field(
         default=None,
         description="Type of branch support for the attribute, if not defined it will be inherited from the node.",
     )
@@ -223,11 +213,11 @@ class AttributeSchemaBaseRead(BaseModel):
         default=False,
         description="Internal value to indicate if the attribute was inherited from a Generic node.",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the attribute after loading the schema",
     )
-    allow_override: Literal["none", "any"] = Field(
+    allow_override: AllowOverrideType = Field(
         default="any",
         description="Type of allowed override for the attribute.",
     )
@@ -236,15 +226,15 @@ class AttributeSchemaBaseRead(BaseModel):
         description="Mark attribute as deprecated and provide a user-friendly message to display",
         max_length=128,
     )
-    display: Literal["default", "extra"] = Field(
+    display: SchemaAttributeDisplay = Field(
         default="default",
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
 
 class TextAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict()
-    kind: Literal["Text", "TextArea"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[AttributeKind.TEXT, AttributeKind.TEXTAREA] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -255,8 +245,8 @@ class TextAttributeRead(AttributeSchemaBaseRead):
 
 
 class NumberAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict()
-    kind: Literal["Number"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[AttributeKind.NUMBER] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -267,8 +257,8 @@ class NumberAttributeRead(AttributeSchemaBaseRead):
 
 
 class ListAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict()
-    kind: Literal["List"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[AttributeKind.LIST] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -279,8 +269,8 @@ class ListAttributeRead(AttributeSchemaBaseRead):
 
 
 class NumberPoolAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict()
-    kind: Literal["NumberPool"] = Field(
+    model_config = ConfigDict(use_enum_values=True)
+    kind: Literal[AttributeKind.NUMBERPOOL] = Field(
         ...,
         description="Defines the type of the attribute.",
     )
@@ -291,25 +281,25 @@ class NumberPoolAttributeRead(AttributeSchemaBaseRead):
 
 
 class GenericAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     kind: Literal[
-        "ID",
-        "Dropdown",
-        "DateTime",
-        "Email",
-        "Password",
-        "HashedPassword",
-        "URL",
-        "File",
-        "MacAddress",
-        "Color",
-        "Bandwidth",
-        "IPHost",
-        "IPNetwork",
-        "Boolean",
-        "Checkbox",
-        "JSON",
-        "Any",
+        AttributeKind.ID,
+        AttributeKind.DROPDOWN,
+        AttributeKind.DATETIME,
+        AttributeKind.EMAIL,
+        AttributeKind.PASSWORD,
+        AttributeKind.HASHEDPASSWORD,
+        AttributeKind.URL,
+        AttributeKind.FILE,
+        AttributeKind.MAC_ADDRESS,
+        AttributeKind.COLOR,
+        AttributeKind.BANDWIDTH,
+        AttributeKind.IPHOST,
+        AttributeKind.IPNETWORK,
+        AttributeKind.BOOLEAN,
+        AttributeKind.CHECKBOX,
+        AttributeKind.JSON,
+        AttributeKind.ANY,
     ] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -332,7 +322,7 @@ AttributeSchemaRead = Annotated[
 
 
 class RelationshipSchemaRead(BaseModel):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the relationship schema",
@@ -349,7 +339,7 @@ class RelationshipSchemaRead(BaseModel):
         description="Type (kind) of objects supported on the other end of the relationship.",
         pattern=r"^[A-Z][a-zA-Z0-9]+$",
     )
-    kind: Literal["Generic", "Attribute", "Component", "Parent", "Group", "Hierarchy", "Profile", "Template"] = Field(
+    kind: RelationshipKind = Field(
         default="Generic",
         description="Defines the type of the relationship.",
     )
@@ -369,7 +359,7 @@ class RelationshipSchemaRead(BaseModel):
         pattern=r"^[a-z0-9\_]+$",
         max_length=128,
     )
-    cardinality: Literal["one", "many"] = Field(
+    cardinality: RelationshipCardinality = Field(
         default="many",
         description="Defines how many objects are expected on the other side of the relationship.",
     )
@@ -397,7 +387,7 @@ class RelationshipSchemaRead(BaseModel):
         default=True,
         description="Indicate if this relationship is mandatory or optional.",
     )
-    branch: Literal["aware", "agnostic", "local"] | None = Field(
+    branch: BranchSupportType | None = Field(
         default=None,
         description="Type of branch support for the relationship. If not defined, it will be determined based on both peers.",
     )
@@ -405,7 +395,7 @@ class RelationshipSchemaRead(BaseModel):
         default=False,
         description="Internal value to indicate if the relationship was inherited from a Generic node.",
     )
-    direction: Literal["bidirectional", "outbound", "inbound"] = Field(
+    direction: RelationshipDirection = Field(
         default="bidirectional",
         description="Defines the direction of the relationship,  Unidirectional relationship are required when the same model is on both side.",
     )
@@ -413,15 +403,15 @@ class RelationshipSchemaRead(BaseModel):
         default=None,
         description="Internal attribute to track the type of hierarchy this relationship is part of, must match a valid Generic Kind",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the relationship after loading the schema",
     )
-    on_delete: Literal["no-action", "cascade"] | None = Field(
+    on_delete: RelationshipDeleteBehavior | None = Field(
         default=None,
         description="Default is no-action. If cascade, related node(s) are deleted when this node is deleted.",
     )
-    allow_override: Literal["none", "any"] = Field(
+    allow_override: AllowOverrideType = Field(
         default="any",
         description="Type of allowed override for the relationship.",
     )
@@ -434,14 +424,14 @@ class RelationshipSchemaRead(BaseModel):
         description="Mark relationship as deprecated and provide a user-friendly message to display",
         max_length=128,
     )
-    display: Literal["default", "extra"] = Field(
+    display: SchemaAttributeDisplay = Field(
         default="default",
         description="Controls where the relationship is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
 
 
 class BaseNodeSchemaRead(BaseModel):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the node",
@@ -470,7 +460,7 @@ class BaseNodeSchemaRead(BaseModel):
         description="Human friendly representation of the name/kind",
         max_length=64,
     )
-    branch: Literal["aware", "agnostic", "local"] = Field(
+    branch: BranchSupportType = Field(
         default="aware",
         description="Type of branch support for the model.",
     )
@@ -515,7 +505,7 @@ class BaseNodeSchemaRead(BaseModel):
         default=None,
         description="Link to a documentation associated with this object, can be internal or external.",
     )
-    state: Literal["present", "absent"] = Field(
+    state: SchemaState = Field(
         default="present",
         description="Expected state of the node/generic after loading the schema",
     )
@@ -530,7 +520,7 @@ class BaseNodeSchemaRead(BaseModel):
 
 
 class NodeSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this node is inheriting from",
@@ -558,7 +548,7 @@ class NodeSchemaRead(BaseNodeSchemaRead):
 
 
 class GenericSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     hierarchical: bool = Field(
         default=False,
         description="Defines if the Generic support the hierarchical mode.",
@@ -578,7 +568,7 @@ class GenericSchemaRead(BaseNodeSchemaRead):
 
 
 class ProfileSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this profile is inheriting from",
@@ -586,7 +576,7 @@ class ProfileSchemaRead(BaseNodeSchemaRead):
 
 
 class TemplateSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict()
+    model_config = ConfigDict(use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this template is inheriting from",
@@ -594,5 +584,6 @@ class TemplateSchemaRead(BaseNodeSchemaRead):
 
 
 class InfrahubSchemaRead(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
     nodes: list[NodeSchemaRead] = Field(default_factory=list)
     generics: list[GenericSchemaRead] = Field(default_factory=list)
