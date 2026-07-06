@@ -84,6 +84,7 @@ lint = [
     "ruff==0.15.12",
     "astroid>=3.1,<4.0",
     "ty==0.0.14",
+    "rumdl==0.2.28",
 ]
 types = [
     "types-ujson",
@@ -517,6 +518,37 @@ showcontent = true
 directory = "housekeeping"
 name = "Housekeeping"
 showcontent = true
+
+[tool.rumdl]
+# Markdown linter (https://github.com/rvben/rumdl), replaces markdownlint-cli2.
+# The first row mirrors the rules markdownlint had disabled; the second row disables
+# rumdl-only rules and rules that false-positive on our MDX/Docusaurus docs
+# (fenced blocks nested in <Tabs>, `$(base_url)` template links) that markdownlint
+# never enforced.
+disable = [
+    "MD013", "MD014", "MD024", "MD029", "MD033", "MD034", "MD041", "MD045", "MD047",
+    "MD046", "MD057", "MD064", "MD069", "MD071", "MD077",
+]
+exclude = [
+    ".venv",
+    "node_modules",
+    ".git",
+    "changelog/*.md",
+    ".agents/commands",
+    ".agents/skills",
+    ".claude/commands",
+    ".claude/skills",
+    "dev/commands",
+    "dev/skills",
+    ".specify/templates",
+    ".specify/extensions",
+]
+
+[tool.rumdl.MD025]
+front_matter_title = ""
+
+[tool.rumdl.MD059]
+prohibited_texts = []
 
 [build-system]
 requires = ["hatchling"]

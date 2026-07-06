@@ -19,7 +19,7 @@ Foundational library for programmatically interacting with Infrahub. Abstracts t
 ```bash
 uv sync --all-groups --all-extras   # Install all deps
 uv run invoke format                # Format code
-uv run invoke lint                  # Full pipeline: ruff, yamllint, ty, mypy, markdownlint, vale
+uv run invoke lint                  # Full pipeline: ruff, yamllint, ty, mypy, rumdl, vale
 uv run invoke lint-code             # All linters for Python code
 uv run invoke docs-generate         # Generate all docs (CLI + SDK)
 uv run invoke docs-validate         # Check generated docs match committed version
