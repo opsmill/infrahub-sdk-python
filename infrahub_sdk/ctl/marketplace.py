@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import httpx
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from ..async_typer import AsyncTyper
 from ..config import ConfigBase as _SdkConfig
@@ -22,6 +23,11 @@ console = Console()
 err_console = Console(stderr=True)
 
 MarketplaceItemType = Literal["schema", "collection"]
+
+# Per-request page size used when paginating through a full listing (no user
+# --limit). Set explicitly so bulk fetches don't inherit the marketplace's
+# UI-tuned default page size, which would mean many more round-trips.
+_PAGE_SIZE = 100
 
 
 class _ErrorClass(Enum):
@@ -74,10 +80,150 @@ def _collection_url(base_url: str, namespace: str, name: str) -> str:
     return f"{base_url}/api/v1/collections/{namespace}/{name}"
 
 
+def _list_url(base_url: str, item_type: MarketplaceItemType) -> str:
+    return f"{base_url}/api/v1/{item_type}s"
+
+
+async def _fetch_listing(
+    client: httpx.AsyncClient,
+    base_url: str,
+    item_type: MarketplaceItemType,
+    *,
+    search: str | None,
+    limit: int | None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Fetch marketplace listing items, following cursor pagination.
+
+    When ``limit`` is given, a single page of that size is requested (no cursor
+    loop). Otherwise every page is fetched — ``_PAGE_SIZE`` items at a time — until
+    ``has_next_page`` is false. Returns the accumulated items and the reported
+    ``total_count``.
+    """
+    url = _list_url(base_url, item_type)
+    single_page = limit is not None
+    params: dict[str, Any] = {"limit": limit if single_page else _PAGE_SIZE}
+    if search:
+        params["search"] = search
+
+    items: list[dict[str, Any]] = []
+    total_count = 0
+    while True:
+        resp = await client.get(url, params=params)
+        resp.raise_for_status()
+        payload = _json_or_fail(resp, url)
+        if not isinstance(payload, dict):
+            _fail(_ErrorClass.NETWORK, f"Response from {_host_from(url)} is not a valid marketplace listing.")
+        items.extend(payload.get("items", []))
+        total_count = payload.get("total_count", len(items))
+        page_info = payload.get("page_info") or {}
+        cursor = page_info.get("end_cursor")
+        # Stop when a single page was requested, when the server reports no more
+        # pages, or when it claims a next page but gives no cursor to follow
+        # (guards against an infinite loop re-requesting the same page).
+        if single_page or not page_info.get("has_next_page") or not cursor:
+            break
+        params = {**params, "cursor": cursor}
+    return items, total_count
+
+
+def _print_json(data: Any) -> None:
+    console.print_json(data=data)
+
+
+def _render_list_table(items: list[dict[str, Any]], item_type: MarketplaceItemType, total_count: int) -> None:
+    table = Table()
+    if item_type == "schema":
+        table.add_column("Identifier")
+        table.add_column("Name")
+        table.add_column("Version")
+        table.add_column("Downloads", justify="right")
+        table.add_column("Tags")
+        for item in items:
+            latest = item.get("latest_version") or {}
+            tags = ", ".join(tag.get("name", "") for tag in item.get("tags") or [])
+            table.add_row(
+                f"{item.get('namespace', '')}/{item.get('name', '')}",
+                item.get("display_name", ""),
+                latest.get("semver", ""),
+                str(item.get("download_count", 0)),
+                tags,
+            )
+    else:
+        table.add_column("Identifier")
+        table.add_column("Name")
+        table.add_column("Schemas", justify="right")
+        table.add_column("Downloads", justify="right")
+        for item in items:
+            table.add_row(
+                f"{item.get('namespace', '')}/{item.get('name', '')}",
+                item.get("display_name", ""),
+                str(item.get("schema_count", 0)),
+                str(item.get("download_count", 0)),
+            )
+    console.print(table)
+    if len(items) < total_count:
+        console.print(f"[dim]Showing {len(items)} of {total_count}.")
+
+
+async def _run_listing(
+    *,
+    item_type: MarketplaceItemType,
+    search: str | None,
+    limit: int | None,
+    json_output: bool,
+    marketplace_url: str | None,
+) -> None:
+    sdk_cfg = _SdkConfig()
+    resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
+    async with _make_http_client(sdk_cfg) as client:
+        try:
+            items, total_count = await _fetch_listing(client, resolved_url, item_type, search=search, limit=limit)
+        except httpx.HTTPError as exc:
+            _fail_http_error(exc, f"Marketplace request to {_host_from(resolved_url)} failed: {exc}")
+    if json_output:
+        _print_json(items)
+        return
+    _render_list_table(items, item_type, total_count)
+
+
 def _is_transport_failure(r: object) -> bool:
     if isinstance(r, Exception):
         return True
     return isinstance(r, httpx.Response) and r.status_code >= 500
+
+
+def _classify_http_error(exc: httpx.HTTPError) -> _ErrorClass:
+    """Map an httpx error to an error class for consistent exit-code assignment.
+
+    A response with a 4xx status code is a client/not-found error (exit 1).
+    A 5xx response or a transport-level failure with no response is a network
+    error (exit 2).
+    """
+    response = getattr(exc, "response", None)
+    if response is not None and response.status_code < 500:
+        return _ErrorClass.NOT_FOUND
+    return _ErrorClass.NETWORK
+
+
+def _fail_http_error(exc: httpx.HTTPError, not_found_message: str) -> NoReturn:
+    """Fail with the right exit code for an httpx error: 4xx → exit 1, 5xx/transport → exit 2."""
+    if _classify_http_error(exc) is _ErrorClass.NOT_FOUND:
+        _fail(_ErrorClass.NOT_FOUND, not_found_message)
+    detail = str(exc) or type(exc).__name__
+    _fail(_ErrorClass.NETWORK, f"Marketplace request failed: {detail}")
+
+
+def _json_or_fail(resp: httpx.Response, source_url: str) -> Any:
+    """Parse a JSON response body, failing with a network-class error on invalid JSON.
+
+    A 200 with a malformed body is a broken response, not user error, so it is
+    reported cleanly (exit 2) rather than leaking a raw ``JSONDecodeError`` and
+    traceback — which would also corrupt ``--json`` output.
+    """
+    try:
+        return resp.json()
+    except ValueError:
+        _fail(_ErrorClass.NETWORK, f"Response from {_host_from(source_url)} is not valid JSON.")
 
 
 def _mkdir_or_fail(path: Path) -> None:
@@ -101,22 +247,24 @@ def _make_http_client(sdk_cfg: _SdkConfig) -> httpx.AsyncClient:
     return httpx.AsyncClient(follow_redirects=True, verify=sdk_cfg.tls_context, **proxy_kwargs)
 
 
-async def _detect_item_type(
+async def _probe_item_type(
     client: httpx.AsyncClient,
     base_url: str,
     namespace: str,
     name: str,
     *,
-    stdout: bool,
+    schema_url: str,
+    collection_url: str,
+    collision_console: Console,
 ) -> tuple[MarketplaceItemType, httpx.Response]:
-    """Probe schema and collection endpoints in parallel. Schema wins on 200-200.
+    """Probe the given schema and collection URLs in parallel. Schema wins on 200-200.
 
     Returns the resolved type and the winning 200 response so the caller can reuse
-    it instead of re-fetching the same URL.
+    it instead of re-fetching the same URL. On a 200-200 collision the note is
+    printed to ``collision_console`` (stderr, so it never pollutes stdout/--json).
+    Fails with a network error on transport failure and not-found when neither
+    endpoint returns 200.
     """
-    schema_url = _schema_url(base_url, namespace, name)
-    collection_url = _collection_url(base_url, namespace, name)
-
     schema_resp, collection_resp = await asyncio.gather(
         client.get(schema_url),
         client.get(collection_url),
@@ -125,7 +273,7 @@ async def _detect_item_type(
 
     if isinstance(schema_resp, httpx.Response) and schema_resp.status_code == 200:
         if isinstance(collection_resp, httpx.Response) and collection_resp.status_code == 200:
-            _status_console(stdout).print(
+            collision_console.print(
                 f"[yellow]Note: '{namespace}/{name}' exists as both a schema and a collection. "
                 "Resolving as schema. Pass --collection to force the collection path."
             )
@@ -142,6 +290,30 @@ async def _detect_item_type(
     _fail(
         _ErrorClass.NOT_FOUND,
         f"No schema or collection named '{namespace}/{name}' found on {_host_from(base_url)}.",
+    )
+
+
+async def _detect_item_type(
+    client: httpx.AsyncClient,
+    base_url: str,
+    namespace: str,
+    name: str,
+    *,
+    stdout: bool,
+) -> tuple[MarketplaceItemType, httpx.Response]:
+    """Auto-detect whether ``namespace/name`` is a schema or collection via the download endpoints.
+
+    Returns the resolved type and the winning 200 response so the caller can reuse
+    it instead of re-fetching the same URL.
+    """
+    return await _probe_item_type(
+        client,
+        base_url,
+        namespace,
+        name,
+        schema_url=_schema_url(base_url, namespace, name),
+        collection_url=_collection_url(base_url, namespace, name),
+        collision_console=_status_console(stdout),
     )
 
 
@@ -279,6 +451,170 @@ async def _download_collection(
         downloaded += 1
 
     status.print(f"\n[green]Collection {namespace}/{name}: {downloaded} schemas downloaded")
+
+
+def _detail_url(base_url: str, item_type: MarketplaceItemType, namespace: str, name: str) -> str:
+    return f"{base_url}/api/v1/{item_type}s/{namespace}/{name}"
+
+
+async def _fetch_detail(
+    client: httpx.AsyncClient,
+    base_url: str,
+    namespace: str,
+    name: str,
+    *,
+    force_collection: bool,
+) -> tuple[MarketplaceItemType, dict[str, Any]]:
+    """Fetch full detail for a schema or collection.
+
+    With ``force_collection`` the collection detail endpoint is used directly.
+    Otherwise both detail endpoints are probed in parallel; a schema wins a
+    200/200 collision (consistent with ``get``'s auto-detection).
+    """
+    if force_collection:
+        resp = await client.get(_detail_url(base_url, "collection", namespace, name))
+        if resp.status_code == 404:
+            _fail(_ErrorClass.NOT_FOUND, f"No collection named '{namespace}/{name}' found on {_host_from(base_url)}.")
+        resp.raise_for_status()
+        return "collection", _json_or_fail(resp, base_url)
+
+    item_type, resp = await _probe_item_type(
+        client,
+        base_url,
+        namespace,
+        name,
+        schema_url=_detail_url(base_url, "schema", namespace, name),
+        collection_url=_detail_url(base_url, "collection", namespace, name),
+        collision_console=err_console,
+    )
+    return item_type, _json_or_fail(resp, base_url)
+
+
+def _render_detail(detail: dict[str, Any], item_type: MarketplaceItemType) -> None:
+    namespace = detail.get("namespace", "")
+    name = detail.get("name", "")
+    console.print(f"[bold]{namespace}/{name}[/] — {detail.get('display_name', '')}")
+    if detail.get("description"):
+        console.print(detail["description"])
+    console.print(f"Downloads: {detail.get('download_count', 0)}")
+
+    if item_type == "schema":
+        tags = ", ".join(tag.get("name", "") for tag in detail.get("tags") or [])
+        if tags:
+            console.print(f"Tags: {tags}")
+        versions = detail.get("versions") or []
+        if versions:
+            table = Table(title="Versions")
+            table.add_column("Version")
+            table.add_column("Status")
+            table.add_column("Released")
+            table.add_column("Changelog")
+            for version in versions:
+                table.add_row(
+                    version.get("semver", ""),
+                    version.get("status", ""),
+                    (version.get("created_at") or "")[:10],
+                    version.get("changelog") or "",
+                )
+            console.print(table)
+    else:
+        members = detail.get("items") or []
+        console.print(f"Schemas: {len(members)}")
+        if members:
+            table = Table(title="Members")
+            table.add_column("Identifier")
+            table.add_column("Name")
+            for member in members:
+                schema = member.get("schema") or {}
+                table.add_row(
+                    f"{schema.get('namespace', '')}/{schema.get('name', '')}",
+                    schema.get("display_name", ""),
+                )
+            console.print(table)
+
+    deps = (detail.get("dependencies") or {}).get("schemas") or []
+    if deps:
+        dep_list = ", ".join(f"{dep.get('namespace', '')}/{dep.get('name', '')}" for dep in deps)
+        console.print(f"Dependencies: {dep_list}")
+
+
+@app.command()
+@catch_exception(console=console)
+async def show(
+    identifier: str = typer.Argument(help="Schema or collection identifier in namespace/name format"),
+    collection: bool = typer.Option(
+        False,
+        "--collection",
+        "-c",
+        is_flag=True,
+        help="Force collection lookup. Default: auto-detect whether the identifier is a schema or collection.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Show full details of a schema or collection from the Infrahub Marketplace."""
+    parsed = _parse_identifier(identifier)
+    sdk_cfg = _SdkConfig()
+    resolved_url = (marketplace_url or SETTINGS.active.marketplace_url).rstrip("/")
+    async with _make_http_client(sdk_cfg) as client:
+        try:
+            item_type, detail = await _fetch_detail(
+                client, resolved_url, parsed.namespace, parsed.name, force_collection=collection
+            )
+        except httpx.HTTPError as exc:
+            _fail_http_error(exc, f"Marketplace request for '{parsed.namespace}/{parsed.name}' failed: {exc}")
+    if json_output:
+        _print_json(detail)
+        return
+    _render_detail(detail, item_type)
+
+
+@app.command(name="list")
+@catch_exception(console=console)
+async def list_items(
+    collections: bool = typer.Option(False, "--collections", is_flag=True, help="List collections instead of schemas."),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Maximum number of results to display."),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """List schemas (default) or collections available on the Infrahub Marketplace."""
+    await _run_listing(
+        item_type="collection" if collections else "schema",
+        search=None,
+        limit=limit,
+        json_output=json_output,
+        marketplace_url=marketplace_url,
+    )
+
+
+@app.command()
+@catch_exception(console=console)
+async def search(
+    term: str = typer.Argument(help="Search term matched against name, display name, and description."),
+    collections: bool = typer.Option(
+        False, "--collections", is_flag=True, help="Search collections instead of schemas."
+    ),
+    limit: int | None = typer.Option(None, "--limit", "-l", help="Maximum number of results to display."),
+    json_output: bool = typer.Option(False, "--json", help="Output raw JSON to stdout instead of a table."),
+    marketplace_url: str | None = typer.Option(
+        None, "--marketplace-url", help="Base URL of the Infrahub Marketplace. Overrides configuration and environment."
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Search the Infrahub Marketplace for schemas (default) or collections."""
+    await _run_listing(
+        item_type="collection" if collections else "schema",
+        search=term,
+        limit=limit,
+        json_output=json_output,
+        marketplace_url=marketplace_url,
+    )
 
 
 @app.command()
