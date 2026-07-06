@@ -16,7 +16,74 @@ $ infrahubctl marketplace [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `show`: Show full details of a schema or...
+* `list`: List schemas (default) or collections...
+* `search`: Search the Infrahub Marketplace for...
 * `get`: Fetch a schema or collection from the...
+
+## `infrahubctl marketplace show`
+
+Show full details of a schema or collection from the Infrahub Marketplace.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace show [OPTIONS] IDENTIFIER
+```
+
+**Arguments**:
+
+* `IDENTIFIER`: Schema or collection identifier in namespace/name format  [required]
+
+**Options**:
+
+* `-c, --collection`: Force collection lookup. Default: auto-detect whether the identifier is a schema or collection.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl marketplace list`
+
+List schemas (default) or collections available on the Infrahub Marketplace.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace list [OPTIONS]
+```
+
+**Options**:
+
+* `--collections`: List collections instead of schemas.
+* `-l, --limit INTEGER`: Maximum number of results to display.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl marketplace search`
+
+Search the Infrahub Marketplace for schemas (default) or collections.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace search [OPTIONS] TERM
+```
+
+**Arguments**:
+
+* `TERM`: Search term matched against name, display name, and description.  [required]
+
+**Options**:
+
+* `--collections`: Search collections instead of schemas.
+* `-l, --limit INTEGER`: Maximum number of results to display.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl marketplace get`
 
