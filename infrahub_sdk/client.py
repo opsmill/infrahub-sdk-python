@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import copy
 import logging
+import re
 import time
-from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from enum import Enum
@@ -33,6 +34,7 @@ from .exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
     URLNotFoundError,
+    ValidationError,
     VersionNotSupportedError,
 )
 from .graph_traversal.models import PathTraversalResult, ReachableNodesResult
@@ -161,6 +163,76 @@ def _resolve_traversal_node_id(node: str | InfrahubNode | InfrahubNodeSync, *, r
         return _resolve_node_id(node)
     except NodeNotSavedError as exc:
         raise Error(f"Cannot use an unsaved node as the graph traversal {role}; save it first.") from exc
+
+
+_GRAPHQL_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def compile_get_many_query(
+    spec: Mapping[str, Mapping[str, Sequence[str]]],
+) -> tuple[str, dict[str, list[str]], list[str]]:
+    """Compile a kind-to-spec mapping into a single aliased GraphQL query.
+
+    Each entry of the input maps a kind name to a sub-mapping with an
+    ``ids`` list (required, non-empty) and an optional ``attributes`` list.
+
+    Returns ``(query, variables, kinds_ordered)``. The query is one operation with one
+    aliased block per kind (``k0``, ``k1``, ...) and one ``[ID]`` variable per kind
+    (``ids_0``, ``ids_1``, ...). Ids and attribute names are deduplicated and sorted
+    so the emitted query is deterministic.
+
+    Raises:
+        ValidationError: If the spec is empty, has empty ``ids`` for a kind, omits
+            ``ids`` entirely, or contains kind/attribute names that are not valid
+            GraphQL identifiers.
+
+    """
+    if not spec:
+        raise ValidationError(identifier="get_many.spec", message="spec must contain at least one kind")
+
+    problems: list[str] = []
+    kinds_ordered: list[str] = []
+    variables: dict[str, list[str]] = {}
+    blocks: list[str] = []
+
+    for index, (kind, entry) in enumerate(spec.items()):
+        if not isinstance(kind, str) or not _GRAPHQL_IDENTIFIER_RE.match(kind):
+            problems.append(f"kind {kind!r} is not a valid GraphQL identifier")
+            continue
+        if not isinstance(entry, Mapping):
+            problems.append(f"{kind}: entry must be a mapping with an 'ids' key")
+            continue
+        ids = entry.get("ids")
+        if not ids or isinstance(ids, (str, bytes)):
+            # A bare string passed for ``ids`` would iterate character-by-character
+            # below and turn one id into N one-character GraphQL ids — silently
+            # wrong. Reject up front.
+            problems.append(f"{kind}: 'ids' must be a non-empty list of id strings")
+            continue
+        attributes = entry.get("attributes") or []
+        if isinstance(attributes, (str, bytes)):
+            # Same trap as ``ids``: a bare string would split into single-char
+            # field names that each pass the identifier regex.
+            problems.append(f"{kind}: 'attributes' must be a list of attribute names")
+            continue
+        bad_attrs = [a for a in attributes if not isinstance(a, str) or not _GRAPHQL_IDENTIFIER_RE.match(a)]
+        if bad_attrs:
+            problems.append(f"{kind}: invalid attribute names {bad_attrs!r}")
+            continue
+
+        var_name = f"ids_{index}"
+        variables[var_name] = sorted({str(node_id) for node_id in ids})
+        attrs_selection = " ".join(f"{name} {{ value }}" for name in sorted(set(attributes)))
+        block_inner = f"__typename id {attrs_selection}".strip()
+        blocks.append(f"k{index}: {kind}(ids: ${var_name}) {{ edges {{ node {{ {block_inner} }} }} }}")
+        kinds_ordered.append(kind)
+
+    if problems:
+        raise ValidationError(identifier="get_many.spec", messages=problems)
+
+    declarations = ", ".join(f"${name}: [ID]" for name in variables)
+    query = f"query GetMany({declarations}) {{ {' '.join(blocks)} }}"
+    return query, variables, kinds_ordered
 
 
 class BaseClient:
@@ -878,6 +950,72 @@ class InfrahubClient(BaseClient):
             raise
         result = ReachableNodesResult.model_validate(response["InfrahubReachableNodes"])
         return result._bind(self, branch or self.default_branch)
+
+    async def get_many(
+        self,
+        spec: Mapping[str, Mapping[str, Sequence[str]]],
+        *,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+        populate_store: bool = True,
+    ) -> dict[str, list[InfrahubNode]]:
+        """Fetch nodes of multiple kinds in a single GraphQL operation.
+
+        ``spec`` maps each kind to a dict with a non-empty ``ids`` list (node UUIDs)
+        and an optional ``attributes`` list (attribute names to populate on the
+        returned nodes). One aliased subselection is emitted per kind, so the cost
+        is a single round-trip regardless of how many kinds the spec contains.
+
+        Returned nodes only have the requested attributes populated; relationships
+        are not fetched. For full nodes, follow up with :meth:`get` or :meth:`filters`.
+
+        Args:
+            spec: Mapping of kind name to a sub-mapping with keys ``ids`` (list of
+                node UUIDs, required and non-empty) and ``attributes`` (list of
+                attribute names, optional - defaults to none, in which case only
+                the id and typename are returned).
+            branch: Name of the branch to query from. Defaults to ``default_branch``.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+            populate_store: When True (default), every hydrated node is added to
+                ``client.store`` so later lookups by id can skip the network.
+
+        Raises:
+            ValidationError: If the spec cannot be compiled into a query (empty,
+                missing ``ids``, malformed kind/attribute identifiers).
+            GraphQLError: If the server rejects the query (for example, an unknown
+                kind or attribute name in the loaded schema).
+
+        """
+        query, variables, kinds_ordered = compile_get_many_query(spec)
+        branch = branch or self.default_branch
+        response = await self.execute_graphql(
+            query=query,
+            variables=variables,
+            branch_name=branch,
+            at=Timestamp(at) if at else None,
+            timeout=timeout,
+            tracker="query-get-many",
+            operation_name="GetMany",
+        )
+
+        results: dict[str, list[InfrahubNode]] = {}
+        for index, kind in enumerate(kinds_ordered):
+            block = (response or {}).get(f"k{index}") or {}
+            nodes: list[InfrahubNode] = []
+            for edge in block.get("edges") or []:
+                node = await InfrahubNode.from_graphql(
+                    client=self,
+                    branch=branch,
+                    data=edge,
+                    timeout=timeout,
+                )
+                if populate_store:
+                    self.store.set(node=node)
+                nodes.append(node)
+            results[kind] = nodes
+        return results
 
     @overload
     async def all(
@@ -2578,6 +2716,72 @@ class InfrahubClientSync(BaseClient):
             raise
         result = ReachableNodesResult.model_validate(response["InfrahubReachableNodes"])
         return result._bind(self, branch or self.default_branch)
+
+    def get_many(
+        self,
+        spec: Mapping[str, Mapping[str, Sequence[str]]],
+        *,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+        populate_store: bool = True,
+    ) -> dict[str, list[InfrahubNodeSync]]:
+        """Fetch nodes of multiple kinds in a single GraphQL operation.
+
+        ``spec`` maps each kind to a dict with a non-empty ``ids`` list (node UUIDs)
+        and an optional ``attributes`` list (attribute names to populate on the
+        returned nodes). One aliased subselection is emitted per kind, so the cost
+        is a single round-trip regardless of how many kinds the spec contains.
+
+        Returned nodes only have the requested attributes populated; relationships
+        are not fetched. For full nodes, follow up with :meth:`get` or :meth:`filters`.
+
+        Args:
+            spec: Mapping of kind name to a sub-mapping with keys ``ids`` (list of
+                node UUIDs, required and non-empty) and ``attributes`` (list of
+                attribute names, optional - defaults to none, in which case only
+                the id and typename are returned).
+            branch: Name of the branch to query from. Defaults to ``default_branch``.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+            populate_store: When True (default), every hydrated node is added to
+                ``client.store`` so later lookups by id can skip the network.
+
+        Raises:
+            ValidationError: If the spec cannot be compiled into a query (empty,
+                missing ``ids``, malformed kind/attribute identifiers).
+            GraphQLError: If the server rejects the query (for example, an unknown
+                kind or attribute name in the loaded schema).
+
+        """
+        query, variables, kinds_ordered = compile_get_many_query(spec)
+        branch = branch or self.default_branch
+        response = self.execute_graphql(
+            query=query,
+            variables=variables,
+            branch_name=branch,
+            at=Timestamp(at) if at else None,
+            timeout=timeout,
+            tracker="query-get-many",
+            operation_name="GetMany",
+        )
+
+        results: dict[str, list[InfrahubNodeSync]] = {}
+        for index, kind in enumerate(kinds_ordered):
+            block = (response or {}).get(f"k{index}") or {}
+            nodes: list[InfrahubNodeSync] = []
+            for edge in block.get("edges") or []:
+                node = InfrahubNodeSync.from_graphql(
+                    client=self,
+                    branch=branch,
+                    data=edge,
+                    timeout=timeout,
+                )
+                if populate_store:
+                    self.store.set(node=node)
+                nodes.append(node)
+            results[kind] = nodes
+        return results
 
     @overload
     def all(

@@ -76,6 +76,7 @@ def return_annotation_map() -> dict[str, str]:
         "InfrahubClient": "InfrahubClientSync",
         "InfrahubNode": "InfrahubNodeSync",
         "list[InfrahubNode]": "list[InfrahubNodeSync]",
+        "dict[str, list[InfrahubNode]]": "dict[str, list[InfrahubNodeSync]]",
         "Optional[InfrahubNode]": "Optional[InfrahubNodeSync]",
         "Optional[type[SchemaType]]": "Optional[type[SchemaTypeSync]]",
         "Optional[Union[CoreNode, SchemaType]]": "Optional[Union[CoreNodeSync, SchemaTypeSync]]",

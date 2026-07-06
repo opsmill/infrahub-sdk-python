@@ -218,6 +218,41 @@ Requires Infrahub 1.10 or later.
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
+#### `get_many`
+
+```python
+get_many(self, spec: Mapping[str, Mapping[str, Sequence[str]]]) -> dict[str, list[InfrahubNode]]
+```
+
+Fetch nodes of multiple kinds in a single GraphQL operation.
+
+``spec`` maps each kind to a dict with a non-empty ``ids`` list (node UUIDs)
+and an optional ``attributes`` list (attribute names to populate on the
+returned nodes). One aliased subselection is emitted per kind, so the cost
+is a single round-trip regardless of how many kinds the spec contains.
+
+Returned nodes only have the requested attributes populated; relationships
+are not fetched. For full nodes, follow up with :meth:`get` or :meth:`filters`.
+
+**Args:**
+
+- `spec`: Mapping of kind name to a sub-mapping with keys ``ids`` (list of
+node UUIDs, required and non-empty) and ``attributes`` (list of
+attribute names, optional - defaults to none, in which case only
+the id and typename are returned).
+- `branch`: Name of the branch to query from. Defaults to ``default_branch``.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+- `populate_store`: When True (default), every hydrated node is added to
+``client.store`` so later lookups by id can skip the network.
+
+**Raises:**
+
+- `ValidationError`: If the spec cannot be compiled into a query (empty,
+missing ``ids``, malformed kind/attribute identifiers).
+- `GraphQLError`: If the server rejects the query (for example, an unknown
+kind or attribute name in the loaded schema).
+
 #### `all`
 
 ```python
@@ -762,6 +797,41 @@ Requires Infrahub 1.10 or later.
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
+#### `get_many`
+
+```python
+get_many(self, spec: Mapping[str, Mapping[str, Sequence[str]]]) -> dict[str, list[InfrahubNodeSync]]
+```
+
+Fetch nodes of multiple kinds in a single GraphQL operation.
+
+``spec`` maps each kind to a dict with a non-empty ``ids`` list (node UUIDs)
+and an optional ``attributes`` list (attribute names to populate on the
+returned nodes). One aliased subselection is emitted per kind, so the cost
+is a single round-trip regardless of how many kinds the spec contains.
+
+Returned nodes only have the requested attributes populated; relationships
+are not fetched. For full nodes, follow up with :meth:`get` or :meth:`filters`.
+
+**Args:**
+
+- `spec`: Mapping of kind name to a sub-mapping with keys ``ids`` (list of
+node UUIDs, required and non-empty) and ``attributes`` (list of
+attribute names, optional - defaults to none, in which case only
+the id and typename are returned).
+- `branch`: Name of the branch to query from. Defaults to ``default_branch``.
+- `at`: Time of the query. Defaults to now.
+- `timeout`: Overrides the default GraphQL timeout, in seconds.
+- `populate_store`: When True (default), every hydrated node is added to
+``client.store`` so later lookups by id can skip the network.
+
+**Raises:**
+
+- `ValidationError`: If the spec cannot be compiled into a query (empty,
+missing ``ids``, malformed kind/attribute identifiers).
+- `GraphQLError`: If the server rejects the query (for example, an unknown
+kind or attribute name in the loaded schema).
+
 #### `all`
 
 ```python
@@ -1079,3 +1149,25 @@ handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., httpx.
 ```python
 get_kind_as_string(kind: str | type[SchemaType | SchemaTypeSync]) -> str
 ```
+
+### `compile_get_many_query`
+
+```python
+compile_get_many_query(spec: Mapping[str, Mapping[str, Sequence[str]]]) -> tuple[str, dict[str, list[str]], list[str]]
+```
+
+Compile a kind-to-spec mapping into a single aliased GraphQL query.
+
+Each entry of the input maps a kind name to a sub-mapping with an
+``ids`` list (required, non-empty) and an optional ``attributes`` list.
+
+Returns ``(query, variables, kinds_ordered)``. The query is one operation with one
+aliased block per kind (``k0``, ``k1``, ...) and one ``[ID]`` variable per kind
+(``ids_0``, ``ids_1``, ...). Ids and attribute names are deduplicated and sorted
+so the emitted query is deterministic.
+
+**Raises:**
+
+- `ValidationError`: If the spec is empty, has empty ``ids`` for a kind, omits
+``ids`` entirely, or contains kind/attribute names that are not valid
+GraphQL identifiers.
