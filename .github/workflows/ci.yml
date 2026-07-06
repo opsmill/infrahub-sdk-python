@@ -106,7 +106,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
       - name: "Linting: markdownlint"
-        uses: DavidAnson/markdownlint-cli2-action@v23
+        uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           config: docs/.markdownlint.yaml
           globs: |
