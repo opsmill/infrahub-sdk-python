@@ -5,7 +5,7 @@ import copy
 import logging
 import time
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager, suppress
 from datetime import datetime
 from enum import Enum
 from functools import wraps
@@ -30,6 +30,7 @@ from .exceptions import (
     GraphQLError,
     NodeNotFoundError,
     NodeNotSavedError,
+    RateLimitError,
     ServerNotReachableError,
     ServerNotResponsiveError,
     URLNotFoundError,
@@ -49,6 +50,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
+from .rate_limit import RateLimitRetryHandler
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
@@ -77,6 +79,23 @@ class ProcessRelationsNode(TypedDict):
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+def _rewind_multipart_files(files: dict[str, Any]) -> None:
+    """Rewind any seekable file objects in a multipart ``files`` payload.
+
+    httpx reads file-like objects to EOF when it sends a request. When a multipart upload is
+    retried (e.g. after an HTTP 429), the same file objects are re-sent; rewinding each of them
+    to position 0 before every attempt ensures a retried upload carries the full body instead of
+    an already-consumed (empty/truncated) stream.
+    """
+    for value in files.values():
+        file_obj = value[1] if isinstance(value, tuple) and len(value) > 1 else value
+        seek = getattr(file_obj, "seek", None)
+        if callable(seek):
+            # Non-seekable streams cannot be rewound; ignore and re-send as-is.
+            with suppress(OSError, ValueError):
+                seek(0)
 
 
 class ProxyConfigSync(TypedDict):
@@ -1390,14 +1409,19 @@ class InfrahubClient(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        async def send() -> httpx.Response:
+            # Rewind file objects before each attempt so a retried upload carries the full body.
+            _rewind_multipart_files(files)
+            async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return await client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = await self._send_with_rate_limit_retry(send=send, url=url)
         self._record(response)
         return response
 
@@ -1472,16 +1496,84 @@ class InfrahubClient(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, AsyncExitStack] = {}
+
+            async def send() -> httpx.Response:
+                # Retry only stream initiation: a 429 arrives in the headers before any body is
+                # consumed. A failed (429) attempt is read and closed here; a successful stream is
+                # left open and exited after the caller finishes consuming it.
+                stack = AsyncExitStack()
+                response = await stack.enter_async_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    await response.aread()
+                    await stack.aclose()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                async with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = await self._send_with_rate_limit_retry(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        await stack.aclose()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
+
+    async def _send_with_rate_limit_retry(
+        self,
+        send: Callable[[], Coroutine[Any, Any, httpx.Response]],
+        url: str,
+    ) -> httpx.Response:
+        """Send a request via ``send``, transparently retrying on HTTP 429 with backoff.
+
+        ``send`` performs exactly one HTTP send and returns the raw response; it is invoked
+        once per attempt, so it MUST yield a fully-readable request body on every call. On a
+        429 the driver waits (server ``Retry-After`` if present, else jittered exponential
+        backoff, both clamped to ``rate_limit_backoff_max``) and retries, up to
+        ``rate_limit_max_retries`` times. When the budget is exhausted it raises
+        ``RateLimitError`` chaining the underlying ``httpx.HTTPStatusError``.
+
+        Raises:
+            RateLimitError: If HTTP 429 responses persist past ``rate_limit_max_retries``.
+
+        """
+        if not self.config.rate_limit_retry_enabled:
+            return await send()
+
+        handler = RateLimitRetryHandler(
+            max_retries=self.config.rate_limit_max_retries,
+            backoff_base=self.config.rate_limit_backoff_base,
+            backoff_max=self.config.rate_limit_backoff_max,
+        )
+        attempts = 0
+        last_retry_after: float | None = None
+        while True:
+            response = await send()
+            attempts += 1
+            if response.status_code != 429:
+                return response
+
+            retry_after_header = response.headers.get("Retry-After")
+            last_retry_after = handler.parse_retry_after(retry_after_header)
+            if not handler.should_retry(attempts_made=attempts):
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from exc
+                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after)
+
+            delay = handler.next_delay(attempt=attempts - 1, retry_after_header=retry_after_header)
+            self.log.warning(f"Rate limited (HTTP 429) on {url}, retry {attempts} in {delay:.2f}s")
+            await asyncio.sleep(delay)
 
     async def _request(
         self,
@@ -1491,7 +1583,10 @@ class InfrahubClient(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        async def send() -> httpx.Response:
+            return await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = await self._send_with_rate_limit_retry(send=send, url=url)
         self._record(response)
         return response
 
@@ -2338,14 +2433,19 @@ class InfrahubClientSync(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        def send() -> httpx.Response:
+            # Rewind file objects before each attempt so a retried upload carries the full body.
+            _rewind_multipart_files(files)
+            with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = self._send_with_rate_limit_retry(send=send, url=url)
         self._record(response)
         return response
 
@@ -3540,16 +3640,37 @@ class InfrahubClientSync(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, ExitStack] = {}
+
+            def send() -> httpx.Response:
+                # Retry only stream initiation: a 429 arrives in the headers before any body is
+                # consumed. A failed (429) attempt is read and closed here; a successful stream is
+                # left open and exited after the caller finishes consuming it.
+                stack = ExitStack()
+                response = stack.enter_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    response.read()
+                    stack.close()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = self._send_with_rate_limit_retry(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        stack.close()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     @handle_relogin_sync
     def _post(
@@ -3580,6 +3701,53 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
+    def _send_with_rate_limit_retry(
+        self,
+        send: Callable[[], httpx.Response],
+        url: str,
+    ) -> httpx.Response:
+        """Send a request via ``send``, transparently retrying on HTTP 429 with backoff.
+
+        ``send`` performs exactly one HTTP send and returns the raw response; it is invoked
+        once per attempt, so it MUST yield a fully-readable request body on every call. On a
+        429 the driver waits (server ``Retry-After`` if present, else jittered exponential
+        backoff, both clamped to ``rate_limit_backoff_max``) and retries, up to
+        ``rate_limit_max_retries`` times. When the budget is exhausted it raises
+        ``RateLimitError`` chaining the underlying ``httpx.HTTPStatusError``.
+
+        Raises:
+            RateLimitError: If HTTP 429 responses persist past ``rate_limit_max_retries``.
+
+        """
+        if not self.config.rate_limit_retry_enabled:
+            return send()
+
+        handler = RateLimitRetryHandler(
+            max_retries=self.config.rate_limit_max_retries,
+            backoff_base=self.config.rate_limit_backoff_base,
+            backoff_max=self.config.rate_limit_backoff_max,
+        )
+        attempts = 0
+        last_retry_after: float | None = None
+        while True:
+            response = send()
+            attempts += 1
+            if response.status_code != 429:
+                return response
+
+            retry_after_header = response.headers.get("Retry-After")
+            last_retry_after = handler.parse_retry_after(retry_after_header)
+            if not handler.should_retry(attempts_made=attempts):
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from exc
+                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after)
+
+            delay = handler.next_delay(attempt=attempts - 1, retry_after_header=retry_after_header)
+            self.log.warning(f"Rate limited (HTTP 429) on {url}, retry {attempts} in {delay:.2f}s")
+            time.sleep(delay)
+
     def _request(
         self,
         url: str,
@@ -3588,7 +3756,10 @@ class InfrahubClientSync(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        def send() -> httpx.Response:
+            return self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = self._send_with_rate_limit_retry(send=send, url=url)
         self._record(response)
         return response
 
