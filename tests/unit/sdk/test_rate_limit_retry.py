@@ -8,12 +8,16 @@ multipart body re-read regression. This module currently holds the shared import
 
 from __future__ import annotations
 
+from typing import Any
+
 import httpx
 import pytest
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
+from infrahub_sdk import client as client_module
 from infrahub_sdk.config import Config
 from infrahub_sdk.exceptions import RateLimitError
+from infrahub_sdk.types import HTTPMethod
 
 __all__ = [
     "Config",
@@ -23,3 +27,114 @@ __all__ = [
     "httpx",
     "pytest",
 ]
+
+CLIENT_TYPES = ["standard", "sync"]
+
+
+class ScriptedRequester:
+    """A pluggable ``requester``/``sync_requester`` that replays a scripted response sequence.
+
+    Each invocation returns the next pre-built ``httpx.Response`` and increments ``call_count``,
+    letting a test assert exactly how many HTTP sends the retry driver performed.
+    """
+
+    def __init__(self, responses: list[httpx.Response]) -> None:
+        self._responses = responses
+        self.call_count = 0
+
+    def _next(self) -> httpx.Response:
+        response = self._responses[self.call_count]
+        self.call_count += 1
+        return response
+
+    def sync_request(
+        self,
+        url: str,
+        method: HTTPMethod,
+        headers: dict[str, Any],
+        timeout: int,
+        payload: dict | None = None,
+    ) -> httpx.Response:
+        return self._next()
+
+    async def async_request(
+        self,
+        url: str,
+        method: HTTPMethod,
+        headers: dict[str, Any],
+        timeout: int,
+        payload: dict | None = None,
+    ) -> httpx.Response:
+        return self._next()
+
+
+def _patch_driver_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Replace the driver's async/sync sleep with no-op recorders so tests never really wait.
+
+    Returns the list that captures every recorded delay, in call order.
+    """
+    recorded: list[float] = []
+
+    async def fake_async_sleep(delay: float) -> None:
+        recorded.append(delay)
+
+    def fake_sync_sleep(delay: float) -> None:
+        recorded.append(delay)
+
+    monkeypatch.setattr(client_module.asyncio, "sleep", fake_async_sleep)
+    monkeypatch.setattr(client_module.time, "sleep", fake_sync_sleep)
+    return recorded
+
+
+async def _send_request(
+    client_type: str,
+    requester: ScriptedRequester,
+    url: str = "http://mock/graphql/main",
+) -> httpx.Response:
+    """Drive the real ``_request`` path on the selected client with the scripted requester."""
+    if client_type == "standard":
+        config = Config(address="http://mock", requester=requester.async_request)
+        client = InfrahubClient(config=config)
+        return await client._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+
+    config = Config(address="http://mock", sync_requester=requester.sync_request)
+    client_sync = InfrahubClientSync(config=config)
+    return client_sync._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_retries_429_then_succeeds(client_type: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A 429 followed by a 200 is retried transparently: the 200 is returned after two sends."""
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    success_payload = {"data": {"result": "success"}}
+    requester = ScriptedRequester(
+        [
+            httpx.Response(status_code=429),
+            httpx.Response(status_code=200, json=success_payload),
+        ]
+    )
+
+    response = await _send_request(client_type=client_type, requester=requester)
+
+    assert response.status_code == 200
+    assert response.json() == success_payload
+    assert requester.call_count == 2
+    assert len(recorded_sleeps) == 1
+
+
+@pytest.mark.parametrize("status_code", [200, 500])
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_passes_non_429_through_untouched(
+    client_type: str, status_code: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Non-429 responses (success or error) are returned on the first send with no retry or wait."""
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    requester = ScriptedRequester([httpx.Response(status_code=status_code, json={"data": None})])
+
+    response = await _send_request(client_type=client_type, requester=requester)
+
+    assert response.status_code == status_code
+    assert requester.call_count == 1
+    assert recorded_sleeps == []
