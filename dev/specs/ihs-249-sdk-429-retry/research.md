@@ -127,3 +127,26 @@ non-fatal events.
 
 **Rationale**: FR-007 requires each retry be observable. Using the existing logger keeps it
 configurable by the host application.
+
+**Log-content constraint (critique E4)**: retry log records MUST contain only the request URL,
+the attempt number, and the applied delay — never request headers or payload. The login and
+token-refresh paths carry `Authorization: Bearer …` headers and username/password payloads, so
+broadening the log content would leak credentials. Tests assert the presence of URL/attempt/delay;
+implementation must not add headers/body to the record.
+
+## R9 — Build vs buy (critique P3)
+
+**Decision**: Implement a small custom handler rather than adopt a retry library.
+
+**Rationale**:
+
+- **httpx transport-level `retries`** (`httpx.HTTPTransport(retries=N)`) retries only connection
+  establishment failures, not HTTP status codes — it cannot see a 429, so it cannot satisfy FR-001/003.
+- **`tenacity`** would be a new runtime dependency, which is out of scope ("no new dependency"),
+  and would still need custom predicates for 429 detection, `Retry-After` parsing, and the
+  `RateLimitError` contract — most of the logic we'd write anyway.
+- The required logic (parse `Retry-After`, jittered/clamped backoff, attempt budget) is small,
+  pure, and fully unit-testable with stdlib only.
+
+**Alternatives considered**: `tenacity`, `backoff`, httpx transport retries — all rejected for the
+reasons above.

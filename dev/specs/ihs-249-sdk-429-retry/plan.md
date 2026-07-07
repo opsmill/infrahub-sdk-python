@@ -121,6 +121,24 @@ logic. `Config` gains fields on `ConfigBase` so both `Config` and any config sub
 5. **Disabled path.** When `rate_limit_retry_enabled=False`, the driver performs exactly one
    send and returns the response untouched (no 429 inspection, no wait), preserving the exact
    pre-feature behaviour (FR-009 / SC-006).
+6. **Re-readable payloads on retry (critique E2/X1 — Must-Address).** The driver re-invokes a
+   "send once" callable per attempt. For JSON payloads (`_request`) this is safe (the dict is
+   re-serialized each send). For **multipart uploads** (`_request_multipart`) the `files` payload
+   may contain open file handles / streams that httpx reads to EOF on the first attempt; naively
+   re-sending them would upload an empty or truncated body. The multipart send site therefore
+   MUST produce a fresh, fully-readable body per attempt — either by rewinding each file object
+   (`seek(0)`) before re-sending or by materializing the payload into bytes once and re-sending
+   those bytes. A regression test MUST assert the retried upload carries the full body. This also
+   applies to the streaming-init path, which only retries *before* any body is consumed.
+
+## Operational notes
+
+- **Worst-case cumulative wait (critique P4).** With retry enabled, the maximum time a call can
+  block before raising `RateLimitError` is bounded by roughly `rate_limit_max_retries ×
+  rate_limit_backoff_max` (defaults: 5 × 60 s ≈ 300 s), since each wait is clamped to
+  `backoff_max`. This is intentional (bounded, never indefinite), but interactive callers who
+  cannot tolerate multi-minute blocking should lower `rate_limit_max_retries` /
+  `rate_limit_backoff_max`, or disable retry and handle 429s themselves.
 
 ## Complexity Tracking
 
