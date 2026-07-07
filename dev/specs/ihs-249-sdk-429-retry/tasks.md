@@ -71,7 +71,7 @@ Single-project library: source under `infrahub_sdk/`, tests under `tests/unit/`.
 
 **Independent Test**: Script `429` with `Retry-After` then `200`; capture the driver's sleep argument; assert it ≈ header value (and ≈0 for a zero/past value, clamped when larger than max).
 
-- [ ] T013 [P] [US2] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): (a) `Retry-After: N` delta-seconds → wait ≈ N; (b) HTTP-date form → wait ≈ interval; (c) `Retry-After: 0` and past date → wait ≈ 0; (d) malformed header → falls back to computed backoff and still retries; (e) `Retry-After` > `rate_limit_backoff_max` → clamped to max. Patch/record the sleep argument. (SC-002, FR-003, FR-004)
+- [X] T013 [P] [US2] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): (a) `Retry-After: N` delta-seconds → wait ≈ N; (b) HTTP-date form → wait ≈ interval; (c) `Retry-After: 0` and past date → wait ≈ 0; (d) malformed header → falls back to computed backoff and still retries; (e) `Retry-After` > `rate_limit_backoff_max` → clamped to max. Patch/record the sleep argument. (SC-002, FR-003, FR-004)
 
 **Checkpoint**: Server-directed backoff honoured on both clients.
 
