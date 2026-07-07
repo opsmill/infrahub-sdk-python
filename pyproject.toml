@@ -283,6 +283,12 @@ disable_error_code = ["arg-type", "attr-defined", "return-value", "union-attr"]
 module = "infrahub_sdk.schema.main"
 disable_error_code = ["assignment"]
 
+[[tool.mypy.overrides]]
+# The generated read models expose ``kind`` via ``@computed_field`` stacked on ``@property``. mypy
+# does not support decorators on top of ``@property`` and flags it, but pydantic requires this order.
+module = "infrahub_sdk.schema.generated.read"
+disable_error_code = ["misc"]
+
 [tool.ruff]
 line-length = 120
 

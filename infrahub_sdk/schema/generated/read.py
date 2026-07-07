@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from .enums import (
     AllowOverrideType,
@@ -517,6 +517,15 @@ class BaseNodeSchemaRead(BaseModel):
         default_factory=list,
         description="Node Relationships",
     )
+    hash: str | None = Field(
+        default=None,
+        description="Hash of the node computed by the server.",
+    )
+
+    @computed_field
+    @property
+    def kind(self) -> str:
+        return f"{self.namespace}{self.name}"
 
 
 class NodeSchemaRead(BaseNodeSchemaRead):

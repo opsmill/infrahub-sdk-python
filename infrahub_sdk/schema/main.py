@@ -83,16 +83,21 @@ __all__ = [
 
 
 class _SchemaKindMixin:
-    """``kind`` and capability flags shared by node/generic/profile/template schemas."""
+    """Capability flags shared by node/generic/profile/template read schemas.
+
+    ``kind`` itself is a computed field on the generated read base model; this mixin only carries
+    the derived capability helpers and declares ``kind`` for the type checker.
+    """
 
     if TYPE_CHECKING:
         name: str
         namespace: str
         inherit_from: list[str]
 
-    @property
-    def kind(self) -> str:
-        return self.namespace + self.name
+        # ``kind`` is a read-only computed field on the generated read base; declared as a property
+        # here so it stays compatible with that base under multiple inheritance.
+        @property
+        def kind(self) -> str: ...
 
     @property
     def supports_artifact_definition(self) -> bool:
@@ -273,7 +278,7 @@ class RelationshipSchema(RelationshipSchemaWrite):
     """Constructible relationship write model (kept as a distinct public name)."""
 
 
-class NodeSchema(NodeSchemaWrite, _SchemaKindMixin):
+class NodeSchema(NodeSchemaWrite):
     # ``attributes`` accepts the constructible ``AttributeSchema`` (the generated discriminated union
     # cannot be built from an ``AttributeSchema`` instance); dumping still validates server-side.
     # ``relationships`` keeps the historical constructible ``RelationshipSchema`` item type.
@@ -284,7 +289,7 @@ class NodeSchema(NodeSchemaWrite, _SchemaKindMixin):
         return NodeSchemaAPI(**self.model_dump())
 
 
-class GenericSchema(GenericSchemaWrite, _SchemaKindMixin):
+class GenericSchema(GenericSchemaWrite):
     attributes: list[AttributeSchema] = Field(default_factory=list)
     relationships: list[RelationshipSchema] = Field(default_factory=list)
 
@@ -343,7 +348,6 @@ class RelationshipSchemaAPI(RelationshipSchemaRead, _CardinalityMixin):
 
 
 class NodeSchemaAPI(NodeSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
-    hash: str | None = None
     # Narrow the attribute/relationship item types to the API variants so the behavior helpers
     # (``cardinality_is_*``, ``inherited`` filtering, ...) are available on the returned items.
     attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
@@ -400,7 +404,6 @@ class NodeSchemaAPI(NodeSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
 class GenericSchemaAPI(GenericSchemaRead, _SchemaAttrRelMixin, _SchemaKindMixin):
     """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
 
-    hash: str | None = None
     attributes: list[AttributeSchemaAPI] = Field(default_factory=list)
     relationships: list[RelationshipSchemaAPI] = Field(default_factory=list)
 
