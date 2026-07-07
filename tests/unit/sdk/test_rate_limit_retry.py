@@ -8,13 +8,14 @@ multipart body re-read regression. This module currently holds the shared import
 
 from __future__ import annotations
 
+import io
 import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
@@ -25,6 +26,9 @@ from infrahub_sdk.config import Config
 from infrahub_sdk.exceptions import RateLimitError
 from infrahub_sdk.rate_limit import RateLimitRetryHandler
 from infrahub_sdk.types import HTTPMethod
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
 
 __all__ = [
     "Config",
@@ -458,3 +462,140 @@ async def test_async_sync_parity_on_identical_429_sequence(case: ParityCase, mon
     # Deterministic Retry-After waits are identical across clients and equal to the expected values.
     assert standard["waits"] == pytest.approx(sync["waits"])
     assert standard["waits"] == pytest.approx(case.expected_waits)
+
+
+# --- FR-006 / E2/X1: all-paths coverage and multipart body re-read ---------------------------
+#
+# ``_request_multipart`` and ``_get_streaming`` build their own ``httpx`` client and BYPASS the
+# pluggable ``requester``/``sync_requester`` shim used by the tests above, so their 429->200
+# sequences are scripted at the httpx transport layer with ``httpx_mock`` (pytest-httpx). The
+# regular ``_request`` path is exercised the same way here so all three paths share one idiom.
+
+# A non-empty, multi-line file body large enough that a truncated (unrewound) re-send is obviously
+# different from the full payload.
+MULTIPART_FILE_CONTENT = b"multipart file body that must survive a 429 retry\n" * 16
+
+ALL_REQUEST_PATHS = ["regular", "multipart", "streaming"]
+
+
+def _make_client(client_type: str) -> InfrahubClient | InfrahubClientSync:
+    """Build a client with no ``requester`` override so real httpx transports (mocked) are used."""
+    config = Config(address="http://mock")
+    if client_type == "standard":
+        return InfrahubClient(config=config)
+    return InfrahubClientSync(config=config)
+
+
+def _build_multipart_files() -> dict[str, Any]:
+    """Build an httpx ``files`` mapping with a non-empty, seekable file object."""
+    return {"file": ("upload.bin", io.BytesIO(MULTIPART_FILE_CONTENT), "application/octet-stream")}
+
+
+async def _run_multipart(
+    client: InfrahubClient | InfrahubClientSync, url: str, files: dict[str, Any]
+) -> httpx.Response:
+    """Drive the real ``_request_multipart`` path on either client."""
+    if isinstance(client, InfrahubClient):
+        return await client._request_multipart(url=url, headers={}, timeout=10, files=files)
+    return client._request_multipart(url=url, headers={}, timeout=10, files=files)
+
+
+async def _drive_path(client_type: str, path: str, url: str) -> int:
+    """Drive one request path on the selected client and return the final status code.
+
+    For streaming, the response body is read inside the (async) context manager so the 200 stream
+    is fully consumed before the status is returned.
+    """
+    client = _make_client(client_type)
+
+    if path == "regular":
+        if isinstance(client, InfrahubClient):
+            response = await client._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+        else:
+            response = client._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+        return response.status_code
+
+    if path == "multipart":
+        response = await _run_multipart(client=client, url=url, files=_build_multipart_files())
+        return response.status_code
+
+    # streaming: retry happens on stream INITIATION (the 429 arrives in the headers before body).
+    if isinstance(client, InfrahubClient):
+        async with client._get_streaming(url=url) as response:
+            assert await response.aread() is not None
+            return response.status_code
+    with client._get_streaming(url=url) as response:
+        assert response.read() is not None
+        return response.status_code
+
+
+@pytest.mark.parametrize("path", ALL_REQUEST_PATHS)
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_all_request_paths_retry_429_then_succeed(
+    client_type: str, path: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-006: a 429->200 sequence is retried transparently on every request path, both clients.
+
+    Covers the regular request, the multipart upload, and streaming initiation. Each must issue
+    exactly two transport sends (the retry) and surface the final 200.
+    """
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    url = "http://mock/graphql/main"
+    httpx_mock.add_response(status_code=429)
+    httpx_mock.add_response(status_code=200, json={"data": {"result": "success"}})
+
+    status = await _drive_path(client_type=client_type, path=path, url=url)
+
+    # The retry fired: the final 200 is surfaced after exactly two transport sends, with one wait.
+    assert status == 200
+    assert len(httpx_mock.get_requests()) == 2
+    assert len(recorded_sleeps) == 1
+
+
+def _multipart_body_without_boundary(request: httpx.Request) -> bytes:
+    """Return the multipart body with the random per-request boundary normalised out.
+
+    httpx generates a fresh random boundary for every multipart send, so two identical payloads
+    still differ byte-for-byte in their boundary markers; normalising it lets us compare the actual
+    encoded body (headers + file part) across attempts.
+    """
+    content_type = request.headers["content-type"]
+    _, _, boundary = content_type.partition("boundary=")
+    return request.content.replace(boundary.encode(), b"__BOUNDARY__")
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_multipart_body_survives_retry(
+    client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """E2/X1: a retried multipart upload re-sends the FULL file body, not a consumed/empty stream.
+
+    Scripts ``429 -> 200`` for a multipart upload carrying non-empty file content, then captures the
+    request body the transport received on each attempt. The second attempt must carry the full body
+    equal to the first (modulo the random multipart boundary), proving the driver rewinds /
+    re-materialises the payload between attempts. Were the rewind removed, the second send would
+    stream an already-consumed file object and this test would fail.
+    """
+    _patch_driver_sleep(monkeypatch)
+
+    url = "http://mock/graphql/main"
+    httpx_mock.add_response(status_code=429)
+    httpx_mock.add_response(status_code=200, json={"data": {"result": "uploaded"}})
+
+    client = _make_client(client_type)
+    response = await _run_multipart(client=client, url=url, files=_build_multipart_files())
+    assert response.status_code == 200
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 2
+
+    first_body = requests[0].content
+    second_body = requests[1].content
+
+    # Both attempts carried the full, non-empty file content.
+    assert MULTIPART_FILE_CONTENT in first_body
+    assert MULTIPART_FILE_CONTENT in second_body
+
+    # Modulo the random per-request boundary, the retried body is byte-for-byte equal to the first.
+    assert _multipart_body_without_boundary(requests[0]) == _multipart_body_without_boundary(requests[1])

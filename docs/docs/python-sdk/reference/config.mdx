@@ -151,6 +151,42 @@ The following settings can be defined in the `Config` class
 **Environment variable**: `INFRAHUB_RETRY_ON_FAILURE`<br />
 <!-- vale off -->
 
+## rate_limit_retry_enabled
+
+<!-- vale on -->
+**Description**: Retry requests that receive HTTP 429 using backoff. Set False to disable.<br />
+**Type**: `boolean`<br />
+**Default value**: True<br />
+**Environment variable**: `INFRAHUB_RATE_LIMIT_RETRY_ENABLED`<br />
+<!-- vale off -->
+
+## rate_limit_max_retries
+
+<!-- vale on -->
+**Description**: Maximum number of retries after the initial attempt when receiving HTTP 429.<br />
+**Type**: `integer`<br />
+**Default value**: 5<br />
+**Environment variable**: `INFRAHUB_RATE_LIMIT_MAX_RETRIES`<br />
+<!-- vale off -->
+
+## rate_limit_backoff_base
+
+<!-- vale on -->
+**Description**: Base interval in seconds for exponential backoff between 429 retries.<br />
+**Type**: `number`<br />
+**Default value**: 0.5<br />
+**Environment variable**: `INFRAHUB_RATE_LIMIT_BACKOFF_BASE`<br />
+<!-- vale off -->
+
+## rate_limit_backoff_max
+
+<!-- vale on -->
+**Description**: Maximum wait in seconds for any single 429 retry (also clamps Retry-After).<br />
+**Type**: `number`<br />
+**Default value**: 60.0<br />
+**Environment variable**: `INFRAHUB_RATE_LIMIT_BACKOFF_MAX`<br />
+<!-- vale off -->
+
 ## max_retry_duration
 
 <!-- vale on -->
