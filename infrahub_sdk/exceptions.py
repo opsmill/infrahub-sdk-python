@@ -22,6 +22,24 @@ class JsonDecodeError(Error):
         super().__init__(self.message)
 
 
+class RateLimitError(Error):
+    """Raised when a request keeps receiving HTTP 429 past the configured retry budget."""
+
+    def __init__(
+        self,
+        url: str,
+        attempts: int,
+        retry_after: float | None = None,
+        message: str | None = None,
+    ) -> None:
+        self.url = url
+        self.attempts = attempts
+        self.retry_after = retry_after
+        if message is None:
+            message = f"Request to {url} was rate-limited (HTTP 429) after {attempts} attempt(s)."
+        super().__init__(message)
+
+
 class ServerNotReachableError(Error):
     def __init__(self, address: str, message: str | None = None) -> None:
         self.address = address
