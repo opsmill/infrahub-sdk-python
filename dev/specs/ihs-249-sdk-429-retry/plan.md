@@ -79,9 +79,12 @@ specs/ihs-249-sdk-429-retry/
 
 ```text
 infrahub_sdk/
-├── client.py            # InfrahubClient (async) + InfrahubClientSync (sync).
-│                        #   MODIFY: wire retry drivers into _request, _request_multipart,
-│                        #   and _get_streaming / _get_streaming (sync) on both clients.
+├── client.py            # InfrahubClient (async, class @ L349) + InfrahubClientSync (sync, class @ L2053).
+│                        #   MODIFY BOTH clients symmetrically — each has the same three send sites:
+│                        #     • async:  _request (L1486), _request_multipart (L1383), _get_streaming (L1455)
+│                        #     • sync:   _request (L3583), _request_multipart (L2331), _get_streaming (L3524)
+│                        #   Add a retry driver per client (async awaits asyncio.sleep; sync calls time.sleep)
+│                        #   and wire it into all three of that client's send sites.
 ├── config.py            # ConfigBase / Config (pydantic-settings BaseSettings).
 │                        #   MODIFY: add four rate_limit_* fields on ConfigBase.
 ├── exceptions.py        # Error base + subclasses.
