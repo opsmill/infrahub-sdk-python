@@ -83,8 +83,8 @@ Single-project library: source under `infrahub_sdk/`, tests under `tests/unit/`.
 
 **Independent Test**: Script persistent `429` with `max_retries=5`; assert exactly 6 sends, one `RateLimitError`, its attributes, and one WARNING log per retry.
 
-- [ ] T014 [P] [US3] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): persistent `429` → exactly `max_retries + 1` sends; exactly one `RateLimitError` raised; assert `err.url`, `err.attempts == max_retries + 1`, `err.retry_after`, and `isinstance(err.__cause__, httpx.HTTPStatusError)`; with `caplog`, assert one `WARNING` per retry containing url, attempt number, and delay. (SC-004, FR-005, FR-007)
-- [ ] T015 [US3] Verify the driver (T007/T008) synthesizes the terminal `httpx.HTTPStatusError` from the final 429 response and chains it as `RateLimitError.__cause__`, and tracks `last_retry_after`; refine if T014 fails. (FR-005)
+- [X] T014 [P] [US3] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): persistent `429` → exactly `max_retries + 1` sends; exactly one `RateLimitError` raised; assert `err.url`, `err.attempts == max_retries + 1`, `err.retry_after`, and `isinstance(err.__cause__, httpx.HTTPStatusError)`; with `caplog`, assert one `WARNING` per retry containing url, attempt number, and delay. (SC-004, FR-005, FR-007)
+- [X] T015 [US3] Verify the driver (T007/T008) synthesizes the terminal `httpx.HTTPStatusError` from the final 429 response and chains it as `RateLimitError.__cause__`, and tracks `last_retry_after`; refine if T014 fails. (FR-005)
 
 **Checkpoint**: Clean, catchable, observable exhaustion on both clients.
 

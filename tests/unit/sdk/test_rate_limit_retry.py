@@ -8,6 +8,8 @@ multipart body re-read regression. This module currently holds the shared import
 
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -95,14 +97,19 @@ async def _send_request(
     client_type: str,
     requester: ScriptedRequester,
     url: str = "http://mock/graphql/main",
+    max_retries: int | None = None,
 ) -> httpx.Response:
-    """Drive the real ``_request`` path on the selected client with the scripted requester."""
+    """Drive the real ``_request`` path on the selected client with the scripted requester.
+
+    ``max_retries`` overrides ``rate_limit_max_retries`` on the client's ``Config`` when set.
+    """
+    overrides: dict[str, Any] = {} if max_retries is None else {"rate_limit_max_retries": max_retries}
     if client_type == "standard":
-        config = Config(address="http://mock", requester=requester.async_request)
+        config = Config(address="http://mock", requester=requester.async_request, **overrides)
         client = InfrahubClient(config=config)
         return await client._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
 
-    config = Config(address="http://mock", sync_requester=requester.sync_request)
+    config = Config(address="http://mock", sync_requester=requester.sync_request, **overrides)
     client_sync = InfrahubClientSync(config=config)
     return client_sync._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
 
@@ -238,3 +245,67 @@ async def test_request_malformed_retry_after_falls_back_to_backoff(
     )
     ceiling = handler.compute_backoff(attempt=0)
     assert 0.0 <= recorded_sleeps[0] <= ceiling
+
+
+# The driver logs each retry through ``logging.getLogger("infrahub_sdk")`` (client ``self.log``).
+_RETRY_LOG_LOGGER = "infrahub_sdk"
+# Matches the driver's WARNING format: "Rate limited (HTTP 429) on <url>, retry <n> in <d>s".
+_RETRY_LOG_PATTERN = re.compile(r"retry (?P<attempt>\d+) in (?P<delay>[\d.]+)s")
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_exhausts_retries_and_raises_rate_limit_error(
+    client_type: str, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Persistent 429 exhausts the budget: exactly ``max_retries + 1`` sends, then one ``RateLimitError``.
+
+    The raised error carries ``url``/``attempts``/``retry_after`` and chains the terminal
+    ``httpx.HTTPStatusError`` as ``__cause__``; one WARNING per retry is logged with the url,
+    the attempt number, and the honoured delay.
+    """
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    max_retries = 3
+    url = "http://mock/graphql/main"
+    # Every send returns a 429 carrying ``Retry-After`` so ``err.retry_after`` is populated. A
+    # ``request`` is attached (as a real transport always does) so the driver's terminal
+    # ``raise_for_status()`` yields a chainable ``httpx.HTTPStatusError``.
+    request = httpx.Request(method="POST", url=url)
+    requester = ScriptedRequester(
+        [httpx.Response(status_code=429, headers={"Retry-After": "5"}, request=request) for _ in range(max_retries + 1)]
+    )
+
+    with (
+        caplog.at_level(logging.WARNING, logger=_RETRY_LOG_LOGGER),
+        pytest.raises(RateLimitError, match="rate-limited") as exc_info,
+    ):
+        await _send_request(client_type=client_type, requester=requester, url=url, max_retries=max_retries)
+
+    err = exc_info.value
+    # Exactly one send more than the retry budget, and it is reflected on the error.
+    assert requester.call_count == max_retries + 1
+    assert err.attempts == max_retries + 1
+    assert err.url == url
+    # ``Retry-After: 5`` was parsed and recorded as the last honoured value.
+    assert err.retry_after == pytest.approx(5.0)
+    # The terminal 429 was surfaced as an ``httpx.HTTPStatusError`` and chained as the cause.
+    assert isinstance(err.__cause__, httpx.HTTPStatusError)
+
+    # One sleep per retry, one WARNING per retry (never on the final, budget-exhausting send).
+    assert len(recorded_sleeps) == max_retries
+
+    retry_records = [rec for rec in caplog.records if rec.levelno == logging.WARNING and rec.name == _RETRY_LOG_LOGGER]
+    assert len(retry_records) == max_retries
+
+    logged_attempts: list[int] = []
+    for record, expected_delay in zip(retry_records, recorded_sleeps, strict=True):
+        message = record.getMessage()
+        assert url in message
+        match = _RETRY_LOG_PATTERN.search(message)
+        assert match is not None, message
+        logged_attempts.append(int(match.group("attempt")))
+        # The logged delay is the same value handed to the (patched) sleep for that retry.
+        assert float(match.group("delay")) == pytest.approx(expected_delay, abs=0.01)
+
+    # Retries are logged in order with a monotonically increasing attempt number.
+    assert logged_attempts == list(range(1, max_retries + 1))
