@@ -58,8 +58,8 @@ Single-project library: source under `infrahub_sdk/`, tests under `tests/unit/`.
 
 **Independent Test**: Mock a transport returning `[429, 200]`; issue a request; assert the 200 payload is returned, no exception raised, and the transport was called twice.
 
-- [ ] T011 [P] [US1] Client-level test in `tests/unit/sdk/test_rate_limit_retry.py`: script `[429, 200]` via a mocked `requester`/`sync_requester` (or mocked transport), parametrized across `InfrahubClient` and `InfrahubClientSync`; assert result returned transparently, no exception, exactly two sends. Patch the driver sleep to avoid real waits. (SC-001)
-- [ ] T012 [US1] Confirm the `_request` path (used by `_get`/`_post`/`login`/`refresh_login`) returns non-429 responses untouched and retries a 429 transparently; adjust T007/T008 if the test reveals a gap. (SC-001)
+- [X] T011 [P] [US1] Client-level test in `tests/unit/sdk/test_rate_limit_retry.py`: script `[429, 200]` via a mocked `requester`/`sync_requester` (or mocked transport), parametrized across `InfrahubClient` and `InfrahubClientSync`; assert result returned transparently, no exception, exactly two sends. Patch the driver sleep to avoid real waits. (SC-001)
+- [X] T012 [US1] Confirm the `_request` path (used by `_get`/`_post`/`login`/`refresh_login`) returns non-429 responses untouched and retries a 429 transparently; adjust T007/T008 if the test reveals a gap. (SC-001)
 
 **Checkpoint**: MVP — the SDK transparently rides through a transient 429 on both clients.
 
