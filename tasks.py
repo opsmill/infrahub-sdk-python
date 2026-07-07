@@ -320,8 +320,8 @@ def lint_ruff(context: Context) -> None:
 
 
 @task
-def lint_rumdl(context: Context) -> None:
-    """Run rumdl to check all markdown files."""
+def lint_markdown(context: Context) -> None:
+    """Run the markdown linter to check all markdown files."""
     print(" - Check documentation with rumdl")
     exec_cmd = "rumdl check ."
     with context.cd(MAIN_DIRECTORY_PATH):
@@ -350,7 +350,7 @@ def lint_code(context: Context) -> None:
 @task
 def lint_docs(context: Context) -> None:
     """Run all documentation linters."""
-    lint_rumdl(context)
+    lint_markdown(context)
     lint_vale(context)
 
 
