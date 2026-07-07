@@ -106,11 +106,11 @@ Single-project library: source under `infrahub_sdk/`, tests under `tests/unit/`.
 
 **Purpose**: FR-006 all-paths coverage, the E2/X1 regression guard, changelog, and repo gates.
 
-- [ ] T017 [P] FR-006 all-paths test in `tests/unit/sdk/test_rate_limit_retry.py`: parametrize a `429→200` retry across a regular request, a multipart upload (`_request_multipart`), and streaming initiation (`_get_streaming`), on both clients; assert retry occurs on each. (FR-006)
-- [ ] T018 [P] E2/X1 regression test in `tests/unit/sdk/test_rate_limit_retry.py`: a multipart upload returning `429` then `200` with non-empty file content; capture the body the transport receives per attempt and assert the second attempt carries the full body equal to the first (proves payload rewind/re-materialize). (Critique E2/X1)
-- [ ] T019 [P] Add towncrier changelog fragments in `changelog/`: `1124.added.md` (transparent 429 retry with jittered backoff, `Retry-After` support, four `rate_limit_*` Config fields, new `RateLimitError`) and `1124.changed.md` (a persistent 429 now raises `RateLimitError` after retries exhaust instead of `httpx.HTTPStatusError`; the raw error is available via `__cause__`).
-- [ ] T020 Run `uv run invoke docs-generate` (Config gained public fields) and confirm generated SDK docs update; do not hand-edit generated files.
-- [ ] T021 Run `uv run invoke format lint-code` and `uv run pytest tests/unit/test_rate_limit.py tests/unit/sdk/test_rate_limit_retry.py` — all green (quickstart.md validation).
+- [X] T017 [P] FR-006 all-paths test in `tests/unit/sdk/test_rate_limit_retry.py`: parametrize a `429→200` retry across a regular request, a multipart upload (`_request_multipart`), and streaming initiation (`_get_streaming`), on both clients; assert retry occurs on each. (FR-006)
+- [X] T018 [P] E2/X1 regression test in `tests/unit/sdk/test_rate_limit_retry.py`: a multipart upload returning `429` then `200` with non-empty file content; capture the body the transport receives per attempt and assert the second attempt carries the full body equal to the first (proves payload rewind/re-materialize). (Critique E2/X1)
+- [X] T019 [P] Add towncrier changelog fragments in `changelog/`: `1124.added.md` (transparent 429 retry with jittered backoff, `Retry-After` support, four `rate_limit_*` Config fields, new `RateLimitError`) and `1124.changed.md` (a persistent 429 now raises `RateLimitError` after retries exhaust instead of `httpx.HTTPStatusError`; the raw error is available via `__cause__`).
+- [X] T020 Run `uv run invoke docs-generate` (Config gained public fields) and confirm generated SDK docs update; do not hand-edit generated files.
+- [X] T021 Run `uv run invoke format lint-code` and `uv run pytest tests/unit/test_rate_limit.py tests/unit/sdk/test_rate_limit_retry.py` — all green (quickstart.md validation).
 
 ---
 
