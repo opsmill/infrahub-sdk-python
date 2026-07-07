@@ -464,6 +464,106 @@ async def test_async_sync_parity_on_identical_429_sequence(case: ParityCase, mon
     assert standard["waits"] == pytest.approx(case.expected_waits)
 
 
+# --- Backoff growth and jitter divergence at the driver level --------------------------------
+#
+# Every retry test above pins the wait with a fixed ``Retry-After``, so ``next_delay`` ignores its
+# ``attempt`` argument. A bug that always passed ``attempt=0`` (no exponential growth) would sail
+# through the whole suite. The two tests below drive a persistent 429 with NO ``Retry-After`` so the
+# wait is driven purely by ``compute_backoff(attempt)``, proving the driver hands an incrementing
+# ``attempt`` to ``next_delay`` (growth) and that independent instances jitter differently (SC-003).
+
+
+async def _send_no_header_429s(
+    client_type: str,
+    *,
+    max_retries: int,
+    backoff_base: float,
+    backoff_max: float,
+) -> None:
+    """Drive a persistent, header-less 429 sequence through ``_request`` until the budget is spent.
+
+    Always raises ``RateLimitError`` (the sequence never yields a 200); callers wrap it in
+    ``pytest.raises``. ``backoff_base``/``backoff_max`` are threaded onto the client ``Config`` so
+    the recorded waits equal ``compute_backoff(attempt)`` when jitter is neutralised.
+    """
+    url = "http://mock/graphql/main"
+    request = httpx.Request(method="POST", url=url)
+    requester = ScriptedRequester([httpx.Response(status_code=429, request=request) for _ in range(max_retries + 1)])
+    overrides: dict[str, Any] = {
+        "rate_limit_max_retries": max_retries,
+        "rate_limit_backoff_base": backoff_base,
+        "rate_limit_backoff_max": backoff_max,
+    }
+    if client_type == "standard":
+        config = Config(address="http://mock", requester=requester.async_request, **overrides)
+        await InfrahubClient(config=config)._request(
+            url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={}
+        )
+        return
+    config = Config(address="http://mock", sync_requester=requester.sync_request, **overrides)
+    InfrahubClientSync(config=config)._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_backoff_grows_exponentially_and_clamps(client_type: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Header-less persistent 429s wait on exponential backoff that grows per attempt and clamps.
+
+    Jitter is neutralised (``jittered_delay`` patched to the identity) so each recorded wait equals
+    ``compute_backoff(attempt)``. With ``base=1.0`` and ``max=6.0`` the four retry waits are
+    ``1, 2, 4, 6`` — doubling until the ceiling clamps the last one. This can only hold if the driver
+    passes an incrementing ``attempt`` (0, 1, 2, 3) to ``next_delay``.
+    """
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+    # Identity jitter: the recorded wait is exactly the computed backoff ceiling for that attempt.
+    monkeypatch.setattr(RateLimitRetryHandler, "jittered_delay", lambda _self, ceiling: ceiling)
+
+    max_retries = 4
+    backoff_base = 1.0
+    backoff_max = 6.0
+
+    with pytest.raises(RateLimitError, match="rate-limited"):
+        await _send_no_header_429s(
+            client_type=client_type,
+            max_retries=max_retries,
+            backoff_base=backoff_base,
+            backoff_max=backoff_max,
+        )
+
+    # One wait per retry; base * 2**attempt, doubling then clamped to backoff_max.
+    assert recorded_sleeps == pytest.approx([1.0, 2.0, 4.0, 6.0])
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_jitter_differs_between_instances(client_type: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two independent clients driven through the same header-less 429 sequence jitter differently.
+
+    With real full jitter (``jittered_delay`` NOT patched), the per-retry waits are random draws in
+    ``[0, compute_backoff(attempt)]``. Across four retries an exact match between two independent
+    instances is astronomically unlikely, so at least one position must differ (SC-003).
+    """
+    max_retries = 4
+    backoff_base = 5.0
+    backoff_max = 60.0
+
+    runs: list[list[float]] = []
+    for _ in range(2):
+        recorded_sleeps = _patch_driver_sleep(monkeypatch)
+        with pytest.raises(RateLimitError, match="rate-limited"):
+            await _send_no_header_429s(
+                client_type=client_type,
+                max_retries=max_retries,
+                backoff_base=backoff_base,
+                backoff_max=backoff_max,
+            )
+        runs.append(list(recorded_sleeps))
+
+    first, second = runs
+    # Both instances performed the same number of jittered waits ...
+    assert len(first) == len(second) == max_retries
+    # ... but real full jitter makes at least one recorded wait diverge between the two instances.
+    assert first != second
+
+
 # --- FR-006 / E2/X1: all-paths coverage and multipart body re-read ---------------------------
 #
 # ``_request_multipart`` and ``_get_streaming`` build their own ``httpx`` client and BYPASS the
@@ -599,3 +699,58 @@ async def test_multipart_body_survives_retry(
 
     # Modulo the random per-request boundary, the retried body is byte-for-byte equal to the first.
     assert _multipart_body_without_boundary(requests[0]) == _multipart_body_without_boundary(requests[1])
+
+
+# --- Direct unit test of the multipart rewind helper -----------------------------------------
+#
+# ``test_multipart_body_survives_retry`` above passes even if ``_rewind_multipart_files`` is gutted,
+# because httpx itself rewinds seekable files before sending. This exercises the SDK's own helper
+# directly so a regression that removes its rewind is caught.
+
+
+class RecordingFile:
+    """A minimal seekable file object that records every ``seek`` call (no unittest.mock)."""
+
+    def __init__(self, data: bytes) -> None:
+        self._buffer = io.BytesIO(data)
+        self.seek_calls: list[int] = []
+
+    def read(self) -> bytes:
+        return self._buffer.read()
+
+    def tell(self) -> int:
+        return self._buffer.tell()
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        self.seek_calls.append(offset)
+        return self._buffer.seek(offset, whence)
+
+
+def test_rewind_multipart_files_resets_every_file_object() -> None:
+    """``_rewind_multipart_files`` calls ``seek(0)`` on every file object across the shapes used.
+
+    Covers the ``(filename, fileobj)`` and ``(filename, fileobj, content_type)`` tuple shapes plus a
+    bare file-object value. Each file is advanced to EOF first; after the rewind every file object
+    must be back at position 0. This fails if the helper body is gutted.
+    """
+    two_tuple = RecordingFile(b"two-tuple body")
+    three_tuple = RecordingFile(b"three-tuple body")
+    bare = RecordingFile(b"bare body")
+
+    files: dict[str, Any] = {
+        "two": ("two.bin", two_tuple),
+        "three": ("three.bin", three_tuple, "application/octet-stream"),
+        "bare": bare,
+    }
+
+    # Advance every file to EOF so a missing rewind would leave a consumed/empty stream.
+    for file_obj in (two_tuple, three_tuple, bare):
+        assert file_obj.read() != b""
+        assert file_obj.tell() != 0
+
+    client_module._rewind_multipart_files(files)
+
+    # Every file object was rewound to the start ...
+    for file_obj in (two_tuple, three_tuple, bare):
+        assert file_obj.seek_calls == [0]
+        assert file_obj.tell() == 0

@@ -30,17 +30,19 @@ class RateLimitRetryHandler:
         Anything absent, empty, or unparseable returns ``None`` so the caller falls back to
         computed backoff.
         """
-        if header is None:
-            return None
-
-        value = header.strip()
+        value = header.strip() if header is not None else ""
         if not value:
             return None
 
         # delta-seconds form
         try:
-            return float(int(value))
+            return max(0.0, float(int(value)))
+        except OverflowError:
+            # A pathological, arbitrarily long digit string overflows float(); fall back to
+            # computed backoff rather than crashing.
+            return None
         except ValueError:
+            # Not a delta-seconds integer (e.g. an HTTP-date); fall through to date parsing.
             pass
 
         # HTTP-date form
