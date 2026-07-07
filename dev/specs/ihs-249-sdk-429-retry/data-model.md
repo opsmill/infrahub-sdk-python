@@ -70,3 +70,13 @@ Loop (identical logic both variants, FR-008):
    `raise RateLimitError(url, attempts, last_retry_after) from http_error` (FR-005).
 5. Else compute `delay = handler.next_delay(attempt=attempts-1, retry_after_header=…)`,
    log `WARNING` (url, attempt, delay) (FR-007), sleep `delay`, continue.
+
+**`send` callable contract (critique E2/X1 — Must-Address).** Because `send` is invoked once
+per attempt, it MUST yield a fully-readable request body on every call:
+
+- `_request` (JSON payload): the dict is re-serialized per send — inherently safe.
+- `_request_multipart`: the driver MUST rewind each file object (`seek(0)`) or materialize the
+  body to bytes before each attempt, so a retried upload carries the complete body rather than a
+  stream already consumed to EOF on the first attempt. A regression test asserts the retried
+  upload's body equals the first attempt's body.
+- `_get_streaming` initiation: retried only before any body is read, so no re-read hazard.

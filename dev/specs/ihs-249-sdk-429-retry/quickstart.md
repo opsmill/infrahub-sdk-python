@@ -45,6 +45,11 @@ httpx transport that returns a scripted sequence of responses.
    (`_request`), a multipart upload (`_request_multipart`), and streaming initiation
    (`_get_streaming`); assert retry occurs on each.
 
+7a. **E2/X1 — multipart body survives retry**: script a multipart upload that returns `429` then
+    `200`, using a file payload with non-empty content. Capture the request body the transport
+    receives on each attempt and assert the **second attempt carries the full body** (equal to the
+    first), proving the payload was rewound / re-materialized rather than sent as a consumed stream.
+
 8. **FR-007 — logging**: with `caplog`, assert a `WARNING` record per retry containing the URL,
    attempt number, and delay.
 
