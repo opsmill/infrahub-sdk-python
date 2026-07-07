@@ -16,9 +16,23 @@
 - `_get_streaming` (async ~L1455) is an `@asynccontextmanager` that opens `client.stream(...)`
   directly — it **bypasses `_request`**. Retry must wrap the *initiation* of the stream.
 
+**Sync client is symmetric.** `InfrahubClientSync` (class @ L2053) mirrors the async client
+exactly: `_request` (L3583) is the funnel for `_get`/`_post`/`login`/`refresh_login`, while
+`_request_multipart` (L2343 send) and `_get_streaming` (L3545 send) each build their own
+`httpx.Client` and bypass `_request`. So the same three-send-site treatment applies to **both**
+clients — six send sites total.
+
+**Exhaustive send-site audit.** Enumerating every direct httpx send in `client.py`
+(`client.request` / `client.post` / `client.stream`) yields exactly six call sites — three per
+client, listed above. The many `response.raise_for_status()` lines are response *consumers* that
+run on responses already obtained via those send sites, not new send paths. There is therefore no
+fourth path to cover on either client.
+
 **Rationale**: The PRD assumed a single `_request` chokepoint; the code shows two additional
-send paths. Covering all three is required for FR-006. A shared retry driver that wraps a
-"perform one send, return the response" callable keeps the three call sites uniform.
+send paths per client. Covering all three (on each of the async and sync clients) is required for
+FR-006 and FR-008. A shared retry driver — one async variant (`asyncio.sleep`) and one sync
+variant (`time.sleep`), both consuming the same pure `RateLimitRetryHandler` — wraps a "perform
+one send, return the response" callable so all six call sites behave identically.
 
 **Alternatives considered**:
 
