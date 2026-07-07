@@ -96,7 +96,7 @@ Single-project library: source under `infrahub_sdk/`, tests under `tests/unit/`.
 
 **Independent Test**: With `rate_limit_retry_enabled=False`, a single 429 raises immediately (no wait, one send); with altered `max_retries`/backoff, attempt counts and waits follow config.
 
-- [ ] T016 [P] [US4] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): (a) `rate_limit_retry_enabled=False` → a 429 surfaces the underlying HTTP error immediately, no `RateLimitError`, no wait, one send (SC-006, FR-009); (b) lowered `rate_limit_max_retries` → observed attempt count follows; (c) explicit async/sync parity assertion — same 429 sequence yields identical attempt counts, waits within jitter tolerance, and same error type (SC-005, FR-008).
+- [X] T016 [P] [US4] Client-level tests in `tests/unit/sdk/test_rate_limit_retry.py` (parametrized async+sync): (a) `rate_limit_retry_enabled=False` → a 429 surfaces the underlying HTTP error immediately, no `RateLimitError`, no wait, one send (SC-006, FR-009); (b) lowered `rate_limit_max_retries` → observed attempt count follows; (c) explicit async/sync parity assertion — same 429 sequence yields identical attempt counts, waits within jitter tolerance, and same error type (SC-005, FR-008).
 
 **Checkpoint**: All four user stories independently functional and validated on both clients.
 

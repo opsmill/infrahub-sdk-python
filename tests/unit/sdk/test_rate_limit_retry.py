@@ -309,3 +309,152 @@ async def test_request_exhausts_retries_and_raises_rate_limit_error(
 
     # Retries are logged in order with a monotonically increasing attempt number.
     assert logged_attempts == list(range(1, max_retries + 1))
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_disabled_surfaces_raw_429_without_retry(
+    client_type: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With ``rate_limit_retry_enabled=False`` the driver does ONE send and returns the raw 429.
+
+    The ``_request`` path (the one the existing tests drive) returns the response untouched, so no
+    ``RateLimitError`` is raised and no wait occurs. A higher-level caller that later invokes
+    ``raise_for_status()`` would surface the underlying ``httpx.HTTPStatusError`` (never a
+    ``RateLimitError``); this asserts the driver behaviour directly.
+    """
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    url = "http://mock/graphql/main"
+    requester = ScriptedRequester([httpx.Response(status_code=429)])
+
+    if client_type == "standard":
+        config = Config(address="http://mock", requester=requester.async_request, rate_limit_retry_enabled=False)
+        client = InfrahubClient(config=config)
+        response = await client._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+    else:
+        config = Config(address="http://mock", sync_requester=requester.sync_request, rate_limit_retry_enabled=False)
+        client_sync = InfrahubClientSync(config=config)
+        response = client_sync._request(url=url, method=HTTPMethod.POST, headers={}, timeout=10, payload={})
+
+    # Raw 429 returned untouched: single send, no wait, no RateLimitError.
+    assert response.status_code == 429
+    assert requester.call_count == 1
+    assert recorded_sleeps == []
+
+
+@pytest.mark.parametrize("max_retries", [0, 1, 3])
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_max_retries_controls_attempt_count(
+    client_type: str, max_retries: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A lowered ``rate_limit_max_retries`` bounds the sends: persistent 429 yields ``max_retries + 1``.
+
+    ``max_retries=0`` means no retries — a single 429 send raises ``RateLimitError`` immediately with
+    zero waits.
+    """
+    recorded_sleeps = _patch_driver_sleep(monkeypatch)
+
+    url = "http://mock/graphql/main"
+    request = httpx.Request(method="POST", url=url)
+    requester = ScriptedRequester([httpx.Response(status_code=429, request=request) for _ in range(max_retries + 1)])
+
+    with pytest.raises(RateLimitError, match="rate-limited") as exc_info:
+        await _send_request(client_type=client_type, requester=requester, url=url, max_retries=max_retries)
+
+    assert requester.call_count == max_retries + 1
+    assert exc_info.value.attempts == max_retries + 1
+    # One wait per retry (never on the final, budget-exhausting send).
+    assert len(recorded_sleeps) == max_retries
+
+
+@dataclass
+class ParityCase:
+    """A single 429 sequence driven identically through the async and sync clients.
+
+    ``build_responses`` returns a fresh scripted response list per client so the two runs are
+    independent. Every 429 carries ``Retry-After`` so the honoured waits are deterministic (no
+    jitter), enabling an exact cross-client wait comparison.
+    """
+
+    name: str
+    build_responses: Callable[[httpx.Request], list[httpx.Response]]
+    max_retries: int
+    expected_sends: int
+    expected_waits: list[float]
+    expect_error: bool
+
+
+_PARITY_SUCCESS_PAYLOAD = {"data": {"result": "success"}}
+
+PARITY_CASES = [
+    ParityCase(
+        name="retry-after-then-success",
+        build_responses=lambda request: [
+            httpx.Response(status_code=429, headers={"Retry-After": "5"}, request=request),
+            httpx.Response(status_code=429, headers={"Retry-After": "5"}, request=request),
+            httpx.Response(status_code=200, json=_PARITY_SUCCESS_PAYLOAD),
+        ],
+        max_retries=5,
+        expected_sends=3,
+        expected_waits=[5.0, 5.0],
+        expect_error=False,
+    ),
+    ParityCase(
+        name="retry-after-exhaust",
+        build_responses=lambda request: [
+            httpx.Response(status_code=429, headers={"Retry-After": "5"}, request=request) for _ in range(4)
+        ],
+        max_retries=3,
+        expected_sends=4,
+        expected_waits=[5.0, 5.0, 5.0],
+        expect_error=True,
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in PARITY_CASES])
+async def test_async_sync_parity_on_identical_429_sequence(case: ParityCase, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The same 429 sequence yields identical sends, waits, and outcome across both clients.
+
+    Uses a deterministic ``Retry-After``-driven sequence so waits can be compared exactly (rather
+    than only within jitter tolerance). Asserts identical send counts, matching outcome (same error
+    type or same success status), and identical honoured waits (FR-008 / SC-005).
+    """
+    url = "http://mock/graphql/main"
+    results: dict[str, dict[str, Any]] = {}
+
+    for client_type in CLIENT_TYPES:
+        request = httpx.Request(method="POST", url=url)
+        requester = ScriptedRequester(case.build_responses(request))
+        recorded_sleeps = _patch_driver_sleep(monkeypatch)
+        error_type: type | None = None
+        status: int | None = None
+
+        if case.expect_error:
+            with pytest.raises(RateLimitError, match="rate-limited") as exc_info:
+                await _send_request(client_type=client_type, requester=requester, url=url, max_retries=case.max_retries)
+            error_type = type(exc_info.value)
+        else:
+            response = await _send_request(
+                client_type=client_type, requester=requester, url=url, max_retries=case.max_retries
+            )
+            status = response.status_code
+
+        results[client_type] = {
+            "sends": requester.call_count,
+            "waits": list(recorded_sleeps),
+            "error_type": error_type,
+            "status": status,
+        }
+
+    standard = results["standard"]
+    sync = results["sync"]
+
+    # Identical send counts, matching the expected total.
+    assert standard["sends"] == sync["sends"] == case.expected_sends
+    # Same outcome: same error type (or same success status).
+    assert standard["error_type"] == sync["error_type"]
+    assert standard["status"] == sync["status"]
+    # Deterministic Retry-After waits are identical across clients and equal to the expected values.
+    assert standard["waits"] == pytest.approx(sync["waits"])
+    assert standard["waits"] == pytest.approx(case.expected_waits)
