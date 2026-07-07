@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
     from .context import RequestContext
     from .node.metadata import NodeMetadata
-    from .schema import MainSchemaTypes
+    from .schema import MainSchemaTypesAPI
 
 
 @runtime_checkable
@@ -181,7 +181,7 @@ class AnyAttributeOptional(Attribute):
 
 
 class CoreNodeBase:
-    _schema: MainSchemaTypes
+    _schema: MainSchemaTypesAPI
     _internal_id: str
     id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None
