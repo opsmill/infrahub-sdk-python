@@ -78,6 +78,22 @@ def test_parse_retry_after_malformed_returns_none(header: str | None) -> None:
     assert handler.parse_retry_after(header) is None
 
 
+def test_parse_retry_after_negative_delta_floored_to_zero() -> None:
+    handler = make_handler()
+    # A negative delta-seconds value must floor at 0.0, never a negative wait (which would make
+    # the sync driver's time.sleep raise ValueError while asyncio.sleep would tolerate it).
+    assert handler.parse_retry_after("-5") == pytest.approx(0.0)
+    # ... and the floor propagates through next_delay, so no negative delay ever reaches sleep.
+    assert handler.next_delay(attempt=0, retry_after_header="-5") == pytest.approx(0.0)
+
+
+def test_parse_retry_after_pathological_huge_value_returns_none() -> None:
+    handler = make_handler()
+    # An arbitrarily long digit string overflows float(int(value)); this must fall back to
+    # computed backoff (None) rather than raising OverflowError and crashing the request.
+    assert handler.parse_retry_after("9" * 5000) is None
+
+
 def test_next_delay_honours_retry_after_clamped() -> None:
     handler = make_handler(backoff_max=60.0)
     assert handler.next_delay(attempt=0, retry_after_header="10") == pytest.approx(10.0)
