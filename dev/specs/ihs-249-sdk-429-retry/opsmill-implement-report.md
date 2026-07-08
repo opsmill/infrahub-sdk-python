@@ -14,7 +14,7 @@
 ## 2. Chunk-by-chunk ledger
 
 | # | Chunk (phase) | Tasks | ✅ | ⚠️ | ❌ | Commit | Notes flagged upward |
-|---|---------------|-------|----|----|----|--------|----------------------|
+| --- | --------------- | ------- | ---- | ---- | ---- | -------- | ---------------------- |
 | 1 | Phase 1+2 Setup + Foundational | T001–T010 (10) | 10 | 0 | 0 | `c71238c` | Streaming retry uses `ExitStack`/`AsyncExitStack`; failed 429 stream read+closed, successful stream left open until caller done. Logs only URL/attempt/delay (no secrets). No client tests here (deferred to later chunks). |
 | 2 | Phase 3 US1 | T011, T012 (2) | 2 | 0 | 0 | `ed0457c` | T012 needed no `client.py` change — the `_request` retry + non-429 passthrough already correct. |
 | 3 | Phase 4 US2 | T013 (1) | 1 | 0 | 0 | `32abfd5` | HTTP-date case asserted with an inclusive time window (driver parses against `datetime.now`); fixed-form cases assert exactly. |
@@ -33,7 +33,7 @@ None. All T001–T021 completed and ticked.
 Runner: `uv run pytest`. Environment for every row: **Python 3.12.13, pytest 9.0.3, pytest-httpx 0.36.0, asyncio mode=AUTO, project `.venv` (`uv sync --all-groups --all-extras`); no external infrastructure required** (all tests run locally; no E2E deferred). Rows are grouped by test function; the bracketed count is the number of parametrized variants, all PASSED.
 
 | Test id | Type | Run command | Passed at (ISO 8601) | Env context | Verbatim pass line |
-|---------|------|-------------|----------------------|-------------|--------------------|
+| --------- | ------ | ------------- | ---------------------- | ------------- | -------------------- |
 | `test_rate_limit.py` handler suite (17 tests: compute_backoff growth/clamp, jittered_delay bounds/variance, parse_retry_after delta/http-date/past-zero/malformed×5, next_delay honour/fallback/clamp, should_retry budget×2) | unit (pure) | `uv run pytest tests/unit/test_rate_limit.py tests/unit/sdk/test_rate_limit_retry.py -v` | 2026-07-07T12:20:50Z | as above | `17 passed in 0.02s` |
 | `test_request_retries_429_then_succeeds` [standard, sync] | unit (client) | `uv run pytest tests/unit/sdk/test_rate_limit_retry.py -v` | 2026-07-07T12:24:28Z | as above | `6 passed in 0.02s` |
 | `test_request_passes_non_429_through_untouched` [standard-200, standard-500, sync-200, sync-500] | unit (client) | `uv run pytest tests/unit/sdk/test_rate_limit_retry.py -v` | 2026-07-07T12:24:28Z | as above | `6 passed in 0.02s` |
@@ -58,7 +58,7 @@ Runner: `uv run pytest`. Environment for every row: **Python 3.12.13, pytest 9.0
 Reviewed the full diff `a55cbaa..HEAD` with three independent agents (code correctness + async/sync parity + type design; error handling / silent failures; test coverage quality).
 
 | Severity | File / test | Summary | Disposition |
-|----------|-------------|---------|-------------|
+| ---------- | ------------- | --------- | ------------- |
 | HIGH | `rate_limit.py` `parse_retry_after` | Negative `Retry-After` (e.g. `-5`) not floored → sync `time.sleep(-5.0)` raises `ValueError` (crash) + async/sync divergence; negative leaks into `RateLimitError.retry_after`. | **Fixed inline** (`8917fb9`): floor delta-seconds at `0.0`. |
 | MEDIUM/HIGH | `rate_limit.py` `parse_retry_after` | Pathological huge digit string raises uncaught `OverflowError` (crash); violates FR-004 fall-back. | **Fixed inline** (`8917fb9`): `except OverflowError: return None`, kept `except ValueError: pass` so HTTP-date fall-through still works. |
 | HIGH (test) | `test_rate_limit_retry.py` | SC-003/FR-002 exponential-growth + jitter-divergence unguarded at driver level — a bug pinning `attempt=0` would pass the suite. | **Fixed inline** (`8917fb9`): added `test_backoff_grows_exponentially_and_clamps` (identity-patched jitter → deterministic growth) + `test_jitter_differs_between_instances`, async+sync. |

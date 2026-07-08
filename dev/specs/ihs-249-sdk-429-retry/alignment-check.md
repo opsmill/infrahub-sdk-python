@@ -14,7 +14,7 @@ GitHub issue: opsmill/infrahub-sdk-python#1124. No secondary URLs to fetch.
 
 ## 2. Verdict
 
-**✅ ALIGNED**
+Result: ✅ ALIGNED
 
 `spec.md` faithfully carries every PRD requirement, acceptance criterion, and scope boundary.
 The only additions are an expansion of an existing requirement and the authorized resolution of
@@ -23,7 +23,7 @@ the PRD's explicit open question — neither is drift under the check's definiti
 ## 3. Findings
 
 | Severity | Category | PRD reference | Spec reference | Description |
-|----------|----------|---------------|----------------|-------------|
+| ---------- | ---------- | --------------- | ---------------- | ------------- |
 | ✅ none | missing | FR-001…009 | FR-001…009 | All nine functional requirements present, none dropped or softened (attempt cap, jittered+clamped backoff, Retry-After both forms, malformed fallback, RateLimitError with url/attempts/last-Retry-After, all request paths, per-retry logging, async/sync parity, tune+disable). |
 | ✅ none | missing | Journeys P1–P3, User Stories 1–9 | US1–US4, Edge Cases | P1/P2/P3 journeys map to US1/US2/US3; PRD user story 8 (tune/disable) surfaced as US4. All acceptance scenarios preserved. |
 | ✅ none | missing | SC-001…005 | SC-001…005 | Success criteria carried over with equivalent semantics. |
