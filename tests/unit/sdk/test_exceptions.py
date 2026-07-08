@@ -63,6 +63,14 @@ def test_graphql_error_with_non_dict_entries() -> None:
     assert str(error) == "An error occurred while executing the GraphQL Query: a bare string error"
 
 
+def test_graphql_error_with_non_list_errors() -> None:
+    error = GraphQLError(errors="a single scalar error")  # type: ignore[arg-type]
+
+    assert error.details == [GraphQLErrorDetail(message="a single scalar error")]
+    assert error.codes == []
+    assert str(error) == "An error occurred while executing the GraphQL Query: a single scalar error"
+
+
 def test_graphql_error_with_empty_errors() -> None:
     error = GraphQLError(errors=[])
 

@@ -19,6 +19,9 @@ class GraphQLErrorDetail:
     that the Infrahub server attaches to each error (`extensions.code`,
     `extensions.http_status`, `extensions.data`). They are `None` when the
     server did not provide them.
+
+    The raw `locations` field is intentionally not exposed here; the unparsed
+    entry remains available through the exception's `errors` attribute.
     """
 
     message: str | None = None
