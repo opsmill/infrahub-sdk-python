@@ -6,13 +6,14 @@ fields, the pure decision helper, and the exception.
 ## Config fields (added to `ConfigBase`)
 
 | Field | Type | Default | Meaning | Validation |
-|-------|------|---------|---------|------------|
+| ------- | ------ | --------- | --------- | ------------ |
 | `rate_limit_retry_enabled` | `bool` | `True` | Master on/off switch for 429 retry (FR-009). | — |
 | `rate_limit_max_retries` | `int` | `5` | Max number of *retries* after the initial attempt; total sends = value + 1 (FR-001, SC-004). | `>= 0` |
 | `rate_limit_backoff_base` | `float` | `0.5` | Base interval (seconds) for exponential backoff (FR-002). | `> 0` |
 | `rate_limit_backoff_max` | `float` | `60.0` | Ceiling (seconds) for any single wait, incl. `Retry-After` (FR-002, FR-003). | `> 0` |
 
 Notes:
+
 - Fields live on `ConfigBase` so `Config` and any subclass inherit them.
 - `rate_limit_max_retries = 0` with retry enabled means: one attempt, and a 429 immediately
   raises `RateLimitError` (0 retries) — distinct from disabled, which raises the raw error.
@@ -29,7 +30,7 @@ Owns all decision logic; performs no sleeping and no network I/O.
 **Behaviour**:
 
 | Method | Signature (conceptual) | Returns | Rules |
-|--------|------------------------|---------|-------|
+| -------- | ------------------------ | --------- | ------- |
 | `parse_retry_after` | `(header: str \| None, *, now=…) -> float \| None` | seconds, or `None` | delta-seconds → `int`; HTTP-date → `(date-now).total_seconds()` floored at 0; malformed/absent → `None` (FR-003, FR-004, past-date edge case). |
 | `compute_backoff` | `(attempt: int) -> float` | ceiling seconds | `min(backoff_max, backoff_base * 2**attempt)` — the deterministic exponential ceiling (used for assertions in SC-003). |
 | `jittered_delay` | `(ceiling: float) -> float` | seconds | `random.uniform(0, ceiling)` — full jitter (FR-002, SC-003). |
@@ -43,7 +44,7 @@ Owns all decision logic; performs no sleeping and no network I/O.
 Subclass of the existing base `Error`.
 
 | Attribute | Type | Meaning |
-|-----------|------|---------|
+| ----------- | ------ | --------- |
 | `url` | `str` | The request URL that kept getting rate-limited (FR-005). |
 | `attempts` | `int` | Total attempts made before giving up (= `max_retries + 1`). |
 | `retry_after` | `float \| None` | The last `Retry-After` value observed (parsed seconds), or `None`. |

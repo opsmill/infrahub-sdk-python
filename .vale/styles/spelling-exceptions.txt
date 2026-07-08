@@ -8,6 +8,7 @@ artifact_definitions
 artifact_name
 async
 Authentik
+backoff
 boolean
 check_definitions
 class_name
