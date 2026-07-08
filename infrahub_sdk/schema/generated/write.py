@@ -506,6 +506,10 @@ class BaseNodeSchemaWrite(BaseModel):
         description="Node Relationships",
     )
 
+    @property
+    def kind(self) -> str:
+        return f"{self.namespace}{self.name}"
+
 
 class NodeSchemaWrite(BaseNodeSchemaWrite):
     model_config = ConfigDict(extra="forbid", use_enum_values=True)
