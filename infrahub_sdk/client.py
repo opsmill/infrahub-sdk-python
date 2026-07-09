@@ -1509,8 +1509,10 @@ class InfrahubClient(BaseClient):
                     client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
                 )
                 if response.status_code == 429:
-                    await response.aread()
-                    await stack.aclose()
+                    try:
+                        await response.aread()
+                    finally:
+                        await stack.aclose()
                 else:
                     open_stream["stack"] = stack
                 return response
@@ -1565,11 +1567,17 @@ class InfrahubClient(BaseClient):
             retry_after_header = response.headers.get("Retry-After")
             last_retry_after = handler.parse_retry_after(retry_after_header)
             if not handler.should_retry(attempts_made=attempts):
+                cause: httpx.HTTPStatusError | None = None
                 try:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
-                    raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from exc
-                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after)
+                    cause = exc
+                except RuntimeError:
+                    # A response without an attached request (e.g. a custom requester or a
+                    # fabricated response) makes raise_for_status() raise RuntimeError rather than
+                    # HTTPStatusError; still surface RateLimitError, just without a chained cause.
+                    pass
+                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from cause
 
             delay = handler.next_delay(attempt=attempts - 1, retry_after_header=retry_after_header)
             self.log.warning(f"Rate limited (HTTP 429) on {url}, retry {attempts} in {delay:.2f}s")
@@ -3653,8 +3661,10 @@ class InfrahubClientSync(BaseClient):
                     client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
                 )
                 if response.status_code == 429:
-                    response.read()
-                    stack.close()
+                    try:
+                        response.read()
+                    finally:
+                        stack.close()
                 else:
                     open_stream["stack"] = stack
                 return response
@@ -3738,11 +3748,17 @@ class InfrahubClientSync(BaseClient):
             retry_after_header = response.headers.get("Retry-After")
             last_retry_after = handler.parse_retry_after(retry_after_header)
             if not handler.should_retry(attempts_made=attempts):
+                cause: httpx.HTTPStatusError | None = None
                 try:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as exc:
-                    raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from exc
-                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after)
+                    cause = exc
+                except RuntimeError:
+                    # A response without an attached request (e.g. a custom requester or a
+                    # fabricated response) makes raise_for_status() raise RuntimeError rather than
+                    # HTTPStatusError; still surface RateLimitError, just without a chained cause.
+                    pass
+                raise RateLimitError(url=url, attempts=attempts, retry_after=last_retry_after) from cause
 
             delay = handler.next_delay(attempt=attempts - 1, retry_after_header=retry_after_header)
             self.log.warning(f"Rate limited (HTTP 429) on {url}, retry {attempts} in {delay:.2f}s")
