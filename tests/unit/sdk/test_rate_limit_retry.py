@@ -316,6 +316,33 @@ async def test_request_exhausts_retries_and_raises_rate_limit_error(
 
 
 @pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_request_exhausts_raises_rate_limit_error_when_response_has_no_request(
+    client_type: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exhaustion still raises ``RateLimitError`` when the 429 response carries no ``request``.
+
+    A custom ``requester`` may return a response without an attached ``request``; on that
+    response ``raise_for_status()`` raises ``RuntimeError`` rather than ``httpx.HTTPStatusError``.
+    The driver must still surface ``RateLimitError`` (never leak the ``RuntimeError``); with no
+    chainable transport error, ``__cause__`` is ``None``.
+    """
+    _patch_driver_sleep(monkeypatch)
+
+    max_retries = 2
+    url = "http://mock/graphql/main"
+    # No ``request=`` attached, mimicking a hand-built response from a custom requester.
+    requester = ScriptedRequester([httpx.Response(status_code=429) for _ in range(max_retries + 1)])
+
+    with pytest.raises(RateLimitError, match="rate-limited") as exc_info:
+        await _send_request(client_type=client_type, requester=requester, url=url, max_retries=max_retries)
+
+    err = exc_info.value
+    assert requester.call_count == max_retries + 1
+    assert err.attempts == max_retries + 1
+    assert err.__cause__ is None
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
 async def test_request_disabled_surfaces_raw_429_without_retry(
     client_type: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

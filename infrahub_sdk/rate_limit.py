@@ -62,8 +62,14 @@ class RateLimitRetryHandler:
         return max(0.0, delta)
 
     def compute_backoff(self, attempt: int) -> float:
-        """Deterministic exponential ceiling: ``min(backoff_max, backoff_base * 2**attempt)``."""
-        return min(self.backoff_max, self.backoff_base * (2**attempt))
+        """Deterministic exponential ceiling: ``min(backoff_max, backoff_base * 2**attempt)``.
+
+        ``attempt`` is capped before exponentiation: ``2**attempt`` for a large ``attempt``
+        (reachable via a very high ``rate_limit_max_retries``) would overflow the float
+        conversion in the multiply before the ``min`` clamp could run. ``2**63`` already dwarfs
+        any realistic ``backoff_max`` (seconds), so capping there always yields the clamp.
+        """
+        return min(self.backoff_max, self.backoff_base * (2 ** min(attempt, 63)))
 
     def jittered_delay(self, ceiling: float) -> float:
         """Full jitter: ``random.uniform(0, ceiling)``."""
@@ -78,7 +84,9 @@ class RateLimitRetryHandler:
         retry_after = self.parse_retry_after(retry_after_header, now=now)
         if retry_after is not None:
             return min(retry_after, self.backoff_max)
-        return min(self.jittered_delay(self.compute_backoff(attempt)), self.backoff_max)
+        # compute_backoff already clamps to backoff_max and jittered_delay(ceiling) <= ceiling,
+        # so the result is inherently within [0, backoff_max]; no further clamp is needed.
+        return self.jittered_delay(self.compute_backoff(attempt))
 
     def should_retry(self, attempts_made: int) -> bool:
         """Return ``True`` while retries remain (``attempts_made <= max_retries``)."""
