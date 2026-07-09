@@ -343,6 +343,42 @@ async def test_cardinality_many_accepts_list(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_assignment_requires_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Assigning a single node to a cardinality-many relationship must fail at assignment time.
+
+    Previously this was silently accepted and only blew up later in save() with a confusing
+    "'InfrahubNode' object has no attribute 'initialized'" error.
+    """
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+
+    with pytest.raises(ValueError, match=r"expects a list of nodes"):
+        node.tags = {"id": "pppppppp"}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_assignment_accepts_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Assigning a list to a cardinality-many relationship populates the manager and marks it updated."""
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+
+    node.tags = [{"id": "aaaaaa"}, {"id": "bbbb"}]
+
+    assert isinstance(node.tags, RelationshipManagerBase)
+    assert node.tags.peer_ids == ["aaaaaa", "bbbb"]
+    # has_update must be set so save() actually persists the assignment instead of stripping it.
+    assert node.tags.has_update is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_query_data_no_filters_property(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
