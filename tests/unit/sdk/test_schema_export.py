@@ -13,6 +13,7 @@ from infrahub_sdk.schema import (
     SchemaExport,
     TemplateSchemaAPI,
 )
+from infrahub_sdk.schema.export import schema_to_export_dict
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -189,6 +190,25 @@ class TestBuildExportSchemas:
         assert isinstance(as_dict["Infra"], dict)
         assert len(as_dict["Infra"]["nodes"]) == 1
         assert len(as_dict["Infra"]["generics"]) == 1
+
+
+def test_export_preserves_non_default_ordered_flag() -> None:
+    """`ordered: false` survives the fetch -> export round-trip; the default `true` is omitted."""
+    node = NodeSchemaAPI(
+        **{
+            **_BASE_NODE,
+            "namespace": "Infra",
+            "name": "Device",
+            "attributes": [
+                {"name": "tags_unordered", "kind": "List", "ordered": False},
+                {"name": "tags_ordered", "kind": "List"},
+            ],
+        }
+    )
+    exported = schema_to_export_dict(node)
+    attrs = {attr["name"]: attr for attr in exported["attributes"]}
+    assert attrs["tags_unordered"]["ordered"] is False
+    assert "ordered" not in attrs["tags_ordered"]
 
 
 # ---------------------------------------------------------------------------

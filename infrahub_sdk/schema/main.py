@@ -111,6 +111,7 @@ class AttributeSchema(BaseModel):
     min_length: int | None = None
     regex: str | None = None
     order_weight: int | None = None
+    ordered: bool = True
 
 
 class AttributeSchemaAPI(AttributeSchema):
