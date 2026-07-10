@@ -40,24 +40,88 @@ class NodeStoreBranch:
         self._hfids: dict[str, dict[tuple, str]] = {}
         self._keys: dict[str, str] = {}
         self._uuids: dict[str, str] = {}
+        # The timestamp context this branch cache holds data for: None means live data,
+        # a timestamp string means every entry was fetched at that point in time. Set on
+        # first population; queries at a different timestamp must not blend in (see
+        # NodeStoreBase._reserve_at_context).
+        self._at_context: str | None = None
+        self._has_at_context: bool = False
+        # Reverse indexes so set()/_evict() never scan the forward indexes. Both are
+        # keyed by internal id: which (kind, hfid) entries and which custom keys point
+        # at that object. set() is the hottest path in the SDK (every fetched node and
+        # every related node goes through it), so it must stay O(1) per call.
+        self._hfids_by_internal_id: dict[str, list[tuple[str, tuple]]] = {}
+        self._keys_by_internal_id: dict[str, set[str]] = {}
 
     def count(self) -> int:
         return len(self._objs)
 
-    def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
+    def set(
+        self,
+        node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        key: str | None = None,
+        merge: bool = True,
+    ) -> None:
+        if node.id and node.id in self._uuids:
+            existing = self._objs.get(self._uuids[node.id])
+            if existing is not None and existing is not node:
+                if merge and existing.get_kind() == node.get_kind():
+                    # Merge into the existing object and keep its internal id so every
+                    # reference already handed out by the store stays current.
+                    existing._merge(node)
+                    node = existing
+                else:
+                    # Replace wholesale: explicit merge=False, or the node was converted
+                    # to another kind (merging across two schemas is incoherent).
+                    self._evict(existing, replacement_internal_id=node._internal_id)
+
+        # The hfid may have changed if one of its component attributes was refreshed;
+        # drop the entries registered for this object before re-registering below.
+        self._discard_hfid_entries(internal_id=node._internal_id)
+
         self._objs[node._internal_id] = node
 
         if key:
-            self._keys[key] = node._internal_id
+            self._set_key(key=key, internal_id=node._internal_id)
 
         if node.id:
             self._uuids[node.id] = node._internal_id
 
         if hfid := node.get_human_friendly_id():
+            hfid_key = tuple(hfid)
+            registered: list[tuple[str, tuple]] = []
             for kind in node.get_all_kinds():
                 if kind not in self._hfids:
                     self._hfids[kind] = {}
-                self._hfids[kind][tuple(hfid)] = node._internal_id
+                self._hfids[kind][hfid_key] = node._internal_id
+                registered.append((kind, hfid_key))
+            self._hfids_by_internal_id[node._internal_id] = registered
+
+    def _set_key(self, key: str, internal_id: str) -> None:
+        previous_internal_id = self._keys.get(key)
+        if previous_internal_id is not None and previous_internal_id != internal_id:
+            previous_keys = self._keys_by_internal_id.get(previous_internal_id)
+            if previous_keys is not None:
+                previous_keys.discard(key)
+        self._keys[key] = internal_id
+        self._keys_by_internal_id.setdefault(internal_id, set()).add(key)
+
+    def _evict(
+        self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, replacement_internal_id: str
+    ) -> None:
+        """Remove a stored node and repoint its custom keys at the node replacing it."""
+        self._objs.pop(node._internal_id, None)
+        self._discard_hfid_entries(internal_id=node._internal_id)
+        for custom_key in self._keys_by_internal_id.pop(node._internal_id, set()):
+            self._set_key(key=custom_key, internal_id=replacement_internal_id)
+
+    def _discard_hfid_entries(self, internal_id: str) -> None:
+        for kind, hfid_key in self._hfids_by_internal_id.pop(internal_id, []):
+            entries = self._hfids.get(kind)
+            # Only drop the entry if it still points at this object: another node may
+            # have claimed the same hfid since it was registered.
+            if entries is not None and entries.get(hfid_key) == internal_id:
+                del entries[hfid_key]
 
     def get(
         self,
@@ -204,7 +268,7 @@ class NodeStoreBase:
     we need to save them in order to reuse them later to associate them with another node for example.
     """
 
-    def __init__(self, default_branch: str | None = None) -> None:
+    def __init__(self, default_branch: str | None = None, default_merge: bool = True) -> None:
         self._branches: dict[str, NodeStoreBranch] = {}
 
         if default_branch is None:
@@ -217,22 +281,59 @@ class NodeStoreBase:
             )
 
         self._default_branch = default_branch
+        self._default_merge = default_merge
 
     def _get_branch(self, branch: str | None = None) -> str:
         return branch or self._default_branch
+
+    def _reserve_at_context(self, at: str | None, branch: str | None = None) -> bool:
+        """Return whether a query at the given timestamp may populate this branch cache.
+
+        The store is a per-field freshness cache and holds exactly one timestamp
+        context per branch: live data (``at is None``) or one point in time. The first
+        population stamps the context; later populations at the same timestamp merge as
+        usual, so a script that runs all its queries at one ``at`` gets full store
+        functionality. A mismatching timestamp must not blend in: the query is refused
+        (the caller skips population) and a warning is emitted, since the resulting
+        cache would silently mix data from different points in time.
+        """
+        branch = self._get_branch(branch)
+        if branch not in self._branches:
+            self._branches[branch] = NodeStoreBranch(name=branch)
+        store_branch = self._branches[branch]
+
+        if not store_branch._has_at_context:
+            store_branch._at_context = at
+            store_branch._has_at_context = True
+            return True
+        if store_branch._at_context == at:
+            return True
+
+        def describe(context: str | None) -> str:
+            return "live data" if context is None else f"data fetched at {context}"
+
+        warnings.warn(
+            f"Not populating the store for this query: the store for branch {branch!r} holds "
+            f"{describe(store_branch._at_context)} and this query uses {describe(at)}. Mixing "
+            "timestamps in the store would blend inconsistent data. Use a separate client "
+            "(client.clone()) for a different timestamp, or pass populate_store=False.",
+            stacklevel=4,
+        )
+        return False
 
     def _set(
         self,
         node: InfrahubNode | InfrahubNodeSync | SchemaType | SchemaTypeSync,
         key: str | None = None,
         branch: str | None = None,
+        merge: bool | None = None,
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
 
         if branch not in self._branches:
             self._branches[branch] = NodeStoreBranch(name=branch)
 
-        self._branches[branch].set(node=node, key=key)
+        self._branches[branch].set(node=node, key=key, merge=self._default_merge if merge is None else merge)
 
     def _get(  # type: ignore[no-untyped-def]
         self,
@@ -341,8 +442,33 @@ class NodeStore(NodeStoreBase):
         )
         return self.get(key=key, raise_when_missing=raise_when_missing, branch=branch)
 
-    def set(self, node: InfrahubNode | SchemaType, key: str | None = None, branch: str | None = None) -> None:
-        return self._set(node=node, key=key, branch=branch)
+    def set(
+        self,
+        node: InfrahubNode | SchemaType,
+        key: str | None = None,
+        branch: str | None = None,
+        merge: bool | None = None,
+    ) -> None:
+        """Add a node to the store, merging it into any node already stored under the same UUID.
+
+        By default (``merge=None`` with the client's ``store_merge`` config left at
+        ``True``), a node whose UUID is already present is merged into the existing
+        object field by field: fields carried by ``node`` overwrite the stored ones,
+        fields it does not carry keep their stored value, and unsaved local edits on the
+        stored object win. Pass ``merge=False`` to drop all prior knowledge of the node
+        and store exactly this object instead.
+
+        Args:
+            node (InfrahubNode): The node to store.
+            key (str, optional): A custom key to also index the node under.
+            branch (str, optional): The branch to store the node in. Defaults to the
+                node's own branch.
+            merge (bool, optional): Whether to merge into an existing entry for the same
+                UUID (``True``) or replace it wholesale (``False``). Defaults to the
+                client's ``store_merge`` configuration (merge).
+
+        """
+        return self._set(node=node, key=key, branch=branch, merge=merge)
 
 
 class NodeStoreSync(NodeStoreBase):
@@ -429,5 +555,30 @@ class NodeStoreSync(NodeStoreBase):
         )
         return self.get(key=key, raise_when_missing=raise_when_missing, branch=branch)
 
-    def set(self, node: InfrahubNodeSync | SchemaTypeSync, key: str | None = None, branch: str | None = None) -> None:
-        return self._set(node=node, key=key, branch=branch)
+    def set(
+        self,
+        node: InfrahubNodeSync | SchemaTypeSync,
+        key: str | None = None,
+        branch: str | None = None,
+        merge: bool | None = None,
+    ) -> None:
+        """Add a node to the store, merging it into any node already stored under the same UUID.
+
+        By default (``merge=None`` with the client's ``store_merge`` config left at
+        ``True``), a node whose UUID is already present is merged into the existing
+        object field by field: fields carried by ``node`` overwrite the stored ones,
+        fields it does not carry keep their stored value, and unsaved local edits on the
+        stored object win. Pass ``merge=False`` to drop all prior knowledge of the node
+        and store exactly this object instead.
+
+        Args:
+            node (InfrahubNodeSync): The node to store.
+            key (str, optional): A custom key to also index the node under.
+            branch (str, optional): The branch to store the node in. Defaults to the
+                node's own branch.
+            merge (bool, optional): Whether to merge into an existing entry for the same
+                UUID (``True``) or replace it wholesale (``False``). Defaults to the
+                client's ``store_merge`` configuration (merge).
+
+        """
+        return self._set(node=node, key=key, branch=branch, merge=merge)

@@ -136,6 +136,13 @@ The following settings can be defined in the `Config` class
 **Default value**: 60<br />
 **Environment variable**: `INFRAHUB_SCHEMA_CONVERGE_TIMEOUT`<br />
 <!-- vale off -->
+## store_merge
+<!-- vale on -->
+**Description**: When True, re-querying a node already in the client store updates only the fields that were fetched and preserves previously fetched attributes and relationships. When False, the latest query fully replaces the stored node, which can drop data fetched by earlier queries (the pre-1.23.0 behaviour).<br />
+**Type**: `boolean`<br />
+**Default value**: True<br />
+**Environment variable**: `INFRAHUB_STORE_MERGE`<br />
+<!-- vale off -->
 ## timeout
 <!-- vale on -->
 **Description**: Default connection timeout in seconds<br />

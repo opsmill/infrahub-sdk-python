@@ -7,6 +7,7 @@ from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
+from ..utils import intern_frozenset
 from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
 
@@ -36,10 +37,29 @@ class RelatedNodeBase:
         schema (RelationshipSchemaAPI): The schema describing the relationship.
         name (str | None): The name of the relationship slot on the parent node.
         updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
+        is_fetched (bool): True when this relationship was present in the response the
+            node was built from. Unlike ``initialized`` (which means "has a peer"), this
+            is also True for a fetched-but-empty relationship, so the client store can
+            distinguish "cleared on the server" from "not queried".
 
     """
 
-    def __init__(self, branch: str, schema: RelationshipSchemaAPI, data: Any | dict, name: str | None = None) -> None:
+    # Relationship-edge properties, assigned dynamically in _init_properties from
+    # PROPERTIES_FLAG / PROPERTIES_OBJECT; declared here so they are part of the
+    # visible class surface.
+    is_protected: bool | None
+    updated_at: str | None
+    source: str | None
+    owner: str | None
+
+    def __init__(
+        self,
+        branch: str,
+        schema: RelationshipSchemaAPI,
+        data: Any | dict,
+        name: str | None = None,
+        is_fetched: bool | None = None,
+    ) -> None:
         """Build a ``RelatedNodeBase`` from raw data.
 
         Args:
@@ -49,6 +69,10 @@ class RelatedNodeBase:
                 :class:`CoreNodeBase` instance, a list (treated as an HFID), a string
                 (treated as an ID), or a dict in either paginated or flat GraphQL format.
             name (str, optional): The name of the relationship slot on the parent node.
+            is_fetched (bool, optional): Whether this relationship was present in the
+                response the node was built from. ``InfrahubNodeBase._init_relationships``
+                passes the real key-presence signal so a fetched-but-empty relationship
+                still reads as fetched; when omitted it is inferred from ``data``.
 
         """
         self.schema = schema
@@ -59,6 +83,11 @@ class RelatedNodeBase:
         self._properties_flag = PROPERTIES_FLAG
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
+
+        self.is_fetched: bool = data is not None if is_fetched is None else is_fetched
+        # Relationship-edge properties carried by the response, consumed by _merge() so a
+        # re-fetch without properties does not null out previously fetched ones.
+        self._fetched_properties: frozenset[str] = frozenset()
 
         self._peer: InfrahubNodeBase | CoreNodeBase | None = None
         self._id: str | None = None
@@ -107,20 +136,27 @@ class RelatedNodeBase:
             if self._typename and self._typename.startswith("Related"):
                 self._typename = self._typename[7:]
 
-            for prop in self._properties:
-                prop_data = properties_data.get(prop, properties_data.get(f"_relation__{prop}", None))
-                if prop_data and isinstance(prop_data, dict) and "id" in prop_data:
-                    setattr(self, prop, prop_data["id"])
-                    if prop == "source" and "__typename" in prop_data:
-                        self._source_typename = prop_data["__typename"]
-                elif prop_data and isinstance(prop_data, (str, bool)):
-                    setattr(self, prop, prop_data)
-                else:
-                    setattr(self, prop, None)
+            self._init_properties(properties_data)
 
             # Parse relationship metadata (at edge level)
             if data.get("relationship_metadata"):
                 self._relationship_metadata = RelationshipMetadata(data["relationship_metadata"])
+
+    def _init_properties(self, properties_data: dict) -> None:
+        self._fetched_properties = intern_frozenset(
+            prop for prop in self._properties if prop in properties_data or f"_relation__{prop}" in properties_data
+        )
+
+        for prop in self._properties:
+            prop_data = properties_data.get(prop, properties_data.get(f"_relation__{prop}"))
+            if prop_data and isinstance(prop_data, dict) and "id" in prop_data:
+                setattr(self, prop, prop_data["id"])
+                if prop == "source" and "__typename" in prop_data:
+                    self._source_typename = prop_data["__typename"]
+            elif prop_data and isinstance(prop_data, (str, bool)):
+                setattr(self, prop, prop_data)
+            else:
+                setattr(self, prop, None)
 
     @property
     def id(self) -> str | None:
@@ -251,6 +287,58 @@ class RelatedNodeBase:
         """
         return self._relationship_metadata
 
+    def _merge(self, incoming: RelatedNodeBase) -> None:
+        """Merge a fresher copy of this relationship into this one.
+
+        Which peer the relationship points at always refreshes (even to no peer, so a
+        cleared relationship or a move-to-root is reflected). A changed peer means a
+        different relationship edge, so the incoming edge is taken wholesale,
+        properties included. When the peer stays the same, its descriptive identity
+        fields (hfid, display label, typename, kind) and the edge properties are only
+        overwritten when the incoming fetch actually carried them, so a narrow payload
+        does not null out previously fetched data. An incoming unsaved edit keeps its
+        pending-mutation marker. Callers are responsible for the higher-level gates
+        (``is_fetched`` on the incoming relationship, ``_peer_has_been_mutated`` on
+        this one).
+        """
+        # An hfid-only relationship (no id on either side) changes peer when the hfid does.
+        peer_changed = incoming._id != self._id or (incoming._id is None and incoming._hfid != self._hfid)
+        if peer_changed:
+            self._peer = incoming._peer
+            self._id = incoming._id
+            self._hfid = incoming._hfid
+            self._display_label = incoming._display_label
+            self._typename = incoming._typename
+            self._kind = incoming._kind
+            # The stored properties and metadata described the edge to the old peer;
+            # they must not survive onto the new edge.
+            for prop in self._properties:
+                setattr(self, prop, getattr(incoming, prop))
+            self._source_typename = incoming._source_typename
+            self._relationship_metadata = incoming._relationship_metadata
+            self._fetched_properties = incoming._fetched_properties
+        else:
+            if incoming._peer is not None:
+                self._peer = incoming._peer
+            if incoming._hfid is not None:
+                self._hfid = incoming._hfid
+            if incoming._display_label is not None:
+                self._display_label = incoming._display_label
+            if incoming._typename is not None:
+                self._typename = incoming._typename
+            if incoming._kind is not None:
+                self._kind = incoming._kind
+            for prop in self._properties:
+                if prop in incoming._fetched_properties:
+                    setattr(self, prop, getattr(incoming, prop))
+                    if prop == "source":
+                        self._source_typename = incoming._source_typename
+            if incoming._relationship_metadata is not None:
+                self._relationship_metadata = incoming._relationship_metadata
+            self._fetched_properties = intern_frozenset(self._fetched_properties | incoming._fetched_properties)
+        self.is_fetched = True
+        self._peer_has_been_mutated = incoming._peer_has_been_mutated
+
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
 
@@ -333,6 +421,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
         name: str | None = None,
+        is_fetched: bool | None = None,
     ) -> None:
         """Initialize the async related node.
 
@@ -342,10 +431,12 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Data representing the related node.
             name (Optional[str]): The name of the related node.
+            is_fetched (Optional[bool]): Whether the relationship was present in the response
+                the node was built from. Inferred from ``data`` when omitted.
 
         """
         self._client = client
-        super().__init__(branch=branch, schema=schema, data=data, name=name)
+        super().__init__(branch=branch, schema=schema, data=data, name=name, is_fetched=is_fetched)
 
     async def fetch(self, timeout: int | None = None) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
@@ -429,6 +520,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
         name: str | None = None,
+        is_fetched: bool | None = None,
     ) -> None:
         """Initialize the sync related node.
 
@@ -438,10 +530,12 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Data representing the related node.
             name (Optional[str]): The name of the related node.
+            is_fetched (Optional[bool]): Whether the relationship was present in the response
+                the node was built from. Inferred from ``data`` when omitted.
 
         """
         self._client = client
-        super().__init__(branch=branch, schema=schema, data=data, name=name)
+        super().__init__(branch=branch, schema=schema, data=data, name=name, is_fetched=is_fetched)
 
     def fetch(self, timeout: int | None = None) -> None:
         """Fetch the full peer node from the backend and cache it on this object.

@@ -12,6 +12,72 @@ The store is mainly used for the internal working of the SDK. It is used to crea
 
 The store stores objects that we are retrieving from Infrahub using the different query methods. This allows to not have to keep references to objects throughout scripts, or avoids situations where we have to re-execute queries.
 
+## What the store guarantees
+
+The store keeps, per field, the freshest value the SDK has seen. Re-querying a node merges the new data into the stored node; it does not replace the cached node wholesale. The store is a per-field freshness cache, not a point-in-time snapshot: a single stored node can hold data collected by several queries.
+
+:::warning Behaviour change in version 1.23.0
+
+Before SDK 1.23.0, every query fully replaced the stored node, so a shallow re-fetch could silently drop attributes or relationships that an earlier, deeper query had loaded. Since 1.23.0 the store merges instead. See [forcing a clean replace](#forcing-a-clean-replace) to restore the previous behaviour.
+
+:::
+
+The merge works field by field, for attributes and relationships alike:
+
+- A field that was part of the query overwrites the stored value, even when the new value is empty or `None`. A relationship cleared on the server, or an attribute set back to `None`, is reflected after a re-fetch that includes it.
+- A field that was not part of the query keeps its stored value. Fetching a node with a subset of its attributes never erases what an earlier query loaded.
+- A re-fetched relationship of cardinality many replaces its full member list, so a peer removed on the server is dropped from the store.
+- Local unsaved edits win: if you modified an attribute or assigned a relationship in memory and did not save yet, a re-fetch of the same node does not discard your changes.
+
+This makes re-collecting the same information safe and idempotent: it refreshes what you fetched and never drops what you did not.
+
+Consider a deep fetch followed by a shallow one:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  interface = await client.get(
+      "InfraInterface", name__value="Ethernet6", prefetch_relationships=True
+  )
+  # A later query returns the same interface as a related node, without its relationships
+  await client.all("InfraCircuitEndpoint", prefetch_relationships=True)
+
+  # The device relationship loaded by the first query is still there
+  device = client.store.get(key=interface.id).device.peer
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  interface = client.get(
+      "InfraInterface", name__value="Ethernet6", prefetch_relationships=True
+  )
+  # A later query returns the same interface as a related node, without its relationships
+  client.all("InfraCircuitEndpoint", prefetch_relationships=True)
+
+  # The device relationship loaded by the first query is still there
+  device = client.store.get(key=interface.id).device.peer
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Returned objects compared to stored objects
+
+Queries hand you what you asked for; the store remembers the union of everything it has seen. The object returned by `get`, `filters` or `all` reflects only that query, while `store.get()` returns the merged view, so the two can differ. They compare equal (`==`, equality is based on the node id) but they are not the same Python object (`is`).
+
+### The store hands out living objects
+
+The store keeps one object per node and mutates it in place when new data arrives. Every `store.get()` call for the same node returns the same object, and a later query that re-fetches the node refreshes the object that earlier references already point at. If you need a snapshot that does not change under you, keep the object returned by the query instead of the store copy.
+
+One exception: a relationship peer resolved with `fetch()` or assigned directly is cached on the relationship itself and does not pick up later store merges.
+
+### Staleness caveat
+
+A merged value is only as fresh as the last query that fetched it. The store does not track when each individual field was fetched: within its timestamp context (see below), it always represents the latest data seen per branch.
+
 Objects are stored in the following scenario:
 
 - The resulting objects from using the SDK client's `get`, `filters` or `all` methods
@@ -139,6 +205,8 @@ You can retrieve objects from the store using their `id` or `hfid`. When using t
 
 You can store objects in the store manually using the `set` method. This has the advantage that you can choose a key that you want to use to reference the object in the store, besides the `id` or `hfid`. For example, we could use the name attribute value of the node as the key.
 
+Like the query methods, `set` merges by default: if a node with the same `id` is already in the store, the object you pass is merged into the existing entry instead of replacing it. Pass `merge=False` to store the object verbatim and drop what the store previously knew about that node.
+
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
@@ -165,6 +233,61 @@ You can store objects in the store manually using the `set` method. This has the
 
   </TabItem>
 </Tabs>
+
+## Forcing a clean replace
+
+A merge can never *forget* a field that was cached earlier but not re-fetched. For example, to observe that a relationship no longer exists when your refresh query did not select it, the merged entry is not enough. For those cases you can force a clean replace, which drops all prior knowledge of the node and stores exactly what the query fetched.
+
+The replace behaviour is available at three levels:
+
+- Per query, with the `merge` argument on `get`, `filters` and `all`.
+- Per store write, with the `merge` argument on `store.set()`.
+- Globally, with the `store_merge` configuration option (or the `INFRAHUB_STORE_MERGE` environment variable), which restores the pre-1.23.0 replace-everything behaviour for the whole client.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  # Per query
+  tag = await client.get(kind="BuiltinTag", name__value="RED", merge=False)
+
+  # Per store write
+  client.store.set(node=tag, merge=False)
+
+  # Globally
+  client = InfrahubClient(config=Config(store_merge=False))
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  # Per query
+  tag = client.get(kind="BuiltinTag", name__value="RED", merge=False)
+
+  # Per store write
+  client.store.set(node=tag, merge=False)
+
+  # Globally
+  client = InfrahubClientSync(config=Config(store_merge=False))
+  ```
+
+  </TabItem>
+</Tabs>
+
+## Historical queries and the store
+
+The store holds one timestamp context per branch: live data, or one `at` point in time. The first query that populates a branch stamps its context, and every later query at the same timestamp uses the store normally - a script that runs all of its queries at one `at` gets the full store behaviour, including merging and relationship peer resolution.
+
+A query whose timestamp does not match the branch context (a historical query against a live cache, a live query against a historical cache, or two different `at` values) does not populate the store: the query still returns its results, but the SDK emits a warning and leaves the store untouched, because blending data from different points in time into one cache would silently produce inconsistent nodes. If you need both contexts, use a dedicated client per timestamp (`client.clone()`), or pass `populate_store=False` on the mismatching queries to silence the warning.
+
+:::warning Behaviour change in version 1.23.0
+
+Before SDK 1.23.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.23.0 the store is timestamp-coherent: mismatching queries skip the store with a warning instead. Note that on a node whose query skipped the store, relationship peers cannot be resolved through `.peer` (the peers were never stored) - read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
+
+One caveat: compute the `at` timestamp once and reuse it. A script that rebuilds a relative timestamp for every call creates a slightly different instant each time and will trip the mismatch warning on every query after the first.
+
+:::
 
 ## Disable storing objects in the store using the different query methods
 

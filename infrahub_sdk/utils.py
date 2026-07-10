@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import uuid
+from collections.abc import Iterable
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -30,6 +31,22 @@ if TYPE_CHECKING:
 def generate_short_id() -> str:
     """Generate a short unique ID."""
     return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii").lower()
+
+
+_INTERNED_FROZENSETS: dict[frozenset[str], frozenset[str]] = {}
+
+
+def intern_frozenset(value: Iterable[str]) -> frozenset[str]:
+    """Return a canonical shared frozenset for the given items.
+
+    Field-presence sets are attached to every attribute and relationship the SDK
+    builds, and all objects produced by the same query carry identical sets. Sharing
+    one instance per distinct set keeps the per-object overhead at pointer size
+    instead of a full frozenset (~700 bytes) each. The cache is unbounded but only
+    grows with the number of distinct query shapes, which is small in practice.
+    """
+    candidate = frozenset(value)
+    return _INTERNED_FROZENSETS.setdefault(candidate, candidate)
 
 
 def base36encode(number: int) -> str:

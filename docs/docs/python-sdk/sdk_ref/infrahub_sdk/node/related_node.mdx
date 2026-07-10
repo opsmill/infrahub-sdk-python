@@ -22,6 +22,10 @@ The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
 - `schema`: The schema describing the relationship.
 - `name`: The name of the relationship slot on the parent node.
 - `updated_at`: ISO-8601 timestamp of the most recent edge update.
+- `is_fetched`: True when this relationship was present in the response the
+node was built from. Unlike ``initialized`` (which means "has a peer"), this
+is also True for a fetched-but-empty relationship, so the client store can
+distinguish "cleared on the server" from "not queried".
 
 **Methods:**
 

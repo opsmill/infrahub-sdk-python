@@ -26,6 +26,22 @@ members are not loaded and editing is not allowed.
 
 **Methods:**
 
+#### `is_fetched`
+
+```python
+is_fetched(self) -> bool
+```
+
+Return whether this relationship was present in the response the node was built from.
+
+Alias of ``initialized`` (which already means "was fetched" for cardinality-many
+relationships), exposed under the same name as on ``Attribute`` and
+``RelatedNode`` so merge logic can branch uniformly on ``is_fetched``.
+
+**Returns:**
+
+- ``True`` when the peer set was populated from a response.
+
 #### `peer_ids`
 
 ```python

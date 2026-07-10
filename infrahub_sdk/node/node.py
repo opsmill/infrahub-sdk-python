@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
     from ..client import InfrahubClient, InfrahubClientSync
     from ..context import RequestContext
+    from ..protocols_base import CoreNodeBase
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
 
@@ -70,6 +71,15 @@ class UploadResult:
 
     was_uploaded: bool
     checksum: str | None
+
+
+# A node holds relationships in three separate containers (defined on the async/sync
+# subclasses); everything that walks "all relationships" must cover all three.
+RELATIONSHIP_CONTAINER_FIELDS = (
+    "_relationship_cardinality_one_data",
+    "_relationship_cardinality_many_data",
+    "_hierarchical_data",
+)
 
 
 class InfrahubNodeBase:
@@ -266,11 +276,24 @@ class InfrahubNodeBase:
         """
         return self._metadata
 
+    @staticmethod
+    def _field_was_fetched(data: object, name: str) -> bool:
+        """Return whether a field was present in the response a node was built from.
+
+        Key-presence is the only unambiguous "was fetched" signal: an absent field and
+        a fetched-but-null one both collapse to a ``None`` value. Non-dict data (nodes
+        built without a payload) carries no fields.
+        """
+        return isinstance(data, dict) and name in data
+
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
             attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
             self._attribute_data[attr_schema.name] = Attribute(
-                name=attr_schema.name, schema=attr_schema, data=attr_data
+                name=attr_schema.name,
+                schema=attr_schema,
+                data=attr_data,
+                is_fetched=self._field_was_fetched(data, attr_schema.name),
             )
 
     def __setattr__(self, name: str, value: Any) -> None:
@@ -293,6 +316,121 @@ class InfrahubNodeBase:
 
     def _init_relationships(self, data: dict | None = None) -> None:
         pass
+
+    def _merge(self, node: InfrahubNodeBase | CoreNodeBase) -> None:
+        """Merge a fresher copy of the same node into this one, field by field.
+
+        Used by the client store when a node with this UUID is fetched again: fields the
+        new fetch carried (attributes, relationships, node-level scalars) overwrite the
+        stored ones - even to empty or ``None`` - while fields the new fetch did not
+        request keep their stored value. Local unsaved edits on this node
+        (``value_has_been_mutated`` / ``_peer_has_been_mutated``) always win over the
+        incoming copy. Both nodes must be of the same kind; the store replaces the entry
+        wholesale on a kind change instead of calling this.
+        """
+        incoming_data = node._data if isinstance(node._data, dict) else {}
+        if not isinstance(self._data, dict):
+            self._data = {}
+        stored_data = self._data
+
+        if "display_label" in incoming_data:
+            self.display_label = node.display_label
+            stored_data["display_label"] = incoming_data["display_label"]
+        if "__typename" in incoming_data:
+            self.typename = node.typename
+            stored_data["__typename"] = incoming_data["__typename"]
+        if node._metadata is not None:
+            self._metadata = node._metadata
+        if node._existing:
+            self._existing = True
+
+        for name, incoming_attr in node._attribute_data.items():
+            if self._merge_attribute(name, incoming_attr):
+                self._merge_raw_field(name=name, stored_data=stored_data, incoming_data=incoming_data)
+
+        for container_field in RELATIONSHIP_CONTAINER_FIELDS:
+            incoming_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(node, container_field, {})
+            stored_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(self, container_field, {})
+            for name, incoming_rel in incoming_bucket.items():
+                if self._merge_relationship(stored_bucket, name, incoming_rel):
+                    self._merge_raw_field(name=name, stored_data=stored_data, incoming_data=incoming_data)
+
+    @staticmethod
+    def _merge_raw_field(name: str, stored_data: dict, incoming_data: dict) -> None:
+        """Fold one field of the incoming raw GraphQL payload into ``stored_data``.
+
+        ``_data`` is the baseline ``update()`` diffs against, so it must track the
+        merged object state: dicts merge key-wise (mirroring the sub-field merge on
+        ``Attribute`` / ``RelatedNode``), anything else is replaced.
+        """
+        if name not in incoming_data:
+            return
+        incoming_value = incoming_data[name]
+        stored_value = stored_data.get(name)
+        if isinstance(stored_value, dict) and isinstance(incoming_value, dict):
+            stored_data[name] = {**stored_value, **incoming_value}
+        else:
+            stored_data[name] = incoming_value
+
+    def _merge_attribute(self, name: str, incoming_attr: Attribute) -> bool:
+        """Merge one attribute into ``_attribute_data``; return whether it was taken."""
+        if not incoming_attr.is_fetched and not incoming_attr.value_has_been_mutated:
+            return False
+        stored_attr = self._attribute_data.get(name)
+        if stored_attr is None:
+            self._attribute_data[name] = incoming_attr
+        elif stored_attr.value_has_been_mutated:
+            return False
+        else:
+            stored_attr._merge(incoming_attr)
+        return True
+
+    @staticmethod
+    def _merge_relationship(
+        stored_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase],
+        name: str,
+        incoming_rel: RelatedNodeBase | RelationshipManagerBase,
+    ) -> bool:
+        """Merge one relationship entry into ``stored_bucket``; return whether it was taken."""
+        stored_rel = stored_bucket.get(name)
+        if isinstance(incoming_rel, RelatedNodeBase):
+            if not incoming_rel.is_fetched and not incoming_rel._peer_has_been_mutated:
+                return False
+            if not isinstance(stored_rel, RelatedNodeBase):
+                stored_bucket[name] = incoming_rel
+            elif stored_rel._peer_has_been_mutated:
+                return False
+            else:
+                stored_rel._merge(incoming_rel)
+            return True
+
+        if not incoming_rel.is_fetched:
+            return False
+        if not isinstance(stored_rel, RelationshipManagerBase):
+            stored_bucket[name] = incoming_rel
+        elif stored_rel.has_update:
+            return False
+        else:
+            stored_rel._merge(incoming_rel)
+        return True
+
+    def _reset_mutation_tracking(self) -> None:
+        """Mark the current in-memory state as persisted.
+
+        Called after a successful create/update mutation: every value this object holds
+        now matches what the server accepted, so the per-field mutation markers are
+        cleared. Without this, the store merge would treat long-saved edits as pending
+        local changes and never refresh those fields from later fetches.
+        """
+        for attr in self._attribute_data.values():
+            attr.value_has_been_mutated = False
+        for container_field in RELATIONSHIP_CONTAINER_FIELDS:
+            container: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(self, container_field, {})
+            for rel in container.values():
+                if isinstance(rel, RelatedNodeBase):
+                    rel._peer_has_been_mutated = False
+                elif isinstance(rel, RelationshipManagerBase):
+                    rel._has_update = False
 
     def __repr__(self) -> str:
         if self.display_label:
@@ -912,7 +1050,12 @@ class InfrahubNode(InfrahubNodeBase):
                     }
                     rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
-                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                    name=rel_schema.name,
+                    branch=self._branch,
+                    client=self._client,
+                    schema=rel_schema,
+                    data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
@@ -933,6 +1076,7 @@ class InfrahubNode(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManager(
@@ -1599,6 +1743,10 @@ class InfrahubNode(InfrahubNodeBase):
             await related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
 
+        # The mutation succeeded: the in-memory state (including pool allocations
+        # applied above) is now the persisted state.
+        self._reset_mutation_tracking()
+
     async def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
     ) -> None:
@@ -2102,7 +2250,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     }
                     rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
-                    name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
+                    name=rel_schema.name,
+                    branch=self._branch,
+                    client=self._client,
+                    schema=rel_schema,
+                    data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
@@ -2124,6 +2277,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
@@ -2785,6 +2939,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
             )
             related_node.fetch(timeout=timeout)
             setattr(self, rel_name, related_node)
+
+        # The mutation succeeded: the in-memory state (including pool allocations
+        # applied above) is now the persisted state.
+        self._reset_mutation_tracking()
 
     def create(
         self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None

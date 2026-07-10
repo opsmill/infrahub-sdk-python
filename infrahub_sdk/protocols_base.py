@@ -6,6 +6,8 @@ if TYPE_CHECKING:
     import ipaddress
 
     from .context import RequestContext
+    from .node import InfrahubNodeBase
+    from .node.attribute import Attribute as NodeAttribute
     from .node.metadata import NodeMetadata
     from .schema import MainSchemaTypes
 
@@ -175,6 +177,10 @@ class AnyAttributeOptional(Attribute):
 class CoreNodeBase:
     _schema: MainSchemaTypes
     _internal_id: str
+    _data: dict | None
+    _existing: bool
+    _metadata: NodeMetadata | None
+    _attribute_data: dict[str, NodeAttribute]
     id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None
     typename: str | None
@@ -210,6 +216,9 @@ class CoreNodeBase:
     def get_raw_graphql_data(self) -> dict | None: ...
 
     def get_node_metadata(self) -> NodeMetadata | None: ...
+
+    def _merge(self, node: CoreNodeBase | InfrahubNodeBase) -> None:
+        raise NotImplementedError
 
 
 class CoreNode(CoreNodeBase):
