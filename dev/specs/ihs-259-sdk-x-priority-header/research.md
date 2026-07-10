@@ -68,6 +68,8 @@ if priority is not None:
   - Node: `save` (`node.py:1241`), `create` (`node.py:1602`), `update` (`node.py:1681`), `delete` (`node.py:1214`) — plus sync twins — forward `priority` into `execute_graphql` / `_execute_graphql_with_file`.
 - **Rationale**: `get`/`all`/`create` already funnel through `execute_graphql` carrying a `tracker`; adding a parallel `priority` passthrough matches the established shape. Node mutation methods already call the two execute methods (`node.py:1657-1678`), so they only need to forward the new kwarg.
 - **Out of scope (v1)**: raw `_get`/`_post`/`_get_streaming` and batch mode expose no per-call override — they inherit the default from `self.headers` (spec Out of Scope + Edge Cases). No `priority` kwarg is added to those.
+- **Pagination caveat (from critique E2)**: `all()` renders and calls `execute_graphql` per page (`client.py:1131` / sync `client.py:2907`). Forward `priority` inside the pagination loop so every page request carries it, not only page 1. Cover with a multi-page test.
+- **Multipart ordering (from critique E3)**: in `_execute_graphql_with_file`, the existing code pops `content-type` from the copied headers for multipart. Apply the `X-Priority` override **after** the copy/pop so it is not lost; the base default in `self.headers` is unaffected because only `content-type` is removed.
 
 ## Decision 6 — Testing strategy
 

@@ -101,7 +101,7 @@ A developer using the synchronous client (`InfrahubClientSync`) gets behaviour i
 - **No "send no header" per-request escape once a default is set**: once a client default is configured there is no per-request way to suppress the header; the accepted equivalent is passing `NORMAL` explicitly.
 - **Batch mode and raw blob transfers**: these inherit the client default but expose **no** per-call override in v1.
 - **Invalid configured value**: errors at configuration load, never at request time.
-- **Caller manually pre-populates an `X-Priority` header**: the resolution rule is the single source of truth (documented behaviour); manually injecting the header is not a supported side channel and its interaction with resolution is not guaranteed.
+- **Caller manually pre-populates an `X-Priority` header**: only reachable via the low-level `_get`/`_post` transport methods, which accept a raw `headers=` argument (the covered public methods do not). The resolution rule is the single source of truth (documented behaviour); manually injecting the header at that low level is not a supported side channel and its interaction with resolution is not guaranteed.
 - **Explicit per-request `NORMAL` vs. no argument**: an explicit `NORMAL` always emits `X-Priority: normal`; a `None`/absent per-request value falls through to the client default (which may itself be absent, in which case no header is sent).
 
 ## Requirements *(mandatory)*
@@ -129,10 +129,11 @@ A developer using the synchronous client (`InfrahubClientSync`) gets behaviour i
 ### Measurable Outcomes
 
 - **SC-001**: A client with a configured default emits `X-Priority: <value>` on 100% of requests, verified across GraphQL, multipart upload, and blob `_get`/`_post`.
-- **SC-002**: A client with no priority configured emits no `X-Priority` header, asserted byte-for-byte against current behaviour.
+- **SC-002**: A client with no priority configured emits no `X-Priority` header, and no other SDK-set outgoing header changes versus current behaviour (asserted by `X-Priority` being absent from the captured request; not a literal byte-for-byte comparison of transport-injected headers).
 - **SC-003**: A per-request override sets the header on exactly that request and leaves the client default intact for the next call.
 - **SC-004**: An invalid priority value is rejected at configuration load rather than sent or coerced.
 - **SC-005**: The async and sync clients pass the identical assertion suite with identical outcomes.
+- **SC-006**: A client with a configured default emits `X-Priority: <value>` on requests issued via batch mode and via raw blob transfers, confirming those transports inherit the client default (even though they expose no per-request override in v1).
 
 ## Assumptions
 
