@@ -16,6 +16,12 @@ Add a first-class request-priority concept to the SDK, emitted as an `X-Priority
 4. Add `priority: Priority | None = None` to `execute_graphql` and `_execute_graphql_with_file` (async + sync). These are the single points where the per-request header is applied: `if priority is not None: headers["X-Priority"] = priority.value` on the already-copied header dict — which realises the resolution rule exactly (a `None` per-request keeps whatever the base default was; an explicit value, including `NORMAL`, overrides it).
 5. Thread the `priority` kwarg through the higher-level callers so they forward it to the two execute methods: client `get`, `all` (via `filters`), `create`, `create_diff`/`get_diff_summary`/`get_diff_tree`; node `save`/`create`/`update`/`delete`. Raw blob `_get`/`_post` and batch mode inherit the client default only (no per-call override in v1).
 
+**Two load-bearing details surfaced by the critique** (see [critiques/](./critiques/)):
+
+- **Pagination**: `all()` calls `execute_graphql` once per page via `filters`. The `priority` kwarg must be forwarded on **every** page request, not just the first — covered by a multi-page test.
+- **Multipart ordering**: `_execute_graphql_with_file` pops `content-type` from the copied header dict for multipart. `X-Priority` must be applied **after** that pop (and the default already in `self.headers` survives it, since only `content-type` is removed). Covered by an explicit multipart override test.
+- **Batch/blob inheritance**: verified by test (SC-006) — a configured default must ride batch-mode and raw blob requests even though neither exposes a per-request override.
+
 ## Technical Context
 
 **Language/Version**: Python 3.10–3.13
