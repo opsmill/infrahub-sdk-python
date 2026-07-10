@@ -115,7 +115,9 @@ Every feature and bug fix MUST ship with tests in the same change; tests are nev
 deferred to a follow-up. A bug fix MUST include a test that reproduces the bug (fails
 before the fix, passes after). New public surface MUST test both the async and sync paths
 (see Principle I). Unit tests MUST be fast, mocked, and free of external dependencies;
-behavior that needs a real server belongs in integration tests (testcontainers).
+behavior that needs a real server belongs in integration tests (testcontainers). Tests
+MUST assert concrete expected values, not mere truthiness or non-null — an assertion that
+cannot fail for the right reason is not evidence.
 
 Rationale: tests written with the change, and reproduction tests for bugs, are the only
 evidence a reviewer or agent can check that behavior is actually pinned.
