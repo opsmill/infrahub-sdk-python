@@ -676,7 +676,6 @@ wheels = [
 
 [[package]]
 name = "infrahub-sdk"
-version = "1.22.1"
 source = { editable = "." }
 dependencies = [
     { name = "dulwich" },
@@ -795,7 +794,7 @@ requires-dist = [
     { name = "ujson", specifier = ">=5" },
     { name = "whenever", specifier = ">=0.9.3,<0.10.0" },
 ]
-provides-extras = ["ctl", "all"]
+provides-extras = ["all", "ctl"]
 
 [package.metadata.requires-dev]
 dev = [
