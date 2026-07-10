@@ -1,11 +1,11 @@
 ---
-name: creating-issues
+name: opsmill-dev-creating-issues
 description: >-
   Turns a single feature idea, improvement, or bug into ONE well-structured GitHub issue. TRIGGER
   when: the user wants to file/open/create an issue, turn a feature idea or improvement into a
   ticket, or capture something missing or broken as a ticket. DO NOT TRIGGER when: breaking work
   into multiple issues or planning a body of work → a planning skill; writing a full Product
-  Requirements Document → creating-prd; the idea is still fuzzy and unhardened → grilling-ideas
+  Requirements Document → opsmill-dev-creating-prd; the idea is still fuzzy and unhardened → opsmill-dev-grilling-ideas
   first.
 argument-hint: Feature, improvement, or bug to turn into a GitHub issue
 compatibility: Requires GitHub access (gh CLI authenticated, or an equivalent GitHub MCP/API tool) and write access to the target repository.

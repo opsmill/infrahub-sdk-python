@@ -1,10 +1,10 @@
 ---
-name: monitoring-pull-requests
+name: opsmill-dev-monitoring-pull-requests
 description: >-
   Watches an open pull request's CI until green and fixes failing checks. TRIGGER when: the user
   wants to watch a pull request's CI, babysit a PR until it goes green, or fix failing CI checks
-  on an open PR. DO NOT TRIGGER when: opening the PR in the first place → pr; rebasing the branch
-  onto its base → rebase.
+  on an open PR. DO NOT TRIGGER when: opening the PR in the first place → opsmill-dev-pr; rebasing the branch
+  onto its base → opsmill-dev-rebase.
 argument-hint: Optional PR number or URL (defaults to the PR for the current branch)
 compatibility: Requires a Git working tree and GitHub access (gh CLI authenticated). Local reproduction uses whatever toolchain the project itself defines.
 metadata:
@@ -27,7 +27,7 @@ This skill is project-agnostic: it discovers how to reproduce CI failures from t
 This skill is designed to run as a **background agent**, not in the user's foreground turn. CI commonly runs for tens of minutes, and a fix-and-retry loop multiplies that by up to 5 iterations. Blocking the parent conversation that long is wasteful — spawn this skill as an asynchronous agent and let it report back when it has something to say.
 
 - **Recommended invocation:** by another skill (notably `pr` Phase 7) using the runtime's background-agent primitive (Claude Code: `Agent` with `run_in_background: true`; equivalent in other runtimes).
-- **Acceptable invocation:** directly by the user as `/monitoring-pull-requests` when they explicitly want to watch a PR. In that case the loop runs in the foreground and the user can interrupt.
+- **Acceptable invocation:** directly by the user as `/opsmill-dev-monitoring-pull-requests` when they explicitly want to watch a PR. In that case the loop runs in the foreground and the user can interrupt.
 - The skill is **self-contained**: it captures `baseline_commit` itself in Phase 0 and resolves the PR/branch from arguments or current branch. No state needs to be inherited from the spawning conversation beyond what is passed in `$ARGUMENTS`.
 
 ## Arguments
@@ -75,7 +75,7 @@ Every fix attempt produces exactly one new commit on the branch, appended to `fi
 
    - If `$ARGUMENTS` looks like a number → `pr_number = $ARGUMENTS`.
    - If `$ARGUMENTS` looks like a URL → extract the number with `gh pr view "$ARGUMENTS" --json number -q .number`.
-   - Otherwise → `pr_number = $(gh pr view --json number -q .number)` for the current branch. If no PR exists, STOP and tell the user to open one (or run `/pr` first).
+   - Otherwise → `pr_number = $(gh pr view --json number -q .number)` for the current branch. If no PR exists, STOP and tell the user to open one (or run `/opsmill-dev-pr` first).
 
    Then capture metadata:
 
@@ -103,7 +103,7 @@ Every fix attempt produces exactly one new commit on the branch, appended to `fi
 
    Verify it matches `headRefOid` from step 2. If they differ, STOP — the branch is out of sync with the PR head and any revert would lose work.
 
-5. **Refuse to operate on long-lived branches.** If `branch` is the repository's default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`), a long-standing integration branch (`main`, `master`, `stable`, `develop`, `dev`, `trunk`), or a release branch (`release/*`, `release-*`, version-named branches), STOP. This skill is for feature PRs only.
+5. **Refuse to operate on long-lived branches.** If `branch` is the repository's default branch (`git symbolic-ref --short refs/remotes/origin/HEAD | sed 's@^origin/@@'`), a long-standing integration branch (`main`, `master`, `stable`, `develop`, `dev`, `trunk`), or a release branch (`release/*`, `release-*`, version-named branches), STOP. This skill is for feature PRs only.
 
 6. **Discover the project's local toolchain** (used by Phases 2–4). Read whatever project context exists — `AGENTS.md`/`CLAUDE.md`/`CONTRIBUTING.md`, `Makefile`/`Taskfile`/`justfile`, `package.json` scripts, `pyproject.toml`/`tox.ini`, `.pre-commit-config.yaml` — and note:
 
@@ -279,7 +279,7 @@ Don't push until the relevant local checks are green. This is where most "blind 
    git push origin <branch>
    ```
 
-6. **Increment `iteration`.** Record in `attempt_log[iteration]`:
+6. **Record this iteration's outcome** in `attempt_log[iteration]` (the same index Phase 2 step 5 used for this pass), then increment `iteration`:
 
    ```text
    {
@@ -329,7 +329,8 @@ If 5 iterations completed without reaching green, the fix attempts are likely mi
 3. **Force-push with lease** so we don't clobber any commits the user may have pushed in parallel:
 
    ```bash
-   git push --force-with-lease=<branch>:<fix_commits[-1]> origin <branch>
+   # <last_fix_commit> = the final SHA appended to fix_commits (the last commit this skill pushed)
+   git push --force-with-lease=<branch>:<last_fix_commit> origin <branch>
    ```
 
    The `--force-with-lease=<ref>:<expected_oid>` form ensures the push only succeeds if the remote tip is exactly the last commit this skill pushed. If the lease check fails, STOP — the user pushed something concurrently and the revert needs human review.
@@ -353,6 +354,7 @@ Always produce this report at the end, regardless of outcome.
 ### Iterations
 
 #### Iteration 1
+
 - **Failing job:** <name>
 - **Failure summary:** <key log line(s)>
 - **Reproduced locally:** yes / no (<reason if no>)
@@ -362,18 +364,22 @@ Always produce this report at the end, regardless of outcome.
 - **CI outcome after push:** green / still failing on <jobs>
 
 #### Iteration 2
+
 ...
 
 ### CI-only failures (if any)
+
 <List any failures that could not be reproduced locally and the evidence
 gathered before pushing speculatively.>
 
 ### Current State
+
 - Branch: `<branch>` at `<final sha>`
 - Uncommitted changes: <yes/no — `git status --short`>
 - Reverted: yes / no
 
 ### Recommendations
+
 <If NOT FIXED: which iteration came closest, what hypotheses remain
 untested, what a human should look at next.>
 <If GREEN: any follow-up — flaky-looking failures, related tests to watch,
