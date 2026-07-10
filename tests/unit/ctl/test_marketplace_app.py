@@ -1132,3 +1132,73 @@ def test_dependencies_existing_file_overwritten_with_yes(httpx_mock: HTTPXMock, 
     assert "Updated schema acme/dcim" in result.output
     assert existing.read_text() == SCHEMA_YAML  # overwritten in place
     assert not (tmp_path / "dcim.yml").exists()  # still no duplicate at the root
+
+
+def test_dependencies_of_pinned_version_read_from_that_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """--version with --dependencies resolves the pinned version's deps, not the latest version's."""
+    # Auto-detect probes (version is applied to the download URL, not the detect probe).
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "2.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/app",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    # Pinned download of the requested version.
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    # Detail lists two versions: latest (2.0.0) depends on newdep; pinned (1.0.0) depends on olddep.
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app",
+        json={
+            "namespace": "acme",
+            "name": "app",
+            "latest_version": {"id": "v-latest", "semver": "2.0.0"},
+            "versions": [
+                {"id": "v-latest", "semver": "2.0.0", "dependencies": [_resolved_dep("acme", "newdep")]},
+                {"id": "v-old", "semver": "1.0.0", "dependencies": [_resolved_dep("acme", "olddep")]},
+            ],
+        },
+    )
+    # Only olddep should be walked and downloaded. newdep is intentionally left unstubbed so that
+    # resolving the latest version's deps by mistake would raise on the unmatched request.
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/olddep",
+        json=_schema_detail("acme", "olddep", deps=[]),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/olddep/download",
+        text=SCHEMA_YAML,
+    )
+    _stub_for_schema(httpx_mock, "acme", "olddep")
+    result = runner.invoke(app, ["get", "acme/app", "-v", "1.0.0", "--dependencies", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "1 dependency resolved" in result.output
+    assert (tmp_path / "olddep.yml").exists()
+    assert not (tmp_path / "newdep.yml").exists()
+
+
+def test_dependencies_refuses_path_traversal_in_member_name(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """A member/collection name from the marketplace that would escape the output dir is refused."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/pack",
+        json={"items": [{"schema": {"namespace": "acme", "name": "../evil", "latest_version": {"semver": "1.0.0"}}}]},
+    )
+    result = runner.invoke(app, ["get", "acme/pack", "-c", "-o", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "unsafe path component" in result.output.lower()
+    assert not (tmp_path.parent / "evil.yml").exists()

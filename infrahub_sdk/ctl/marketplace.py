@@ -85,6 +85,18 @@ def _is_transport_failure(r: object) -> bool:
     return isinstance(r, httpx.Response) and r.status_code >= 500
 
 
+def _safe_segment(segment: str) -> str:
+    """Reject a path component (from user input or the marketplace API) that could escape output.
+
+    Namespaces, schema names, and collection names all become directory or file components on
+    disk, so a value containing a path separator, ``.``/``..``, an absolute-path root, or a NUL
+    is refused rather than allowed to traverse outside the output directory.
+    """
+    if not segment or segment in {".", ".."} or "/" in segment or "\\" in segment or "\x00" in segment:
+        _fail(_ErrorClass.INVALID_INPUT, f"Refusing unsafe path component from marketplace: {segment!r}")
+    return segment
+
+
 def _mkdir_or_fail(path: Path) -> None:
     try:
         path.mkdir(parents=True, exist_ok=True)
@@ -231,7 +243,7 @@ async def _download_schema(
     already-present schema is overwritten (``--yes``/prompt) or kept, decided before fetching
     so a kept schema costs no download.
     """
-    filename = f"{name}.yml"
+    filename = f"{_safe_segment(name)}.yml"
 
     # Reconcile with a pre-existing copy before fetching (disk mode only).
     existing_path = write_ctx.preexisting.get(filename) if write_ctx is not None and not stdout else None
@@ -319,15 +331,17 @@ async def _read_schema_dependencies(
     namespace: str,
     name: str,
     *,
+    version: str | None = None,
     status: Console,
 ) -> tuple[list[tuple[str, str, str]], list[str]]:
-    """Read a schema's latest-version dependencies from the marketplace API.
+    """Read a schema version's dependencies from the marketplace API.
 
-    Returns ``(resolved, unresolved_kinds)`` where ``resolved`` is a list of
-    ``(namespace, name, schema_id)`` for dependencies the marketplace can supply, and
-    ``unresolved_kinds`` are referenced kinds that are not available (including ones hidden by
-    visibility). A read failure is reported as an informational note and treated as "no
-    dependencies" so the rest of the resolution continues.
+    When ``version`` is given, the dependencies of that specific version are read; otherwise the
+    latest version's dependencies are used. Returns ``(resolved, unresolved_kinds)`` where
+    ``resolved`` is a list of ``(namespace, name, schema_id)`` for dependencies the marketplace
+    can supply, and ``unresolved_kinds`` are referenced kinds that are not available (including
+    ones hidden by visibility). A read failure is reported as an informational note and treated
+    as "no dependencies" so the rest of the resolution continues.
     """
     try:
         resp = await client.get(_schema_detail_url(base_url, namespace, name))
@@ -339,10 +353,18 @@ async def _read_schema_dependencies(
         return [], []
 
     versions = (payload.get("versions") or []) if isinstance(payload, dict) else []
-    latest_id = (payload.get("latest_version") or {}).get("id") if isinstance(payload, dict) else None
-    deps_source = next((v for v in versions if isinstance(v, dict) and v.get("id") == latest_id), None) or (
-        versions[0] if versions and isinstance(versions[0], dict) else {}
-    )
+    if version:
+        deps_source = next((v for v in versions if isinstance(v, dict) and v.get("semver") == version), None)
+        if deps_source is None:
+            status.print(
+                f"[yellow]Note: no metadata for {namespace}/{name} v{version}; its dependencies were not resolved."
+            )
+            return [], []
+    else:
+        latest_id = (payload.get("latest_version") or {}).get("id") if isinstance(payload, dict) else None
+        deps_source = next((v for v in versions if isinstance(v, dict) and v.get("id") == latest_id), None) or (
+            versions[0] if versions and isinstance(versions[0], dict) else {}
+        )
 
     resolved: list[tuple[str, str, str]] = []
     unresolved: list[str] = []
@@ -393,7 +415,7 @@ async def _resolve_dependency_closure(
     while queue:
         current = queue.popleft()
         resolved, kinds = await _read_schema_dependencies(
-            client, base_url, current["namespace"], current["name"], status=status
+            client, base_url, current["namespace"], current["name"], version=current.get("version"), status=status
         )
         unresolved.update(kinds)
         for dep_namespace, dep_name, dep_id in resolved:
@@ -452,7 +474,7 @@ async def _download_schema_set(
     written_here = 0
     for schema in pending:
         member_name = schema["name"]
-        member_dir = target_dir / schema["namespace"] if name_counts[member_name] > 1 else target_dir
+        member_dir = target_dir / _safe_segment(schema["namespace"]) if name_counts[member_name] > 1 else target_dir
         written = await _download_schema(
             client=client,
             base_url=base_url,
@@ -626,7 +648,7 @@ async def _download_collection_tree(
             client,
             base_url,
             members,
-            output_dir / rec_name,
+            output_dir / _safe_segment(rec_name),
             stdout=stdout,
             seen=seen_schemas,
             already_written=total_written,
@@ -723,7 +745,7 @@ async def _download_schema_tree(
         if (dep["namespace"], dep["name"]) == (namespace, name):
             continue
         owning = await _owning_collection_name(client, base_url, dep.get("schema_id", ""))
-        buckets.setdefault(output_dir / owning if owning else output_dir, []).append(dep)
+        buckets.setdefault(output_dir / _safe_segment(owning) if owning else output_dir, []).append(dep)
 
     for target, group in buckets.items():
         total_written += await _download_schema_set(
@@ -799,7 +821,7 @@ async def _download_collection(
         return
 
     members = _collection_members(payload, status)
-    downloaded = await _download_schema_set(client, base_url, members, output_dir / name, stdout=stdout)
+    downloaded = await _download_schema_set(client, base_url, members, output_dir / _safe_segment(name), stdout=stdout)
     status.print(f"\n[green]Collection {namespace}/{name}: {downloaded} schemas downloaded")
 
 
