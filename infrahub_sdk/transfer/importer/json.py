@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import pyarrow.json as pa_json
 import ujson
 from rich.progress import Progress
 
@@ -53,6 +52,17 @@ class LineDelimitedJSONImporter(ImporterInterface):
             self.console.print(f"{end}")
 
     async def import_data(self, import_directory: Path, branch: str) -> None:
+        # pyarrow is a heavy, optional dependency used only to read the line-delimited JSON
+        # export. Import it lazily so the rest of infrahubctl works without it being installed;
+        # only `infrahubctl object load` reaches this code path.
+        try:
+            import pyarrow.json as pa_json  # noqa: PLC0415
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "Loading objects requires pyarrow, install the 'ctl' extra of the infrahub-sdk "
+                "package, `pip install 'infrahub-sdk[ctl]'` or run `uv sync --extra ctl`."
+            ) from exc
+
         node_file = import_directory / "nodes.json"
         relationship_file = import_directory / "relationships.json"
         for f in (node_file, relationship_file):
