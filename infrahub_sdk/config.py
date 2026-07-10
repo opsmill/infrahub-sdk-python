@@ -58,6 +58,25 @@ class ConfigBase(BaseSettings):
     pagination_size: int = Field(default=50, description="Page size for queries to the server")
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
     retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
+    rate_limit_retry_enabled: bool = Field(
+        default=True,
+        description="Retry requests that receive HTTP 429 using backoff. Set False to disable.",
+    )
+    rate_limit_max_retries: int = Field(
+        default=5,
+        ge=0,
+        description="Maximum number of retries after the initial attempt when receiving HTTP 429.",
+    )
+    rate_limit_backoff_base: float = Field(
+        default=0.5,
+        gt=0,
+        description="Base interval in seconds for exponential backoff between 429 retries.",
+    )
+    rate_limit_backoff_max: float = Field(
+        default=60.0,
+        gt=0,
+        description="Maximum wait in seconds for any single 429 retry (also clamps Retry-After).",
+    )
     max_retry_duration: int = Field(
         default=300, description="Maximum duration until we stop attempting to retry if enabled."
     )
