@@ -1,9 +1,8 @@
 """Client-level tests for transparent HTTP 429 retry on the async and sync clients.
 
-Covers (in later implementation chunks): transparent 429->200 retry, honouring
-``Retry-After``, clean ``RateLimitError`` on exhaustion, the disabled path, async/sync
-parity, all-paths coverage (regular request, multipart, streaming init), and the E2/X1
-multipart body re-read regression. This module currently holds the shared imports/skeleton.
+Covers transparent 429->200 retry, honouring ``Retry-After``, ``RateLimitError`` on
+exhaustion, the disabled path, async/sync parity, all-paths coverage (regular request,
+multipart, streaming init), and the multipart body re-read regression.
 """
 
 from __future__ import annotations
@@ -29,15 +28,6 @@ from infrahub_sdk.types import HTTPMethod
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
-
-__all__ = [
-    "Config",
-    "InfrahubClient",
-    "InfrahubClientSync",
-    "RateLimitError",
-    "httpx",
-    "pytest",
-]
 
 CLIENT_TYPES = ["standard", "sync"]
 
@@ -348,10 +338,7 @@ async def test_request_disabled_surfaces_raw_429_without_retry(
 ) -> None:
     """With ``rate_limit_retry_enabled=False`` the driver does ONE send and returns the raw 429.
 
-    The ``_request`` path (the one the existing tests drive) returns the response untouched, so no
-    ``RateLimitError`` is raised and no wait occurs. A higher-level caller that later invokes
-    ``raise_for_status()`` would surface the underlying ``httpx.HTTPStatusError`` (never a
-    ``RateLimitError``); this asserts the driver behaviour directly.
+    The response is returned untouched: no ``RateLimitError`` and no wait.
     """
     recorded_sleeps = _patch_driver_sleep(monkeypatch)
 
@@ -449,7 +436,7 @@ async def test_async_sync_parity_on_identical_429_sequence(case: ParityCase, mon
 
     Uses a deterministic ``Retry-After``-driven sequence so waits can be compared exactly (rather
     than only within jitter tolerance). Asserts identical send counts, matching outcome (same error
-    type or same success status), and identical honoured waits (FR-008 / SC-005).
+    type or same success status), and identical honoured waits.
     """
     url = "http://mock/graphql/main"
     results: dict[str, dict[str, Any]] = {}
@@ -497,7 +484,7 @@ async def test_async_sync_parity_on_identical_429_sequence(case: ParityCase, mon
 # ``attempt`` argument. A bug that always passed ``attempt=0`` (no exponential growth) would sail
 # through the whole suite. The two tests below drive a persistent 429 with NO ``Retry-After`` so the
 # wait is driven purely by ``compute_backoff(attempt)``, proving the driver hands an incrementing
-# ``attempt`` to ``next_delay`` (growth) and that independent instances jitter differently (SC-003).
+# ``attempt`` to ``next_delay`` (growth) and that independent instances jitter differently.
 
 
 async def _send_no_header_429s(
@@ -566,7 +553,7 @@ async def test_jitter_differs_between_instances(client_type: str, monkeypatch: p
 
     With real full jitter (``jittered_delay`` NOT patched), the per-retry waits are random draws in
     ``[0, compute_backoff(attempt)]``. Across four retries an exact match between two independent
-    instances is astronomically unlikely, so at least one position must differ (SC-003).
+    instances is astronomically unlikely, so at least one position must differ.
     """
     max_retries = 4
     backoff_base = 5.0
@@ -591,7 +578,7 @@ async def test_jitter_differs_between_instances(client_type: str, monkeypatch: p
     assert first != second
 
 
-# --- FR-006 / E2/X1: all-paths coverage and multipart body re-read ---------------------------
+# --- All-paths coverage and multipart body re-read --------------------------------------------
 #
 # ``_request_multipart`` and ``_get_streaming`` build their own ``httpx`` client and BYPASS the
 # pluggable ``requester``/``sync_requester`` shim used by the tests above, so their 429->200
@@ -661,7 +648,7 @@ async def _drive_path(client_type: str, path: str, url: str) -> int:
 async def test_all_request_paths_retry_429_then_succeed(
     client_type: str, path: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """FR-006: a 429->200 sequence is retried transparently on every request path, both clients.
+    """A 429->200 sequence is retried transparently on every request path, both clients.
 
     Covers the regular request, the multipart upload, and streaming initiation. Each must issue
     exactly two transport sends (the retry) and surface the final 200.
@@ -696,7 +683,7 @@ def _multipart_body_without_boundary(request: httpx.Request) -> bytes:
 async def test_multipart_body_survives_retry(
     client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """E2/X1: a retried multipart upload re-sends the FULL file body, not a consumed/empty stream.
+    """A retried multipart upload re-sends the FULL file body, not a consumed/empty stream.
 
     Scripts ``429 -> 200`` for a multipart upload carrying non-empty file content, then captures the
     request body the transport received on each attempt. The second attempt must carry the full body
