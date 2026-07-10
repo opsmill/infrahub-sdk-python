@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from collections import Counter, deque
+from collections import Counter
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, NoReturn
@@ -81,8 +81,8 @@ def _collection_url(base_url: str, namespace: str, name: str) -> str:
     return f"{base_url}/api/v1/collections/{namespace}/{name}"
 
 
-def _schema_detail_url(base_url: str, namespace: str, name: str) -> str:
-    return f"{base_url}/api/v1/schemas/{namespace}/{name}"
+def _dependencies_url(base_url: str, item_type: MarketplaceItemType, namespace: str, name: str) -> str:
+    return f"{base_url}/api/v1/{item_type}s/{namespace}/{name}/dependencies"
 
 
 def _list_url(base_url: str, item_type: MarketplaceItemType) -> str:
@@ -497,109 +497,83 @@ def _collection_members(payload: Any, status: Console) -> list[dict[str, Any]]:
     return members
 
 
-async def _read_schema_dependencies(
+class _ResolvedDependencies(NamedTuple):
+    """A schema's or collection's fully resolved dependency closure, grouped by source.
+
+    ``collection_groups`` are prerequisite collections as ``(namespace, name, member_schemas)``;
+    each group's schemas land under ``output_dir/<name>/``. ``standalone`` are dependency schemas
+    that belong to no collection and land in the output root. ``unresolved`` are referenced kinds
+    the marketplace could not resolve to a schema; ``hidden_count`` counts dependencies omitted
+    because they are not visible to the caller.
+    """
+
+    collection_groups: list[tuple[str, str, list[dict[str, Any]]]]
+    standalone: list[dict[str, Any]]
+    unresolved: list[str]
+    hidden_count: int
+
+
+def _dependency_schemas(entries: Any) -> list[dict[str, Any]]:
+    """Build member-shaped ``{namespace, name, version}`` dicts from dependency schema entries."""
+    return [
+        {"namespace": str(entry["namespace"]), "name": str(entry["name"]), "version": None}
+        for entry in entries or []
+        if isinstance(entry, dict) and entry.get("namespace") and entry.get("name")
+    ]
+
+
+def _parse_dependencies(payload: Any) -> _ResolvedDependencies:
+    """Parse the marketplace ``/dependencies`` response into a grouped download plan."""
+    data = payload if isinstance(payload, dict) else {}
+    groups: list[tuple[str, str, list[dict[str, Any]]]] = []
+    for collection in data.get("collections") or []:
+        if not isinstance(collection, dict) or not collection.get("name"):
+            continue
+        groups.append(
+            (
+                str(collection.get("namespace") or ""),
+                str(collection["name"]),
+                _dependency_schemas(collection.get("schemas")),
+            )
+        )
+    hidden = data.get("hidden_count") or 0
+    return _ResolvedDependencies(
+        collection_groups=groups,
+        standalone=_dependency_schemas(data.get("schemas")),
+        unresolved=[str(kind) for kind in data.get("unresolved_kinds") or [] if kind],
+        hidden_count=hidden if isinstance(hidden, int) else 0,
+    )
+
+
+async def _fetch_dependencies(
     client: httpx.AsyncClient,
     base_url: str,
+    item_type: MarketplaceItemType,
     namespace: str,
     name: str,
     *,
     version: str | None = None,
     status: Console,
-) -> tuple[list[tuple[str, str, str]], list[str]]:
-    """Read a schema version's dependencies from the marketplace API.
+) -> _ResolvedDependencies | None:
+    """Fetch a schema's or collection's resolved dependency closure from the marketplace.
 
-    When ``version`` is given, the dependencies of that specific version are read; otherwise the
-    latest version's dependencies are used. Returns ``(resolved, unresolved_kinds)`` where
-    ``resolved`` is a list of ``(namespace, name, schema_id)`` for dependencies the marketplace
-    can supply, and ``unresolved_kinds`` are referenced kinds that are not available (including
-    ones hidden by visibility). A read failure is reported as an informational note and treated
-    as "no dependencies" so the rest of the resolution continues.
+    The marketplace resolves the full transitive closure server-side (``GET .../dependencies``)
+    and returns it grouped by source: prerequisite collections with their members, plus
+    standalone schemas. When ``version`` is given (schemas only), dependencies are resolved for
+    that version. A read failure is reported as an informational note and treated as "no
+    dependencies" so the requested item still downloads.
     """
+    url = _dependencies_url(base_url, item_type, namespace, name)
+    params = {"version": version} if version else None
     try:
-        resp = await client.get(_schema_detail_url(base_url, namespace, name))
+        resp = await client.get(url, params=params)
         resp.raise_for_status()
         payload = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
         detail = str(exc) or type(exc).__name__
-        status.print(f"[yellow]Note: could not read dependencies for {namespace}/{name}: {detail}")
-        return [], []
-
-    versions = (payload.get("versions") or []) if isinstance(payload, dict) else []
-    if version:
-        deps_source = next((v for v in versions if isinstance(v, dict) and v.get("semver") == version), None)
-        if deps_source is None:
-            status.print(
-                f"[yellow]Note: no metadata for {namespace}/{name} v{version}; its dependencies were not resolved."
-            )
-            return [], []
-    else:
-        latest_id = (payload.get("latest_version") or {}).get("id") if isinstance(payload, dict) else None
-        deps_source = next((v for v in versions if isinstance(v, dict) and v.get("id") == latest_id), None) or (
-            versions[0] if versions and isinstance(versions[0], dict) else {}
-        )
-
-    resolved: list[tuple[str, str, str]] = []
-    unresolved: list[str] = []
-    for dep in deps_source.get("dependencies") or []:
-        if not isinstance(dep, dict):
-            continue
-        resolved_schema = dep.get("resolved_schema")
-        if dep.get("is_resolved") and isinstance(resolved_schema, dict):
-            dep_namespace = resolved_schema.get("namespace")
-            dep_name = resolved_schema.get("name")
-            if dep_namespace and dep_name:
-                resolved.append((dep_namespace, dep_name, resolved_schema.get("id") or ""))
-                continue
-        referenced_kind = dep.get("referenced_kind")
-        if referenced_kind:
-            unresolved.append(referenced_kind)
-    return resolved, unresolved
-
-
-async def _resolve_dependency_closure(
-    client: httpx.AsyncClient,
-    base_url: str,
-    members: list[dict[str, Any]],
-    *,
-    status: Console,
-) -> tuple[list[dict[str, Any]], list[str]]:
-    """Walk schema dependencies transitively, starting from the collection's members.
-
-    Returns ``(schemas, unresolved_kinds)`` where ``schemas`` is the full ordered download set
-    (members first, then discovered dependencies, each downloaded at its latest version) and
-    ``unresolved_kinds`` is the sorted set of referenced kinds not available in the
-    marketplace. A ``seen`` set of ``(namespace, name)`` makes the walk cycle-safe and ensures
-    each schema appears once even when reachable through multiple paths.
-    """
-    seen: set[tuple[str, str]] = set()
-    ordered: list[dict[str, Any]] = []
-    unresolved: set[str] = set()
-    queue: deque[dict[str, Any]] = deque()
-
-    for member in members:
-        key = (member["namespace"], member["name"])
-        if key in seen:
-            continue
-        seen.add(key)
-        ordered.append(member)
-        queue.append(member)
-
-    while queue:
-        current = queue.popleft()
-        resolved, kinds = await _read_schema_dependencies(
-            client, base_url, current["namespace"], current["name"], version=current.get("version"), status=status
-        )
-        unresolved.update(kinds)
-        for dep_namespace, dep_name, dep_id in resolved:
-            key = (dep_namespace, dep_name)
-            if key in seen:
-                continue
-            seen.add(key)
-            entry = {"namespace": dep_namespace, "name": dep_name, "version": None, "schema_id": dep_id}
-            ordered.append(entry)
-            queue.append(entry)
-
-    return ordered, sorted(unresolved)
+        status.print(f"[yellow]Note: could not resolve dependencies for {namespace}/{name}: {detail}")
+        return None
+    return _parse_dependencies(payload)
 
 
 async def _download_schema_set(
@@ -665,94 +639,11 @@ async def _download_schema_set(
     return written_here
 
 
-def _collection_dependency_targets(
-    payload: Any,
-) -> tuple[list[tuple[str, str]], list[dict[str, Any]], list[str]]:
-    """Extract a collection's declared dependencies from its detail payload.
-
-    Returns ``(prerequisite_collections, standalone_schemas, unresolved_kinds)``: prerequisite
-    collections as ``(namespace, name)`` tuples, standalone schemas as member-shaped dependency
-    dicts, and unresolved kinds the marketplace could not resolve to a schema.
-    """
-    dep = (payload.get("dependencies") or {}) if isinstance(payload, dict) else {}
-    collections: list[tuple[str, str]] = [
-        (str(entry["namespace"]), str(entry["name"]))
-        for entry in dep.get("collections") or []
-        if isinstance(entry, dict) and entry.get("namespace") and entry.get("name")
-    ]
-    schemas: list[dict[str, Any]] = [
-        {"namespace": str(entry["namespace"]), "name": str(entry["name"]), "version": None}
-        for entry in dep.get("schemas") or []
-        if isinstance(entry, dict) and entry.get("namespace") and entry.get("name")
-    ]
-    unresolved: list[str] = [str(kind) for kind in dep.get("unresolved_kinds") or [] if kind]
-    return collections, schemas, unresolved
-
-
-async def _fetch_collection_payload(
-    client: httpx.AsyncClient,
-    base_url: str,
-    namespace: str,
-    name: str,
-    *,
-    status: Console,
-) -> Any | None:
-    """Fetch a prerequisite collection's detail, returning None (with a note) on any failure.
-
-    Prerequisite collections are dependencies, so an unreachable one is reported and skipped
-    rather than aborting the whole download.
-    """
-    try:
-        resp = await client.get(_collection_url(base_url, namespace, name))
-        if resp.status_code == 404:
-            status.print(f"[yellow]Note: prerequisite collection {namespace}/{name} not found; skipping.")
-            return None
-        resp.raise_for_status()
-        return resp.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        detail = str(exc) or type(exc).__name__
-        status.print(f"[yellow]Note: could not fetch prerequisite collection {namespace}/{name}: {detail}")
-        return None
-
-
-_CollectionTargets = tuple[list[tuple[str, str]], list[dict[str, Any]], list[str]]
-_CollectionRecord = tuple[str, str, list[dict[str, Any]], _CollectionTargets]
-
-
-async def _walk_collection_graph(
-    client: httpx.AsyncClient,
-    base_url: str,
-    namespace: str,
-    name: str,
-    payload: Any,
-    *,
-    status: Console,
-) -> list[_CollectionRecord]:
-    """Walk the collection dependency graph cycle-safe, one record per collection.
-
-    Each record is ``(namespace, name, members, dependency_targets)``. Prerequisite collections
-    from ``dependencies.collections`` are visited transitively; ``seen`` prevents revisiting a
-    collection in a cycle.
-    """
-    seen: set[tuple[str, str]] = {(namespace, name)}
-    records: list[_CollectionRecord] = []
-    queue: deque[tuple[str, str, Any]] = deque([(namespace, name, payload)])
-    while queue:
-        current_namespace, current_name, current_payload = queue.popleft()
-        if current_payload is None:
-            current_payload = await _fetch_collection_payload(
-                client, base_url, current_namespace, current_name, status=status
-            )
-            if current_payload is None:
-                continue
-        members = _collection_members(current_payload, status)
-        targets = _collection_dependency_targets(current_payload)
-        records.append((current_namespace, current_name, members, targets))
-        for dep_namespace, dep_name in targets[0]:
-            if (dep_namespace, dep_name) not in seen:
-                seen.add((dep_namespace, dep_name))
-                queue.append((dep_namespace, dep_name, None))
-    return records
+def _print_hidden(status: Console, hidden_count: int) -> None:
+    """Report dependencies the marketplace omitted because they are not visible to the caller."""
+    if hidden_count:
+        noun = "dependency" if hidden_count == 1 else "dependencies"
+        status.print(f"[yellow]{hidden_count} {noun} hidden due to visibility and not downloaded.")
 
 
 def _report_collection_tree(
@@ -763,6 +654,7 @@ def _report_collection_tree(
     requested_member_count: int,
     prerequisites: list[str],
     unresolved: set[str],
+    hidden_count: int,
 ) -> None:
     dependency_count = total_written - requested_member_count
     noun = "dependency" if dependency_count == 1 else "dependencies"
@@ -773,6 +665,7 @@ def _report_collection_tree(
     if prerequisites:
         status.print("[green]Prerequisite collections: " + ", ".join(prerequisites))
     _print_unresolved(status, unresolved)
+    _print_hidden(status, hidden_count)
 
 
 async def _download_collection_tree(
@@ -791,84 +684,67 @@ async def _download_collection_tree(
     Layout:
 
     - requested collection members -> ``output_dir/<requested name>/``
-    - each transitive prerequisite collection -> ``output_dir/<collection name>/``
+    - each prerequisite collection -> ``output_dir/<collection name>/``
     - standalone dependency schemas (not part of any prerequisite collection) -> ``output_dir/``
 
-    ``seen_schemas`` ensures each schema is written once even when reachable through several
-    collections or paths; standalone schemas are resolved transitively via the per-schema walk.
+    The marketplace resolves the full transitive closure (``GET .../dependencies``); ``seen``
+    ensures each schema is written once even when it appears in several groups.
     """
     status = _status_console(stdout)
-    records = await _walk_collection_graph(client, base_url, namespace, name, payload, status=status)
+    seen: set[tuple[str, str]] = set()
 
-    seen_schemas: set[tuple[str, str]] = set()
-    unresolved: set[str] = set()
-    standalone_seed: list[dict[str, Any]] = []
-    prerequisites: list[str] = []
-    total_written = 0
-    requested_member_count = 0
-
-    for rec_namespace, rec_name, members, targets in records:
-        if (rec_namespace, rec_name) == (namespace, name):
-            requested_member_count = len(members)
-        else:
-            prerequisites.append(f"{rec_namespace}/{rec_name}")
-        standalone_seed.extend(targets[1])
-        unresolved.update(targets[2])
-        # Collection members (requested or prerequisite) download strictly: a curated
-        # collection that lists a missing member is an error, not something to skip.
-        total_written += await _download_schema_set(
-            client,
-            base_url,
-            members,
-            output_dir / _safe_segment(rec_name),
-            stdout=stdout,
-            seen=seen_schemas,
-            already_written=total_written,
-            soft_fail=False,
-            write_ctx=write_ctx,
-        )
-
-    # Loose schema dependencies (standalone + transitively discovered) soft-fail: a referenced
-    # schema that cannot be retrieved is reported and skipped, not fatal (FR-014).
-    standalone, standalone_unresolved = await _resolve_dependency_closure(
-        client, base_url, standalone_seed, status=status
-    )
-    unresolved.update(standalone_unresolved)
-    total_written += await _download_schema_set(
+    # Requested collection members download strictly (a curated collection that lists a missing
+    # member is an error, not something to skip), into the collection's own directory.
+    members = _collection_members(payload, status)
+    requested_member_count = len(members)
+    total_written = await _download_schema_set(
         client,
         base_url,
-        standalone,
-        output_dir,
+        members,
+        output_dir / _safe_segment(name),
         stdout=stdout,
-        seen=seen_schemas,
-        already_written=total_written,
-        soft_fail=True,
+        seen=seen,
+        soft_fail=False,
         write_ctx=write_ctx,
     )
 
-    _report_collection_tree(status, namespace, name, total_written, requested_member_count, prerequisites, unresolved)
+    prerequisites: list[str] = []
+    unresolved: set[str] = set()
+    hidden_count = 0
+    deps = await _fetch_dependencies(client, base_url, "collection", namespace, name, status=status)
+    if deps is not None:
+        unresolved.update(deps.unresolved)
+        hidden_count = deps.hidden_count
+        # Prerequisite collection members also download strictly, each into its own directory.
+        for dep_namespace, dep_name, dep_members in deps.collection_groups:
+            prerequisites.append(f"{dep_namespace}/{dep_name}" if dep_namespace else dep_name)
+            total_written += await _download_schema_set(
+                client,
+                base_url,
+                dep_members,
+                output_dir / _safe_segment(dep_name),
+                stdout=stdout,
+                seen=seen,
+                already_written=total_written,
+                soft_fail=False,
+                write_ctx=write_ctx,
+            )
+        # Standalone dependency schemas soft-fail so one missing dependency does not abort.
+        total_written += await _download_schema_set(
+            client,
+            base_url,
+            deps.standalone,
+            output_dir,
+            stdout=stdout,
+            seen=seen,
+            already_written=total_written,
+            soft_fail=True,
+            write_ctx=write_ctx,
+        )
 
-
-async def _owning_collection_name(
-    client: httpx.AsyncClient,
-    base_url: str,
-    schema_id: str,
-) -> str | None:
-    """Return the name of a collection the schema belongs to, if any (first by name).
-
-    Used to group a schema's dependencies under their collection's directory, mirroring a
-    collection download. A lookup failure is treated as "no collection" (write to the root).
-    """
-    if not schema_id:
-        return None
-    try:
-        resp = await client.get(f"{base_url}/api/v1/collections/for-schema/{schema_id}")
-        resp.raise_for_status()
-        items = resp.json().get("items") or []
-    except (httpx.HTTPError, ValueError, AttributeError):
-        return None
-    names = sorted(entry["name"] for entry in items if isinstance(entry, dict) and entry.get("name"))
-    return names[0] if names else None
+    _report_collection_tree(
+        status, namespace, name, total_written, requested_member_count, prerequisites, unresolved, hidden_count
+    )
 
 
 async def _download_schema_tree(
@@ -884,12 +760,12 @@ async def _download_schema_tree(
     schema_confirmed_exists: bool = False,
     write_ctx: _WriteContext | None = None,
 ) -> None:
-    """Download a single schema together with its transitive dependencies.
+    """Download a single schema together with its resolved dependencies.
 
-    The requested schema downloads strictly (it is the primary target) to the output root. Its
-    transitively resolved dependency schemas soft-fail and are grouped by the collection they
-    belong to (``output_dir/<collection>/``, like a collection download); dependencies not in
-    any collection go to the output root. Referenced kinds that cannot be resolved are reported.
+    The requested schema downloads strictly (the primary target) to the output root. Its
+    dependencies — resolved server-side (``GET .../dependencies``) — soft-fail and are grouped by
+    the collection they belong to (``output_dir/<collection>/``); dependencies in no collection
+    go to the output root. When ``version`` is set, dependencies are resolved for that version.
     """
     status = _status_console(stdout)
     requested_written = await _download_schema(
@@ -905,31 +781,39 @@ async def _download_schema_tree(
         write_ctx=write_ctx,
     )
     total_written = 1 if requested_written else 0
-
-    # Resolve the transitive closure from the requested schema (it is already downloaded, so
-    # ``seen`` skips it), then bucket each dependency under its owning collection's directory.
     seen: set[tuple[str, str]] = {(namespace, name)}
-    seed = [{"namespace": namespace, "name": name, "version": version}]
-    closure, unresolved = await _resolve_dependency_closure(client, base_url, seed, status=status)
 
-    buckets: dict[Path, list[dict[str, Any]]] = {}
-    for dep in closure:
-        if (dep["namespace"], dep["name"]) == (namespace, name):
-            continue
-        owning = await _owning_collection_name(client, base_url, dep.get("schema_id", ""))
-        buckets.setdefault(output_dir / _safe_segment(owning) if owning else output_dir, []).append(dep)
-
-    for target, group in buckets.items():
+    unresolved: set[str] = set()
+    hidden_count = 0
+    deps = await _fetch_dependencies(client, base_url, "schema", namespace, name, version=version, status=status)
+    if deps is not None:
+        unresolved.update(deps.unresolved)
+        hidden_count = deps.hidden_count
+        # Dependencies that belong to a collection are grouped under its directory.
+        for _dep_namespace, dep_name, dep_members in deps.collection_groups:
+            total_written += await _download_schema_set(
+                client,
+                base_url,
+                dep_members,
+                output_dir / _safe_segment(dep_name),
+                stdout=stdout,
+                seen=seen,
+                already_written=total_written,
+                soft_fail=True,
+                write_ctx=write_ctx,
+            )
+        # Standalone dependencies go to the root; reserve the requested name so a same-named
+        # dependency is disambiguated into a namespace subdir rather than overwriting it.
         total_written += await _download_schema_set(
             client,
             base_url,
-            group,
-            target,
+            deps.standalone,
+            output_dir,
             stdout=stdout,
             seen=seen,
             already_written=total_written,
             soft_fail=True,
-            reserved_names={name} if target == output_dir and requested_written else None,
+            reserved_names={name} if requested_written else None,
             write_ctx=write_ctx,
         )
 
@@ -939,6 +823,7 @@ async def _download_schema_tree(
         f"\n[green]Schema {namespace}/{name}: {total_written} schemas downloaded ({dependency_count} {noun} resolved)"
     )
     _print_unresolved(status, unresolved)
+    _print_hidden(status, hidden_count)
 
 
 async def _download_collection(

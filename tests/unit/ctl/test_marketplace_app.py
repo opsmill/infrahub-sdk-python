@@ -1,4 +1,5 @@
 import json as _json
+from itertools import starmap
 from pathlib import Path
 
 import httpx
@@ -20,77 +21,64 @@ nodes:
 """
 
 
-def _collection_json(members: list[tuple[str, str, str]], dependencies: dict | None = None) -> dict:
+def _collection_json(members: list[tuple[str, str, str]]) -> dict:
     """Build collection metadata mimicking the marketplace endpoint.
 
-    ``members`` is a list of ``(namespace, name, semver)`` tuples. ``dependencies`` is the
-    optional derived-dependency object the detail endpoint returns.
+    ``members`` is a list of ``(namespace, name, semver)`` tuples.
     """
-    payload: dict = {
+    return {
         "items": [
             {"schema": {"namespace": ns, "name": name, "latest_version": {"semver": semver}}}
             for ns, name, semver in members
         ]
     }
-    if dependencies is not None:
-        payload["dependencies"] = dependencies
-    return payload
 
 
-def _deps(
-    *,
-    schemas: list[tuple[str, str]] | None = None,
-    collections: list[tuple[str, str]] | None = None,
-    unresolved: list[str] | None = None,
-) -> dict:
-    """Build a collection ``dependencies`` object (prerequisite collections + standalone schemas)."""
-    return {
-        "schemas": [{"id": f"s-{ns}-{nm}", "namespace": ns, "name": nm} for ns, nm in (schemas or [])],
-        "collections": [{"id": f"c-{ns}-{nm}", "namespace": ns, "name": nm} for ns, nm in (collections or [])],
-        "unresolved_kinds": unresolved or [],
-        "hidden_count": 0,
-    }
+def _dep_schema(namespace: str, name: str) -> dict:
+    """Build a dependency schema entry as the marketplace ``/dependencies`` endpoint returns it."""
+    return {"id": f"s-{namespace}-{name}", "namespace": namespace, "name": name, "display_name": name.upper()}
 
 
-def _resolved_dep(namespace: str, name: str, kind: str | None = None) -> dict:
-    return {
-        "referenced_kind": kind or f"{namespace.capitalize()}{name.capitalize()}",
-        "resolved_schema": {"id": f"s-{namespace}-{name}", "namespace": namespace, "name": name},
-        "is_resolved": True,
-        "multi_resolved": False,
-        "hidden_due_to_visibility": False,
-    }
-
-
-def _unresolved_dep(kind: str, *, hidden: bool = False) -> dict:
-    return {
-        "referenced_kind": kind,
-        "resolved_schema": None,
-        "is_resolved": False,
-        "multi_resolved": False,
-        "hidden_due_to_visibility": hidden,
-    }
-
-
-def _schema_detail(namespace: str, name: str, *, semver: str = "1.0.0", deps: list[dict] | None = None) -> dict:
-    """Build a schema-detail response mimicking GET /api/v1/schemas/{ns}/{name}."""
-    version_id = f"v-{namespace}-{name}"
+def _dep_collection(namespace: str, name: str, members: list[tuple[str, str]]) -> dict:
+    """Build a prerequisite-collection group (with its member schemas embedded)."""
     return {
         "namespace": namespace,
         "name": name,
-        "latest_version": {"id": version_id, "semver": semver},
-        "versions": [{"id": version_id, "semver": semver, "dependencies": deps or []}],
+        "display_name": name,
+        "schemas": list(starmap(_dep_schema, members)),
     }
 
 
-def _stub_for_schema(httpx_mock: HTTPXMock, ns: str, name: str, collection: str | None = None) -> None:
-    """Stub GET /collections/for-schema/{id} for a dependency (id matches _resolved_dep)."""
-    items = [{"namespace": "infrahub", "name": collection}] if collection else []
-    httpx_mock.add_response(
-        method="GET",
-        url=f"https://marketplace.infrahub.app/api/v1/collections/for-schema/s-{ns}-{name}",
-        json={"items": items},
-    )
+def _deps_response(
+    *,
+    collections: list[tuple[str, str, list[tuple[str, str]]]] | None = None,
+    schemas: list[tuple[str, str]] | None = None,
+    unresolved: list[str] | None = None,
+    hidden: int = 0,
+) -> dict:
+    """Build a marketplace ``/dependencies`` response: the resolved closure grouped by source."""
+    return {
+        "collections": list(starmap(_dep_collection, collections or [])),
+        "schemas": list(starmap(_dep_schema, schemas or [])),
+        "unresolved_kinds": unresolved or [],
+        "hidden_count": hidden,
+    }
+
+
+def _stub_deps(
+    httpx_mock: HTTPXMock,
+    item_type: str,
+    namespace: str,
+    name: str,
+    response: dict,
+    *,
+    version: str | None = None,
+) -> None:
+    """Stub GET /{item_type}s/{ns}/{name}/dependencies (optionally pinned to a version)."""
+    url = f"https://marketplace.infrahub.app/api/v1/{item_type}s/{namespace}/{name}/dependencies"
+    if version:
+        url += f"?version={version}"
+    httpx_mock.add_response(method="GET", url=url, json=response)
 
 
 def test_download_schema_specific_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
@@ -985,40 +973,35 @@ async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_pa
 
 
 def test_dependencies_groups_prerequisite_collections_and_standalone(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """C1: members, prerequisite collections, and transitive standalone schemas land in the right dirs."""
+    """C1: members, prerequisite collections, and standalone dependency schemas land in the right dirs."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
-        json=_collection_json(
-            [("acme", "app", "1.0.0")],
-            _deps(collections=[("acme", "base")], schemas=[("acme", "extra")]),
+        json=_collection_json([("acme", "app", "1.0.0")]),
+    )
+    # The marketplace resolves the full closure: base-schemas (with members) plus standalone extra/more.
+    _stub_deps(
+        httpx_mock,
+        "collection",
+        "acme",
+        "starter-pack",
+        _deps_response(
+            collections=[("acme", "base", [("acme", "dcim"), ("acme", "ipam")])],
+            schemas=[("acme", "extra"), ("acme", "more")],
         ),
     )
-    # Prerequisite collection → its own directory.
+    # Members download at their pinned version; dependency schemas at latest (unversioned).
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/base",
-        json=_collection_json([("acme", "dcim", "1.0.0"), ("acme", "ipam", "2.0.0")]),
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
+        text=SCHEMA_YAML,
     )
-    # Standalone schema walk: extra → more (transitive), to the output root.
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/extra",
-        json=_schema_detail("acme", "extra", deps=[_resolved_dep("acme", "more")]),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/more",
-        json=_schema_detail("acme", "more", deps=[]),
-    )
-    for url in (
-        "schemas/acme/app/versions/1.0.0/download",
-        "schemas/acme/dcim/versions/1.0.0/download",
-        "schemas/acme/ipam/versions/2.0.0/download",
-        "schemas/acme/extra/download",
-        "schemas/acme/more/download",
-    ):
-        httpx_mock.add_response(method="GET", url=f"https://marketplace.infrahub.app/api/v1/{url}", text=SCHEMA_YAML)
+    for dep in ("dcim", "ipam", "extra", "more"):
+        httpx_mock.add_response(
+            method="GET",
+            url=f"https://marketplace.infrahub.app/api/v1/schemas/acme/{dep}/download",
+            text=SCHEMA_YAML,
+        )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1036,18 +1019,18 @@ def test_dependencies_groups_prerequisite_collections_and_standalone(httpx_mock:
 
 
 def test_dependencies_not_requested_skips_resolution(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """C2: without --dependencies, declared dependencies are ignored (backward compatible)."""
+    """C2: without --dependencies, the dependencies endpoint is never called (backward compatible)."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
-        json=_collection_json([("acme", "app", "1.0.0")], _deps(collections=[("acme", "base")])),
+        json=_collection_json([("acme", "app", "1.0.0")]),
     )
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
         text=SCHEMA_YAML,
     )
-    # No /collections/acme/base mock — pytest-httpx fails if dependency resolution runs.
+    # No /dependencies mock — pytest-httpx fails if dependency resolution runs.
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1056,51 +1039,15 @@ def test_dependencies_not_requested_skips_resolution(httpx_mock: HTTPXMock, tmp_
     assert (tmp_path / "starter-pack" / "app.yml").exists()
 
 
-def test_dependencies_collection_cycle_safe(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """A collection cycle A→B→A resolves each collection once."""
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/a",
-        json=_collection_json([("acme", "sa", "1.0.0")], _deps(collections=[("acme", "b")])),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/b",
-        json=_collection_json([("acme", "sb", "1.0.0")], _deps(collections=[("acme", "a")])),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/sa/versions/1.0.0/download",
-        text=SCHEMA_YAML,
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/sb/versions/1.0.0/download",
-        text=SCHEMA_YAML,
-    )
-    result = runner.invoke(app, ["get", "acme/a", "-c", "--dependencies", "-o", str(tmp_path)])
-
-    assert result.exit_code == 0
-    assert "2 schemas downloaded" in result.output
-    assert "1 dependency resolved" in result.output
-    assert "Prerequisite collections: acme/b" in result.output
-    assert (tmp_path / "a" / "sa.yml").exists()
-    assert (tmp_path / "b" / "sb.yml").exists()
-
-
 def test_dependencies_member_also_standalone_downloaded_once(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """A schema that is both a member and a standalone dependency is written once (as a member)."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/pair",
-        json=_collection_json([("acme", "a", "1.0.0"), ("acme", "b", "2.0.0")], _deps(schemas=[("acme", "b")])),
+        json=_collection_json([("acme", "a", "1.0.0"), ("acme", "b", "2.0.0")]),
     )
-    # The standalone walk reads b's dependencies but b is already a member, so it is not re-downloaded.
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/b",
-        json=_schema_detail("acme", "b", deps=[]),
-    )
+    # b is also listed as a standalone dependency, but it is already a member so it is not re-downloaded.
+    _stub_deps(httpx_mock, "collection", "acme", "pair", _deps_response(schemas=[("acme", "b")]))
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/a/versions/1.0.0/download",
@@ -1124,42 +1071,32 @@ def test_dependencies_stdout_streams_all_documents(httpx_mock: HTTPXMock, tmp_pa
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
-        json=_collection_json(
-            [("acme", "a", "1.0.0")],
-            _deps(collections=[("acme", "base")], schemas=[("acme", "ext")]),
-        ),
+        json=_collection_json([("acme", "a", "1.0.0")]),
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/base",
-        json=_collection_json([("acme", "bb", "1.0.0")]),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/ext",
-        json=_schema_detail("acme", "ext", deps=[]),
+    _stub_deps(
+        httpx_mock,
+        "collection",
+        "acme",
+        "starter-pack",
+        _deps_response(collections=[("acme", "base", [("acme", "bb")])], schemas=[("acme", "ext")]),
     )
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/a/versions/1.0.0/download",
         text=SCHEMA_YAML,
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/bb/versions/1.0.0/download",
-        text=SCHEMA_YAML,
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/ext/download",
-        text=SCHEMA_YAML,
-    )
+    for dep in ("bb", "ext"):
+        httpx_mock.add_response(
+            method="GET",
+            url=f"https://marketplace.infrahub.app/api/v1/schemas/acme/{dep}/download",
+            text=SCHEMA_YAML,
+        )
     result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "--dependencies", "--stdout", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert result.output.count(SCHEMA_YAML) == 3
     assert "Fetched schema acme/a v1.0.0" in result.output
-    assert "Fetched schema acme/bb v1.0.0" in result.output
+    assert "Fetched schema acme/bb" in result.output
     assert "Fetched schema acme/ext" in result.output
     assert "2 dependencies resolved" in result.output
     assert not any(tmp_path.iterdir())
@@ -1170,7 +1107,14 @@ def test_dependencies_unresolved_kinds_reported(httpx_mock: HTTPXMock, tmp_path:
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
-        json=_collection_json([("acme", "app", "1.0.0")], _deps(unresolved=["BuiltinTag", "BuiltinIPHost"])),
+        json=_collection_json([("acme", "app", "1.0.0")]),
+    )
+    _stub_deps(
+        httpx_mock,
+        "collection",
+        "acme",
+        "starter-pack",
+        _deps_response(unresolved=["BuiltinTag", "BuiltinIPHost"]),
     )
     httpx_mock.add_response(
         method="GET",
@@ -1186,18 +1130,33 @@ def test_dependencies_unresolved_kinds_reported(httpx_mock: HTTPXMock, tmp_path:
     assert "BuiltinIPHost" in result.output
 
 
+def test_dependencies_hidden_count_reported(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Dependencies hidden by visibility are reported and not counted as downloaded."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/starter-pack",
+        json=_collection_json([("acme", "app", "1.0.0")]),
+    )
+    _stub_deps(httpx_mock, "collection", "acme", "starter-pack", _deps_response(hidden=2))
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
+        text=SCHEMA_YAML,
+    )
+    result = runner.invoke(app, ["get", "acme/starter-pack", "-c", "--dependencies", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "2 dependencies hidden due to visibility" in result.output
+
+
 def test_dependencies_missing_standalone_download_is_soft(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """C7: a standalone dependency that 404s on download is skipped with a note; the rest succeed."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/needy",
-        json=_collection_json([("acme", "app", "1.0.0")], _deps(schemas=[("acme", "gone")])),
+        json=_collection_json([("acme", "app", "1.0.0")]),
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/gone",
-        json=_schema_detail("acme", "gone", deps=[]),
-    )
+    _stub_deps(httpx_mock, "collection", "acme", "needy", _deps_response(schemas=[("acme", "gone")]))
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
@@ -1219,28 +1178,30 @@ def test_dependencies_missing_standalone_download_is_soft(httpx_mock: HTTPXMock,
 
 
 def test_dependencies_missing_prerequisite_member_fails_strictly(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """A prerequisite collection that lists a member with no published version is a hard error."""
+    """A prerequisite collection member that cannot be downloaded is a hard error."""
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/collections/acme/app-pack",
-        json=_collection_json([("acme", "app", "1.0.0")], _deps(collections=[("acme", "base")])),
+        json=_collection_json([("acme", "app", "1.0.0")]),
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/collections/acme/base",
-        json=_collection_json([("acme", "missing", "9.9.9")]),
+    _stub_deps(
+        httpx_mock,
+        "collection",
+        "acme",
+        "app-pack",
+        _deps_response(collections=[("acme", "base", [("acme", "missing")])]),
     )
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
         text=SCHEMA_YAML,
     )
-    # The prerequisite collection's member cannot be fetched at its pinned version.
+    # The prerequisite collection's member cannot be fetched.
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/missing/versions/9.9.9/download",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/missing/download",
         status_code=404,
-        json={"detail": "Version not found"},
+        json={"detail": "Schema not found"},
     )
     result = runner.invoke(app, ["get", "acme/app-pack", "-c", "--dependencies", "-o", str(tmp_path)])
 
@@ -1248,8 +1209,8 @@ def test_dependencies_missing_prerequisite_member_fails_strictly(httpx_mock: HTT
     assert "acme/missing" in result.output
 
 
-def test_dependencies_on_schema_resolves_transitively(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """--dependencies on a single schema downloads it plus its transitive dependency schemas."""
+def test_dependencies_on_schema_resolves_dependencies(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """--dependencies on a single schema downloads it plus the dependency schemas the marketplace resolves."""
     # Auto-detect: identifier resolves to a schema.
     httpx_mock.add_response(
         method="GET",
@@ -1263,32 +1224,13 @@ def test_dependencies_on_schema_resolves_transitively(httpx_mock: HTTPXMock, tmp
         status_code=404,
         json={"detail": "Collection not found"},
     )
-    # Dependency walk: app → ipam → location.
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app",
-        json=_schema_detail("acme", "app", deps=[_resolved_dep("acme", "ipam")]),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/ipam",
-        json=_schema_detail("acme", "ipam", deps=[_resolved_dep("acme", "location")]),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/location",
-        json=_schema_detail("acme", "location", deps=[]),
-    )
-    # Dependency downloads (latest, unversioned) land in the output root next to the schema.
+    _stub_deps(httpx_mock, "schema", "acme", "app", _deps_response(schemas=[("acme", "ipam"), ("acme", "location")]))
     for dep in ("ipam", "location"):
         httpx_mock.add_response(
             method="GET",
             url=f"https://marketplace.infrahub.app/api/v1/schemas/acme/{dep}/download",
             text=SCHEMA_YAML,
         )
-    # Neither dependency belongs to a collection → both stay at the output root.
-    _stub_for_schema(httpx_mock, "acme", "ipam")
-    _stub_for_schema(httpx_mock, "acme", "location")
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1301,19 +1243,31 @@ def test_dependencies_on_schema_resolves_transitively(httpx_mock: HTTPXMock, tmp
 
 def test_dependencies_on_schema_groups_deps_by_collection(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """A dependency that belongs to a collection is placed under that collection's directory."""
-    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
-        json=_schema_detail("acme", "dcim", deps=[]),
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/app",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    # dcim belongs to the base-schemas collection → grouped under base-schemas/.
+    _stub_deps(
+        httpx_mock,
+        "schema",
+        "acme",
+        "app",
+        _deps_response(collections=[("acme", "base-schemas", [("acme", "dcim")])]),
     )
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/download",
         text=SCHEMA_YAML,
     )
-    # dcim belongs to the base-schemas collection → grouped under base-schemas/.
-    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1337,11 +1291,7 @@ def test_dependencies_on_schema_with_no_dependencies(httpx_mock: HTTPXMock, tmp_
         status_code=404,
         json={"detail": "Collection not found"},
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/leaf",
-        json=_schema_detail("acme", "leaf", deps=[]),
-    )
+    _stub_deps(httpx_mock, "schema", "acme", "leaf", _deps_response())
     result = runner.invoke(app, ["get", "acme/leaf", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1364,22 +1314,12 @@ def test_dependencies_on_schema_disambiguates_same_name_dependency(httpx_mock: H
         status_code=404,
         json={"detail": "Collection not found"},
     )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/thing",
-        json=_schema_detail("acme", "thing", deps=[_resolved_dep("other", "thing")]),
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/other/thing",
-        json=_schema_detail("other", "thing", deps=[]),
-    )
+    _stub_deps(httpx_mock, "schema", "acme", "thing", _deps_response(schemas=[("other", "thing")]))
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/other/thing/download",
         text=SCHEMA_YAML,
     )
-    _stub_for_schema(httpx_mock, "other", "thing")  # not in a collection → stays at root
     result = runner.invoke(app, ["get", "acme/thing", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1389,27 +1329,6 @@ def test_dependencies_on_schema_disambiguates_same_name_dependency(httpx_mock: H
     assert (tmp_path / "other" / "thing.yml").exists()
 
 
-def _stub_schema_get(httpx_mock: HTTPXMock, ns: str, name: str, *, deps: list[dict] | None = None) -> None:
-    """Register the auto-detect (download + collection-404) and dependency-read stubs for a schema."""
-    httpx_mock.add_response(
-        method="GET",
-        url=f"https://marketplace.infrahub.app/api/v1/schemas/{ns}/{name}/download",
-        text=SCHEMA_YAML,
-        headers={"x-schema-version": "1.0.0"},
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url=f"https://marketplace.infrahub.app/api/v1/collections/{ns}/{name}",
-        status_code=404,
-        json={"detail": "Collection not found"},
-    )
-    httpx_mock.add_response(
-        method="GET",
-        url=f"https://marketplace.infrahub.app/api/v1/schemas/{ns}/{name}",
-        json=_schema_detail(ns, name, deps=deps or []),
-    )
-
-
 def test_dependencies_existing_file_kept_without_yes(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """A schema already present in the output tree is kept (not overwritten/duplicated) without --yes."""
     # Pre-existing copy from a prior download, in a collection subdirectory.
@@ -1417,13 +1336,25 @@ def test_dependencies_existing_file_kept_without_yes(httpx_mock: HTTPXMock, tmp_
     existing = tmp_path / "base-schemas" / "dcim.yml"
     existing.write_text("OLD CONTENT\n")
 
-    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
-        json=_schema_detail("acme", "dcim", deps=[]),
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
     )
-    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/app",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    _stub_deps(
+        httpx_mock,
+        "schema",
+        "acme",
+        "app",
+        _deps_response(collections=[("acme", "base-schemas", [("acme", "dcim")])]),
+    )
     # Non-interactive (CliRunner stdin is not a tty) and no --yes → dcim is kept, not re-fetched.
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "-o", str(tmp_path)])
 
@@ -1439,18 +1370,30 @@ def test_dependencies_existing_file_overwritten_with_yes(httpx_mock: HTTPXMock, 
     existing = tmp_path / "base-schemas" / "dcim.yml"
     existing.write_text("OLD CONTENT\n")
 
-    _stub_schema_get(httpx_mock, "acme", "app", deps=[_resolved_dep("acme", "dcim")])
     httpx_mock.add_response(
         method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim",
-        json=_schema_detail("acme", "dcim", deps=[]),
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/download",
+        text=SCHEMA_YAML,
+        headers={"x-schema-version": "1.0.0"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/app",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    _stub_deps(
+        httpx_mock,
+        "schema",
+        "acme",
+        "app",
+        _deps_response(collections=[("acme", "base-schemas", [("acme", "dcim")])]),
     )
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/dcim/download",
         text=SCHEMA_YAML,
     )
-    _stub_for_schema(httpx_mock, "acme", "dcim", collection="base-schemas")
     result = runner.invoke(app, ["get", "acme/app", "--dependencies", "--yes", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
@@ -1459,8 +1402,8 @@ def test_dependencies_existing_file_overwritten_with_yes(httpx_mock: HTTPXMock, 
     assert not (tmp_path / "dcim.yml").exists()  # still no duplicate at the root
 
 
-def test_dependencies_of_pinned_version_read_from_that_version(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
-    """--version with --dependencies resolves the pinned version's deps, not the latest version's."""
+def test_dependencies_of_pinned_version_forwarded_to_endpoint(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """--version with --dependencies resolves deps for that version (the version is sent to the endpoint)."""
     # Auto-detect probes (version is applied to the download URL, not the detect probe).
     httpx_mock.add_response(
         method="GET",
@@ -1480,39 +1423,19 @@ def test_dependencies_of_pinned_version_read_from_that_version(httpx_mock: HTTPX
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/app/versions/1.0.0/download",
         text=SCHEMA_YAML,
     )
-    # Detail lists two versions: latest (2.0.0) depends on newdep; pinned (1.0.0) depends on olddep.
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/app",
-        json={
-            "namespace": "acme",
-            "name": "app",
-            "latest_version": {"id": "v-latest", "semver": "2.0.0"},
-            "versions": [
-                {"id": "v-latest", "semver": "2.0.0", "dependencies": [_resolved_dep("acme", "newdep")]},
-                {"id": "v-old", "semver": "1.0.0", "dependencies": [_resolved_dep("acme", "olddep")]},
-            ],
-        },
-    )
-    # Only olddep should be walked and downloaded. newdep is intentionally left unstubbed so that
-    # resolving the latest version's deps by mistake would raise on the unmatched request.
-    httpx_mock.add_response(
-        method="GET",
-        url="https://marketplace.infrahub.app/api/v1/schemas/acme/olddep",
-        json=_schema_detail("acme", "olddep", deps=[]),
-    )
+    # The dependencies endpoint is stubbed only for ?version=1.0.0; if the SDK omitted the version
+    # the request would not match and pytest-httpx would fail.
+    _stub_deps(httpx_mock, "schema", "acme", "app", _deps_response(schemas=[("acme", "olddep")]), version="1.0.0")
     httpx_mock.add_response(
         method="GET",
         url="https://marketplace.infrahub.app/api/v1/schemas/acme/olddep/download",
         text=SCHEMA_YAML,
     )
-    _stub_for_schema(httpx_mock, "acme", "olddep")
     result = runner.invoke(app, ["get", "acme/app", "-v", "1.0.0", "--dependencies", "-o", str(tmp_path)])
 
     assert result.exit_code == 0
     assert "1 dependency resolved" in result.output
     assert (tmp_path / "olddep.yml").exists()
-    assert not (tmp_path / "newdep.yml").exists()
 
 
 def test_dependencies_refuses_path_traversal_in_member_name(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
