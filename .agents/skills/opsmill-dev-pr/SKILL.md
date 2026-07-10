@@ -1,12 +1,12 @@
 ---
-name: pr
+name: opsmill-dev-pr
 description: >-
   Opens a pull request, publishing the current branch as a PR. TRIGGER when: the user wants to
   open a pull request, publish the current branch as a PR, or take the current work through to an
-  open PR. DO NOT TRIGGER when: only committing changes → commit; babysitting CI after the PR is
-  already open → monitoring-pull-requests.
+  open PR. DO NOT TRIGGER when: only committing changes → opsmill-dev-commit; babysitting CI after the PR is
+  already open → opsmill-dev-monitoring-pull-requests.
 argument-hint: Optional `commit` to stage, commit, and push uncommitted changes before opening the PR
-compatibility: Requires a Git working tree and GitHub access (gh CLI authenticated, GitHub MCP server, or equivalent). Works best alongside the `commit` and `monitoring-pull-requests` skills from this plugin.
+compatibility: Requires a Git working tree and GitHub access (gh CLI authenticated, GitHub MCP server, or equivalent). Works best alongside the `opsmill-dev-commit` and `opsmill-dev-monitoring-pull-requests` skills from this plugin.
 metadata:
   version: 0.1.0
   author: OpsMill
@@ -42,7 +42,7 @@ First, verify the agent is on a safe branch and understand the current git state
    - When ambiguous, ask the user.
 4. **If on an unsafe branch** — the default branch, a long-standing integration branch, a release branch, or a placeholder/scratch branch (the `commit` skill's step 2 holds the canonical rules; don't re-derive the list here):
    - **If `commit` was passed:** proceed to Phase 2; the `commit` skill will refuse the unsafe branch, propose a properly named feature branch, and ask the user for approval before creating it. Do not pre-create the branch here — let the `commit` skill own that conversation so the rules stay in one place.
-   - **If `commit` was NOT passed:** STOP. There's no feature branch to open a PR from. Tell the user they need to either invoke `/pr commit` (so the `commit` skill creates a branch and captures the changes), or switch to a feature branch first.
+   - **If `commit` was NOT passed:** STOP. There's no feature branch to open a PR from. Tell the user they need to either invoke `/opsmill-dev-pr commit` (so the `commit` skill creates a branch and captures the changes), or switch to a feature branch first.
 5. If already on a feature branch, continue to the next phase.
 
 ### 2. Commit Changes (only when `commit` argument is provided)
@@ -55,7 +55,7 @@ When `commit` IS provided, run any project-specific prep first, then delegate th
 
 2. If the project checks in generated artefacts (GraphQL schemas, OpenAPI clients, generated SDK types, protobufs) and their sources were modified, regenerate them using the project's documented commands and include the regenerated files — CI commonly fails on stale generated artefacts.
 
-3. Invoke the `commit` skill with the `push` argument: `/commit push`. The skill will:
+3. Invoke the `commit` skill with the `push` argument: `/opsmill-dev-commit push`. The skill will:
    - Refuse to commit on protected or placeholder branches and, if needed, propose a conventional feature branch name (`feat/…`, `fix/…`, etc.) for user approval before creating it.
    - Stage changes safely (explicit paths, secret-pattern warnings).
    - Draft a conventional-commit message and confirm it with the user.
@@ -64,7 +64,7 @@ When `commit` IS provided, run any project-specific prep first, then delegate th
 
    Do not duplicate any of that logic inline here. If the user has additional commit-message guidance specific to this PR (e.g., spec or issue reference, conventional-commit scope), pass it along when invoking the skill.
 
-4. After `/commit push` returns, confirm the working tree is clean and the branch is published before continuing to Phase 3.
+4. After `/opsmill-dev-commit push` returns, confirm the working tree is clean and the branch is published before continuing to Phase 3.
 
 ### 3. Analyze All Branch Changes
 
@@ -102,7 +102,7 @@ Before opening the PR, ensure that the project's documentation reflects the chan
    - Read each relevant doc and compare against the actual changes.
    - If a doc is outdated or missing coverage of new functionality, propose updates.
    - Present proposed doc changes to the user for approval.
-3. Commit any approved doc updates to the branch (with a `docs:` conventional commit, following the repo's commit style).
+3. If `commit` was passed, commit any approved doc updates to the branch (with a `docs:` conventional commit, following the repo's commit style). If `commit` was not passed, leave the approved edits uncommitted in the working tree and tell the user to run `/opsmill-dev-pr commit` to include them — without `commit`, the skill makes no commits (see Arguments).
 4. Push if new commits were added.
 
 ### 5. Draft PR Description
@@ -119,23 +119,29 @@ Focus on business value — what problem does this solve, what capability does i
 
 ```markdown
 ## Summary
+
 [1-3 sentences: what business problem this solves or what capability it adds.
 Frame as outcomes for users/operators, not as code changes.]
 
 ## Key Changes
+
 [Bulleted list of the most important changes, framed as outcomes:
+
 - "Operators can now back up and restore environments" NOT "Added backup_service.py"
 - "Queries are validated against the schema in CI" NOT "Moved queries to .graphql files"]
 
 ## Related Context
+
 [If tied to a spec, PRD, ADR, or issue: link it and highlight the key
 requirements addressed. Omit this section if none exists.]
 
 ## Documentation Updates
+
 [List any docs that were added or updated as part of this PR.
 Omit this section if no docs were changed.]
 
 ## Test Plan
+
 [How to verify — test commands to run, manual verification steps, or CI checks to watch]
 ```
 
@@ -180,7 +186,7 @@ Don't just open the PR and walk away — but don't re-implement the CI babysitti
      run_in_background: true,
      prompt: "Invoke the monitoring-pull-requests skill and run its workflow against
               PR #<N> on branch <branch>. The PR was just opened by
-              the /pr skill at commit <sha>; pass that commit as the
+              the /opsmill-dev-pr skill at commit <sha>; pass that commit as the
               expected baseline — monitoring-pull-requests re-captures and verifies
               the baseline_commit itself in its Phase 0. Follow every
               phase of the skill verbatim, including the narrow-
@@ -198,7 +204,7 @@ Don't just open the PR and walk away — but don't re-implement the CI babysitti
 
    Do not poll or re-summarize CI here. The agent's final report is the closing status; surface it to the user when it lands.
 
-If the runtime cannot spawn background agents, fall back to invoking `/monitoring-pull-requests <pr-number>` synchronously, or — as a last resort — poll `gh run list --branch <branch-name>` every 30–60 seconds and follow the same narrow-reproduction-first discipline `monitoring-pull-requests` enforces. Do not push speculative fixes when local reproduction is possible.
+If the runtime cannot spawn background agents, fall back to invoking `/opsmill-dev-monitoring-pull-requests <pr-number>` synchronously, or — as a last resort — poll `gh run list --branch <branch-name>` every 30–60 seconds and follow the same narrow-reproduction-first discipline `monitoring-pull-requests` enforces. Do not push speculative fixes when local reproduction is possible.
 
 ## Notes
 
