@@ -696,8 +696,9 @@ async def _download_collection_tree(
     # Requested collection members download strictly (a curated collection that lists a missing
     # member is an error, not something to skip), into the collection's own directory.
     members = _collection_members(payload, status)
-    requested_member_count = len(members)
-    total_written = await _download_schema_set(
+    # Count members actually written (not kept pre-existing ones) as the dependency-count
+    # baseline, so keeping members never yields a negative dependency count in the report.
+    requested_written = await _download_schema_set(
         client,
         base_url,
         members,
@@ -707,6 +708,7 @@ async def _download_collection_tree(
         soft_fail=False,
         write_ctx=write_ctx,
     )
+    total_written = requested_written
 
     prerequisites: list[str] = []
     unresolved: set[str] = set()
@@ -743,7 +745,7 @@ async def _download_collection_tree(
         )
 
     _report_collection_tree(
-        status, namespace, name, total_written, requested_member_count, prerequisites, unresolved, hidden_count
+        status, namespace, name, total_written, requested_written, prerequisites, unresolved, hidden_count
     )
 
 

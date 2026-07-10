@@ -1438,6 +1438,32 @@ def test_dependencies_of_pinned_version_forwarded_to_endpoint(httpx_mock: HTTPXM
     assert (tmp_path / "olddep.yml").exists()
 
 
+def test_dependencies_kept_members_do_not_skew_dependency_count(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Keeping a pre-existing requested member must not yield a wrong/negative dependency count."""
+    # The single requested member is already on disk and will be kept (non-interactive, no --yes).
+    (tmp_path / "pack").mkdir()
+    (tmp_path / "pack" / "app.yml").write_text("OLD CONTENT\n")
+
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/acme/pack",
+        json=_collection_json([("acme", "app", "1.0.0")]),
+    )
+    _stub_deps(httpx_mock, "collection", "acme", "pack", _deps_response(schemas=[("acme", "extra")]))
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/acme/extra/download",
+        text=SCHEMA_YAML,
+    )
+    result = runner.invoke(app, ["get", "acme/pack", "-c", "--dependencies", "-o", str(tmp_path)])
+
+    assert result.exit_code == 0
+    assert "Kept existing" in result.output
+    # One dependency was downloaded; the kept member must not push the count to 0 or negative.
+    assert "1 schemas downloaded (1 dependency resolved)" in result.output
+    assert (tmp_path / "extra.yml").exists()
+
+
 def test_dependencies_refuses_path_traversal_in_member_name(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """A member/collection name from the marketplace that would escape the output dir is refused."""
     httpx_mock.add_response(
