@@ -379,6 +379,53 @@ async def test_cardinality_many_assignment_accepts_list(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_assignment_included_in_input_data(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """A list assigned after construction is carried into the mutation payload built by save().
+
+    This is the exact path that used to raise 'InfrahubNode' object has no attribute 'initialized',
+    and it also guards that _strip_unmodified keeps the assignment (thanks to has_update).
+    """
+    data = {"name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+
+    node.tags = [{"id": "aaaaaa"}, {"id": "bbbb"}]
+
+    input_data = node._generate_input_data()["data"]["data"]
+    assert input_data["tags"] == [{"id": "aaaaaa"}, {"id": "bbbb"}]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_assignment_saved(
+    httpx_mock: HTTPXMock, clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """Assigning a list then calling save() succeeds and sends the peers in the create mutation."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationCreate": {"ok": True, "object": {"id": "location-123"}}}},
+    )
+    data = {"name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+        node.tags = [{"id": "aaaaaa"}, {"id": "bbbb"}]
+        await node.save()
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+        node.tags = [{"id": "aaaaaa"}, {"id": "bbbb"}]
+        node.save()
+
+    assert node.id == "location-123"
+    body = httpx_mock.get_requests()[-1].content.decode()
+    assert "aaaaaa" in body
+    assert "bbbb" in body
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_query_data_no_filters_property(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
