@@ -44,6 +44,11 @@ def require_tool(name: str, install_hint: str) -> None:
         raise Exit(f" - {name} is not installed. {install_hint}", code=1)
 
 
+def _rumdl_fix(context: Context, path: Path) -> None:
+    """Auto-fix rumdl violations in the generated markdown under *path*."""
+    context.run(f'rumdl check --fix "{path}"', pty=True)
+
+
 @task(name="docs-generate")
 def docs_generate(context: Context) -> None:
     """Generate all documentation (infrahubctl CLI + Python SDK)."""
@@ -266,8 +271,7 @@ def _generate_sdk_api_docs(context: Context) -> None:
         target_path = output_dir / reduce(operator.truediv, (Path(part) for part in file_key.split("-")))
         MDXDocPage(page=page, output_path=target_path).to_mdx()
 
-    with context.cd(DOCUMENTATION_DIRECTORY):
-        context.run(f"npx --no-install markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml", pty=True)
+    _rumdl_fix(context, output_dir)
 
 
 @task
@@ -316,11 +320,11 @@ def lint_ruff(context: Context) -> None:
 
 
 @task
-def lint_markdownlint(context: Context) -> None:
-    """Run markdownlint to check all markdown files."""
-    print(" - Check documentation with markdownlint-cli2")
-    exec_cmd = "npx --no-install markdownlint-cli2 **/*.{md,mdx} !node_modules/** --config .markdownlint.yaml"
-    with context.cd(DOCUMENTATION_DIRECTORY):
+def lint_markdown(context: Context) -> None:
+    """Run the markdown linter to check all markdown files."""
+    print(" - Check documentation with rumdl")
+    exec_cmd = "rumdl check ."
+    with context.cd(MAIN_DIRECTORY_PATH):
         context.run(exec_cmd)
 
 
@@ -346,7 +350,7 @@ def lint_code(context: Context) -> None:
 @task
 def lint_docs(context: Context) -> None:
     """Run all documentation linters."""
-    lint_markdownlint(context)
+    lint_markdown(context)
     lint_vale(context)
 
 
@@ -407,6 +411,7 @@ def generate_python_sdk(context: Context) -> None:
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
     _generate_infrahub_sdk_compatibility_documentation()
+    _rumdl_fix(context, DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference")
     _generate_sdk_api_docs(context)
 
 

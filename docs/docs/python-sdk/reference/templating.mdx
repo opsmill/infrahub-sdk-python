@@ -33,6 +33,7 @@ For backward compatibility, `validate(restricted=True)` maps to `CORE` and `vali
 The following filters are [shipped with Jinja2](https://jinja.palletsprojects.com/en/stable/templates/#list-of-builtin-filters) and enabled within Infrahub.
 
 <!-- vale off -->
+
 | Name | CORE | WORKER | LOCAL |
 | ---- | ---- | ------ | ----- |
 | abs | ✅ | ✅ | ✅ |
@@ -89,6 +90,7 @@ The following filters are [shipped with Jinja2](https://jinja.palletsprojects.co
 | wordcount | ✅ | ✅ | ✅ |
 | wordwrap | ✅ | ✅ | ✅ |
 | xmlattr | ❌ | ✅ | ✅ |
+
 <!-- vale on -->
 
 ## Netutils filters
@@ -96,6 +98,7 @@ The following filters are [shipped with Jinja2](https://jinja.palletsprojects.co
 The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netutils</a> are included within Infrahub.
 
 <!-- vale off -->
+
 | Name | CORE | WORKER | LOCAL |
 | ---- | ---- | ------ | ----- |
 | abbreviated_interface_name | ✅ | ✅ | ✅ |
@@ -176,6 +179,7 @@ The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netu
 | vlanconfig_to_list | ✅ | ✅ | ✅ |
 | vlanlist_to_config | ✅ | ✅ | ✅ |
 | wildcardmask_to_netmask | ✅ | ✅ | ✅ |
+
 <!-- vale on -->
 
 ## Infrahub filters
@@ -183,6 +187,7 @@ The following Jinja2 filters from <a href="https://netutils.readthedocs.io">Netu
 These filters are provided by the Infrahub SDK for artifact and file object content composition.
 
 <!-- vale off -->
+
 | Name | CORE | WORKER | LOCAL |
 | ---- | ---- | ------ | ----- |
 | `artifact_content` | ❌ | ✅ | ❌ |
@@ -191,6 +196,7 @@ These filters are provided by the Infrahub SDK for artifact and file object cont
 | `file_object_content_by_id` | ❌ | ✅ | ❌ |
 | `from_json` | ✅ | ✅ | ✅ |
 | `from_yaml` | ✅ | ✅ | ✅ |
+
 <!-- vale on -->
 
 ### Usage examples

@@ -1,3 +1,4 @@
+import json as _json
 from pathlib import Path
 
 import httpx
@@ -630,6 +631,330 @@ def test_get_collection_stdout_separator(httpx_mock: HTTPXMock, tmp_path: Path) 
     assert result.output.count(bare_yaml) == 2
 
 
+def _listing_json(item_type: str, items: list[dict], *, total: int | None = None, cursor: str | None = None) -> dict:
+    """Build a marketplace list/search envelope. ``item_type`` is 'schemas' or 'collections'."""
+    return {
+        "items": items,
+        "page_info": {"has_next_page": cursor is not None, "end_cursor": cursor},
+        "total_count": total if total is not None else len(items),
+    }
+
+
+def _schema_item(namespace: str, name: str, *, display: str, semver: str, downloads: int, tags: list[str]) -> dict:
+    return {
+        "namespace": namespace,
+        "name": name,
+        "display_name": display,
+        "download_count": downloads,
+        "tags": [{"name": t} for t in tags],
+        "latest_version": {"semver": semver},
+    }
+
+
+def test_list_schemas(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "dcim", display="DCIM", semver="1.2.0", downloads=42, tags=["core"])],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "infrahub/dcim" in result.output
+    assert "DCIM" in result.output
+    assert "1.2.0" in result.output
+    assert "42" in result.output
+    assert "core" in result.output
+
+
+def _collection_item(namespace: str, name: str, *, display: str, schema_count: int, downloads: int) -> dict:
+    return {
+        "namespace": namespace,
+        "name": name,
+        "display_name": display,
+        "schema_count": schema_count,
+        "download_count": downloads,
+    }
+
+
+def test_list_collections(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections?limit=100",
+        json=_listing_json(
+            "collections",
+            [_collection_item("infrahub", "security-mgmt", display="Security", schema_count=5, downloads=7)],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["list", "--collections"])
+
+    assert result.exit_code == 0
+    assert "infrahub/security-mgmt" in result.output
+    assert "Security" in result.output
+    assert "5" in result.output
+    assert "7" in result.output
+
+
+def test_list_follows_cursor_pagination(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
+            total=2,
+            cursor="CURSOR1",
+        ),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&cursor=CURSOR1",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "b", display="B", semver="1.0.0", downloads=1, tags=[])],
+            total=2,
+        ),
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "infrahub/a" in result.output
+    assert "infrahub/b" in result.output
+
+
+def test_list_limit_requests_single_page_and_shows_footer(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=1",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
+            total=52,
+            cursor="CURSOR1",
+        ),
+    )
+    # No second page mock: if the implementation followed the cursor despite --limit,
+    # pytest-httpx would raise "request not expected".
+    result = runner.invoke(app, ["list", "--limit", "1"])
+
+    assert result.exit_code == 0
+    assert "infrahub/a" in result.output
+    assert "Showing 1 of 52" in result.output
+
+
+def test_list_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        status_code=503,
+        json={"detail": "unavailable"},
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "Marketplace request failed" in result.output
+
+
+def test_search_passes_term_and_renders(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&search=vlan",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "vlan", display="VLAN", semver="1.0.0", downloads=3, tags=[])],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["search", "vlan"])
+
+    assert result.exit_code == 0
+    assert "infrahub/vlan" in result.output
+
+
+def test_search_empty_results(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100&search=nomatch",
+        json=_listing_json("schemas", [], total=0),
+    )
+    result = runner.invoke(app, ["search", "nomatch"])
+
+    assert result.exit_code == 0
+    # An empty catalog is not an error; the table renders with no data rows.
+    assert "Identifier" in result.output
+
+
+def test_list_json_output_is_parseable(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        json=_listing_json(
+            "schemas",
+            [_schema_item("infrahub", "dcim", display="DCIM", semver="1.2.0", downloads=42, tags=["core"])],
+            total=1,
+        ),
+    )
+    result = runner.invoke(app, ["list", "--json"])
+
+    assert result.exit_code == 0
+    parsed = _json.loads(result.output)
+    assert parsed[0]["name"] == "dcim"
+    assert parsed[0]["latest_version"]["semver"] == "1.2.0"
+
+
+def _show_schema_detail() -> dict:
+    return {
+        "namespace": "infrahub",
+        "name": "vlan",
+        "display_name": "VLAN",
+        "description": "VLAN schema.",
+        "download_count": 105,
+        "tags": [{"name": "experimental"}],
+        "versions": [
+            {
+                "semver": "1.0.0",
+                "status": "published",
+                "created_at": "2026-04-20T23:54:19+00:00",
+                "changelog": "Initial",
+            },
+        ],
+        "dependencies": {"schemas": [{"namespace": "infrahub", "name": "dcim"}], "collections": []},
+    }
+
+
+def test_show_schema_autodetect(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_show_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 0
+    assert "infrahub/vlan" in result.output
+    assert "VLAN" in result.output
+    assert "1.0.0" in result.output
+    assert "published" in result.output
+    assert "experimental" in result.output
+    assert "infrahub/dcim" in result.output  # dependency
+
+
+def test_show_schema_json(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_show_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan", "--json"])
+
+    assert result.exit_code == 0
+    parsed = _json.loads(result.output)
+    assert parsed["name"] == "vlan"
+    assert parsed["versions"][0]["semver"] == "1.0.0"
+
+
+def test_show_network_error_exits_2(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 2
+    assert "Could not reach marketplace" in result.output
+
+
+def _collection_detail() -> dict:
+    return {
+        "namespace": "infrahub",
+        "name": "security-mgmt",
+        "display_name": "Security & Management",
+        "description": "Security and device management.",
+        "download_count": 2,
+        "items": [
+            {"schema": {"namespace": "infrahub", "name": "security", "display_name": "Security"}},
+            {"schema": {"namespace": "infrahub", "name": "qos", "display_name": "QoS"}},
+        ],
+        "dependencies": {"schemas": [{"namespace": "infrahub", "name": "location"}], "collections": []},
+    }
+
+
+def test_show_collection_force_flag(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        json=_collection_detail(),
+    )
+    # No schema-detail mock: --collection must not probe the schema endpoint.
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt", "--collection"])
+
+    assert result.exit_code == 0
+    assert "infrahub/security-mgmt" in result.output
+    assert "infrahub/security" in result.output
+    assert "infrahub/qos" in result.output
+    assert "Schemas: 2" in result.output
+    assert "infrahub/location" in result.output  # dependency
+
+
+def test_show_collection_autodetect(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/security-mgmt",
+        status_code=404,
+        json={"detail": "Schema not found"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        json=_collection_detail(),
+    )
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt"])
+
+    assert result.exit_code == 0
+    assert "infrahub/qos" in result.output
+
+
+def test_show_not_found(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/nope",
+        status_code=404,
+        json={"detail": "Schema not found"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/nope",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/nope"])
+
+    assert result.exit_code == 1
+    assert "No schema or collection named 'infrahub/nope'" in result.output
+
+
+def test_show_invalid_identifier() -> None:
+    result = runner.invoke(app, ["show", "no-slash"])
+
+    assert result.exit_code == 1
+    assert "Invalid identifier" in result.output
+
+
 async def test_collection_false_autodetects_schema(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     """collection=False (the default) triggers auto-detect; schema wins when schema endpoint returns 200."""
     httpx_mock.add_response(
@@ -1202,3 +1527,166 @@ def test_dependencies_refuses_path_traversal_in_member_name(httpx_mock: HTTPXMoc
     assert result.exit_code == 1
     assert "unsafe path component" in result.output.lower()
     assert not (tmp_path.parent / "evil.yml").exists()
+
+
+# ---------------------------------------------------------------------------
+# Fix #1 — 4xx errors must exit 1 (not 2)
+# ---------------------------------------------------------------------------
+
+
+def test_list_4xx_error_exits_1(httpx_mock: HTTPXMock) -> None:
+    """A 4xx response on the listing endpoint must exit 1, not 2."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        status_code=400,
+        json={"detail": "Bad Request"},
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 1
+
+
+def test_show_force_collection_4xx_exits_1(httpx_mock: HTTPXMock) -> None:
+    """A 4xx response on the --collection (force) path in show must exit 1, not 2."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/security-mgmt",
+        status_code=400,
+        json={"detail": "Bad Request"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/security-mgmt", "--collection"])
+
+    assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Fix #2 — collision note must not appear on stdout when --json is used
+# ---------------------------------------------------------------------------
+
+
+def test_show_collision_json_stdout_is_clean(httpx_mock: HTTPXMock) -> None:
+    """When show hits a 200/200 collision and --json is passed, stdout must stay JSON-only.
+
+    The collision note must be routed to err_console (stderr) not console (stdout).
+
+    Stream-separation assertion limitation: Typer 0.25 / Click 8.3 do not
+    support ``mix_stderr=False`` on CliRunner, so we cannot isolate stdout in
+    this test runner.  The structural fix (console.print → err_console.print in
+    ``_fetch_detail``) is the authoritative correction; this test guards that the
+    command exits 0 on a collision+json path and that the JSON payload is
+    present somewhere in the combined output.
+    """
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        json=_show_schema_detail(),
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        json=_collection_detail(),
+    )
+
+    result = runner.invoke(app, ["show", "infrahub/vlan", "--json"])
+
+    assert result.exit_code == 0
+    # The combined output must contain the JSON payload.  We parse the whole
+    # block starting from the first '{' at column 0 (the root object printed by
+    # Rich's print_json always starts at column 0).
+    output = result.output
+    root_brace = next((i for i, ch in enumerate(output) if ch == "{" and (i == 0 or output[i - 1] == "\n")), None)
+    assert root_brace is not None, "No root-level JSON object found in output"
+    parsed = _json.loads(output[root_brace:])
+    assert parsed["name"] == "vlan"
+
+
+# ---------------------------------------------------------------------------
+# 5xx on the show (detail) path must be a network error (exit 2)
+# ---------------------------------------------------------------------------
+
+
+def test_show_network_error_5xx_exits_2(httpx_mock: HTTPXMock) -> None:
+    """A 5xx from both detail probes classifies as a network error (exit 2)."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        status_code=503,
+        json={"detail": "unavailable"},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=503,
+        json={"detail": "unavailable"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 2
+    assert "Could not reach marketplace" in result.output
+
+
+def test_list_stops_when_next_page_has_null_cursor(httpx_mock: HTTPXMock) -> None:
+    """has_next_page=true with a null end_cursor must not loop forever.
+
+    Only one page is mocked. If the loop followed the (null) cursor it would issue
+    a second request that pytest-httpx has no response for, failing the test.
+    """
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        json={
+            "items": [_schema_item("infrahub", "a", display="A", semver="1.0.0", downloads=1, tags=[])],
+            "page_info": {"has_next_page": True, "end_cursor": None},
+            "total_count": 1,
+        },
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 0
+    assert "infrahub/a" in result.output
+
+
+def test_list_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A 200 response with a non-JSON body is reported as a clean network error (exit 2)."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        text="<html>not json</html>",
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "not valid JSON" in result.output
+
+
+def test_list_non_dict_payload_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A 200 response whose body is valid JSON but not an object exits 2 cleanly, not a traceback."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas?limit=100",
+        json=[{"namespace": "infrahub", "name": "dcim"}],
+    )
+    result = runner.invoke(app, ["list"])
+
+    assert result.exit_code == 2
+    assert "not a valid marketplace listing" in result.output
+
+
+def test_show_invalid_json_body_is_network_error(httpx_mock: HTTPXMock) -> None:
+    """A schema detail endpoint returning 200 with a malformed body exits 2, not a traceback."""
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/schemas/infrahub/vlan",
+        text="<html>not json</html>",
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://marketplace.infrahub.app/api/v1/collections/infrahub/vlan",
+        status_code=404,
+        json={"detail": "Collection not found"},
+    )
+    result = runner.invoke(app, ["show", "infrahub/vlan"])
+
+    assert result.exit_code == 2
+    assert "not valid JSON" in result.output

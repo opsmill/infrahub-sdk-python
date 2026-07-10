@@ -59,6 +59,7 @@ get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Tim
 ```
 
 </details>
+
 #### `delete`
 
 ```python
@@ -87,6 +88,7 @@ create(self, kind: type[SchemaType], data: dict | None = ..., branch: str | None
 ```
 
 </details>
+
 #### `get_version`
 
 ```python
@@ -145,6 +147,8 @@ Requires Infrahub 1.10 or later.
 - `excluded_namespaces`: Schema namespaces to exclude from traversal.
 - `excluded_kinds`: Node kinds to exclude from traversal.
 - `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `shortest_paths_only`: When True (the server default), only return the shortest
+path(s); when False, return all loopless paths (exhaustive mode).
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `at`: Time of the query. Defaults to now.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
@@ -262,6 +266,7 @@ Retrieve all nodes of a given kind.
 - list\[InfrahubNode]: List of Nodes
 
 </details>
+
 #### `filters`
 
 ```python
@@ -310,6 +315,7 @@ Retrieve nodes of a given kind based on provided filters.
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 </details>
+
 #### `clone`
 
 ```python
@@ -437,6 +443,7 @@ Allocate a new IP address by using the provided resource pool.
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
+
 #### `allocate_next_ip_prefix`
 
 ```python
@@ -481,6 +488,7 @@ Allocate a new IP prefix by using the provided resource pool.
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
+
 #### `create_batch`
 
 ```python
@@ -561,6 +569,7 @@ get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at:
 ```
 
 </details>
+
 #### `delete`
 
 ```python
@@ -589,6 +598,7 @@ create(self, kind: type[SchemaTypeSync], data: dict | None = ..., branch: str | 
 ```
 
 </details>
+
 #### `get_version`
 
 ```python
@@ -687,6 +697,8 @@ Requires Infrahub 1.10 or later.
 - `excluded_namespaces`: Schema namespaces to exclude from traversal.
 - `excluded_kinds`: Node kinds to exclude from traversal.
 - `included_kinds`: Node kinds to re-include when otherwise excluded by default.
+- `shortest_paths_only`: When True (the server default), only return the shortest
+path(s); when False, return all loopless paths (exhaustive mode).
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `at`: Time of the query. Defaults to now.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
@@ -804,6 +816,7 @@ Retrieve all nodes of a given kind.
 - list\[InfrahubNodeSync]: List of Nodes
 
 </details>
+
 #### `filters`
 
 ```python
@@ -852,6 +865,7 @@ Retrieve nodes of a given kind based on provided filters.
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 </details>
+
 #### `create_batch`
 
 ```python
@@ -944,6 +958,7 @@ Allocate a new IP address by using the provided resource pool.
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
+
 #### `allocate_next_ip_prefix`
 
 ```python
@@ -988,6 +1003,7 @@ Allocate a new IP prefix by using the provided resource pool.
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
+
 #### `repository_update_commit`
 
 ```python
