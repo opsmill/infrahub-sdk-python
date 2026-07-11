@@ -242,6 +242,22 @@ class BaseClient:
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
 
+    def _merge_request_headers(self, headers: dict | None) -> dict:
+        """Merge per-request headers over the client's base headers.
+
+        Per-request entries (e.g. a per-call ``X-Priority`` override or ``X-Infrahub-Tracker``)
+        take precedence over the client-wide base headers. Authentication headers are then
+        re-asserted from ``self.headers`` so that a token refreshed mid-flight during the
+        automatic relogin retry always wins over a stale per-request snapshot.
+        """
+        merged = copy.copy(self.headers or {})
+        if headers:
+            merged.update(headers)
+        for auth_key in ("Authorization", "X-INFRAHUB-KEY"):
+            if auth_key in self.headers:
+                merged[auth_key] = self.headers[auth_key]
+        return merged
+
     @property
     def request_context(self) -> RequestContext | None:
         return self._request_context
@@ -1413,12 +1429,9 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        # Remove content-type from base headers - httpx will set it for multipart
-        base_headers.pop("content-type", None)
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
+        # Remove content-type - httpx sets it (with the multipart boundary) itself
+        headers.pop("content-type", None)
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
@@ -1487,10 +1500,7 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         return await self._request(
             url=url,
@@ -1511,10 +1521,7 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         return await self._request(
             url=url,
@@ -1539,10 +1546,7 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
@@ -2425,12 +2429,9 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        # Remove content-type from base headers - httpx will set it for multipart
-        base_headers.pop("content-type", None)
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
+        # Remove content-type - httpx sets it (with the multipart boundary) itself
+        headers.pop("content-type", None)
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
@@ -3669,10 +3670,7 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         return self._request(
             url=url,
@@ -3697,10 +3695,7 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
@@ -3753,10 +3748,7 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        base_headers.update(headers)
-        headers = base_headers
+        headers = self._merge_request_headers(headers)
 
         return self._request(
             url=url,
