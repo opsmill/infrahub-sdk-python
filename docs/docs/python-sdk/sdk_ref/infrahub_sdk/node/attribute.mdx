@@ -17,7 +17,6 @@ and whether the value has been mutated since the node was loaded. Mutation track
 used by ``InfrahubNode.update()`` to send only the changed fields to the API.
 
 **Attributes:**
-
 - `name`: The name of the attribute.
 - `id`: The unique identifier of the attribute, when known.
 - `value`: The current attribute value. Setting this marks the attribute as mutated.
@@ -54,7 +53,6 @@ is_from_pool_attribute(self) -> bool
 Check whether this attribute's value is sourced from a resource pool.
 
 **Returns:**
-
 - True if the attribute value is a resource pool node or was explicitly allocated from a pool.
 
 #### `is_unresolved_pool_attribute`
@@ -66,9 +64,9 @@ is_unresolved_pool_attribute(self) -> bool
 Return True when pool-backed but no concrete scalar value is available yet.
 
 A pool-backed attribute is unresolved when:
-
 - its value is a pool node object (the pool reference itself, not an allocated scalar), or
 - its value is None and the from_pool allocation dict is set.
 
 An attribute whose _from_pool dict is set but whose value has already been populated
 with the allocated scalar (e.g. after a prior save) is considered resolved.
+

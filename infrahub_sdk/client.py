@@ -1823,6 +1823,10 @@ class InfrahubClient(BaseClient):
 
         Returns None if no diff exists.
 
+        Args:
+            priority: Per-request priority emitted as the X-Priority header, overriding the client
+                default for this request only. When None, the client default (if any) is used.
+
         Raises:
             ValueError: If ``from_time`` is later than ``to_time``.
 
@@ -3416,6 +3420,10 @@ class InfrahubClientSync(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
+
+        Args:
+            priority: Per-request priority emitted as the X-Priority header, overriding the client
+                default for this request only. When None, the client default (if any) is used.
 
         Raises:
             ValueError: If ``from_time`` is later than ``to_time``.
