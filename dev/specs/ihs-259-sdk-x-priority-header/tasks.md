@@ -34,7 +34,7 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 **Purpose**: Confirm the working environment before touching code.
 
-- [ ] T001 Ensure dev dependencies are installed and the baseline is green: run `uv sync --all-groups --all-extras` then `uv run pytest tests/unit/sdk/test_config.py tests/unit/sdk/test_client.py -q` to confirm a clean starting point.
+- [X] T001 Ensure dev dependencies are installed and the baseline is green: run `uv sync --all-groups --all-extras` then `uv run pytest tests/unit/sdk/test_config.py tests/unit/sdk/test_client.py -q` to confirm a clean starting point. (Done: 107 passed on baseline.)
 
 ---
 
