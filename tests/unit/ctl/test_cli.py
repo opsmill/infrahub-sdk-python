@@ -36,7 +36,7 @@ def test_version_command() -> None:
 def test_info_command_success(mock_query_infrahub_version: HTTPXMock, mock_query_infrahub_user: HTTPXMock) -> None:
     result = runner.invoke(app, ["info"], env={"INFRAHUB_API_TOKEN": "foo"})
     assert result.exit_code == 0
-    for expected in ["Connection Status", "Python Version", "SDK Version", "Infrahub Version"]:
+    for expected in ["Connection Status", "Python Version", "SDK Version", "Infrahub Version", "Deployment ID"]:
         assert expected in result.stdout, f"'{expected}' not found in info command output"
 
 
