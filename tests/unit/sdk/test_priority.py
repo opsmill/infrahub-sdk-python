@@ -602,6 +602,108 @@ async def test_override_on_diff_method(client_type: str, clients: BothClients, h
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_override_on_get_diff_summary(client_type: str, clients: BothClients, httpx_mock: HTTPXMock) -> None:
+    """A per-request priority on get_diff_summary() reaches the GraphQL request."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"DiffTree": {"nodes": []}}},
+        match_headers={"X-Priority": "high"},
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        await client.get_diff_summary(branch="main", priority=Priority.HIGH)
+    else:
+        client.get_diff_summary(branch="main", priority=Priority.HIGH)
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert requests[0].headers["x-priority"] == "high"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_override_on_get_diff_tree(client_type: str, clients: BothClients, httpx_mock: HTTPXMock) -> None:
+    """A per-request priority on get_diff_tree() reaches the GraphQL request."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"DiffTree": None}},
+        match_headers={"X-Priority": "high"},
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        await client.get_diff_tree(branch="main", priority=Priority.HIGH)
+    else:
+        client.get_diff_tree(branch="main", priority=Priority.HIGH)
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert requests[0].headers["x-priority"] == "high"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_override_on_save_update_path(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, httpx_mock: HTTPXMock
+) -> None:
+    """A per-request priority on node.save() reaches the update mutation for an existing node."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": "17aec828-9814-ce00-3f20-1a053670f1c8"}}}
+        },
+        is_reusable=True,
+    )
+
+    data = {"id": "17aec828-9814-ce00-3f20-1a053670f1c8", "name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+        node.name.value = "JFK2"  # type: ignore[union-attr]
+        await node.save(priority=Priority.HIGH)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+        node.name.value = "JFK2"  # type: ignore[union-attr]
+        node.save(priority=Priority.HIGH)
+
+    update_requests = [
+        r
+        for r in httpx_mock.get_requests()
+        if r.method == "POST" and r.headers.get("x-infrahub-tracker") == "mutation-builtinlocation-update"
+    ]
+    assert len(update_requests) == 1
+    assert update_requests[0].headers["x-priority"] == "high"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_override_on_node_delete(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, httpx_mock: HTTPXMock
+) -> None:
+    """A per-request priority on node.delete() reaches the delete mutation."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationDelete": {"ok": True}}},
+        is_reusable=True,
+    )
+
+    data = {"id": "17aec828-9814-ce00-3f20-1a053670f1c8", "name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+        await node.delete(priority=Priority.HIGH)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+        node.delete(priority=Priority.HIGH)
+
+    delete_requests = [
+        r
+        for r in httpx_mock.get_requests()
+        if r.method == "POST" and r.headers.get("x-infrahub-tracker") == "mutation-builtinlocation-delete"
+    ]
+    assert len(delete_requests) == 1
+    assert delete_requests[0].headers["x-priority"] == "high"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_override_on_multipart_upload(
     client_type: str,
     clients: BothClients,
