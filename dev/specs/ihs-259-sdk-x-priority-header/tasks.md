@@ -97,21 +97,21 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 ### Implementation
 
-- [ ] T013 [US2] Add `priority: Priority | None = None` to async `execute_graphql` (`client.py:1201`) and apply the override after the existing `headers = copy.copy(self.headers or {})` + tracker block: `if priority is not None: headers["X-Priority"] = priority.value`. (FR-005, FR-006)
-- [ ] T014 [US2] Add `priority: Priority | None = None` to async `_execute_graphql_with_file` (`client.py:1290`); apply the override **after** the copy and the `content-type` pop so it is not lost. (FR-005, FR-006, critique E3)
-- [ ] T015 [US2] Mirror T013–T014 on the sync client: `execute_graphql` (`client.py:2181`) and `_execute_graphql_with_file` (`client.py:2270`). (FR-008)
-- [ ] T016 [US2] Thread `priority` through the client high-level methods so they forward it to the execute funnels: async `get` (`client.py:442`), `all`→`filters` (`client.py:905`/`1131`), `create` (`client.py:400`); ensure the pagination loop in `filters` forwards `priority` on **every** page request. (FR-005, critique E2)
-- [ ] T017 [US2] Thread `priority` through the diff methods: `create_diff` (`client.py:1695`), `get_diff_summary` (`client.py:1724`), `get_diff_tree` (`client.py:1763`), forwarding to `execute_graphql`. (FR-005)
-- [ ] T018 [US2] Mirror T016–T017 on the sync client (`get` `client.py:2975`, `all` `client.py:2639`/`2907`, `create` `client.py:2137`, `create_diff` `client.py:3266`, `get_diff_summary`/`get_diff_tree`). (FR-008)
-- [ ] T019 [US2] Add `priority: Priority | None = None` to async node methods and forward to the client execute calls: `save` (`node/node.py:1241`), `create` (`node/node.py:1602`), `update` (`node/node.py:1681`), `delete` (`node/node.py:1214`). (FR-005)
-- [ ] T020 [US2] Mirror T019 on the sync node (`InfrahubNodeSync`: `delete` `node/node.py:2402`, `save` `node/node.py:2429`, plus `create`/`update`). (FR-008)
+- [X] T013 [US2] Add `priority: Priority | None = None` to async `execute_graphql` (`client.py:1201`) and apply the override after the existing `headers = copy.copy(self.headers or {})` + tracker block: `if priority is not None: headers["X-Priority"] = priority.value`. (FR-005, FR-006)
+- [X] T014 [US2] Add `priority: Priority | None = None` to async `_execute_graphql_with_file` (`client.py:1290`); apply the override **after** the copy and the `content-type` pop so it is not lost. (FR-005, FR-006, critique E3)
+- [X] T015 [US2] Mirror T013–T014 on the sync client: `execute_graphql` (`client.py:2181`) and `_execute_graphql_with_file` (`client.py:2270`). (FR-008)
+- [X] T016 [US2] Thread `priority` through the client high-level methods so they forward it to the execute funnels: async `get` (`client.py:442`), `all`→`filters` (`client.py:905`/`1131`), `create` (`client.py:400`); ensure the pagination loop in `filters` forwards `priority` on **every** page request. (FR-005, critique E2)
+- [X] T017 [US2] Thread `priority` through the diff methods: `create_diff` (`client.py:1695`), `get_diff_summary` (`client.py:1724`), `get_diff_tree` (`client.py:1763`), forwarding to `execute_graphql`. (FR-005)
+- [X] T018 [US2] Mirror T016–T017 on the sync client (`get` `client.py:2975`, `all` `client.py:2639`/`2907`, `create` `client.py:2137`, `create_diff` `client.py:3266`, `get_diff_summary`/`get_diff_tree`). (FR-008)
+- [X] T019 [US2] Add `priority: Priority | None = None` to async node methods and forward to the client execute calls: `save` (`node/node.py:1241`), `create` (`node/node.py:1602`), `update` (`node/node.py:1681`), `delete` (`node/node.py:1214`). (FR-005)
+- [X] T020 [US2] Mirror T019 on the sync node (`InfrahubNodeSync`: `delete` `node/node.py:2402`, `save` `node/node.py:2429`, plus `create`/`update`). (FR-008)
 
 ### Tests
 
-- [ ] T021 [P] [US2] Test: no-default client + `priority=Priority.HIGH` on `execute_graphql` emits `X-Priority: high`; a following un-annotated call emits no header (no leak). Both clients. (SC-003, US2 acceptance #1/#2)
-- [ ] T022 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.HIGH` emits `X-Priority: high` for that call, and the next un-annotated call reverts to `X-Priority: low`. Both clients. (SC-003, US2 acceptance #3)
-- [ ] T023 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.NORMAL` emits `X-Priority: normal` (explicit step-up wins). Both clients. (spec Edge Cases, SC-003)
-- [ ] T024 [P] [US2] Test the override on the covered surfaces: `get`, `all` (multi-page — assert every page request carries the override), `create`, `save`, a diff method, and `_execute_graphql_with_file`. Both clients. (FR-005, critique E2/E3)
+- [X] T021 [P] [US2] Test: no-default client + `priority=Priority.HIGH` on `execute_graphql` emits `X-Priority: high`; a following un-annotated call emits no header (no leak). Both clients. (SC-003, US2 acceptance #1/#2)
+- [X] T022 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.HIGH` emits `X-Priority: high` for that call, and the next un-annotated call reverts to `X-Priority: low`. Both clients. (SC-003, US2 acceptance #3)
+- [X] T023 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.NORMAL` emits `X-Priority: normal` (explicit step-up wins). Both clients. (spec Edge Cases, SC-003)
+- [X] T024 [P] [US2] Test the override on the covered surfaces: `get`, `all` (multi-page — assert every page request carries the override), `create`, `save`, a diff method, and `_execute_graphql_with_file`. Both clients. (FR-005, critique E2/E3)
 
 **Checkpoint**: Override works and resolves correctly on every covered surface, both clients.
 
