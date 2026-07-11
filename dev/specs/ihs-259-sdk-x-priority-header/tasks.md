@@ -152,12 +152,12 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 **Purpose**: Docs, quality gates, and release hygiene.
 
-- [ ] T030 Add docstrings to the new `Priority` enum, the `Config.priority` field, and the `priority` kwarg on the covered public methods (drives generated docs).
-- [ ] T031 Run `uv run invoke docs-generate`, then `uv run invoke docs-validate`; commit the regenerated docs (new `Config.priority` field). (Governance gate: docs regeneration)
-- [ ] T032 [P] Add a changelog fragment under `changelog/` (mirror the existing fragment style, e.g. an `.added.md` for the new `Priority`/`Config.priority`/`priority=` surface referencing IHS-259 / #1151).
-- [ ] T033 Run `uv run invoke format lint-code` (ruff, ty, mypy) and fix any findings; confirm type hints on all new/changed signatures.
-- [ ] T034 Run the full `uv run pytest tests/unit/` suite and confirm green (including all new priority tests for both clients).
-- [ ] T035 Validate against quickstart.md: run the mapped validation scenarios and confirm SC-001…SC-006 are all covered.
+- [X] T030 Add docstrings to the new `Priority` enum, the `Config.priority` field, and the `priority` kwarg on the covered public methods (drives generated docs).
+- [X] T031 Run `uv run invoke docs-generate`, then `uv run invoke docs-validate`; commit the regenerated docs (new `Config.priority` field). (Governance gate: docs regeneration)
+- [X] T032 [P] Add a changelog fragment under `changelog/` (mirror the existing fragment style, e.g. an `.added.md` for the new `Priority`/`Config.priority`/`priority=` surface referencing IHS-259 / #1151).
+- [X] T033 Run `uv run invoke format lint-code` (ruff, ty, mypy) and fix any findings; confirm type hints on all new/changed signatures.
+- [X] T034 Run the full `uv run pytest tests/unit/` suite and confirm green (including all new priority tests for both clients).
+- [X] T035 Validate against quickstart.md: run the mapped validation scenarios and confirm SC-001…SC-006 are all covered.
 
 ---
 
