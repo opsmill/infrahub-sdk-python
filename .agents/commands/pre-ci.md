@@ -7,7 +7,7 @@ Run a subset of fast CI checks locally. These are lightweight validations that c
    uv run invoke format
    ```
 
-2. **Lint** (YAML, Ruff, ty, mypy, markdownlint, vale):
+2. **Lint** (YAML, Ruff, ty, mypy, rumdl, vale):
    ```bash
    uv run invoke lint
    ```

@@ -99,27 +99,18 @@ jobs:
     if: |
       needs.files-changed.outputs.documentation == 'true' ||
       needs.files-changed.outputs.github_workflows == 'true'
-    needs: ["files-changed"]
+    needs: ["files-changed", "prepare-environment"]
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
-      - name: "Linting: markdownlint"
-        uses: DavidAnson/markdownlint-cli2-action@v23
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v7
         with:
-          config: docs/.markdownlint.yaml
-          globs: |
-            **/*.{md,mdx}
-            !changelog/*.md
-            !.agents/commands/**
-            !.agents/skills/**
-            !.claude/commands/**
-            !.claude/skills/**
-            !dev/commands/**
-            !dev/skills/**
-            !.specify/templates/**
-            !.specify/extensions/**
+          version: ${{ needs.prepare-environment.outputs.UV_VERSION }}
+      - name: "Linting: rumdl"
+        run: "uvx rumdl@0.2.28 check ."
 
   action-lint:
     if: needs.files-changed.outputs.github_workflows == 'true'

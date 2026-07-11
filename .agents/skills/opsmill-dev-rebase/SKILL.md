@@ -1,11 +1,11 @@
 ---
-name: rebase
+name: opsmill-dev-rebase
 description: >-
   Rebases a feature branch onto its latest base, resolving conflicts while preserving the intent
   of local changes, optionally force-pushing and watching CI afterward. TRIGGER when: the user
   wants to rebase a feature branch, update a branch against its base, or replay local work on top
   of the latest upstream. DO NOT TRIGGER when: merging a release branch into dev →
-  merging-branches; only watching CI on an already-open PR → monitoring-pull-requests.
+  opsmill-dev-merging-branches; only watching CI on an already-open PR → opsmill-dev-monitoring-pull-requests.
 argument-hint: Optional `push` to force-push and monitor CI after a successful rebase
 compatibility: Requires a Git working tree. CI monitoring requires GitHub access (gh CLI authenticated, GitHub MCP server, or equivalent).
 metadata:
