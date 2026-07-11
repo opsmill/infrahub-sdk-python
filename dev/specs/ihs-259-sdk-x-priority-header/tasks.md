@@ -42,9 +42,9 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 **Purpose**: The `Priority` enum and `Config.priority` field are prerequisites for every user story. MUST complete before Phase 3+.
 
-- [ ] T002 Add `class Priority(str, enum.Enum)` with members `HIGH = "high"`, `NORMAL = "normal"`, `LOW = "low"` and a case-insensitive `_missing_` classmethod (returns the member matching `value.lower()`, else `None`) to `infrahub_sdk/constants.py` (mirror `InfrahubClientMode`). Add module docstring/type hints per repo style.
-- [ ] T003 [P] Export `Priority` from the SDK public namespace: add it to `infrahub_sdk/__init__.py` imports and `__all__` (alongside other public enums), per contracts/priority-api.md.
-- [ ] T004 Add `priority: Priority | None = Field(default=None, description="Default request priority emitted as the X-Priority header on every request; one of high|normal|low (case-insensitive). When unset, no header is sent.")` to `ConfigBase` in `infrahub_sdk/config.py`; import `Priority` from `.constants`. Confirm the field auto-binds to `INFRAHUB_PRIORITY` (no custom source needed) and is carried by `Config.clone()` (it iterates `model_fields`, so no change to `clone()` required — verify only).
+- [X] T002 Add `class Priority(str, enum.Enum)` with members `HIGH = "high"`, `NORMAL = "normal"`, `LOW = "low"` and a case-insensitive `_missing_` classmethod (returns the member matching `value.lower()`, else `None`) to `infrahub_sdk/constants.py` (mirror `InfrahubClientMode`). Add module docstring/type hints per repo style.
+- [X] T003 [P] Export `Priority` from the SDK public namespace: add it to `infrahub_sdk/__init__.py` imports and `__all__` (alongside other public enums), per contracts/priority-api.md.
+- [X] T004 Add `priority: Priority | None = Field(default=None, description="Default request priority emitted as the X-Priority header on every request; one of high|normal|low (case-insensitive). When unset, no header is sent.")` to `ConfigBase` in `infrahub_sdk/config.py`; import `Priority` from `.constants`. Confirm the field auto-binds to `INFRAHUB_PRIORITY` (no custom source needed) and is carried by `Config.clone()` (it iterates `model_fields`, so no change to `clone()` required — verify only).
 
 **Checkpoint**: `Priority` importable from `infrahub_sdk`; `Config(priority=...)` accepts enum/string; the SDK still imports and existing tests still pass.
 
