@@ -141,8 +141,8 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 **Independent test**: The same assertion suite runs against both clients with identical outcomes.
 
-- [ ] T028 [US5] Audit T006–T012 and T021–T024 to confirm every wire/resolution test is parametrized over the `BothClients` fixture (`["standard","sync"]`); add parametrization to any that isn't. (SC-005, FR-008)
-- [ ] T029 [P] [US5] Add a focused parity test asserting the resolution truth table (data-model.md) produces identical emitted headers for both clients across the default × override combinations. (SC-005)
+- [X] T028 [US5] Audit T006–T012 and T021–T024 to confirm every wire/resolution test is parametrized over the `BothClients` fixture (`["standard","sync"]`); add parametrization to any that isn't. (SC-005, FR-008)
+- [X] T029 [P] [US5] Add a focused parity test asserting the resolution truth table (data-model.md) produces identical emitted headers for both clients across the default × override combinations. (SC-005)
 
 **Checkpoint**: Parity is explicit and enforced, not incidental.
 
