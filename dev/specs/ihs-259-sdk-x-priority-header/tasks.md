@@ -127,9 +127,9 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 ### Tests
 
-- [ ] T025 [P] [US4] In `tests/unit/sdk/test_config.py`, assert `Config(address="http://localhost:8000", priority="lowe")` raises `pydantic.ValidationError` (use `pytest.raises(..., match=...)`); assert no request is issued. (SC-004, FR-007)
-- [ ] T026 [P] [US4] Assert case-insensitive acceptance: `Config(priority="LOW")`, `Config(priority="Low")`, `Config(priority="low")`, and `Config(priority=Priority.LOW)` all yield `Priority.LOW`; likewise for HIGH/NORMAL. Include the env-var path `INFRAHUB_PRIORITY=LOW` via `monkeypatch`. (SC-004, FR-002)
-- [ ] T027 [P] [US4] Assert `Config()` default → `priority is None` (no default, header omitted). (FR-004)
+- [X] T025 [P] [US4] In `tests/unit/sdk/test_config.py`, assert `Config(address="http://localhost:8000", priority="lowe")` raises `pydantic.ValidationError` (use `pytest.raises(..., match=...)`); assert no request is issued. (SC-004, FR-007)
+- [X] T026 [P] [US4] Assert case-insensitive acceptance: `Config(priority="LOW")`, `Config(priority="Low")`, `Config(priority="low")`, and `Config(priority=Priority.LOW)` all yield `Priority.LOW`; likewise for HIGH/NORMAL. Include the env-var path `INFRAHUB_PRIORITY=LOW` via `monkeypatch`. (SC-004, FR-002)
+- [X] T027 [P] [US4] Assert `Config()` default → `priority is None` (no default, header omitted). (FR-004)
 
 **Checkpoint**: Misconfiguration fails loudly; valid config in any case is accepted.
 
