@@ -241,3 +241,152 @@ async def test_priority_normal_is_always_emitted(
     requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(requests) == 1
     assert requests[0].headers["x-priority"] == "normal"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_no_priority_header_on_graphql_when_unconfigured(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """An unconfigured client emits no X-Priority header on a GraphQL request."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
+    )
+
+    query = "query { InfrahubInfo { version }}"
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        await client.execute_graphql(query=query)
+    else:
+        client.execute_graphql(query=query)
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert "x-priority" not in requests[0].headers
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_no_priority_header_on_blob_download_when_unconfigured(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """An unconfigured client emits no X-Priority header on an object-store blob download."""
+    httpx_mock.add_response(
+        method="GET",
+        text="any content",
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        content = await client.object_store.get(identifier="aaaaaaaaa")
+    else:
+        content = client.object_store.get(identifier="aaaaaaaaa")
+
+    assert content == "any content"
+    requests = [r for r in httpx_mock.get_requests() if r.method == "GET"]
+    assert len(requests) == 1
+    assert "x-priority" not in requests[0].headers
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_no_priority_header_on_blob_upload_when_unconfigured(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """An unconfigured client emits no X-Priority header on an object-store blob upload."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"identifier": "xxxxxxxxxx", "checksum": "yyyyyyyyyyyyyy"},
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        response = await client.object_store.upload(content="any content")
+    else:
+        response = client.object_store.upload(content="any content")
+
+    assert response == {"checksum": "yyyyyyyyyyyyyy", "identifier": "xxxxxxxxxx"}
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert "x-priority" not in requests[0].headers
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_no_priority_header_on_multipart_upload_when_unconfigured(
+    client_type: str,
+    clients: BothClients,
+    file_object_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """An unconfigured client emits no X-Priority header on a multipart file upload."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "NetworkCircuitContractCreate": {
+                    "ok": True,
+                    "object": {
+                        "id": "new-file-node-123",
+                        "display_label": "contract.pdf",
+                        "file_name": {"value": "contract.pdf"},
+                        "checksum": {"value": "abc123checksum"},
+                        "file_size": {"value": 17},
+                        "file_type": {"value": "application/pdf"},
+                        "storage_id": {"value": "storage-xyz-789"},
+                        "contract_start": {"value": "2024-01-01T00:00:00Z"},
+                        "contract_end": {"value": "2024-12-31T23:59:59Z"},
+                    },
+                }
+            }
+        },
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+    else:
+        node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
+
+    node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
+    node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
+    node.upload_from_bytes(content=b"Test file content", name="contract.pdf")
+
+    if isinstance(node, InfrahubNode):
+        await node.save()
+    else:
+        node.save()
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert "x-priority" not in requests[0].headers
+    assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_unconfigured_headers_unchanged_versus_baseline(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """With no priority and no per-request arg, the SDK-set outgoing headers are unchanged.
+
+    Only the absence of X-Priority matters; the request still carries the baseline SDK
+    headers it always had (``content-type`` and, since ``insert_tracker`` is set, the
+    ``X-Infrahub-Tracker`` header). Transport-injected headers (host, user-agent, etc.)
+    are intentionally not asserted.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
+    )
+
+    query = "query { InfrahubInfo { version }}"
+    tracker = "test-priority-baseline"
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        await client.execute_graphql(query=query, tracker=tracker)
+    else:
+        client.execute_graphql(query=query, tracker=tracker)
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    request = requests[0]
+    assert "x-priority" not in request.headers
+    assert request.headers["content-type"].startswith("application/json")
+    assert request.headers["x-infrahub-tracker"] == tracker

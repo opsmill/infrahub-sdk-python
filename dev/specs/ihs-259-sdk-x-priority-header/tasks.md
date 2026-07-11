@@ -82,8 +82,8 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 ### Tests
 
-- [ ] T011 [P] [US3] In `tests/unit/sdk/test_priority.py`, assert an unconfigured client emits **no** `X-Priority` header across GraphQL, multipart, and blob transports — capture the request via `httpx_mock.get_requests()` and assert `"x-priority" not in request.headers`, both clients. (SC-002, FR-004)
-- [ ] T012 [P] [US3] Assert that with no priority configured, no per-request arg, the SDK-set outgoing headers are unchanged versus baseline (only `X-Priority` absence matters; do not assert on transport-injected headers like host/user-agent). (SC-002)
+- [X] T011 [P] [US3] In `tests/unit/sdk/test_priority.py`, assert an unconfigured client emits **no** `X-Priority` header across GraphQL, multipart, and blob transports — capture the request via `httpx_mock.get_requests()` and assert `"x-priority" not in request.headers`, both clients. (SC-002, FR-004)
+- [X] T012 [P] [US3] Assert that with no priority configured, no per-request arg, the SDK-set outgoing headers are unchanged versus baseline (only `X-Priority` absence matters; do not assert on transport-injected headers like host/user-agent). (SC-002)
 
 **Checkpoint**: Backwards compatibility proven for both clients.
 
