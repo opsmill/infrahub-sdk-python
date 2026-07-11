@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -650,3 +651,83 @@ async def test_override_on_multipart_upload(
     assert len(requests) == 1
     assert requests[0].headers["x-priority"] == "high"
     assert requests[0].headers.get("content-type").startswith("multipart/form-data;")
+
+
+# ---------------------------------------------------------------------------
+# User Story 5: async / sync parity
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ResolutionCase:
+    """One row of the resolution truth table (data-model.md).
+
+    ``expected`` is the emitted ``X-Priority`` header value, or ``None`` when no
+    header should be present.
+    """
+
+    name: str
+    client_default: Priority | None
+    per_request: Priority | None
+    expected: str | None
+
+
+# The full resolution truth table from data-model.md. Each row must resolve
+# identically on both the async and sync clients (SC-005).
+RESOLUTION_TRUTH_TABLE = [
+    ResolutionCase(name="no-default-no-override", client_default=None, per_request=None, expected=None),
+    ResolutionCase(name="no-default-override-high", client_default=None, per_request=Priority.HIGH, expected="high"),
+    ResolutionCase(
+        name="no-default-override-normal", client_default=None, per_request=Priority.NORMAL, expected="normal"
+    ),
+    ResolutionCase(name="low-default-no-override", client_default=Priority.LOW, per_request=None, expected="low"),
+    ResolutionCase(
+        name="low-default-override-high", client_default=Priority.LOW, per_request=Priority.HIGH, expected="high"
+    ),
+    ResolutionCase(
+        name="low-default-override-normal", client_default=Priority.LOW, per_request=Priority.NORMAL, expected="normal"
+    ),
+    ResolutionCase(
+        name="normal-default-no-override", client_default=Priority.NORMAL, per_request=None, expected="normal"
+    ),
+    ResolutionCase(
+        name="high-default-override-low", client_default=Priority.HIGH, per_request=Priority.LOW, expected="low"
+    ),
+]
+
+
+def _client_with_default(client_type: str, default: Priority | None) -> InfrahubClient | InfrahubClientSync:
+    config = Config(address="http://mock", insert_tracker=True, pagination_size=3, priority=default)
+    if client_type == "standard":
+        return InfrahubClient(config=config)
+    return InfrahubClientSync(config=config)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in RESOLUTION_TRUTH_TABLE])
+async def test_resolution_truth_table_parity(case: ResolutionCase, client_type: str, httpx_mock: HTTPXMock) -> None:
+    """Each (client_default x per_request) combination emits the same header on both clients.
+
+    Encodes the resolution truth table from data-model.md and runs every row against both
+    the async and sync clients, asserting identical emitted headers (SC-005).
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
+    )
+
+    query = "query { InfrahubInfo { version }}"
+    client = _client_with_default(client_type, case.client_default)
+    kwargs = {} if case.per_request is None else {"priority": case.per_request}
+
+    if client_type == "standard":
+        await client.execute_graphql(query=query, **kwargs)  # type: ignore[misc]
+    else:
+        client.execute_graphql(query=query, **kwargs)  # type: ignore[union-attr]
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    if case.expected is None:
+        assert "x-priority" not in requests[0].headers
+    else:
+        assert requests[0].headers["x-priority"] == case.expected
