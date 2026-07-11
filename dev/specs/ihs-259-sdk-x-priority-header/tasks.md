@@ -58,15 +58,15 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 ### Implementation
 
-- [ ] T005 [US1] In `BaseClient.__init__` (`infrahub_sdk/client.py`, next to the `X-INFRAHUB-KEY` block ~line 217-218), inject the default once: `if self.config.priority is not None: self.headers["X-Priority"] = self.config.priority.value`. This single edit covers async and sync (both subclass `BaseClient`) and, because every transport re-merges `self.headers`, rides GraphQL, multipart, and raw blob transports automatically.
+- [X] T005 [US1] In `BaseClient.__init__` (`infrahub_sdk/client.py`, next to the `X-INFRAHUB-KEY` block ~line 217-218), inject the default once: `if self.config.priority is not None: self.headers["X-Priority"] = self.config.priority.value`. This single edit covers async and sync (both subclass `BaseClient`) and, because every transport re-merges `self.headers`, rides GraphQL, multipart, and raw blob transports automatically.
 
 ### Tests
 
-- [ ] T006 [P] [US1] Add `tests/unit/sdk/test_priority.py`: assert a `priority=Priority.LOW` client emits `X-Priority: low` on a GraphQL query and a mutation, for both clients (`match_headers={"X-Priority": "low"}`, parametrized over the `BothClients` fixture). (SC-001, FR-003)
-- [ ] T007 [P] [US1] In `tests/unit/sdk/test_object_store.py` (or `test_priority.py`), assert a `priority=Priority.LOW` client emits `X-Priority: low` on a blob download (`_get_streaming`) and upload (`_post`/object-store), both clients. (SC-001, SC-006 blob)
-- [ ] T008 [P] [US1] Add a multipart-upload test: a `priority=Priority.LOW` client emits `X-Priority: low` on `_execute_graphql_with_file`, both clients (confirm the header survives the `content-type` pop). (SC-001, FR-003)
-- [ ] T009 [P] [US1] Add a batch-mode test: a `priority=Priority.LOW` client issues a batched operation and every batched request carries `X-Priority: low`. (SC-006 batch)
-- [ ] T010 [P] [US1] Add a test that a `priority=Priority.NORMAL` client emits `X-Priority: normal` on requests (an explicitly configured default is always emitted, not omitted), both clients. (US1 acceptance #4, FR-006)
+- [X] T006 [P] [US1] Add `tests/unit/sdk/test_priority.py`: assert a `priority=Priority.LOW` client emits `X-Priority: low` on a GraphQL query and a mutation, for both clients (`match_headers={"X-Priority": "low"}`, parametrized over the `BothClients` fixture). (SC-001, FR-003)
+- [X] T007 [P] [US1] In `tests/unit/sdk/test_object_store.py` (or `test_priority.py`), assert a `priority=Priority.LOW` client emits `X-Priority: low` on a blob download (`_get_streaming`) and upload (`_post`/object-store), both clients. (SC-001, SC-006 blob)
+- [X] T008 [P] [US1] Add a multipart-upload test: a `priority=Priority.LOW` client emits `X-Priority: low` on `_execute_graphql_with_file`, both clients (confirm the header survives the `content-type` pop). (SC-001, FR-003)
+- [X] T009 [P] [US1] Add a batch-mode test: a `priority=Priority.LOW` client issues a batched operation and every batched request carries `X-Priority: low`. (SC-006 batch)
+- [X] T010 [P] [US1] Add a test that a `priority=Priority.NORMAL` client emits `X-Priority: normal` on requests (an explicitly configured default is always emitted, not omitted), both clients. (US1 acceptance #4, FR-006)
 
 **Checkpoint**: US1 fully testable and green independently — this is a shippable MVP.
 

@@ -217,6 +217,9 @@ class BaseClient:
         if self.config.api_token:
             self.headers["X-INFRAHUB-KEY"] = self.config.api_token
 
+        if self.config.priority is not None:
+            self.headers["X-Priority"] = self.config.priority.value
+
         self.max_concurrent_execution = self.config.max_concurrent_execution
 
         self.update_group_context = self.config.update_group_context
