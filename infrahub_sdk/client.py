@@ -365,6 +365,11 @@ class InfrahubClient(BaseClient):
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    async def get_deployment_id(self) -> str:
+        """Return the Infrahub deployment ID."""
+        response = await self.execute_graphql(query="query { InfrahubInfo { deployment_id }}")
+        return response.get("InfrahubInfo", {}).get("deployment_id", "")
+
     async def get_user(self) -> dict:
         """Return user information."""
         return await self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
@@ -2071,6 +2076,11 @@ class InfrahubClientSync(BaseClient):
         """Return the Infrahub version."""
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
+
+    def get_deployment_id(self) -> str:
+        """Return the Infrahub deployment ID."""
+        response = self.execute_graphql(query="query { InfrahubInfo { deployment_id }}")
+        return response.get("InfrahubInfo", {}).get("deployment_id", "")
 
     def get_user(self) -> dict:
         """Return user information."""

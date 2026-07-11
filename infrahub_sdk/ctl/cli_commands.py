@@ -414,6 +414,7 @@ def info(  # noqa: PLR0915
         "error": None,
         "status": ":x:",
         "infrahub_version": "N/A",
+        "deployment_id": "N/A",
         "user_info": {},
         "groups": {},
     }
@@ -422,6 +423,7 @@ def info(  # noqa: PLR0915
 
     try:
         info["infrahub_version"] = client.get_version()
+        info["deployment_id"] = client.get_deployment_id()
 
         if fetch_user_details:
             info["user_info"] = client.get_user()
@@ -467,6 +469,7 @@ def info(  # noqa: PLR0915
         version_info = Table(show_header=False, box=None)
         version_info.add_row("Python Version:", platform.python_version())
         version_info.add_row("Infrahub Version", info["infrahub_version"])
+        version_info.add_row("Deployment ID:", info["deployment_id"])
         version_info.add_row("Infrahub SDK:", sdk_version)
         layout["version_info"].update(Panel(version_info, title="Version Information"))
 
@@ -509,6 +512,7 @@ def info(  # noqa: PLR0915
         table.add_row("Python Version:", platform.python_version())
         table.add_row("SDK Version:", sdk_version)
         table.add_row("Infrahub Version:", info["infrahub_version"])
+        table.add_row("Deployment ID:", info["deployment_id"])
         if account := info["user_info"].get("AccountProfile"):
             table.add_row("User:", account["display_label"])
 

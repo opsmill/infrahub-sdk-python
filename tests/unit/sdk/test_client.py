@@ -214,6 +214,18 @@ async def test_method_get_version(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_deployment_id(
+    clients: BothClients, mock_query_infrahub_deployment_id: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        deployment_id = await clients.standard.get_deployment_id()
+    else:
+        deployment_id = clients.sync.get_deployment_id()
+
+    assert deployment_id == "abc123"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_user(clients: BothClients, mock_query_infrahub_user: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         user = await clients.standard.get_user()
