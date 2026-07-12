@@ -833,3 +833,92 @@ async def test_resolution_truth_table_parity(case: ResolutionCase, client_type: 
         assert "x-priority" not in requests[0].headers
     else:
         assert requests[0].headers["x-priority"] == case.expected
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_count_carries_priority(
+    client_type: str, clients: BothClients, mock_schema_query_01: HTTPXMock, httpx_mock: HTTPXMock
+) -> None:
+    """A per-request priority on count() reaches the count query."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"CoreRepository": {"count": 5}}},
+        match_headers={"X-Priority": "high"},
+        is_reusable=True,
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        result = await client.count(kind="CoreRepository", priority=Priority.HIGH)
+    else:
+        result = client.count(kind="CoreRepository", priority=Priority.HIGH)
+    assert result == 5
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_override_on_all_parallel_count_query(
+    client_type: str,
+    clients: BothClients,
+    mock_query_repository_page1_2: HTTPXMock,
+    mock_query_repository_page2_2: HTTPXMock,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """In parallel mode, the preliminary count query carries the override too, not just the pages."""
+    # Registered after the tracker-matched page fixtures so the untracked count query falls through here.
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"CoreRepository": {"count": 5}}},
+        is_reusable=True,
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        await client.all(kind="CoreRepository", parallel=True, priority=Priority.HIGH)
+    else:
+        client.all(kind="CoreRepository", parallel=True, priority=Priority.HIGH)
+
+    count_requests = [
+        r for r in httpx_mock.get_requests() if r.method == "POST" and b"Count_CoreRepository" in r.read()
+    ]
+    assert count_requests
+    assert all(r.headers["x-priority"] == "high" for r in count_requests)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_related_node_fetch_forwards_priority(
+    client_type: str,
+    clients: BothClients,
+    mock_schema_query_01: HTTPXMock,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict,
+    tag_schema: NodeSchemaAPI,
+    tag_blue_data: dict,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """A per-request priority passed to RelatedNode.fetch() reaches the peer query.
+
+    This is the path a node create/update with a resource-pool relationship uses for its
+    follow-up peer fetch, so the whole operation carries a single consistent priority.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinTag": {"count": 1, "edges": [tag_blue_data]}}},
+        match_headers={"X-Priority": "high"},
+        is_reusable=True,
+    )
+
+    client = getattr(clients, client_type)
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+        await node.primary_tag.fetch(priority=Priority.HIGH)  # type: ignore[attr-defined]
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)  # type: ignore[assignment]
+        node.primary_tag.fetch(priority=Priority.HIGH)  # type: ignore[attr-defined]
+
+    tag_requests = [
+        r
+        for r in httpx_mock.get_requests()
+        if r.method == "POST" and (r.headers.get("x-infrahub-tracker") or "").startswith("query-builtintag")
+    ]
+    assert tag_requests
+    assert all(r.headers["x-priority"] == "high" for r in tag_requests)

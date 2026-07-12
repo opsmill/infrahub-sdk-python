@@ -1585,7 +1585,11 @@ class InfrahubNode(InfrahubNodeBase):
         return query_result
 
     async def _process_mutation_result(
-        self, mutation_name: str, response: dict[str, Any], timeout: int | None = None
+        self,
+        mutation_name: str,
+        response: dict[str, Any],
+        timeout: int | None = None,
+        priority: Priority | None = None,
     ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
@@ -1609,7 +1613,7 @@ class InfrahubNode(InfrahubNodeBase):
             related_node = RelatedNode(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            await related_node.fetch(timeout=timeout)
+            await related_node.fetch(timeout=timeout, priority=priority)
             setattr(self, rel_name, related_node)
 
     async def create(
@@ -1697,7 +1701,9 @@ class InfrahubNode(InfrahubNodeBase):
                 timeout=timeout,
                 priority=priority,
             )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        await self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     async def update(
         self,
@@ -1765,7 +1771,9 @@ class InfrahubNode(InfrahubNodeBase):
                 variables=input_data["variables"],
                 priority=priority,
             )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        await self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     async def _process_relationships(
         self,
@@ -2799,7 +2807,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return query_result
 
     def _process_mutation_result(
-        self, mutation_name: str, response: dict[str, Any], timeout: int | None = None
+        self,
+        mutation_name: str,
+        response: dict[str, Any],
+        timeout: int | None = None,
+        priority: Priority | None = None,
     ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
@@ -2823,7 +2835,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_node = RelatedNodeSync(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            related_node.fetch(timeout=timeout)
+            related_node.fetch(timeout=timeout, priority=priority)
             setattr(self, rel_name, related_node)
 
     def create(
@@ -2911,7 +2923,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 timeout=timeout,
                 priority=priority,
             )
-        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     def update(
         self,
@@ -2979,7 +2993,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 timeout=timeout,
                 priority=priority,
             )
-        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     def _process_relationships(
         self,
