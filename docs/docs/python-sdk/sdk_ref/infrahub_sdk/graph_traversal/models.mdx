@@ -40,6 +40,7 @@ sync client it returns the node directly. The result is added to the client stor
 so fetching the same id again is served from the store.
 
 **Raises:**
+
 - `Error`: If this node is not bound to a client (for example, constructed manually).
 
 ### `PathRelationship`
@@ -67,4 +68,3 @@ A node reachable from the source, with the path used to reach it.
 ### `ReachableNodesResult`
 
 Result of :meth:`InfrahubClient.reachable_nodes`.
-

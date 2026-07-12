@@ -20,12 +20,14 @@ as a list of components. When a string is provided, the first component is treat
 the node kind only when more than one component is present.
 
 **Args:**
+
 - `hfid`: The HFID to parse, either as a separator-joined string or as a list of components.
 
 **Returns:**
+
 - tuple[str | None, list[str]]: A tuple of ``(kind, identifier_components)``. ``kind`` is
 - ``None`` when no kind prefix is present (single-component string or list input).
 
 **Raises:**
-- `ValueError`: If ``hfid`` is neither a string nor a list.
 
+- `ValueError`: If ``hfid`` is neither a string nor a list.

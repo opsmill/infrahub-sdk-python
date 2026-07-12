@@ -17,6 +17,7 @@ initialized lazily: until :meth:`fetch` (on the async/sync subclasses) is called
 members are not loaded and editing is not allowed.
 
 **Attributes:**
+
 - `name`: The name of the relationship slot on the parent node.
 - `schema`: The schema describing the relationship.
 - `branch`: The branch the relationship is bound to.
@@ -34,6 +35,7 @@ peer_ids(self) -> list[str]
 Return the IDs of all peers that have one.
 
 **Returns:**
+
 - list\[str]: The IDs of the peers, in insertion order.
 
 #### `peer_hfids`
@@ -45,6 +47,7 @@ peer_hfids(self) -> list[list[Any]]
 Return the HFIDs of all peers that have one.
 
 **Returns:**
+
 - list\[list\[Any]]: The HFIDs of the peers as lists of components, in insertion order.
 
 #### `peer_hfids_str`
@@ -56,6 +59,7 @@ peer_hfids_str(self) -> list[str]
 Return the HFIDs of all peers as separator-joined strings.
 
 **Returns:**
+
 - list\[str]: The HFIDs of the peers as ``Kind__part1__part2`` strings.
 
 #### `has_update`
@@ -67,6 +71,7 @@ has_update(self) -> bool
 Return whether the peer set has been modified since initialization.
 
 **Returns:**
+
 - ``True`` after a successful :meth:`add`, :meth:`extend`, or :meth:`remove`.
 
 #### `is_from_profile`
@@ -81,6 +86,7 @@ The relationship is considered profile-sourced only when every peer is itself
 sourced from a profile.
 
 **Returns:**
+
 - ``True`` when at least one peer exists and all peers are from a profile.
 
 ### `RelationshipManager`
@@ -108,6 +114,7 @@ relationship included so the peer list can be populated. The peers are then
 fetched in a parallel batch grouped by kind and stored in the client store.
 
 **Raises:**
+
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -122,11 +129,13 @@ The new peer is only added when its ID or HFID is not already present; duplicate
 adds are silently ignored.
 
 **Args:**
+
 - `data`: The peer to add. Accepts an ID string, an
 existing \:class\:`RelatedNode`, or a dict describing the peer (with ``id``
 or ``hfid`` keys, plus optional relationship properties).
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `extend`
@@ -141,10 +150,12 @@ This is a convenience wrapper that calls :meth:`add` for every item in ``data``.
 Items already present (by ID or HFID) are silently ignored.
 
 **Args:**
+
 - `data`: The peers to add, in any of the
 formats accepted by \:meth\:`add`.
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `remove`
@@ -159,10 +170,12 @@ The peer to remove is matched first by ID, then by HFID. When no match is found,
 the call is a no-op.
 
 **Args:**
+
 - `data`: The peer to remove. Accepts an ID string, an
 existing \:class\:`RelatedNode`, or a dict describing the peer.
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 - `IndexError`: If the internal peer index is inconsistent with the lookup result.
 
@@ -192,6 +205,7 @@ relationship included so the peer list can be populated. The peers are then
 fetched in a parallel batch grouped by kind and stored in the client store.
 
 **Raises:**
+
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -206,11 +220,13 @@ The new peer is only added when its ID or HFID is not already present; duplicate
 adds are silently ignored.
 
 **Args:**
+
 - `data`: The peer to add. Accepts an ID string,
 an existing \:class\:`RelatedNodeSync`, or a dict describing the peer (with
 ``id`` or ``hfid`` keys, plus optional relationship properties).
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `extend`
@@ -225,10 +241,12 @@ This is a convenience wrapper that calls :meth:`add` for every item in ``data``.
 Items already present (by ID or HFID) are silently ignored.
 
 **Args:**
+
 - `data`: The peers to add, in any of the
 formats accepted by \:meth\:`add`.
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `remove`
@@ -243,10 +261,11 @@ The peer to remove is matched first by ID, then by HFID. When no match is found,
 the call is a no-op.
 
 **Args:**
+
 - `data`: The peer to remove. Accepts an ID string,
 an existing \:class\:`RelatedNodeSync`, or a dict describing the peer.
 
 **Raises:**
+
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 - `IndexError`: If the internal peer index is inconsistent with the lookup result.
-
