@@ -538,7 +538,6 @@ exclude = [
     ".agents/skills",
     ".claude/commands",
     ".claude/skills",
-    "dev/skills",
     ".specify/templates",
     ".specify/extensions",
 ]
