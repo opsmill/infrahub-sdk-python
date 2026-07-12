@@ -22,7 +22,7 @@ from .branch import MUTATION_QUERY_TASK, BranchData, InfrahubBranchManager, Infr
 from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
-from .data import RepositoryBranchInfo, RepositoryData
+from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
@@ -365,10 +365,14 @@ class InfrahubClient(BaseClient):
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
-    async def get_deployment_id(self) -> str:
-        """Return the Infrahub deployment ID."""
-        response = await self.execute_graphql(query="query { InfrahubInfo { deployment_id }}")
-        return response.get("InfrahubInfo", {}).get("deployment_id", "")
+    async def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = await self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
 
     async def get_user(self) -> dict:
         """Return user information."""
@@ -2077,10 +2081,14 @@ class InfrahubClientSync(BaseClient):
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
-    def get_deployment_id(self) -> str:
-        """Return the Infrahub deployment ID."""
-        response = self.execute_graphql(query="query { InfrahubInfo { deployment_id }}")
-        return response.get("InfrahubInfo", {}).get("deployment_id", "")
+    def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
 
     def get_user(self) -> dict:
         """Return user information."""
