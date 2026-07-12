@@ -422,8 +422,9 @@ def info(  # noqa: PLR0915
     fetch_user_details = bool(client.config.username) or bool(client.config.api_token)
 
     try:
-        info["infrahub_version"] = client.get_version()
-        info["deployment_id"] = client.get_deployment_id()
+        server_info = client.get_server_information()
+        info["infrahub_version"] = server_info.version
+        info["deployment_id"] = server_info.deployment_id
 
         if fetch_user_details:
             info["user_info"] = client.get_user()

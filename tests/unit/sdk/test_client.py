@@ -215,15 +215,16 @@ async def test_method_get_version(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_get_deployment_id(
-    clients: BothClients, mock_query_infrahub_deployment_id: HTTPXMock, client_type: str
+async def test_method_get_server_information(
+    clients: BothClients, mock_query_infrahub_server_info: HTTPXMock, client_type: str
 ) -> None:
     if client_type == "standard":
-        deployment_id = await clients.standard.get_deployment_id()
+        server_info = await clients.standard.get_server_information()
     else:
-        deployment_id = clients.sync.get_deployment_id()
+        server_info = clients.sync.get_server_information()
 
-    assert deployment_id == "abc123"
+    assert server_info.version == "1.1.0"
+    assert server_info.deployment_id == "abc123"
 
 
 @pytest.mark.parametrize("client_type", client_types)

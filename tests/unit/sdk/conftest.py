@@ -2074,10 +2074,11 @@ async def mock_query_infrahub_version(httpx_mock: HTTPXMock) -> HTTPXMock:
 
 
 @pytest.fixture
-async def mock_query_infrahub_deployment_id(httpx_mock: HTTPXMock) -> HTTPXMock:
+async def mock_query_infrahub_server_info(httpx_mock: HTTPXMock) -> HTTPXMock:
     httpx_mock.add_response(
         method="POST",
-        json={"data": {"InfrahubInfo": {"deployment_id": "abc123"}}},
+        json={"data": {"InfrahubInfo": {"version": "1.1.0", "deployment_id": "abc123"}}},
+        match_headers={"X-Infrahub-Tracker": "query-server-info"},
         is_reusable=True,
     )
     return httpx_mock
