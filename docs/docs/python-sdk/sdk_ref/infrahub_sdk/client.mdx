@@ -137,6 +137,7 @@ not the per-side names shown in the result.
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -153,6 +154,7 @@ path(s); when False, return all loopless paths (exhaustive mode).
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -171,6 +173,7 @@ found. Accepts the same source/destination and filter arguments as ``traverse_pa
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -184,6 +187,7 @@ Requires Infrahub 1.10 or later.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -200,6 +204,7 @@ Find all nodes of the given kinds reachable from a source node.
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -211,6 +216,7 @@ Requires Infrahub 1.10 or later.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -238,6 +244,7 @@ all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str
 Retrieve all nodes of a given kind.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -257,6 +264,7 @@ Retrieve all nodes of a given kind.
 client default for these requests only. When None, the client default (if any) is used.
 
 **Returns:**
+
 - list\[InfrahubNode]: List of Nodes
 
 </details>
@@ -285,6 +293,7 @@ filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch:
 Retrieve nodes of a given kind based on provided filters.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -306,6 +315,7 @@ client default for these requests only. When None, the client default (if any) i
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
+
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 </details>
@@ -329,6 +339,7 @@ Execute a GraphQL query (or mutation).
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
+
 - `query`: GraphQL Query to execute, can be a query or a mutation
 - `variables`: Variables to pass along with the GraphQL query. Defaults to None.
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
@@ -340,9 +351,11 @@ so tracing/observability tools can identify the operation. Defaults to None.
 client-wide default for this request only. When None, the client default (if any) is used.
 
 **Returns:**
+
 - The GraphQL data payload (response["data"]).
 
 **Raises:**
+
 - `GraphQLError`: When the GraphQL response contains errors.
 - `ServerNotReachableError`: If the server is not reachable after exhausting retries.
 - `AuthenticationError`: If the server returns a 401 or 403 response.
@@ -390,10 +403,12 @@ Get complete diff tree with metadata and nodes.
 Returns None if no diff exists.
 
 **Args:**
+
 - `priority`: Per-request priority emitted as the X-Priority header, overriding the client
 default for this request only. When None, the client default (if any) is used.
 
 **Raises:**
+
 - `ValueError`: If ``from_time`` is later than ``to_time``.
 
 #### `allocate_next_ip_address`
@@ -420,6 +435,7 @@ allocate_next_ip_address(self, resource_pool: CoreNode, kind: type[SchemaType] |
 Allocate a new IP address by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to set on the address to allocate.
@@ -430,9 +446,11 @@ Allocate a new IP address by using the provided resource pool.
 - `tracker`: The offset for pagination.
 
 **Returns:**
+
 - Node corresponding to the allocated resource.
 
 **Raises:**
+
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
@@ -461,6 +479,7 @@ allocate_next_ip_prefix(self, resource_pool: CoreNode, kind: type[SchemaType] | 
 Allocate a new IP prefix by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to allocate.
@@ -472,9 +491,11 @@ Allocate a new IP prefix by using the provided resource pool.
 - `tracker`: The offset for pagination.
 
 **Returns:**
+
 - Node corresponding to the allocated resource.
 
 **Raises:**
+
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
@@ -632,6 +653,7 @@ Execute a GraphQL query (or mutation).
 If retry_on_failure is True, the query will retry until the server becomes reachable.
 
 **Args:**
+
 - `query`: GraphQL Query to execute, can be a query or a mutation
 - `variables`: Variables to pass along with the GraphQL query. Defaults to None.
 - `branch_name`: Name of the branch on which the query will be executed. Defaults to None.
@@ -643,9 +665,11 @@ so tracing/observability tools can identify the operation. Defaults to None.
 client-wide default for this request only. When None, the client default (if any) is used.
 
 **Returns:**
+
 - The GraphQL data payload (`response["data"]`).
 
 **Raises:**
+
 - `GraphQLError`: When the GraphQL response contains errors.
 - `ServerNotReachableError`: If the server is not reachable after exhausting retries.
 - `AuthenticationError`: If the server returns a 401 or 403 response.
@@ -676,6 +700,7 @@ not the per-side names shown in the result.
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -692,6 +717,7 @@ path(s); when False, return all loopless paths (exhaustive mode).
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -710,6 +736,7 @@ found. Accepts the same source/destination and filter arguments as ``traverse_pa
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `destination`: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -723,6 +750,7 @@ Requires Infrahub 1.10 or later.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -739,6 +767,7 @@ Find all nodes of the given kinds reachable from a source node.
 Requires Infrahub 1.10 or later.
 
 **Args:**
+
 - `source`: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
 - `target_kinds`: Kinds of nodes to look for, as kind-name strings or protocol classes.
 - `max_depth`: Maximum number of relationship hops to explore.
@@ -750,6 +779,7 @@ Requires Infrahub 1.10 or later.
 - `timeout`: Overrides the default GraphQL timeout, in seconds.
 
 **Raises:**
+
 - `VersionNotSupportedError`: If the server does not support graph traversal (pre-1.10).
 - `GraphQLError`: When the GraphQL response contains errors (e.g. unknown node).
 
@@ -777,6 +807,7 @@ all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch:
 Retrieve all nodes of a given kind.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -796,6 +827,7 @@ Retrieve all nodes of a given kind.
 client default for these requests only. When None, the client default (if any) is used.
 
 **Returns:**
+
 - list\[InfrahubNodeSync]: List of Nodes
 
 </details>
@@ -824,6 +856,7 @@ filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, bra
 Retrieve nodes of a given kind based on provided filters.
 
 **Args:**
+
 - `kind`: kind of the nodes to query
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
@@ -845,6 +878,7 @@ client default for these requests only. When None, the client default (if any) i
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
+
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
 
 </details>
@@ -895,10 +929,12 @@ Get complete diff tree with metadata and nodes.
 Returns None if no diff exists.
 
 **Args:**
+
 - `priority`: Per-request priority emitted as the X-Priority header, overriding the client
 default for this request only. When None, the client default (if any) is used.
 
 **Raises:**
+
 - `ValueError`: If ``from_time`` is later than ``to_time``.
 
 #### `allocate_next_ip_address`
@@ -925,6 +961,7 @@ allocate_next_ip_address(self, resource_pool: CoreNodeSync, kind: type[SchemaTyp
 Allocate a new IP address by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `prefix_length`: Length of the prefix to set on the address to allocate.
@@ -935,9 +972,11 @@ Allocate a new IP address by using the provided resource pool.
 - `tracker`: The offset for pagination.
 
 **Returns:**
+
 - Node corresponding to the allocated resource.
 
 **Raises:**
+
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPAddressPool``.
 
 </details>
@@ -966,6 +1005,7 @@ allocate_next_ip_prefix(self, resource_pool: CoreNodeSync, kind: type[SchemaType
 Allocate a new IP prefix by using the provided resource pool.
 
 **Args:**
+
 - `resource_pool`: Node corresponding to the pool to allocate resources from.
 - `identifier`: Value to perform idempotent allocation, the same resource will be returned for a given identifier.
 - `size`: Length of the prefix to allocate.
@@ -977,9 +1017,11 @@ Allocate a new IP prefix by using the provided resource pool.
 - `tracker`: The offset for pagination.
 
 **Returns:**
+
 - Node corresponding to the allocated resource.
 
 **Raises:**
+
 - `ValueError`: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
 
 </details>
