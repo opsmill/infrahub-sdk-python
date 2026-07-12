@@ -173,7 +173,7 @@ around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -185,6 +185,7 @@ available via :attr:`peer` or :meth:`get`.
 
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
+- `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
 
 **Raises:**
 
@@ -245,7 +246,7 @@ store, and :attr:`peer` is a convenience accessor around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -257,6 +258,7 @@ available via :attr:`peer` or :meth:`get`.
 
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
+- `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
 
 **Raises:**
 
