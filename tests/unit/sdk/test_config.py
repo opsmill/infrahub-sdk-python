@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -104,9 +105,12 @@ def test_invalid_priority_rejected() -> None:
     Construction raises before any client/request exists, so 'no request is issued'
     is inherent — the ValidationError is raised while building Config.
     """
+    # Passing an invalid string is the behaviour under test; pydantic rejects it at load. The field
+    # statically types Priority | None but coerces strings at runtime, so the dynamic input is passed
+    # via a dict[str, Any] rather than suppressed with a type-checker ignore.
+    kwargs: dict[str, Any] = {"address": "http://localhost:8000", "priority": "lowe"}
     with pytest.raises(ValidationError, match=r"Input should be 'high', 'normal' or 'low'"):
-        # Passing an invalid string is the behaviour under test; pydantic rejects it at load.
-        Config(address="http://localhost:8000", priority="lowe")  # ty: ignore[invalid-argument-type]
+        Config(**kwargs)
 
 
 @dataclass
@@ -135,8 +139,10 @@ PRIORITY_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in PRIORITY_CASES])
 def test_priority_case_insensitive_acceptance(case: PriorityCase) -> None:
     """Valid priority strings are accepted case-insensitively (and enum members pass through)."""
-    # Case-insensitive string coercion is the behaviour under test; the field statically types Priority.
-    config = Config(address="http://localhost:8000", priority=case.value)  # ty: ignore[invalid-argument-type]
+    # Case-insensitive string coercion is the behaviour under test; the field statically types Priority,
+    # so the mixed str/Priority input is passed via a dict[str, Any] rather than suppressed with an ignore.
+    kwargs: dict[str, Any] = {"address": "http://localhost:8000", "priority": case.value}
+    config = Config(**kwargs)
     assert config.priority is case.expected
 
 
