@@ -78,6 +78,7 @@ When editing `.md` or `.mdx` files (`uv run invoke lint-docs` enforces these):
 
 🚫 **Never**
 
+- Update `CLAUDE.md` (it is a thin `@AGENTS.md` router — edit `AGENTS.md` instead)
 - Mix async/sync inappropriately
 - Modify generated code (protocols.py)
 - Bypass type checking without justification
