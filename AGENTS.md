@@ -78,7 +78,6 @@ When editing `.md` or `.mdx` files (`uv run invoke lint-docs` enforces these):
 
 🚫 **Never**
 
-- Push to GitHub automatically (always wait for user approval)
 - Mix async/sync inappropriately
 - Modify generated code (protocols.py)
 - Bypass type checking without justification
