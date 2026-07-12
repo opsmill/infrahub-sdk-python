@@ -93,8 +93,10 @@ Realised in code as: the client default is already in the copied `self.headers`;
 | Surface | Client default rides it? | Per-request `priority=` override? |
 |---------|--------------------------|-----------------------------------|
 | `execute_graphql` + file variant | Yes | **Yes** |
-| `get`, `all`, `create`, `save` | Yes | **Yes** |
+| `get`, `all`, `filters`, `count` | Yes | **Yes** |
 | diff methods (`create_diff`, `get_diff_summary`, `get_diff_tree`) | Yes | **Yes** |
-| node `update` / `delete` | Yes | **Yes** (forwarded) |
+| node `save` / `create` / `update` / `delete` | Yes | **Yes** (forwarded) |
+| resource-pool peer fetch within a node create/update | Yes | **Yes** (inherits the operation's `priority`) |
+| `client.create` (builds an unsaved node, issues no request) | n/a | No (nothing to send) |
 | raw blob `_get` / `_post` / `_get_streaming` | Yes | No (v1) |
 | batch mode | Yes | No (v1) |

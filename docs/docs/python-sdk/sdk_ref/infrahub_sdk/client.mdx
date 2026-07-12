@@ -116,10 +116,14 @@ Return user permissions.
 #### `count`
 
 ```python
-count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, **kwargs: Any) -> int
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> int
 ```
 
 Return the number of nodes of a given kind.
+
+**Args:**
+
+- `priority`: Override the client-wide request priority for this query. When None, the client default is used.
 
 #### `traverse_paths`
 
@@ -679,10 +683,14 @@ client-wide default for this request only. When None, the client default (if any
 #### `count`
 
 ```python
-count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, **kwargs: Any) -> int
+count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, partial_match: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> int
 ```
 
 Return the number of nodes of a given kind.
+
+**Args:**
+
+- `priority`: Override the client-wide request priority for this query. When None, the client default is used.
 
 #### `traverse_paths`
 

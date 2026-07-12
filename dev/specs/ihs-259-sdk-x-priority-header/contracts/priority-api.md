@@ -40,8 +40,9 @@ Each covered method gains `priority: Priority | None = None` (default `None` pre
 ```python
 # Client
 def get(self, kind, ..., priority: Priority | None = None) -> ...
-def all(self, kind, ..., priority: Priority | None = None) -> ...
-def create(self, kind, ..., priority: Priority | None = None) -> ...
+def all(self, kind, ..., priority: Priority | None = None) -> ...            # forwards to filters + count
+def filters(self, kind, ..., priority: Priority | None = None) -> ...
+def count(self, kind, ..., priority: Priority | None = None) -> int
 def execute_graphql(self, query, ..., priority: Priority | None = None) -> dict
 def _execute_graphql_with_file(self, ..., priority: Priority | None = None) -> ...   # file variant
 def create_diff(self, ..., priority: Priority | None = None) -> ...
@@ -54,6 +55,8 @@ def create(self, ..., priority: Priority | None = None) -> None
 def update(self, ..., priority: Priority | None = None) -> None
 def delete(self, ..., priority: Priority | None = None) -> None
 ```
+
+> **Note — `client.create` is intentionally NOT extended.** `InfrahubClient.create()` / `InfrahubClientSync.create()` only build an unsaved `InfrahubNode` in memory and issue no HTTP request, so a `priority=` kwarg there would be a no-op. Per-request priority for creating a node is carried by the node-level `save()` / `create()` (which issue the mutation). Within a node create/update, a resource-pool relationship's follow-up peer fetch inherits the same `priority`.
 
 ### Behavioural contract per call
 
