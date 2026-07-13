@@ -1073,7 +1073,7 @@ class InfrahubClient(BaseClient):
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
-            list[InfrahubNodeSync]: List of Nodes that match the given filters.
+            list[InfrahubNode]: List of Nodes that match the given filters.
 
         """
         branch = branch or self.default_branch
