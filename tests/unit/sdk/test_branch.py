@@ -47,3 +47,27 @@ async def test_get_branches(clients: BothClients, mock_branches_list_query: HTTP
 
     assert len(branches) == 2
     assert isinstance(branches["main"], BranchData)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_branch_merge_enforces_minimum_timeout(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    """Both clients must apply the 120s minimum timeout floor when merging a branch.
+
+    The default client timeout is 60s, so a correct merge sends max(120, 60) == 120.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BranchMerge": {"ok": True}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-branch-merge"},
+    )
+
+    if client_type == "standard":
+        await clients.standard.branch.merge(branch_name="branch01")
+    else:
+        clients.sync.branch.merge(branch_name="branch01")
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    assert post_requests[0].extensions["timeout"]["read"] == 120

@@ -408,7 +408,7 @@ class InfrahubSchema(InfrahubSchemaBase):
 
     async def _get_kind_and_attribute_schema(
         self, kind: str | InfrahubNodeTypes, attribute: str, branch: str | None = None
-    ) -> tuple[str, AttributeSchema]:
+    ) -> tuple[str, AttributeSchemaAPI]:
         node_kind: str = kind._schema.kind if not isinstance(kind, str) else kind
         node_schema = await self.client.schema.get(kind=node_kind, branch=branch)
         schema_attr = node_schema.get_attribute(name=attribute)

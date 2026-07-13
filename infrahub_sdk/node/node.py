@@ -1034,7 +1034,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: If this node does not inherit from ``CoreArtifactTarget``.
 
         """
-        self._validate_artifact_support(ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE)
+        self._validate_artifact_support(ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE)
 
         artifact = await self._client.get(kind="CoreArtifact", name__value=name, object__ids=[self.id])
         return await self._client.object_store.get(identifier=artifact._get_attribute(name="storage_id").value)
@@ -2083,7 +2083,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return cls(client=client, schema=schema, branch=branch, data=cls._strip_alias(data))
 
-    def _init_relationships(self, data: dict | None = None) -> None:
+    def _init_relationships(self, data: dict | RelatedNodeSync | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
@@ -2820,8 +2820,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         mutation_query = self._generate_mutation_query()
 
+        # Upserting means we may want to create, meaning payload contains all mandatory fields required for a creation,
+        # so hfid is just redundant information. Currently, upsert mutation has performance overhead if `hfid` is filled.
         if allow_upsert:
-            input_data = self._generate_input_data(exclude_hfid=False, request_context=request_context)
+            input_data = self._generate_input_data(exclude_hfid=True, request_context=request_context)
             mutation_name = f"{self._schema.kind}Upsert"
             tracker = f"mutation-{str(self._schema.kind).lower()}-upsert"
         else:
@@ -2993,7 +2995,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         """
         if not self.is_resource_pool():
-            raise ValueError("Allocate resources can only be fetched from resource pool nodes.")
+            raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
         graphql_query_name = "InfrahubResourcePoolAllocated"
         node_ids_per_kind: dict[str, list[str]] = {}
@@ -3089,13 +3091,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
             return [edge["node"] for edge in response[graphql_query_name]["edges"]]
         return []
 
-    def _get_relationship_many(self, name: str) -> RelationshipManager | RelationshipManagerSync:
+    def _get_relationship_many(self, name: str) -> RelationshipManagerSync:
         if name in self._relationship_cardinality_many_data:
             return self._relationship_cardinality_many_data[name]
 
         raise ResourceNotDefinedError(message=f"The node doesn't have a cardinality=many relationship for {name}")
 
-    def _get_relationship_one(self, name: str) -> RelatedNode | RelatedNodeSync:
+    def _get_relationship_one(self, name: str) -> RelatedNodeSync:
         if name in self._relationship_cardinality_one_data:
             return self._relationship_cardinality_one_data[name]
 
