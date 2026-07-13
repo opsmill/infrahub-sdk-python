@@ -214,6 +214,19 @@ async def test_method_get_version(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_server_information(
+    clients: BothClients, mock_query_infrahub_server_info: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        server_info = await clients.standard.get_server_information()
+    else:
+        server_info = clients.sync.get_server_information()
+
+    assert server_info.version == "1.1.0"
+    assert server_info.deployment_id == "abc123"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_user(clients: BothClients, mock_query_infrahub_user: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         user = await clients.standard.get_user()

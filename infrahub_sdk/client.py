@@ -5,7 +5,7 @@ import copy
 import logging
 import time
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager, suppress
 from datetime import datetime
 from enum import Enum
 from functools import wraps
@@ -22,7 +22,7 @@ from .branch import MUTATION_QUERY_TASK, BranchData, InfrahubBranchManager, Infr
 from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
-from .data import RepositoryBranchInfo, RepositoryData
+from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
@@ -49,6 +49,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
+from .rate_limit import RateLimitRetryHandler
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
@@ -77,6 +78,20 @@ class ProcessRelationsNode(TypedDict):
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+def _rewind_multipart_files(files: dict[str, Any]) -> None:
+    """Rewind seekable file objects in a multipart ``files`` payload to position 0.
+
+    httpx reads file-like objects to EOF on send; rewinding before each attempt lets a retried
+    upload (e.g. after a 429) carry the full body rather than an already-consumed stream.
+    """
+    for value in files.values():
+        file_obj = value[1] if isinstance(value, tuple) and len(value) > 1 else value
+        seek = getattr(file_obj, "seek", None)
+        if callable(seek):
+            with suppress(OSError, ValueError):  # non-seekable stream: leave as-is
+                seek(0)
 
 
 class ProxyConfigSync(TypedDict):
@@ -186,6 +201,13 @@ class BaseClient:
         self.config.address = address or self.config.address
         self.insert_tracker = self.config.insert_tracker
         self.log = self.config.logger or logging.getLogger("infrahub_sdk")
+        self._rate_limit_handler = RateLimitRetryHandler(
+            max_retries=self.config.rate_limit_max_retries,
+            backoff_base=self.config.rate_limit_backoff_base,
+            backoff_max=self.config.rate_limit_backoff_max,
+            enabled=self.config.rate_limit_retry_enabled,
+            log=self.log,
+        )
         self.address = self.config.address
         self.mode = self.config.mode
         self.pagination_size = self.config.pagination_size
@@ -364,6 +386,15 @@ class InfrahubClient(BaseClient):
         """Return the Infrahub version."""
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
+
+    async def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = await self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
 
     async def get_user(self) -> dict:
         """Return user information."""
@@ -1390,14 +1421,18 @@ class InfrahubClient(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        async def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return await client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -1472,16 +1507,39 @@ class InfrahubClient(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, AsyncExitStack] = {}
+
+            async def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = AsyncExitStack()
+                response = await stack.enter_async_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        await response.aread()
+                    finally:
+                        await stack.aclose()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                async with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = await self._rate_limit_handler.asend(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        await stack.aclose()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     async def _request(
         self,
@@ -1491,7 +1549,10 @@ class InfrahubClient(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        async def send() -> httpx.Response:
+            return await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -2072,6 +2133,15 @@ class InfrahubClientSync(BaseClient):
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
+
     def get_user(self) -> dict:
         """Return user information."""
         return self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
@@ -2338,14 +2408,18 @@ class InfrahubClientSync(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 
@@ -3540,16 +3614,39 @@ class InfrahubClientSync(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, ExitStack] = {}
+
+            def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = ExitStack()
+                response = stack.enter_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        response.read()
+                    finally:
+                        stack.close()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = self._rate_limit_handler.send(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        stack.close()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     @handle_relogin_sync
     def _post(
@@ -3588,7 +3685,10 @@ class InfrahubClientSync(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        def send() -> httpx.Response:
+            return self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 

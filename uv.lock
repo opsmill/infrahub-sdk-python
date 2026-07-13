@@ -734,6 +734,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "ruff" },
+    { name = "rumdl" },
     { name = "towncrier" },
     { name = "ty" },
     { name = "types-python-slugify" },
@@ -745,6 +746,7 @@ lint = [
     { name = "astroid" },
     { name = "mypy" },
     { name = "ruff" },
+    { name = "rumdl" },
     { name = "ty" },
     { name = "yamllint" },
 ]
@@ -814,6 +816,7 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.3.1" },
     { name = "requests", specifier = ">=2.33.0" },
     { name = "ruff", specifier = "==0.15.12" },
+    { name = "rumdl", specifier = "==0.2.28" },
     { name = "towncrier", specifier = ">=24.8.0" },
     { name = "ty", specifier = "==0.0.14" },
     { name = "types-python-slugify", specifier = ">=8.0.0.3" },
@@ -825,6 +828,7 @@ lint = [
     { name = "astroid", specifier = ">=3.1,<4.0" },
     { name = "mypy", specifier = "==1.11.2" },
     { name = "ruff", specifier = "==0.15.12" },
+    { name = "rumdl", specifier = "==0.2.28" },
     { name = "ty", specifier = "==0.0.14" },
     { name = "yamllint" },
 ]
@@ -886,17 +890,17 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 dependencies = [
-    { name = "colorama", marker = "python_full_version < '3.11' and sys_platform == 'win32'" },
-    { name = "decorator", marker = "python_full_version < '3.11'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "jedi", marker = "python_full_version < '3.11'" },
-    { name = "matplotlib-inline", marker = "python_full_version < '3.11'" },
-    { name = "pexpect", marker = "python_full_version < '3.11' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "prompt-toolkit", marker = "python_full_version < '3.11'" },
-    { name = "pygments", marker = "python_full_version < '3.11'" },
-    { name = "stack-data", marker = "python_full_version < '3.11'" },
-    { name = "traitlets", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "decorator" },
+    { name = "exceptiongroup" },
+    { name = "jedi" },
+    { name = "matplotlib-inline" },
+    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "prompt-toolkit" },
+    { name = "pygments" },
+    { name = "stack-data" },
+    { name = "traitlets" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/85/31/10ac88f3357fc276dc8a64e8880c82e80e7459326ae1d0a211b40abf6665/ipython-8.37.0.tar.gz", hash = "sha256:ca815841e1a41a1e6b73a0b08f3038af9b2252564d01fc405356d34033012216", size = 5606088, upload-time = "2025-05-31T16:39:09.613Z" }
 wheels = [
@@ -913,17 +917,17 @@ resolution-markers = [
     "python_full_version == '3.11.*'",
 ]
 dependencies = [
-    { name = "colorama", marker = "python_full_version >= '3.11' and sys_platform == 'win32'" },
-    { name = "decorator", marker = "python_full_version >= '3.11'" },
-    { name = "ipython-pygments-lexers", marker = "python_full_version >= '3.11'" },
-    { name = "jedi", marker = "python_full_version >= '3.11'" },
-    { name = "matplotlib-inline", marker = "python_full_version >= '3.11'" },
-    { name = "pexpect", marker = "python_full_version >= '3.11' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
-    { name = "prompt-toolkit", marker = "python_full_version >= '3.11'" },
-    { name = "pygments", marker = "python_full_version >= '3.11'" },
-    { name = "stack-data", marker = "python_full_version >= '3.11'" },
-    { name = "traitlets", marker = "python_full_version >= '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version == '3.11.*'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "decorator" },
+    { name = "ipython-pygments-lexers" },
+    { name = "jedi" },
+    { name = "matplotlib-inline" },
+    { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
+    { name = "prompt-toolkit" },
+    { name = "pygments" },
+    { name = "stack-data" },
+    { name = "traitlets" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/34/29b18c62e39ee2f7a6a3bba7efd952729d8aadd45ca17efc34453b717665/ipython-9.6.0.tar.gz", hash = "sha256:5603d6d5d356378be5043e69441a072b50a5b33b4503428c77b04cb8ce7bc731", size = 4396932, upload-time = "2025-09-29T10:55:53.948Z" }
 wheels = [
@@ -935,7 +939,7 @@ name = "ipython-pygments-lexers"
 version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pygments", marker = "python_full_version >= '3.11'" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ef/4c/5dd1d8af08107f88c7f741ead7a40854b8ac24ddf9ae850afbcf698aa552/ipython_pygments_lexers-1.1.1.tar.gz", hash = "sha256:09c0138009e56b6854f9535736f4171d855c8c08a563a0dcd8022f78355c7e81", size = 8393, upload-time = "2025-01-17T11:24:34.505Z" }
 wheels = [
@@ -1468,8 +1472,8 @@ name = "pendulum"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "python-dateutil", marker = "python_full_version < '3.13'" },
-    { name = "tzdata", marker = "python_full_version < '3.13'" },
+    { name = "python-dateutil" },
+    { name = "tzdata" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/23/7c/009c12b86c7cc6c403aec80f8a4308598dfc5995e5c523a5491faaa3952e/pendulum-3.1.0.tar.gz", hash = "sha256:66f96303560f41d097bee7d2dc98ffca716fbb3a832c4b3062034c2d45865015", size = 85930, upload-time = "2025-04-19T14:30:01.675Z" }
 wheels = [
@@ -2500,6 +2504,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ea/f9/0ae446942c846b8266059ad8a30702a35afae55f5cdc54c5adf8d7afdc27/ruff-0.15.12-py3-none-win32.whl", hash = "sha256:d0185894e038d7043ba8fd6aee7499ece6462dc0ea9f1e260c7451807c714c20", size = 10657277, upload-time = "2026-04-24T18:17:18.591Z" },
     { url = "https://files.pythonhosted.org/packages/33/f1/9614e03e1cdcbf9437570b5400ced8a720b5db22b28d8e0f1bda429f660d/ruff-0.15.12-py3-none-win_amd64.whl", hash = "sha256:c87a162d61ab3adca47c03f7f717c68672edec7d1b5499e652331780fe74950d", size = 11837758, upload-time = "2026-04-24T18:17:00.113Z" },
     { url = "https://files.pythonhosted.org/packages/c0/98/6beb4b351e472e5f4c4613f7c35a5290b8be2497e183825310c4c3a3984b/ruff-0.15.12-py3-none-win_arm64.whl", hash = "sha256:a538f7a82d061cee7be55542aca1d86d1393d55d81d4fcc314370f4340930d4f", size = 11120821, upload-time = "2026-04-24T18:16:57.979Z" },
+]
+
+[[package]]
+name = "rumdl"
+version = "0.2.28"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/40/da219dd6f19eaeb4e620c0b2c942adc0d743aed6186e37d35ba1ab4d0a6a/rumdl-0.2.28.tar.gz", hash = "sha256:ff7e4b9ffaa617495a9fed775323e557d7719208ba2596b778864c0d31c132e9", size = 2834931, upload-time = "2026-07-03T09:21:25.54Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/1a/13ad9ef84cf0407b5685d6c297d44df45d3fa68a7289291451d960df5401/rumdl-0.2.28-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:1c5580ef900acee7b112655c569355af5914e7e26248612c2a0df7f877cf1928", size = 6032238, upload-time = "2026-07-03T09:21:13.156Z" },
+    { url = "https://files.pythonhosted.org/packages/60/97/f7cfffd9515a5bdf2273a92662183ab172c7fd5149c4296b089ce7f3b7dd/rumdl-0.2.28-py3-none-macosx_11_0_arm64.whl", hash = "sha256:9e38e5e48db8b38935cfd2ba986aa8deb7bdf784de4228629f581849e11a8b76", size = 5698394, upload-time = "2026-07-03T09:21:15.238Z" },
+    { url = "https://files.pythonhosted.org/packages/43/46/18111e2471c767d69b7874a643b7dbec5978fd03b65394e122a9990c8015/rumdl-0.2.28-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:8299462c03d498b90014fb03983d9aa8cdd2d2a5ff64f8a27231e8ffe00cdbb9", size = 5836882, upload-time = "2026-07-03T09:21:16.907Z" },
+    { url = "https://files.pythonhosted.org/packages/65/e5/0cd0fd9c530c53192e4fd12c33717b6c4f1c7f9ac28f2443869e101719b3/rumdl-0.2.28-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:2a0f14e56ce50583d600404ff80aac7c98e11862103dcbfcb5aee5225184b702", size = 6205179, upload-time = "2026-07-03T09:21:18.986Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/d5/06a52f22d768296cf3deef12dde93c1b22a9177a3adff7944f7602b47c22/rumdl-0.2.28-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:4d518eaec6972d1651b71e48d7a2d9dd5e2ec73acbd29e3e51343d0cd6c65b10", size = 5828991, upload-time = "2026-07-03T09:21:20.657Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/ff/d35ce3e759b7696fe07d3dbdc05de8494f5f0ad202d9e44595de8024df01/rumdl-0.2.28-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:b8d2249d7951e46b455e8812f30b7ec453c24c37afa34ff5def541756113d652", size = 6191050, upload-time = "2026-07-03T09:21:22.331Z" },
+    { url = "https://files.pythonhosted.org/packages/94/6d/2d233563f17e28da273200fd9532d4ed706294ae4287e0a52b424eef71a2/rumdl-0.2.28-py3-none-win_amd64.whl", hash = "sha256:e96ba5e683e2b1dc39037879770930d28d0cbc5e3d13fdd872abb327cd5a68f5", size = 6126533, upload-time = "2026-07-03T09:21:23.942Z" },
 ]
 
 [[package]]

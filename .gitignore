@@ -34,3 +34,4 @@ sandbox/
 
 # SpecKit internal cache
 .specify/**/.cache/
+.specify/feature.json
