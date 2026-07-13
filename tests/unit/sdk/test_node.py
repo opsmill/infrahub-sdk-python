@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import ipaddress
+import json
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -175,6 +176,38 @@ async def test_node_hfid(client: InfrahubClient, schema_with_hfid: dict[str, Nod
     assert rack.hfid == [rack.facility_id.value, rack.location.get().name.value]
     assert rack.get_human_friendly_id_as_string() == "RACK1__JFK1"
     assert rack.hfid_str == "BuiltinRack__RACK1__JFK1"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_create_upsert_excludes_hfid(
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    schema_with_hfid: dict[str, NodeSchemaAPI],
+    client_type: str,
+) -> None:
+    """Upsert must never send the hfid in the mutation payload, for both async and sync clients.
+
+    Sending the hfid on an upsert adds server-side performance overhead, so create(allow_upsert=True)
+    excludes it. The async and sync clients must behave identically here.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationUpsert": {"ok": True, "object": {"id": "abcabc"}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-builtinlocation-upsert"},
+    )
+    location_data = {"name": {"value": "JFK1"}, "description": {"value": "JFK Airport"}, "type": {"value": "SITE"}}
+
+    if client_type == "standard":
+        location = InfrahubNode(client=clients.standard, schema=schema_with_hfid["location"], data=location_data)
+        await location.create(allow_upsert=True)
+    else:
+        location = InfrahubNodeSync(client=clients.sync, schema=schema_with_hfid["location"], data=location_data)
+        location.create(allow_upsert=True)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "hfid" not in payload["query"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
