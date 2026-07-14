@@ -112,6 +112,14 @@ Four orjson API differences drive every adaptation. The mapping is fixed and app
 
 **Atomicity.** All sites migrate in one change set; the intermediate two-library state is never committed to `main`.
 
+## Notes from critique (applied)
+
+- **Special-type parity**: `extract_node_data`/`extract_node_detail` yield primitives + `datetime` (passthrough) + string-rendered addresses/ids — no enum/dataclass objects — so orjson's native type handling does not break byte-parity. Add a characterization test on a date/time-bearing record to guard it (FR-002 acceptance).
+- **pytest-plugin diff width**: the 4→2 indent shift changes failure/diff message text; check whether any test asserts that exact text and update it as a characterization change, not a contract break.
+- **NaN/Infinity**: decoding now rejects them and `nan` encodes to `null` — documented as a spec edge case; no special handling planned.
+- **Performance**: parity is the bar (no benchmark harness). Capture one ad-hoc before/after encode+decode number in the PR description to evidence the motivating speedup.
+- **Interpreter coverage**: rely on the CI matrix (3.10–3.14) to confirm orjson wheel availability rather than a local check.
+
 ## Complexity Tracking
 
 No constitution violations; section not required.

@@ -35,13 +35,15 @@ At the same time, a contributor working inside the SDK now finds exactly one JSO
 - **Datetime rendering in CLI JSON output**: date/time values in `infrahubctl` JSON output must render in the same textual form as before, with no change visible to anyone parsing that output.
 - **File-based serialization**: sites that read or write JSON directly to file handles must be rewritten, because the new library serializes and deserializes via in-memory bytes rather than file handles.
 - **Human-facing pretty-printed output** (debug prints, test-failure diffs): indentation width may change cosmetically; this output carries no contract and is not compared programmatically.
+- **Non-standard numeric literals**: decoding rejects `NaN`, `Infinity`, and `-Infinity` (previously accepted by stdlib decoding), and encoding a float `NaN` now yields `null` rather than an invalid `NaN` token. These are non-standard JSON and not expected in API traffic; the change is toward stricter, valid JSON and is documented rather than specially handled.
+- **Special value types in CLI output**: the value domain rendered to CLI JSON is primitives plus date/time (preserved via the datetime edge case above) and string-rendered addresses/identifiers; no enum or dataclass objects flow through, so the byte-parity claim holds. A characterization test on a date/time-bearing record guards this.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: The SDK MUST use a single JSON library throughout `infrahub_sdk/`; no module may reference the previously-used JSON libraries. *Acceptance*: a search of `infrahub_sdk/` finds zero references to the legacy libraries and lint passes.
-- **FR-002**: The SDK MUST preserve JSON output byte-for-byte at every site where that output is consumed, compared, or shown to users, including preserving current indentation for machine-consumed output and preserving the current textual form of date/time values in CLI output. *Acceptance*: existing CLI/formatter tests pass unchanged.
+- **FR-002**: The SDK MUST preserve JSON output byte-for-byte at every site where that output is consumed, compared, or shown to users, including preserving current indentation for machine-consumed output and preserving the current textual form of date/time values in CLI output. *Acceptance*: existing CLI/formatter tests pass unchanged, plus a characterization test asserting a date/time-bearing record renders identically to the pre-migration output.
 - **FR-003**: The parameter-hashing behaviour that feeds tracking-group naming MUST return identical values for ASCII, integer, float, and nested-dictionary inputs, and MUST have its non-ASCII behaviour pinned by an explicit test vector. *Acceptance*: the hashing test retains its existing vectors and adds a non-ASCII vector asserting the new value.
 - **FR-004**: The SDK MUST convert serialized output to text at every call site that requires text, so no consumer receives bytes where text is expected. *Acceptance*: type checking passes and the affected call sites' tests pass.
 - **FR-005**: The SDK MUST correctly read and write JSON at every site that previously serialized directly to a file handle, adapting to in-memory serialization. *Acceptance*: a record-then-replay round-trip test passes.
@@ -64,9 +66,9 @@ At the same time, a contributor working inside the SDK now finds exactly one JSO
 
 ## Assumptions
 
-- Prebuilt distributions of the new JSON library are available for every supported interpreter (Python 3.10–3.14) on mainstream platforms, so end users do not build it from source.
+- Prebuilt distributions of the new JSON library are available for every supported interpreter (Python 3.10–3.14) on mainstream platforms, so end users do not build it from source; this is confirmed by the CI test matrix across the supported interpreter range.
 - No downstream consumer depends on the CLI JSON date/time formatting beyond the textual form this migration preserves.
-- Tracking-group name stability matters only for ASCII parameter values in practice; the one-time non-ASCII shift is acceptable churn.
+- Tracking-group name stability matters only for ASCII parameter values in practice; the one-time non-ASCII shift is acceptable churn. Cleanup of any group orphaned by that shift is manual and out of scope, called out in release notes if it matters to a given deployment.
 - The performance benefit of the new library is well established; no benchmark harness or performance gate is in scope (parity is the bar). Verifying measurable speedups is explicitly out of scope for this migration.
 - Scope is limited to `infrahub_sdk/`; JSON usage in tests is touched only where a test asserts serialized output.
 - The parameter-hashing function keeps its current public signature and return type (text), so this is not a public API change.
