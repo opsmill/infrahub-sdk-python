@@ -106,6 +106,8 @@ $ infrahubctl marketplace get [OPTIONS] IDENTIFIER
 
 * `-v, --version TEXT`: Specific schema version, for example 1.2.0. Default: latest published.
 * `-c, --collection`: Force collection download. Default: auto-detect whether the identifier is a schema or collection.
+* `--dependencies`: Also download the schemas this schema or collection depends on.
+* `-y, --yes`: Overwrite schemas that already exist in the output directory without prompting.
 * `-s, --stdout`: Print content to stdout instead of writing to disk. Status messages go to stderr.
 * `-o, --output-dir PATH`: Directory to save downloaded files.  [default: schemas]
 * `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
