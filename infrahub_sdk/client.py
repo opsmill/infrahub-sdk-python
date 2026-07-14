@@ -242,20 +242,32 @@ class BaseClient:
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
 
-    def _merge_request_headers(self, headers: dict | None) -> dict:
-        """Merge per-request headers over the client's base headers.
+    def _request_headers(self, tracker: str | None = None, priority: Priority | None = None) -> dict:
+        """Build the per-request header delta to layer over the client's base headers.
 
-        Per-request entries (e.g. a per-call ``X-Priority`` override or ``X-Infrahub-Tracker``)
-        take precedence over the client-wide base headers. Authentication headers are then
-        re-asserted from ``self.headers`` so that a token refreshed mid-flight during the
-        automatic relogin retry always wins over a stale per-request snapshot.
+        Returns only the request-specific entries (tracker, ``X-Priority``); the base headers
+        (auth, ``content-type``, and any client-wide default priority) are merged in per request
+        by the transport helpers. Keeping this a delta means the freshest ``self.headers`` — e.g.
+        an auth token refreshed during a relogin retry — always applies, while a caller can still
+        override any header, including auth, for a single request.
+        """
+        headers: dict = {}
+        if self.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+        if priority is not None:
+            headers["X-Priority"] = priority.value
+        return headers
+
+    def _merge_request_headers(self, headers: dict | None) -> dict:
+        """Merge a per-request header delta over the client's current base headers.
+
+        Per-request entries take precedence over the client-wide base headers, so a caller may
+        override any header (including auth) for a single request, and a token refreshed mid-flight
+        during the automatic relogin retry is picked up from the freshly-copied ``self.headers``.
         """
         merged = copy.copy(self.headers or {})
         if headers:
             merged.update(headers)
-        for auth_key in ("Authorization", "X-INFRAHUB-KEY"):
-            if auth_key in self.headers:
-                merged[auth_key] = self.headers[auth_key]
         return merged
 
     @property
@@ -718,12 +730,7 @@ class InfrahubClient(BaseClient):
         priority: Priority | None = None,
         **kwargs: Any,
     ) -> int:
-        """Return the number of nodes of a given kind.
-
-        Args:
-            priority: Override the client-wide request priority for this query. When None, the client default is used.
-
-        """
+        """Return the number of nodes of a given kind."""
         filters: dict[str, Any] = dict(kwargs)
 
         if partial_match:
@@ -1255,7 +1262,7 @@ class InfrahubClient(BaseClient):
         """Return a cloned version of the client using the same configuration."""
         return InfrahubClient(config=self.config.clone(branch=branch))
 
-    async def execute_graphql(  # noqa: PLR0912
+    async def execute_graphql(
         self,
         query: str,
         variables: dict | None = None,
@@ -1301,11 +1308,7 @@ class InfrahubClient(BaseClient):
         if operation_name:
             payload["operationName"] = operation_name
 
-        headers = copy.copy(self.headers or {})
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
-        if priority is not None:
-            headers["X-Priority"] = priority.value
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -1391,13 +1394,9 @@ class InfrahubClient(BaseClient):
         variables = variables or {}
         variables["file"] = None
 
-        headers = copy.copy(self.headers or {})
-        # Remove content-type header - httpx will set it for multipart
-        headers.pop("content-type", None)
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
-        if priority is not None:
-            headers["X-Priority"] = priority.value
+        # content-type is popped from the base headers by _post_multipart (httpx sets the
+        # multipart boundary itself); only the request-specific delta is built here.
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -1708,10 +1707,7 @@ class InfrahubClient(BaseClient):
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
 
-        headers = copy.copy(self.headers or {})
-
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker)
 
         if at:
             url_params["at"] = at
@@ -1835,10 +1831,6 @@ class InfrahubClient(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
-
-        Args:
-            priority: Per-request priority emitted as the X-Priority header, overriding the client
-                default for this request only. When None, the client default (if any) is used.
 
         Raises:
             ValueError: If ``from_time`` is later than ``to_time``.
@@ -2255,7 +2247,7 @@ class InfrahubClientSync(BaseClient):
         """Return a cloned version of the client using the same configuration."""
         return InfrahubClientSync(config=self.config.clone(branch=branch))
 
-    def execute_graphql(  # noqa: PLR0912
+    def execute_graphql(
         self,
         query: str,
         variables: dict | None = None,
@@ -2301,11 +2293,7 @@ class InfrahubClientSync(BaseClient):
         if operation_name:
             payload["operationName"] = operation_name
 
-        headers = copy.copy(self.headers or {})
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
-        if priority is not None:
-            headers["X-Priority"] = priority.value
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -2391,13 +2379,9 @@ class InfrahubClientSync(BaseClient):
         variables = variables or {}
         variables["file"] = None
 
-        headers = copy.copy(self.headers or {})
-        # Remove content-type header - httpx will set it for multipart
-        headers.pop("content-type", None)
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
-        if priority is not None:
-            headers["X-Priority"] = priority.value
+        # content-type is popped from the base headers by _post_multipart (httpx sets the
+        # multipart boundary itself); only the request-specific delta is built here.
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -2501,12 +2485,7 @@ class InfrahubClientSync(BaseClient):
         priority: Priority | None = None,
         **kwargs: Any,
     ) -> int:
-        """Return the number of nodes of a given kind.
-
-        Args:
-            priority: Override the client-wide request priority for this query. When None, the client default is used.
-
-        """
+        """Return the number of nodes of a given kind."""
         filters: dict[str, Any] = dict(kwargs)
 
         if partial_match:
@@ -3313,10 +3292,7 @@ class InfrahubClientSync(BaseClient):
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
 
-        headers = copy.copy(self.headers or {})
-
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker)
 
         if at:
             url_params["at"] = at
@@ -3439,10 +3415,6 @@ class InfrahubClientSync(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
-
-        Args:
-            priority: Per-request priority emitted as the X-Priority header, overriding the client
-                default for this request only. When None, the client default (if any) is used.
 
         Raises:
             ValueError: If ``from_time`` is later than ``to_time``.

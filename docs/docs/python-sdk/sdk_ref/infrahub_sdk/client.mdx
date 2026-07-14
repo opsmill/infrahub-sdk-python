@@ -121,10 +121,6 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 
 Return the number of nodes of a given kind.
 
-**Args:**
-
-- `priority`: Override the client-wide request priority for this query. When None, the client default is used.
-
 #### `traverse_paths`
 
 ```python
@@ -406,11 +402,6 @@ Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
 
-**Args:**
-
-- `priority`: Per-request priority emitted as the X-Priority header, overriding the client
-default for this request only. When None, the client default (if any) is used.
-
 **Raises:**
 
 - `ValueError`: If ``from_time`` is later than ``to_time``.
@@ -688,10 +679,6 @@ count(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: s
 
 Return the number of nodes of a given kind.
 
-**Args:**
-
-- `priority`: Override the client-wide request priority for this query. When None, the client default is used.
-
 #### `traverse_paths`
 
 ```python
@@ -935,11 +922,6 @@ get_diff_tree(self, branch: str, name: str | None = None, from_time: datetime | 
 Get complete diff tree with metadata and nodes.
 
 Returns None if no diff exists.
-
-**Args:**
-
-- `priority`: Per-request priority emitted as the X-Priority header, overriding the client
-default for this request only. When None, the client default (if any) is used.
 
 **Raises:**
 
