@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from typing import TYPE_CHECKING
 
 import httpx
@@ -42,9 +41,7 @@ class ObjectStore(ObjectStoreBase):
 
     async def get(self, identifier: str, tracker: str | None = None) -> str:
         url = f"{self.client.address}/api/storage/object/{identifier}"
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = await self.client._get(url=url, headers=headers)
@@ -65,9 +62,7 @@ class ObjectStore(ObjectStoreBase):
 
     async def upload(self, content: str, tracker: str | None = None) -> dict[str, str]:
         url = f"{self.client.address}/api/storage/upload/content"
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = await self.client._post(url=url, payload={"content": content}, headers=headers)
@@ -94,9 +89,7 @@ class ObjectStore(ObjectStoreBase):
             HTTPStatusError: For other non-2xx HTTP responses.
 
         """
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = await self.client._get(url=url, headers=headers)
@@ -137,9 +130,7 @@ class ObjectStoreSync(ObjectStoreBase):
 
     def get(self, identifier: str, tracker: str | None = None) -> str:
         url = f"{self.client.address}/api/storage/object/{identifier}"
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = self.client._get(url=url, headers=headers)
@@ -160,9 +151,7 @@ class ObjectStoreSync(ObjectStoreBase):
 
     def upload(self, content: str, tracker: str | None = None) -> dict[str, str]:
         url = f"{self.client.address}/api/storage/upload/content"
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = self.client._post(url=url, payload={"content": content}, headers=headers)
@@ -189,9 +178,7 @@ class ObjectStoreSync(ObjectStoreBase):
             HTTPStatusError: For other non-2xx HTTP responses.
 
         """
-        headers = copy.copy(self.client.headers or {})
-        if self.client.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self.client._request_headers(tracker=tracker)
 
         try:
             resp = self.client._get(url=url, headers=headers)

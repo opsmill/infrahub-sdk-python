@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
+from infrahub_sdk.constants import Priority
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -28,10 +29,11 @@ def _build_password_client(client_type: str) -> InfrahubClient | InfrahubClientS
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relogin_retry_uses_refreshed_auth_header(client_type: str, httpx_mock: HTTPXMock) -> None:
-    """The relogin retry must carry the freshly-refreshed token, not the stale per-request snapshot.
+    """The relogin retry carries the freshly-refreshed token, while a per-request priority override rides both attempts.
 
-    Regression: the X-Priority merge flip let the stale snapshot Authorization overwrite the
-    token refreshed mid-flight by handle_relogin, so the retry was sent with the expired token.
+    The transport helpers merge the per-request delta (here, the priority override) over the
+    current base headers, so the retry picks up the token refreshed mid-flight instead of a
+    stale snapshot, and the priority override is preserved across the retry.
     """
     # First GraphQL POST returns 401 with an expired-signature error.
     httpx_mock.add_response(
@@ -56,33 +58,37 @@ async def test_relogin_retry_uses_refreshed_auth_header(client_type: str, httpx_
     client = _build_password_client(client_type)
     query = "query { InfrahubInfo { version }}"
     if isinstance(client, InfrahubClient):
-        await client.execute_graphql(query=query, branch_name="main")
+        await client.execute_graphql(query=query, branch_name="main", priority=Priority.HIGH)
     else:
-        client.execute_graphql(query=query, branch_name="main")
+        client.execute_graphql(query=query, branch_name="main", priority=Priority.HIGH)
 
     graphql_requests = [r for r in httpx_mock.get_requests() if str(r.url) == "http://mock/graphql/main"]
     assert len(graphql_requests) == 2
     # The first attempt used the stale token; the retry must use the refreshed one.
     assert graphql_requests[0].headers["Authorization"] == "Bearer OLD"
     assert graphql_requests[1].headers["Authorization"] == "Bearer NEW"
+    # The per-request priority override rides both the initial attempt and the retry.
+    assert all(r.headers["x-priority"] == "high" for r in graphql_requests)
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_merge_request_headers_reasserts_live_auth(client_type: str) -> None:
-    """Directly exercise the merge helper: per-request X-Priority wins, live auth is re-asserted."""
+def test_merge_request_headers_layers_delta_over_live_base(client_type: str) -> None:
+    """The merge helper layers the per-request delta over the current base headers.
+
+    A delta with no auth key leaves the live base auth intact (so a refreshed token wins), while
+    an explicit per-request override — of a normal header or of auth itself — takes precedence.
+    """
     client = _build_password_client(client_type)
     client.headers["X-Priority"] = "normal"
 
-    # A stale per-request snapshot: old token + a per-request priority override.
-    snapshot = dict(client.headers)
-    snapshot["X-Priority"] = "high"
+    # A delta carrying only a per-request priority override (no auth).
+    merged = client._merge_request_headers({"X-Priority": "high"})
+    assert merged["X-Priority"] == "high"  # per-request override wins over the base default
+    assert merged["Authorization"] == "Bearer OLD"  # base auth is preserved from the live headers
 
-    # Simulate a mid-flight token refresh on the live client headers.
+    # After a mid-flight token refresh, a delta with no auth picks up the fresh token.
     client.headers["Authorization"] = "Bearer NEW"
+    assert client._merge_request_headers({"X-Priority": "high"})["Authorization"] == "Bearer NEW"
 
-    merged = client._merge_request_headers(snapshot)
-
-    # Per-request override wins over the base default.
-    assert merged["X-Priority"] == "high"
-    # Live/refreshed auth header wins over the stale snapshot value.
-    assert merged["Authorization"] == "Bearer NEW"
+    # An explicit per-request auth override is respected (the caller owns relogin in that case).
+    assert client._merge_request_headers({"Authorization": "Bearer CALLER"})["Authorization"] == "Bearer CALLER"
