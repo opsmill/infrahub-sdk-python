@@ -97,6 +97,14 @@ get_version(self) -> str
 
 Return the Infrahub version.
 
+#### `get_server_information`
+
+```python
+get_server_information(self) -> ServerInfo
+```
+
+Return the Infrahub server information (version and deployment ID).
+
 #### `get_user`
 
 ```python
@@ -316,7 +324,7 @@ client default for these requests only. When None, the client default (if any) i
 
 **Returns:**
 
-- list\[InfrahubNodeSync]: List of Nodes that match the given filters.
+- list\[InfrahubNode]: List of Nodes that match the given filters.
 
 </details>
 
@@ -612,6 +620,14 @@ get_version(self) -> str
 ```
 
 Return the Infrahub version.
+
+#### `get_server_information`
+
+```python
+get_server_information(self) -> ServerInfo
+```
+
+Return the Infrahub server information (version and deployment ID).
 
 #### `get_user`
 
