@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync, Priority
+from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
+from infrahub_sdk.constants import Priority
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from tests.unit.sdk.conftest import BothClients
 
@@ -34,34 +35,6 @@ def _build_clients(priority: Priority) -> BothClients:
 @pytest.fixture
 def low_clients() -> BothClients:
     return _build_clients(Priority.LOW)
-
-
-@pytest.fixture
-def normal_clients() -> BothClients:
-    return _build_clients(Priority.NORMAL)
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_priority_header_on_graphql_query(
-    client_type: str, low_clients: BothClients, httpx_mock: HTTPXMock
-) -> None:
-    """A client with a default priority emits X-Priority on a GraphQL query."""
-    httpx_mock.add_response(
-        method="POST",
-        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
-        match_headers={"X-Priority": "low"},
-    )
-
-    query = "query { InfrahubInfo { version }}"
-    client = getattr(low_clients, client_type)
-    if client_type == "standard":
-        await client.execute_graphql(query=query)
-    else:
-        client.execute_graphql(query=query)
-
-    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
-    assert len(requests) == 1
-    assert requests[0].headers["x-priority"] == "low"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -173,8 +146,8 @@ async def test_priority_header_on_multipart_upload(
     else:
         node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
 
-    node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
-    node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
+    node._get_attribute("contract_start").value = "2024-01-01T00:00:00Z"
+    node._get_attribute("contract_end").value = "2024-12-31T23:59:59Z"
     node.upload_from_bytes(content=b"Test file content", name="contract.pdf")
 
     if isinstance(node, InfrahubNode):
@@ -220,51 +193,6 @@ async def test_priority_header_on_batched_requests(
     requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(requests) == tasks_number
     assert all(r.headers["x-priority"] == "low" for r in requests)
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_priority_normal_is_always_emitted(
-    client_type: str, normal_clients: BothClients, httpx_mock: HTTPXMock
-) -> None:
-    """An explicitly configured default (normal) is always emitted, never omitted."""
-    httpx_mock.add_response(
-        method="POST",
-        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
-        match_headers={"X-Priority": "normal"},
-    )
-
-    query = "query { InfrahubInfo { version }}"
-    client = getattr(normal_clients, client_type)
-    if client_type == "standard":
-        await client.execute_graphql(query=query)
-    else:
-        client.execute_graphql(query=query)
-
-    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
-    assert len(requests) == 1
-    assert requests[0].headers["x-priority"] == "normal"
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_no_priority_header_on_graphql_when_unconfigured(
-    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
-) -> None:
-    """An unconfigured client emits no X-Priority header on a GraphQL request."""
-    httpx_mock.add_response(
-        method="POST",
-        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
-    )
-
-    query = "query { InfrahubInfo { version }}"
-    client = getattr(clients, client_type)
-    if client_type == "standard":
-        await client.execute_graphql(query=query)
-    else:
-        client.execute_graphql(query=query)
-
-    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
-    assert len(requests) == 1
-    assert "x-priority" not in requests[0].headers
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -347,8 +275,8 @@ async def test_no_priority_header_on_multipart_upload_when_unconfigured(
     else:
         node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
 
-    node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
-    node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
+    node._get_attribute("contract_start").value = "2024-01-01T00:00:00Z"
+    node._get_attribute("contract_end").value = "2024-12-31T23:59:59Z"
     node.upload_from_bytes(content=b"Test file content", name="contract.pdf")
 
     if isinstance(node, InfrahubNode):
@@ -395,7 +323,7 @@ async def test_unconfigured_headers_unchanged_versus_baseline(
 
 
 # ---------------------------------------------------------------------------
-# User Story 2: per-request override
+# Per-request override
 # ---------------------------------------------------------------------------
 
 
@@ -449,29 +377,6 @@ async def test_override_beats_default_then_reverts(
     assert len(requests) == 2
     assert requests[0].headers["x-priority"] == "high"
     assert requests[1].headers["x-priority"] == "low"
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_override_normal_beats_low_default(
-    client_type: str, low_clients: BothClients, httpx_mock: HTTPXMock
-) -> None:
-    """An explicit per-request NORMAL steps up over a LOW default (explicit value always wins)."""
-    httpx_mock.add_response(
-        method="POST",
-        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
-        match_headers={"X-Priority": "normal"},
-    )
-
-    query = "query { InfrahubInfo { version }}"
-    client = getattr(low_clients, client_type)
-    if client_type == "standard":
-        await client.execute_graphql(query=query, priority=Priority.NORMAL)
-    else:
-        client.execute_graphql(query=query, priority=Priority.NORMAL)
-
-    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
-    assert len(requests) == 1
-    assert requests[0].headers["x-priority"] == "normal"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -658,11 +563,11 @@ async def test_override_on_save_update_path(
     client = getattr(clients, client_type)
     if client_type == "standard":
         node = InfrahubNode(client=client, schema=location_schema, data=data)
-        node.name.value = "JFK2"  # type: ignore[union-attr]
+        node._get_attribute("name").value = "JFK2"
         await node.save(priority=Priority.HIGH)
     else:
         node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
-        node.name.value = "JFK2"  # type: ignore[union-attr]
+        node._get_attribute("name").value = "JFK2"
         node.save(priority=Priority.HIGH)
 
     update_requests = [
@@ -740,8 +645,8 @@ async def test_override_on_multipart_upload(
     else:
         node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
 
-    node.contract_start.value = "2024-01-01T00:00:00Z"  # type: ignore[union-attr]
-    node.contract_end.value = "2024-12-31T23:59:59Z"  # type: ignore[union-attr]
+    node._get_attribute("contract_start").value = "2024-01-01T00:00:00Z"
+    node._get_attribute("contract_end").value = "2024-12-31T23:59:59Z"
     node.upload_from_bytes(content=b"Test file content", name="contract.pdf")
 
     if isinstance(node, InfrahubNode):
@@ -756,13 +661,13 @@ async def test_override_on_multipart_upload(
 
 
 # ---------------------------------------------------------------------------
-# User Story 5: async / sync parity
+# Async / sync parity
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class ResolutionCase:
-    """One row of the resolution truth table (data-model.md).
+    """One row of the priority resolution truth table.
 
     ``expected`` is the emitted ``X-Priority`` header value, or ``None`` when no
     header should be present.
@@ -774,8 +679,8 @@ class ResolutionCase:
     expected: str | None
 
 
-# The full resolution truth table from data-model.md. Each row must resolve
-# identically on both the async and sync clients (SC-005).
+# The full priority resolution truth table. Each row must resolve
+# identically on both the async and sync clients.
 RESOLUTION_TRUTH_TABLE = [
     ResolutionCase(name="no-default-no-override", client_default=None, per_request=None, expected=None),
     ResolutionCase(name="no-default-override-high", client_default=None, per_request=Priority.HIGH, expected="high"),
@@ -810,8 +715,8 @@ def _client_with_default(client_type: str, default: Priority | None) -> Infrahub
 async def test_resolution_truth_table_parity(case: ResolutionCase, client_type: str, httpx_mock: HTTPXMock) -> None:
     """Each (client_default x per_request) combination emits the same header on both clients.
 
-    Encodes the resolution truth table from data-model.md and runs every row against both
-    the async and sync clients, asserting identical emitted headers (SC-005).
+    Runs every row of the priority resolution truth table against both the async and sync
+    clients, asserting identical emitted headers.
     """
     httpx_mock.add_response(
         method="POST",
@@ -912,7 +817,7 @@ async def test_related_node_fetch_forwards_priority(
         node = InfrahubNode(client=client, schema=location_schema, data=location_data01)
         await node.primary_tag.fetch(priority=Priority.HIGH)  # type: ignore[attr-defined]
     else:
-        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)  # type: ignore[assignment]
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
         node.primary_tag.fetch(priority=Priority.HIGH)  # type: ignore[attr-defined]
 
     tag_requests = [

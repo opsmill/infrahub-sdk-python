@@ -12,9 +12,8 @@ class InfrahubClientMode(str, enum.Enum):
 class Priority(str, enum.Enum):
     """Request priority emitted as the ``X-Priority`` header.
 
-    String-valued closed enum accepting values case-insensitively (e.g. "LOW",
-    "Low" and "low" all resolve to :attr:`Priority.LOW`). Unknown values raise
-    ``ValueError``, which surfaces as a ``pydantic.ValidationError`` at config load.
+    String-valued closed enum matched case-insensitively (e.g. "LOW", "Low" and "low" all
+    resolve to :attr:`Priority.LOW`).
     """
 
     HIGH = "high"
