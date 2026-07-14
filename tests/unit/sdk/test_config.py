@@ -4,8 +4,8 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from infrahub_sdk import Priority
 from infrahub_sdk.config import Config
+from infrahub_sdk.constants import Priority
 
 
 def test_combine_authentications() -> None:

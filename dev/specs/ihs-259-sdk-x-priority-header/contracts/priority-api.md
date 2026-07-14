@@ -5,7 +5,7 @@
 ## New public symbol: `Priority`
 
 ```python
-from infrahub_sdk import Priority  # re-exported from constants
+from infrahub_sdk.constants import Priority
 
 class Priority(str, enum.Enum):
     HIGH = "high"
@@ -15,7 +15,7 @@ class Priority(str, enum.Enum):
 
 - `str`-valued closed enum. `Priority("LOW") is Priority.LOW` (case-insensitive via `_missing_`).
 - Unknown values raise `ValueError` (→ `pydantic.ValidationError` at config load).
-- Exported from the SDK's public namespace (add to `infrahub_sdk/__init__.py` `__all__` alongside other public enums).
+- Imported from `infrahub_sdk.constants` (kept out of the top-level `infrahub_sdk` namespace so importing the enum does not pull in `Config` and the client classes).
 
 ## Extended: `Config.priority`
 

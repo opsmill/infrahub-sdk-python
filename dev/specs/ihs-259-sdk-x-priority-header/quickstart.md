@@ -15,7 +15,8 @@ uv sync --all-groups --all-extras
 ### Client-wide default (P1)
 
 ```python
-from infrahub_sdk import InfrahubClient, Config, Priority
+from infrahub_sdk import InfrahubClient, Config
+from infrahub_sdk.constants import Priority
 
 # A client dedicated to background work tags every request low.
 client = InfrahubClient(config=Config(address="http://localhost:8000", priority=Priority.LOW))

@@ -4,13 +4,11 @@ import importlib.metadata
 
 from .client import InfrahubClient, InfrahubClientSync
 from .config import Config
-from .constants import Priority
 
 __all__ = [
     "Config",
     "InfrahubClient",
     "InfrahubClientSync",
-    "Priority",
 ]
 
 try:
