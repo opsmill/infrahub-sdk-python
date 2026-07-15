@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
-from ..constants import InfrahubClientMode
+from ..constants import InfrahubClientMode, Priority
 from ..exceptions import (
     FeatureNotSupportedError,
     NodeNotFoundError,
@@ -1211,7 +1211,12 @@ class InfrahubNode(InfrahubNodeBase):
 
         return UploadResult(was_uploaded=True, checksum=local_digest)
 
-    async def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+    async def delete(
+        self,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
+    ) -> None:
         """Delete this node on the backend.
 
         Args:
@@ -1219,6 +1224,8 @@ class InfrahubNode(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         input_data = {"data": {"id": self.id}}
@@ -1236,6 +1243,7 @@ class InfrahubNode(InfrahubNodeBase):
             branch_name=self._branch,
             timeout=timeout,
             tracker=f"mutation-{str(self._schema.kind).lower()}-delete",
+            priority=priority,
         )
 
     async def save(
@@ -1244,6 +1252,7 @@ class InfrahubNode(InfrahubNodeBase):
         update_group_context: bool | None = None,
         timeout: int | None = None,
         request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Persist this node to the backend, creating or updating it as appropriate.
 
@@ -1262,12 +1271,16 @@ class InfrahubNode(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         if self._existing is False or allow_upsert is True:
-            await self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
+            await self.create(
+                allow_upsert=allow_upsert, timeout=timeout, request_context=request_context, priority=priority
+            )
         else:
-            await self.update(timeout=timeout, request_context=request_context)
+            await self.update(timeout=timeout, request_context=request_context, priority=priority)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -1572,7 +1585,11 @@ class InfrahubNode(InfrahubNodeBase):
         return query_result
 
     async def _process_mutation_result(
-        self, mutation_name: str, response: dict[str, Any], timeout: int | None = None
+        self,
+        mutation_name: str,
+        response: dict[str, Any],
+        timeout: int | None = None,
+        priority: Priority | None = None,
     ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
@@ -1596,11 +1613,15 @@ class InfrahubNode(InfrahubNodeBase):
             related_node = RelatedNode(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            await related_node.fetch(timeout=timeout)
+            await related_node.fetch(timeout=timeout, priority=priority)
             setattr(self, rel_name, related_node)
 
     async def create(
-        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+        self,
+        allow_upsert: bool = False,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Create this node on the backend.
 
@@ -1618,6 +1639,8 @@ class InfrahubNode(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         Raises:
             ValueError: If this is a file-object node and no file content has been set.
@@ -1662,6 +1685,7 @@ class InfrahubNode(InfrahubNodeBase):
                     branch_name=self._branch,
                     tracker=tracker,
                     timeout=timeout,
+                    priority=priority,
                 )
             finally:
                 if prepared.should_close and prepared.file_object:
@@ -1675,11 +1699,18 @@ class InfrahubNode(InfrahubNodeBase):
                 tracker=tracker,
                 variables=input_data["variables"],
                 timeout=timeout,
+                priority=priority,
             )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        await self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     async def update(
-        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+        self,
+        do_full_update: bool = False,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Update this node on the backend.
 
@@ -1697,6 +1728,8 @@ class InfrahubNode(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
@@ -1722,6 +1755,7 @@ class InfrahubNode(InfrahubNodeBase):
                     branch_name=self._branch,
                     tracker=tracker,
                     timeout=timeout,
+                    priority=priority,
                 )
             finally:
                 if prepared.should_close and prepared.file_object:
@@ -1735,8 +1769,11 @@ class InfrahubNode(InfrahubNodeBase):
                 timeout=timeout,
                 tracker=tracker,
                 variables=input_data["variables"],
+                priority=priority,
             )
-        await self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        await self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     async def _process_relationships(
         self,
@@ -2399,7 +2436,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return UploadResult(was_uploaded=True, checksum=local_digest)
 
-    def delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None:
+    def delete(
+        self,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
+    ) -> None:
         """Delete this node on the backend.
 
         Args:
@@ -2407,6 +2449,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         input_data = {"data": {"id": self.id}}
@@ -2424,6 +2468,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             branch_name=self._branch,
             tracker=f"mutation-{str(self._schema.kind).lower()}-delete",
             timeout=timeout,
+            priority=priority,
         )
 
     def save(
@@ -2432,6 +2477,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         update_group_context: bool | None = None,
         timeout: int | None = None,
         request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Persist this node to the backend, creating or updating it as appropriate.
 
@@ -2450,12 +2496,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         if self._existing is False or allow_upsert is True:
-            self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context)
+            self.create(allow_upsert=allow_upsert, timeout=timeout, request_context=request_context, priority=priority)
         else:
-            self.update(timeout=timeout, request_context=request_context)
+            self.update(timeout=timeout, request_context=request_context, priority=priority)
 
         if update_group_context is None and self._client.mode == InfrahubClientMode.TRACKING:
             update_group_context = True
@@ -2759,7 +2807,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
         return query_result
 
     def _process_mutation_result(
-        self, mutation_name: str, response: dict[str, Any], timeout: int | None = None
+        self,
+        mutation_name: str,
+        response: dict[str, Any],
+        timeout: int | None = None,
+        priority: Priority | None = None,
     ) -> None:
         object_response: dict[str, Any] = response[mutation_name]["object"]
         self.id = object_response["id"]
@@ -2783,11 +2835,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_node = RelatedNodeSync(
                 client=self._client, branch=self._branch, schema=rel.schema, data=allocated_resource
             )
-            related_node.fetch(timeout=timeout)
+            related_node.fetch(timeout=timeout, priority=priority)
             setattr(self, rel_name, related_node)
 
     def create(
-        self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+        self,
+        allow_upsert: bool = False,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Create this node on the backend.
 
@@ -2805,6 +2861,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         Raises:
             ValueError: If this is a file-object node and no file content has been set.
@@ -2849,6 +2907,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     branch_name=self._branch,
                     tracker=tracker,
                     timeout=timeout,
+                    priority=priority,
                 )
             finally:
                 if prepared.should_close and prepared.file_object:
@@ -2862,11 +2921,18 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 tracker=tracker,
                 variables=input_data["variables"],
                 timeout=timeout,
+                priority=priority,
             )
-        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     def update(
-        self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None
+        self,
+        do_full_update: bool = False,
+        timeout: int | None = None,
+        request_context: RequestContext | None = None,
+        priority: Priority | None = None,
     ) -> None:
         """Update this node on the backend.
 
@@ -2884,6 +2950,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 GraphQL API. Specified in seconds.
             request_context (RequestContext, optional): Request-level context passed through
                 to the mutation. When omitted, the client's request context is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header,
+                overriding the client default for this request only.
 
         """
         input_data = self._generate_input_data(exclude_unmodified=not do_full_update, request_context=request_context)
@@ -2909,6 +2977,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     branch_name=self._branch,
                     tracker=tracker,
                     timeout=timeout,
+                    priority=priority,
                 )
             finally:
                 if prepared.should_close and prepared.file_object:
@@ -2922,8 +2991,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 tracker=tracker,
                 variables=input_data["variables"],
                 timeout=timeout,
+                priority=priority,
             )
-        self._process_mutation_result(mutation_name=mutation_name, response=response, timeout=timeout)
+        self._process_mutation_result(
+            mutation_name=mutation_name, response=response, timeout=timeout, priority=priority
+        )
 
     def _process_relationships(
         self,

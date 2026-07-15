@@ -12,6 +12,7 @@ from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
+    from ..constants import Priority
     from ..schema import RelationshipSchemaAPI
     from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
@@ -347,7 +348,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    async def fetch(self, timeout: int | None = None) -> None:
+    async def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -356,6 +357,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         Args:
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
+            priority: Override the client-wide request priority for this fetch. When None, the client default is used.
 
         Raises:
             Error: If neither ``id`` nor ``typename`` is set on this related node.
@@ -365,7 +367,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
         self._peer = await self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout
+            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
         )
 
     @property
@@ -443,7 +445,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    def fetch(self, timeout: int | None = None) -> None:
+    def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -452,6 +454,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         Args:
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
+            priority: Override the client-wide request priority for this fetch. When None, the client default is used.
 
         Raises:
             Error: If neither ``id`` nor ``typename`` is set on this related node.
@@ -461,7 +464,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
         self._peer = self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout
+            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
         )
 
     @property
