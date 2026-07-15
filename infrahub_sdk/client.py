@@ -1461,6 +1461,9 @@ class InfrahubClient(BaseClient):
         Returns an async context manager that yields the streaming response.
         Use this for downloading large files without loading into memory.
 
+        Yields:
+            httpx.Response: The streaming HTTP response.
+
         Raises:
             ServerNotReachableError: If we are not able to connect to the server.
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
@@ -3446,7 +3449,7 @@ class InfrahubClientSync(BaseClient):
         Args:
             resource_pool (InfrahubNodeSync): Node corresponding to the pool to allocate resources from.
             identifier (str, optional): Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            size (int, optional): Length of the prefix to allocate.
+            prefix_length (int, optional): Length of the prefix to allocate.
             member_type (str, optional): Member type of the prefix to allocate.
             prefix_type (str, optional): Kind of the prefix to allocate.
             data (dict, optional): A key/value map to use to set attributes values on the allocated prefix.
@@ -3528,6 +3531,9 @@ class InfrahubClientSync(BaseClient):
 
         Returns a context manager that yields the streaming response.
         Use this for downloading large files without loading into memory.
+
+        Yields:
+            httpx.Response: The streaming HTTP response.
 
         Raises:
             ServerNotReachableError: If we are not able to connect to the server.
