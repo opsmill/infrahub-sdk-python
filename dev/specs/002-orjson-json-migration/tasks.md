@@ -40,11 +40,11 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ### Decode sites
 
-- [ ] T012 [P] [US1] `infrahub_sdk/ctl/parsers.py:27,28`: `orjson.loads(stripped)` + `except orjson.JSONDecodeError`; swap import.
-- [ ] T013 [P] [US1] `infrahub_sdk/template/infrahub_filters.py:167,168`: `orjson.loads(value)` + `except (orjson.JSONDecodeError, TypeError)`; swap import.
-- [ ] T014 [P] [US1] `infrahub_sdk/schema/__init__.py:277`: apply the decode-error strategy (decode explicitly via orjson where the value comes from `response.json()`; `except orjson.JSONDecodeError`); swap import.
-- [ ] T015 [P] [US1] `infrahub_sdk/transfer/importer/json.py:67,150`: `orjson.loads(...)`; swap import.
-- [ ] T016 [P] [US1] `infrahub_sdk/pytest_plugin/models.py:57`: `orjson.loads(text)`; swap import.
+- [X] T012 [P] [US1] `infrahub_sdk/ctl/parsers.py:27,28`: `orjson.loads(stripped)` + `except orjson.JSONDecodeError`; swap import.
+- [X] T013 [P] [US1] `infrahub_sdk/template/infrahub_filters.py:167,168`: `orjson.loads(value)` + `except (orjson.JSONDecodeError, TypeError)`; swap import.
+- [X] T014 [P] [US1] `infrahub_sdk/schema/__init__.py:277`: apply the decode-error strategy (decode explicitly via orjson where the value comes from `response.json()`; `except orjson.JSONDecodeError`); swap import.
+- [X] T015 [P] [US1] `infrahub_sdk/transfer/importer/json.py:67,150`: `orjson.loads(...)`; swap import.
+- [X] T016 [P] [US1] `infrahub_sdk/pytest_plugin/models.py:57`: `orjson.loads(text)`; swap import.
 
 ### File-object I/O (no `load`/`dump` in orjson)
 

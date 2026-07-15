@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Union
 
-import ujson
+import orjson
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,7 +54,7 @@ class InfrahubInputOutputTest(InfrahubBaseTest):
         text = path.read_text()
 
         if suffix and suffix == "json":
-            return ujson.loads(text)
+            return orjson.loads(text)
         if suffix in {"yml", "yaml"}:
             return yaml.safe_load(text)
 

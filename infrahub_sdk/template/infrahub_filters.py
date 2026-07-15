@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import inspect
-import json
 from collections.abc import Callable, Coroutine
 from typing import TYPE_CHECKING, Any
 
+import orjson
 import yaml
 
 from infrahub_sdk.exceptions import AuthenticationError
@@ -164,8 +164,8 @@ def from_json(value: str) -> dict | list:
     if not value:
         return {}
     try:
-        return json.loads(value)
-    except (json.JSONDecodeError, TypeError) as exc:
+        return orjson.loads(value)
+    except (orjson.JSONDecodeError, TypeError) as exc:
         raise JinjaFilterError(filter_name="from_json", message=f"invalid JSON: {exc}") from exc
 
 
