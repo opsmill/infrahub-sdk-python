@@ -69,11 +69,11 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ## Phase 3: Tests & verification (part of US1 acceptance)
 
-- [ ] T025 [US1] Extend `tests/unit/sdk/test_utils.py::test_dict_hash`: keep the three committed vectors (`608de4…`, `4d8f1a…`, `99914b…`) and add a non-ASCII vector (e.g. `{"x": "café"}`) asserting the new pinned orjson value (`dict_hash` of `b'{"x":"caf\xc3\xa9"}'`).
-- [ ] T026 [US1] Add a characterization test for `ctl/formatters/json.py` asserting a record with a date/time value renders identically to the pre-migration `str()` form (guards the `OPT_PASSTHROUGH_DATETIME` decision).
-- [ ] T027 [US1] Confirm `tests/unit/sdk/test_file_object.py` (or add a targeted test) covers a recorder→playback round-trip yielding the original object after the file-object rewrite.
-- [ ] T028 [US1] Add/confirm a decode-of-invalid-input test proving malformed JSON still raises and is caught at a representative decode site (`decode_json`).
-- [ ] T029 [P] [US1] Check whether any pytest-plugin test asserts exact failure/diff message text; update expected strings for the cosmetic 4→2 indent shift.
+- [X] T025 [US1] Extend `tests/unit/sdk/test_utils.py::test_dict_hash`: keep the three committed vectors (`608de4…`, `4d8f1a…`, `99914b…`) and add a non-ASCII vector (e.g. `{"x": "café"}`) asserting the new pinned orjson value (`dict_hash` of `b'{"x":"caf\xc3\xa9"}'`).
+- [X] T026 [US1] Add a characterization test for `ctl/formatters/json.py` asserting a record with a date/time value renders identically to the pre-migration `str()` form (guards the `OPT_PASSTHROUGH_DATETIME` decision).
+- [X] T027 [US1] Confirm `tests/unit/sdk/test_file_object.py` (or add a targeted test) covers a recorder→playback round-trip yielding the original object after the file-object rewrite.
+- [X] T028 [US1] Add/confirm a decode-of-invalid-input test proving malformed JSON still raises and is caught at a representative decode site (`decode_json`).
+- [X] T029 [P] [US1] Check whether any pytest-plugin test asserts exact failure/diff message text; update expected strings for the cosmetic 4→2 indent shift.
 
 ---
 
