@@ -74,6 +74,7 @@ class FeatureRequirement:
 # Mapping of Infrahub minor version series to minimum SDK versions.
 # Auto-updated by update_compatibility.py.
 VERSION_RANGES: list[VersionRange] = [
+    VersionRange(infrahub="1.10.x", min_sdk="1.22.0", date="June 2026"),
     VersionRange(infrahub="1.9.x", min_sdk="1.20.0", date="April 2026"),
     VersionRange(infrahub="1.8.x", min_sdk="1.19.0", date="March 2026"),
     VersionRange(infrahub="1.7.x", min_sdk="1.18.1", date="January 2026"),
@@ -90,10 +91,24 @@ VERSION_RANGES: list[VersionRange] = [
 # Detailed mapping of every Infrahub release to its pinned SDK version.
 # Auto-updated by update_compatibility.py.
 RELEASE_MAPPINGS: list[ReleaseMapping] = [
+    ReleaseMapping(infrahub="1.10.5", sdk="1.22.1", date="2026-07-15"),
+    ReleaseMapping(infrahub="1.10.4", sdk="1.22.1", date="2026-07-13"),
+    ReleaseMapping(infrahub="1.10.3", sdk="1.22.1", date="2026-07-08"),
+    ReleaseMapping(infrahub="1.10.2", sdk="1.22.0", date="2026-07-03"),
+    ReleaseMapping(infrahub="1.10.1", sdk="1.22.0", date="2026-07-01"),
+    ReleaseMapping(infrahub="1.10.0", sdk="1.22.0", date="2026-06-23"),
+    ReleaseMapping(infrahub="1.9.10", sdk="1.20.1", date="2026-07-07"),
+    ReleaseMapping(infrahub="1.9.9", sdk="1.20.1", date="2026-06-23"),
+    ReleaseMapping(infrahub="1.9.8", sdk="1.20.1", date="2026-06-09"),
+    ReleaseMapping(infrahub="1.9.7", sdk="1.20.1", date="2026-06-03"),
+    ReleaseMapping(infrahub="1.9.6", sdk="1.20.1", date="2026-05-20"),
+    ReleaseMapping(infrahub="1.9.5", sdk="1.20.0", date="2026-05-18"),
+    ReleaseMapping(infrahub="1.9.4", sdk="1.20.0", date="2026-05-13"),
     ReleaseMapping(infrahub="1.9.3", sdk="1.20.0", date="2026-05-05"),
     ReleaseMapping(infrahub="1.9.2", sdk="1.20.0", date="2026-04-30"),
     ReleaseMapping(infrahub="1.9.1", sdk="1.20.0", date="2026-04-29"),
     ReleaseMapping(infrahub="1.9.0", sdk="1.20.0", date="2026-04-24"),
+    ReleaseMapping(infrahub="1.8.7", sdk="1.19.0", date="2026-06-04"),
     ReleaseMapping(infrahub="1.8.6", sdk="1.19.0", date="2026-04-21"),
     ReleaseMapping(infrahub="1.8.5", sdk="1.19.0", date="2026-04-17"),
     ReleaseMapping(infrahub="1.8.4", sdk="1.19.0", date="2026-04-02"),
