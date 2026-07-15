@@ -25,7 +25,7 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ### Core / shared
 
-- [ ] T003 [US1] In `infrahub_sdk/utils.py`: migrate `dict_hash` (`orjson.dumps(dictionary, option=orjson.OPT_SORT_KEYS)`, drop the now-redundant `.encode()`) and `decode_json` (decode via `orjson.loads(response.content)`, change `except` to `orjson.JSONDecodeError`); remove both `import json` and `import ujson`, add `import orjson`.
+- [X] T003 [US1] In `infrahub_sdk/utils.py`: migrate `dict_hash` (`orjson.dumps(dictionary, option=orjson.OPT_SORT_KEYS)`, drop the now-redundant `.encode()`) and `decode_json` (decode via `orjson.loads(response.content)`, change `except` to `orjson.JSONDecodeError`); remove both `import json` and `import ujson`, add `import orjson`.
 
 ### Encode sites (each a distinct file → parallelizable)
 

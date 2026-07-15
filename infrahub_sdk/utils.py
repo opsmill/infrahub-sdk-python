@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import uuid
 from itertools import groupby
 from pathlib import Path
@@ -10,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 import httpx
-import ujson
+import orjson
 from graphql import (
     FieldNode,
     InlineFragmentNode,
@@ -93,8 +92,8 @@ def is_valid_uuid(value: Any) -> bool:
 
 def decode_json(response: httpx.Response) -> dict:
     try:
-        return response.json()
-    except json.decoder.JSONDecodeError as exc:
+        return orjson.loads(response.content)
+    except orjson.JSONDecodeError as exc:
         raise JsonDecodeError(content=response.text, url=str(response.url)) from exc
 
 
@@ -250,7 +249,7 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
     """MD5 hash of a dictionary."""
     # We need to sort arguments so {'a': 1, 'b': 2} is
     # the same as {'b': 2, 'a': 1}
-    encoded = ujson.dumps(dictionary, sort_keys=True).encode()
+    encoded = orjson.dumps(dictionary, option=orjson.OPT_SORT_KEYS)
     dhash = hashlib.md5(encoded, usedforsecurity=False)
     return dhash.hexdigest()
 

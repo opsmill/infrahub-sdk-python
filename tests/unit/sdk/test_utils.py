@@ -1,4 +1,3 @@
-import json
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -263,7 +262,7 @@ def test_calculate_time_diff() -> None:
 def test_decode_json_success() -> None:
     """Test decode_json with valid JSON response."""
     mock_response = Mock()
-    mock_response.json.return_value = {"status": "ok", "data": {"key": "value"}}
+    mock_response.content = b'{"status": "ok", "data": {"key": "value"}}'
 
     result = decode_json(mock_response)
     assert result == {"status": "ok", "data": {"key": "value"}}
@@ -272,7 +271,7 @@ def test_decode_json_success() -> None:
 def test_decode_json_failure_with_content() -> None:
     """Test decode_json with invalid JSON response includes server content in error message."""
     mock_response = Mock()
-    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.content = b"Internal Server Error: Database connection failed"
     mock_response.text = "Internal Server Error: Database connection failed"
     mock_response.url = "https://example.com/api/graphql"
 
@@ -287,7 +286,7 @@ def test_decode_json_failure_with_content() -> None:
 def test_decode_json_failure_without_content() -> None:
     """Test decode_json with invalid JSON response and no content."""
     mock_response = Mock()
-    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.content = b""
     mock_response.text = ""
     mock_response.url = "https://example.com/api/graphql"
 
