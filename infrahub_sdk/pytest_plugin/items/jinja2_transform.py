@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jinja2
-import ujson
+import orjson
 from httpx import HTTPStatusError
 
 from ...template import Jinja2Template
@@ -60,8 +60,10 @@ class InfrahubJinja2Item(InfrahubItem):
     def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
-                response_content = ujson.dumps(excinfo.value.response.json(), indent=4, sort_keys=True)
-            except ujson.JSONDecodeError:
+                response_content = orjson.dumps(
+                    orjson.loads(excinfo.value.response.content), option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS
+                ).decode()
+            except orjson.JSONDecodeError:
                 response_content = excinfo.value.response.text
             return "\n".join(
                 [

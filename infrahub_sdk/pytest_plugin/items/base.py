@@ -4,8 +4,8 @@ import difflib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import orjson
 import pytest
-import ujson
 
 from ..exceptions import InvalidResourceConfigError
 from ..models import InfrahubInputOutputTest
@@ -59,8 +59,8 @@ class InfrahubItem(pytest.Item):
 
         expected = self.test.spec.get_output_data()
         differences = difflib.unified_diff(
-            ujson.dumps(expected, indent=4, sort_keys=True).splitlines(),
-            ujson.dumps(computed, indent=4, sort_keys=True).splitlines(),
+            orjson.dumps(expected, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode().splitlines(),
+            orjson.dumps(computed, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode().splitlines(),
             fromfile="expected",
             tofile="rendered",
             lineterm="",

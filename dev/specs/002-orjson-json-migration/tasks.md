@@ -57,11 +57,11 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ### pytest-plugin items (dumps indent + paired except)
 
-- [ ] T020 [P] [US1] `infrahub_sdk/pytest_plugin/items/base.py:62,63`: `orjson.dumps(x, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode().splitlines()`; swap import.
-- [ ] T021 [P] [US1] `infrahub_sdk/pytest_plugin/items/check.py:52,53`: `OPT_INDENT_2` + `.decode()`, and set the paired `except` to match the orjson decode of `response.json()`; swap import.
-- [ ] T022 [P] [US1] `infrahub_sdk/pytest_plugin/items/graphql_query.py:31,32`: same pattern as T021.
-- [ ] T023 [P] [US1] `infrahub_sdk/pytest_plugin/items/python_transform.py:54,55`: same pattern as T021.
-- [ ] T024 [P] [US1] `infrahub_sdk/pytest_plugin/items/jinja2_transform.py:63,64`: `OPT_INDENT_2 | OPT_SORT_KEYS` + `.decode()` + paired except; swap import.
+- [X] T020 [P] [US1] `infrahub_sdk/pytest_plugin/items/base.py:62,63`: `orjson.dumps(x, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode().splitlines()`; swap import.
+- [X] T021 [P] [US1] `infrahub_sdk/pytest_plugin/items/check.py:52,53`: `OPT_INDENT_2` + `.decode()`, and set the paired `except` to match the orjson decode of `response.json()`; swap import.
+- [X] T022 [P] [US1] `infrahub_sdk/pytest_plugin/items/graphql_query.py:31,32`: same pattern as T021.
+- [X] T023 [P] [US1] `infrahub_sdk/pytest_plugin/items/python_transform.py:54,55`: same pattern as T021.
+- [X] T024 [P] [US1] `infrahub_sdk/pytest_plugin/items/jinja2_transform.py:63,64`: `OPT_INDENT_2 | OPT_SORT_KEYS` + `.decode()` + paired except; swap import.
 
 **Checkpoint**: no `ujson`/stdlib-`json` imports remain; package imports cleanly.
 

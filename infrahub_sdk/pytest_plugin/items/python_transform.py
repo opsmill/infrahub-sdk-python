@@ -4,7 +4,7 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import ujson
+import orjson
 from httpx import HTTPStatusError
 
 from ...node import InfrahubNode
@@ -51,8 +51,10 @@ class InfrahubPythonTransformItem(InfrahubItem):
     def repr_failure(self, excinfo: pytest.ExceptionInfo, style: str | None = None) -> str:
         if isinstance(excinfo.value, HTTPStatusError):
             try:
-                response_content = ujson.dumps(excinfo.value.response.json(), indent=4)
-            except ujson.JSONDecodeError:
+                response_content = orjson.dumps(
+                    orjson.loads(excinfo.value.response.content), option=orjson.OPT_INDENT_2
+                ).decode()
+            except orjson.JSONDecodeError:
                 response_content = excinfo.value.response.text
             return "\n".join(
                 [
