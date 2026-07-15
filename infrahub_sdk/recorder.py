@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import httpx
-import ujson
+import orjson
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .utils import generate_request_filename
@@ -55,8 +55,8 @@ class JSONRecorder(BaseSettings):
             "request_content": response.request.content.decode("utf-8"),
         }
 
-        with Path(f"{self.directory}/{filename}.json").open(mode="w", encoding="utf-8") as fobj:
-            ujson.dump(data, fobj, indent=4, sort_keys=True)
+        serialized = orjson.dumps(data, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode()
+        Path(f"{self.directory}/{filename}.json").write_text(serialized, encoding="utf-8")
 
     def _set_url_host(self, response: httpx.Response) -> None:
         if not self.host:

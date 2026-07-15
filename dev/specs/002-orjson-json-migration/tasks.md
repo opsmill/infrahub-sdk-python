@@ -48,12 +48,12 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ### File-object I/O (no `load`/`dump` in orjson)
 
-- [ ] T017 [P] [US1] `infrahub_sdk/recorder.py:59`: `fobj.write(orjson.dumps(data, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode())`; swap import.
-- [ ] T018 [P] [US1] `infrahub_sdk/playback.py:52,57`: encode `orjson.dumps(payload)` (drop `str(...).encode()` wrappers — already bytes), read `orjson.loads(fobj.read())`; remove both `import json` and `import ujson`, add `import orjson`.
+- [X] T017 [P] [US1] `infrahub_sdk/recorder.py:59`: `fobj.write(orjson.dumps(data, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode())`; swap import.
+- [X] T018 [P] [US1] `infrahub_sdk/playback.py:52,57`: encode `orjson.dumps(payload)` (drop `str(...).encode()` wrappers — already bytes), read `orjson.loads(fobj.read())`; remove both `import json` and `import ujson`, add `import orjson`.
 
 ### Export (arbitrary data → preserve non-str-key coercion)
 
-- [ ] T019 [P] [US1] `infrahub_sdk/transfer/exporter/json.py:151,155,166`: `orjson.dumps(..., option=orjson.OPT_NON_STR_KEYS).decode()` for the `write_text` sites; swap import.
+- [X] T019 [P] [US1] `infrahub_sdk/transfer/exporter/json.py:151,155,166`: `orjson.dumps(..., option=orjson.OPT_NON_STR_KEYS).decode()` for the `write_text` sites; swap import.
 
 ### pytest-plugin items (dumps indent + paired except)
 
