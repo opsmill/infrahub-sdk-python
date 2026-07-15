@@ -10,8 +10,8 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ## Phase 1: Setup (dependency swap)
 
-- [ ] T001 Swap the JSON dependency in `pyproject.toml`: remove `"ujson>=5"` from `dependencies` and `"types-ujson"` from the dev group; add `"orjson>=3.10"` to `dependencies`.
-- [ ] T002 Refresh the lockfile and environment: run `uv lock` then `uv sync --all-groups --all-extras`; confirm orjson resolves and ujson is gone.
+- [X] T001 Swap the JSON dependency in `pyproject.toml`: remove `"ujson>=5"` from `dependencies` and `"types-ujson"` from the dev group; add `"orjson>=3.10"` to `dependencies`. (ujson/types-ujson removal deferred to the final polish chunk, T033-area, so unmigrated modules keep importing during the atomic migration.)
+- [X] T002 Refresh the lockfile and environment: run `uv lock` then `uv sync --all-groups --all-extras`; confirm orjson resolves and ujson is gone. (orjson resolves alongside ujson; ujson removal deferred to T033-area polish chunk.)
 
 **Checkpoint**: orjson installed, ujson removed. Code still imports ujson/json and will not import-check until Phase 2 completes — expected during the atomic migration.
 
