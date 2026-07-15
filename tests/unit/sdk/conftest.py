@@ -8,8 +8,8 @@ from inspect import Parameter
 from io import StringIO
 from typing import TYPE_CHECKING, Any
 
+import orjson
 import pytest
-import ujson
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
@@ -1688,25 +1688,25 @@ async def mock_query_repository_page2_2(
 @pytest.fixture
 async def schema_query_01_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_01.json").read_text(encoding="UTF-8")
-    return ujson.loads(response_text)
+    return orjson.loads(response_text)
 
 
 @pytest.fixture
 async def schema_query_02_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_02.json").read_text(encoding="UTF-8")
-    return ujson.loads(response_text)
+    return orjson.loads(response_text)
 
 
 @pytest.fixture
 async def schema_query_04_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_04.json").read_text(encoding="UTF-8")
-    return ujson.loads(response_text)
+    return orjson.loads(response_text)
 
 
 @pytest.fixture
 async def schema_query_05_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
-    return ujson.loads(response_text)
+    return orjson.loads(response_text)
 
 
 @pytest.fixture
@@ -1761,7 +1761,7 @@ async def mock_rest_api_artifact_fetch(httpx_mock: HTTPXMock) -> HTTPXMock:
     httpx_mock.add_response(
         method="GET",
         url="http://mock/api/schema?branch=main",
-        json=ujson.loads(schema_response),
+        json=orjson.loads(schema_response),
         is_reusable=True,
     )
 
@@ -2087,7 +2087,7 @@ async def mock_query_infrahub_server_info(httpx_mock: HTTPXMock) -> HTTPXMock:
 @pytest.fixture
 async def mock_query_infrahub_user(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "account_profile.json").read_text(encoding="UTF-8")
-    httpx_mock.add_response(method="POST", json=ujson.loads(response_text), is_reusable=True)
+    httpx_mock.add_response(method="POST", json=orjson.loads(response_text), is_reusable=True)
     return httpx_mock
 
 
@@ -2414,7 +2414,7 @@ async def mock_schema_query_ipam(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = (get_fixtures_dir() / "schema_ipam.json").read_text(encoding="UTF-8")
 
     httpx_mock.add_response(
-        method="GET", url="http://mock/api/schema?branch=main", json=ujson.loads(response_text), is_reusable=True
+        method="GET", url="http://mock/api/schema?branch=main", json=orjson.loads(response_text), is_reusable=True
     )
     return httpx_mock
 
@@ -2437,7 +2437,7 @@ async def mock_query_location_batch(
         response_text = filename.read_text(encoding="UTF-8")
         httpx_mock.add_response(
             method="POST",
-            json=ujson.loads(response_text),
+            json=orjson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-builtinlocation-page{i}"},
             is_reusable=True,
         )
@@ -2451,7 +2451,7 @@ async def mock_query_tasks_01(httpx_mock: HTTPXMock) -> HTTPXMock:
         response_text = filename.read_text(encoding="UTF-8")
         httpx_mock.add_response(
             method="POST",
-            json=ujson.loads(response_text),
+            json=orjson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
             is_reusable=True,
         )
@@ -2464,7 +2464,7 @@ async def mock_query_tasks_02_main(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = filename.read_text(encoding="UTF-8")
     httpx_mock.add_response(
         method="POST",
-        json=ujson.loads(response_text),
+        json=orjson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
         is_reusable=True,
     )
@@ -2477,7 +2477,7 @@ async def mock_query_tasks_empty(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = filename.read_text(encoding="UTF-8")
     httpx_mock.add_response(
         method="POST",
-        json=ujson.loads(response_text),
+        json=orjson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
         is_reusable=True,
     )
@@ -2490,7 +2490,7 @@ async def mock_query_tasks_03(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = filename.read_text(encoding="UTF-8")
     httpx_mock.add_response(
         method="POST",
-        json=ujson.loads(response_text),
+        json=orjson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
         is_reusable=True,
     )
@@ -2504,7 +2504,7 @@ async def mock_query_tasks_04_full(httpx_mock: HTTPXMock) -> HTTPXMock:
         response_text = filename.read_text(encoding="UTF-8")
         httpx_mock.add_response(
             method="POST",
-            json=ujson.loads(response_text),
+            json=orjson.loads(response_text),
             match_headers={"X-Infrahub-Tracker": f"query-tasks-page{i}"},
             is_reusable=True,
         )
@@ -2517,7 +2517,7 @@ async def mock_query_tasks_05(httpx_mock: HTTPXMock) -> HTTPXMock:
     response_text = filename.read_text(encoding="UTF-8")
     httpx_mock.add_response(
         method="POST",
-        json=ujson.loads(response_text),
+        json=orjson.loads(response_text),
         match_headers={"X-Infrahub-Tracker": "query-tasks-page1"},
         is_reusable=True,
     )

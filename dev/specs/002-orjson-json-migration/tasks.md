@@ -79,11 +79,11 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ## Phase 4: Polish & cross-cutting
 
-- [ ] T030 Verify zero legacy imports: `grep -rn "import ujson" infrahub_sdk/` and `grep -rn "^import json\|^\s*import json$" infrahub_sdk/` both return nothing (SC-001).
-- [ ] T031 Run `uv run invoke format lint-code` — ty/mypy must be green (catches any `bytes`-where-`str`-expected leak, FR-004).
-- [ ] T032 Run `uv run pytest tests/unit/` then `uv run pytest tests/integration/` — all green (SC-002).
-- [ ] T033 Add a release-note entry documenting the one-time non-ASCII `dict_hash`/query-group-name change (SC-004); grep docs for any `ujson` references and update.
-- [ ] T034 Capture one ad-hoc before/after encode+decode timing on a representative payload in the PR description (evidence for the motivating speedup; not a committed benchmark).
+- [X] T030 Verify zero legacy imports: `grep -rn "import ujson" infrahub_sdk/` and `grep -rn "^import json\|^\s*import json$" infrahub_sdk/` both return nothing (SC-001).
+- [X] T031 Run `uv run invoke format lint-code` — ty/mypy must be green (catches any `bytes`-where-`str`-expected leak, FR-004).
+- [X] T032 Run `uv run pytest tests/unit/` then `uv run pytest tests/integration/` — all green (SC-002).
+- [X] T033 Add a release-note entry documenting the one-time non-ASCII `dict_hash`/query-group-name change (SC-004); grep docs for any `ujson` references and update.
+- [X] T034 Capture one ad-hoc before/after encode+decode timing on a representative payload in the PR description (evidence for the motivating speedup; not a committed benchmark).
 
 ---
 

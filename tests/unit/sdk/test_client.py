@@ -664,7 +664,7 @@ QUERY:
 
 VARIABLES:
 {
-    "name": "red"
+  "name": "red"
 }
 
 """

@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import orjson
 import pytest
-import ujson
 
 from infrahub_sdk.exceptions import SchemaNotFoundError
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
@@ -114,9 +114,9 @@ class TestSchemaExportImportBase(TestInfrahubDockerClient, SchemaCarPerson):
         admin_found = False
         with nodes_file.open() as f:
             for line in f:
-                node_dump = ujson.loads(line)
+                node_dump = orjson.loads(line)
                 if node_dump.get("kind") == "CoreAccount":
-                    graphql_data = ujson.loads(node_dump["graphql_json"])
+                    graphql_data = orjson.loads(node_dump["graphql_json"])
                     if graphql_data.get("name", {}).get("value") == "admin":
                         admin_found = True
                         break
@@ -147,10 +147,10 @@ class TestSchemaExportImportBase(TestInfrahubDockerClient, SchemaCarPerson):
         nodes_dump = []
         with nodes_file.open() as reader:
             while line := reader.readline():
-                nodes_dump.append(ujson.loads(line))
+                nodes_dump.append(orjson.loads(line))
         assert len(nodes_dump) >= len(initial_dataset)
 
-        relationships_dump = ujson.loads(relationships_file.read_text())
+        relationships_dump = orjson.loads(relationships_file.read_text())
         assert relationships_dump
 
     async def test_step04_import_initial_dataset(
@@ -280,10 +280,10 @@ class TestSchemaExportImportManyRelationships(TestInfrahubDockerClient, SchemaCa
         nodes_dump = []
         with nodes_file.open() as reader:
             while line := reader.readline():
-                nodes_dump.append(ujson.loads(line))
+                nodes_dump.append(orjson.loads(line))
         assert len(nodes_dump) >= len(initial_dataset)
 
-        relationships_dump = ujson.loads(relationships_file.read_text())
+        relationships_dump = orjson.loads(relationships_file.read_text())
         assert relationships_dump
 
     async def test_step02_import_initial_dataset(

@@ -1,7 +1,7 @@
 from typing import Any
 
+import orjson
 import pytest
-import ujson
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.utils import get_fixtures_dir
@@ -11,7 +11,7 @@ from tests.unit.sdk.conftest import mock_query_infrahub_server_info, mock_query_
 @pytest.fixture
 async def schema_query_05_data() -> dict:
     response_text = (get_fixtures_dir() / "schema_05.json").read_text(encoding="UTF-8")
-    return ujson.loads(response_text)
+    return orjson.loads(response_text)
 
 
 @pytest.fixture
