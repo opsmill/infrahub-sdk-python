@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+import orjson
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -124,5 +124,5 @@ async def export_snapshots(
         raise typer.Exit(code=2)
 
     output_path = Path(output)
-    output_path.write_text(json.dumps(snapshots, indent=2), encoding="utf-8")
+    output_path.write_text(orjson.dumps(snapshots, option=orjson.OPT_INDENT_2).decode(), encoding="utf-8")
     console.print(f"Exported {len(snapshots)} snapshots to {output_path}")

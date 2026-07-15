@@ -29,14 +29,14 @@ This feature is a single, atomic P1 user story. Most migration tasks touch disti
 
 ### Encode sites (each a distinct file → parallelizable)
 
-- [ ] T004 [P] [US1] `infrahub_sdk/client.py:218` debug print: `orjson.dumps(variables, option=orjson.OPT_INDENT_2).decode()`; swap import.
-- [ ] T005 [P] [US1] `infrahub_sdk/checks.py:112` print: `orjson.dumps(log_message).decode()`; swap import.
-- [ ] T006 [P] [US1] `infrahub_sdk/graphql/multipart.py:46,60`: `orjson.dumps(..., option=orjson.OPT_NON_STR_KEYS).decode()` (str for httpx); swap import.
-- [ ] T007 [P] [US1] `infrahub_sdk/graphql/renderers.py:54` string-escaping: `orjson.dumps(value).decode()`; swap import (keep the escaping comment accurate).
-- [ ] T008 [P] [US1] `infrahub_sdk/ctl/validate.py:107`: `orjson.dumps(response, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode()`; swap import.
-- [ ] T009 [P] [US1] `infrahub_sdk/ctl/cli_commands.py:355`: same option combo + `.decode()`; swap import.
-- [ ] T010 [P] [US1] `infrahub_sdk/ctl/telemetry.py:127`: `output_path.write_text(orjson.dumps(snapshots, option=orjson.OPT_INDENT_2).decode(), encoding="utf-8")`; swap import.
-- [ ] T011 [P] [US1] `infrahub_sdk/ctl/formatters/json.py:42,59`: `orjson.dumps(x, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME, default=str).decode()`; swap import; update the "Uses stdlib json" docstring.
+- [X] T004 [P] [US1] `infrahub_sdk/client.py:218` debug print: `orjson.dumps(variables, option=orjson.OPT_INDENT_2).decode()`; swap import.
+- [X] T005 [P] [US1] `infrahub_sdk/checks.py:112` print: `orjson.dumps(log_message).decode()`; swap import.
+- [X] T006 [P] [US1] `infrahub_sdk/graphql/multipart.py:46,60`: `orjson.dumps(..., option=orjson.OPT_NON_STR_KEYS).decode()` (str for httpx); swap import.
+- [X] T007 [P] [US1] `infrahub_sdk/graphql/renderers.py:54` string-escaping: `orjson.dumps(value).decode()`; swap import (keep the escaping comment accurate).
+- [X] T008 [P] [US1] `infrahub_sdk/ctl/validate.py:107`: `orjson.dumps(response, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode()`; swap import.
+- [X] T009 [P] [US1] `infrahub_sdk/ctl/cli_commands.py:355`: same option combo + `.decode()`; swap import.
+- [X] T010 [P] [US1] `infrahub_sdk/ctl/telemetry.py:127`: `output_path.write_text(orjson.dumps(snapshots, option=orjson.OPT_INDENT_2).decode(), encoding="utf-8")`; swap import.
+- [X] T011 [P] [US1] `infrahub_sdk/ctl/formatters/json.py:42,59`: `orjson.dumps(x, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME, default=str).decode()`; swap import; update the "Uses stdlib json" docstring.
 
 ### Decode sites
 

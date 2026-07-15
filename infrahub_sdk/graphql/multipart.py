@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import ujson
+import orjson
 
 if TYPE_CHECKING:
     from typing import BinaryIO
@@ -43,7 +43,7 @@ class MultipartBuilder:
         operations: dict[str, Any] = {"query": query, "variables": variables}
         if operation_name:
             operations["operationName"] = operation_name
-        return ujson.dumps(operations)
+        return orjson.dumps(operations, option=orjson.OPT_NON_STR_KEYS).decode()
 
     @staticmethod
     def build_file_map(file_key: str = "0", variable_path: str = "variables.file") -> str:
@@ -57,7 +57,7 @@ class MultipartBuilder:
             JSON string mapping the file key to the variable path.
 
         """
-        return ujson.dumps({file_key: [variable_path]})
+        return orjson.dumps({file_key: [variable_path]}, option=orjson.OPT_NON_STR_KEYS).decode()
 
     @staticmethod
     def build_payload(
