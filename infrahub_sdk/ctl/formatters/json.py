@@ -40,7 +40,9 @@ class JsonFormatter:
 
         """
         items = [extract_node_data(node, schema) for node in nodes]
-        return orjson.dumps(items, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME, default=str).decode()
+        return orjson.dumps(
+            items, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME | orjson.OPT_NON_STR_KEYS, default=str
+        ).decode()
 
     def format_detail(self, node: InfrahubNode, schema: MainSchemaTypesAPI) -> str:
         """Format a single node as a JSON object.
@@ -57,4 +59,6 @@ class JsonFormatter:
 
         """
         detail = extract_node_detail(node, schema)
-        return orjson.dumps(detail, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME, default=str).decode()
+        return orjson.dumps(
+            detail, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME | orjson.OPT_NON_STR_KEYS, default=str
+        ).decode()

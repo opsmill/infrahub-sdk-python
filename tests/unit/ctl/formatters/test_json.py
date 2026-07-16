@@ -132,6 +132,17 @@ class TestJsonFormatterFormatList:
         parsed = json.loads(result)
         assert parsed[0]["site"] == "DC1"
 
+    def test_format_list_coerces_non_string_keys(self) -> None:
+        """Attribute values with non-string dict keys serialize (keys coerced), matching prior behaviour."""
+        schema = _make_mock_schema(["metadata"], [])
+        node = _make_mock_node({"metadata": {1: "a", 2: "b"}}, {})
+        formatter = JsonFormatter()
+
+        result = formatter.format_list([node], schema)
+
+        parsed = json.loads(result)
+        assert parsed[0]["metadata"] == {"1": "a", "2": "b"}
+
 
 class TestJsonFormatterFormatDetail:
     """Tests for JsonFormatter.format_detail."""

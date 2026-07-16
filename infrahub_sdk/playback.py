@@ -48,7 +48,7 @@ class JSONPlayback(BaseSettings):
     ) -> httpx.Response:
         content: bytes | None = None
         if payload:
-            content = orjson.dumps(payload)
+            content = orjson.dumps(payload, option=orjson.OPT_NON_STR_KEYS)
         request = httpx.Request(method=method.value, url=url, headers=headers, content=content)
 
         filename = generate_request_filename(request)
