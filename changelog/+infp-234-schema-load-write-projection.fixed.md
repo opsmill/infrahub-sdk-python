@@ -1,1 +1,0 @@
-`InfrahubClient.schema.load()` and `schema.check()` now strip read-only and internal fields from each schema payload before sending it, projecting the payload onto the user-facing write contract. A schema read back from Infrahub (or a full model dump) can be loaded again without manually removing server-computed fields such as ids, `inherited`, or `used_by`.
