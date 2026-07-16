@@ -23,6 +23,7 @@ from ..exceptions import (
 from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
+from ._write_projection import normalize_schema_for_load
 from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
 from .generated.read import InfrahubSchemaRead
 from .generated.write import InfrahubSchemaWrite
@@ -370,7 +371,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": [normalize_schema_for_load(schema) for schema in schemas]},
         )
 
         if wait_until_converged:
@@ -402,7 +405,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": [normalize_schema_for_load(schema) for schema in schemas]},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:
@@ -900,7 +905,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": [normalize_schema_for_load(schema) for schema in schemas]},
         )
 
         if wait_until_converged:
@@ -932,7 +939,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": [normalize_schema_for_load(schema) for schema in schemas]},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:
