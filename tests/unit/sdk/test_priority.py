@@ -687,17 +687,17 @@ RESOLUTION_TRUTH_TABLE = [
     ResolutionCase(name="no-default-no-override", client_default=None, per_request=None, expected=None),
     ResolutionCase(name="no-default-override-high", client_default=None, per_request=Priority.HIGH, expected="high"),
     ResolutionCase(
-        name="no-default-override-normal", client_default=None, per_request=Priority.NORMAL, expected="normal"
+        name="no-default-override-medium", client_default=None, per_request=Priority.MEDIUM, expected="medium"
     ),
     ResolutionCase(name="low-default-no-override", client_default=Priority.LOW, per_request=None, expected="low"),
     ResolutionCase(
         name="low-default-override-high", client_default=Priority.LOW, per_request=Priority.HIGH, expected="high"
     ),
     ResolutionCase(
-        name="low-default-override-normal", client_default=Priority.LOW, per_request=Priority.NORMAL, expected="normal"
+        name="low-default-override-medium", client_default=Priority.LOW, per_request=Priority.MEDIUM, expected="medium"
     ),
     ResolutionCase(
-        name="normal-default-no-override", client_default=Priority.NORMAL, per_request=None, expected="normal"
+        name="medium-default-no-override", client_default=Priority.MEDIUM, per_request=None, expected="medium"
     ),
     ResolutionCase(
         name="high-default-override-low", client_default=Priority.HIGH, per_request=Priority.LOW, expected="low"
@@ -941,7 +941,7 @@ REQUEST_CONTEXT_TRUTH_TABLE = [
     ),
     RequestContextResolutionCase(
         name="rc-beats-default",
-        client_default=Priority.NORMAL,
+        client_default=Priority.MEDIUM,
         request_context_priority=Priority.LOW,
         per_request=None,
         expected="low",
