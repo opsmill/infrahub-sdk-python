@@ -5,9 +5,9 @@ Prerequisites: `uv sync --all-groups --all-extras` (installs orjson, removes ujs
 ## 1. No legacy JSON library remains (FR-001 / SC-001)
 
 ```bash
-# Must return nothing:
-grep -rn "import ujson" infrahub_sdk/
-grep -rn "^import json\|^\s*import json$" infrahub_sdk/
+# Must return nothing (covers both `import json` and `from json import ...`):
+grep -rnE "(^|[^.])\bimport ujson\b|\bfrom ujson import\b" infrahub_sdk/
+grep -rnE "(^|[^.])\bimport json\b|\bfrom json import\b" infrahub_sdk/
 # Must show orjson only:
 grep -rln "import orjson" infrahub_sdk/ | wc -l
 ```
