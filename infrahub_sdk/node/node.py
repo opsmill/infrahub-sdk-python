@@ -282,14 +282,15 @@ class InfrahubNodeBase:
         super().__setattr__(name, value)
 
     def _get_request_context(self, request_context: RequestContext | None = None) -> dict[str, Any] | None:
+        # priority rides the X-Priority header, not the mutation body — the server context input has no such field
         if request_context:
-            return request_context.model_dump(exclude_none=True)
+            return request_context.model_dump(exclude_none=True, exclude={"priority"}) or None
 
         client: InfrahubClient | InfrahubClientSync | None = getattr(self, "_client", None)
         if not client or not client.request_context:
             return None
 
-        return client.request_context.model_dump(exclude_none=True)
+        return client.request_context.model_dump(exclude_none=True, exclude={"priority"}) or None
 
     def _init_relationships(self, data: dict | None = None) -> None:
         pass

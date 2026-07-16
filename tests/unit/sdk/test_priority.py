@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -8,6 +9,7 @@ import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.constants import Priority
+from infrahub_sdk.context import ContextAccount, RequestContext
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from tests.unit.sdk.conftest import BothClients
 
@@ -827,3 +829,162 @@ async def test_related_node_fetch_forwards_priority(
     ]
     assert tag_requests
     assert all(r.headers["x-priority"] == "high" for r in tag_requests)
+
+
+# ---------------------------------------------------------------------------
+# request_context.priority — priority carried on the client's RequestContext
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_request_context_priority_on_graphql(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """A priority set on the client's request_context emits X-Priority on a GraphQL request."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfrahubInfo": {"version": "1.0"}}},
+        match_headers={"X-Priority": "low"},
+    )
+
+    client = getattr(clients, client_type)
+    client.request_context = RequestContext(priority=Priority.LOW)
+    query = "query { InfrahubInfo { version }}"
+    if client_type == "standard":
+        await client.execute_graphql(query=query)
+    else:
+        client.execute_graphql(query=query)
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    assert requests[0].headers["x-priority"] == "low"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_request_context_priority_on_object_store_blob(
+    client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """Blob requests (which take no per-call priority kwarg) inherit request_context.priority."""
+    httpx_mock.add_response(
+        method="GET",
+        text="any content",
+        match_headers={"X-Priority": "low"},
+    )
+
+    client = getattr(clients, client_type)
+    client.request_context = RequestContext(priority=Priority.LOW)
+    if client_type == "standard":
+        await client.object_store.get(identifier="aaaaaaaaa")
+    else:
+        client.object_store.get(identifier="aaaaaaaaa")
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "GET"]
+    assert len(requests) == 1
+    assert requests[0].headers["x-priority"] == "low"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_request_context_priority_not_in_mutation_body(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, httpx_mock: HTTPXMock
+) -> None:
+    """Priority rides the header only — the account still reaches the mutation body, priority never does."""
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {"BuiltinLocationCreate": {"ok": True, "object": {"id": "17aec828-9814-ce00-3f20-1a053670f1c8"}}}
+        },
+        is_reusable=True,
+    )
+
+    client = getattr(clients, client_type)
+    client.request_context = RequestContext(account=ContextAccount(id="acc-1"), priority=Priority.LOW)
+    data = {"name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+        await node.save()
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+        node.save()
+
+    create_requests = [
+        r
+        for r in httpx_mock.get_requests()
+        if r.method == "POST" and r.headers.get("x-infrahub-tracker") == "mutation-builtinlocation-create"
+    ]
+    assert len(create_requests) == 1
+    assert create_requests[0].headers["x-priority"] == "low"
+
+    # the account context is rendered into the mutation, but priority must never leak into the body
+    query = json.loads(create_requests[0].content)["query"]
+    assert "acc-1" in query
+    assert "priority" not in query
+
+
+@dataclass
+class RequestContextResolutionCase:
+    """One row of the request_context priority resolution truth table."""
+
+    name: str
+    client_default: Priority | None
+    request_context_priority: Priority | None
+    per_request: Priority | None
+    expected: str | None
+
+
+# Precedence: per-call kwarg > request_context.priority > client default (Config.priority) > none.
+REQUEST_CONTEXT_TRUTH_TABLE = [
+    RequestContextResolutionCase(
+        name="rc-only", client_default=None, request_context_priority=Priority.LOW, per_request=None, expected="low"
+    ),
+    RequestContextResolutionCase(
+        name="rc-none-no-default", client_default=None, request_context_priority=None, per_request=None, expected=None
+    ),
+    RequestContextResolutionCase(
+        name="rc-beats-default",
+        client_default=Priority.NORMAL,
+        request_context_priority=Priority.LOW,
+        per_request=None,
+        expected="low",
+    ),
+    RequestContextResolutionCase(
+        name="kwarg-beats-rc",
+        client_default=None,
+        request_context_priority=Priority.LOW,
+        per_request=Priority.HIGH,
+        expected="high",
+    ),
+    RequestContextResolutionCase(
+        name="default-when-rc-none",
+        client_default=Priority.LOW,
+        request_context_priority=None,
+        per_request=None,
+        expected="low",
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in REQUEST_CONTEXT_TRUTH_TABLE])
+async def test_request_context_precedence_parity(
+    case: RequestContextResolutionCase, client_type: str, httpx_mock: HTTPXMock
+) -> None:
+    """Kwarg > request_context.priority > Config.priority default > none, identically on both clients."""
+    httpx_mock.add_response(method="POST", json={"data": {"InfrahubInfo": {"version": "1.0"}}})
+
+    client = _client_with_default(client_type, case.client_default)
+    if case.request_context_priority is not None:
+        client.request_context = RequestContext(priority=case.request_context_priority)
+    query = "query { InfrahubInfo { version }}"
+    kwargs = {} if case.per_request is None else {"priority": case.per_request}
+
+    if client_type == "standard":
+        await client.execute_graphql(query=query, **kwargs)  # type: ignore[misc]
+    else:
+        client.execute_graphql(query=query, **kwargs)  # type: ignore[union-attr]
+
+    requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(requests) == 1
+    if case.expected is None:
+        assert "x-priority" not in requests[0].headers
+    else:
+        assert requests[0].headers["x-priority"] == case.expected
