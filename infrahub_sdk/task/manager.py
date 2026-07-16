@@ -182,7 +182,18 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
 
         if limit:
             tasks, _ = await self.process_page(
-                self.client, self._generate_query(filters=filter, offset=offset, limit=limit, count=False), 1, timeout
+                self.client,
+                self._generate_query(
+                    filters=filter,
+                    offset=offset,
+                    limit=limit,
+                    include_logs=include_logs,
+                    include_related_nodes=include_related_nodes,
+                    include_actions=include_actions,
+                    count=False,
+                ),
+                1,
+                timeout,
             )
             return tasks
 
@@ -464,7 +475,18 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
 
         if limit:
             tasks, _ = self.process_page(
-                self.client, self._generate_query(filters=filter, offset=offset, limit=limit, count=False), 1, timeout
+                self.client,
+                self._generate_query(
+                    filters=filter,
+                    offset=offset,
+                    limit=limit,
+                    include_logs=include_logs,
+                    include_related_nodes=include_related_nodes,
+                    include_actions=include_actions,
+                    count=False,
+                ),
+                1,
+                timeout,
             )
             return tasks
 

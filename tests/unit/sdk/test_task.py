@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -54,6 +55,9 @@ async def test_method_retry(clients: BothClients, httpx_mock: HTTPXMock, client_
         new_id = clients.sync.task.retry(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
 
     assert new_id == "b71f5542-7b54-562f-9053-8fd6ec0b0481"
+    sent_query = json.loads(httpx_mock.get_requests()[-1].content)["query"]
+    assert "InfrahubTaskRetry(" in sent_query
+    assert 'id: "a60f4431-6a43-451e-8f42-9ec5db9a9370"' in sent_query
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -70,6 +74,22 @@ async def test_method_cancel(clients: BothClients, httpx_mock: HTTPXMock, client
         cancelled = clients.sync.task.cancel(id="a60f4431-6a43-451e-8f42-9ec5db9a9370")
 
     assert cancelled is True
+    sent_query = json.loads(httpx_mock.get_requests()[-1].content)["query"]
+    assert "InfrahubTaskCancel(" in sent_query
+    assert 'id: "a60f4431-6a43-451e-8f42-9ec5db9a9370"' in sent_query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_filter_limit_forwards_include_actions(
+    clients: BothClients, mock_query_tasks_03: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.task.filter(limit=5, include_actions=True)
+    else:
+        clients.sync.task.filter(limit=5, include_actions=True)
+
+    sent_query = json.loads(mock_query_tasks_03.get_requests()[-1].content)["query"]
+    assert "available_actions" in sent_query
 
 
 async def test_action_mutation_render() -> None:
