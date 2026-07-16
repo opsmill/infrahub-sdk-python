@@ -53,7 +53,7 @@ Ran code, errors, tests, comments, types, simplify lenses over `3830042..HEAD`.
 | — | errors | pytest_plugin/items/* | **Positive**: migration incidentally fixed a latent bug — old `except ujson.JSONDecodeError` never caught stdlib error from `response.json()`. | n/a |
 | Medium | tests | transfer/exporter/json.py | `OPT_NON_STR_KEYS` int-key coercion untested. | Deferred — flags guard always-string-keyed GraphQL data (never triggers in practice); real-path test disproportionately heavy. Recommended follow-up. |
 | Low | tests | test_infrahub_filters.py | Error-message assertion loosened to a prefix (orjson wording differs from stdlib). | Accepted — tightening to orjson-specific text would be version-brittle. |
-| Low | code | utils.py:95, schema/__init__.py:276 | `orjson.loads(response.content)` assumes UTF-8 vs httpx charset detection. | Accepted — Infrahub API always emits UTF-8. |
+| Low | code | `utils.py:95`, `schema/__init__.py:276` | `orjson.loads(response.content)` assumes UTF-8 vs httpx charset detection. | Accepted — Infrahub API always emits UTF-8. |
 | Low | code | dict_hash → query_groups | Non-ASCII param hash shifts (raw UTF-8 vs escaped). | Accepted — documented in changelog (one-time tracking-group rename). |
 | Low | code | recorder/pytest diffs | Indent 4→2 (orjson supports only `OPT_INDENT_2`). | Accepted — cosmetic; machine-reparsed / symmetric diffs; `test_query_echo` updated. |
 | Low | simplify | multiple | Shared `OPT_INDENT_2\|OPT_SORT_KEYS` constant / `dumps_str` helper / `read_bytes` over `read_text`. | Advisory — not applied (would widen the mechanical diff). |
