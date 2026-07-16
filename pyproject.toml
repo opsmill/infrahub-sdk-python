@@ -304,8 +304,6 @@ ignore = [
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
     "COM812", # missing-trailing-comma
-    # D203/D213/D401/D404 are handled by the google convention set in
-    # [tool.ruff.lint.pydocstyle]; they don't need to be listed here.
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
@@ -379,9 +377,7 @@ ignorelist = [
 known-first-party = ["infrahub_sdk", "infrahub_ctl"]
 
 [tool.ruff.lint.pydocstyle]
-# Docstrings are Google-style. This also lets the DOC (pydoclint) rules parse
-# Args/Returns/Yields sections correctly, and disables the convention's excluded
-# rules (D203, D213, D401, D404, ...) so they don't need manual ignores above.
+# Also lets the DOC (pydoclint) rules parse Args/Returns/Yields sections correctly.
 convention = "google"
 
 [tool.ruff.lint.pycodestyle]
