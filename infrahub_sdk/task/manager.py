@@ -4,13 +4,15 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any
 
-from ..graphql import Query
+from ..graphql import Mutation, Query
 from .constants import FINAL_STATES
 from .exceptions import TaskNotCompletedError, TaskNotFoundError, TooManyTasksError
 from .models import Task, TaskFilter
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
+
+MUTATION_TASK_QUERY = {"ok": None, "task": {"id": None}}
 
 
 class InfraHubTaskManagerBase:
@@ -20,6 +22,7 @@ class InfraHubTaskManagerBase:
         filters: TaskFilter | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
         offset: int | None = None,
         limit: int | None = None,
         count: bool = False,
@@ -68,6 +71,13 @@ class InfraHubTaskManagerBase:
         if include_related_nodes:
             query["InfrahubTask"]["edges"]["node"]["related_nodes"] = {"id": None, "kind": None}
 
+        if include_actions:
+            query["InfrahubTask"]["edges"]["node"]["available_actions"] = {
+                "action": None,
+                "available": None,
+                "unavailability_reason": None,
+            }
+
         return Query(query=query)
 
     @classmethod
@@ -113,6 +123,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         parallel: bool = False,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Get all tasks.
 
@@ -123,6 +134,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             parallel: Whether to query the tasks in parallel. Defaults to False.
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
+            include_actions: Whether to include the available actions in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -135,6 +147,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             parallel=parallel,
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
         )
 
     async def filter(
@@ -146,6 +159,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         parallel: bool = False,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Filter tasks.
 
@@ -157,6 +171,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             parallel: Whether to query the tasks in parallel. Defaults to False.
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
+            include_actions: Whether to include the available actions in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -177,6 +192,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 timeout=timeout,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
             )
 
         return await self.process_non_batch(
@@ -186,13 +202,17 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             timeout=timeout,
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
         )
 
-    async def get(self, id: str, include_logs: bool = False, include_related_nodes: bool = False) -> Task:
+    async def get(
+        self, id: str, include_logs: bool = False, include_related_nodes: bool = False, include_actions: bool = False
+    ) -> Task:
         tasks = await self.filter(
             filter=TaskFilter(ids=[id]),
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
             parallel=False,
         )
         if not tasks:
@@ -225,6 +245,34 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             await asyncio.sleep(interval)
         raise TaskNotCompletedError(id=id, message=f"Task {id} did not complete in {timeout} seconds")
 
+    async def retry(self, id: str) -> str:
+        """Retry a settled task by replaying it as a new, independent task.
+
+        Args:
+            id: The id of the task to retry.
+
+        Returns:
+            The id of the new task created by the retry.
+
+        """
+        query = Mutation(mutation="InfrahubTaskRetry", input_data={"data": {"id": id}}, query=MUTATION_TASK_QUERY)
+        response = await self.client.execute_graphql(query=query.render(), tracker="mutation-task-retry")
+        return response["InfrahubTaskRetry"]["task"]["id"]
+
+    async def cancel(self, id: str) -> bool:
+        """Cancel an in-flight task, stopping any remaining retries.
+
+        Args:
+            id: The id of the task to cancel.
+
+        Returns:
+            Whether the task was successfully cancelled.
+
+        """
+        query = Mutation(mutation="InfrahubTaskCancel", input_data={"data": {"id": id}}, query=MUTATION_TASK_QUERY)
+        response = await self.client.execute_graphql(query=query.render(), tracker="mutation-task-cancel")
+        return response["InfrahubTaskCancel"]["ok"]
+
     @staticmethod
     async def process_page(
         client: InfrahubClient, query: Query, page_number: int, timeout: int | None = None
@@ -255,6 +303,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         timeout: int | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Process queries in parallel mode."""
         pagination_size = self.client.pagination_size
@@ -271,6 +320,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 limit=pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
                 count=False,
             )
             batch_process.add(
@@ -290,6 +340,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         timeout: int | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Process queries without parallel mode.
 
@@ -309,6 +360,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 limit=self.client.pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
                 count=True,
             )
             new_tasks, count = await self.process_page(
@@ -353,6 +405,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         parallel: bool = False,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Get all tasks.
 
@@ -363,6 +416,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             parallel: Whether to query the tasks in parallel. Defaults to False.
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
+            include_actions: Whether to include the available actions in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -375,6 +429,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             parallel=parallel,
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
         )
 
     def filter(
@@ -386,6 +441,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         parallel: bool = False,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Filter tasks.
 
@@ -397,6 +453,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             parallel: Whether to query the tasks in parallel. Defaults to False.
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
+            include_actions: Whether to include the available actions in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -417,6 +474,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 timeout=timeout,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
             )
 
         return self.process_non_batch(
@@ -426,13 +484,17 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             timeout=timeout,
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
         )
 
-    def get(self, id: str, include_logs: bool = False, include_related_nodes: bool = False) -> Task:
+    def get(
+        self, id: str, include_logs: bool = False, include_related_nodes: bool = False, include_actions: bool = False
+    ) -> Task:
         tasks = self.filter(
             filter=TaskFilter(ids=[id]),
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
+            include_actions=include_actions,
             parallel=False,
         )
         if not tasks:
@@ -465,6 +527,34 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             time.sleep(interval)
         raise TaskNotCompletedError(id=id, message=f"Task {id} did not complete in {timeout} seconds")
 
+    def retry(self, id: str) -> str:
+        """Retry a settled task by replaying it as a new, independent task.
+
+        Args:
+            id: The id of the task to retry.
+
+        Returns:
+            The id of the new task created by the retry.
+
+        """
+        query = Mutation(mutation="InfrahubTaskRetry", input_data={"data": {"id": id}}, query=MUTATION_TASK_QUERY)
+        response = self.client.execute_graphql(query=query.render(), tracker="mutation-task-retry")
+        return response["InfrahubTaskRetry"]["task"]["id"]
+
+    def cancel(self, id: str) -> bool:
+        """Cancel an in-flight task, stopping any remaining retries.
+
+        Args:
+            id: The id of the task to cancel.
+
+        Returns:
+            Whether the task was successfully cancelled.
+
+        """
+        query = Mutation(mutation="InfrahubTaskCancel", input_data={"data": {"id": id}}, query=MUTATION_TASK_QUERY)
+        response = self.client.execute_graphql(query=query.render(), tracker="mutation-task-cancel")
+        return response["InfrahubTaskCancel"]["ok"]
+
     @staticmethod
     def process_page(
         client: InfrahubClientSync, query: Query, page_number: int, timeout: int | None = None
@@ -495,6 +585,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         timeout: int | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Process queries in parallel mode."""
         pagination_size = self.client.pagination_size
@@ -511,6 +602,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 limit=pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
                 count=False,
             )
             batch_process.add(
@@ -530,6 +622,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         timeout: int | None = None,
         include_logs: bool = False,
         include_related_nodes: bool = False,
+        include_actions: bool = False,
     ) -> list[Task]:
         """Process queries without parallel mode.
 
@@ -549,6 +642,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 limit=self.client.pagination_size,
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
+                include_actions=include_actions,
                 count=True,
             )
             new_tasks, count = self.process_page(
