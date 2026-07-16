@@ -18,10 +18,21 @@ class TaskState(str, Enum):
     CANCELLING = "CANCELLING"
 
 
+class TaskActionName(str, Enum):
+    RETRY = "RETRY"
+    CANCEL = "CANCEL"
+
+
 class TaskLog(BaseModel):
     message: str
     severity: str
     timestamp: datetime
+
+
+class TaskAction(BaseModel):
+    action: TaskActionName
+    available: bool
+    unavailability_reason: str | None = None
 
 
 class TaskRelatedNode(BaseModel):
@@ -43,11 +54,23 @@ class Task(BaseModel):
     tags: list[str] | None = None
     related_nodes: list[TaskRelatedNode] = Field(default_factory=list)
     logs: list[TaskLog] = Field(default_factory=list)
+    available_actions: list[TaskAction] = Field(default_factory=list)
+
+    @property
+    def can_retry(self) -> bool:
+        """Whether this task can currently be retried."""
+        return any(action.action is TaskActionName.RETRY and action.available for action in self.available_actions)
+
+    @property
+    def can_cancel(self) -> bool:
+        """Whether this task can currently be cancelled."""
+        return any(action.action is TaskActionName.CANCEL and action.available for action in self.available_actions)
 
     @classmethod
     def from_graphql(cls, data: dict) -> Task:
         related_nodes: list[TaskRelatedNode] = []
         logs: list[TaskLog] = []
+        available_actions: list[TaskAction] = []
 
         if "related_nodes" in data:
             if data.get("related_nodes"):
@@ -59,7 +82,12 @@ class Task(BaseModel):
                 logs = [TaskLog(**item["node"]) for item in data["logs"]["edges"]]
             del data["logs"]
 
-        return cls(**data, related_nodes=related_nodes, logs=logs)
+        if "available_actions" in data:
+            if data.get("available_actions"):
+                available_actions = [TaskAction(**item) for item in data["available_actions"]]
+            del data["available_actions"]
+
+        return cls(**data, related_nodes=related_nodes, logs=logs, available_actions=available_actions)
 
 
 class TaskFilter(BaseModel):
