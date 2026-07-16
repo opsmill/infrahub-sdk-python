@@ -109,7 +109,7 @@ def test_invalid_priority_rejected() -> None:
     # statically types Priority | None but coerces strings at runtime, so the dynamic input is passed
     # via a dict[str, Any] rather than suppressed with a type-checker ignore.
     kwargs: dict[str, Any] = {"address": "http://localhost:8000", "priority": "lowe"}
-    with pytest.raises(ValidationError, match=r"Input should be 'high', 'normal' or 'low'"):
+    with pytest.raises(ValidationError, match=r"Input should be 'high', 'medium' or 'low'"):
         Config(**kwargs)
 
 
@@ -125,10 +125,10 @@ PRIORITY_CASES = [
     PriorityCase(name="high-title", value="High", expected=Priority.HIGH),
     PriorityCase(name="high-lower", value="high", expected=Priority.HIGH),
     PriorityCase(name="high-enum", value=Priority.HIGH, expected=Priority.HIGH),
-    PriorityCase(name="normal-upper", value="NORMAL", expected=Priority.NORMAL),
-    PriorityCase(name="normal-title", value="Normal", expected=Priority.NORMAL),
-    PriorityCase(name="normal-lower", value="normal", expected=Priority.NORMAL),
-    PriorityCase(name="normal-enum", value=Priority.NORMAL, expected=Priority.NORMAL),
+    PriorityCase(name="medium-upper", value="MEDIUM", expected=Priority.MEDIUM),
+    PriorityCase(name="medium-title", value="Medium", expected=Priority.MEDIUM),
+    PriorityCase(name="medium-lower", value="medium", expected=Priority.MEDIUM),
+    PriorityCase(name="medium-enum", value=Priority.MEDIUM, expected=Priority.MEDIUM),
     PriorityCase(name="low-upper", value="LOW", expected=Priority.LOW),
     PriorityCase(name="low-title", value="Low", expected=Priority.LOW),
     PriorityCase(name="low-lower", value="low", expected=Priority.LOW),
@@ -151,7 +151,7 @@ def test_priority_case_insensitive_acceptance(case: PriorityCase) -> None:
     [
         pytest.param("LOW", Priority.LOW, id="low"),
         pytest.param("HIGH", Priority.HIGH, id="high"),
-        pytest.param("NORMAL", Priority.NORMAL, id="normal"),
+        pytest.param("MEDIUM", Priority.MEDIUM, id="medium"),
     ],
 )
 def test_priority_from_env_var(monkeypatch: pytest.MonkeyPatch, env_value: str, expected: Priority) -> None:

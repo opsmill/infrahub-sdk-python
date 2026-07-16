@@ -60,7 +60,7 @@ class ConfigBase(BaseSettings):
         default=None,
         description=(
             "Default request priority emitted as the X-Priority header on every request; "
-            "one of high|normal|low (case-insensitive). When unset, no header is sent."
+            "one of high|medium|low (case-insensitive). When unset, no header is sent."
         ),
     )
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
