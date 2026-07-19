@@ -20,7 +20,7 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import NodeSchemaAPI, SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
-from .schema_format import FormatError, count_droppable_comments, format_schema_text, is_schema_document
+from .schema_format import FormatError, format_schema_text, is_schema_document
 from .utils import load_yamlfile_from_disk_and_exit
 
 if TYPE_CHECKING:
@@ -461,17 +461,13 @@ def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bo
 
     original = location.read_text(encoding="utf-8")
     try:
-        formatted = format_schema_text(schema_file.content)
+        formatted = format_schema_text(original)
     except FormatError as exc:
         console.print(f"[red] {location}: {exc}")
         return "error"
 
     if formatted == original:
         return "unchanged"
-
-    dropped = count_droppable_comments(original)
-    if dropped:
-        console.print(f"[yellow] {location}: {dropped} comment(s) will not be preserved")
 
     if diff:
         _print_schema_diff(location=location, original=original, formatted=formatted)
@@ -499,8 +495,7 @@ def schema_format(
     relationships themselves) are never reordered.
 
     Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
-    left untouched. Comments other than the `# yaml-language-server` header are
-    not preserved.
+    left untouched. Comments, quoting, and inline (flow) sequences are preserved.
 
     \b
     Examples:

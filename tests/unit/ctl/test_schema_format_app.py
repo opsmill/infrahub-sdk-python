@@ -22,7 +22,7 @@ version: "1.0"
 nodes:
   - namespace: Dcim
     name: Device
-    # a design note that will be lost
+    # a design note
     label: Device
     attributes:
       - order_weight: 1000
@@ -101,12 +101,13 @@ def test_format_diff_prints_and_does_not_write(tmp_path: Path) -> None:
     assert schema.read_text(encoding="utf-8") == before
 
 
-def test_format_warns_about_dropped_comments(tmp_path: Path) -> None:
+def test_format_preserves_comments(tmp_path: Path) -> None:
     schema = _write(tmp_path / "dcim.yml", UNFORMATTED)
 
-    result = runner.invoke(app, env=WIDE, args=["format", str(schema)])
+    runner.invoke(app, env=WIDE, args=["format", str(schema)])
 
-    assert "comment(s) will not be preserved" in remove_ansi_color(result.stdout)
+    # The comment survives the reformat.
+    assert "# a design note" in schema.read_text(encoding="utf-8")
 
 
 def test_format_skips_non_schema_yaml(tmp_path: Path) -> None:

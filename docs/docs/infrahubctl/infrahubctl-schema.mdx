@@ -95,8 +95,7 @@ the same way and produce small diffs. List items (the attributes and
 relationships themselves) are never reordered.
 
 Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
-left untouched. Comments other than the `# yaml-language-server` header are
-not preserved.
+left untouched. Comments, quoting, and inline (flow) sequences are preserved.
 
 Examples:
   infrahubctl schema format schemas/
