@@ -18,6 +18,9 @@ SAFE_VALUE = re.compile(r"(^[\. /:a-zA-Z0-9_-]+$)|(^$)")
 
 IP_TYPES = ipaddress.IPv4Interface | ipaddress.IPv6Interface | ipaddress.IPv4Network | ipaddress.IPv6Network
 
+# Bare IP addresses (no prefix); serialized with str() rather than with_prefixlen
+IP_ADDRESS_TYPES = ipaddress.IPv4Address | ipaddress.IPv6Address
+
 ARTIFACT_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "calling artifact_fetch is only supported for nodes that are Artifact Definition target"
 )
