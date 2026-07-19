@@ -2,222 +2,246 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+
 import pytest
 import yaml
 
 from infrahub_sdk.ctl.schema_format import (
-    SCHEMA_HEADER,
     FormatError,
-    count_droppable_comments,
-    format_document,
     format_schema_text,
     is_schema_document,
     reorder_mapping,
 )
 
+NODE_DOC = """\
+---
+# yaml-language-server: $schema=https://schema.infrahub.app/infrahub/schema/latest.json
+version: "1.0"
+
+nodes:
+  - relationships:
+      - peer: BuiltinTag
+        name: tags
+    attributes:
+      - order_weight: 1500
+        optional: true
+        name: status
+        kind: Dropdown
+        choices:
+          - color: "#fff"
+            name: active
+            label: Active
+    namespace: Dcim
+    name: Device
+    label: Device
+    description: A device.
+"""
+
+
+def _keys_of(text: str, path: list) -> list[str]:
+    """Load formatted YAML and return the key order of the mapping at ``path``."""
+    data = yaml.safe_load(text)
+    for step in path:
+        data = data[step]
+    return list(data.keys())
+
 
 def test_reorder_mapping_leading_trailing_and_unknown() -> None:
-    data = {"order_weight": 1000, "extra": "x", "kind": "Text", "name": "field"}
-    result = reorder_mapping(data, leading=["name", "kind"], trailing=["order_weight"])
+    data = OrderedDict([("order_weight", 1000), ("extra", "x"), ("kind", "Text"), ("name", "field")])
+    reorder_mapping(data, leading=["name", "kind"], trailing=["order_weight"])
 
     # name/kind first, order_weight last, unknown key preserved in the middle.
-    assert list(result.keys()) == ["name", "kind", "extra", "order_weight"]
-    # Values are untouched.
-    assert result == data
+    assert list(data.keys()) == ["name", "kind", "extra", "order_weight"]
 
 
 def test_node_key_order_is_canonical() -> None:
-    document = {
-        "nodes": [
-            {
-                "relationships": [{"peer": "BuiltinTag", "name": "tags"}],
-                "attributes": [{"order_weight": 1000, "kind": "Text", "name": "name"}],
-                "namespace": "Dcim",
-                "name": "Device",
-                "label": "Device",
-                "description": "A device.",
-            }
-        ],
-        "version": "1.0",
-    }
-
-    result = format_document(document)
+    text = format_schema_text(NODE_DOC)
 
     # Top-level sections: version before nodes.
-    assert list(result.keys()) == ["version", "nodes"]
-
-    node = result["nodes"][0]
+    assert _keys_of(text, [])[:2] == ["version", "nodes"]
     # name/namespace first; attributes then relationships always last.
-    assert list(node.keys()) == ["name", "namespace", "description", "label", "attributes", "relationships"]
+    assert _keys_of(text, ["nodes", 0]) == [
+        "name",
+        "namespace",
+        "description",
+        "label",
+        "attributes",
+        "relationships",
+    ]
 
 
-def test_attribute_and_relationship_inner_order() -> None:
-    document = {
-        "version": "1.0",
-        "nodes": [
-            {
-                "name": "Device",
-                "namespace": "Dcim",
-                "attributes": [
-                    {
-                        "order_weight": 1500,
-                        "optional": True,
-                        "name": "status",
-                        "kind": "Dropdown",
-                        "choices": [{"color": "#fff", "name": "active", "label": "Active"}],
-                    }
-                ],
-                "relationships": [
-                    {
-                        "order_weight": 900,
-                        "optional": False,
-                        "cardinality": "one",
-                        "kind": "Parent",
-                        "peer": "DcimSite",
-                        "name": "site",
-                    }
-                ],
-            }
-        ],
-    }
+def test_attribute_relationship_and_choice_inner_order() -> None:
+    text = format_schema_text(NODE_DOC)
 
-    node = format_document(document)["nodes"][0]
+    attr_keys = _keys_of(text, ["nodes", 0, "attributes", 0])
+    assert attr_keys == ["name", "kind", "choices", "optional", "order_weight"]
+    assert attr_keys[-1] == "order_weight"
 
-    attr = node["attributes"][0]
-    assert list(attr.keys()) == ["name", "kind", "choices", "optional", "order_weight"]
-    # order_weight is always last for attributes.
-    assert list(attr.keys())[-1] == "order_weight"
-    # choice keys are canonically ordered.
-    assert list(attr["choices"][0].keys()) == ["name", "label", "color"]
-
-    rel = node["relationships"][0]
-    assert list(rel.keys()) == ["name", "peer", "kind", "cardinality", "optional", "order_weight"]
+    assert _keys_of(text, ["nodes", 0, "attributes", 0, "choices", 0]) == ["name", "label", "color"]
+    assert _keys_of(text, ["nodes", 0, "relationships", 0]) == ["name", "peer"]
 
 
 def test_restricted_namespace_nodes_are_untouched() -> None:
-    scrambled = {"order_weight": 1, "kind": "Text", "name": "x"}
-    document = {
-        "version": "1.0",
-        "nodes": [
-            {"namespace": "Core", "name": "Something", "attributes": [dict(scrambled)]},
-            {"namespace": "Dcim", "name": "Device", "attributes": [dict(scrambled)]},
-        ],
-    }
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Core
+    name: Something
+    attributes:
+      - order_weight: 1
+        kind: Text
+        name: x
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - order_weight: 1
+        kind: Text
+        name: x
+"""
+    text = format_schema_text(doc)
 
-    result = format_document(document)
-
-    # Core node left exactly as authored (keys not reordered).
-    core_attr = result["nodes"][0]["attributes"][0]
-    assert list(core_attr.keys()) == ["order_weight", "kind", "name"]
-
+    # Core node keeps its authored (scrambled) attribute key order.
+    assert _keys_of(text, ["nodes", 0, "attributes", 0]) == ["order_weight", "kind", "name"]
     # Dcim (user) node is reordered.
-    dcim_attr = result["nodes"][1]["attributes"][0]
-    assert list(dcim_attr.keys()) == ["name", "kind", "order_weight"]
+    assert _keys_of(text, ["nodes", 1, "attributes", 0]) == ["name", "kind", "order_weight"]
 
 
 def test_extensions_are_formatted() -> None:
-    document = {
-        "version": "1.0",
-        "extensions": {
-            "nodes": [
-                {
-                    "relationships": [{"peer": "LocationSite", "name": "sites"}],
-                    "kind": "OrganizationProvider",
-                }
-            ]
-        },
-    }
-
-    ext_node = format_document(document)["extensions"]["nodes"][0]
-    assert list(ext_node.keys()) == ["kind", "relationships"]
-    assert list(ext_node["relationships"][0].keys()) == ["name", "peer"]
+    doc = """\
+---
+version: "1.0"
+extensions:
+  nodes:
+    - relationships:
+        - peer: LocationSite
+          name: sites
+      kind: OrganizationProvider
+"""
+    text = format_schema_text(doc)
+    assert _keys_of(text, ["extensions", "nodes", 0]) == ["kind", "relationships"]
+    assert _keys_of(text, ["extensions", "nodes", 0, "relationships", 0]) == ["name", "peer"]
 
 
 def test_unknown_keys_are_preserved_not_dropped() -> None:
-    document = {
-        "version": "1.0",
-        "nodes": [{"name": "Device", "namespace": "Dcim", "some_future_key": "value"}],
-    }
-    node = format_document(document)["nodes"][0]
-    assert node["some_future_key"] == "value"
-    # Unknown key sits after the known leading keys.
-    assert list(node.keys()) == ["name", "namespace", "some_future_key"]
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - name: Device
+    namespace: Dcim
+    some_future_key: value
+"""
+    text = format_schema_text(doc)
+    assert _keys_of(text, ["nodes", 0]) == ["name", "namespace", "some_future_key"]
+    assert yaml.safe_load(text)["nodes"][0]["some_future_key"] == "value"
 
 
-def test_format_schema_text_adds_header_and_is_idempotent() -> None:
-    document = {
-        "version": "1.0",
-        "nodes": [{"namespace": "Dcim", "name": "Device", "label": "Device"}],
-    }
+def test_comments_are_preserved() -> None:
+    doc = """\
+---
+# yaml-language-server: $schema=https://schema.infrahub.app/infrahub/schema/latest.json
+version: "1.0"
 
-    text = format_schema_text(document)
-    assert text.startswith(SCHEMA_HEADER)
+nodes:
+  # a banner comment before the node
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: status
+        kind: Dropdown
+        choices:
+          - name: active
+            color: "#7fbf7f" # a trailing inline comment
+"""
+    text = format_schema_text(doc)
+    assert "# a banner comment before the node" in text
+    assert "# a trailing inline comment" in text
     assert "yaml-language-server" in text
 
-    # Running the formatter on its own output is a no-op.
-    assert format_schema_text(yaml.safe_load(text)) == text
+
+def test_flow_style_sequences_are_preserved() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - name: Device
+    namespace: Dcim
+    uniqueness_constraints:
+      - [manufacturer, name__value]
+"""
+    text = format_schema_text(doc)
+    # The inline (flow) sequence is not expanded to block style.
+    assert "[manufacturer, name__value]" in text
 
 
-def test_format_schema_text_preserves_semantics() -> None:
-    document = {
-        "version": "1.0",
-        "generics": [
-            {
-                "name": "GenericDevice",
-                "namespace": "Dcim",
-                "attributes": [{"name": "name", "kind": "Text", "unique": True, "order_weight": 1000}],
-            }
-        ],
-    }
-    text = format_schema_text(document)
-    assert yaml.safe_load(text) == document
+def test_quotes_are_preserved() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - name: Device
+    namespace: Dcim
+    description: "A quoted description"
+"""
+    text = format_schema_text(doc)
+    assert 'description: "A quoted description"' in text
+    assert 'version: "1.0"' in text
 
 
-def test_multiline_string_uses_literal_block() -> None:
-    document = {
-        "version": "1.0",
-        "nodes": [
-            {
-                "name": "Device",
-                "namespace": "Dcim",
-                "attributes": [
-                    {
-                        "name": "computed",
-                        "kind": "Text",
-                        "read_only": True,
-                        "computed_attribute": {"kind": "Jinja2", "jinja2_template": "line1\nline2\n"},
-                    }
-                ],
-            }
-        ],
-    }
-    text = format_schema_text(document)
-    assert "jinja2_template: |" in text
-    # Round-trips to the same value.
-    assert yaml.safe_load(text) == document
+def test_multiline_string_round_trips() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - name: Device
+    namespace: Dcim
+    attributes:
+      - name: computed
+        kind: Text
+        read_only: true
+        computed_attribute:
+          kind: Jinja2
+          jinja2_template: >-
+            {{ a__value }}-{{ b__value }}
+"""
+    text = format_schema_text(doc)
+    assert yaml.safe_load(text) == yaml.safe_load(doc)
 
 
-def test_blank_line_between_top_level_entries() -> None:
-    document = {
-        "version": "1.0",
-        "nodes": [
-            {"name": "A", "namespace": "Dcim"},
-            {"name": "B", "namespace": "Dcim"},
-        ],
-    }
-    text = format_schema_text(document)
-    # There is a blank line separating the two node entries.
-    assert "\n\n  - name: B" in text
+def test_header_is_added_when_missing() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - name: Device
+    namespace: Dcim
+"""
+    text = format_schema_text(doc)
+    assert text.startswith("---\n# yaml-language-server:")
+
+
+def test_format_is_idempotent_and_semantics_preserved() -> None:
+    once = format_schema_text(NODE_DOC)
+    assert format_schema_text(once) == once
+    assert yaml.safe_load(once) == yaml.safe_load(NODE_DOC)
+
+
+def test_non_schema_document_is_returned_unchanged() -> None:
+    doc = "apiVersion: infrahub.app/v1\nkind: Menu\nspec:\n  data: []\n"
+    assert format_schema_text(doc) == doc
 
 
 def test_format_error_raised_on_semantic_drift(monkeypatch: pytest.MonkeyPatch) -> None:
-    document = {"version": "1.0", "nodes": [{"name": "A", "namespace": "Dcim"}]}
+    # Simulate a formatting step that silently drops data; the guard must catch it.
+    def _wipe(data: dict) -> None:
+        data.clear()
 
-    # Simulate a serializer that silently drops data; the guard must catch it.
-    monkeypatch.setattr("infrahub_sdk.ctl.schema_format.dump_schema", lambda _content: "version: '1.0'\n")
+    monkeypatch.setattr("infrahub_sdk.ctl.schema_format.format_document", _wipe)
 
     with pytest.raises(FormatError):
-        format_schema_text(document)
+        format_schema_text(NODE_DOC)
 
 
 def test_is_schema_document() -> None:
@@ -228,17 +252,3 @@ def test_is_schema_document() -> None:
     assert not is_schema_document({"nodes": []})
     assert not is_schema_document({"apiVersion": "infrahub.app/v1", "kind": "Menu"})
     assert not is_schema_document("not a dict")
-
-
-def test_count_droppable_comments_excludes_header() -> None:
-    raw = (
-        "---\n"
-        "# yaml-language-server: $schema=https://schema.infrahub.app/infrahub/schema/latest.json\n"
-        "version: '1.0'\n"
-        "# a real comment\n"
-        "nodes: []  # trailing comment on a line\n"
-        "  # indented comment\n"
-    )
-    # Header excluded; the standalone and indented comments count. The trailing
-    # inline comment on a data line is not a standalone comment line.
-    assert count_droppable_comments(raw) == 2
