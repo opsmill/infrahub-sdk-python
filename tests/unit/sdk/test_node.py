@@ -1788,6 +1788,23 @@ async def test_create_input_data_with_IPHost_attribute(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_create_input_data_with_IPAddress_attribute(
+    client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {"address": {"value": ipaddress.ip_address("1.1.1.1"), "is_protected": True}}
+
+    if client_type == "standard":
+        dns_record = InfrahubNode(client=client, schema=bare_ipaddress_schema, data=data)
+    else:
+        dns_record = InfrahubNodeSync(client=client, schema=bare_ipaddress_schema, data=data)
+
+    # a bare address is serialized without any prefix
+    assert dns_record._generate_input_data()["data"] == {
+        "data": {"address": {"value": "1.1.1.1", "is_protected": True}}
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_IPNetwork_attribute(
     client: InfrahubClient, ipnetwork_schema: NodeSchemaAPI, client_type: str
 ) -> None:
@@ -2178,6 +2195,26 @@ async def test_node_IPHost_deserialization(
         ip_address = InfrahubNodeSync(client=client, schema=ipaddress_schema, data=data)
 
     assert ip_address.address.value == ipaddress.ip_interface("1.1.1.1/24")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_IPAddress_deserialization(
+    client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "id": "aaaaaaaaaaaaaa",
+        "address": {
+            "value": "1.1.1.1",
+            "is_protected": True,
+        },
+    }
+    if client_type == "standard":
+        dns_record = InfrahubNode(client=client, schema=bare_ipaddress_schema, data=data)
+    else:
+        dns_record = InfrahubNodeSync(client=client, schema=bare_ipaddress_schema, data=data)
+
+    # a bare address deserializes to an ip_address object (no prefix)
+    assert dns_record.address.value == ipaddress.ip_address("1.1.1.1")
 
 
 @pytest.mark.parametrize("client_type", client_types)

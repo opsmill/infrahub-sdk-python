@@ -887,6 +887,21 @@ async def ipaddress_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
+async def bare_ipaddress_schema() -> NodeSchemaAPI:
+    data = {
+        "name": "DnsRecord",
+        "namespace": "Infra",
+        "default_filter": "address__value",
+        "display_labels": ["address_value"],
+        "order_by": ["address_value"],
+        "attributes": [
+            {"name": "address", "kind": "IPAddress"},
+        ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
 async def ipnetwork_schema() -> NodeSchemaAPI:
     data = {
         "name": "IPNetwork",

@@ -61,6 +61,7 @@ class AttributeKind(str, Enum):
     BANDWIDTH = "Bandwidth"
     IPHOST = "IPHost"
     IPNETWORK = "IPNetwork"
+    IPADDRESS = "IPAddress"
     BOOLEAN = "Boolean"
     CHECKBOX = "Checkbox"
     LIST = "List"
