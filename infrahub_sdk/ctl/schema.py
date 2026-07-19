@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +20,7 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import NodeSchemaAPI, SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
+from .schema_format import FormatError, count_droppable_comments, format_schema_text, is_schema_document
 from .utils import load_yamlfile_from_disk_and_exit
 
 if TYPE_CHECKING:
@@ -362,3 +364,129 @@ async def schema_show(
                 "Yes" if rel.optional else "No",
             )
         console.print(rel_table)
+
+
+def _print_schema_diff(location: Path, original: str, formatted: str) -> None:
+    diff = difflib.unified_diff(
+        original.splitlines(keepends=True),
+        formatted.splitlines(keepends=True),
+        fromfile=f"{location} (current)",
+        tofile=f"{location} (formatted)",
+    )
+    for line in diff:
+        if line.startswith("+") and not line.startswith("+++"):
+            console.print(f"[green]{line}", end="", markup=False, highlight=False)
+        elif line.startswith("-") and not line.startswith("---"):
+            console.print(f"[red]{line}", end="", markup=False, highlight=False)
+        else:
+            console.print(line, end="", markup=False, highlight=False)
+
+
+def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bool, diff: bool) -> str:
+    """Format a single schema file and report what happened.
+
+    Args:
+        location: Path of the file on disk.
+        entries: SchemaFile entries parsed for this location (more than one means
+            a genuine multi-document file, which is not supported).
+        check: Report changes without writing.
+        diff: Print a diff instead of writing.
+
+    Returns:
+        One of ``"error"``, ``"skipped"``, ``"unchanged"`` or ``"changed"``.
+    """
+    if len(entries) > 1:
+        console.print(f"[yellow] Skipped {location}: multi-document files are not supported by format")
+        return "skipped"
+
+    schema_file = entries[0]
+    if not schema_file.valid or schema_file.content is None:
+        console.print(f"[red] {location}: {schema_file.error_message or 'invalid file'}")
+        return "error"
+
+    if not is_schema_document(schema_file.content):
+        return "skipped"
+
+    original = location.read_text(encoding="utf-8")
+    try:
+        formatted = format_schema_text(schema_file.content)
+    except FormatError as exc:
+        console.print(f"[red] {location}: {exc}")
+        return "error"
+
+    if formatted == original:
+        return "unchanged"
+
+    dropped = count_droppable_comments(original)
+    if dropped:
+        console.print(f"[yellow] {location}: {dropped} comment(s) will not be preserved")
+
+    if diff:
+        _print_schema_diff(location=location, original=original, formatted=formatted)
+    elif check:
+        console.print(f"[yellow] Would reformat {location}")
+    else:
+        location.write_text(formatted, encoding="utf-8")
+        console.print(f"[green] Reformatted {location}")
+    return "changed"
+
+
+@app.command(name="format")
+@catch_exception(console=console)
+def schema_format(
+    schemas: list[Path],
+    check: bool = typer.Option(False, "--check", help="Do not write files; exit 1 if any file would be reformatted."),
+    diff: bool = typer.Option(False, "--diff", help="Print a diff of the changes instead of writing files."),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Format Infrahub schema files with a canonical key ordering.
+
+    Reorders the keys within each node, generic, attribute, relationship and
+    dropdown choice into a consistent, opinionated order so schema files read
+    the same way and produce small diffs. List items (the attributes and
+    relationships themselves) are never reordered.
+
+    Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
+    left untouched. Comments other than the `# yaml-language-server` header are
+    not preserved.
+
+    \b
+    Examples:
+      infrahubctl schema format schemas/
+      infrahubctl schema format schemas/dcim.yml --diff
+      infrahubctl schema format schemas/ --check
+    """
+    schema_files = SchemaFile.load_from_disk(paths=schemas)
+
+    # A genuine multi-document file yields several SchemaFile entries for the
+    # same location. The per-file ``multiple_documents`` flag is unreliable
+    # (it is set from a naive `---` substring count that also matches `---`
+    # inside comments), so group by location and count real documents instead.
+    entries_by_location: dict[Path, list[SchemaFile]] = {}
+    for schema_file in schema_files:
+        entries_by_location.setdefault(schema_file.location, []).append(schema_file)
+
+    reformatted = 0
+    unchanged = 0
+    would_change = 0
+    has_error = False
+
+    for location, entries in entries_by_location.items():
+        status = _format_one_schema_file(location=location, entries=entries, check=check, diff=diff)
+        if status == "error":
+            has_error = True
+        elif status == "unchanged":
+            unchanged += 1
+        elif status == "changed":
+            if check or diff:
+                would_change += 1
+            else:
+                reformatted += 1
+
+    if check or diff:
+        console.print(f"\n[bold]{would_change} file(s) would be reformatted, {unchanged} unchanged.")
+    else:
+        console.print(f"\n[bold]{reformatted} file(s) reformatted, {unchanged} unchanged.")
+
+    if has_error or (check and would_change):
+        raise typer.Exit(1)
