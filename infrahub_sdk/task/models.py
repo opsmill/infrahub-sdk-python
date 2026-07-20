@@ -48,7 +48,7 @@ class TaskError(BaseModel):
 
     status_class: str
     message: str
-    remediation: str
+    remediation: str | None = None
 
 
 class HttpRequest(BaseModel):
