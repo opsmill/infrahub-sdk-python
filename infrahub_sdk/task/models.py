@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
+
+WEBHOOK_SEND_WORKFLOW = "webhook-send"
 
 
 class TaskState(str, Enum):
@@ -40,6 +43,25 @@ class TaskRelatedNode(BaseModel):
     kind: str
 
 
+class TaskError(BaseModel):
+    """Classified failure reason with a remediation hint; set only when a task failed with one."""
+
+    status_class: str
+    message: str
+    remediation: str
+
+
+class HttpRequest(BaseModel):
+    url: str
+    headers: dict[str, Any] | None = None  # secret values are masked by the server
+
+
+class HttpResponse(BaseModel):
+    status_code: int | None = None
+    body: str | None = None
+    latency_ms: float | None = None
+
+
 class Task(BaseModel):
     id: str
     title: str
@@ -55,6 +77,7 @@ class Task(BaseModel):
     related_nodes: list[TaskRelatedNode] = Field(default_factory=list)
     logs: list[TaskLog] = Field(default_factory=list)
     available_actions: list[TaskAction] = Field(default_factory=list)
+    error: TaskError | None = None
 
     @property
     def can_retry(self) -> bool:
@@ -68,6 +91,7 @@ class Task(BaseModel):
 
     @classmethod
     def from_graphql(cls, data: dict) -> Task:
+        data = dict(data)
         related_nodes: list[TaskRelatedNode] = []
         logs: list[TaskLog] = []
         available_actions: list[TaskAction] = []
@@ -87,7 +111,27 @@ class Task(BaseModel):
                 available_actions = [TaskAction(**item) for item in data["available_actions"]]
             del data["available_actions"]
 
-        return cls(**data, related_nodes=related_nodes, logs=logs, available_actions=available_actions)
+        # The workflow name selects the concrete type, mirroring the server's interface;
+        # pydantic coerces the remaining error / http_* dicts in `data` into their models.
+        target_cls = TASK_TYPES.get(data.get("workflow") or "", cls)
+        return target_cls(
+            **data,
+            related_nodes=related_nodes,
+            logs=logs,
+            available_actions=available_actions,
+        )
+
+
+class WebhookDeliveryTask(Task):
+    """Concrete task type for the ``webhook-send`` workflow, carrying delivery diagnostics."""
+
+    http_request: HttpRequest | None = None
+    http_response: HttpResponse | None = None
+
+
+TASK_TYPES: dict[str, type[Task]] = {
+    WEBHOOK_SEND_WORKFLOW: WebhookDeliveryTask,
+}
 
 
 class TaskFilter(BaseModel):
