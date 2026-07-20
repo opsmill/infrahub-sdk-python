@@ -19,9 +19,9 @@ $ infrahubctl schema [OPTIONS] COMMAND [ARGS]...
 * `load`: Load one or multiple schema files into Infrahub.
 * `check`: Check if schema files are valid and their impact on Infrahub.
 * `export`: Export the schema from Infrahub as YAML...
-* `format`: Format Infrahub schema files with a...
 * `list`: List all available schema kinds.
 * `show`: Show details for a specific schema kind.
+* `format`: Format Infrahub schema files with a...
 
 ## `infrahubctl schema load`
 
@@ -85,40 +85,6 @@ $ infrahubctl schema export [OPTIONS]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
-## `infrahubctl schema format`
-
-Format Infrahub schema files with a canonical key ordering.
-
-Reorders the keys within each node, generic, attribute, relationship and
-dropdown choice into a consistent, opinionated order so schema files read
-the same way and produce small diffs. List items (the attributes and
-relationships themselves) are never reordered.
-
-Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
-left untouched. Comments, quoting, and inline (flow) sequences are preserved.
-
-Examples:
-  infrahubctl schema format schemas/
-  infrahubctl schema format schemas/dcim.yml --diff
-  infrahubctl schema format schemas/ --check
-
-**Usage**:
-
-```console
-$ infrahubctl schema format [OPTIONS] SCHEMAS...
-```
-
-**Arguments**:
-
-* `SCHEMAS...`: [required]
-
-**Options**:
-
-* `--check`: Do not write files; exit 1 if any file would be reformatted.
-* `--diff`: Print a diff of the changes instead of writing files.
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
-* `--help`: Show this message and exit.
-
 ## `infrahubctl schema list`
 
 List all available schema kinds.
@@ -166,5 +132,39 @@ $ infrahubctl schema show [OPTIONS] KIND
 **Options**:
 
 * `-b, --branch TEXT`: Target branch
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl schema format`
+
+Format Infrahub schema files with a canonical key ordering.
+
+Reorders the keys within each node, generic, attribute, relationship and
+dropdown choice into a consistent, opinionated order so schema files read
+the same way and produce small diffs. List items (the attributes and
+relationships themselves) are never reordered.
+
+Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
+left untouched. Comments, quoting, and inline (flow) sequences are preserved.
+
+Examples:
+  infrahubctl schema format schemas/
+  infrahubctl schema format schemas/dcim.yml --diff
+  infrahubctl schema format schemas/ --check
+
+**Usage**:
+
+```console
+$ infrahubctl schema format [OPTIONS] SCHEMAS...
+```
+
+**Arguments**:
+
+* `SCHEMAS...`: [required]
+
+**Options**:
+
+* `--check`: Do not write files; exit 1 if any file would be reformatted.
+* `--diff`: Print a diff of the changes instead of writing files.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
