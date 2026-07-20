@@ -104,8 +104,9 @@ def test_format_diff_prints_and_does_not_write(tmp_path: Path) -> None:
 def test_format_preserves_comments(tmp_path: Path) -> None:
     schema = _write(tmp_path / "dcim.yml", UNFORMATTED)
 
-    runner.invoke(app, env=WIDE, args=["format", str(schema)])
+    result = runner.invoke(app, env=WIDE, args=["format", str(schema)])
 
+    assert result.exit_code == 0
     # The comment survives the reformat.
     assert "# a design note" in schema.read_text(encoding="utf-8")
 

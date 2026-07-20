@@ -244,6 +244,52 @@ def test_format_error_raised_on_semantic_drift(monkeypatch: pytest.MonkeyPatch) 
         format_schema_text(NODE_DOC)
 
 
+def test_malformed_non_list_attributes_is_left_untouched() -> None:
+    # A parseable schema whose `attributes` is not a list must not crash the
+    # formatter; that section is simply left as-is.
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes: 5
+    relationships: not-a-list
+"""
+    text = format_schema_text(doc)
+    assert yaml.safe_load(text) == yaml.safe_load(doc)
+
+
+def test_header_not_added_when_substring_appears_in_scalar() -> None:
+    # `yaml-language-server` appearing in a value (not as a real header line)
+    # must not suppress the header being added.
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    description: see the yaml-language-server extension docs
+"""
+    text = format_schema_text(doc)
+    assert text.startswith("---\n# yaml-language-server: $schema=")
+    # The real directive appears exactly once (added, not duplicated later).
+    assert text.count("# yaml-language-server:") == 1
+
+
+def test_existing_header_is_not_duplicated() -> None:
+    doc = """\
+---
+# yaml-language-server: $schema=https://schema.infrahub.app/infrahub/schema/latest.json
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+"""
+    text = format_schema_text(doc)
+    assert text.count("# yaml-language-server:") == 1
+
+
 def test_is_schema_document() -> None:
     assert is_schema_document({"version": "1.0", "nodes": []})
     assert is_schema_document({"version": "1.0", "generics": []})
