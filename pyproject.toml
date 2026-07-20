@@ -304,8 +304,6 @@ ignore = [
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
     "COM812", # missing-trailing-comma
-    "D203",     # incorrect-blank-line-before-class (incompatible with D211)
-    "D213",     # multi-line-summary-second-line (incompatible with D212)
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
@@ -350,13 +348,9 @@ ignore = [
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method
     "D107",    # Missing docstring in `__init__`
-    "D301",    # Use `r"""` if any backslashes in a docstring
-    "D401",    # First line of docstring should be in imperative mood
-    "D404",    # First word of the docstring should not be "This"
+    "D301",    # Use `r"""` if any backslashes in a docstring — conflicts with Typer's `\b` no-wrap marker in CLI command docstrings, which must stay a real escape (not a raw string)
     "D417",    # Missing argument description in the docstring
-    "DOC102",  # Docstring contains extraneous parameter(s)
     "DOC201",  # `return` is not documented in docstring
-    "DOC402",  # `yield` is not documented in docstring
     "DOC502",  # Raised exception is not explicitly raised (false positives for transitive raises through helpers)
 ]
 
@@ -381,6 +375,10 @@ ignorelist = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["infrahub_sdk", "infrahub_ctl"]
+
+[tool.ruff.lint.pydocstyle]
+# Also lets the DOC (pydoclint) rules parse Args/Returns/Yields sections correctly.
+convention = "google"
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 150
