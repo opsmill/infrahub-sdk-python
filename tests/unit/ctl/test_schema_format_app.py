@@ -98,6 +98,9 @@ def test_format_diff_prints_and_does_not_write(tmp_path: Path) -> None:
     assert result.exit_code == 0
     output = remove_ansi_color(result.stdout)
     assert "yaml-language-server" in output  # the added header shows up in the diff
+    # Colour is applied via Rich styling, not literal markup tags.
+    assert "[green]" not in output
+    assert "[red]" not in output
     assert schema.read_text(encoding="utf-8") == before
 
 
