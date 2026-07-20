@@ -426,10 +426,12 @@ def _print_schema_diff(location: Path, original: str, formatted: str) -> None:
         tofile=f"{location} (formatted)",
     )
     for line in diff:
+        # markup=False keeps bracketed diff content (e.g. `[manufacturer, name]`)
+        # literal, so colour is applied via style= rather than inline markup.
         if line.startswith("+") and not line.startswith("+++"):
-            console.print(f"[green]{line}", end="", markup=False, highlight=False)
+            console.print(line, end="", markup=False, highlight=False, style="green")
         elif line.startswith("-") and not line.startswith("---"):
-            console.print(f"[red]{line}", end="", markup=False, highlight=False)
+            console.print(line, end="", markup=False, highlight=False, style="red")
         else:
             console.print(line, end="", markup=False, highlight=False)
 
