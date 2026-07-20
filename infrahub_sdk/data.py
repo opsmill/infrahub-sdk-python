@@ -5,6 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from .node import InfrahubNode  # noqa: TC001
 
 
+class ServerInfo(BaseModel):
+    version: str = ""
+    deployment_id: str = ""
+
+
 class RepositoryBranchInfo(BaseModel):
     internal_status: str
 

@@ -29,6 +29,7 @@ ENVVAR_CONFIG_FILE = "INFRAHUBCTL_CONFIG"
 
 def format_timestamp(timestamp: str) -> str:
     """Format ISO timestamp to 'YYYY-MM-DD HH:MM:SS'.
+
     Args:
         timestamp (str): ISO fromatted timestamp
 
@@ -37,6 +38,7 @@ def format_timestamp(timestamp: str) -> str:
 
     Raises:
         Any execptions returned from formatting the timestamp are propogated to the caller
+
     """
     dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     return dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -54,6 +56,7 @@ async def check_git_files_changed(client: "InfrahubClient", branch: str) -> bool
 
     Raises:
         Any exceptions from the API call are propagated to the caller
+
     """
     url = f"{client.address}/api/diff/files?branch={branch}"
     resp = await client._get(url=url, timeout=client.default_timeout)
@@ -135,8 +138,7 @@ def generate_proposed_change_tables(proposed_changes: list[CoreProposedChange]) 
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage the branches in a remote Infrahub instance.
+    """Manage the branches in a remote Infrahub instance.
 
     List, create, merge, rebase ..
     """
@@ -146,7 +148,6 @@ def callback() -> None:
 @catch_exception(console=console)
 async def list_branch(_: str = CONFIG_PARAM) -> None:
     """List all existing branches."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -206,7 +207,6 @@ async def create(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Create a new branch."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -218,7 +218,6 @@ async def create(
 @catch_exception(console=console)
 async def delete(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Delete a branch."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -230,7 +229,6 @@ async def delete(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def rebase(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Rebase a Branch with main."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -242,7 +240,6 @@ async def rebase(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Merge a Branch with main."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
 
     client = initialize_client()
@@ -254,7 +251,6 @@ async def merge(branch_name: str, _: str = CONFIG_PARAM) -> None:
 @catch_exception(console=console)
 async def validate(branch_name: str, _: str = CONFIG_PARAM) -> None:
     """Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET)."""
-
     client = initialize_client()
     await client.branch.validate(branch_name=branch_name)
     console.print(f"Branch '{branch_name}' is valid.")
@@ -268,7 +264,6 @@ async def report(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Generate branch cleanup status report."""
-
     client = initialize_client()
 
     # Fetch branch metadata first (needed for diff creation)
@@ -297,7 +292,7 @@ async def report(
     git_files_changed = await check_git_files_changed(client, branch=branch_name)
 
     proposed_changes = await client.filters(
-        kind=CoreProposedChange,  # type: ignore[type-abstract]
+        kind=CoreProposedChange,
         source_branch__value=branch_name,
         prefetch_relationships=True,
         property=True,

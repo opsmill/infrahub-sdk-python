@@ -8,10 +8,10 @@ from .mdx_section import ASection, MdxSection
 
 @dataclass
 class CollapsedOverloadSection(ASection):
-    """Collapses a group of overloaded method sections into one primary entry
-    followed by a collapsible ``<details>`` block with the remaining overloads.
+    """Collapse a group of overloaded method sections into a primary entry plus a details block.
 
-    The *primary* overload is the one with the most parameters (excluding
+    The remaining overloads are placed inside a collapsible ``<details>`` block following the
+    primary entry. The *primary* overload is the one with the most parameters (excluding
     ``self``).  On ties, the first in source order wins.
 
     Example::
@@ -48,6 +48,10 @@ class CollapsedOverloadSection(ASection):
 
         Selects the overload with the most parameters as *primary*.
         On ties, the first in source order wins.
+
+        Raises:
+            ValueError: If ``sections`` is empty.
+
         """
         if not sections:
             raise ValueError("Cannot create CollapsedOverloadSection from an empty list")

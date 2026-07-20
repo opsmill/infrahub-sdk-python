@@ -38,6 +38,7 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
         '[1, 2, 3]'
         >>> convert_to_graphql_as_string(None)
         'null'
+
     """
     if value is None:
         return "null"
@@ -134,6 +135,7 @@ def render_query_block(data: dict, offset: int = 4, indentation: int = 4, conver
         >>> data = {"user": {"@alias": "u", "@filters": {"id": 123}, "name": None}}
         >>> render_query_block(data)
         ['    u: user(id: 123) {', '        name', '    }']
+
     """
     filters_key = "@filters"
     alias_key = "@alias"
@@ -199,6 +201,7 @@ def render_input_block(data: dict, offset: int = 4, indentation: int = 4, conver
         >>> data = {"user": {"name": "John", "hobbies": ["reading", "coding"]}}
         >>> render_input_block(data)
         ['    user: {', '        name: "John"', '        hobbies: [', '            "reading",', '            "coding",', '        ]', '    }']
+
     """
     offset_str = " " * offset
     lines = []

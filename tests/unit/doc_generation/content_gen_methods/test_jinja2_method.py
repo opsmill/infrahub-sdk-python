@@ -55,8 +55,10 @@ class TestJinja2DocContentGenMethod:
         assert result == "Hi there!"
 
     def test_auto_escaping_is_disabled(self, tmp_path: Path) -> None:
-        """HTML content in template variables must not be auto-escaped,
-        since the SDK Jinja2 environment does not enable autoescape."""
+        """HTML content in template variables must not be auto-escaped.
+
+        The SDK Jinja2 environment does not enable autoescape.
+        """
         # Arrange
         template_file = tmp_path / "test.j2"
         template_file.write_text("{{ html_content }}", encoding="utf-8")

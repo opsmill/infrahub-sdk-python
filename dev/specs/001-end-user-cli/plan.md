@@ -1,7 +1,7 @@
 # Implementation Plan: End-User CLI (`infrahubctl` CRUD commands)
 
 **Branch**: `001-end-user-cli` | **Date**: 2026-03-28 | **Updated**: 2026-04-02 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/001-end-user-cli/spec.md`
+**Input**: Feature specification from `dev/specs/001-end-user-cli/spec.md`
 
 ## Summary
 
@@ -42,7 +42,7 @@ No violations. No complexity tracking needed.
 ### Documentation (this feature)
 
 ```text
-specs/001-end-user-cli/
+dev/specs/001-end-user-cli/
 ├── plan.md              # This file
 ├── spec.md              # Feature specification
 ├── research.md          # Phase 0 research findings

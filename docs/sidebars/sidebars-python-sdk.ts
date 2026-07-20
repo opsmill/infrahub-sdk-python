@@ -11,6 +11,7 @@ const guidesItems = getItemsWithOrder(
     'guides/installation',
     'guides/client',
     'guides/query_data',
+    'guides/graph_traversal',
     'guides/create_update_delete',
     'guides/branches',
     'guides/store',
@@ -37,6 +38,7 @@ const referenceItems = getItemsWithOrder(
   [
     'reference/config',
     'reference/templating',
+    'reference/compatibility',
   ],
   'reference',
 );

@@ -29,6 +29,7 @@ class Jinja2DocContentGenMethod(ADocContentGenMethod):
             template_variables={"builtin": BUILTIN_FILTERS},
         )
         content = method.apply()
+
     """
 
     def __init__(self, template: Jinja2Template, template_variables: dict[str, Any]) -> None:

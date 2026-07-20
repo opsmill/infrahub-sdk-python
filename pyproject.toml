@@ -1,6 +1,6 @@
 [project]
 name = "infrahub-sdk"
-version = "1.19.0"
+dynamic = ["version"]
 description = "Python Client to interact with Infrahub"
 authors = [
     {name = "OpsMill", email = "info@opsmill.com"}
@@ -49,9 +49,9 @@ ctl = [
     "pyyaml>=6",
     "ruamel.yaml>=0.18",
     "rich>=12,<14",
-    "typer>=0.12.5",
-    "click==8.1.*",
-    "ariadne-codegen==0.15.3",
+    "typer>=0.15.0",
+    "click>=8.3,<9",
+    "ariadne-codegen==0.18.0",
     "mdxify>=0.2.23; python_version>='3.10'",
 ]
 
@@ -64,9 +64,9 @@ all = [
     "pyyaml>=6",
     "ruamel.yaml>=0.18",
     "rich>=12,<14",
-    "typer>=0.12.5",
-    "click==8.1.*",
-    "ariadne-codegen==0.15.3",
+    "typer>=0.15.0",
+    "click>=8.3,<9",
+    "ariadne-codegen==0.18.0",
 ]
 
 [dependency-groups]
@@ -83,9 +83,10 @@ tests = [
 lint = [
     "yamllint",
     "mypy==1.11.2",
-    "ruff==0.15.0",
+    "ruff==0.15.12",
     "astroid>=3.1,<4.0",
     "ty==0.0.14",
+    "rumdl==0.2.28",
 ]
 types = [
     "types-ujson",
@@ -97,10 +98,10 @@ dev = [
     {include-group = "lint"},
     {include-group = "types"},
     "ipython",
-    "requests",
+    "requests>=2.33.0",
     "prek>=0.3.0",
     "codecov",
-    "invoke>=2.2.0",
+    "invoke>=2.2.1",
     "towncrier>=24.8.0",
 ]
 
@@ -124,6 +125,9 @@ addopts = "-vs --cov-report term-missing --cov-report xml --dist loadscope"
 
 [tool.ty.environment]
 python-version = "3.10"
+
+[tool.ty.rules]
+possibly-missing-attribute = "error"
 
 [[tool.ty.overrides]]
 include = ["infrahub_sdk/**"]
@@ -297,11 +301,13 @@ task-tags = ["FIXME", "TODO", "XXX"]
 select = ["ALL"]
 
 ignore = [
-    "D",      # pydocstyle
-    "DOC",    # pydoclint
+    #"D",      # pydocstyle
+    #"DOC",    # pydoclint
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
     "COM812", # missing-trailing-comma
+    "D203",     # incorrect-blank-line-before-class (incompatible with D211)
+    "D213",     # multi-line-summary-second-line (incompatible with D212)
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
@@ -334,6 +340,26 @@ ignore = [
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
     "TC003",   # Move standard library import `collections.abc.Iterable` into a type-checking block
     "UP031",   # Use format specifiers instead of percent format
+
+    ##################################################################################################
+    # Documentation rules (D and DOC). Listed individually so they can be evaluated and removed       #
+    # one-by-one as docstrings are added/fixed, instead of blocking the entire D and DOC rule sets.   #
+    ##################################################################################################
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in `__init__`
+    "D301",    # Use `r"""` if any backslashes in a docstring
+    "D401",    # First line of docstring should be in imperative mood
+    "D404",    # First word of the docstring should not be "This"
+    "D417",    # Missing argument description in the docstring
+    "DOC102",  # Docstring contains extraneous parameter(s)
+    "DOC201",  # `return` is not documented in docstring
+    "DOC402",  # `yield` is not documented in docstring
+    "DOC502",  # Raised exception is not explicitly raised (false positives for transitive raises through helpers)
 ]
 
 
@@ -363,7 +389,7 @@ max-line-length = 150
 
 [tool.ruff.lint.mccabe]
 # Target max-complexity=10
-max-complexity = 17
+max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
 
@@ -396,6 +422,10 @@ max-complexity = 17
     # Review and change the below later                                                              #
     ##################################################################################################
     "PLR0912", # Too many branches
+]
+
+"infrahub_sdk/ctl/**/*.py" = [
+    "DOC501", # CLI commands raise typer.Exit/Abort as control flow; not part of the public API
 ]
 
 "infrahub_sdk/pytest_plugin/models.py" = [
@@ -441,6 +471,7 @@ max-complexity = 17
 
 "tasks.py" = [
     "PLC0415", # `import` should be at the top-level of a file
+    "DOC501",  # invoke task helpers raise Exit/ValueError for build-script flow; not part of the public API
 ]
 
 [tool.towncrier]
@@ -490,9 +521,55 @@ directory = "housekeeping"
 name = "Housekeeping"
 showcontent = true
 
+[tool.rumdl]
+# Markdown linter (https://github.com/rvben/rumdl), replaces markdownlint-cli2.
+# The first row mirrors the rules markdownlint had disabled; the second row disables
+# rumdl-only rules and rules that false-positive on our MDX/Docusaurus docs
+# (fenced blocks nested in <Tabs>, `$(base_url)` template links) that markdownlint
+# never enforced.
+disable = [
+    "MD013", "MD014", "MD024", "MD029", "MD033", "MD034", "MD041", "MD045", "MD047",
+    "MD046", "MD057", "MD064", "MD069", "MD071", "MD077",
+]
+exclude = [
+    ".venv",
+    "node_modules",
+    ".git",
+    "changelog/*.md",
+    ".agents/commands",
+    ".agents/skills",
+    ".claude/commands",
+    ".claude/skills",
+    ".specify/templates",
+    ".specify/extensions",
+]
+
+[tool.rumdl.MD025]
+front_matter_title = ""
+
+[tool.rumdl.MD059]
+prohibited_texts = []
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+# Static sentinel for tag-less checkouts (e.g. a shallow clone without tags). It is identical on
+# every branch so releases never touch it — a moving value would conflict on every stable/develop
+# merge, which is exactly what dynamic versioning removes. Tag-less builds resolve 0.0.0.devN+g<hash>,
+# unmistakably a non-release, and are publish-guarded in release.yml.
+fallback-version = "0.0.0.dev0"
+
+[tool.hatch.version.raw-options]
+# No --dirty: keeps the resolved version derived from committed git state only, independent of the
+# work tree contents, so a build from a dirty/stripped tree never bumps an on-tag build to a dev
+# version.
+git_describe_command = ["git", "describe", "--tags", "--long", "--match", "v*"]
+
+[tool.hatch.build.hooks.vcs]
+version-file = "infrahub_sdk/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["infrahub_sdk"]

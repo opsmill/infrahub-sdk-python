@@ -10,7 +10,7 @@ from __future__ import annotations
 import ipaddress
 from typing import TYPE_CHECKING, Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 if TYPE_CHECKING:
     from ...node import InfrahubNode
@@ -135,6 +135,7 @@ def _related_node_ref(rel: Any) -> str | list[str] | None:
 
     Returns:
         A string, list of strings, or None if the relationship is unset.
+
     """
     hfid = getattr(rel, "hfid", None)
     if hfid:

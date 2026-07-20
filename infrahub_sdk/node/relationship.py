@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, cast
 
 from ..exceptions import (
     Error,
@@ -11,7 +11,7 @@ from ..exceptions import (
 from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
-from .related_node import RelatedNode, RelatedNodeSync
+from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -19,15 +19,31 @@ if TYPE_CHECKING:
     from .node import InfrahubNode, InfrahubNodeSync
 
 
-class RelationshipManagerBase:
-    """Base class for RelationshipManager and RelationshipManagerSync"""
+class RelationshipManagerBase(Generic[PeerT]):
+    """Base class for :class:`RelationshipManager` and :class:`RelationshipManagerSync`.
+
+    A ``RelationshipManagerBase`` exposes a cardinality-many relationship as a list of
+    peers along with helpers to add, remove, or extend the set. Relationship managers are
+    initialized lazily: until :meth:`fetch` (on the async/sync subclasses) is called, the
+    members are not loaded and editing is not allowed.
+
+    Attributes:
+        name (str): The name of the relationship slot on the parent node.
+        schema (RelationshipSchemaAPI): The schema describing the relationship.
+        branch (str): The branch the relationship is bound to.
+        peers (list[RelatedNode | RelatedNodeSync]): The current peer set.
+        initialized (bool): ``True`` once the manager has been populated with data.
+
+    """
 
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
-        """
+        """Build the base relationship manager state.
+
         Args:
             name (str): The name of the relationship.
             branch (str): The branch where the relationship resides.
-            schema (RelationshipSchema): The schema of the relationship.
+            schema (RelationshipSchemaAPI): The schema of the relationship.
+
         """
         self.initialized: bool = False
         self._has_update: bool = False
@@ -39,27 +55,59 @@ class RelationshipManagerBase:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self.peers: list[RelatedNode | RelatedNodeSync] = []
+        self.peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
 
     @property
     def peer_ids(self) -> list[str]:
+        """Return the IDs of all peers that have one.
+
+        Returns:
+            list[str]: The IDs of the peers, in insertion order.
+
+        """
         return [peer.id for peer in self.peers if peer.id]
 
     @property
     def peer_hfids(self) -> list[list[Any]]:
+        """Return the HFIDs of all peers that have one.
+
+        Returns:
+            list[list[Any]]: The HFIDs of the peers as lists of components, in insertion order.
+
+        """
         return [peer.hfid for peer in self.peers if peer.hfid]
 
     @property
     def peer_hfids_str(self) -> list[str]:
+        """Return the HFIDs of all peers as separator-joined strings.
+
+        Returns:
+            list[str]: The HFIDs of the peers as ``Kind__part1__part2`` strings.
+
+        """
         return [peer.hfid_str for peer in self.peers if peer.hfid_str]
 
     @property
     def has_update(self) -> bool:
+        """Return whether the peer set has been modified since initialization.
+
+        Returns:
+            bool: ``True`` after a successful :meth:`add`, :meth:`extend`, or :meth:`remove`.
+
+        """
         return self._has_update
 
     @property
     def is_from_profile(self) -> bool:
-        """Return whether this relationship was set from a profile. All its peers must be from a profile."""
+        """Return whether this relationship was set from a profile.
+
+        The relationship is considered profile-sourced only when every peer is itself
+        sourced from a profile.
+
+        Returns:
+            bool: ``True`` when at least one peer exists and all peers are from a profile.
+
+        """
         if not self.peers:
             return False
         all_profiles = [p.is_from_profile for p in self.peers]
@@ -88,6 +136,7 @@ class RelationshipManagerBase:
             Dict: A dictionary representing the basic structure of a GraphQL query for multiple related nodes.
                 It includes count, edges, and node information (ID, display label, and typename), along with additional properties
                 and any peer_data provided.
+
         """
         data: dict[str, Any] = {
             "count": None,
@@ -112,8 +161,15 @@ class RelationshipManagerBase:
         return data
 
 
-class RelationshipManager(RelationshipManagerBase):
-    """Manages relationships of a node in an asynchronous context."""
+class RelationshipManager(RelationshipManagerBase[PeerT]):
+    """Asynchronous manager for a cardinality-many relationship.
+
+    Extends :class:`RelationshipManagerBase` with the ability to populate and edit the
+    peer set against an :class:`InfrahubClient`: :meth:`fetch` resolves every peer in a
+    parallel batch and :meth:`add`, :meth:`extend`, and :meth:`remove` mutate the peer
+    list in memory. Peers are exposed as :class:`RelatedNode` instances and can be
+    accessed by index via ``manager[i]``.
+    """
 
     def __init__(
         self,
@@ -124,7 +180,8 @@ class RelationshipManager(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
+        """Initialize the async relationship manager.
+
         Args:
             name (str): The name of the relationship.
             client (InfrahubClient): The client used to interact with the backend.
@@ -132,6 +189,10 @@ class RelationshipManager(RelationshipManagerBase):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
+
         """
         self.client = client
         self.node = node
@@ -147,20 +208,40 @@ class RelationshipManager(RelationshipManagerBase):
         if isinstance(data, list):
             for item in data:
                 self.peers.append(
-                    RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNode[PeerT]",
+                        RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
                 self.peers.append(
-                    RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNode[PeerT]",
+                        RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
-    def __getitem__(self, item: int) -> RelatedNode:
-        return self.peers[item]  # type: ignore[return-value]
+    def __getitem__(self, item: int) -> RelatedNode[PeerT]:
+        return cast("RelatedNode[PeerT]", self.peers[item])
 
     async def fetch(self) -> None:
+        """Populate the peer set and resolve every peer to a full node.
+
+        When the manager is not yet initialized, the parent node is re-queried with this
+        relationship included so the peer list can be populated. The peers are then
+        fetched in a parallel batch grouped by kind and stored in the client store.
+
+        Raises:
+            Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
+
+        """
         if not self.initialized:
             exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
             exclude.remove(self.schema.name)
@@ -197,10 +278,25 @@ class RelationshipManager(RelationshipManagerBase):
             pass
 
     def add(self, data: str | RelatedNode | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        The new peer is only added when its ID or HFID is not already present; duplicate
+        adds are silently ignored.
+
+        Args:
+            data (str | RelatedNode | dict): The peer to add. Accepts an ID string, an
+                existing :class:`RelatedNode`, or a dict describing the peer (with ``id``
+                or ``hfid`` keys, plus optional relationship properties).
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
-        new_node = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        new_node = cast(
+            "RelatedNode[PeerT]", RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        )
 
         if (new_node.id and new_node.id not in self.peer_ids) or (
             new_node.hfid and new_node.hfid not in self.peer_hfids
@@ -209,11 +305,37 @@ class RelationshipManager(RelationshipManagerBase):
             self._has_update = True
 
     def extend(self, data: Iterable[str | RelatedNode | dict]) -> None:
-        """Add new peers to this relationship."""
+        """Add new peers to this relationship.
+
+        This is a convenience wrapper that calls :meth:`add` for every item in ``data``.
+        Items already present (by ID or HFID) are silently ignored.
+
+        Args:
+            data (Iterable[str | RelatedNode | dict]): The peers to add, in any of the
+                formats accepted by :meth:`add`.
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+
+        """
         for d in data:
             self.add(d)
 
     def remove(self, data: str | RelatedNode | dict) -> None:
+        """Remove a peer from this relationship.
+
+        The peer to remove is matched first by ID, then by HFID. When no match is found,
+        the call is a no-op.
+
+        Args:
+            data (str | RelatedNode | dict): The peer to remove. Accepts an ID string, an
+                existing :class:`RelatedNode`, or a dict describing the peer.
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+            IndexError: If the internal peer index is inconsistent with the lookup result.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
@@ -235,8 +357,16 @@ class RelationshipManager(RelationshipManagerBase):
             self._has_update = True
 
 
-class RelationshipManagerSync(RelationshipManagerBase):
-    """Manages relationships of a node in a synchronous context."""
+class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
+    """Synchronous manager for a cardinality-many relationship.
+
+    Synchronous counterpart of :class:`RelationshipManager`. Extends
+    :class:`RelationshipManagerBase` with the ability to populate and edit the peer set
+    against an :class:`InfrahubClientSync`: :meth:`fetch` resolves every peer in a
+    parallel batch and :meth:`add`, :meth:`extend`, and :meth:`remove` mutate the peer
+    list in memory. Peers are exposed as :class:`RelatedNodeSync` instances and can be
+    accessed by index via ``manager[i]``.
+    """
 
     def __init__(
         self,
@@ -247,7 +377,8 @@ class RelationshipManagerSync(RelationshipManagerBase):
         schema: RelationshipSchemaAPI,
         data: Any | dict,
     ) -> None:
-        """
+        """Initialize the sync relationship manager.
+
         Args:
             name (str): The name of the relationship.
             client (InfrahubClientSync): The client used to interact with the backend synchronously.
@@ -255,6 +386,10 @@ class RelationshipManagerSync(RelationshipManagerBase):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+
+        Raises:
+            ValueError: If ``data`` is in an unexpected format.
+
         """
         self.client = client
         self.node = node
@@ -270,20 +405,40 @@ class RelationshipManagerSync(RelationshipManagerBase):
         if isinstance(data, list):
             for item in data:
                 self.peers.append(
-                    RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNodeSync[PeerTSync]",
+                        RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
                 self.peers.append(
-                    RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item)
+                    cast(
+                        "RelatedNodeSync[PeerTSync]",
+                        RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
+                    )
                 )
         else:
-            raise ValueError(f"Unexpected format for {name} found a {type(data)}, {data}")
+            raise ValueError(
+                f"Relationship '{name}' expects a list of nodes (cardinality many), "
+                f"but received a single {type(data).__name__}. "
+                f"Wrap the value in a list, e.g. {name}=[value]."
+            )
 
-    def __getitem__(self, item: int) -> RelatedNodeSync:
-        return self.peers[item]  # type: ignore[return-value]
+    def __getitem__(self, item: int) -> RelatedNodeSync[PeerTSync]:
+        return cast("RelatedNodeSync[PeerTSync]", self.peers[item])
 
     def fetch(self) -> None:
+        """Populate the peer set and resolve every peer to a full node.
+
+        When the manager is not yet initialized, the parent node is re-queried with this
+        relationship included so the peer list can be populated. The peers are then
+        fetched in a parallel batch grouped by kind and stored in the client store.
+
+        Raises:
+            Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
+
+        """
         if not self.initialized:
             exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
             exclude.remove(self.schema.name)
@@ -320,10 +475,26 @@ class RelationshipManagerSync(RelationshipManagerBase):
             pass
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
-        """Add a new peer to this relationship."""
+        """Add a new peer to this relationship.
+
+        The new peer is only added when its ID or HFID is not already present; duplicate
+        adds are silently ignored.
+
+        Args:
+            data (str | RelatedNodeSync | dict): The peer to add. Accepts an ID string,
+                an existing :class:`RelatedNodeSync`, or a dict describing the peer (with
+                ``id`` or ``hfid`` keys, plus optional relationship properties).
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
-        new_node = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
+        new_node = cast(
+            "RelatedNodeSync[PeerTSync]",
+            RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data),
+        )
 
         if (new_node.id and new_node.id not in self.peer_ids) or (
             new_node.hfid and new_node.hfid not in self.peer_hfids
@@ -332,11 +503,37 @@ class RelationshipManagerSync(RelationshipManagerBase):
             self._has_update = True
 
     def extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None:
-        """Add new peers to this relationship."""
+        """Add new peers to this relationship.
+
+        This is a convenience wrapper that calls :meth:`add` for every item in ``data``.
+        Items already present (by ID or HFID) are silently ignored.
+
+        Args:
+            data (Iterable[str | RelatedNodeSync | dict]): The peers to add, in any of the
+                formats accepted by :meth:`add`.
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+
+        """
         for d in data:
             self.add(d)
 
     def remove(self, data: str | RelatedNodeSync | dict) -> None:
+        """Remove a peer from this relationship.
+
+        The peer to remove is matched first by ID, then by HFID. When no match is found,
+        the call is a no-op.
+
+        Args:
+            data (str | RelatedNodeSync | dict): The peer to remove. Accepts an ID string,
+                an existing :class:`RelatedNodeSync`, or a dict describing the peer.
+
+        Raises:
+            UninitializedError: If :meth:`fetch` has not been called on this manager yet.
+            IndexError: If the internal peer index is inconsistent with the lookup result.
+
+        """
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)

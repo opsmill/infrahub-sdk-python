@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -12,6 +13,53 @@ from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachab
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
+
+_SHA1_CHUNK_BYTES = 64 * 1024
+
+
+def sha1_of_source(source: bytes | Path | BinaryIO) -> str:
+    """Compute the SHA-1 hex digest of an upload/download source.
+
+    Accepts the same shapes as :meth:`FileHandlerBase.prepare_upload` so
+    callers can compare local content against a server-stored checksum
+    without materialising the full file in memory.
+
+    Args:
+        source: The content to hash. ``bytes`` are hashed in one shot.
+            A ``Path`` is read in 64 KiB chunks. A ``BinaryIO`` is read
+            from its current position, then rewound so downstream
+            callers can re-read it.
+
+    Returns:
+        Lowercase SHA-1 hex digest, matching the algorithm Infrahub
+        stores in ``CoreFileObject.checksum``.
+
+    Raises:
+        TypeError: If ``source`` is not one of the supported types.
+
+    """
+    hasher = hashlib.sha1(usedforsecurity=False)
+
+    if isinstance(source, bytes):
+        hasher.update(source)
+        return hasher.hexdigest()
+
+    if isinstance(source, Path):
+        with source.open("rb") as fh:
+            while chunk := fh.read(_SHA1_CHUNK_BYTES):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    if hasattr(source, "read") and hasattr(source, "seek"):
+        start = source.tell()
+        try:
+            while chunk := source.read(_SHA1_CHUNK_BYTES):
+                hasher.update(chunk)
+        finally:
+            source.seek(start)
+        return hasher.hexdigest()
+
+    raise TypeError(f"sha1_of_source expects bytes, Path, or BinaryIO; got {type(source).__name__}")
 
 
 @dataclass
@@ -43,6 +91,7 @@ class FileHandlerBase:
 
         Returns:
             A PreparedFile containing the file object, filename, and whether it should be closed.
+
         """
         if content is None:
             return PreparedFile(file_object=None, filename=None, should_close=False)
@@ -77,6 +126,7 @@ class FileHandlerBase:
 
         Returns:
             A PreparedFile containing the file object, filename, and whether it should be closed.
+
         """
         if content is None:
             return PreparedFile(file_object=None, filename=None, should_close=False)
@@ -105,6 +155,7 @@ class FileHandlerBase:
             AuthenticationError: If authentication fails (401/403).
             NodeNotFoundError: If the file/node is not found (404).
             httpx.HTTPStatusError: For other HTTP errors.
+
         """
         if exc.response.status_code in {401, 403}:
             response = exc.response.json()
@@ -130,6 +181,7 @@ class FileHandlerBase:
         Raises:
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             resp.raise_for_status()
@@ -150,6 +202,7 @@ class FileHandler(FileHandlerBase):
 
         Args:
             client: The async Infrahub client instance.
+
         """
         self._client = client
 
@@ -162,6 +215,7 @@ class FileHandler(FileHandlerBase):
 
         Returns:
             The complete URL for downloading the file.
+
         """
         url = f"{self._client.address}/api/storage/files/{node_id}"
         if branch:
@@ -193,6 +247,7 @@ class FileHandler(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
+
         """
         effective_branch = branch or self._client.default_branch
         url = self._build_url(node_id=node_id, branch=effective_branch)
@@ -222,6 +277,7 @@ class FileHandler(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             async with self._client._get_streaming(url=url) as resp:
@@ -255,6 +311,7 @@ class FileHandlerSync(FileHandlerBase):
 
         Args:
             client: The sync Infrahub client instance.
+
         """
         self._client = client
 
@@ -267,6 +324,7 @@ class FileHandlerSync(FileHandlerBase):
 
         Returns:
             The complete URL for downloading the file.
+
         """
         url = f"{self._client.address}/api/storage/files/{node_id}"
         if branch:
@@ -298,6 +356,7 @@ class FileHandlerSync(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
+
         """
         effective_branch = branch or self._client.default_branch
         url = self._build_url(node_id=node_id, branch=effective_branch)
@@ -327,6 +386,7 @@ class FileHandlerSync(FileHandlerBase):
             ServerNotReachableError: If the server is not reachable.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
+
         """
         try:
             with self._client._get_streaming(url=url) as resp:

@@ -114,3 +114,23 @@ async def ipprefix_pool_schema() -> NodeSchemaAPI:
         ],
     }
     return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def vlan_schema_with_pool_hfid() -> NodeSchemaAPI:
+    """VLAN schema where vlan_id (NumberPool-sourced) is part of the human_friendly_id."""
+    data: dict[str, Any] = {
+        "name": "VLAN",
+        "namespace": "Infra",
+        "label": "VLAN",
+        "default_filter": "name__value",
+        "order_by": ["name__value"],
+        "display_labels": ["name__value"],
+        "human_friendly_id": ["vlan_id__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "vlan_id", "kind": "Number"},
+        ],
+        "relationships": [],
+    }
+    return NodeSchema(**data).convert_api()

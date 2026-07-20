@@ -11,14 +11,14 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import typer  # pyright: ignore[reportMissingImports]
-import ujson  # pyright: ignore[reportMissingModuleSource]
-from rich.console import Console  # pyright: ignore[reportMissingImports]
-from rich.layout import Layout  # pyright: ignore[reportMissingImports]
-from rich.logging import RichHandler  # pyright: ignore[reportMissingImports]
-from rich.panel import Panel  # pyright: ignore[reportMissingImports]
-from rich.pretty import Pretty  # pyright: ignore[reportMissingImports]
-from rich.table import Table  # pyright: ignore[reportMissingImports]
+import typer
+import ujson
+from rich.console import Console
+from rich.layout import Layout
+from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.pretty import Pretty
+from rich.table import Table
 
 from .. import __version__ as sdk_version
 from ..async_typer import AsyncTyper
@@ -28,6 +28,7 @@ from ..ctl.client import initialize_client, initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.generator import run as run_generator
 from ..ctl.graphql import app as graphql_app
+from ..ctl.marketplace import app as marketplace_app
 from ..ctl.menu import app as menu_app
 from ..ctl.object import app as object_app
 from ..ctl.render import list_jinja2_transforms, print_template_errors
@@ -35,6 +36,7 @@ from ..ctl.repository import app as repository_app
 from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.schema import app as schema_app
 from ..ctl.task import app as task_app
+from ..ctl.telemetry import app as telemetry_app
 from ..ctl.transform import list_transforms
 from ..ctl.utils import (
     catch_exception,
@@ -44,17 +46,15 @@ from ..ctl.utils import (
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
+from ..graphql.query_renderer import render_query
 from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
 from ..schema import MainSchemaTypesAll, SchemaRoot
 from ..template import Jinja2Template
 from ..template.exceptions import JinjaTemplateError
+from ..template.filters import ExecutionContext
 from ..utils import write_to_file
 from ..yaml import SchemaFile
-from .commands.create import create_command
-from .commands.delete import delete_command
-from .commands.get import get_command
-from .commands.update import update_command
 from .exporter import dump
 from .importer import load
 from .parameters import CONFIG_PARAM
@@ -72,20 +72,11 @@ app.add_typer(menu_app, name="menu")
 app.add_typer(object_app, name="object")
 app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
+app.add_typer(marketplace_app, name="marketplace")
+app.add_typer(telemetry_app, name="telemetry")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
-app.command(name="get")(get_command)
-app.command(name="create")(create_command)
-app.command(name="update")(update_command)
-app.command(name="delete")(delete_command)
-
-# Expose command functions under their command names for typer doc generation
-# (typer --func <name> looks up module-level names)
-get = get_command
-create = create_command
-update = update_command
-delete = delete_command
 
 console = Console()
 
@@ -105,7 +96,6 @@ def check(
     ),
 ) -> None:
     """Execute user-defined checks."""
-
     variables_dict = parse_cli_vars(variables)
     run_check(
         path=path,
@@ -161,7 +151,6 @@ async def run(
     ),
 ) -> None:
     """Execute a script."""
-
     logging.getLogger("infrahub_sdk").setLevel(logging.CRITICAL)
     logging.getLogger("httpx").setLevel(logging.ERROR)
     logging.getLogger("httpcore").setLevel(logging.ERROR)
@@ -201,6 +190,7 @@ async def render_jinja2_template(template_path: Path, variables: dict[str, Any],
     variables["data"] = data
     jinja_template = Jinja2Template(template=Path(template_path), template_directory=Path())
     try:
+        jinja_template.validate(context=ExecutionContext.LOCAL)
         rendered_tpl = await jinja_template.render(variables=variables)
     except JinjaTemplateError as exc:
         print_template_errors(error=exc, console=console)
@@ -217,8 +207,7 @@ async def _run_transform(
     debug: bool,
     repository_config: InfrahubRepositoryConfig,
 ) -> Any:
-    """
-    Query GraphQL for the required data then run a transform on that data.
+    """Query GraphQL for the required data then run a transform on that data.
 
     Args:
         query_name: Name of the query to load (e.g. tags_query)
@@ -227,8 +216,8 @@ async def _run_transform(
         branch: Name of the *infrahub* branch that should be queried for data
         debug: Prints debug info to the command line
         repository_config: Repository config object. This is used to load the graphql query from the repository.
-    """
 
+    """
     try:
         response = execute_graphql_query(
             query=query_name,
@@ -277,7 +266,6 @@ async def render(
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
     """Render a local Jinja2 Transform for debugging purpose."""
-
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(find_repository_config_file())
 
@@ -327,7 +315,6 @@ def transform(
     out: str = typer.Option(None, help="Path to a file to save the result."),
 ) -> None:
     """Render a local transform (TransformPython) for debugging purpose."""
-
     variables_dict = parse_cli_vars(variables)
     repository_config = get_repository_config(find_repository_config_file())
 
@@ -357,7 +344,7 @@ def transform(
         convert_query_response=transform_config.convert_query_response,
     )
     # Get data
-    query_str = repository_config.get_query(name=transform.query).load_query()
+    query_str = render_query(name=transform.query, config=repository_config)
     data = asyncio.run(
         transform.client.execute_graphql(query=query_str, variables=variables_dict, branch_name=transform.branch_name)
     )
@@ -383,7 +370,6 @@ def protocols(
     out: str = typer.Option("schema_protocols.py", help="Path to a file to save the result."),
 ) -> None:
     """Export Python protocols corresponding to a schema."""
-
     schema: dict[str, MainSchemaTypesAll] = {}
 
     if schemas:
@@ -414,7 +400,6 @@ def protocols(
 @catch_exception(console=console)
 def version() -> None:
     """Display the version of Python and the version of the Python SDK in use."""
-
     console.print(f"Python: {platform.python_version()}\nPython SDK: v{sdk_version}")
 
 
@@ -429,6 +414,7 @@ def info(  # noqa: PLR0915
         "error": None,
         "status": ":x:",
         "infrahub_version": "N/A",
+        "deployment_id": "N/A",
         "user_info": {},
         "groups": {},
     }
@@ -436,7 +422,9 @@ def info(  # noqa: PLR0915
     fetch_user_details = bool(client.config.username) or bool(client.config.api_token)
 
     try:
-        info["infrahub_version"] = client.get_version()
+        server_info = client.get_server_information()
+        info["infrahub_version"] = server_info.version
+        info["deployment_id"] = server_info.deployment_id
 
         if fetch_user_details:
             info["user_info"] = client.get_user()
@@ -482,6 +470,7 @@ def info(  # noqa: PLR0915
         version_info = Table(show_header=False, box=None)
         version_info.add_row("Python Version:", platform.python_version())
         version_info.add_row("Infrahub Version", info["infrahub_version"])
+        version_info.add_row("Deployment ID:", info["deployment_id"])
         version_info.add_row("Infrahub SDK:", sdk_version)
         layout["version_info"].update(Panel(version_info, title="Version Information"))
 
@@ -524,6 +513,7 @@ def info(  # noqa: PLR0915
         table.add_row("Python Version:", platform.python_version())
         table.add_row("SDK Version:", sdk_version)
         table.add_row("Infrahub Version:", info["infrahub_version"])
+        table.add_row("Deployment ID:", info["deployment_id"])
         if account := info["user_info"].get("AccountProfile"):
             table.add_row("User:", account["display_label"])
 

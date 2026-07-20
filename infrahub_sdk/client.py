@@ -4,10 +4,10 @@ import asyncio
 import copy
 import logging
 import time
-import warnings
-from collections.abc import AsyncIterator, Callable, Coroutine, Iterator, Mapping, MutableMapping
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager, suppress
 from datetime import datetime
+from enum import Enum
 from functools import wraps
 from time import sleep
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, overload
@@ -22,16 +22,26 @@ from .branch import MUTATION_QUERY_TASK, BranchData, InfrahubBranchManager, Infr
 from .config import Config
 from .constants import InfrahubClientMode
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
-from .data import RepositoryBranchInfo, RepositoryData
+from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
     Error,
     GraphQLError,
     NodeNotFoundError,
+    NodeNotSavedError,
     ServerNotReachableError,
     ServerNotResponsiveError,
     URLNotFoundError,
+    VersionNotSupportedError,
+)
+from .graph_traversal.models import PathTraversalResult, ReachableNodesResult
+from .graph_traversal.query import (
+    PATH_TRAVERSAL_QUERY,
+    REACHABLE_NODES_QUERY,
+    build_path_traversal_input,
+    build_reachable_nodes_input,
+    is_unknown_field_error,
 )
 from .graphql import MultipartBuilder, Mutation, Query
 from .node import InfrahubNode, InfrahubNodeSync
@@ -39,6 +49,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
+from .rate_limit import RateLimitRetryHandler
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
@@ -67,6 +78,20 @@ class ProcessRelationsNode(TypedDict):
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+def _rewind_multipart_files(files: dict[str, Any]) -> None:
+    """Rewind seekable file objects in a multipart ``files`` payload to position 0.
+
+    httpx reads file-like objects to EOF on send; rewinding before each attempt lets a retried
+    upload (e.g. after a 429) carry the full body rather than an already-consumed stream.
+    """
+    for value in files.values():
+        file_obj = value[1] if isinstance(value, tuple) and len(value) > 1 else value
+        seek = getattr(file_obj, "seek", None)
+        if callable(seek):
+            with suppress(OSError, ValueError):  # non-seekable stream: leave as-is
+                seek(0)
 
 
 class ProxyConfigSync(TypedDict):
@@ -109,17 +134,52 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
     return wrapper
 
 
-def raise_for_error_deprecation_warning(value: bool | None) -> None:
-    if value is not None:
-        warnings.warn(
-            "Using `raise_for_error` is deprecated, use `try/except` to handle errors.",
-            DeprecationWarning,
-            stacklevel=1,
-        )
+def get_kind_as_string(kind: str | type[SchemaType | SchemaTypeSync]) -> str:
+    if isinstance(kind, Enum):
+        return str(kind.value)
+    if isinstance(kind, str):
+        return kind
+    return kind.__name__
+
+
+def _normalize_kinds(
+    kinds: Iterable[str | type[CoreNode | CoreNodeSync]] | None,
+) -> list[str] | None:
+    """Convert a list of kind names and/or protocol classes into kind-name strings."""
+    if kinds is None:
+        return None
+    return [get_kind_as_string(kind) for kind in kinds]
+
+
+def _resolve_node_id(node: str | InfrahubNode | InfrahubNodeSync) -> str:
+    """Return a node UUID from either an id string or an InfrahubNode instance.
+
+    Raises:
+        NodeNotSavedError: If a node instance without an id is provided.
+
+    """
+    if isinstance(node, str):
+        return node
+    if node.id is None:
+        raise NodeNotSavedError("Cannot resolve the id of a node that has not been saved yet.")
+    return node.id
+
+
+def _resolve_traversal_node_id(node: str | InfrahubNode | InfrahubNodeSync, *, role: str) -> str:
+    """Resolve a node id for graph traversal, adding traversal context to unsaved-node errors.
+
+    Raises:
+        Error: If a node instance without an id is provided.
+
+    """
+    try:
+        return _resolve_node_id(node)
+    except NodeNotSavedError as exc:
+        raise Error(f"Cannot use an unsaved node as the graph traversal {role}; save it first.") from exc
 
 
 class BaseClient:
-    """Base class for InfrahubClient and InfrahubClientSync"""
+    """Base class for InfrahubClient and InfrahubClientSync."""
 
     def __init__(
         self,
@@ -141,6 +201,13 @@ class BaseClient:
         self.config.address = address or self.config.address
         self.insert_tracker = self.config.insert_tracker
         self.log = self.config.logger or logging.getLogger("infrahub_sdk")
+        self._rate_limit_handler = RateLimitRetryHandler(
+            max_retries=self.config.rate_limit_max_retries,
+            backoff_base=self.config.rate_limit_backoff_base,
+            backoff_max=self.config.rate_limit_backoff_max,
+            enabled=self.config.rate_limit_retry_enabled,
+            log=self.log,
+        )
         self.address = self.config.address
         self.mode = self.config.mode
         self.pagination_size = self.config.pagination_size
@@ -160,7 +227,7 @@ class BaseClient:
         _ = self.config.tls_context  # Early load of the TLS context to catch errors
 
     def _initialize(self) -> None:
-        """Sets the properties for each version of the client"""
+        """Sets the properties for each version of the client."""
 
     def _record(self, response: httpx.Response) -> None:
         self.config.custom_recorder.record(response)
@@ -320,12 +387,21 @@ class InfrahubClient(BaseClient):
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    async def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = await self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
+
     async def get_user(self) -> dict:
-        """Return user information"""
-        return await self.execute_graphql(query=QUERY_USER)
+        """Return user information."""
+        return await self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
 
     async def get_user_permissions(self) -> dict:
-        """Return user permissions"""
+        """Return user permissions."""
         user_info = await self.get_user()
         return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
@@ -388,6 +464,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -408,6 +485,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -428,6 +506,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -448,6 +527,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -468,6 +548,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -488,6 +569,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -507,10 +589,13 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Get_{schema.kind}"
 
         filters: MutableMapping[str, Any] = {}
 
@@ -541,6 +626,7 @@ class InfrahubClient(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             include_metadata=include_metadata,
+            query_name=query_name,
             **filters,
         )
 
@@ -575,8 +661,8 @@ class InfrahubClient(BaseClient):
             ProcessRelationsNodeSync: A TypedDict containing two lists:
                 - 'nodes': A list of InfrahubNode objects representing the nodes processed.
                 - 'related_nodes': A list of InfrahubNode objects representing the related nodes
-        """
 
+        """
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
 
@@ -601,6 +687,7 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         partial_match: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -611,6 +698,8 @@ class InfrahubClient(BaseClient):
 
         schema = await self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
+        if query_name is None:
+            query_name = f"Count_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -620,12 +709,206 @@ class InfrahubClient(BaseClient):
         }
 
         response = await self.execute_graphql(
-            query=Query(query={schema.kind: data}).render(),
+            query=Query(query={schema.kind: data}, name=query_name).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
+            operation_name=query_name,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
+
+    async def traverse_paths(
+        self,
+        source: str | InfrahubNode,
+        destination: str | InfrahubNode,
+        *,
+        max_depth: int | None = None,
+        max_paths: int | None = None,
+        kind_filter: list[str | type[SchemaType]] | None = None,
+        relationship_filter: list[str] | None = None,
+        excluded_namespaces: list[str] | None = None,
+        excluded_kinds: list[str | type[SchemaType]] | None = None,
+        included_kinds: list[str | type[SchemaType]] | None = None,
+        shortest_paths_only: bool | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> PathTraversalResult:
+        """Find the shortest path(s) between two nodes in the graph.
+
+        Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+        kind-name strings and/or generated protocol classes. ``relationship_filter``
+        matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+        not the per-side names shown in the result.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            max_paths: Maximum number of paths to return.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            shortest_paths_only: When True (the server default), only return the shortest
+                path(s); when False, return all loopless paths (exhaustive mode).
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        data = build_path_traversal_input(
+            _resolve_traversal_node_id(source, role="source"),
+            _resolve_traversal_node_id(destination, role="destination"),
+            max_depth=max_depth,
+            max_paths=max_paths,
+            kind_filter=_normalize_kinds(kind_filter),
+            relationship_filter=relationship_filter,
+            excluded_namespaces=excluded_namespaces,
+            excluded_kinds=_normalize_kinds(excluded_kinds),
+            included_kinds=_normalize_kinds(included_kinds),
+            shortest_paths_only=shortest_paths_only,
+        )
+        try:
+            response = await self.execute_graphql(
+                query=PATH_TRAVERSAL_QUERY,
+                variables={"data": data},
+                branch_name=branch or self.default_branch,
+                at=Timestamp(at) if at else None,
+                timeout=timeout,
+                tracker="query-path-traversal",
+                operation_name="InfrahubPathTraversal",
+            )
+        except GraphQLError as exc:
+            if is_unknown_field_error(exc.errors, "InfrahubPathTraversal"):
+                raise VersionNotSupportedError("Graph path traversal", "1.10") from exc
+            raise
+        result = PathTraversalResult.model_validate(response["InfrahubPathTraversal"])
+        return result._bind(self, branch or self.default_branch)
+
+    async def path_exists(
+        self,
+        source: str | InfrahubNode,
+        destination: str | InfrahubNode,
+        *,
+        max_depth: int | None = None,
+        kind_filter: list[str | type[SchemaType]] | None = None,
+        relationship_filter: list[str] | None = None,
+        excluded_namespaces: list[str] | None = None,
+        excluded_kinds: list[str | type[SchemaType]] | None = None,
+        included_kinds: list[str | type[SchemaType]] | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> bool:
+        """Return whether at least one path connects ``source`` to ``destination``.
+
+        Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+        path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+        found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        result = await self.traverse_paths(
+            source,
+            destination,
+            max_depth=max_depth,
+            max_paths=1,
+            kind_filter=kind_filter,
+            relationship_filter=relationship_filter,
+            excluded_namespaces=excluded_namespaces,
+            excluded_kinds=excluded_kinds,
+            included_kinds=included_kinds,
+            branch=branch,
+            at=at,
+            timeout=timeout,
+        )
+        return bool(result.paths)
+
+    async def reachable_nodes(
+        self,
+        source: str | InfrahubNode,
+        target_kinds: list[str | type[SchemaType]],
+        *,
+        max_depth: int | None = None,
+        max_results: int | None = None,
+        max_paths: int | None = None,
+        shortest_paths_only: bool | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> ReachableNodesResult:
+        """Find all nodes of the given kinds reachable from a source node.
+
+        ``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            target_kinds: Kinds of nodes to look for, as kind-name strings or protocol classes.
+            max_depth: Maximum number of relationship hops to explore.
+            max_results: Maximum number of reachable nodes to return.
+            max_paths: Maximum number of paths to compute per reachable node.
+            shortest_paths_only: When True, only return the shortest path(s) to each node.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        data = build_reachable_nodes_input(
+            _resolve_traversal_node_id(source, role="source"),
+            _normalize_kinds(target_kinds) or [],
+            max_depth=max_depth,
+            max_results=max_results,
+            max_paths=max_paths,
+            shortest_paths_only=shortest_paths_only,
+        )
+        try:
+            response = await self.execute_graphql(
+                query=REACHABLE_NODES_QUERY,
+                variables={"data": data},
+                branch_name=branch or self.default_branch,
+                at=Timestamp(at) if at else None,
+                timeout=timeout,
+                tracker="query-reachable-nodes",
+                operation_name="InfrahubReachableNodes",
+            )
+        except GraphQLError as exc:
+            if is_unknown_field_error(exc.errors, "InfrahubReachableNodes"):
+                raise VersionNotSupportedError("Graph reachable-nodes traversal", "1.10") from exc
+            raise
+        result = ReachableNodesResult.model_validate(response["InfrahubReachableNodes"])
+        return result._bind(self, branch or self.default_branch)
 
     @overload
     async def all(
@@ -645,6 +928,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -665,6 +949,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -684,8 +969,9 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
-        """Retrieve all nodes of a given kind
+        """Retrieve all nodes of a given kind.
 
         Args:
             kind (str): kind of the nodes to query
@@ -702,10 +988,14 @@ class InfrahubClient(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else All_<kind> is used.
 
         Returns:
             list[InfrahubNode]: List of Nodes
+
         """
+        if query_name is None:
+            query_name = f"All_{get_kind_as_string(kind=kind)}"
         return await self.filters(
             kind=kind,
             at=at,
@@ -722,6 +1012,7 @@ class InfrahubClient(BaseClient):
             parallel=parallel,
             order=order,
             include_metadata=include_metadata,
+            query_name=query_name,
         )
 
     @overload
@@ -743,6 +1034,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -765,10 +1057,11 @@ class InfrahubClient(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
-    async def filters(
+    async def filters(  # noqa: C901
         self,
         kind: str | type[SchemaType],
         at: Timestamp | None = None,
@@ -786,6 +1079,7 @@ class InfrahubClient(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -806,13 +1100,17 @@ class InfrahubClient(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Filters_<kind> is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
-            list[InfrahubNodeSync]: List of Nodes that match the given filters.
+            list[InfrahubNode]: List of Nodes that match the given filters.
+
         """
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Filters_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -834,13 +1132,14 @@ class InfrahubClient(BaseClient):
                 order=order,
                 include_metadata=include_metadata,
             )
-            query = Query(query=query_data)
+            query = Query(query=query_data, name=query_name)
             response = await self.execute_graphql(
                 query=query.render(),
                 branch_name=branch,
                 at=at,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
                 timeout=timeout,
+                operation_name=query.name,
             )
 
             process_result: ProcessRelationsNode = await self._process_nodes_and_relationships(
@@ -905,7 +1204,7 @@ class InfrahubClient(BaseClient):
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
-        """Return a cloned version of the client using the same configuration"""
+        """Return a cloned version of the client using the same configuration."""
         return InfrahubClient(config=self.config.clone(branch=branch))
 
     async def execute_graphql(
@@ -915,10 +1214,11 @@ class InfrahubClient(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
+
         If retry_on_failure is True, the query will retry until the server becomes reachable.
 
         Args:
@@ -927,24 +1227,28 @@ class InfrahubClient(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
-                - None (default) or True: HTTP errors raise via resp.raise_for_status().
-                - False: HTTP errors are not automatically raised. Defaults to None.
-
-        Raises:
-            GraphQLError: When the GraphQL response contains errors.
+            operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
+                so tracing/observability tools can identify the operation. Defaults to None.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
-        """
-        raise_for_error_deprecation_warning(value=raise_for_error)
 
+        Raises:
+            GraphQLError: When the GraphQL response contains errors.
+            ServerNotReachableError: If the server is not reachable after exhausting retries.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            URLNotFoundError: If the server returns a 404 response.
+            Error: If the response is unexpectedly missing.
+
+        """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
+        if operation_name:
+            payload["operationName"] = operation_name
 
         headers = copy.copy(self.headers or {})
         if self.insert_tracker and tracker:
@@ -959,9 +1263,7 @@ class InfrahubClient(BaseClient):
             retry = self.retry_on_failure
             try:
                 resp = await self._post(url=url, payload=payload, headers=headers, timeout=timeout)
-
-                if raise_for_error in {None, True}:
-                    resp.raise_for_status()
+                resp.raise_for_status()
 
                 retry = False
             except ServerNotReachableError:
@@ -1003,6 +1305,7 @@ class InfrahubClient(BaseClient):
         branch_name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -1018,11 +1321,12 @@ class InfrahubClient(BaseClient):
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
 
+        Returns:
+            dict: The GraphQL data payload (response["data"]).
+
         Raises:
             GraphQLError: When the GraphQL response contains errors.
 
-        Returns:
-            dict: The GraphQL data payload (response["data"]).
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
@@ -1047,6 +1351,7 @@ class InfrahubClient(BaseClient):
             file_name=file_name or "upload",
             headers=headers,
             timeout=timeout,
+            operation_name=operation_name,
         )
 
         resp.raise_for_status()
@@ -1067,6 +1372,7 @@ class InfrahubClient(BaseClient):
         file_name: str,
         headers: dict | None = None,
         timeout: int | None = None,
+        operation_name: str | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -1082,7 +1388,11 @@ class InfrahubClient(BaseClient):
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
-            query=query, variables=variables, file_content=file_content, file_name=file_name
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name,
+            operation_name=operation_name,
         )
 
         return await self._request_multipart(
@@ -1104,15 +1414,25 @@ class InfrahubClient(BaseClient):
     async def _request_multipart(
         self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
     ) -> httpx.Response:
-        """Execute a multipart HTTP POST request."""
-        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+        """Execute a multipart HTTP POST request.
 
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+
+        async def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return await client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -1127,8 +1447,9 @@ class InfrahubClient(BaseClient):
         """Execute a HTTP POST with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         await self.login()
 
@@ -1149,8 +1470,9 @@ class InfrahubClient(BaseClient):
         """Execute a HTTP GET with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         await self.login()
 
@@ -1175,8 +1497,9 @@ class InfrahubClient(BaseClient):
         Use this for downloading large files without loading into memory.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         await self.login()
 
@@ -1184,16 +1507,39 @@ class InfrahubClient(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, AsyncExitStack] = {}
+
+            async def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = AsyncExitStack()
+                response = await stack.enter_async_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        await response.aread()
+                    finally:
+                        await stack.aclose()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                async with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = await self._rate_limit_handler.asend(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        await stack.aclose()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     async def _request(
         self,
@@ -1203,7 +1549,10 @@ class InfrahubClient(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        async def send() -> httpx.Response:
+            return await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -1304,10 +1653,7 @@ class InfrahubClient(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> dict:
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
@@ -1351,8 +1697,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in {None, True}:
-            resp.raise_for_status()
+        resp.raise_for_status()
 
         return decode_json(response=resp)
 
@@ -1393,7 +1738,6 @@ class InfrahubClient(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -1410,8 +1754,8 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
+            operation_name="GetDiffTree",
         )
 
         node_diffs: list[NodeDiff] = []
@@ -1437,6 +1781,10 @@ class InfrahubClient(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
+
+        Raises:
+            ValueError: If ``from_time`` is later than ``to_time``.
+
         """
         query = get_diff_tree_query()
         input_data = {"branch_name": branch}
@@ -1455,6 +1803,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name=query.name,
         )
 
         diff_tree = response["DiffTree"]
@@ -1493,43 +1842,12 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_address(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -1538,37 +1856,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNode: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNode | None: ...
-
-    @overload
-    async def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_address(
@@ -1582,7 +1869,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -1595,9 +1881,13 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
+
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
+
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPAddressPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -1617,7 +1907,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -1638,45 +1927,12 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaType | None: ...
 
     @overload
     async def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNode,
-        kind: type[SchemaType],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaType: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -1686,39 +1942,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNode: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNode | None: ...
-
-    @overload
-    async def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNode,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNode | None: ...
 
     async def allocate_next_ip_prefix(
@@ -1733,7 +1956,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNode | SchemaType | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
@@ -1747,9 +1969,13 @@ class InfrahubClient(BaseClient):
             branch: Name of the branch to allocate from. Defaults to default_branch.
             timeout: Flag to indicate whether to populate the store with the retrieved nodes.
             tracker: The offset for pagination.
-            raise_for_error (bool, optional): Deprecated, raise an error if the HTTP status is not 2XX.
+
         Returns:
             InfrahubNode: Node corresponding to the allocated resource.
+
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -1770,7 +1996,6 @@ class InfrahubClient(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -1861,13 +2086,12 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         fields_mapping: dict[str, ConversionFieldInput] | None = None,
     ) -> InfrahubNode:
-        """
-        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-        and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-        for more information.
-        """
+        """Convert a given node to another kind on a given branch.
 
+        `fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+        Any mandatory field not having an equivalent field in the source kind should be specified in this
+        mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
+        """
         mapping_dict = (
             {}
             if fields_mapping is None
@@ -1883,7 +2107,6 @@ class InfrahubClient(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
-            raise_for_error=True,
         )
         return await InfrahubNode.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])
 
@@ -1910,12 +2133,21 @@ class InfrahubClientSync(BaseClient):
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
+
     def get_user(self) -> dict:
-        """Return user information"""
-        return self.execute_graphql(query=QUERY_USER)
+        """Return user information."""
+        return self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
 
     def get_user_permissions(self) -> dict:
-        """Return user permissions"""
+        """Return user permissions."""
         user_info = self.get_user()
         return get_user_permissions(user_info["AccountProfile"]["member_of_groups"]["edges"])
 
@@ -1961,7 +2193,7 @@ class InfrahubClientSync(BaseClient):
         node.delete()
 
     def clone(self, branch: str | None = None) -> InfrahubClientSync:
-        """Return a cloned version of the client using the same configuration"""
+        """Return a cloned version of the client using the same configuration."""
         return InfrahubClientSync(config=self.config.clone(branch=branch))
 
     def execute_graphql(
@@ -1971,10 +2203,11 @@ class InfrahubClientSync(BaseClient):
         branch_name: str | None = None,
         at: str | Timestamp | None = None,
         timeout: int | None = None,
-        raise_for_error: bool | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
+
         If retry_on_failure is True, the query will retry until the server becomes reachable.
 
         Args:
@@ -1983,25 +2216,28 @@ class InfrahubClientSync(BaseClient):
             branch_name (str, optional): Name of the branch on which the query will be executed. Defaults to None.
             at (str, optional): Time when the query should be executed. Defaults to None.
             timeout (int, optional): Timeout in second for the query. Defaults to None.
-            raise_for_error (bool | None, optional): Deprecated. Controls only HTTP status handling.
-                - None (default) or True: HTTP errors raise via `resp.raise_for_status()`.
-                - False: HTTP errors are not automatically raised.
-              GraphQL errors always raise `GraphQLError`. Defaults to None.
-
-        Raises:
-            GraphQLError: When the GraphQL response contains errors.
+            operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
+                so tracing/observability tools can identify the operation. Defaults to None.
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
-        """
-        raise_for_error_deprecation_warning(value=raise_for_error)
 
+        Raises:
+            GraphQLError: When the GraphQL response contains errors.
+            ServerNotReachableError: If the server is not reachable after exhausting retries.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            URLNotFoundError: If the server returns a 404 response.
+            Error: If the response is unexpectedly missing.
+
+        """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
         payload: dict[str, str | dict] = {"query": query}
         if variables:
             payload["variables"] = variables
+        if operation_name:
+            payload["operationName"] = operation_name
 
         headers = copy.copy(self.headers or {})
         if self.insert_tracker and tracker:
@@ -2016,9 +2252,7 @@ class InfrahubClientSync(BaseClient):
             retry = self.retry_on_failure
             try:
                 resp = self._post(url=url, payload=payload, headers=headers, timeout=timeout)
-
-                if raise_for_error in {None, True}:
-                    resp.raise_for_status()
+                resp.raise_for_status()
 
                 retry = False
             except ServerNotReachableError:
@@ -2060,6 +2294,7 @@ class InfrahubClientSync(BaseClient):
         branch_name: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        operation_name: str | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -2075,11 +2310,12 @@ class InfrahubClientSync(BaseClient):
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
 
+        Returns:
+            dict: The GraphQL data payload (response["data"]).
+
         Raises:
             GraphQLError: When the GraphQL response contains errors.
 
-        Returns:
-            dict: The GraphQL data payload (response["data"]).
         """
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
@@ -2104,6 +2340,7 @@ class InfrahubClientSync(BaseClient):
             file_name=file_name or "upload",
             headers=headers,
             timeout=timeout,
+            operation_name=operation_name,
         )
 
         resp.raise_for_status()
@@ -2124,6 +2361,7 @@ class InfrahubClientSync(BaseClient):
         file_name: str,
         headers: dict | None = None,
         timeout: int | None = None,
+        operation_name: str | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -2139,7 +2377,11 @@ class InfrahubClientSync(BaseClient):
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
-            query=query, variables=variables, file_content=file_content, file_name=file_name
+            query=query,
+            variables=variables,
+            file_content=file_content,
+            file_name=file_name,
+            operation_name=operation_name,
         )
 
         return self._request_multipart(url=url, headers=headers, timeout=timeout or self.default_timeout, files=files)
@@ -2159,15 +2401,25 @@ class InfrahubClientSync(BaseClient):
     def _request_multipart(
         self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
     ) -> httpx.Response:
-        """Execute a multipart HTTP POST request."""
-        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+        """Execute a multipart HTTP POST request.
 
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+
+        def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 
@@ -2178,6 +2430,7 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         partial_match: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -2188,6 +2441,8 @@ class InfrahubClientSync(BaseClient):
 
         schema = self.schema.get(kind=kind, branch=branch)
         branch = branch or self.default_branch
+        if query_name is None:
+            query_name = f"Count_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -2197,12 +2452,206 @@ class InfrahubClientSync(BaseClient):
         }
 
         response = self.execute_graphql(
-            query=Query(query={schema.kind: data}).render(),
+            query=Query(query={schema.kind: data}, name=query_name).render(),
             branch_name=branch,
             at=at,
             timeout=timeout,
+            operation_name=query_name,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
+
+    def traverse_paths(
+        self,
+        source: str | InfrahubNodeSync,
+        destination: str | InfrahubNodeSync,
+        *,
+        max_depth: int | None = None,
+        max_paths: int | None = None,
+        kind_filter: list[str | type[SchemaTypeSync]] | None = None,
+        relationship_filter: list[str] | None = None,
+        excluded_namespaces: list[str] | None = None,
+        excluded_kinds: list[str | type[SchemaTypeSync]] | None = None,
+        included_kinds: list[str | type[SchemaTypeSync]] | None = None,
+        shortest_paths_only: bool | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> PathTraversalResult:
+        """Find the shortest path(s) between two nodes in the graph.
+
+        Kind filters (``kind_filter``, ``excluded_kinds``, ``included_kinds``) accept
+        kind-name strings and/or generated protocol classes. ``relationship_filter``
+        matches schema relationship identifiers (for example ``dcimconnector__dcimendpoint``),
+        not the per-side names shown in the result.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            max_paths: Maximum number of paths to return.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            shortest_paths_only: When True (the server default), only return the shortest
+                path(s); when False, return all loopless paths (exhaustive mode).
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        data = build_path_traversal_input(
+            _resolve_traversal_node_id(source, role="source"),
+            _resolve_traversal_node_id(destination, role="destination"),
+            max_depth=max_depth,
+            max_paths=max_paths,
+            kind_filter=_normalize_kinds(kind_filter),
+            relationship_filter=relationship_filter,
+            excluded_namespaces=excluded_namespaces,
+            excluded_kinds=_normalize_kinds(excluded_kinds),
+            included_kinds=_normalize_kinds(included_kinds),
+            shortest_paths_only=shortest_paths_only,
+        )
+        try:
+            response = self.execute_graphql(
+                query=PATH_TRAVERSAL_QUERY,
+                variables={"data": data},
+                branch_name=branch or self.default_branch,
+                at=Timestamp(at) if at else None,
+                timeout=timeout,
+                tracker="query-path-traversal",
+                operation_name="InfrahubPathTraversal",
+            )
+        except GraphQLError as exc:
+            if is_unknown_field_error(exc.errors, "InfrahubPathTraversal"):
+                raise VersionNotSupportedError("Graph path traversal", "1.10") from exc
+            raise
+        result = PathTraversalResult.model_validate(response["InfrahubPathTraversal"])
+        return result._bind(self, branch or self.default_branch)
+
+    def path_exists(
+        self,
+        source: str | InfrahubNodeSync,
+        destination: str | InfrahubNodeSync,
+        *,
+        max_depth: int | None = None,
+        kind_filter: list[str | type[SchemaTypeSync]] | None = None,
+        relationship_filter: list[str] | None = None,
+        excluded_namespaces: list[str] | None = None,
+        excluded_kinds: list[str | type[SchemaTypeSync]] | None = None,
+        included_kinds: list[str | type[SchemaTypeSync]] | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> bool:
+        """Return whether at least one path connects ``source`` to ``destination``.
+
+        Convenience wrapper around :meth:`traverse_paths` for checks: it requests a single
+        path (the cheapest way to answer "is there a path?") and returns ``True`` if one was
+        found. Accepts the same source/destination and filter arguments as ``traverse_paths``.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            destination: Node to reach, as a UUID string or an ``InfrahubNode`` instance.
+            max_depth: Maximum number of relationship hops to explore.
+            kind_filter: Only traverse through nodes of these kinds.
+            relationship_filter: Only traverse through these schema relationship identifiers.
+            excluded_namespaces: Schema namespaces to exclude from traversal.
+            excluded_kinds: Node kinds to exclude from traversal.
+            included_kinds: Node kinds to re-include when otherwise excluded by default.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        result = self.traverse_paths(
+            source,
+            destination,
+            max_depth=max_depth,
+            max_paths=1,
+            kind_filter=kind_filter,
+            relationship_filter=relationship_filter,
+            excluded_namespaces=excluded_namespaces,
+            excluded_kinds=excluded_kinds,
+            included_kinds=included_kinds,
+            branch=branch,
+            at=at,
+            timeout=timeout,
+        )
+        return bool(result.paths)
+
+    def reachable_nodes(
+        self,
+        source: str | InfrahubNodeSync,
+        target_kinds: list[str | type[SchemaTypeSync]],
+        *,
+        max_depth: int | None = None,
+        max_results: int | None = None,
+        max_paths: int | None = None,
+        shortest_paths_only: bool | None = None,
+        branch: str | None = None,
+        at: Timestamp | str | None = None,
+        timeout: int | None = None,
+    ) -> ReachableNodesResult:
+        """Find all nodes of the given kinds reachable from a source node.
+
+        ``target_kinds`` accepts kind-name strings and/or generated protocol classes.
+
+        Requires Infrahub 1.10 or later.
+
+        Args:
+            source: Node to start from, as a UUID string or an ``InfrahubNode`` instance.
+            target_kinds: Kinds of nodes to look for, as kind-name strings or protocol classes.
+            max_depth: Maximum number of relationship hops to explore.
+            max_results: Maximum number of reachable nodes to return.
+            max_paths: Maximum number of paths to compute per reachable node.
+            shortest_paths_only: When True, only return the shortest path(s) to each node.
+            branch: Name of the branch to query from. Defaults to default_branch.
+            at: Time of the query. Defaults to now.
+            timeout: Overrides the default GraphQL timeout, in seconds.
+
+        Raises:
+            VersionNotSupportedError: If the server does not support graph traversal (pre-1.10).
+            GraphQLError: When the GraphQL response contains errors (e.g. unknown node).
+
+        """
+        data = build_reachable_nodes_input(
+            _resolve_traversal_node_id(source, role="source"),
+            _normalize_kinds(target_kinds) or [],
+            max_depth=max_depth,
+            max_results=max_results,
+            max_paths=max_paths,
+            shortest_paths_only=shortest_paths_only,
+        )
+        try:
+            response = self.execute_graphql(
+                query=REACHABLE_NODES_QUERY,
+                variables={"data": data},
+                branch_name=branch or self.default_branch,
+                at=Timestamp(at) if at else None,
+                timeout=timeout,
+                tracker="query-reachable-nodes",
+                operation_name="InfrahubReachableNodes",
+            )
+        except GraphQLError as exc:
+            if is_unknown_field_error(exc.errors, "InfrahubReachableNodes"):
+                raise VersionNotSupportedError("Graph reachable-nodes traversal", "1.10") from exc
+            raise
+        result = ReachableNodesResult.model_validate(response["InfrahubReachableNodes"])
+        return result._bind(self, branch or self.default_branch)
 
     @overload
     def all(
@@ -2222,6 +2671,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2242,6 +2692,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2261,8 +2712,9 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
-        """Retrieve all nodes of a given kind
+        """Retrieve all nodes of a given kind.
 
         Args:
             kind (str): kind of the nodes to query
@@ -2279,10 +2731,14 @@ class InfrahubClientSync(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else All_<kind> is used.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
+
         """
+        if query_name is None:
+            query_name = f"All_{get_kind_as_string(kind=kind)}"
         return self.filters(
             kind=kind,
             at=at,
@@ -2299,6 +2755,7 @@ class InfrahubClientSync(BaseClient):
             parallel=parallel,
             order=order,
             include_metadata=include_metadata,
+            query_name=query_name,
         )
 
     def _process_nodes_and_relationships(
@@ -2323,8 +2780,8 @@ class InfrahubClientSync(BaseClient):
             ProcessRelationsNodeSync: A TypedDict containing two lists:
                 - 'nodes': A list of InfrahubNodeSync objects representing the nodes processed.
                 - 'related_nodes': A list of InfrahubNodeSync objects representing the related nodes
-        """
 
+        """
         nodes: list[InfrahubNodeSync] = []
         related_nodes: list[InfrahubNodeSync] = []
 
@@ -2361,6 +2818,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -2383,10 +2841,11 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = ...,
         order: Order | None = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
-    def filters(
+    def filters(  # noqa: C901
         self,
         kind: str | type[SchemaTypeSync],
         at: Timestamp | None = None,
@@ -2404,6 +2863,7 @@ class InfrahubClientSync(BaseClient):
         parallel: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -2424,13 +2884,17 @@ class InfrahubClientSync(BaseClient):
             parallel (bool, optional): Whether to use parallel processing for the query.
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Filters_<kind> is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
+
         """
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Filters_{schema.kind}"
         if at:
             at = Timestamp(at)
 
@@ -2452,13 +2916,14 @@ class InfrahubClientSync(BaseClient):
                 order=order,
                 include_metadata=include_metadata,
             )
-            query = Query(query=query_data)
+            query = Query(query=query_data, name=query_name)
             response = self.execute_graphql(
                 query=query.render(),
                 branch_name=branch,
                 at=at,
                 timeout=timeout,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
+                operation_name=query.name,
             )
 
             process_result: ProcessRelationsNodeSync = self._process_nodes_and_relationships(
@@ -2541,6 +3006,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -2561,6 +3027,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2581,6 +3048,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2601,6 +3069,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -2621,6 +3090,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2641,6 +3111,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
+        query_name: str | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -2660,10 +3131,13 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        query_name: str | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
+        if query_name is None:
+            query_name = f"Get_{schema.kind}"
 
         filters: MutableMapping[str, Any] = {}
 
@@ -2694,6 +3168,7 @@ class InfrahubClientSync(BaseClient):
             prefetch_relationships=prefetch_relationships,
             property=property,
             include_metadata=include_metadata,
+            query_name=query_name,
             **filters,
         )
 
@@ -2737,10 +3212,7 @@ class InfrahubClientSync(BaseClient):
         at: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> dict:
-        raise_for_error_deprecation_warning(value=raise_for_error)
-
         url = f"{self.address}/api/query/{name}"
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
@@ -2783,8 +3255,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
-        if raise_for_error in {None, True}:
-            resp.raise_for_status()
+        resp.raise_for_status()
 
         return decode_json(response=resp)
 
@@ -2825,7 +3296,6 @@ class InfrahubClientSync(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -2842,8 +3312,8 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
             variables=input_data,
+            operation_name="GetDiffTree",
         )
 
         node_diffs: list[NodeDiff] = []
@@ -2869,6 +3339,10 @@ class InfrahubClientSync(BaseClient):
         """Get complete diff tree with metadata and nodes.
 
         Returns None if no diff exists.
+
+        Raises:
+            ValueError: If ``from_time`` is later than ``to_time``.
+
         """
         query = get_diff_tree_query()
         input_data = {"branch_name": branch}
@@ -2887,6 +3361,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
+            operation_name=query.name,
         )
 
         diff_tree = response["DiffTree"]
@@ -2925,43 +3400,12 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_address(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -2970,37 +3414,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNodeSync: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNodeSync | None: ...
-
-    @overload
-    def allocate_next_ip_address(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        address_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_address(
@@ -3014,7 +3427,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP address by using the provided resource pool.
 
@@ -3027,9 +3439,13 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
+
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPAddressPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPAddressPool":
             raise ValueError("resource_pool is not an IP address pool")
@@ -3049,7 +3465,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -3070,45 +3485,12 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
     ) -> SchemaTypeSync | None: ...
 
     @overload
     def allocate_next_ip_prefix(
         self,
         resource_pool: CoreNodeSync,
-        kind: type[SchemaTypeSync],
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
-    ) -> SchemaTypeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
         kind: None = ...,
         identifier: str | None = ...,
         prefix_length: int | None = ...,
@@ -3118,39 +3500,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         tracker: str | None = ...,
-        raise_for_error: Literal[True] = True,
-    ) -> CoreNodeSync: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: Literal[False] = False,
-    ) -> CoreNodeSync | None: ...
-
-    @overload
-    def allocate_next_ip_prefix(
-        self,
-        resource_pool: CoreNodeSync,
-        kind: None = ...,
-        identifier: str | None = ...,
-        prefix_length: int | None = ...,
-        member_type: str | None = ...,
-        prefix_type: str | None = ...,
-        data: dict[str, Any] | None = ...,
-        branch: str | None = ...,
-        timeout: int | None = ...,
-        tracker: str | None = ...,
-        raise_for_error: bool | None = ...,
     ) -> CoreNodeSync | None: ...
 
     def allocate_next_ip_prefix(
@@ -3165,7 +3514,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
-        raise_for_error: bool | None = None,
     ) -> CoreNodeSync | SchemaTypeSync | None:
         """Allocate a new IP prefix by using the provided resource pool.
 
@@ -3179,9 +3527,13 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to allocate from. Defaults to default_branch.
             timeout (int, optional): Flag to indicate whether to populate the store with the retrieved nodes.
             tracker (str, optional): The offset for pagination.
-            raise_for_error (bool, optional): The limit for pagination.
+
         Returns:
             InfrahubNodeSync: Node corresponding to the allocated resource.
+
+        Raises:
+            ValueError: If ``resource_pool`` is not a ``CoreIPPrefixPool``.
+
         """
         if resource_pool.get_kind() != "CoreIPPrefixPool":
             raise ValueError("resource_pool is not an IP prefix pool")
@@ -3202,7 +3554,6 @@ class InfrahubClientSync(BaseClient):
             branch_name=branch,
             timeout=timeout,
             tracker=tracker,
-            raise_for_error=raise_for_error,
         )
 
         if response[mutation_name]["ok"]:
@@ -3226,8 +3577,9 @@ class InfrahubClientSync(BaseClient):
         """Execute a HTTP GET with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         self.login()
 
@@ -3252,8 +3604,9 @@ class InfrahubClientSync(BaseClient):
         Use this for downloading large files without loading into memory.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didn't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         self.login()
 
@@ -3261,16 +3614,39 @@ class InfrahubClientSync(BaseClient):
         base_headers = copy.copy(self.headers or {})
         headers.update(base_headers)
 
+        request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, ExitStack] = {}
+
+            def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = ExitStack()
+                response = stack.enter_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        response.read()
+                    finally:
+                        stack.close()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = self._rate_limit_handler.send(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        stack.close()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     @handle_relogin_sync
     def _post(
@@ -3283,8 +3659,9 @@ class InfrahubClientSync(BaseClient):
         """Execute a HTTP POST with HTTPX.
 
         Raises:
-            ServerNotReachableError if we are not able to connect to the server
-            ServerNotResponsiveError if the server didnd't respond before the timeout expired
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
         """
         self.login()
 
@@ -3308,7 +3685,10 @@ class InfrahubClientSync(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        def send() -> httpx.Response:
+            return self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 
@@ -3419,13 +3799,12 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         fields_mapping: dict[str, ConversionFieldInput] | None = None,
     ) -> InfrahubNodeSync:
-        """
-        Convert a given node to another kind on a given branch. `fields_mapping` keys are target fields names
-        and its values indicate how to fill in these fields. Any mandatory field not having an equivalent field
-        in the source kind should be specified in this mapping. See https://docs.infrahub.app/guides/object-conversion
-        for more information.
-        """
+        """Convert a given node to another kind on a given branch.
 
+        `fields_mapping` keys are target fields names and its values indicate how to fill in these fields.
+        Any mandatory field not having an equivalent field in the source kind should be specified in this
+        mapping. See https://docs.infrahub.app/guides/object-conversion for more information.
+        """
         mapping_dict = (
             {}
             if fields_mapping is None
@@ -3441,6 +3820,5 @@ class InfrahubClientSync(BaseClient):
                 "target_kind": target_kind,
             },
             branch_name=branch_name,
-            raise_for_error=True,
         )
         return InfrahubNodeSync.from_graphql(client=self, branch=branch_name, data=response["ConvertObjectType"])

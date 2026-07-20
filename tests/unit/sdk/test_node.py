@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import ipaddress
+import json
 import tempfile
 from io import BytesIO
 from pathlib import Path
@@ -91,13 +92,13 @@ async def test_method_sanity() -> None:
 
 @pytest.mark.parametrize("value", SAFE_GRAPHQL_VALUES)
 def test_validate_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert SAFE_VALUE.match(value)
 
 
 @pytest.mark.parametrize("value", UNSAFE_GRAPHQL_VALUES)
 def test_identify_unsafe_graphql_value(value: str) -> None:
-    """All these values are safe and should not be converted"""
+    """All these values are safe and should not be converted."""
     assert not SAFE_VALUE.match(value)
 
 
@@ -175,6 +176,38 @@ async def test_node_hfid(client: InfrahubClient, schema_with_hfid: dict[str, Nod
     assert rack.hfid == [rack.facility_id.value, rack.location.get().name.value]
     assert rack.get_human_friendly_id_as_string() == "RACK1__JFK1"
     assert rack.hfid_str == "BuiltinRack__RACK1__JFK1"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_create_upsert_excludes_hfid(
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    schema_with_hfid: dict[str, NodeSchemaAPI],
+    client_type: str,
+) -> None:
+    """Upsert must never send the hfid in the mutation payload, for both async and sync clients.
+
+    Sending the hfid on an upsert adds server-side performance overhead, so create(allow_upsert=True)
+    excludes it. The async and sync clients must behave identically here.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationUpsert": {"ok": True, "object": {"id": "abcabc"}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-builtinlocation-upsert"},
+    )
+    location_data = {"name": {"value": "JFK1"}, "description": {"value": "JFK Airport"}, "type": {"value": "SITE"}}
+
+    if client_type == "standard":
+        location = InfrahubNode(client=clients.standard, schema=schema_with_hfid["location"], data=location_data)
+        await location.create(allow_upsert=True)
+    else:
+        location = InfrahubNodeSync(client=clients.sync, schema=schema_with_hfid["location"], data=location_data)
+        location.create(allow_upsert=True)
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    payload = json.loads(post_requests[0].content)
+    assert "hfid" not in payload["query"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -310,6 +343,36 @@ async def test_init_node_data_graphql(
     assert isinstance(node.primary_tag, RelatedNodeBase)
     assert node.primary_tag.id == "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"
     assert node.primary_tag.typename == "BuiltinTag"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_requires_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": {"id": "pppppppp"},
+    }
+    with pytest.raises(ValueError, match=r"expects a list of nodes"):
+        if client_type == "standard":
+            InfrahubNode(client=client, schema=location_schema, data=data)
+        else:
+            InfrahubNodeSync(client=client, schema=location_schema, data=data)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_accepts_list(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    data = {
+        "name": {"value": "JFK1"},
+        "tags": [{"id": "aaaaaa"}, {"id": "bbbb"}],
+    }
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+    assert len(node.tags.peers) == 2
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -1391,7 +1454,7 @@ async def test_create_input_data(client: InfrahubClient, location_schema: NodeSc
 async def test_create_input_data_with_dropdown(
     client: InfrahubClient, location_schema_with_dropdown: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data including dropdown field"""
+    """Validate input data including dropdown field."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK Airport"},
@@ -1420,11 +1483,7 @@ async def test_create_input_data_with_dropdown(
 async def test_update_input_data_existing_node_with_optional_relationship(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate that existing nodes include None for uninitialized optional relationships.
-
-    This ensures that we can explicitly clear optional relationships when updating existing nodes.
-    """
-    # Simulate an existing node by including an id
+    """An explicit `node.rel = None` on an existing node still clears the relationship."""
     data = {
         "id": "existing-node-id",
         "name": {"value": "JFK1"},
@@ -1437,7 +1496,8 @@ async def test_update_input_data_existing_node_with_optional_relationship(
     else:
         node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
 
-    # For existing nodes, optional uninitialized relationships should include None
+    node.primary_tag = None
+
     assert node._generate_input_data()["data"] == {
         "data": {
             "id": "existing-node-id",
@@ -1450,10 +1510,31 @@ async def test_update_input_data_existing_node_with_optional_relationship(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_update_input_data_existing_node_preserves_untouched_optional_relationship(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """A partial payload that omits an optional one-cardinality rel must NOT silently clear it on save."""
+    data = {
+        "id": "existing-node-id",
+        "name": {"value": "JFK1"},
+        "description": {"value": "JFK Airport"},
+        "type": {"value": "SITE"},
+    }
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
+
+    payload = node._generate_input_data()["data"]["data"]
+    assert "primary_tag" not in payload
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data__with_relationships_02(
     client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    """Validate input data with variables that needs replacements"""
+    """Validate input data with variables that needs replacements."""
     data = {
         "name": {"value": "JFK1"},
         "description": {"value": "JFK\n Airport"},

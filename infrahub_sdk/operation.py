@@ -32,7 +32,6 @@ class InfrahubOperation:
     @property
     def branch_name(self) -> str:
         """Return the name of the current git branch."""
-
         if self.branch:
             return self.branch
 
@@ -45,17 +44,17 @@ class InfrahubOperation:
 
     @property
     def store(self) -> NodeStore:
-        """The store will be populated with nodes based on the query during the collection of data if activated"""
+        """The store will be populated with nodes based on the query during the collection of data if activated."""
         return self._init_client.store
 
     @property
     def nodes(self) -> list[InfrahubNode]:
-        """Returns nodes collected and parsed during the data collection process if this feature is enabled"""
+        """Returns nodes collected and parsed during the data collection process if this feature is enabled."""
         return self._nodes
 
     @property
     def related_nodes(self) -> list[InfrahubNode]:
-        """Returns nodes collected and parsed during the data collection process if this feature is enabled"""
+        """Returns nodes collected and parsed during the data collection process if this feature is enabled."""
         return self._related_nodes
 
     async def process_nodes(self, data: dict) -> None:

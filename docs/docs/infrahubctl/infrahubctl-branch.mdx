@@ -18,13 +18,28 @@ $ infrahubctl branch [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
+* `list`: List all existing branches.
 * `create`: Create a new branch.
 * `delete`: Delete a branch.
-* `list`: List all existing branches.
-* `merge`: Merge a Branch with main.
 * `rebase`: Rebase a Branch with main.
-* `report`: Generate branch cleanup status report.
+* `merge`: Merge a Branch with main.
 * `validate`: Validate if a branch has some conflict and...
+* `report`: Generate branch cleanup status report.
+
+## `infrahubctl branch list`
+
+List all existing branches.
+
+**Usage**:
+
+```console
+$ infrahubctl branch list [OPTIONS]
+```
+
+**Options**:
+
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
 
 ## `infrahubctl branch create`
 
@@ -66,15 +81,19 @@ $ infrahubctl branch delete [OPTIONS] BRANCH_NAME
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
-## `infrahubctl branch list`
+## `infrahubctl branch rebase`
 
-List all existing branches.
+Rebase a Branch with main.
 
 **Usage**:
 
 ```console
-$ infrahubctl branch list [OPTIONS]
+$ infrahubctl branch rebase [OPTIONS] BRANCH_NAME
 ```
+
+**Arguments**:
+
+* `BRANCH_NAME`: [required]
 
 **Options**:
 
@@ -100,14 +119,14 @@ $ infrahubctl branch merge [OPTIONS] BRANCH_NAME
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 
-## `infrahubctl branch rebase`
+## `infrahubctl branch validate`
 
-Rebase a Branch with main.
+Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET).
 
 **Usage**:
 
 ```console
-$ infrahubctl branch rebase [OPTIONS] BRANCH_NAME
+$ infrahubctl branch validate [OPTIONS] BRANCH_NAME
 ```
 
 **Arguments**:
@@ -136,24 +155,5 @@ $ infrahubctl branch report [OPTIONS] BRANCH_NAME
 **Options**:
 
 * `--update-diff`: Update diff before generating report
-* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
-* `--help`: Show this message and exit.
-
-## `infrahubctl branch validate`
-
-Validate if a branch has some conflict and is passing all the tests (NOT IMPLEMENTED YET).
-
-**Usage**:
-
-```console
-$ infrahubctl branch validate [OPTIONS] BRANCH_NAME
-```
-
-**Arguments**:
-
-* `BRANCH_NAME`: [required]
-
-**Options**:
-
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

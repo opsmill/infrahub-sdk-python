@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class InfrahubGenerator(InfrahubOperation):
-    """Infrahub Generator class"""
+    """Infrahub Generator class."""
 
     def __init__(
         self,
@@ -66,8 +66,7 @@ class InfrahubGenerator(InfrahubOperation):
         self._client = value
 
     async def collect_data(self) -> dict:
-        """Query the result of the GraphQL Query defined in self.query and return the result"""
-
+        """Query the result of the GraphQL Query defined in self.query and return the result."""
         data = await self._init_client.query_gql_query(
             name=self.query,
             branch_name=self.branch_name,
@@ -79,7 +78,6 @@ class InfrahubGenerator(InfrahubOperation):
 
     async def run(self, identifier: str, data: dict | None = None) -> None:
         """Execute the generator after collecting the data from the GraphQL query."""
-
         if not data:
             data = await self.collect_data()
         unpacked = data.get("data") or data
@@ -94,7 +92,7 @@ class InfrahubGenerator(InfrahubOperation):
 
     @abstractmethod
     async def generate(self, data: dict) -> None:
-        """Code to run the generator
+        """Code to run the generator.
 
         Any child class of the InfrahubGenerator us expected to provide this method. The method is expected
         to use the provided InfrahubClient contained in self.client to create or update any nodes in an idempotent

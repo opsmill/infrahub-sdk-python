@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .._importer import import_module
 from ..checks import InfrahubCheck
 from ..exceptions import (
+    FragmentFileNotFoundError,
     ModuleImportError,
+    RepositoryFileNotFoundError,
     ResourceNotDefinedError,
 )
 from ..generator import InfrahubGenerator
@@ -19,8 +21,6 @@ if TYPE_CHECKING:
     from ..node import InfrahubNode, InfrahubNodeSync
 
     InfrahubNodeTypes = InfrahubNode | InfrahubNodeSync
-
-ResourceClass = TypeVar("ResourceClass")
 
 
 class InfrahubRepositoryConfigElement(BaseModel):
@@ -37,19 +37,39 @@ class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement
     transformation: str = Field(..., description="The transformation to use.")
 
 
+class InfrahubWatchConfig(BaseModel):
+    """Extra files and directories a transform depends on.
+
+    Infrahub already detects the files a transform reads directly. Use this when a transform also
+    depends on files that cannot be detected automatically, such as templates pulled in dynamically
+    or helper modules imported at runtime. When any watched file changes, the transform's artifacts
+    are regenerated.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    files: list[str] = Field(
+        default_factory=list,
+        description="Files or directories the transform depends on, relative to the repository root. A directory watches every file beneath it.",
+    )
+
+
 class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the transform")
     query: str = Field(..., description="The name of the GraphQL Query")
     template_path: Path = Field(..., description="The path within the repository of the template file")
     description: str | None = Field(default=None, description="Description for this transform")
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     @property
     def template_path_value(self) -> str:
         return str(self.template_path)
 
     @property
-    def payload(self) -> dict[str, str]:
+    def payload(self) -> dict[str, Any]:
         data = self.model_dump(exclude_none=True)
         data["template_path"] = self.template_path_value
         return data
@@ -88,21 +108,28 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
     file_path: Path = Field(..., description="The file within the repository with the generator code.")
     query: str = Field(..., description="The GraphQL query to use as input.")
     parameters: dict[str, Any] = Field(
-        default_factory=dict, description="The input parameters required to run this check"
+        default_factory=dict,
+        description="Maps GraphQL query variable names to target object attribute paths using double-underscore notation.",
     )
-    targets: str = Field(..., description="The group to target when running this generator")
-    class_name: str = Field(default="Generator", description="The name of the generator class to run.")
+    targets: str = Field(
+        ...,
+        description="Name of the CoreStandardGroup whose members become individual Generator targets. One run is created per group member.",
+    )
+    class_name: str = Field(
+        default="Generator",
+        description="The name of the Python class within file_path that extends InfrahubGenerator.",
+    )
     convert_query_response: bool = Field(
         default=False,
-        description="Decide if the generator should convert the result of the GraphQL query to SDK InfrahubNode objects.",
+        description="When true, converts the raw GraphQL dict into SDK InfrahubNode objects accessible via self.nodes and self.store.",
     )
     execute_in_proposed_change: bool = Field(
         default=True,
-        description="Decide if the generator should execute in a proposed change.",
+        description="When true (default), the Generator runs as a CI check during proposed changes.",
     )
     execute_after_merge: bool = Field(
         default=True,
-        description="Decide if the generator should execute after a merge.",
+        description="When true (default), the Generator runs after a branch merge. Set to false for Generators that only run via event triggers.",
     )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:
@@ -129,6 +156,11 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
         default=False,
         description="Decide if the transform should convert the result of the GraphQL query to SDK InfrahubNode objects.",
     )
+    description: str | None = Field(default=None, description="Description for this transform")
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubTransform]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
@@ -151,7 +183,35 @@ class InfrahubRepositoryGraphQLConfig(InfrahubRepositoryConfigElement):
 
     def load_query(self, relative_path: str = ".") -> str:
         file_name = Path(f"{relative_path}/{self.file_path}")
-        return file_name.read_text(encoding="UTF-8")
+        try:
+            return file_name.read_text(encoding="UTF-8")
+        except FileNotFoundError as exc:
+            raise RepositoryFileNotFoundError(file_path=str(self.file_path)) from exc
+
+
+class InfrahubRepositoryFragmentConfig(InfrahubRepositoryConfigElement):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., description="Logical name for this fragment file or directory")
+    file_path: Path = Field(
+        ..., description="Path to a .gql fragment file or a directory of .gql files, relative to repo root"
+    )
+
+    def load_fragments(self, relative_path: str = ".") -> list[str]:
+        """Return raw content of all fragment files at file_path.
+
+        If file_path is a .gql file, returns a single-element list.
+        If file_path is a directory, returns one entry per .gql file found (sorted alphabetically).
+
+        Raises:
+            FragmentFileNotFoundError: If ``file_path`` does not exist.
+
+        """
+        resolved = Path(f"{relative_path}/{self.file_path}")
+        if not resolved.exists():
+            raise FragmentFileNotFoundError(file_path=str(self.file_path))
+        if resolved.is_dir():
+            return [f.read_text(encoding="UTF-8") for f in sorted(resolved.glob("*.gql"))]
+        return [resolved.read_text(encoding="UTF-8")]
 
 
 class InfrahubObjectConfig(InfrahubRepositoryConfigElement):
@@ -164,18 +224,6 @@ class InfrahubMenuConfig(InfrahubRepositoryConfigElement):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., description="The name of the menu")
     file_path: Path = Field(..., description="The file within the repository containing menu data.")
-
-
-RESOURCE_MAP: dict[Any, str] = {
-    InfrahubJinja2TransformConfig: "jinja2_transforms",
-    InfrahubCheckDefinitionConfig: "check_definitions",
-    InfrahubRepositoryArtifactDefinitionConfig: "artifact_definitions",
-    InfrahubPythonTransformConfig: "python_transforms",
-    InfrahubGeneratorDefinitionConfig: "generator_definitions",
-    InfrahubRepositoryGraphQLConfig: "queries",
-    InfrahubObjectConfig: "objects",
-    InfrahubMenuConfig: "menus",
-}
 
 
 class InfrahubRepositoryConfig(BaseModel):
@@ -197,6 +245,9 @@ class InfrahubRepositoryConfig(BaseModel):
         default_factory=list, description="Generator definitions"
     )
     queries: list[InfrahubRepositoryGraphQLConfig] = Field(default_factory=list, description="GraphQL Queries")
+    graphql_fragments: list[InfrahubRepositoryFragmentConfig] = Field(
+        default_factory=list, description="GraphQL fragment files declared for this repository"
+    )
     objects: list[Path] = Field(default_factory=list, description="Objects")
     menus: list[Path] = Field(default_factory=list, description="Menus")
 
@@ -207,6 +258,7 @@ class InfrahubRepositoryConfig(BaseModel):
         "python_transforms",
         "generator_definitions",
         "queries",
+        "graphql_fragments",
     )
     @classmethod
     def unique_items(cls, v: list[Any]) -> list[Any]:
@@ -215,49 +267,65 @@ class InfrahubRepositoryConfig(BaseModel):
             raise ValueError(f"Found multiples element with the same names: {dups}")
         return v
 
-    def _has_resource(self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name") -> bool:
-        return any(getattr(item, resource_field) == resource_id for item in getattr(self, RESOURCE_MAP[resource_type]))
-
-    def _get_resource(
-        self, resource_id: str, resource_type: type[ResourceClass], resource_field: str = "name"
-    ) -> ResourceClass:
-        for item in getattr(self, RESOURCE_MAP[resource_type]):
-            if getattr(item, resource_field) == resource_id:
-                return item
-        raise ResourceNotDefinedError(f"Unable to find {resource_id!r} in {RESOURCE_MAP[resource_type]!r}")
-
     def has_jinja2_transform(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubJinja2TransformConfig)
+        return any(item.name == name for item in self.jinja2_transforms)
 
     def get_jinja2_transform(self, name: str) -> InfrahubJinja2TransformConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubJinja2TransformConfig)
+        for item in self.jinja2_transforms:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'jinja2_transforms'")
 
     def has_check_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubCheckDefinitionConfig)
+        return any(item.name == name for item in self.check_definitions)
 
     def get_check_definition(self, name: str) -> InfrahubCheckDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubCheckDefinitionConfig)
+        for item in self.check_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'check_definitions'")
 
     def has_artifact_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubRepositoryArtifactDefinitionConfig)
+        return any(item.name == name for item in self.artifact_definitions)
 
     def get_artifact_definition(self, name: str) -> InfrahubRepositoryArtifactDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubRepositoryArtifactDefinitionConfig)
+        for item in self.artifact_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'artifact_definitions'")
 
     def has_generator_definition(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubGeneratorDefinitionConfig)
+        return any(item.name == name for item in self.generator_definitions)
 
     def get_generator_definition(self, name: str) -> InfrahubGeneratorDefinitionConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubGeneratorDefinitionConfig)
+        for item in self.generator_definitions:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'generator_definitions'")
 
     def has_python_transform(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubPythonTransformConfig)
+        return any(item.name == name for item in self.python_transforms)
 
     def get_python_transform(self, name: str) -> InfrahubPythonTransformConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubPythonTransformConfig)
+        for item in self.python_transforms:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'python_transforms'")
 
     def has_query(self, name: str) -> bool:
-        return self._has_resource(resource_id=name, resource_type=InfrahubRepositoryGraphQLConfig)
+        return any(item.name == name for item in self.queries)
 
     def get_query(self, name: str) -> InfrahubRepositoryGraphQLConfig:
-        return self._get_resource(resource_id=name, resource_type=InfrahubRepositoryGraphQLConfig)
+        for item in self.queries:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'queries'")
+
+    def has_fragment(self, name: str) -> bool:
+        return any(item.name == name for item in self.graphql_fragments)
+
+    def get_fragment(self, name: str) -> InfrahubRepositoryFragmentConfig:
+        for item in self.graphql_fragments:
+            if item.name == name:
+                return item
+        raise ResourceNotDefinedError(f"Unable to find {name!r} in 'graphql_fragments'")

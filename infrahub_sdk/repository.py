@@ -17,7 +17,8 @@ class GitRepoManager:
 
         root_path = Path(self.root_directory)
 
-        if root_path.exists() and (root_path / ".git").is_dir():
+        if root_path.exists() and (root_path / ".git").exists():
+            # `.git` is a directory in a regular clone and a gitlink file in a worktree.
             repo = Repo(self.root_directory)  # Open existing repo
         else:
             repo = Repo.init(self.root_directory, default_branch=self.branch.encode("utf-8"))

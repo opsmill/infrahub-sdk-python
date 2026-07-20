@@ -23,6 +23,7 @@ def _make_mock_context(
             are written to the output directory.
         calls: If provided, each executed command string is appended to this
             list so the caller can verify how many times ``run()`` was invoked.
+
     """
     ctx = create_autospec(Context, instance=True)
 

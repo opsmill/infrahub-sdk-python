@@ -150,6 +150,14 @@ class RelationshipSchemaAPI(RelationshipSchema):
     hierarchical: str | None = None
     allow_override: AllowOverrideType = AllowOverrideType.ANY
 
+    @property
+    def cardinality_is_one(self) -> bool:
+        return self.cardinality == RelationshipCardinality.ONE
+
+    @property
+    def cardinality_is_many(self) -> bool:
+        return self.cardinality == RelationshipCardinality.MANY
+
 
 class BaseSchemaAttrRel(BaseModel):
     attributes: list[AttributeSchema] = Field(default_factory=list)
@@ -279,6 +287,42 @@ class BaseSchema(BaseModel):
     def kind(self) -> str:
         return self.namespace + self.name
 
+    @property
+    def supports_artifact_definition(self) -> bool:
+        """Returns True if this schema represents CoreArtifactDefinition. Only meaningful for NodeSchemaAPI."""
+        return self.kind == "CoreArtifactDefinition"
+
+    @property
+    def supports_artifacts(self) -> bool:
+        """Return True if this schema supports artifact operations via CoreArtifactTarget inheritance.
+
+        Only NodeSchemaAPI overrides this; all other schema types return False by design because
+        artifact capability is tied to node inheritance, not profiles, templates, or generics.
+        """
+        return False
+
+    @property
+    def supports_file_object(self) -> bool:
+        """Return True if this schema supports file object operations via CoreFileObject inheritance.
+
+        Only NodeSchemaAPI overrides this; all other schema types return False by design because
+        file object capability is tied to node inheritance, not profiles, templates, or generics.
+        """
+        return False
+
+    @property
+    def supports_hierarchy(self) -> bool:
+        """Returns True if this schema participates in a hierarchy. Only NodeSchemaAPI overrides this."""
+        return False
+
+    @property
+    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
+        """Return pseudo-schemas for parent/children/ancestors/descendants if hierarchy is set.
+
+        Only NodeSchemaAPI overrides this; all other schema types return an empty list.
+        """
+        return []
+
 
 class GenericSchema(BaseSchema, BaseSchemaAttrRel):
     def convert_api(self) -> GenericSchemaAPI:
@@ -289,7 +333,9 @@ class GenericSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
     """A Generic can be either an Interface or a Union depending if there are some Attributes or Relationships defined."""
 
     hash: str | None = None
+    hierarchical: bool | None = None
     used_by: list[str] = Field(default_factory=list)
+    restricted_namespaces: list[str] | None = None
 
 
 class BaseNodeSchema(BaseSchema):
@@ -312,6 +358,37 @@ class NodeSchema(BaseNodeSchema, BaseSchemaAttrRel):
 class NodeSchemaAPI(BaseNodeSchema, BaseSchemaAttrRelAPI):
     hash: str | None = None
     hierarchy: str | None = None
+
+    @property
+    def supports_artifacts(self) -> bool:
+        return "CoreArtifactTarget" in self.inherit_from
+
+    @property
+    def supports_file_object(self) -> bool:
+        return "CoreFileObject" in self.inherit_from
+
+    @property
+    def supports_hierarchy(self) -> bool:
+        return self.hierarchy is not None
+
+    @property
+    def hierarchical_relationship_schemas(self) -> list[RelationshipSchemaAPI]:
+        if self.hierarchy is None:
+            return []
+        return [
+            RelationshipSchemaAPI(
+                name="parent", peer=self.hierarchy, kind=RelationshipKind.HIERARCHY, cardinality="one", optional=True
+            ),
+            RelationshipSchemaAPI(
+                name="children", peer=self.hierarchy, kind=RelationshipKind.HIERARCHY, cardinality="many", optional=True
+            ),
+            RelationshipSchemaAPI(
+                name="ancestors", peer=self.hierarchy, cardinality="many", read_only=True, optional=True
+            ),
+            RelationshipSchemaAPI(
+                name="descendants", peer=self.hierarchy, cardinality="many", read_only=True, optional=True
+            ),
+        ]
 
 
 class ProfileSchemaAPI(BaseSchema, BaseSchemaAttrRelAPI):
@@ -366,16 +443,12 @@ class BranchSchema(BaseModel):
 
     @classmethod
     def from_api_response(cls, data: MutableMapping[str, Any]) -> Self:
-        """
-        Convert an API response from /api/schema into a BranchSchema object.
-        """
+        """Convert an API response from /api/schema into a BranchSchema object."""
         return cls.from_schema_root_api(data=SchemaRootAPI(**data))
 
     @classmethod
     def from_schema_root_api(cls, data: SchemaRootAPI) -> Self:
-        """
-        Convert a SchemaRootAPI object to a BranchSchema object.
-        """
+        """Convert a SchemaRootAPI object to a BranchSchema object."""
         nodes: MutableMapping[str, GenericSchemaAPI | NodeSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI] = {}
         for node in data.nodes:
             nodes[node.kind] = node

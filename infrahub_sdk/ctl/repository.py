@@ -32,6 +32,7 @@ def find_repository_config_file(base_path: Path | None = None) -> Path:
 
     Raises:
         FileNotFoundError: If neither .infrahub.yml nor .infrahub.yaml exists.
+
     """
     if base_path is None:
         base_path = Path()
@@ -94,8 +95,7 @@ def load_repository_config_file(repo_config_file: Path) -> dict:
 
 @app.callback()
 def callback() -> None:
-    """
-    Manage the repositories in a remote Infrahub instance.
+    """Manage the repositories in a remote Infrahub instance.
 
     List, create, delete ..
     """
@@ -114,7 +114,6 @@ async def add(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Add a new repository."""
-
     init_logging(debug=debug)
 
     input_data = {
@@ -207,7 +206,6 @@ async def list_repositories(
 @app.command()
 async def init() -> None:
     """Initialize a new Infrahub repository."""
-
     console.print("The copier tool is not included in the Infrahub SDK CLI due to license restrictions,")
     console.print("please run the following command to create a new Infrahub repository project:\n")
     console.print("uv tool run --from 'copier' copier copy https://github.com/opsmill/infrahub-template <project-name>")

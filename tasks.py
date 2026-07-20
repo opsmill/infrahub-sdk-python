@@ -44,6 +44,11 @@ def require_tool(name: str, install_hint: str) -> None:
         raise Exit(f" - {name} is not installed. {install_hint}", code=1)
 
 
+def _rumdl_fix(context: Context, path: Path) -> None:
+    """Auto-fix rumdl violations in the generated markdown under *path*."""
+    context.run(f'rumdl check --fix "{path}"', pty=True)
+
+
 @task(name="docs-generate")
 def docs_generate(context: Context) -> None:
     """Generate all documentation (infrahubctl CLI + Python SDK)."""
@@ -109,12 +114,54 @@ def _generate_infrahub_sdk_configuration_documentation() -> None:
     MDXDocPage(page=page, output_path=output_path).to_mdx()
 
 
+def _generate_infrahub_sdk_compatibility_documentation() -> None:
+    """Generate documentation for the Infrahub SDK compatibility matrix."""
+    from docs.docs_generation.compatibility import (
+        FEATURE_REQUIREMENTS,
+        PYTHON_SUPPORT,
+        RELEASE_MAPPINGS,
+        VERSION_RANGES,
+    )
+    from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
+    from docs.docs_generation.pages import DocPage, MDXDocPage
+    from infrahub_sdk.template import Jinja2Template
+
+    print(" - Generate Infrahub SDK compatibility documentation")
+    page = DocPage(
+        content_gen_method=Jinja2DocContentGenMethod(
+            template=Jinja2Template(
+                template=Path("sdk_compatibility.j2"),
+                template_directory=DOCUMENTATION_DIRECTORY / "_templates",
+            ),
+            template_variables={
+                "version_ranges": VERSION_RANGES,
+                "release_mappings": RELEASE_MAPPINGS,
+                "python_support": PYTHON_SUPPORT,
+                "feature_requirements": FEATURE_REQUIREMENTS,
+            },
+        ),
+    )
+    output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "compatibility.mdx"
+    MDXDocPage(page=page, output_path=output_path).to_mdx()
+
+
 def _generate_infrahub_sdk_template_documentation() -> None:
     """Generate documentation for the Infrahub SDK template reference."""
     from docs.docs_generation.content_gen_methods import Jinja2DocContentGenMethod
     from docs.docs_generation.pages import DocPage, MDXDocPage
     from infrahub_sdk.template import Jinja2Template
-    from infrahub_sdk.template.filters import BUILTIN_FILTERS, NETUTILS_FILTERS
+    from infrahub_sdk.template.filters import BUILTIN_FILTERS, INFRAHUB_FILTERS, NETUTILS_FILTERS, ExecutionContext
+
+    def _filters_with_contexts(filters: list) -> list[dict]:
+        return [
+            {
+                "name": f.name,
+                "core": bool(f.allowed_contexts & ExecutionContext.CORE),
+                "worker": bool(f.allowed_contexts & ExecutionContext.WORKER),
+                "local": bool(f.allowed_contexts & ExecutionContext.LOCAL),
+            }
+            for f in filters
+        ]
 
     print(" - Generate Infrahub SDK template documentation")
     # Generating one documentation page for template documentation
@@ -124,7 +171,11 @@ def _generate_infrahub_sdk_template_documentation() -> None:
                 template=Path("sdk_template_reference.j2"),
                 template_directory=DOCUMENTATION_DIRECTORY / "_templates",
             ),
-            template_variables={"builtin": BUILTIN_FILTERS, "netutils": NETUTILS_FILTERS},
+            template_variables={
+                "builtin": _filters_with_contexts(BUILTIN_FILTERS),
+                "netutils": _filters_with_contexts(NETUTILS_FILTERS),
+                "infrahub": _filters_with_contexts(INFRAHUB_FILTERS),
+            },
         ),
     )
     output_path = DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference" / "templating.mdx"
@@ -142,6 +193,7 @@ def get_modules_to_document() -> list[str]:
     # Packages (sub-folders of infrahub_sdk/) to document.
     # Passed to mdxify as "infrahub_sdk.<name>".
     packages_to_document = [
+        "graph_traversal",
         "node",
     ]
 
@@ -219,14 +271,12 @@ def _generate_sdk_api_docs(context: Context) -> None:
         target_path = output_dir / reduce(operator.truediv, (Path(part) for part in file_key.split("-")))
         MDXDocPage(page=page, output_path=target_path).to_mdx()
 
-    with context.cd(DOCUMENTATION_DIRECTORY):
-        context.run(f"npx --no-install markdownlint-cli2 {output_dir}/ --fix --config .markdownlint.yaml", pty=True)
+    _rumdl_fix(context, output_dir)
 
 
 @task
 def format(context: Context) -> None:
     """Run RUFF to format all Python files."""
-
     exec_cmds = ["ruff format .", "ruff check . --fix"]
     with context.cd(MAIN_DIRECTORY_PATH):
         for cmd in exec_cmds:
@@ -270,11 +320,11 @@ def lint_ruff(context: Context) -> None:
 
 
 @task
-def lint_markdownlint(context: Context) -> None:
-    """Run markdownlint to check all markdown files."""
-    print(" - Check documentation with markdownlint-cli2")
-    exec_cmd = "npx --no-install markdownlint-cli2 **/*.{md,mdx} !node_modules/** --config .markdownlint.yaml"
-    with context.cd(DOCUMENTATION_DIRECTORY):
+def lint_markdown(context: Context) -> None:
+    """Run the markdown linter to check all markdown files."""
+    print(" - Check documentation with rumdl")
+    exec_cmd = "rumdl check ."
+    with context.cd(MAIN_DIRECTORY_PATH):
         context.run(exec_cmd)
 
 
@@ -300,7 +350,7 @@ def lint_code(context: Context) -> None:
 @task
 def lint_docs(context: Context) -> None:
     """Run all documentation linters."""
-    lint_markdownlint(context)
+    lint_markdown(context)
     lint_vale(context)
 
 
@@ -360,12 +410,14 @@ def generate_python_sdk(context: Context) -> None:
     """Generate documentation for the Python SDK."""
     _generate_infrahub_sdk_configuration_documentation()
     _generate_infrahub_sdk_template_documentation()
+    _generate_infrahub_sdk_compatibility_documentation()
+    _rumdl_fix(context, DOCUMENTATION_DIRECTORY / "docs" / "python-sdk" / "reference")
     _generate_sdk_api_docs(context)
 
 
 @task
 def generate_repository_jsonschema(context: Context) -> None:
-    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema"""
+    """Generate JSON schema file for repository configuration. https://github.com/opsmill/infrahub-jsonschema."""
     from infrahub_sdk.schema.repository import InfrahubRepositoryConfig
 
     repository_jsonschema = MAIN_DIRECTORY_PATH / "generated" / "repository-config" / "develop.json"

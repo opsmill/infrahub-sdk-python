@@ -21,13 +21,16 @@ from rich.console import Console
 
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
+from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.utils import catch_exception
+from ..graphql.query_renderer import render_query
 from ..graphql.utils import (
     insert_fragments_inline,
     remove_fragment_import,
     strip_typename_from_fragment,
     strip_typename_from_operation,
 )
+from ..protocols import CoreGraphQLQuery
 from .parameters import CONFIG_PARAM
 
 app = AsyncTyper()
@@ -41,14 +44,14 @@ ARIADNE_PLUGINS = [
 
 
 def find_gql_files(query_path: Path) -> list[Path]:
-    """
-    Find all files with .gql extension in the specified directory.
+    """Find all files with .gql extension in the specified directory.
 
     Args:
         query_path: Path to the directory to search for .gql files
 
     Returns:
         List of Path objects for all .gql files found
+
     """
     if not query_path.exists():
         raise FileNotFoundError(f"File or directory not found: {query_path}")
@@ -61,7 +64,6 @@ def find_gql_files(query_path: Path) -> list[Path]:
 
 def get_graphql_query(queries_path: Path, schema: GraphQLSchema) -> tuple[DefinitionNode, ...]:
     """Get GraphQL queries definitions from a single GraphQL file."""
-
     if not queries_path.exists():
         raise FileNotFoundError(f"File not found: {queries_path}")
     if not queries_path.is_file():
@@ -95,9 +97,70 @@ def generate_result_types(directory: Path, package: PackageGenerator, fragment: 
 
 @app.callback()
 def callback() -> None:
-    """
-    Various GraphQL related commands.
-    """
+    """Various GraphQL related commands."""
+
+
+QUERY_REPORT_DOCUMENT = """
+query ($q: String!) {
+  InfrahubGraphQLQueryReport(query: $q) {
+    targets_unique_nodes
+  }
+}
+"""
+
+
+@app.command(name="query-report")
+@catch_exception(console=console)
+async def query_report(
+    name: str = typer.Argument(..., help="Name of the GraphQL query to analyze."),
+    online: bool = typer.Option(
+        False,
+        "--online",
+        help=(
+            "Fetch the query from the Infrahub server (CoreGraphQLQuery by name) "
+            "instead of reading it from the local .infrahub.yml file."
+        ),
+    ),
+    branch: str | None = typer.Option(None, help="Branch on which to run the report."),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Run a GraphQL query through InfrahubGraphQLQueryReport and report its analysis."""
+    client = initialize_client(branch=branch)
+
+    if online:
+        node = await client.get(
+            kind=CoreGraphQLQuery,  # type: ignore[type-abstract]
+            name__value=name,
+            branch=branch,
+            raise_when_missing=False,
+        )
+        if node is None:
+            console.print(f"[red]GraphQL query {name!r} not found on the server")
+            raise typer.Exit(1)
+        query_str = node.query.value
+        source_label = f"online: id={node.id}"
+    else:
+        repository_config = get_repository_config(find_repository_config_file())
+        query_str = render_query(name=name, config=repository_config)
+        source_label = f"local: {repository_config.get_query(name).file_path}"
+
+    response = await client.execute_graphql(
+        query=QUERY_REPORT_DOCUMENT,
+        variables={"q": query_str},
+        branch_name=branch,
+        tracker="query-graphql-query-report",
+    )
+    targets_unique_nodes = response["InfrahubGraphQLQueryReport"]["targets_unique_nodes"]
+
+    header_parts = [source_label]
+    if branch:
+        header_parts.append(f"branch: {branch}")
+    console.print(f"Query {name!r} ({', '.join(header_parts)})")
+
+    if targets_unique_nodes:
+        console.print("Targets unique nodes: [green]true[/green]")
+    else:
+        console.print("Targets unique nodes: [yellow]false[/yellow]")
 
 
 @app.command()
@@ -107,7 +170,6 @@ async def export_schema(
     _: str = CONFIG_PARAM,
 ) -> None:
     """Export the GraphQL schema to a file."""
-
     client = initialize_client()
     schema_text = await client.schema.get_graphql_schema()
 
@@ -125,8 +187,7 @@ async def generate_return_types(
     schema: Path = typer.Option("schema.graphql", help="Path to the GraphQL schema file."),
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Create Pydantic Models for GraphQL query return types"""
-
+    """Create Pydantic Models for GraphQL query return types."""
     query = Path.cwd() if query is None else query
 
     # Load the GraphQL schema

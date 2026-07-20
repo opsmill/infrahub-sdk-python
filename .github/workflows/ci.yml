@@ -46,7 +46,7 @@ jobs:
       github_workflows: ${{ steps.changes.outputs.github_workflows }}
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: Check for file changes
         uses: dorny/paths-filter@v4
         id: changes
@@ -63,7 +63,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: "Setup environment"
         run: "pip install yamllint==1.35.1"
       - name: "Linting: yamllint"
@@ -76,7 +76,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -99,22 +99,18 @@ jobs:
     if: |
       needs.files-changed.outputs.documentation == 'true' ||
       needs.files-changed.outputs.github_workflows == 'true'
-    needs: ["files-changed"]
+    needs: ["files-changed", "prepare-environment"]
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
-      - name: "Linting: markdownlint"
-        uses: DavidAnson/markdownlint-cli2-action@v23
+        uses: "actions/checkout@v7"
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v7
         with:
-          config: docs/.markdownlint.yaml
-          globs: |
-            **/*.{md,mdx}
-            !changelog/*.md
-            !.claude/commands/**
-            !dev/commands/**
-            !.specify/templates/**
+          version: ${{ needs.prepare-environment.outputs.UV_VERSION }}
+      - name: "Linting: rumdl"
+        run: "uvx rumdl@0.2.28 check ."
 
   action-lint:
     if: needs.files-changed.outputs.github_workflows == 'true'
@@ -123,7 +119,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: Check workflow files
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
@@ -143,7 +139,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: "Set up Python"
         uses: "actions/setup-python@v6"
         with:
@@ -169,7 +165,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
         with:
           submodules: true
       - name: Install NodeJS
@@ -204,7 +200,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
         with:
           submodules: true
       - name: Install NodeJS
@@ -241,7 +237,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
         with:
           submodules: true
 
@@ -279,7 +275,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
@@ -324,10 +320,10 @@ jobs:
     needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
     runs-on:
       group: "huge-runners"
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: "Check out repository code"
-        uses: "actions/checkout@v6"
+        uses: "actions/checkout@v7"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -365,14 +361,14 @@ jobs:
   #   timeout-minutes: 30
   #   steps:
   #     - name: "Check out repository code"
-  #       uses: "actions/checkout@v6"
+  #       uses: "actions/checkout@v7"
 
   #     - name: "Extract target branch name"
   #       id: extract_branch
   #       run: echo "TARGET_BRANCH=${{ github.base_ref }}" >> $GITHUB_ENV
 
   #     - name: "Checkout infrahub repository"
-  #       uses: "actions/checkout@v6"
+  #       uses: "actions/checkout@v7"
   #       with:
   #         repository: "opsmill/infrahub"
   #         path: "infrahub-server"

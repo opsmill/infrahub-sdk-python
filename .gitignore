@@ -31,3 +31,10 @@ dist/*
 # Generated files
 generated/
 sandbox/
+
+# hatch-vcs version file (written at build time; must not be tracked)
+infrahub_sdk/_version.py
+
+# SpecKit internal cache
+.specify/**/.cache/
+.specify/feature.json

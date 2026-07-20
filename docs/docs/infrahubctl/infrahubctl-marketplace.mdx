@@ -1,0 +1,115 @@
+# `infrahubctl marketplace`
+
+Browse and download schemas from the Infrahub Marketplace.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `show`: Show full details of a schema or...
+* `list`: List schemas (default) or collections...
+* `search`: Search the Infrahub Marketplace for...
+* `get`: Fetch a schema or collection from the...
+
+## `infrahubctl marketplace show`
+
+Show full details of a schema or collection from the Infrahub Marketplace.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace show [OPTIONS] IDENTIFIER
+```
+
+**Arguments**:
+
+* `IDENTIFIER`: Schema or collection identifier in namespace/name format  [required]
+
+**Options**:
+
+* `-c, --collection`: Force collection lookup. Default: auto-detect whether the identifier is a schema or collection.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl marketplace list`
+
+List schemas (default) or collections available on the Infrahub Marketplace.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace list [OPTIONS]
+```
+
+**Options**:
+
+* `--collections`: List collections instead of schemas.
+* `-l, --limit INTEGER`: Maximum number of results to display.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl marketplace search`
+
+Search the Infrahub Marketplace for schemas (default) or collections.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace search [OPTIONS] TERM
+```
+
+**Arguments**:
+
+* `TERM`: Search term matched against name, display name, and description.  [required]
+
+**Options**:
+
+* `--collections`: Search collections instead of schemas.
+* `-l, --limit INTEGER`: Maximum number of results to display.
+* `--json`: Output raw JSON to stdout instead of a table.
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+## `infrahubctl marketplace get`
+
+Fetch a schema or collection from the Infrahub Marketplace.
+
+By default, auto-detects whether `namespace/name` is a schema or a collection.
+Pass --collection to force the collection path when an identifier exists as both.
+
+**Usage**:
+
+```console
+$ infrahubctl marketplace get [OPTIONS] IDENTIFIER
+```
+
+**Arguments**:
+
+* `IDENTIFIER`: Schema or collection identifier in namespace/name format  [required]
+
+**Options**:
+
+* `-v, --version TEXT`: Specific schema version, for example 1.2.0. Default: latest published.
+* `-c, --collection`: Force collection download. Default: auto-detect whether the identifier is a schema or collection.
+* `--dependencies`: Also download the schemas this schema or collection depends on.
+* `-y, --yes`: Overwrite schemas that already exist in the output directory without prompting.
+* `-s, --stdout`: Print content to stdout instead of writing to disk. Status messages go to stderr.
+* `-o, --output-dir PATH`: Directory to save downloaded files.  [default: schemas]
+* `--marketplace-url TEXT`: Base URL of the Infrahub Marketplace. Overrides configuration and environment.
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.

@@ -13,6 +13,7 @@ class FilePrintingDocContentGenMethod(ADocContentGenMethod):
 
     Args:
         file: The ``MdxFile`` whose content will be returned.
+
     """
 
     def __init__(self, file: MdxFile) -> None:

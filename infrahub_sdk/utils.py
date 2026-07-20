@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 def generate_short_id() -> str:
-    """Generate a short unique ID"""
+    """Generate a short unique ID."""
     return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii").lower()
 
 
@@ -104,7 +104,6 @@ def generate_uuid() -> str:
 
 def duplicates(input_list: list) -> list:
     """Identify and return all the duplicates in a list."""
-
     dups = []
 
     clean_input_list = [item for item in input_list or [] if item is not None]
@@ -122,12 +121,14 @@ def intersection(list1: list[Any], list2: list[Any]) -> list:
 
 
 def compare_lists(list1: list[Any], list2: list[Any]) -> tuple[list[Any], list[Any], list[Any]]:
-    """Compare 2 lists and return :
-    - the intersection of both
-    - the item present only in list1
-    - the item present only in list2
-    """
+    """Compare 2 lists and return the intersection plus items present only in each list.
 
+    Returns:
+        - the intersection of both
+        - the item present only in list1
+        - the item present only in list2
+
+    """
     in_both = intersection(list1=list1, list2=list2)
     in_list_1 = list(set(list1) - set(in_both))
     in_list_2 = list(set(list2) - set(in_both))
@@ -137,7 +138,12 @@ def compare_lists(list1: list[Any], list2: list[Any]) -> tuple[list[Any], list[A
 
 def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
     """Deep Merge Dictionary B into Dictionary A.
+
     Code is inspired by https://stackoverflow.com/a/7205107
+
+    Raises:
+        ValueError: If both dictionaries hold incompatible non-mergeable values for the same key.
+
     """
     if path is None:
         path = []
@@ -162,8 +168,13 @@ def deep_merge_dict(dicta: dict, dictb: dict, path: list | None = None) -> dict:
 
 
 def str_to_bool(value: str | bool | int) -> bool:
-    """Convert a String to a Boolean"""
+    """Convert a String to a Boolean.
 
+    Raises:
+        TypeError: If ``value`` is not a string, boolean, or integer.
+        ValueError: If ``value`` is a string that doesn't map to a boolean.
+
+    """
     if isinstance(value, bool):
         return value
 
@@ -194,7 +205,7 @@ def str_to_bool(value: str | bool | int) -> bool:
 
 
 def generate_request_filename(request: httpx.Request) -> str:
-    """Return a filename for a request sent to the Infrahub API
+    """Return a filename for a request sent to the Infrahub API.
 
     This function is used when recording and playing back requests, as Infrahub is using a GraphQL
     API it's not possible to rely on the URL endpoint alone to separate one request from another,
@@ -262,7 +273,7 @@ def calculate_dict_height(data: dict, cnt: int = 0) -> int:
 
 
 async def extract_fields(selection_set: SelectionSetNode | None) -> dict[str, dict] | None:
-    """This function extract all the requested fields in a tree of Dict from a SelectionSetNode
+    """This function extract all the requested fields in a tree of Dict from a SelectionSetNode.
 
     The goal of this function is to limit the fields that we need to query from the backend.
 
@@ -272,7 +283,6 @@ async def extract_fields(selection_set: SelectionSetNode | None) -> dict[str, di
 
     In the future we'll probably need to redesign how we read GraphQL queries to generate better Database query.
     """
-
     if not selection_set:
         return None
 
@@ -309,7 +319,12 @@ async def extract_fields_first_node(info: GraphQLResolveInfo) -> dict[str, dict]
 def write_to_file(path: Path, value: Any) -> bool:
     """Write a given value into a file and return if the operation was successful.
 
-    If the file does not exist, the function will attempt to create it."""
+    If the file does not exist, the function will attempt to create it.
+
+    Raises:
+        FileExistsError: If ``path`` exists but is a directory.
+
+    """
     if not path.exists():
         path.touch()
 

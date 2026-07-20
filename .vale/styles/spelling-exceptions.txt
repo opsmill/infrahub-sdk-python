@@ -8,6 +8,7 @@ artifact_definitions
 artifact_name
 async
 Authentik
+backoff
 boolean
 check_definitions
 class_name
@@ -78,6 +79,7 @@ JSONSchema
 kbps
 Keycloak
 Loopbacks
+loopless
 markdownlint
 MDX
 max_count
@@ -111,6 +113,8 @@ REST
 resources
 schema_mapping
 sdk
+stderr
+stdout
 subcommand
 subnet
 subtyping
@@ -139,3 +143,4 @@ yamllint
 YouTube
 vscode
 VSCode
+walkthrough
