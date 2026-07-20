@@ -47,6 +47,7 @@ def extract_properties(schema: dict[str, Any]) -> dict[str, list[str]]:
 
     Returns:
         A mapping of definition name to its sorted list of property names.
+
     """
     definitions = schema.get("$defs") or schema.get("definitions") or {}
     return {name: sorted(definitions.get(name, {}).get("properties", {})) for name in TRACKED_DEFINITIONS}
@@ -64,6 +65,7 @@ def fetch_live_properties(url: str = SCHEMA_URL, timeout: float = 30.0) -> dict[
 
     Raises:
         httpx.HTTPError: If the schema cannot be fetched.
+
     """
     response = httpx.get(url, timeout=timeout, follow_redirects=True)
     response.raise_for_status()
@@ -90,6 +92,7 @@ def compute_drift(live: dict[str, list[str]], baseline: dict[str, list[str]]) ->
     Returns:
         A mapping of definition name to ``{"added": [...], "removed": [...]}``,
         containing only the definitions that changed.
+
     """
     drift: dict[str, dict[str, list[str]]] = {}
     for name in TRACKED_DEFINITIONS:

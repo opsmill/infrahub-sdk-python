@@ -174,6 +174,7 @@ def reorder_mapping(mapping: Any, leading: list[str], trailing: list[str]) -> No
         mapping: The (round-trip) mapping to reorder.
         leading: Keys to place first, in order.
         trailing: Keys to force to the end, in order.
+
     """
     # Round-trip maps (and OrderedDict) support move_to_end; anything else
     # (a scalar, a plain list) is left as-is.
@@ -225,6 +226,7 @@ def format_document(data: Any) -> None:
 
     Args:
         data: The parsed (round-trip) schema document.
+
     """
     reorder_mapping(data, FILE_ORDER, [])
 
@@ -278,6 +280,7 @@ def format_schema_text(raw_text: str) -> str:
     Raises:
         FormatError: If the formatted output does not reload to the same data,
             i.e. formatting would change the file's meaning.
+
     """
     yaml_handler = _build_yaml()
     data = yaml_handler.load(raw_text)
