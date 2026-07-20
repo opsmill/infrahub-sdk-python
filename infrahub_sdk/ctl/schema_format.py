@@ -23,6 +23,7 @@ are all preserved.
 
 from __future__ import annotations
 
+import re
 from io import StringIO
 from typing import Any
 
@@ -50,6 +51,11 @@ RESTRICTED_NAMESPACES: list[str] = [
 
 SCHEMA_URL = "https://schema.infrahub.app/infrahub/schema/latest.json"
 SCHEMA_HEADER = f"---\n# yaml-language-server: $schema={SCHEMA_URL}\n"
+
+# Matches a real yaml-language-server directive: a comment line whose first
+# non-whitespace content is ``# yaml-language-server:``. Deliberately does not
+# match the substring appearing in a scalar value or an unrelated comment.
+_LANGUAGE_SERVER_HEADER_RE = re.compile(r"^[ \t]*#[ \t]*yaml-language-server[ \t]*:", re.MULTILINE)
 
 # Canonical key orders. Each pair is (leading keys, trailing keys); any key not
 # listed is preserved in its original position between the two groups so the
@@ -194,10 +200,16 @@ def _format_attribute(attribute: Any) -> None:
 def _format_entity(entity: Any, leading: list[str], trailing: list[str]) -> None:
     """Reorder an entity's own keys, then the keys of its attributes and relationships."""
     reorder_mapping(entity, leading, trailing)
-    for attribute in entity.get("attributes") or []:
-        _format_attribute(attribute)
-    for relationship in entity.get("relationships") or []:
-        reorder_mapping(relationship, RELATIONSHIP_ORDER, RELATIONSHIP_LAST)
+
+    attributes = entity.get("attributes")
+    if isinstance(attributes, list):
+        for attribute in attributes:
+            _format_attribute(attribute)
+
+    relationships = entity.get("relationships")
+    if isinstance(relationships, list):
+        for relationship in relationships:
+            reorder_mapping(relationship, RELATIONSHIP_ORDER, RELATIONSHIP_LAST)
 
 
 def _is_restricted(entity: Any) -> bool:
@@ -232,8 +244,13 @@ def format_document(data: Any) -> None:
 
 
 def _ensure_schema_header(text: str) -> str:
-    """Add the canonical ``# yaml-language-server`` header if the file lacks one."""
-    if "yaml-language-server" in text:
+    """Add the canonical ``# yaml-language-server`` header if the file lacks one.
+
+    Only an actual header *directive line* counts as present — a bare
+    ``yaml-language-server`` substring elsewhere (in a scalar value or an
+    unrelated comment) must not suppress the header.
+    """
+    if _LANGUAGE_SERVER_HEADER_RE.search(text):
         return text
     if text.startswith("---\n"):
         return SCHEMA_HEADER + text[len("---\n") :]
