@@ -394,6 +394,7 @@ def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bo
 
     Returns:
         One of ``"error"``, ``"skipped"``, ``"unchanged"`` or ``"changed"``.
+
     """
     if len(entries) > 1:
         console.print(f"[yellow] Skipped {location}: multi-document files are not supported by format")
