@@ -304,6 +304,7 @@ async def test_error_parsed() -> None:
 
     assert task.error is not None
     assert task.error.status_class == "client_error"
+    assert task.error.message == "endpoint returned 404"
     assert task.error.remediation == "check the webhook URL"
 
 
