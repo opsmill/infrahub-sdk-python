@@ -375,3 +375,41 @@ def generate_repository_jsonschema(context: Context) -> None:
         repository_jsonschema.parent.mkdir(parents=True, exist_ok=True)
         repository_jsonschema.write_text(schema)
         print(f"Wrote to {repository_jsonschema}")
+
+
+@task(name="schema-drift-check")
+def schema_drift_check(context: Context) -> None:  # noqa: ARG001
+    """Warn (without failing) if the live Infrahub JSON schema drifted from the committed baseline.
+
+    Emits GitHub Actions ``::warning::`` annotations for any added or removed
+    schema property so the formatter's canonical key ordering in
+    ``infrahub_sdk/ctl/schema_format.py`` can be updated. Always exits 0.
+    """
+    from infrahub_sdk.ctl.schema_drift import compute_drift, fetch_live_properties, load_baseline
+
+    try:
+        live = fetch_live_properties()
+    except Exception as exc:
+        print(f"::warning title=Schema drift check::Could not fetch the Infrahub schema: {exc}")
+        return
+
+    drift = compute_drift(live=live, baseline=load_baseline())
+    if not drift:
+        print("Infrahub schema is in sync with the committed baseline; no drift detected.")
+        return
+
+    hint = "update infrahub_sdk/ctl/schema_format.py if needed, then run 'invoke schema-drift-update'"
+    for definition, change in drift.items():
+        for prop in change["added"]:
+            print(f"::warning title=Schema drift::New schema property {definition}.{prop} — {hint}")
+        for prop in change["removed"]:
+            print(f"::warning title=Schema drift::Removed schema property {definition}.{prop} — {hint}")
+
+
+@task(name="schema-drift-update")
+def schema_drift_update(context: Context) -> None:  # noqa: ARG001
+    """Refresh infrahub_sdk/ctl/schema_properties.json from the live Infrahub JSON schema."""
+    from infrahub_sdk.ctl.schema_drift import BASELINE_PATH, fetch_live_properties, write_baseline
+
+    write_baseline(fetch_live_properties())
+    print(f"Updated {BASELINE_PATH}")
