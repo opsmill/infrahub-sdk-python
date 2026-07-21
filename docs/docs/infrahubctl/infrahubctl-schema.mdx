@@ -141,16 +141,21 @@ Format Infrahub schema files with a canonical key ordering.
 
 Reorders the keys within each node, generic, attribute, relationship and
 dropdown choice into a consistent, opinionated order so schema files read
-the same way and produce small diffs. List items (the attributes and
-relationships themselves) are never reordered.
+the same way and produce small diffs.
 
 Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
 left untouched. Comments, quoting, and inline (flow) sequences are preserved.
+
+By default the change is purely key ordering. The opt-in flags additionally
+change content: --strip-defaults drops redundant default values,
+--sort-by-order-weight reorders attributes/relationships, and
+--backfill-order-weight fills in a missing order_weight.
 
 Examples:
   infrahubctl schema format schemas/
   infrahubctl schema format schemas/dcim.yml --diff
   infrahubctl schema format schemas/ --check
+  infrahubctl schema format schemas/ --strip-defaults --sort-by-order-weight
 
 **Usage**:
 
@@ -166,5 +171,8 @@ $ infrahubctl schema format [OPTIONS] SCHEMAS...
 
 * `--check`: Do not write files; exit 1 if any file would be reformatted.
 * `--diff`: Print a diff of the changes instead of writing files.
+* `--strip-defaults`: Remove attribute/relationship/node keys whose value equals the schema default.
+* `--sort-by-order-weight`: Sort attributes and relationships by order_weight (items without one keep their order and go last).
+* `--backfill-order-weight`: Give attributes/relationships that lack an order_weight the value 1000.
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.

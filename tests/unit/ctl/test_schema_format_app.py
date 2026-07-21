@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
 from typer.testing import CliRunner
 
 from infrahub_sdk.ctl.schema import app
@@ -131,6 +132,42 @@ def test_format_directory_recurses(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "2 file(s) reformatted" in remove_ansi_color(result.stdout)
+
+
+def test_format_opt_in_flags(tmp_path: Path) -> None:
+    content = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    relationships:
+      - name: b_rel
+        peer: DcimB
+        optional: true
+        cardinality: many
+        order_weight: 2000
+      - name: a_rel
+        peer: DcimA
+        kind: Attribute
+        cardinality: one
+"""
+    schema = _write(tmp_path / "dcim.yml", content)
+
+    result = runner.invoke(
+        app,
+        env=WIDE,
+        args=["format", str(schema), "--strip-defaults", "--sort-by-order-weight", "--backfill-order-weight"],
+    )
+
+    assert result.exit_code == 0
+    out = schema.read_text(encoding="utf-8")
+    rels = yaml.safe_load(out)["nodes"][0]["relationships"]
+    # backfill filled a_rel (was missing) with 1000, so it sorts before b_rel (2000).
+    assert [r["name"] for r in rels] == ["a_rel", "b_rel"]
+    # strip-defaults removed the redundant optional:true / cardinality:many on b_rel.
+    assert "optional" not in rels[1]
+    assert "cardinality" not in rels[1]
 
 
 def test_format_leaves_restricted_namespace_untouched(tmp_path: Path) -> None:

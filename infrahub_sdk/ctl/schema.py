@@ -20,7 +20,13 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import NodeSchemaAPI, SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
-from .schema_format import FormatError, format_schema_text, is_schema_document
+from .schema_format import (
+    DEFAULT_BACKFILL_ORDER_WEIGHT,
+    FormatError,
+    FormatOptions,
+    format_schema_text,
+    is_schema_document,
+)
 from .utils import load_yamlfile_from_disk_and_exit
 
 if TYPE_CHECKING:
@@ -436,7 +442,9 @@ def _print_schema_diff(location: Path, original: str, formatted: str) -> None:
             console.print(line, end="", markup=False, highlight=False)
 
 
-def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bool, diff: bool) -> str:
+def _format_one_schema_file(
+    location: Path, entries: list[SchemaFile], check: bool, diff: bool, options: FormatOptions
+) -> str:
     """Format a single schema file and report what happened.
 
     Args:
@@ -445,6 +453,7 @@ def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bo
             a genuine multi-document file, which is not supported).
         check: Report changes without writing.
         diff: Print a diff instead of writing.
+        options: Opt-in transforms to apply.
 
     Returns:
         One of ``"error"``, ``"skipped"``, ``"unchanged"`` or ``"changed"``.
@@ -464,7 +473,7 @@ def _format_one_schema_file(location: Path, entries: list[SchemaFile], check: bo
 
     original = location.read_text(encoding="utf-8")
     try:
-        formatted = format_schema_text(original)
+        formatted = format_schema_text(original, options)
     except FormatError as exc:
         console.print(f"[red] {location}: {exc}")
         return "error"
@@ -488,24 +497,47 @@ def schema_format(
     schemas: list[Path],
     check: bool = typer.Option(False, "--check", help="Do not write files; exit 1 if any file would be reformatted."),
     diff: bool = typer.Option(False, "--diff", help="Print a diff of the changes instead of writing files."),
+    strip_defaults: bool = typer.Option(
+        False, "--strip-defaults", help="Remove attribute/relationship/node keys whose value equals the schema default."
+    ),
+    sort_by_order_weight: bool = typer.Option(
+        False,
+        "--sort-by-order-weight",
+        help="Sort attributes and relationships by order_weight (items without one keep their order and go last).",
+    ),
+    backfill_order_weight: bool = typer.Option(
+        False,
+        "--backfill-order-weight",
+        help=f"Give attributes/relationships that lack an order_weight the value {DEFAULT_BACKFILL_ORDER_WEIGHT}.",
+    ),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Format Infrahub schema files with a canonical key ordering.
 
     Reorders the keys within each node, generic, attribute, relationship and
     dropdown choice into a consistent, opinionated order so schema files read
-    the same way and produce small diffs. List items (the attributes and
-    relationships themselves) are never reordered.
+    the same way and produce small diffs.
 
     Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
     left untouched. Comments, quoting, and inline (flow) sequences are preserved.
+
+    By default the change is purely key ordering. The opt-in flags additionally
+    change content: --strip-defaults drops redundant default values,
+    --sort-by-order-weight reorders attributes/relationships, and
+    --backfill-order-weight fills in a missing order_weight.
 
     \b
     Examples:
       infrahubctl schema format schemas/
       infrahubctl schema format schemas/dcim.yml --diff
       infrahubctl schema format schemas/ --check
+      infrahubctl schema format schemas/ --strip-defaults --sort-by-order-weight
     """
+    options = FormatOptions(
+        strip_defaults=strip_defaults,
+        sort_by_order_weight=sort_by_order_weight,
+        backfill_order_weight=backfill_order_weight,
+    )
     schema_files = SchemaFile.load_from_disk(paths=schemas)
 
     # A genuine multi-document file yields several SchemaFile entries for the
@@ -522,7 +554,7 @@ def schema_format(
     has_error = False
 
     for location, entries in entries_by_location.items():
-        status = _format_one_schema_file(location=location, entries=entries, check=check, diff=diff)
+        status = _format_one_schema_file(location=location, entries=entries, check=check, diff=diff, options=options)
         if status == "error":
             has_error = True
         elif status == "unchanged":
