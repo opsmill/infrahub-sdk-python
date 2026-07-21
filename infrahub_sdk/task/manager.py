@@ -23,6 +23,7 @@ class InfraHubTaskManagerBase:
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
         offset: int | None = None,
         limit: int | None = None,
         count: bool = False,
@@ -78,6 +79,15 @@ class InfraHubTaskManagerBase:
                 "unavailability_reason": None,
             }
 
+        if include_diagnostics:
+            node = query["InfrahubTask"]["edges"]["node"]
+            node["error"] = {"status_class": None, "message": None, "remediation": None}
+            # node is a GraphQL interface; the string key renders as an inline fragment.
+            node["... on WebhookDeliveryTask"] = {
+                "http_request": {"url": None, "headers": None},
+                "http_response": {"status_code": None, "body": None, "latency_ms": None},
+            }
+
         return Query(query=query)
 
     @classmethod
@@ -124,6 +134,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Get all tasks.
 
@@ -135,6 +146,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
             include_actions: Whether to include the available actions in the tasks. Defaults to False.
+            include_diagnostics: Whether to include the error and webhook delivery diagnostics in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -148,6 +160,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
         )
 
     async def filter(
@@ -160,6 +173,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Filter tasks.
 
@@ -172,6 +186,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
             include_actions: Whether to include the available actions in the tasks. Defaults to False.
+            include_diagnostics: Whether to include the error and webhook delivery diagnostics in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -190,6 +205,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                     include_logs=include_logs,
                     include_related_nodes=include_related_nodes,
                     include_actions=include_actions,
+                    include_diagnostics=include_diagnostics,
                     count=False,
                 ),
                 1,
@@ -204,6 +220,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
             )
 
         return await self.process_non_batch(
@@ -214,16 +231,23 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
         )
 
     async def get(
-        self, id: str, include_logs: bool = False, include_related_nodes: bool = False, include_actions: bool = False
+        self,
+        id: str,
+        include_logs: bool = False,
+        include_related_nodes: bool = False,
+        include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> Task:
         tasks = await self.filter(
             filter=TaskFilter(ids=[id]),
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
             parallel=False,
         )
         if not tasks:
@@ -315,6 +339,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Process queries in parallel mode."""
         pagination_size = self.client.pagination_size
@@ -332,6 +357,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
                 count=False,
             )
             batch_process.add(
@@ -352,6 +378,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Process queries without parallel mode.
 
@@ -372,6 +399,7 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
                 count=True,
             )
             new_tasks, count = await self.process_page(
@@ -417,6 +445,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Get all tasks.
 
@@ -428,6 +457,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
             include_actions: Whether to include the available actions in the tasks. Defaults to False.
+            include_diagnostics: Whether to include the error and webhook delivery diagnostics in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -441,6 +471,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
         )
 
     def filter(
@@ -453,6 +484,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Filter tasks.
 
@@ -465,6 +497,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             include_logs: Whether to include the logs in the tasks. Defaults to False.
             include_related_nodes: Whether to include the related nodes in the tasks. Defaults to False.
             include_actions: Whether to include the available actions in the tasks. Defaults to False.
+            include_diagnostics: Whether to include the error and webhook delivery diagnostics in the tasks. Defaults to False.
 
         Returns:
             A list of tasks.
@@ -483,6 +516,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                     include_logs=include_logs,
                     include_related_nodes=include_related_nodes,
                     include_actions=include_actions,
+                    include_diagnostics=include_diagnostics,
                     count=False,
                 ),
                 1,
@@ -497,6 +531,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
             )
 
         return self.process_non_batch(
@@ -507,16 +542,23 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
         )
 
     def get(
-        self, id: str, include_logs: bool = False, include_related_nodes: bool = False, include_actions: bool = False
+        self,
+        id: str,
+        include_logs: bool = False,
+        include_related_nodes: bool = False,
+        include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> Task:
         tasks = self.filter(
             filter=TaskFilter(ids=[id]),
             include_logs=include_logs,
             include_related_nodes=include_related_nodes,
             include_actions=include_actions,
+            include_diagnostics=include_diagnostics,
             parallel=False,
         )
         if not tasks:
@@ -608,6 +650,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Process queries in parallel mode."""
         pagination_size = self.client.pagination_size
@@ -625,6 +668,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
                 count=False,
             )
             batch_process.add(
@@ -645,6 +689,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
         include_logs: bool = False,
         include_related_nodes: bool = False,
         include_actions: bool = False,
+        include_diagnostics: bool = False,
     ) -> list[Task]:
         """Process queries without parallel mode.
 
@@ -665,6 +710,7 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
                 include_logs=include_logs,
                 include_related_nodes=include_related_nodes,
                 include_actions=include_actions,
+                include_diagnostics=include_diagnostics,
                 count=True,
             )
             new_tasks, count = self.process_page(

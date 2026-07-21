@@ -9,7 +9,7 @@ import pytest
 from infrahub_sdk.graphql import Mutation
 from infrahub_sdk.task.exceptions import TaskNotFoundError, TooManyTasksError
 from infrahub_sdk.task.manager import MUTATION_TASK_QUERY, InfraHubTaskManagerBase
-from infrahub_sdk.task.models import Task, TaskFilter, TaskState
+from infrahub_sdk.task.models import Task, TaskFilter, TaskState, WebhookDeliveryTask
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -90,6 +90,19 @@ async def test_filter_limit_forwards_include_actions(
 
     sent_query = json.loads(mock_query_tasks_03.get_requests()[-1].content)["query"]
     assert "available_actions" in sent_query
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_filter_limit_forwards_include_diagnostics(
+    clients: BothClients, mock_query_tasks_03: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        await clients.standard.task.filter(limit=5, include_diagnostics=True)
+    else:
+        clients.sync.task.filter(limit=5, include_diagnostics=True)
+
+    sent_query = json.loads(mock_query_tasks_03.get_requests()[-1].content)["query"]
+    assert "... on WebhookDeliveryTask" in sent_query
 
 
 async def test_action_mutation_render() -> None:
@@ -202,6 +215,7 @@ async def test_method_get_full(clients: BothClients, mock_query_tasks_05: HTTPXM
         "available_actions": [],
         "branch": "main",
         "created_at": datetime(2025, 1, 18, 22, 12, 20, 228112, tzinfo=timezone.utc),
+        "error": None,
         "id": "32116fcd-9071-43a7-9f14-777901020b5b",
         "logs": [
             {
@@ -274,3 +288,56 @@ async def test_available_actions_absent_defaults_empty() -> None:
     assert task.available_actions == []
     assert task.can_retry is False
     assert task.can_cancel is False
+
+
+async def test_error_parsed() -> None:
+    task = Task.from_graphql(
+        {
+            **_base_task_data(),
+            "error": {
+                "status_class": "client_error",
+                "message": "endpoint returned 404",
+                "remediation": "check the webhook URL",
+            },
+        }
+    )
+
+    assert task.error is not None
+    assert task.error.status_class == "client_error"
+    assert task.error.message == "endpoint returned 404"
+    assert task.error.remediation == "check the webhook URL"
+
+
+async def test_webhook_send_dispatches_to_webhook_task() -> None:
+    task = Task.from_graphql(
+        {
+            **_base_task_data(),
+            "workflow": "webhook-send",
+            "http_request": {"url": "https://example.com/hook", "headers": {"X-Signature": "***"}},
+            "http_response": {"status_code": 200, "body": "ok", "latency_ms": 42.5},
+        }
+    )
+
+    assert isinstance(task, WebhookDeliveryTask)
+    assert task.http_request is not None
+    assert task.http_request.url == "https://example.com/hook"
+    assert task.http_response is not None
+    assert task.http_response.status_code == 200
+    assert task.http_response.latency_ms == pytest.approx(42.5)
+
+
+async def test_generate_query_excludes_diagnostics_by_default() -> None:
+    query = InfraHubTaskManagerBase._generate_query().render()
+
+    assert "error {" not in query
+    assert "... on WebhookDeliveryTask {" not in query
+
+
+async def test_generate_query_includes_diagnostics_when_requested() -> None:
+    query = InfraHubTaskManagerBase._generate_query(include_diagnostics=True).render()
+
+    assert "error {" in query
+    assert "remediation" in query
+    assert "... on WebhookDeliveryTask {" in query
+    assert "http_request {" in query
+    assert "http_response {" in query
