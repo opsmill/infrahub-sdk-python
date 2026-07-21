@@ -78,7 +78,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install UV
@@ -141,7 +141,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
       - name: "Set up Python"
-        uses: "actions/setup-python@v6"
+        uses: "actions/setup-python@v7"
         with:
           python-version: "3.12"
       - name: "Install uv"
@@ -177,7 +177,7 @@ jobs:
       - name: "Install dependencies"
         run: npm install
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install UV
@@ -213,7 +213,7 @@ jobs:
         run: npm install
         working-directory: ./docs
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install UV
@@ -277,7 +277,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install UV
@@ -325,7 +325,7 @@ jobs:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: "Set environment variables"
@@ -376,7 +376,7 @@ jobs:
   #         submodules: true
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v6
+  #       uses: actions/setup-python@v7
   #       with:
   #         python-version: "3.12"
 
