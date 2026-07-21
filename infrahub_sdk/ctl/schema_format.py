@@ -1,29 +1,37 @@
 """Opinionated formatter for Infrahub schema YAML files.
 
-The formatter's single responsibility is the *ordering of keys* (lines) within
+The formatter's core responsibility is the *ordering of keys* (lines) within
 each node, generic, attribute, relationship and dropdown choice, so that
 hand-authored schema files read consistently and produce small diffs.
 
-Design constraints:
+By default the transformation is purely cosmetic and semantics-preserving:
+only line order changes, and :func:`format_schema_text` re-parses its own
+output and raises if the reloaded data differs from the input.
 
-- Only the user's own ("core") nodes are formatted. Nodes and generics whose
-  ``namespace`` is one of Infrahub's :data:`RESTRICTED_NAMESPACES` are left
-  untouched, since those are Infrahub-mandatory and never hand-authored.
-- List *items* are never reordered — attributes and relationships are grouped
-  by domain logic by their authors and only loosely track ``order_weight``.
-- The transformation is guaranteed to be semantics-preserving: only line order
-  changes. :func:`format_schema_text` re-parses its own output and raises if
-  the reloaded data differs from the input.
+Three opt-in transforms (see :class:`FormatOptions`) go further and *do* change
+what is written — each is off by default and neutralised in the safety check so
+only its intended effect is allowed:
+
+- ``strip_defaults`` — drop keys whose value equals the schema default (context
+  aware: ``optional: true`` is redundant on a relationship but meaningful on an
+  attribute).
+- ``sort_by_order_weight`` — sort attributes and relationships ascending by
+  ``order_weight``; items without one keep their authored order and go last.
+- ``backfill_order_weight`` — give attributes/relationships that lack an
+  ``order_weight`` a single constant value.
 
 Formatting is done with ``ruamel.yaml`` in round-trip mode, so comments (the
 ``# yaml-language-server`` header, standalone notes, and inline comments),
 quoting style, and flow-style sequences (e.g. ``[manufacturer, name__value]``)
-are all preserved.
+are preserved. Standalone comments sitting *between* attributes/relationships
+may not follow their item when ``sort_by_order_weight`` reorders the list;
+inline comments on a value always travel with it.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from io import StringIO
 from typing import Any
 
@@ -51,6 +59,10 @@ RESTRICTED_NAMESPACES: list[str] = [
 
 SCHEMA_URL = "https://schema.infrahub.app/infrahub/schema/latest.json"
 SCHEMA_HEADER = f"---\n# yaml-language-server: $schema={SCHEMA_URL}\n"
+
+# order_weight has no numeric default in the schema (the UI falls back to
+# declaration order), so backfill writes this constant.
+DEFAULT_BACKFILL_ORDER_WEIGHT = 1000
 
 # Matches a real yaml-language-server directive: a comment line whose first
 # non-whitespace content is ``# yaml-language-server:``. Deliberately does not
@@ -142,6 +154,42 @@ CHOICE_ORDER = ["name", "label", "description", "color"]
 EXTENSION_NODE_ORDER = ["kind", "inherit_from"]
 EXTENSION_NODE_LAST = ["attributes", "relationships"]
 
+# Strippable defaults, grounded in the published JSON schema's ``default``
+# values. Consequential or internal fields (``branch``, ``state``,
+# ``inherited``, ``display``) are intentionally excluded: stripping an explicit
+# value there would couple the schema to whatever the default happens to be at
+# load time.
+ENTITY_DEFAULTS: dict[str, Any] = {
+    "generate_profile": True,
+    "generate_template": False,
+    "hierarchical": False,
+}
+ATTRIBUTE_DEFAULTS: dict[str, Any] = {
+    "read_only": False,
+    "unique": False,
+    "optional": False,
+    "allow_override": "any",
+}
+RELATIONSHIP_DEFAULTS: dict[str, Any] = {
+    "kind": "Generic",
+    "cardinality": "many",
+    "optional": True,
+    "direction": "bidirectional",
+    "read_only": False,
+    "allow_override": "any",
+    "min_count": 0,
+    "max_count": 0,
+}
+
+
+@dataclass(frozen=True)
+class FormatOptions:
+    """Opt-in transforms that change file content beyond key ordering."""
+
+    strip_defaults: bool = False
+    sort_by_order_weight: bool = False
+    backfill_order_weight: bool = False
+
 
 class FormatError(Exception):
     """Raised when formatting would change the meaning of a schema file."""
@@ -190,35 +238,60 @@ def reorder_mapping(mapping: Any, leading: list[str], trailing: list[str]) -> No
         mapping.move_to_end(key)
 
 
-def _format_attribute(attribute: Any) -> None:
-    reorder_mapping(attribute, ATTRIBUTE_ORDER, ATTRIBUTE_LAST)
-    choices = attribute.get("choices") if isinstance(attribute, dict) else None
-    if isinstance(choices, list):
-        for choice in choices:
-            reorder_mapping(choice, CHOICE_ORDER, [])
+def _strip_default_keys(mapping: Any, defaults: dict[str, Any]) -> None:
+    """Remove keys whose value equals the schema default."""
+    if not isinstance(mapping, dict):
+        return
+    for key, default in defaults.items():
+        if key in mapping and mapping[key] == default:
+            del mapping[key]
 
 
-def _format_entity(entity: Any, leading: list[str], trailing: list[str]) -> None:
-    """Reorder an entity's own keys, then the keys of its attributes and relationships."""
+def _order_weight_sort_key(item: Any) -> float:
+    weight = item.get("order_weight") if isinstance(item, dict) else None
+    # Missing/non-numeric weights sort last; a stable sort keeps their order.
+    return weight if isinstance(weight, int) and not isinstance(weight, bool) else float("inf")
+
+
+def _format_item(item: Any, defaults: dict[str, Any], leading: list[str], options: FormatOptions) -> None:
+    if not isinstance(item, dict):
+        return
+    if options.backfill_order_weight and "order_weight" not in item:
+        item["order_weight"] = DEFAULT_BACKFILL_ORDER_WEIGHT
+    if options.strip_defaults:
+        _strip_default_keys(item, defaults)
+    reorder_mapping(item, leading, ["order_weight"])
+    if defaults is ATTRIBUTE_DEFAULTS:
+        choices = item.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                reorder_mapping(choice, CHOICE_ORDER, [])
+
+
+def _format_item_list(items: Any, defaults: dict[str, Any], leading: list[str], options: FormatOptions) -> None:
+    if not isinstance(items, list):
+        return
+    for item in items:
+        _format_item(item, defaults, leading, options)
+    if options.sort_by_order_weight:
+        items.sort(key=_order_weight_sort_key)
+
+
+def _format_entity(entity: Any, leading: list[str], trailing: list[str], options: FormatOptions) -> None:
+    """Reorder an entity's own keys, then transform its attributes and relationships."""
+    if options.strip_defaults:
+        _strip_default_keys(entity, ENTITY_DEFAULTS)
     reorder_mapping(entity, leading, trailing)
-
-    attributes = entity.get("attributes")
-    if isinstance(attributes, list):
-        for attribute in attributes:
-            _format_attribute(attribute)
-
-    relationships = entity.get("relationships")
-    if isinstance(relationships, list):
-        for relationship in relationships:
-            reorder_mapping(relationship, RELATIONSHIP_ORDER, RELATIONSHIP_LAST)
+    _format_item_list(entity.get("attributes"), ATTRIBUTE_DEFAULTS, ATTRIBUTE_ORDER, options)
+    _format_item_list(entity.get("relationships"), RELATIONSHIP_DEFAULTS, RELATIONSHIP_ORDER, options)
 
 
 def _is_restricted(entity: Any) -> bool:
     return isinstance(entity, dict) and entity.get("namespace") in RESTRICTED_NAMESPACES
 
 
-def format_document(data: Any) -> None:
-    """Reorder every key in a parsed schema document in place, into canonical order.
+def format_document(data: Any, options: FormatOptions | None = None) -> None:
+    """Reorder (and optionally transform) a parsed schema document in place.
 
     Nodes and generics in a restricted namespace are left untouched. Extension
     entries are always formatted, since the extension block itself is authored
@@ -226,8 +299,10 @@ def format_document(data: Any) -> None:
 
     Args:
         data: The parsed (round-trip) schema document.
+        options: Opt-in transforms; defaults to key-ordering only.
 
     """
+    options = options or FormatOptions()
     reorder_mapping(data, FILE_ORDER, [])
 
     for section in ("generics", "nodes"):
@@ -236,13 +311,13 @@ def format_document(data: Any) -> None:
             continue
         for entity in entities:
             if isinstance(entity, dict) and not _is_restricted(entity):
-                _format_entity(entity, NODE_ORDER, NODE_LAST)
+                _format_entity(entity, NODE_ORDER, NODE_LAST, options)
 
     extensions = data.get("extensions")
     if isinstance(extensions, dict) and isinstance(extensions.get("nodes"), list):
         for entity in extensions["nodes"]:
             if isinstance(entity, dict):
-                _format_entity(entity, EXTENSION_NODE_ORDER, EXTENSION_NODE_LAST)
+                _format_entity(entity, EXTENSION_NODE_ORDER, EXTENSION_NODE_LAST, options)
 
 
 def _ensure_schema_header(text: str) -> str:
@@ -268,33 +343,89 @@ def is_schema_document(content: Any) -> bool:
     )
 
 
-def format_schema_text(raw_text: str) -> str:
+def _normalize_item(item: Any, defaults: dict[str, Any], options: FormatOptions) -> Any:
+    if not isinstance(item, dict):
+        return item
+    normalized = dict(item)
+    if options.strip_defaults:
+        for key, default in defaults.items():
+            normalized.setdefault(key, default)
+    if options.backfill_order_weight:
+        normalized.setdefault("order_weight", DEFAULT_BACKFILL_ORDER_WEIGHT)
+    return normalized
+
+
+def _normalize_entity(entity: Any, options: FormatOptions) -> Any:
+    if not isinstance(entity, dict):
+        return entity
+    normalized = dict(entity)
+    if options.strip_defaults:
+        for key, default in ENTITY_DEFAULTS.items():
+            normalized.setdefault(key, default)
+    for key, defaults in (("attributes", ATTRIBUTE_DEFAULTS), ("relationships", RELATIONSHIP_DEFAULTS)):
+        items = normalized.get(key)
+        if isinstance(items, list):
+            items = [_normalize_item(item, defaults, options) for item in items]
+            if options.sort_by_order_weight:
+                items = sorted(items, key=lambda it: it.get("name", "") if isinstance(it, dict) else "")
+            normalized[key] = items
+    return normalized
+
+
+def _normalize_for_guard(data: Any, options: FormatOptions) -> Any:
+    """Collapse exactly the intended transforms so the guard permits them.
+
+    The same normalisation is applied to the input and the formatted output, so
+    an intended change (a stripped default, a reordered list, a backfilled
+    weight) is neutralised on both sides while any *unintended* corruption still
+    causes inequality. With no options set this is effectively an identity.
+    """
+    if not isinstance(data, dict):
+        return data
+    normalized = dict(data)
+    for section in ("generics", "nodes"):
+        entities = normalized.get(section)
+        if isinstance(entities, list):
+            normalized[section] = [_normalize_entity(entity, options) for entity in entities]
+    extensions = normalized.get("extensions")
+    if isinstance(extensions, dict) and isinstance(extensions.get("nodes"), list):
+        extensions = dict(extensions)
+        extensions["nodes"] = [_normalize_entity(entity, options) for entity in extensions["nodes"]]
+        normalized["extensions"] = extensions
+    return normalized
+
+
+def format_schema_text(raw_text: str, options: FormatOptions | None = None) -> str:
     """Format the text of a schema file into canonical YAML text.
 
     Args:
         raw_text: The original file contents.
+        options: Opt-in transforms; defaults to key-ordering only.
 
     Returns:
         The formatted YAML text, with comments and quoting preserved.
 
     Raises:
-        FormatError: If the formatted output does not reload to the same data,
-            i.e. formatting would change the file's meaning.
+        FormatError: If formatting would change the file's meaning beyond the
+            transforms requested via ``options``.
 
     """
+    options = options or FormatOptions()
     yaml_handler = _build_yaml()
     data = yaml_handler.load(raw_text)
 
     if not is_schema_document(data):
         return raw_text
 
-    format_document(data)
+    format_document(data, options)
 
     buffer = StringIO()
     yaml_handler.dump(data, buffer)
     text = _ensure_schema_header(buffer.getvalue())
 
-    if yaml.safe_load(text) != yaml.safe_load(raw_text):
+    original = _normalize_for_guard(yaml.safe_load(raw_text), options)
+    formatted = _normalize_for_guard(yaml.safe_load(text), options)
+    if original != formatted:
         raise FormatError("Formatting would change the schema content; aborting to avoid data loss.")
 
     return text

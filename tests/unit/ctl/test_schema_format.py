@@ -9,6 +9,7 @@ import yaml
 
 from infrahub_sdk.ctl.schema_format import (
     FormatError,
+    FormatOptions,
     format_schema_text,
     is_schema_document,
     reorder_mapping,
@@ -235,7 +236,7 @@ def test_non_schema_document_is_returned_unchanged() -> None:
 
 def test_format_error_raised_on_semantic_drift(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate a formatting step that silently drops data; the guard must catch it.
-    def _wipe(data: dict) -> None:
+    def _wipe(data: dict, options: object = None) -> None:
         data.clear()
 
     monkeypatch.setattr("infrahub_sdk.ctl.schema_format.format_document", _wipe)
@@ -288,6 +289,108 @@ nodes:
 """
     text = format_schema_text(doc)
     assert text.count("# yaml-language-server:") == 1
+
+
+STRIP_DOC = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: a
+        kind: Text
+        optional: false
+      - name: b
+        kind: Text
+        optional: true
+    relationships:
+      - name: r1
+        peer: DcimX
+        optional: true
+        cardinality: many
+        kind: Generic
+      - name: r2
+        peer: DcimY
+        optional: false
+        cardinality: one
+        kind: Attribute
+"""
+
+
+def test_strip_defaults_removes_only_default_values() -> None:
+    node = yaml.safe_load(format_schema_text(STRIP_DOC, FormatOptions(strip_defaults=True)))["nodes"][0]
+    attrs = {a["name"]: a for a in node["attributes"]}
+    rels = {r["name"]: r for r in node["relationships"]}
+
+    # Attribute default optional:false stripped; non-default optional:true kept.
+    assert "optional" not in attrs["a"]
+    assert attrs["b"]["optional"] is True
+
+    # Relationship defaults (optional:true, cardinality:many, kind:Generic) stripped.
+    assert set(rels["r1"].keys()) == {"name", "peer"}
+    # Non-default relationship values are kept.
+    assert rels["r2"]["optional"] is False
+    assert rels["r2"]["cardinality"] == "one"
+    assert rels["r2"]["kind"] == "Attribute"
+
+
+SORT_DOC = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: c
+        kind: Text
+        order_weight: 3000
+      - name: a
+        kind: Text
+        order_weight: 1000
+      - name: b
+        kind: Text
+      - name: d
+        kind: Text
+        order_weight: 2000
+"""
+
+
+def test_sort_by_order_weight_ascending_missing_last() -> None:
+    node = yaml.safe_load(format_schema_text(SORT_DOC, FormatOptions(sort_by_order_weight=True)))["nodes"][0]
+    names = [a["name"] for a in node["attributes"]]
+    # Weighted ascending (a=1000, d=2000, c=3000), then the weightless one last.
+    assert names == ["a", "d", "c", "b"]
+
+
+def test_backfill_order_weight_only_fills_missing() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: a
+        kind: Text
+      - name: b
+        kind: Text
+        order_weight: 5
+"""
+    node = yaml.safe_load(format_schema_text(doc, FormatOptions(backfill_order_weight=True)))["nodes"][0]
+    weights = {a["name"]: a["order_weight"] for a in node["attributes"]}
+    assert weights == {"a": 1000, "b": 5}
+
+
+def test_flags_are_idempotent_and_off_by_default() -> None:
+    # Off by default: no content change beyond ordering (STRIP_DOC has a
+    # strippable default that must survive when the flag is not set).
+    default_out = yaml.safe_load(format_schema_text(STRIP_DOC))
+    assert default_out["nodes"][0]["attributes"][0].get("optional") is False
+
+    opts = FormatOptions(strip_defaults=True, sort_by_order_weight=True, backfill_order_weight=True)
+    once = format_schema_text(STRIP_DOC, opts)
+    assert format_schema_text(once, opts) == once
 
 
 def test_is_schema_document() -> None:
