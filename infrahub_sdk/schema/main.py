@@ -83,12 +83,9 @@ class AttributeSchema(AttributeSchemaBaseWrite):
 
     ``AttributeSchemaWrite`` (from the generated module) is a non-constructible discriminated union.
     This class keeps ``AttributeSchema(name=..., kind=AttributeKind.TEXT, ...)`` working by exposing
-    the shared write base plus a permissive ``parameters``/``choices``. ``extra="ignore"`` overrides
-    the base's ``extra="forbid"`` so the historical construction keyword arguments keep working;
-    strict rejection of unknown keys stays with the generated write union and the server contract.
+    the shared write base plus a permissive ``parameters``/``choices``. Unknown keys are dropped
+    silently (inherited ``extra="ignore"``), matching the rest of the write contract.
     """
-
-    model_config = ConfigDict(extra="ignore", use_enum_values=True)
 
     choices: list[dict[str, Any]] | None = None
     parameters: dict[str, Any] | None = None

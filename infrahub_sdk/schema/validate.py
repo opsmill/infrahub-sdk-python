@@ -3,9 +3,9 @@
 This module depends only on pydantic and the generated write models, so a caller
 can validate a schema payload with just the SDK installed (no server, no backend).
 The write models omit fields the user may not set (read-level, internal) and set
-``extra="forbid"``, so submitting a non-settable or unknown field is rejected with a
-field-level message, and constrained fields set outside their allowed set are rejected
-naming the field and the invalid value.
+``extra="ignore"``, so a non-settable or unknown field is dropped silently rather than
+rejected; constrained fields set outside their allowed set are still rejected naming
+the field and the invalid value, as are missing required fields and unknown enum members.
 """
 
 from __future__ import annotations
