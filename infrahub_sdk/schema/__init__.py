@@ -174,7 +174,9 @@ class InfrahubSchemaBase:
         return SchemaExport(namespaces=ns_map)
 
     def validate(self, data: dict[str, Any]) -> None:
-        SchemaRoot(**data)
+        # Validate against the generated write contract so this matches what /api/schema/load
+        # enforces (unknown keys rejected, attribute kinds discriminated, extensions understood).
+        InfrahubSchemaWrite.model_validate(data)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
         for key in data:

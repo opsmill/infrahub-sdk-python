@@ -6,6 +6,8 @@ field-level verdict, without importing the backend/server package.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
 
 from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite, validate_schema
@@ -62,22 +64,9 @@ def test_non_settable_field_is_rejected_and_named() -> None:
     assert any("nodes[0].attributes[0]" in message for message in result.messages), result.messages
 
 
-def test_out_of_enum_value_is_rejected_naming_field_and_value() -> None:
-    schema = _valid_schema()
-    schema["nodes"][0]["attributes"][0]["kind"] = "NotARealKind"
-
-    result = validate_schema(schema=schema)
-
-    assert result.valid is False
-    # `kind` is the attribute union's discriminator, so an unknown kind is reported against the
-    # attribute itself, with the discriminator field and the invalid value named in the message.
-    assert "nodes[0].attributes[0]" in _fields_named(result), result.messages
-    assert any("kind" in message and "NotARealKind" in message for message in result.messages), result.messages
-
-
 def test_enum_backed_relationship_cardinality_valid_value_passes() -> None:
     # cardinality is typed with the RelationshipCardinality enum (use_enum_values keeps the runtime
-    # value a plain string); a valid enum value must still validate.
+    # value a plain string); "one" is a valid RelationshipCardinality string and must validate.
     schema = _valid_schema()
     schema["nodes"][0]["relationships"][0]["cardinality"] = "one"
 
@@ -107,6 +96,8 @@ def test_unknown_field_on_node_is_rejected() -> None:
 
 
 def test_raise_on_error_raises_value_error_naming_field() -> None:
+    # Reuses the out-of-enum setup on purpose, but exercises the raise_on_error path rather than the
+    # result verdict: an invalid payload must raise a ValueError naming the offending field.
     schema = _valid_schema()
     schema["nodes"][0]["attributes"][0]["kind"] = "NotARealKind"
 
@@ -184,69 +175,6 @@ def test_extension_attribute_unknown_field_is_rejected_with_dotted_location() ->
     assert "extensions.nodes[0].attributes[0].Text.not_a_field" in _fields_named(result), result.messages
 
 
-def test_extension_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
-    schema = {
-        "version": "1.0",
-        "extensions": {
-            "nodes": [
-                {
-                    "kind": "InfraDevice",
-                    "attributes": [{"name": "extra", "kind": "NotARealKind"}],
-                }
-            ]
-        },
-    }
-
-    result = validate_schema(schema=schema)
-
-    assert result.valid is False
-    # An unknown kind fails the union discriminator, reported against the attribute itself.
-    assert "extensions.nodes[0].attributes[0]" in _fields_named(result), result.messages
-    assert any("NotARealKind" in message for message in result.messages), result.messages
-
-
-def test_extension_relationship_out_of_enum_cardinality_is_rejected_with_dotted_location() -> None:
-    schema = {
-        "version": "1.0",
-        "extensions": {
-            "nodes": [
-                {
-                    "kind": "InfraDevice",
-                    "relationships": [{"name": "peers", "peer": "InfraDevice", "cardinality": "both"}],
-                }
-            ]
-        },
-    }
-
-    result = validate_schema(schema=schema)
-
-    assert result.valid is False
-    assert "extensions.nodes[0].relationships[0].cardinality" in _fields_named(result), result.messages
-    assert any("both" in message for message in result.messages), result.messages
-
-
-def test_relationship_out_of_enum_cardinality_is_rejected_naming_field_and_value() -> None:
-    schema = _valid_schema()
-    schema["nodes"][0]["relationships"][0]["cardinality"] = "both"
-
-    result = validate_schema(schema=schema)
-
-    assert result.valid is False
-    assert "nodes[0].relationships[0].cardinality" in _fields_named(result), result.messages
-    assert any("both" in message for message in result.messages), result.messages
-
-
-def test_relationship_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
-    schema = _valid_schema()
-    schema["nodes"][0]["relationships"][0]["kind"] = "NotARealKind"
-
-    result = validate_schema(schema=schema)
-
-    assert result.valid is False
-    assert "nodes[0].relationships[0].kind" in _fields_named(result), result.messages
-    assert any("NotARealKind" in message for message in result.messages), result.messages
-
-
 def test_relationship_read_level_fields_are_rejected() -> None:
     schema = _valid_schema()
     schema["nodes"][0]["relationships"][0]["inherited"] = True
@@ -318,14 +246,6 @@ def test_computed_attribute_transform_python_without_transform_is_rejected() -> 
 
     assert result.valid is False
     assert any("transform" in message for message in result.messages), result.messages
-
-
-def test_computed_attribute_out_of_enum_kind_is_rejected_naming_field_and_value() -> None:
-    result = validate_schema(schema=_schema_with_computed_attribute({"kind": "NotARealKind"}))
-
-    assert result.valid is False
-    assert "nodes[0].attributes[0].Text.computed_attribute" in _fields_named(result), result.messages
-    assert any("NotARealKind" in message for message in result.messages), result.messages
 
 
 def test_computed_attribute_unknown_field_is_rejected() -> None:
@@ -411,3 +331,82 @@ def test_number_pool_attribute_accepts_number_pool_parameters() -> None:
     result = validate_schema(schema=_schema_with_kind_and_parameters("NumberPool", {"start_range": 1, "end_range": 9}))
 
     assert result.valid is True, result.messages
+
+
+def _extension_node_schema(node: dict) -> dict:
+    return {"version": "1.0", "extensions": {"nodes": [node]}}
+
+
+@dataclass
+class OutOfEnumCase:
+    name: str
+    schema: dict
+    # Exact dotted path expected among the reported error fields. For a discriminated union the
+    # unknown discriminator is reported against the container (attribute), not a leaf field.
+    expected_field: str
+    invalid_value: str
+
+
+def _relationship_out_of_enum(field: str, value: str) -> dict:
+    schema = _valid_schema()
+    schema["nodes"][0]["relationships"][0][field] = value
+    return schema
+
+
+def _attribute_out_of_enum_kind(kind: str) -> dict:
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["kind"] = kind
+    return schema
+
+
+OUT_OF_ENUM_CASES = [
+    OutOfEnumCase(
+        name="attribute-kind",
+        schema=_attribute_out_of_enum_kind("NotARealKind"),
+        expected_field="nodes[0].attributes[0]",
+        invalid_value="NotARealKind",
+    ),
+    OutOfEnumCase(
+        name="relationship-kind",
+        schema=_relationship_out_of_enum("kind", "NotARealKind"),
+        expected_field="nodes[0].relationships[0].kind",
+        invalid_value="NotARealKind",
+    ),
+    OutOfEnumCase(
+        name="relationship-cardinality",
+        schema=_relationship_out_of_enum("cardinality", "both"),
+        expected_field="nodes[0].relationships[0].cardinality",
+        invalid_value="both",
+    ),
+    OutOfEnumCase(
+        name="computed-attribute-kind",
+        schema=_schema_with_computed_attribute({"kind": "NotARealKind"}),
+        expected_field="nodes[0].attributes[0].Text.computed_attribute",
+        invalid_value="NotARealKind",
+    ),
+    OutOfEnumCase(
+        name="extension-attribute-kind",
+        schema=_extension_node_schema(
+            {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "NotARealKind"}]}
+        ),
+        expected_field="extensions.nodes[0].attributes[0]",
+        invalid_value="NotARealKind",
+    ),
+    OutOfEnumCase(
+        name="extension-relationship-cardinality",
+        schema=_extension_node_schema(
+            {"kind": "InfraDevice", "relationships": [{"name": "peers", "peer": "InfraDevice", "cardinality": "both"}]}
+        ),
+        expected_field="extensions.nodes[0].relationships[0].cardinality",
+        invalid_value="both",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in OUT_OF_ENUM_CASES])
+def test_out_of_enum_value_is_rejected_naming_field_and_value(case: OutOfEnumCase) -> None:
+    result = validate_schema(schema=case.schema)
+
+    assert result.valid is False
+    assert case.expected_field in _fields_named(result), result.messages
+    assert any(case.invalid_value in message for message in result.messages), result.messages

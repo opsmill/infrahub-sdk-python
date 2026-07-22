@@ -224,6 +224,10 @@ def test_use_enum_values_keeps_runtime_field_values_as_plain_strings() -> None:
     assert relationship.cardinality == "one"
     assert relationship.cardinality == enums_module.RelationshipCardinality.ONE
     assert isinstance(relationship.cardinality, str)
+    # Discriminates the mode: without use_enum_values the value would be a RelationshipCardinality
+    # member (also a str, so the assertions above cannot tell the modes apart). A plain string is
+    # not an instance of the enum, so this fails if use_enum_values is ever dropped on regeneration.
+    assert not isinstance(relationship.cardinality, enums_module.RelationshipCardinality)
 
 
 @pytest.mark.parametrize("name", ["ProfileSchemaRead", "TemplateSchemaRead"])
