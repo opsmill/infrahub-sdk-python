@@ -140,6 +140,14 @@ class IPNetworkOptional(Attribute):
     value: ipaddress.IPv4Network | ipaddress.IPv6Network | None
 
 
+class IPAddress(Attribute):
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address
+
+
+class IPAddressOptional(Attribute):
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
+
+
 class Boolean(Attribute):
     value: bool
 
