@@ -1,4 +1,4 @@
-**Breaking:** The hand-maintained schema models in `infrahub_sdk.schema` are now backed by the generated write/read contract (`infrahub_sdk.schema.generated`). Public names, import paths, and behavior methods are unchanged, but a few defaults and constraints now match the server contract:
+The hand-maintained schema models in `infrahub_sdk.schema` are now backed by the generated write/read contract (`infrahub_sdk.schema.generated`). Public names, import paths, and behavior methods are unchanged, but a few defaults and constraints now match the server contract:
 
 - `AttributeKind.STRING` has been removed. It was deprecated and `kind="String"` was already rejected server-side; use `AttributeKind.TEXT` instead.
 - Write and read models drop unknown fields silently (`extra="ignore"`). A submitted field that is not part of the write contract — read-level, internal, or a typo — is dropped rather than rejected, and a read model tolerates additional fields returned by a newer server.
