@@ -21,11 +21,11 @@ from .enums import (
 
 
 class AttributeParametersRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
 
 
 class ListAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that each list item value must match if defined",
@@ -33,7 +33,7 @@ class ListAttributeParametersRead(AttributeParametersRead):
 
 
 class TextAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that attribute value must match if defined",
@@ -49,7 +49,7 @@ class TextAttributeParametersRead(AttributeParametersRead):
 
 
 class NumberAttributeParametersRead(AttributeParametersRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     min_value: int | None = Field(
         default=None,
         description="Set a minimum value allowed.",
@@ -66,7 +66,7 @@ class NumberAttributeParametersRead(AttributeParametersRead):
 
 
 class NumberPoolParametersRead(AttributeParametersRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     end_range: int = Field(
         default=9223372036854775807,
         description="End range for numbers for the associated NumberPool",
@@ -82,7 +82,7 @@ class NumberPoolParametersRead(AttributeParametersRead):
 
 
 class DropdownChoiceRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     name: str = Field(
         ...,
         description="Name of the choice, must be unique within the dropdown.",
@@ -103,7 +103,7 @@ class DropdownChoiceRead(BaseModel):
 
 
 class ComputedAttributeUserRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.USER] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -111,7 +111,7 @@ class ComputedAttributeUserRead(BaseModel):
 
 
 class ComputedAttributeJinja2Read(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.JINJA2] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -123,7 +123,7 @@ class ComputedAttributeJinja2Read(BaseModel):
 
 
 class ComputedAttributeTransformPythonRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.TRANSFORM_PYTHON] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -135,7 +135,7 @@ class ComputedAttributeTransformPythonRead(BaseModel):
 
 
 class AttributeSchemaBaseRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the attribute",
@@ -237,7 +237,7 @@ class AttributeSchemaBaseRead(BaseModel):
 
 
 class TextAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.TEXT, AttributeKind.TEXTAREA] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -249,7 +249,7 @@ class TextAttributeRead(AttributeSchemaBaseRead):
 
 
 class NumberAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.NUMBER] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -261,7 +261,7 @@ class NumberAttributeRead(AttributeSchemaBaseRead):
 
 
 class ListAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.LIST] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -273,7 +273,7 @@ class ListAttributeRead(AttributeSchemaBaseRead):
 
 
 class NumberPoolAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.NUMBERPOOL] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -285,7 +285,7 @@ class NumberPoolAttributeRead(AttributeSchemaBaseRead):
 
 
 class GenericAttributeRead(AttributeSchemaBaseRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[
         AttributeKind.ID,
         AttributeKind.DROPDOWN,
@@ -326,7 +326,7 @@ AttributeSchemaRead = Annotated[
 
 
 class RelationshipSchemaRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the relationship schema",
@@ -435,7 +435,7 @@ class RelationshipSchemaRead(BaseModel):
 
 
 class BaseNodeSchemaRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the node",
@@ -533,7 +533,7 @@ class BaseNodeSchemaRead(BaseModel):
 
 
 class NodeSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this node is inheriting from",
@@ -561,7 +561,7 @@ class NodeSchemaRead(BaseNodeSchemaRead):
 
 
 class GenericSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     hierarchical: bool = Field(
         default=False,
         description="Defines if the Generic support the hierarchical mode.",
@@ -581,7 +581,7 @@ class GenericSchemaRead(BaseNodeSchemaRead):
 
 
 class ProfileSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this profile is inheriting from",
@@ -589,7 +589,7 @@ class ProfileSchemaRead(BaseNodeSchemaRead):
 
 
 class TemplateSchemaRead(BaseNodeSchemaRead):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this template is inheriting from",
@@ -597,6 +597,6 @@ class TemplateSchemaRead(BaseNodeSchemaRead):
 
 
 class InfrahubSchemaRead(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     nodes: list[NodeSchemaRead] = Field(default_factory=list)
     generics: list[GenericSchemaRead] = Field(default_factory=list)

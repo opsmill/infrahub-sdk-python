@@ -3,8 +3,8 @@
 The SDK repo cannot regenerate these models on its own (they are rendered from the
 backend's schema definitions), so this checks what the SDK can verify standalone:
 the generated files are present, carry the do-not-edit header, expose the expected
-model families, and satisfy the write/read structural invariants (write forbids extra
-fields; read is a superset of write). The full regeneration drift is enforced by the
+model families, and satisfy the write/read structural invariants (write drops extra
+fields silently; read is a superset of write). The full regeneration drift is enforced by the
 monorepo's generated-file CI, which regenerates and fails on any diff.
 
 The attribute family is a discriminated union on ``kind``: a shared ``AttributeSchemaBase``
@@ -91,17 +91,17 @@ def test_attribute_union_families_present_in_each_variant() -> None:
 
 
 @pytest.mark.parametrize("family", _WRITE_FAMILIES)
-def test_write_variant_forbids_extra_fields(family: str) -> None:
+def test_write_variant_ignores_extra_fields(family: str) -> None:
     model: type[BaseModel] = getattr(write_module, family)
-    assert model.model_config.get("extra") == "forbid", (
-        f"write variant {family} must set extra='forbid' so non-settable fields are rejected"
+    assert model.model_config.get("extra") == "ignore", (
+        f"write variant {family} must set extra='ignore' so non-settable fields are dropped, not rejected"
     )
 
 
-def test_attribute_write_base_and_variants_forbid_extra_fields() -> None:
+def test_attribute_write_base_and_variants_ignore_extra_fields() -> None:
     for model in _attribute_write_classes():
-        assert model.model_config.get("extra") == "forbid", (
-            f"write attribute model {model.__name__} must set extra='forbid'"
+        assert model.model_config.get("extra") == "ignore", (
+            f"write attribute model {model.__name__} must set extra='ignore'"
         )
 
 
@@ -145,8 +145,8 @@ def test_document_root_models_import_with_nodes_and_generics() -> None:
     for root in (InfrahubSchemaWrite, InfrahubSchemaRead):
         assert "nodes" in root.model_fields, f"{root.__name__} must expose a 'nodes' field"
         assert "generics" in root.model_fields, f"{root.__name__} must expose a 'generics' field"
-    # The write root forbids extra keys so unknown top-level keys are rejected as part of the contract.
-    assert InfrahubSchemaWrite.model_config.get("extra") == "forbid"
+    # The write root drops unknown top-level keys silently (tolerated, not rejected).
+    assert InfrahubSchemaWrite.model_config.get("extra") == "ignore"
 
 
 def test_write_root_exposes_extensions_field() -> None:
@@ -164,9 +164,9 @@ def test_extension_models_present_on_write_variant_only(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", ["NodeExtensionWrite", "SchemaExtensionWrite"])
-def test_extension_models_forbid_extra_fields(name: str) -> None:
+def test_extension_models_ignore_extra_fields(name: str) -> None:
     model: type[BaseModel] = getattr(write_module, name)
-    assert model.model_config.get("extra") == "forbid", f"extension model {name} must set extra='forbid'"
+    assert model.model_config.get("extra") == "ignore", f"extension model {name} must set extra='ignore'"
 
 
 # Constrained fields are typed with dedicated (str, Enum) classes emitted into enums.py rather

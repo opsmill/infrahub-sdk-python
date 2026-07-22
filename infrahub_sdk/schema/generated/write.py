@@ -21,11 +21,11 @@ from .enums import (
 
 
 class AttributeParametersWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
 
 
 class ListAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that each list item value must match if defined",
@@ -33,7 +33,7 @@ class ListAttributeParametersWrite(AttributeParametersWrite):
 
 
 class TextAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     regex: str | None = Field(
         default=None,
         description="Regular expression that attribute value must match if defined",
@@ -49,7 +49,7 @@ class TextAttributeParametersWrite(AttributeParametersWrite):
 
 
 class NumberAttributeParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     min_value: int | None = Field(
         default=None,
         description="Set a minimum value allowed.",
@@ -66,7 +66,7 @@ class NumberAttributeParametersWrite(AttributeParametersWrite):
 
 
 class NumberPoolParametersWrite(AttributeParametersWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     end_range: int = Field(
         default=9223372036854775807,
         description="End range for numbers for the associated NumberPool",
@@ -82,7 +82,7 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
 
 
 class DropdownChoiceWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     name: str = Field(
         ...,
         description="Name of the choice, must be unique within the dropdown.",
@@ -103,7 +103,7 @@ class DropdownChoiceWrite(BaseModel):
 
 
 class ComputedAttributeUserWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.USER] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -111,7 +111,7 @@ class ComputedAttributeUserWrite(BaseModel):
 
 
 class ComputedAttributeJinja2Write(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.JINJA2] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -123,7 +123,7 @@ class ComputedAttributeJinja2Write(BaseModel):
 
 
 class ComputedAttributeTransformPythonWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.TRANSFORM_PYTHON] = Field(
         ...,
         description="Defines how the value of the attribute is computed.",
@@ -135,7 +135,7 @@ class ComputedAttributeTransformPythonWrite(BaseModel):
 
 
 class AttributeSchemaBaseWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the attribute",
@@ -233,7 +233,7 @@ class AttributeSchemaBaseWrite(BaseModel):
 
 
 class TextAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.TEXT, AttributeKind.TEXTAREA] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -245,7 +245,7 @@ class TextAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class NumberAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.NUMBER] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -257,7 +257,7 @@ class NumberAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class ListAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.LIST] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -269,7 +269,7 @@ class ListAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[AttributeKind.NUMBERPOOL] = Field(
         ...,
         description="Defines the type of the attribute.",
@@ -281,7 +281,7 @@ class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
 
 
 class GenericAttributeWrite(AttributeSchemaBaseWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[
         AttributeKind.ID,
         AttributeKind.DROPDOWN,
@@ -322,7 +322,7 @@ AttributeSchemaWrite = Annotated[
 
 
 class RelationshipSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the relationship schema",
@@ -423,7 +423,7 @@ class RelationshipSchemaWrite(BaseModel):
 
 
 class BaseNodeSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     id: str | None = Field(
         default=None,
         description="The ID of the node",
@@ -516,7 +516,7 @@ class BaseNodeSchemaWrite(BaseModel):
 
 
 class NodeSchemaWrite(BaseNodeSchemaWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     inherit_from: list[str] = Field(
         default_factory=list,
         description="List of Generic Kind that this node is inheriting from",
@@ -540,7 +540,7 @@ class NodeSchemaWrite(BaseNodeSchemaWrite):
 
 
 class GenericSchemaWrite(BaseNodeSchemaWrite):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     hierarchical: bool = Field(
         default=False,
         description="Defines if the Generic support the hierarchical mode.",
@@ -556,7 +556,7 @@ class GenericSchemaWrite(BaseNodeSchemaWrite):
 
 
 class NodeExtensionWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: str = Field(
         ...,
         description="Kind of the existing node to extend.",
@@ -572,7 +572,7 @@ class NodeExtensionWrite(BaseModel):
 
 
 class SchemaExtensionWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     nodes: list[NodeExtensionWrite] = Field(
         default_factory=list,
         description="Nodes to extend with additional attributes and relationships.",
@@ -580,7 +580,7 @@ class SchemaExtensionWrite(BaseModel):
 
 
 class InfrahubSchemaWrite(BaseModel):
-    model_config = ConfigDict(extra="forbid", use_enum_values=True)
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
     version: str | None = None
     nodes: list[NodeSchemaWrite] = Field(default_factory=list)
     generics: list[GenericSchemaWrite] = Field(default_factory=list)
