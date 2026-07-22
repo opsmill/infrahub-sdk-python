@@ -2045,6 +2045,140 @@ async def test_update_input_data_empty_relationship(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_update_from_dict_attributes(
+    client: InfrahubClient,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict[str, Any],
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+
+    location.update_from_dict(data={"name": "JFK1", "description": "new description"})
+
+    assert location.name.value == "JFK1"
+    assert location.description.value == "new description"
+    assert location._generate_input_data(exclude_unmodified=True)["data"] == {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "JFK1"},
+            "description": {"value": "new description"},
+        },
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_from_dict_attribute_with_properties(
+    client: InfrahubClient,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict[str, Any],
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+
+    location.update_from_dict(data={"name": {"value": "JFK1", "is_protected": True}})
+
+    assert location.name.value == "JFK1"
+    assert location.name.is_protected is True
+    assert location._generate_input_data(exclude_unmodified=True)["data"] == {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "JFK1", "is_protected": True},
+        },
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_from_dict_relationships(
+    client: InfrahubClient,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict[str, Any],
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+
+    location.update_from_dict(
+        data={
+            "primary_tag": "gggggggg-gggg-gggg-gggg-gggggggggggg",
+            "tags": [
+                "gggggggg-gggg-gggg-gggg-gggggggggggg",
+                {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"},
+            ],
+        }
+    )
+
+    assert location.primary_tag.id == "gggggggg-gggg-gggg-gggg-gggggggggggg"
+    assert [peer.id for peer in location.tags.peers] == [
+        "gggggggg-gggg-gggg-gggg-gggggggggggg",
+        "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr",
+    ]
+    assert location._generate_input_data()["data"] == {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "DFW"},
+            "primary_tag": {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
+            "tags": [
+                {"id": "gggggggg-gggg-gggg-gggg-gggggggggggg"},
+                {"id": "rrrrrrrr-rrrr-rrrr-rrrr-rrrrrrrrrrrr"},
+            ],
+            "type": {"value": "SITE"},
+        },
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_from_dict_clear_relationships(
+    client: InfrahubClient,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict[str, Any],
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+
+    location.update_from_dict(data={"primary_tag": None, "tags": []})
+
+    assert location._generate_input_data()["data"] == {
+        "data": {
+            "id": "llllllll-llll-llll-llll-llllllllllll",
+            "name": {"value": "DFW"},
+            "primary_tag": None,
+            "tags": [],
+            "type": {"value": "SITE"},
+        },
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_from_dict_unknown_field_raises(
+    client: InfrahubClient,
+    location_schema: NodeSchemaAPI,
+    location_data01: dict[str, Any],
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        location = InfrahubNode(client=client, schema=location_schema, data=location_data01)
+    else:
+        location = InfrahubNodeSync(client=client, schema=location_schema, data=location_data01)
+
+    with pytest.raises(ValueError, match="unknown field"):
+        location.update_from_dict(data={"name": "JFK1", "nonexistent": "value"})
+
+    # The node must be left untouched when validation fails
+    assert location.name.value == "DFW"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_node_get_relationship_from_store(
     client: InfrahubClient,
     location_schema: NodeSchemaAPI,

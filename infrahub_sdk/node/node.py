@@ -294,6 +294,42 @@ class InfrahubNodeBase:
     def _init_relationships(self, data: dict | None = None) -> None:
         pass
 
+    def update_from_dict(self, data: dict[str, Any]) -> None:
+        """Update attributes and relationships of this node from a dict.
+
+        Values accept the same formats as node creation: for attributes, a scalar value,
+        a dict with a ``value`` key and optional properties, or a dict with a
+        ``from_pool`` key; for relationships, an ID, a dict describing the peer, a node
+        object, or a list of those for cardinality-many. Pass ``None`` to clear a
+        cardinality-one relationship and ``[]`` (or ``None``) to clear a
+        cardinality-many relationship.
+
+        Args:
+            data (dict[str, Any]): Mapping of attribute and relationship names to their
+                new values.
+
+        Raises:
+            ValueError: If a key does not match any attribute or relationship of the
+                schema. The node is left unmodified in that case.
+
+        """
+        unknown_fields = [key for key in data if key not in self._attributes and key not in self._relationships]
+        if unknown_fields:
+            raise ValueError(
+                f"Unable to update {self._schema.kind}, unknown field(s): {', '.join(sorted(unknown_fields))}"
+            )
+
+        for name, value in data.items():
+            if name in self._attributes:
+                attribute = Attribute(name=name, schema=self._schema.get_attribute(name=name), data=value)
+                attribute.value_has_been_mutated = True
+                self._attribute_data[name] = attribute
+            else:
+                self._update_relationship_from_dict(name=name, data=value)
+
+    def _update_relationship_from_dict(self, name: str, data: Any) -> None:
+        raise NotImplementedError
+
     def __repr__(self) -> str:
         if self.display_label:
             return self.display_label
@@ -979,6 +1015,23 @@ class InfrahubNode(InfrahubNodeBase):
             return
 
         super().__setattr__(name, value)
+
+    def _update_relationship_from_dict(self, name: str, data: Any) -> None:
+        rel_schema = self._schema.get_relationship(name=name)
+        if rel_schema.cardinality == RelationshipCardinality.ONE:
+            setattr(self, name, data)
+            return
+
+        manager = RelationshipManager(
+            name=name,
+            client=self._client,
+            node=self,
+            branch=self._branch,
+            schema=rel_schema,
+            data=data if data is not None else [],
+        )
+        manager._has_update = True
+        self._relationship_cardinality_many_data[name] = manager
 
     async def generate(self, nodes: list[str] | None = None) -> None:
         """Trigger artifact generation for this artifact definition.
@@ -2170,6 +2223,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
             return
 
         super().__setattr__(name, value)
+
+    def _update_relationship_from_dict(self, name: str, data: Any) -> None:
+        rel_schema = self._schema.get_relationship(name=name)
+        if rel_schema.cardinality == RelationshipCardinality.ONE:
+            setattr(self, name, data)
+            return
+
+        manager = RelationshipManagerSync(
+            name=name,
+            client=self._client,
+            node=self,
+            branch=self._branch,
+            schema=rel_schema,
+            data=data if data is not None else [],
+        )
+        manager._has_update = True
+        self._relationship_cardinality_many_data[name] = manager
 
     def generate(self, nodes: list[str] | None = None) -> None:
         """Trigger artifact generation for this artifact definition.

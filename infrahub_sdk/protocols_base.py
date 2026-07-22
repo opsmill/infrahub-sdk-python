@@ -211,6 +211,8 @@ class CoreNodeBase:
 
     def get_node_metadata(self) -> NodeMetadata | None: ...
 
+    def update_from_dict(self, data: dict[str, Any]) -> None: ...
+
 
 class CoreNode(CoreNodeBase):
     async def save(

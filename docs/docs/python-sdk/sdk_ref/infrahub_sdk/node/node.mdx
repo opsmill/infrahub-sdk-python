@@ -1191,6 +1191,31 @@ The metadata is populated only when the parent query was executed with
 
 - NodeMetadata | None: The node metadata if fetched, otherwise ``None``.
 
+#### `update_from_dict`
+
+```python
+update_from_dict(self, data: dict[str, Any]) -> None
+```
+
+Update attributes and relationships of this node from a dict.
+
+Values accept the same formats as node creation: for attributes, a scalar value,
+a dict with a ``value`` key and optional properties, or a dict with a
+``from_pool`` key; for relationships, an ID, a dict describing the peer, a node
+object, or a list of those for cardinality-many. Pass ``None`` to clear a
+cardinality-one relationship and ``[]`` (or ``None``) to clear a
+cardinality-many relationship.
+
+**Args:**
+
+- `data`: Mapping of attribute and relationship names to their
+new values.
+
+**Raises:**
+
+- `ValueError`: If a key does not match any attribute or relationship of the
+schema. The node is left unmodified in that case.
+
 #### `get_kind`
 
 ```python
