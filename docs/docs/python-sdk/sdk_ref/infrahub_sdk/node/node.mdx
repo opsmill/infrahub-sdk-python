@@ -301,7 +301,7 @@ overriding the client default for this request only.
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -314,8 +314,10 @@ relevant attributes are returned alongside the generic fields.
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `fragment`: When ``True`` and the schema is a generic, emit
@@ -828,7 +830,7 @@ overriding the client default for this request only.
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -841,8 +843,10 @@ relevant attributes are returned alongside the generic fields.
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `fragment`: When ``True`` and the schema is a generic, emit
@@ -1352,7 +1356,7 @@ Return the raw GraphQL payload used to build this node.
 #### `generate_query_data_init`
 
 ```python
-generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
@@ -1364,8 +1368,10 @@ The returned dict is the outer structure consumed by
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `partial_match`: When ``True``, allow partial matches on filter
