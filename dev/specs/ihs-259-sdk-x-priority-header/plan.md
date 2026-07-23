@@ -6,14 +6,14 @@
 
 ## Summary
 
-Add a first-class request-priority concept to the SDK, emitted as an `X-Priority: high|normal|low` HTTP header. Two configuration surfaces: a client-wide default via `Config.priority` (rides every transport by being injected into the client's base `self.headers`) and a per-request `priority=` keyword argument on the covered public methods (resolved as `per_request if per_request is not None else client_default`). When nothing is configured, no header is emitted — byte-for-byte identical to today. Both `InfrahubClient` (async) and `InfrahubClientSync` (sync) behave identically. No server-side logic, no 429 handling.
+Add a first-class request-priority concept to the SDK, emitted as an `X-Priority: high|medium|low` HTTP header. Two configuration surfaces: a client-wide default via `Config.priority` (rides every transport by being injected into the client's base `self.headers`) and a per-request `priority=` keyword argument on the covered public methods (resolved as `per_request if per_request is not None else client_default`). When nothing is configured, no header is emitted — byte-for-byte identical to today. Both `InfrahubClient` (async) and `InfrahubClientSync` (sync) behave identically. No server-side logic, no 429 handling.
 
 **Technical approach** (grounded in the existing `X-Infrahub-Tracker` prior art):
 
-1. New `Priority(str, enum.Enum)` in `infrahub_sdk/constants.py` with members `HIGH="high"`, `NORMAL="normal"`, `LOW="low"` and a case-insensitive `_missing_` classmethod.
+1. New `Priority(str, enum.Enum)` in `infrahub_sdk/constants.py` with members `HIGH="high"`, `MEDIUM="medium"`, `LOW="low"` and a case-insensitive `_missing_` classmethod.
 2. New `Config.priority: Priority | None = None` field (auto-binds to `INFRAHUB_PRIORITY` via the existing `env_prefix`). Pydantic + the enum give validation and case-insensitive string coercion for free; unknown values raise at config load.
 3. Inject the configured default once into `BaseClient.__init__`'s base `self.headers` (right next to the `X-INFRAHUB-KEY` line). Because every transport already merges `self.headers`, the default automatically rides GraphQL, multipart upload, and raw blob `_get`/`_post`.
-4. Add `priority: Priority | None = None` to `execute_graphql` and `_execute_graphql_with_file` (async + sync). These are the single points where the per-request header is applied: `if priority is not None: headers["X-Priority"] = priority.value` on the already-copied header dict — which realises the resolution rule exactly (a `None` per-request keeps whatever the base default was; an explicit value, including `NORMAL`, overrides it).
+4. Add `priority: Priority | None = None` to `execute_graphql` and `_execute_graphql_with_file` (async + sync). These are the single points where the per-request header is applied: `if priority is not None: headers["X-Priority"] = priority.value` on the already-copied header dict — which realises the resolution rule exactly (a `None` per-request keeps whatever the base default was; an explicit value, including `MEDIUM`, overrides it).
 5. Thread the `priority` kwarg through the higher-level callers so they forward it to the two execute methods: client `get`, `all` (via `filters`), `create`, `create_diff`/`get_diff_summary`/`get_diff_tree`; node `save`/`create`/`update`/`delete`. Raw blob `_get`/`_post` and batch mode inherit the client default only (no per-call override in v1).
 
 **Two load-bearing details surfaced by the critique** (see [critiques/](./critiques/)):
@@ -107,7 +107,7 @@ See [research.md](./research.md) for the full decision log. Highlights:
 - **Config field is named `priority`, not `x_priority`** — the PRD specifies `Config.priority`; the `X-` prefix belongs to the wire header, not the config surface. Auto-binds to `INFRAHUB_PRIORITY`.
 - **Default injected into base `self.headers`, not at each call site** — this is the mechanism that guarantees FR-003 (every transport) without touching blob/batch code paths, and mirrors how `X-INFRAHUB-KEY` already rides every request.
 - **Per-request application lives in `execute_graphql` / `_execute_graphql_with_file` only** — every high-level method funnels through these two, so the resolution rule is implemented once per client (twice total) instead of at ~10 call sites. Higher-level methods only *forward* the kwarg.
-- **Resolution is realised by override-if-present on the copied header dict** — `copy.copy(self.headers)` already carries the default; `if priority is not None: headers["X-Priority"] = priority.value` yields exactly `per_request if per_request is not None else client_default`, including the explicit-`NORMAL`-beats-`low`-default edge case.
+- **Resolution is realised by override-if-present on the copied header dict** — `copy.copy(self.headers)` already carries the default; `if priority is not None: headers["X-Priority"] = priority.value` yields exactly `per_request if per_request is not None else client_default`, including the explicit-`MEDIUM`-beats-`low`-default edge case.
 - **Case-insensitivity via `Priority._missing_`** — handles `LOW`/`Low`/`low` from env/file config and raises for unknown values, satisfying FR-002 and FR-007 with no bespoke validator.
 
 ## Complexity Tracking

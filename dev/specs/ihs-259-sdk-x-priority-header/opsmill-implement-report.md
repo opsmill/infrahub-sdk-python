@@ -49,7 +49,7 @@ All tests added/modified by this run, observed passing locally (unit; project ha
 | `test_priority.py::test_priority_header_on_blob_upload` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_priority_header_on_multipart_upload` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_priority_header_on_batched_requests` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
-| `test_priority.py::test_priority_normal_is_always_emitted` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
+| `test_priority.py::test_priority_medium_is_always_emitted` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_no_priority_header_on_graphql_when_unconfigured` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_no_priority_header_on_blob_download_when_unconfigured` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_no_priority_header_on_blob_upload_when_unconfigured` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
@@ -57,7 +57,7 @@ All tests added/modified by this run, observed passing locally (unit; project ha
 | `test_priority.py::test_unconfigured_headers_unchanged_versus_baseline` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_override_on_no_default_client_then_no_leak` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_override_beats_default_then_reverts` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
-| `test_priority.py::test_override_normal_beats_low_default` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
+| `test_priority.py::test_override_medium_beats_low_default` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_override_on_get` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_override_on_all_carries_on_every_page` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |
 | `test_priority.py::test_override_on_save_create_path` (×2) | unit | `uv run pytest tests/unit/sdk/test_priority.py -q` | 2026-07-11T15:12:59Z | n/a | `Pytest: 64 passed` |

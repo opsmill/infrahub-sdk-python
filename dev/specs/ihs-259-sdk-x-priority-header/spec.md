@@ -12,7 +12,7 @@
 
 Infrahub's background systems (generators, artifacts, diffs, syncs, computed attributes) call back into the same API servers through this SDK, competing on equal footing with human/frontend traffic for a shared worker pool and database connections. Today the API layer cannot distinguish interactive from background traffic, so under heavy background load it cannot preferentially protect the frontend.
 
-This feature gives the SDK a first-class notion of request **priority** (`high | normal | low`) that it emits as an `X-Priority` HTTP header. The originator of each request — the SDK caller — declares how important the request is, in a form the server can act on. Priority is set two ways: a **client-wide default** (a client dedicated to background work tags everything `low` with no call-site changes) and a **per-request override** on individual operations. When nothing is configured, the SDK sends no header and behaves exactly as today; the server treats absent/unknown values as `normal`, so rollout is safe and incremental.
+This feature gives the SDK a first-class notion of request **priority** (`high | medium | low`) that it emits as an `X-Priority` HTTP header. The originator of each request — the SDK caller — declares how important the request is, in a form the server can act on. Priority is set two ways: a **client-wide default** (a client dedicated to background work tags everything `low` with no call-site changes) and a **per-request override** on individual operations. When nothing is configured, the SDK sends no header and behaves exactly as today; the server treats absent/unknown values as `medium`, so rollout is safe and incremental.
 
 This is the SDK's contribution to the server-side prioritization effort in INFP-636. It does **not** implement server-side admission control or 429 handling.
 
@@ -31,7 +31,7 @@ An operator running background workloads constructs one client with a default pr
 1. **Given** a client built with a default priority of `low`, **When** it issues a GraphQL query or mutation, **Then** that request carries `X-Priority: low`.
 2. **Given** a client built with a default priority of `low`, **When** it issues a multipart file upload, **Then** that request carries `X-Priority: low`.
 3. **Given** a client built with a default priority of `low`, **When** it issues a raw blob transfer (`_get`/`_post`), **Then** that request carries `X-Priority: low`.
-4. **Given** a client built with a default priority of `normal`, **When** it issues any request, **Then** that request carries `X-Priority: normal` (an explicitly configured default is always emitted).
+4. **Given** a client built with a default priority of `medium`, **When** it issues any request, **Then** that request carries `X-Priority: medium` (an explicitly configured default is always emitted).
 
 ---
 
@@ -97,30 +97,30 @@ A developer using the synchronous client (`InfrahubClientSync`) gets behaviour i
 
 ### Edge Cases
 
-- **Explicit step-up on a low-default client**: a per-request `NORMAL` on a client whose default is `low` sends `X-Priority: normal` for that call — explicit intent wins, even when stepping *up* from the default.
-- **No "send no header" per-request escape once a default is set**: once a client default is configured there is no per-request way to suppress the header; the accepted equivalent is passing `NORMAL` explicitly.
+- **Explicit step-up on a low-default client**: a per-request `MEDIUM` on a client whose default is `low` sends `X-Priority: medium` for that call — explicit intent wins, even when stepping *up* from the default.
+- **No "send no header" per-request escape once a default is set**: once a client default is configured there is no per-request way to suppress the header; the accepted equivalent is passing `MEDIUM` explicitly.
 - **Batch mode and raw blob transfers**: these inherit the client default but expose **no** per-call override in v1.
 - **Invalid configured value**: errors at configuration load, never at request time.
 - **Caller manually pre-populates an `X-Priority` header**: only reachable via the low-level `_get`/`_post` transport methods, which accept a raw `headers=` argument (the covered public methods do not). The resolution rule is the single source of truth (documented behaviour); manually injecting the header at that low level is not a supported side channel and its interaction with resolution is not guaranteed.
-- **Explicit per-request `NORMAL` vs. no argument**: an explicit `NORMAL` always emits `X-Priority: normal`; a `None`/absent per-request value falls through to the client default (which may itself be absent, in which case no header is sent).
+- **Explicit per-request `MEDIUM` vs. no argument**: an explicit `MEDIUM` always emits `X-Priority: medium`; a `None`/absent per-request value falls through to the client default (which may itself be absent, in which case no header is sent).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST expose a closed set of priority values `high | normal | low` as a `Priority` enum, so callers express intent as a typed value rather than a raw header string.
+- **FR-001**: System MUST expose a closed set of priority values `high | medium | low` as a `Priority` enum, so callers express intent as a typed value rather than a raw header string.
 - **FR-002**: Users MUST be able to configure a client-wide default priority via configuration, accepting either a `Priority` enum value or a case-insensitive string (through environment or file configuration).
 - **FR-003**: When a default priority is configured, System MUST attach the `X-Priority` header to **every** outgoing request across all transports — GraphQL queries/mutations, multipart uploads, and raw blob `_get`/`_post`.
 - **FR-004**: When no priority is configured and none is supplied per request, System MUST omit the `X-Priority` header entirely, producing outgoing requests byte-for-byte identical to current (pre-feature) behaviour.
 - **FR-005**: Users MUST be able to override priority per request via a `priority` argument (accepting a `Priority` value or `None`, default `None`) on the covered public methods: `get`, `all`, `create`, `save`, the diff methods, `execute_graphql`, and its file variant.
-- **FR-006**: Priority resolution MUST be `resolved = per_request if per_request is not None else client_default`. A resolved value of `None` MUST omit the header; a resolved explicit value MUST be sent, including an explicit `NORMAL`, which MUST send `X-Priority: normal`.
+- **FR-006**: Priority resolution MUST be `resolved = per_request if per_request is not None else client_default`. A resolved value of `None` MUST omit the header; a resolved explicit value MUST be sent, including an explicit `MEDIUM`, which MUST send `X-Priority: medium`.
 - **FR-007**: System MUST reject an invalid or unknown configured priority value at configuration-load time (a validation/type error) rather than coercing it or silently sending it.
 - **FR-008**: The asynchronous client (`InfrahubClient`) and the synchronous client (`InfrahubClientSync`) MUST behave identically for every aspect of this feature.
-- **FR-009**: The emitted header MUST be named exactly `X-Priority`, carrying the lowercase value string (`high`, `normal`, `low`) that corresponds to the resolved priority.
+- **FR-009**: The emitted header MUST be named exactly `X-Priority`, carrying the lowercase value string (`high`, `medium`, `low`) that corresponds to the resolved priority.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Priority** *(new)*: a closed enumeration with members `HIGH`, `NORMAL`, `LOW`. It is the single in-code representation of request priority, owned by the SDK, with no lifecycle beyond its value. Each member maps to a lowercase wire value (`high`/`normal`/`low`).
+- **Priority** *(new)*: a closed enumeration with members `HIGH`, `MEDIUM`, `LOW`. It is the single in-code representation of request priority, owned by the SDK, with no lifecycle beyond its value. Each member maps to a lowercase wire value (`high`/`medium`/`low`).
 - **Configuration** *(extended)*: gains a `priority` field defaulting to `None` (meaning "no default; omit the header"). Accepts a `Priority` value or a case-insensitive string, validated at load time.
 - **Base request headers** *(extended)*: the client's base header set is extended so a configured default is injected once and rides every transport, rather than being added at each call site.
 
@@ -137,7 +137,7 @@ A developer using the synchronous client (`InfrahubClientSync`) gets behaviour i
 
 ## Assumptions
 
-- **Server contract (per INFP-636)**: the header is exactly `X-Priority`; values are case-insensitive on the server; absent or unknown values are treated as `normal` server-side. This makes an absent header and a `normal` value semantically equivalent to the server, which is why omitting the header when unconfigured is safe.
+- **Server contract (per INFP-636)**: the header is exactly `X-Priority`; values are case-insensitive on the server; absent or unknown values are treated as `medium` server-side. This makes an absent header and a `medium` value semantically equivalent to the server, which is why omitting the header when unconfigured is safe.
 - **Dual async/sync pattern is mandatory**: every change here is applied to both `InfrahubClient` and `InfrahubClientSync`, per AGENTS.md.
 - **Public API signature change is accepted**: this feature adds a new enum, a new configuration field, and a new `priority` keyword argument across the covered public method surface — an intentional public-API-signature change (flagged per AGENTS.md "ask first: changing public API signatures").
 - **Docs regeneration is required**: the new configuration field and docstrings require `uv run invoke docs-generate`.
@@ -153,4 +153,4 @@ A developer using the synchronous client (`InfrahubClientSync`) gets behaviour i
 
 ## Dependencies
 
-- **INFP-636** — server-side API Request Prioritization (parent effort that defines and consumes the `X-Priority` contract). This SDK feature is only useful once the server acts on the header, but is safe to ship independently because absent/unknown is treated as `normal`.
+- **INFP-636** — server-side API Request Prioritization (parent effort that defines and consumes the `X-Priority` contract). This SDK feature is only useful once the server acts on the header, but is safe to ship independently because absent/unknown is treated as `medium`.

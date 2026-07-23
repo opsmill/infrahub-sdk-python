@@ -6,17 +6,17 @@ This feature has no external unknowns — the wire contract is fixed by INFP-636
 
 ## Decision 1 — Where the `Priority` enum lives and its shape
 
-- **Decision**: `class Priority(str, enum.Enum)` in `infrahub_sdk/constants.py`, members `HIGH = "high"`, `NORMAL = "normal"`, `LOW = "low"`, plus a case-insensitive `_missing_` classmethod.
+- **Decision**: `class Priority(str, enum.Enum)` in `infrahub_sdk/constants.py`, members `HIGH = "high"`, `MEDIUM = "medium"`, `LOW = "low"`, plus a case-insensitive `_missing_` classmethod.
 - **Rationale**: `constants.py` already hosts `InfrahubClientMode(str, enum.Enum)` (`constants.py:4`) and is already imported by both `config.py` (`config.py:11`) and `client.py`. A `str`-valued enum means `Priority.LOW.value == "high"`-style access gives the exact wire token, and the member *is* a `str` so it slots straight into a headers dict. `_missing_` lets `Priority("LOW")` resolve case-insensitively, which pydantic uses when coercing env/file strings.
 - **Alternatives considered**:
   - `infrahub_sdk/enums.py` (`OrderDirection`, `enums.py:4`) — viable, but `constants.py` is the home for *client/config-consumed* enums (`InfrahubClientMode`), which is exactly this case.
-  - A `Literal["high","normal","low"]` instead of an enum — rejected: FR-001 explicitly requires a `Priority` enum so callers write `Priority.LOW` and cannot typo the contract.
+  - A `Literal["high","medium","low"]` instead of an enum — rejected: FR-001 explicitly requires a `Priority` enum so callers write `Priority.LOW` and cannot typo the contract.
 
 ```python
 # infrahub_sdk/constants.py
 class Priority(str, enum.Enum):
     HIGH = "high"
-    NORMAL = "normal"
+    MEDIUM = "medium"
     LOW = "low"
 
     @classmethod
@@ -58,7 +58,7 @@ if priority is not None:
     headers["X-Priority"] = priority.value
 ```
 
-- **Rationale**: these two methods are the single funnel for all GraphQL traffic. `copy.copy(self.headers)` already carries the client default, so `if priority is not None: headers["X-Priority"] = priority.value` computes exactly `resolved = per_request if per_request is not None else client_default` (FR-006): `None` keeps the default (or absence); an explicit value overrides it, including an explicit `NORMAL` stepping *up* from a `low` default (spec edge case, SC-003). Implementing it here means the rule exists twice (async + sync), not at every public method.
+- **Rationale**: these two methods are the single funnel for all GraphQL traffic. `copy.copy(self.headers)` already carries the client default, so `if priority is not None: headers["X-Priority"] = priority.value` computes exactly `resolved = per_request if per_request is not None else client_default` (FR-006): `None` keeps the default (or absence); an explicit value overrides it, including an explicit `MEDIUM` stepping *up* from a `low` default (spec edge case, SC-003). Implementing it here means the rule exists twice (async + sync), not at every public method.
 - **Alternatives considered**: a shared `_apply_priority(headers, priority)` helper — optional nicety; the two-line inline form mirrors the surrounding tracker code and is clearer in context. Left to implementer discretion; both satisfy the contract.
 
 ## Decision 5 — Threading the kwarg through higher-level methods

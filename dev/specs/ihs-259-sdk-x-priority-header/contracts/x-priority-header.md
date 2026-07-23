@@ -7,7 +7,7 @@
 | Property | Value |
 |----------|-------|
 | Name | `X-Priority` (exact, case-insensitive on the server per HTTP header rules) |
-| Values | `high`, `normal`, `low` (lowercase emitted by the SDK) |
+| Values | `high`, `medium`, `low` (lowercase emitted by the SDK) |
 | Cardinality | 0 or 1 per request |
 
 ## Emission rules (SDK side)
@@ -20,8 +20,8 @@
 ## Server semantics (assumed, per INFP-636 — not implemented here)
 
 - The server treats the value case-insensitively.
-- An **absent** header and an **unknown** value are both treated as `normal`.
-- Consequently, "omit the header" and "send `normal`" are server-equivalent, which is what makes omitting-when-unconfigured a safe, non-breaking rollout.
+- An **absent** header and an **unknown** value are both treated as `medium`.
+- Consequently, "omit the header" and "send `medium`" are server-equivalent, which is what makes omitting-when-unconfigured a safe, non-breaking rollout.
 
 ## Non-goals (this contract)
 

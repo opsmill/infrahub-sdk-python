@@ -9,7 +9,7 @@ from infrahub_sdk.constants import Priority
 
 class Priority(str, enum.Enum):
     HIGH = "high"
-    NORMAL = "normal"
+    MEDIUM = "medium"
     LOW = "low"
 ```
 
@@ -25,7 +25,7 @@ class ConfigBase(BaseSettings):
     priority: Priority | None = Field(
         default=None,
         description="Default request priority emitted as the X-Priority header on every request. "
-                    "One of high|normal|low (case-insensitive). When unset, no header is sent.",
+                    "One of high|medium|low (case-insensitive). When unset, no header is sent.",
     )
 ```
 

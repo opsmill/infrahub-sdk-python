@@ -79,7 +79,7 @@ def test_merge_request_headers_layers_delta_over_live_base(client_type: str) -> 
     an explicit per-request override — of a normal header or of auth itself — takes precedence.
     """
     client = _build_password_client(client_type)
-    client.headers["X-Priority"] = "normal"
+    client.headers["X-Priority"] = "medium"
 
     # A delta carrying only a per-request priority override (no auth).
     merged = client._merge_request_headers({"X-Priority": "high"})

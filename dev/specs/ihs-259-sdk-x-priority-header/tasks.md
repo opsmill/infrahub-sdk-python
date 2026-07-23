@@ -42,9 +42,9 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 **Purpose**: The `Priority` enum and `Config.priority` field are prerequisites for every user story. MUST complete before Phase 3+.
 
-- [X] T002 Add `class Priority(str, enum.Enum)` with members `HIGH = "high"`, `NORMAL = "normal"`, `LOW = "low"` and a case-insensitive `_missing_` classmethod (returns the member matching `value.lower()`, else `None`) to `infrahub_sdk/constants.py` (mirror `InfrahubClientMode`). Add module docstring/type hints per repo style.
+- [X] T002 Add `class Priority(str, enum.Enum)` with members `HIGH = "high"`, `MEDIUM = "medium"`, `LOW = "low"` and a case-insensitive `_missing_` classmethod (returns the member matching `value.lower()`, else `None`) to `infrahub_sdk/constants.py` (mirror `InfrahubClientMode`). Add module docstring/type hints per repo style.
 - [X] T003 [P] Export `Priority` from the SDK public namespace: add it to `infrahub_sdk/__init__.py` imports and `__all__` (alongside other public enums), per contracts/priority-api.md.
-- [X] T004 Add `priority: Priority | None = Field(default=None, description="Default request priority emitted as the X-Priority header on every request; one of high|normal|low (case-insensitive). When unset, no header is sent.")` to `ConfigBase` in `infrahub_sdk/config.py`; import `Priority` from `.constants`. Confirm the field auto-binds to `INFRAHUB_PRIORITY` (no custom source needed) and is carried by `Config.clone()` (it iterates `model_fields`, so no change to `clone()` required — verify only).
+- [X] T004 Add `priority: Priority | None = Field(default=None, description="Default request priority emitted as the X-Priority header on every request; one of high|medium|low (case-insensitive). When unset, no header is sent.")` to `ConfigBase` in `infrahub_sdk/config.py`; import `Priority` from `.constants`. Confirm the field auto-binds to `INFRAHUB_PRIORITY` (no custom source needed) and is carried by `Config.clone()` (it iterates `model_fields`, so no change to `clone()` required — verify only).
 
 **Checkpoint**: `Priority` importable from `infrahub_sdk`; `Config(priority=...)` accepts enum/string; the SDK still imports and existing tests still pass.
 
@@ -66,7 +66,7 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 - [X] T007 [P] [US1] In `tests/unit/sdk/test_object_store.py` (or `test_priority.py`), assert a `priority=Priority.LOW` client emits `X-Priority: low` on a blob download (`_get_streaming`) and upload (`_post`/object-store), both clients. (SC-001, SC-006 blob)
 - [X] T008 [P] [US1] Add a multipart-upload test: a `priority=Priority.LOW` client emits `X-Priority: low` on `_execute_graphql_with_file`, both clients (confirm the header survives the `content-type` pop). (SC-001, FR-003)
 - [X] T009 [P] [US1] Add a batch-mode test: a `priority=Priority.LOW` client issues a batched operation and every batched request carries `X-Priority: low`. (SC-006 batch)
-- [X] T010 [P] [US1] Add a test that a `priority=Priority.NORMAL` client emits `X-Priority: normal` on requests (an explicitly configured default is always emitted, not omitted), both clients. (US1 acceptance #4, FR-006)
+- [X] T010 [P] [US1] Add a test that a `priority=Priority.MEDIUM` client emits `X-Priority: medium` on requests (an explicitly configured default is always emitted, not omitted), both clients. (US1 acceptance #4, FR-006)
 
 **Checkpoint**: US1 fully testable and green independently — this is a shippable MVP.
 
@@ -110,7 +110,7 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 
 - [X] T021 [P] [US2] Test: no-default client + `priority=Priority.HIGH` on `execute_graphql` emits `X-Priority: high`; a following un-annotated call emits no header (no leak). Both clients. (SC-003, US2 acceptance #1/#2)
 - [X] T022 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.HIGH` emits `X-Priority: high` for that call, and the next un-annotated call reverts to `X-Priority: low`. Both clients. (SC-003, US2 acceptance #3)
-- [X] T023 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.NORMAL` emits `X-Priority: normal` (explicit step-up wins). Both clients. (spec Edge Cases, SC-003)
+- [X] T023 [P] [US2] Test: `priority=Priority.LOW` default client + per-request `priority=Priority.MEDIUM` emits `X-Priority: medium` (explicit step-up wins). Both clients. (spec Edge Cases, SC-003)
 - [X] T024 [P] [US2] Test the override on the covered surfaces: `get`, `all` (multi-page — assert every page request carries the override), `create`, `save`, a diff method, and `_execute_graphql_with_file`. Both clients. (FR-005, critique E2/E3)
 
 **Checkpoint**: Override works and resolves correctly on every covered surface, both clients.
@@ -128,7 +128,7 @@ Single-project Python library. Production code under `infrahub_sdk/`; tests unde
 ### Tests
 
 - [X] T025 [P] [US4] In `tests/unit/sdk/test_config.py`, assert `Config(address="http://localhost:8000", priority="lowe")` raises `pydantic.ValidationError` (use `pytest.raises(..., match=...)`); assert no request is issued. (SC-004, FR-007)
-- [X] T026 [P] [US4] Assert case-insensitive acceptance: `Config(priority="LOW")`, `Config(priority="Low")`, `Config(priority="low")`, and `Config(priority=Priority.LOW)` all yield `Priority.LOW`; likewise for HIGH/NORMAL. Include the env-var path `INFRAHUB_PRIORITY=LOW` via `monkeypatch`. (SC-004, FR-002)
+- [X] T026 [P] [US4] Assert case-insensitive acceptance: `Config(priority="LOW")`, `Config(priority="Low")`, `Config(priority="low")`, and `Config(priority=Priority.LOW)` all yield `Priority.LOW`; likewise for HIGH/MEDIUM. Include the env-var path `INFRAHUB_PRIORITY=LOW` via `monkeypatch`. (SC-004, FR-002)
 - [X] T027 [P] [US4] Assert `Config()` default → `priority is None` (no default, header omitted). (FR-004)
 
 **Checkpoint**: Misconfiguration fails loudly; valid config in any case is accepted.

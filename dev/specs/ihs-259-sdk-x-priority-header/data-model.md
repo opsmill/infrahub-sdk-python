@@ -11,7 +11,7 @@ A closed enumeration representing request priority. Owned by the SDK; no lifecyc
 | Member   | Wire value | Meaning                                                        |
 |----------|-----------|----------------------------------------------------------------|
 | `HIGH`   | `high`    | Prefer this request; server should protect it under load.      |
-| `NORMAL` | `normal`  | Default server treatment; equivalent to absent header.         |
+| `MEDIUM` | `medium`  | Default server treatment; equivalent to absent header.         |
 | `LOW`    | `low`     | Sheddable first; intended for background/bulk workloads.       |
 
 - **Base type**: `str, enum.Enum` — each member *is* its lowercase wire token, so it drops directly into a header dict.
@@ -32,7 +32,7 @@ Extends `ConfigBase` (`infrahub_sdk/config.py`).
 | Type | `Priority \| None` |
 | Default | `None` (no client-wide default → header omitted) |
 | Env var | `INFRAHUB_PRIORITY` (via `env_prefix="INFRAHUB_"`) |
-| Accepts | a `Priority` value, or a case-insensitive string (`"high"/"normal"/"low"`, any case) |
+| Accepts | a `Priority` value, or a case-insensitive string (`"high"/"medium"/"low"`, any case) |
 | Validation | pydantic + `Priority` enum; unknown value → `ValidationError` at load time |
 | Carried by `clone()` | Yes (automatic — `clone()` iterates `Config.model_fields`) |
 
@@ -54,9 +54,9 @@ The client's base header dict, built once in `BaseClient.__init__` (`infrahub_sd
 | Attribute | Value |
 |-----------|-------|
 | Header name | `X-Priority` (exact) |
-| Value | one of `high` / `normal` / `low` (lowercase) |
+| Value | one of `high` / `medium` / `low` (lowercase) |
 | Presence | present only when the resolved priority is non-`None` |
-| Server semantics (per INFP-636) | case-insensitive; absent or unknown treated as `normal` |
+| Server semantics (per INFP-636) | case-insensitive; absent or unknown treated as `medium` |
 
 See [contracts/x-priority-header.md](./contracts/x-priority-header.md).
 
@@ -78,14 +78,14 @@ Realised in code as: the client default is already in the copied `self.headers`;
 |----------------|-----------------|-----------------------|
 | `None`         | `None`          | *(none)*              |
 | `None`         | `HIGH`          | `X-Priority: high`    |
-| `None`         | `NORMAL`        | `X-Priority: normal`  |
+| `None`         | `MEDIUM`        | `X-Priority: medium`  |
 | `LOW`          | `None`          | `X-Priority: low`     |
 | `LOW`          | `HIGH`          | `X-Priority: high`    |
-| `LOW`          | `NORMAL`        | `X-Priority: normal`  (explicit step-up wins) |
-| `NORMAL`       | `None`          | `X-Priority: normal`  |
+| `LOW`          | `MEDIUM`        | `X-Priority: medium`  (explicit step-up wins) |
+| `MEDIUM`       | `None`          | `X-Priority: medium`  |
 | `HIGH`         | `LOW`           | `X-Priority: low`     |
 
-- There is no per-request way to force "send no header" once a default is set; passing `NORMAL` explicitly is the accepted equivalent (spec Edge Cases).
+- There is no per-request way to force "send no header" once a default is set; passing `MEDIUM` explicitly is the accepted equivalent (spec Edge Cases).
 - A per-request value never mutates client state — the next un-annotated call reverts to the client default (SC-003).
 
 ## Coverage of the per-request override

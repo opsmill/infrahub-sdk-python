@@ -41,8 +41,8 @@ client = InfrahubClient(config=Config(address="http://localhost:8000", priority=
 # This one user-triggered call steps up to high; the rest stay low.
 node = await client.get(kind="BuiltinTag", name__value="blue", priority=Priority.HIGH)
 
-# Explicit NORMAL beats a LOW default for this call only:
-await client.execute_graphql(query=MY_QUERY, priority=Priority.NORMAL)  # -> X-Priority: normal
+# Explicit MEDIUM beats a LOW default for this call only:
+await client.execute_graphql(query=MY_QUERY, priority=Priority.MEDIUM)  # -> X-Priority: medium
 ```
 
 ### Zero behaviour change when unconfigured (P1)
@@ -72,7 +72,7 @@ uv run pytest tests/unit/sdk/test_priority.py tests/unit/sdk/test_config.py \
 | Default rides GraphQL, multipart, blob | `httpx_mock.add_response(match_headers={"X-Priority": "low"})` for each transport; request only matches if header present | SC-001 |
 | Unconfigured client emits no header | capture request via `httpx_mock.get_requests()`, assert `"x-priority" not in request.headers` | SC-002 |
 | Per-request override, then revert | override call matches `{"X-Priority": "high"}`; next un-annotated call matches the default (or no header) | SC-003 |
-| Explicit `NORMAL` beats `LOW` default | override call matches `{"X-Priority": "normal"}` | SC-003 (edge) |
+| Explicit `MEDIUM` beats `LOW` default | override call matches `{"X-Priority": "medium"}` | SC-003 (edge) |
 | Invalid value rejected | `pytest.raises(pydantic.ValidationError, match=...)` on `Config(priority="lowe")` | SC-004 |
 | Case-insensitive config accepted | `Config(priority="LOW").priority is Priority.LOW` | FR-002 |
 | Async/sync parity | parametrize every wire test over `["standard", "sync"]` via the `BothClients` fixture | SC-005 |

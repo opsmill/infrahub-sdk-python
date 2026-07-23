@@ -17,7 +17,7 @@ class Priority(str, enum.Enum):
     """
 
     HIGH = "high"
-    NORMAL = "normal"
+    MEDIUM = "medium"
     LOW = "low"
 
     @classmethod
