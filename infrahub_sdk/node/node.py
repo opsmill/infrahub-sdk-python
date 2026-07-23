@@ -651,8 +651,8 @@ class InfrahubNodeBase:
     def generate_query_data_init(
         self,
         filters: dict[str, Any] | None = None,
-        offset: int | None = None,
-        limit: int | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         partial_match: bool = False,
@@ -667,8 +667,10 @@ class InfrahubNodeBase:
 
         Args:
             filters (dict[str, Any], optional): Filters to apply to the query.
-            offset (int, optional): Pagination offset.
-            limit (int, optional): Pagination limit.
+            offset (int | str, optional): Pagination offset, either a literal value or a
+                GraphQL variable placeholder such as ``"$offset"``.
+            limit (int | str, optional): Pagination limit, either a literal value or a
+                GraphQL variable placeholder such as ``"$limit"``.
             include (list[str], optional): Attributes or relationships to include.
             exclude (list[str], optional): Attributes or relationships to exclude.
             partial_match (bool, optional): When ``True``, allow partial matches on filter
@@ -1353,8 +1355,8 @@ class InfrahubNode(InfrahubNodeBase):
     async def generate_query_data(
         self,
         filters: dict[str, Any] | None = None,
-        offset: int | None = None,
-        limit: int | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         fragment: bool = False,
@@ -1373,8 +1375,10 @@ class InfrahubNode(InfrahubNodeBase):
 
         Args:
             filters (dict[str, Any], optional): Filters to apply to the query.
-            offset (int, optional): Pagination offset.
-            limit (int, optional): Pagination limit.
+            offset (int | str, optional): Pagination offset, either a literal value or a
+                GraphQL variable placeholder such as ``"$offset"``.
+            limit (int | str, optional): Pagination limit, either a literal value or a
+                GraphQL variable placeholder such as ``"$limit"``.
             include (list[str], optional): Attributes or relationships to include.
             exclude (list[str], optional): Attributes or relationships to exclude.
             fragment (bool, optional): When ``True`` and the schema is a generic, emit
@@ -1850,30 +1854,37 @@ class InfrahubNode(InfrahubNodeBase):
         graphql_query_name = "InfrahubResourcePoolAllocated"
         node_ids_per_kind: dict[str, list[str]] = {}
 
+        query = Query(
+            query={
+                graphql_query_name: {
+                    "@filters": {
+                        "pool_id": "$pool_id",
+                        "resource_id": "$resource_id",
+                        "offset": "$offset",
+                        "limit": "$limit",
+                    },
+                    "count": None,
+                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
+                }
+            },
+            name="GetAllocatedResourceForPool",
+            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        )
+        query_str = query.render()
+
         has_remaining_items = True
         page_number = 1
         while has_remaining_items:
             page_offset = (page_number - 1) * self._client.pagination_size
 
-            query = Query(
-                query={
-                    graphql_query_name: {
-                        "@filters": {
-                            "pool_id": "$pool_id",
-                            "resource_id": "$resource_id",
-                            "offset": page_offset,
-                            "limit": self._client.pagination_size,
-                        },
-                        "count": None,
-                        "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                    }
-                },
-                name="GetAllocatedResourceForPool",
-                variables={"pool_id": str, "resource_id": str},
-            )
             response = await self._client.execute_graphql(
-                query=query.render(),
-                variables={"pool_id": self.id, "resource_id": resource.id},
+                query=query_str,
+                variables={
+                    "pool_id": self.id,
+                    "resource_id": resource.id,
+                    "offset": page_offset,
+                    "limit": self._client.pagination_size,
+                },
                 branch_name=self._branch,
                 tracker=f"get-allocated-resources-page{page_number}",
             )
@@ -2572,8 +2583,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def generate_query_data(
         self,
         filters: dict[str, Any] | None = None,
-        offset: int | None = None,
-        limit: int | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         fragment: bool = False,
@@ -2592,8 +2603,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Args:
             filters (dict[str, Any], optional): Filters to apply to the query.
-            offset (int, optional): Pagination offset.
-            limit (int, optional): Pagination limit.
+            offset (int | str, optional): Pagination offset, either a literal value or a
+                GraphQL variable placeholder such as ``"$offset"``.
+            limit (int | str, optional): Pagination limit, either a literal value or a
+                GraphQL variable placeholder such as ``"$limit"``.
             include (list[str], optional): Attributes or relationships to include.
             exclude (list[str], optional): Attributes or relationships to exclude.
             fragment (bool, optional): When ``True`` and the schema is a generic, emit
@@ -3072,30 +3085,37 @@ class InfrahubNodeSync(InfrahubNodeBase):
         graphql_query_name = "InfrahubResourcePoolAllocated"
         node_ids_per_kind: dict[str, list[str]] = {}
 
+        query = Query(
+            query={
+                graphql_query_name: {
+                    "@filters": {
+                        "pool_id": "$pool_id",
+                        "resource_id": "$resource_id",
+                        "offset": "$offset",
+                        "limit": "$limit",
+                    },
+                    "count": None,
+                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
+                }
+            },
+            name="GetAllocatedResourceForPool",
+            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        )
+        query_str = query.render()
+
         has_remaining_items = True
         page_number = 1
         while has_remaining_items:
             page_offset = (page_number - 1) * self._client.pagination_size
 
-            query = Query(
-                query={
-                    graphql_query_name: {
-                        "@filters": {
-                            "pool_id": "$pool_id",
-                            "resource_id": "$resource_id",
-                            "offset": page_offset,
-                            "limit": self._client.pagination_size,
-                        },
-                        "count": None,
-                        "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                    }
-                },
-                name="GetAllocatedResourceForPool",
-                variables={"pool_id": str, "resource_id": str},
-            )
             response = self._client.execute_graphql(
-                query=query.render(),
-                variables={"pool_id": self.id, "resource_id": resource.id},
+                query=query_str,
+                variables={
+                    "pool_id": self.id,
+                    "resource_id": resource.id,
+                    "offset": page_offset,
+                    "limit": self._client.pagination_size,
+                },
                 branch_name=self._branch,
                 tracker=f"get-allocated-resources-page{page_number}",
             )

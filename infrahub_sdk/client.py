@@ -1169,24 +1169,32 @@ class InfrahubClient(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
+        # Pagination is passed as GraphQL variables so the rendered query text stays
+        # identical across pages and can hit the server-side query cache.
+        query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
+            offset="$offset",
+            limit="$limit",
+            filters=filters,
+            include=include,
+            exclude=exclude,
+            fragment=fragment,
+            prefetch_relationships=prefetch_relationships,
+            partial_match=partial_match,
+            property=property,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
+        query_str = query.render()
+
         async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
             """Process a single page of results."""
-            query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=page_offset if offset is None else offset,
-                limit=limit or pagination_size,
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
-            query = Query(query=query_data, name=query_name)
             response = await self.execute_graphql(
-                query=query.render(),
+                query=query_str,
+                variables={
+                    "offset": page_offset if offset is None else offset,
+                    "limit": limit or pagination_size,
+                },
                 branch_name=branch,
                 at=at,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
@@ -2968,24 +2976,32 @@ class InfrahubClientSync(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
+        # Pagination is passed as GraphQL variables so the rendered query text stays
+        # identical across pages and can hit the server-side query cache.
+        query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
+            offset="$offset",
+            limit="$limit",
+            filters=filters,
+            include=include,
+            exclude=exclude,
+            fragment=fragment,
+            prefetch_relationships=prefetch_relationships,
+            partial_match=partial_match,
+            property=property,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
+        query_str = query.render()
+
         def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
             """Process a single page of results."""
-            query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=page_offset if offset is None else offset,
-                limit=limit or pagination_size,
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
-            query = Query(query=query_data, name=query_name)
             response = self.execute_graphql(
-                query=query.render(),
+                query=query_str,
+                variables={
+                    "offset": page_offset if offset is None else offset,
+                    "limit": limit or pagination_size,
+                },
                 branch_name=branch,
                 at=at,
                 timeout=timeout,
