@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import json
 import ssl
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -872,3 +873,24 @@ async def test_execute_graphql_omits_operation_name_when_unset(
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
     assert "operationName" not in payload
+
+
+@dataclass
+class GraphQLURLCase:
+    name: str
+    branch_name: str
+    expected_url: str
+
+
+GRAPHQL_URL_CASES = [
+    GraphQLURLCase(name="hash", branch_name="feature#123", expected_url="http://mock/graphql/feature%23123"),
+    GraphQLURLCase(name="slash", branch_name="feature/foo", expected_url="http://mock/graphql/feature%2Ffoo"),
+    GraphQLURLCase(name="plain", branch_name="main", expected_url="http://mock/graphql/main"),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in GRAPHQL_URL_CASES])
+async def test_graphql_url_encodes_branch_name(clients: BothClients, client_type: str, case: GraphQLURLCase) -> None:
+    client = clients.standard if client_type == "standard" else clients.sync
+    assert client._graphql_url(branch_name=case.branch_name) == case.expected_url
