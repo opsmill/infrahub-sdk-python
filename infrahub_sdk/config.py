@@ -70,7 +70,7 @@ class ConfigBase(BaseSettings):
         description="Retry requests that receive HTTP 429 using backoff. Set False to disable.",
     )
     rate_limit_max_retries: int = Field(
-        default=5,
+        default=10,
         ge=0,
         description="Maximum number of retries after the initial attempt when receiving HTTP 429.",
     )
