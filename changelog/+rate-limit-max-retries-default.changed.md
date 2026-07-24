@@ -1,0 +1,1 @@
+Raised the default `Config.rate_limit_max_retries` from 5 to 10, so a request shed with HTTP 429 keeps retrying (honouring `Retry-After`) for longer before raising `RateLimitError`. This lets background work ride out a longer burst of server-side backpressure. Callers that prefer to give up sooner can lower the value.
