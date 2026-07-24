@@ -323,6 +323,18 @@ def test_enum_backed_relationship_cardinality_out_of_enum_value_is_rejected() ->
     assert any("cardinality" in message for message in result.messages), result.messages
 
 
+def test_missing_version_is_rejected() -> None:
+    # The load endpoint requires ``version``, so a payload without it must be reported invalid
+    # offline too instead of passing here and being rejected on submission.
+    schema = _valid_schema()
+    del schema["version"]
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert _fields_named(result) == {"version"}
+
+
 def test_raise_on_error_raises_value_error_naming_field() -> None:
     # Exercises the raise_on_error path rather than the result verdict: an out-of-enum value must
     # raise a ValueError naming the offending field.
