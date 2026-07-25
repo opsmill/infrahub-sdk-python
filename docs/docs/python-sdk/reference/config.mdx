@@ -136,7 +136,7 @@ The following settings can be defined in the `Config` class
 ## priority
 
 <!-- vale on -->
-**Description**: Default request priority emitted as the X-Priority header on every request; one of high|normal|low (case-insensitive). When unset, no header is sent.<br />
+**Description**: Default request priority emitted as the X-Priority header on every request; one of high|medium|low (case-insensitive). When unset, no header is sent.<br />
 **Type**: `object`<br />
 **Environment variable**: `INFRAHUB_PRIORITY`<br />
 <!-- vale off -->
@@ -173,7 +173,7 @@ The following settings can be defined in the `Config` class
 <!-- vale on -->
 **Description**: Maximum number of retries after the initial attempt when receiving HTTP 429.<br />
 **Type**: `integer`<br />
-**Default value**: 5<br />
+**Default value**: 10<br />
 **Environment variable**: `INFRAHUB_RATE_LIMIT_MAX_RETRIES`<br />
 <!-- vale off -->
 

@@ -60,7 +60,7 @@ class ConfigBase(BaseSettings):
         default=None,
         description=(
             "Default request priority emitted as the X-Priority header on every request; "
-            "one of high|normal|low (case-insensitive). When unset, no header is sent."
+            "one of high|medium|low (case-insensitive). When unset, no header is sent."
         ),
     )
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
@@ -70,7 +70,7 @@ class ConfigBase(BaseSettings):
         description="Retry requests that receive HTTP 429 using backoff. Set False to disable.",
     )
     rate_limit_max_retries: int = Field(
-        default=5,
+        default=10,
         ge=0,
         description="Maximum number of retries after the initial attempt when receiving HTTP 429.",
     )

@@ -254,8 +254,11 @@ class BaseClient:
         headers: dict = {}
         if self.insert_tracker and tracker:
             headers["X-Infrahub-Tracker"] = tracker
-        if priority is not None:
-            headers["X-Priority"] = priority.value
+        effective_priority = priority
+        if effective_priority is None and self._request_context is not None:
+            effective_priority = self._request_context.priority
+        if effective_priority is not None:
+            headers["X-Priority"] = effective_priority.value
         return headers
 
     def _merge_request_headers(self, headers: dict | None) -> dict:
