@@ -96,9 +96,9 @@ class RelationshipSchema(RelationshipSchemaWrite):
 
 
 class NodeSchema(NodeSchemaWrite):
-    # ``attributes`` accepts the constructible ``AttributeSchema`` (the generated discriminated union
-    # cannot be built from an ``AttributeSchema`` instance); dumping still validates server-side.
-    # ``relationships`` keeps the historical constructible ``RelationshipSchema`` item type.
+    # The generated write model types these as discriminated unions, which cannot be instantiated
+    # directly. Overriding them with the public constructible models keeps
+    # ``NodeSchema(attributes=[AttributeSchema(...)])`` working for existing callers.
     attributes: list[AttributeSchema] = Field(default_factory=list)
     relationships: list[RelationshipSchema] = Field(default_factory=list)
 
@@ -162,11 +162,10 @@ class RelationshipSchemaAPI(RelationshipSchemaRead):
 class _SchemaNodeBase(BaseNodeSchemaRead):
     """Behavior shared by the node/generic/profile/template read models.
 
-    Subclasses ``BaseNodeSchemaRead`` so ``name``, ``namespace``, ``kind`` and the attribute/
-    relationship collections are real inherited fields — the helpers below are type-checked against
-    them, unlike a mixin whose fields would only be declared for the type checker. The node-like
-    ``*SchemaAPI`` classes inherit this alongside their specific read model (diamond on
-    ``BaseNodeSchemaRead``); listing this base first keeps the narrowed item types below.
+    Subclasses ``BaseNodeSchemaRead``, so ``name``, ``namespace``, ``kind`` and the attribute/
+    relationship collections are real inherited fields and the helpers below type-check against
+    them. The node-like ``*SchemaAPI`` classes inherit this alongside their specific read model
+    (diamond on ``BaseNodeSchemaRead``); listing this base first keeps the narrowed item types.
     """
 
     # Narrow the attribute/relationship item types to the API variants so the returned items expose
