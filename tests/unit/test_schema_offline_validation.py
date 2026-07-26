@@ -147,8 +147,7 @@ def test_valid_payload_with_extensions_block_passes() -> None:
 
 
 def test_enum_backed_relationship_cardinality_valid_value_passes() -> None:
-    # cardinality is typed with the RelationshipCardinality enum (use_enum_values keeps the runtime
-    # value a plain string); "one" is a valid RelationshipCardinality string and must validate.
+    # A plain string for RelationshipCardinality is valid.
     schema = _valid_schema()
     schema["nodes"][0]["relationships"][0]["cardinality"] = "one"
 
