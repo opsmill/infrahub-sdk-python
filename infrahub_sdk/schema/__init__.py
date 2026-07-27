@@ -24,6 +24,8 @@ from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
+from .generated.read import InfrahubSchemaRead
+from .generated.write import InfrahubSchemaWrite
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
@@ -42,6 +44,7 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
+from .validate import SchemaValidationErrorDetail, SchemaValidationResult, validate_schema
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -56,6 +59,8 @@ __all__ = [
     "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
+    "InfrahubSchemaRead",
+    "InfrahubSchemaWrite",
     "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
@@ -67,8 +72,11 @@ __all__ = [
     "SchemaExport",
     "SchemaRoot",
     "SchemaRootAPI",
+    "SchemaValidationErrorDetail",
+    "SchemaValidationResult",
     "TemplateSchemaAPI",
     "schema_to_export_dict",
+    "validate_schema",
 ]
 
 
@@ -166,7 +174,9 @@ class InfrahubSchemaBase:
         return SchemaExport(namespaces=ns_map)
 
     def validate(self, data: dict[str, Any]) -> None:
-        SchemaRoot(**data)
+        # Validate against the generated write contract so this matches what /api/schema/load
+        # enforces (unknown keys rejected, attribute kinds discriminated, extensions understood).
+        InfrahubSchemaWrite.model_validate(data)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
         for key in data:
@@ -362,7 +372,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if wait_until_converged:
@@ -394,7 +406,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:
@@ -892,7 +906,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if wait_until_converged:
@@ -924,7 +940,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:

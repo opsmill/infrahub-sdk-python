@@ -222,6 +222,7 @@ class CoreTransformation(CoreNode):
     query: RelatedNode
     repository: RelatedNode
     tags: RelationshipManager
+    artifact_definitions: RelationshipManager
 
 
 class CoreTriggerRule(CoreNode):
@@ -314,6 +315,8 @@ class CoreArtifactDefinition(CoreTaskTarget):
     fingerprint: StringOptional
     targets: RelatedNode
     transformation: RelatedNode
+    artifacts: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreArtifactThread(CoreThread):
@@ -345,6 +348,7 @@ class CoreCheckDefinition(CoreTaskTarget):
     query: RelatedNode
     targets: RelatedNode
     tags: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreCustomWebhook(CoreWebhook, CoreTaskTarget):
@@ -405,6 +409,8 @@ class CoreGeneratorDefinition(CoreTaskTarget):
     query: RelatedNode
     repository: RelatedNode
     targets: RelatedNode
+    instances: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreGeneratorGroup(CoreGroup):
@@ -439,6 +445,7 @@ class CoreGraphQLQuery(CoreNode):
     height: IntegerOptional
     repository: RelatedNode
     tags: RelationshipManager
+    query_groups: RelationshipManager
 
 
 class CoreGraphQLQueryGroup(CoreGroup):
@@ -820,6 +827,7 @@ class CoreTransformationSync(CoreNodeSync):
     query: RelatedNodeSync
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
+    artifact_definitions: RelationshipManagerSync
 
 
 class CoreTriggerRuleSync(CoreNodeSync):
@@ -912,6 +920,8 @@ class CoreArtifactDefinitionSync(CoreTaskTargetSync):
     fingerprint: StringOptional
     targets: RelatedNodeSync
     transformation: RelatedNodeSync
+    artifacts: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreArtifactThreadSync(CoreThreadSync):
@@ -943,6 +953,7 @@ class CoreCheckDefinitionSync(CoreTaskTargetSync):
     query: RelatedNodeSync
     targets: RelatedNodeSync
     tags: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreCustomWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
@@ -1003,6 +1014,8 @@ class CoreGeneratorDefinitionSync(CoreTaskTargetSync):
     query: RelatedNodeSync
     repository: RelatedNodeSync
     targets: RelatedNodeSync
+    instances: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreGeneratorGroupSync(CoreGroupSync):
@@ -1037,6 +1050,7 @@ class CoreGraphQLQuerySync(CoreNodeSync):
     height: IntegerOptional
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
+    query_groups: RelationshipManagerSync
 
 
 class CoreGraphQLQueryGroupSync(CoreGroupSync):
