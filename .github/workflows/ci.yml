@@ -422,3 +422,31 @@ jobs:
   #         codecov --flags integration-tests
   #       env:
   #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ------------------------------------------ Gate  ------------------------------------------
+  # Single rollup check, so branch protection can require CI without naming every
+  # job (several are conditional, and unit-tests fans out over a moving matrix).
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs:
+      - prepare-environment
+      - files-changed
+      - yaml-lint
+      - python-lint
+      - markdown-lint
+      - action-lint
+      - uv-lock-check
+      - documentation
+      - validate-generated-documentation
+      - validate-documentation-style
+      - unit-tests
+      - integration-tests-latest-infrahub
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Fail if any job did not succeed or skip"
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more CI jobs failed or were cancelled."
+          exit 1
