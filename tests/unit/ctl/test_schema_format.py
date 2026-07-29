@@ -415,6 +415,39 @@ def test_flags_are_idempotent_and_off_by_default() -> None:
     assert format_schema_text(once, opts) == once
 
 
+def test_reorder_mapping_ignores_non_mapping() -> None:
+    # A scalar/None has no move_to_end; the call must be a harmless no-op.
+    reorder_mapping("not a mapping", ["name"], [])
+    reorder_mapping(None, ["name"], [])
+
+
+def test_non_dict_list_items_and_nodes_are_left_untouched() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - just_a_string
+  - a_scalar_node
+"""
+    opts = FormatOptions(strip_defaults=True, sort_by_order_weight=True, backfill_order_weight=True)
+    text = format_schema_text(doc, opts)
+    assert yaml.safe_load(text) == yaml.safe_load(doc)
+
+
+def test_extensions_with_non_dict_node_left_untouched() -> None:
+    doc = """\
+---
+version: "1.0"
+extensions:
+  nodes:
+    - a_scalar_entry
+"""
+    assert yaml.safe_load(format_schema_text(doc)) == yaml.safe_load(doc)
+
+
 def test_is_schema_document() -> None:
     assert is_schema_document({"version": "1.0", "nodes": []})
     assert is_schema_document({"version": "1.0", "generics": []})

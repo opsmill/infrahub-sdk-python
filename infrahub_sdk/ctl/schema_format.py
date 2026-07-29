@@ -239,10 +239,8 @@ def reorder_mapping(mapping: Any, leading: list[str], trailing: list[str]) -> No
         mapping.move_to_end(key)
 
 
-def _strip_default_keys(mapping: Any, defaults: dict[str, Any]) -> None:
+def _strip_default_keys(mapping: dict[str, Any], defaults: dict[str, Any]) -> None:
     """Remove keys whose value equals the schema default."""
-    if not isinstance(mapping, dict):
-        return
     for key, default in defaults.items():
         if key in mapping and mapping[key] == default:
             del mapping[key]
