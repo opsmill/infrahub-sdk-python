@@ -37,7 +37,7 @@ from io import StringIO
 from typing import Any
 
 import yaml
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, YAMLError
 
 # Mirrors ``infrahub.core.constants.RESTRICTED_NAMESPACES``. Kept as a local
 # copy because the SDK does not depend on the Infrahub backend. This list is
@@ -409,13 +409,20 @@ def format_schema_text(raw_text: str, options: FormatOptions | None = None) -> s
         The formatted YAML text, with comments and quoting preserved.
 
     Raises:
-        FormatError: If formatting would change the file's meaning beyond the
-            transforms requested via ``options``.
+        FormatError: If the file cannot be parsed as round-trip YAML (e.g. a
+            duplicate key), or if formatting would change the file's meaning
+            beyond the transforms requested via ``options``.
 
     """
     options = options or FormatOptions()
     yaml_handler = _build_yaml()
-    data = yaml_handler.load(raw_text)
+    try:
+        # Round-trip loading is stricter than the PyYAML safe_load used to
+        # discover schema files (e.g. it rejects duplicate keys). Convert that
+        # into a per-file FormatError so one bad file does not abort the run.
+        data = yaml_handler.load(raw_text)
+    except YAMLError as exc:
+        raise FormatError(f"could not parse as YAML: {exc}") from exc
 
     if not is_schema_document(data):
         return raw_text

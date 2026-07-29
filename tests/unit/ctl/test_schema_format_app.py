@@ -144,6 +144,24 @@ def test_format_reports_invalid_file(tmp_path: Path) -> None:
     assert result.exit_code == 1
 
 
+def test_format_duplicate_key_is_per_file_error(tmp_path: Path) -> None:
+    # A duplicate key (which `schema load`/PyYAML tolerate) must be reported as
+    # a per-file error without aborting the run: other files still format.
+    _write(
+        tmp_path / "a_dup.yml",
+        '---\nversion: "1.0"\nnodes:\n  - namespace: Dcim\n    name: Device\n    label: A\n    label: B\n',
+    )
+    good = _write(tmp_path / "b_good.yml", UNFORMATTED)
+
+    result = runner.invoke(app, env=WIDE, args=["format", str(tmp_path)])
+
+    assert result.exit_code == 1
+    output = remove_ansi_color(result.stdout)
+    assert "could not parse as YAML" in output
+    # The valid file was still processed despite the earlier bad one.
+    assert good.read_text(encoding="utf-8").startswith("---\n# yaml-language-server:")
+
+
 def test_format_reports_format_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     schema = _write(tmp_path / "dcim.yml", UNFORMATTED)
 

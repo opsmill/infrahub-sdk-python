@@ -448,6 +448,22 @@ extensions:
     assert yaml.safe_load(format_schema_text(doc)) == yaml.safe_load(doc)
 
 
+def test_duplicate_key_raises_format_error() -> None:
+    # Round-trip YAML rejects duplicate keys; it must surface as a FormatError
+    # (a per-file error), not ruamel's YAMLError leaking to the caller.
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    label: A
+    label: B
+"""
+    with pytest.raises(FormatError):
+        format_schema_text(doc)
+
+
 def test_is_schema_document() -> None:
     assert is_schema_document({"version": "1.0", "nodes": []})
     assert is_schema_document({"version": "1.0", "generics": []})
