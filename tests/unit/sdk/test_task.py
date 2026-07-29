@@ -161,3 +161,24 @@ async def test_method_get_full(clients: BothClients, mock_query_tasks_05: HTTPXM
         "updated_at": datetime(2025, 1, 18, 22, 12, 22, 44921, tzinfo=timezone.utc),
         "workflow": "import-python-files",
     }
+
+
+def test_from_graphql_related_node_without_kind() -> None:
+    task = Task.from_graphql(
+        {
+            "id": "32116fcd-9071-43a7-9f14-777901020b5b",
+            "title": "Import Python file",
+            "state": "COMPLETED",
+            "created_at": "2025-01-18T22:12:20.228112+00:00",
+            "updated_at": "2025-01-18T22:12:22.044921+00:00",
+            "related_nodes": [
+                {"id": "1808d478-e51e-7504-d0ef-c513f1cd69a5", "kind": "CoreReadOnlyRepository"},
+                {"id": "1808d478-e51e-7504-aaaa-c513f1cd69a5", "kind": None},
+            ],
+        }
+    )
+
+    assert [(node.id, node.kind) for node in task.related_nodes] == [
+        ("1808d478-e51e-7504-d0ef-c513f1cd69a5", "CoreReadOnlyRepository"),
+        ("1808d478-e51e-7504-aaaa-c513f1cd69a5", None),
+    ]

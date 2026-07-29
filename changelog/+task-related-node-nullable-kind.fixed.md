@@ -1,0 +1,1 @@
+Fixed a validation error when reading tasks with `include_related_nodes=True`. A task can reference a node that no longer exists in the graph, for which the server cannot resolve a kind, so `TaskRelatedNode.kind` is now optional and defaults to `None`.

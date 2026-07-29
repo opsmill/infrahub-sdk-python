@@ -26,7 +26,8 @@ class TaskLog(BaseModel):
 
 class TaskRelatedNode(BaseModel):
     id: str
-    kind: str
+    # A related node whose vertex is gone from the graph has no recoverable kind.
+    kind: str | None = None
 
 
 class Task(BaseModel):
