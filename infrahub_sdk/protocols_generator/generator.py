@@ -18,6 +18,7 @@ from ..schema import (
     RelationshipSchemaAPI,
     TemplateSchemaAPI,
 )
+from ..schema.main import AttributeKind
 from .constants import ATTRIBUTE_KIND_MAP, CORE_BASE_CLASS_TO_SYNCIFY, TEMPLATE_FILE_NAME
 
 
@@ -117,6 +118,12 @@ class CodeGenerator:
     @staticmethod
     def _jinja2_filter_render_attribute(value: AttributeSchemaAPI) -> str:
         attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
+
+        # An attribute declaring ``allow_prefix: false`` holds a bare address rather than an interface.
+        # Absent parameters mean an older server that does not publish the flag, which keeps the
+        # historical prefixed annotation.
+        if value.kind == AttributeKind.IPHOST and not (value.parameters or {}).get("allow_prefix", True):
+            attribute_kind = "IPAddress"
 
         if value.optional and value.default_value is None:
             attribute_kind += "Optional"

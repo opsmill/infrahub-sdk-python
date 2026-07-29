@@ -75,7 +75,7 @@ class Attribute:
         """Build an ``Attribute`` from raw GraphQL data.
 
         IP-typed attributes (``IPHost``, ``IPNetwork``) are parsed via the standard
-        ``ipaddress`` module so the in-memory value is a network/interface object.
+        ``ipaddress`` module so the in-memory value is an address/interface/network object.
 
         Args:
             name (str): The name of the attribute.
@@ -109,13 +109,7 @@ class Attribute:
         self.is_from_profile: bool | None = data.get("is_from_profile")
 
         if self._value:
-            value_mapper: dict[str, Callable] = {
-                "IPHost": ipaddress.ip_interface,
-                "IPNetwork": ipaddress.ip_network,
-                "IPAddress": ipaddress.ip_address,
-            }
-            mapper = value_mapper.get(schema.kind, lambda value: value)
-            self._value = mapper(data.get("value"))
+            self._value = self._value_coercer()(data.get("value"))
 
         self.is_inherited: bool | None = data.get("is_inherited")
         self.updated_at: str | None = data.get("updated_at")
@@ -133,6 +127,18 @@ class Attribute:
         for prop_name in ATTRIBUTE_METADATA_OBJECT:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
+
+    def _value_coercer(self) -> Callable[[Any], Any]:
+        if self._schema.kind == "IPHost":
+            # An attribute declaring ``allow_prefix: false`` holds a bare address, so parsing it as an
+            # interface would re-attach the host mask. Absent parameters mean an older server that does
+            # not publish the flag, which keeps the historical prefixed behaviour.
+            if (self._schema.parameters or {}).get("allow_prefix", True):
+                return ipaddress.ip_interface
+            return ipaddress.ip_address
+        if self._schema.kind == "IPNetwork":
+            return ipaddress.ip_network
+        return lambda value: value
 
     @property
     def value(self) -> Any:

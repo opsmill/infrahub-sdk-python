@@ -73,6 +73,76 @@ RENDER_ATTRIBUTE_TEST_CASES = [
 ]
 
 
+@dataclass
+class RenderIPHostAttributeTestCase:
+    name: str
+    parameters: dict[str, Any] | None
+    optional: bool
+    default_value: Any
+    expected: str
+
+
+RENDER_IPHOST_ATTRIBUTE_TEST_CASES = [
+    RenderIPHostAttributeTestCase(
+        name="bare-required",
+        parameters={"allow_prefix": False},
+        optional=False,
+        default_value=None,
+        expected="address: IPAddress",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="bare-optional-no-default",
+        parameters={"allow_prefix": False},
+        optional=True,
+        default_value=None,
+        expected="address: IPAddressOptional",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="bare-optional-with-default",
+        parameters={"allow_prefix": False},
+        optional=True,
+        default_value="10.0.0.1",
+        expected="address: IPAddress",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="prefixed-required",
+        parameters={"allow_prefix": True},
+        optional=False,
+        default_value=None,
+        expected="address: IPHost",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="prefixed-optional-no-default",
+        parameters={"allow_prefix": True},
+        optional=True,
+        default_value=None,
+        expected="address: IPHostOptional",
+    ),
+    # A server that does not publish the parameter keeps the historical prefixed annotation.
+    RenderIPHostAttributeTestCase(
+        name="parameters-absent-required",
+        parameters=None,
+        optional=False,
+        default_value=None,
+        expected="address: IPHost",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="parameters-absent-optional-no-default",
+        parameters=None,
+        optional=True,
+        default_value=None,
+        expected="address: IPHostOptional",
+    ),
+    RenderIPHostAttributeTestCase(
+        name="parameters-empty-required",
+        parameters={},
+        optional=False,
+        default_value=None,
+        expected="address: IPHost",
+    ),
+]
+
+
 @pytest.mark.parametrize(
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in RENDER_ATTRIBUTE_TEST_CASES],
@@ -83,6 +153,21 @@ async def test_filter_render_attribute(test_case: RenderAttributeTestCase) -> No
         kind="Boolean",
         optional=test_case.optional,
         default_value=test_case.default_value,
+    )
+    assert CodeGenerator._jinja2_filter_render_attribute(attr) == test_case.expected
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in RENDER_IPHOST_ATTRIBUTE_TEST_CASES],
+)
+async def test_filter_render_iphost_attribute(test_case: RenderIPHostAttributeTestCase) -> None:
+    attr = AttributeSchemaAPI(
+        name="address",
+        kind="IPHost",
+        optional=test_case.optional,
+        default_value=test_case.default_value,
+        parameters=test_case.parameters,
     )
     assert CodeGenerator._jinja2_filter_render_attribute(attr) == test_case.expected
 

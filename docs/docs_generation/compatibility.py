@@ -192,6 +192,7 @@ PYTHON_SUPPORT: list[PythonSupport] = [
 
 # Features that require specific minimum versions of both SDK and Infrahub.
 FEATURE_REQUIREMENTS: list[FeatureRequirement] = [
+    FeatureRequirement(feature="Bare IP address attributes", min_sdk="1.23.0", min_infrahub="1.11"),
     FeatureRequirement(feature="infrahubctl branch report", min_sdk="1.19.0", min_infrahub="1.7"),
     FeatureRequirement(feature="FileObject support", min_sdk="1.19.0", min_infrahub="1.8"),
     FeatureRequirement(feature="NumberPool support", min_sdk="1.13.0", min_infrahub="1.3"),

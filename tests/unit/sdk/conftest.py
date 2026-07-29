@@ -895,7 +895,7 @@ async def bare_ipaddress_schema() -> NodeSchemaAPI:
         "display_labels": ["address_value"],
         "order_by": ["address_value"],
         "attributes": [
-            {"name": "address", "kind": "IPAddress"},
+            {"name": "address", "kind": "IPHost", "parameters": {"allow_prefix": False}},
         ],
     }
     return NodeSchema(**data).convert_api()

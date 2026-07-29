@@ -55,6 +55,16 @@ Some SDK features require a minimum Infrahub version:
 {% endfor %}
 <!-- vale on -->
 
+### Bare IP address attributes
+
+An `IPHost` attribute whose schema sets `allow_prefix: false` holds a bare address such as `10.0.0.1` rather than `10.0.0.1/32`. From SDK 1.23.0 onwards, reading such an attribute returns an `ipaddress.IPv4Address` or `ipaddress.IPv6Address`, and generated protocols type it as `IPAddress` instead of `IPHost`. An `IPHost` attribute that does not set `allow_prefix` is unaffected and still returns an `ipaddress.IPv4Interface` or `ipaddress.IPv6Interface`.
+
+:::warning
+Reading a bare IP address attribute requires SDK 1.23.0 or later. Earlier versions parse every `IPHost` value as an interface, so a bare `10.0.0.1` becomes `IPv4Interface('10.0.0.1/32')` and the host mask reappears in your code. No error is raised.
+:::
+
+A newer SDK against an older Infrahub is safe: when the server does not publish `allow_prefix`, the SDK keeps returning interface objects.
+
 ## General guidance
 
 - **Use the SDK version that matches your Infrahub release.** The version mapping table above shows which SDK version was tested and shipped with each Infrahub release.

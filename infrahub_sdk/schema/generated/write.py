@@ -81,6 +81,14 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
     )
 
 
+class IPHostAttributeParametersWrite(AttributeParametersWrite):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    allow_prefix: bool = Field(
+        default=True,
+        description="When false, this attribute holds a bare IP address: a value with a subnet prefix is rejected and a host prefix is dropped.",
+    )
+
+
 class DropdownChoiceWrite(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     name: str = Field(
@@ -280,6 +288,18 @@ class NumberPoolAttributeWrite(AttributeSchemaBaseWrite):
     )
 
 
+class IPHostAttributeWrite(AttributeSchemaBaseWrite):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    kind: Literal[AttributeKind.IPHOST] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: IPHostAttributeParametersWrite | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
 class GenericAttributeWrite(AttributeSchemaBaseWrite):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[
@@ -294,7 +314,6 @@ class GenericAttributeWrite(AttributeSchemaBaseWrite):
         AttributeKind.MAC_ADDRESS,
         AttributeKind.COLOR,
         AttributeKind.BANDWIDTH,
-        AttributeKind.IPHOST,
         AttributeKind.IPNETWORK,
         AttributeKind.BOOLEAN,
         AttributeKind.CHECKBOX,
@@ -316,7 +335,12 @@ ComputedAttributeWrite = Annotated[
 ]
 
 AttributeSchemaWrite = Annotated[
-    TextAttributeWrite | NumberAttributeWrite | ListAttributeWrite | NumberPoolAttributeWrite | GenericAttributeWrite,
+    TextAttributeWrite
+    | NumberAttributeWrite
+    | ListAttributeWrite
+    | NumberPoolAttributeWrite
+    | IPHostAttributeWrite
+    | GenericAttributeWrite,
     Field(discriminator="kind"),
 ]
 

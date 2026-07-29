@@ -81,6 +81,14 @@ class NumberPoolParametersRead(AttributeParametersRead):
     )
 
 
+class IPHostAttributeParametersRead(AttributeParametersRead):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    allow_prefix: bool = Field(
+        default=True,
+        description="When false, this attribute holds a bare IP address: a value with a subnet prefix is rejected and a host prefix is dropped.",
+    )
+
+
 class DropdownChoiceRead(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     name: str = Field(
@@ -284,6 +292,18 @@ class NumberPoolAttributeRead(AttributeSchemaBaseRead):
     )
 
 
+class IPHostAttributeRead(AttributeSchemaBaseRead):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    kind: Literal[AttributeKind.IPHOST] = Field(
+        ...,
+        description="Defines the type of the attribute.",
+    )
+    parameters: IPHostAttributeParametersRead | None = Field(
+        default=None,
+        description="Extra parameters specific to this kind of attribute",
+    )
+
+
 class GenericAttributeRead(AttributeSchemaBaseRead):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[
@@ -298,7 +318,6 @@ class GenericAttributeRead(AttributeSchemaBaseRead):
         AttributeKind.MAC_ADDRESS,
         AttributeKind.COLOR,
         AttributeKind.BANDWIDTH,
-        AttributeKind.IPHOST,
         AttributeKind.IPNETWORK,
         AttributeKind.BOOLEAN,
         AttributeKind.CHECKBOX,
@@ -320,7 +339,12 @@ ComputedAttributeRead = Annotated[
 ]
 
 AttributeSchemaRead = Annotated[
-    TextAttributeRead | NumberAttributeRead | ListAttributeRead | NumberPoolAttributeRead | GenericAttributeRead,
+    TextAttributeRead
+    | NumberAttributeRead
+    | ListAttributeRead
+    | NumberPoolAttributeRead
+    | IPHostAttributeRead
+    | GenericAttributeRead,
     Field(discriminator="kind"),
 ]
 

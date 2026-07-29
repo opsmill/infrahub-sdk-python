@@ -4,6 +4,7 @@ import inspect
 import ipaddress
 import json
 import tempfile
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,6 +25,7 @@ from infrahub_sdk.node.constants import SAFE_VALUE
 from infrahub_sdk.node.metadata import NodeMetadata, RelationshipMetadata
 from infrahub_sdk.node.property import NodeProperty
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
+from infrahub_sdk.schema import AttributeSchema, NodeSchema
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -1787,13 +1789,8 @@ async def test_create_input_data_with_IPHost_attribute(
     }
 
 
-@pytest.mark.skip(
-    reason="The IPAddress attribute kind is not yet defined in the Infrahub backend, so the generated "
-    "AttributeKind enum omits it and the schema fixture cannot be built. Re-enable once the backend "
-    "adds the IPAddress attribute type."
-)
 @pytest.mark.parametrize("client_type", client_types)
-async def test_create_input_data_with_IPAddress_attribute(
+async def test_create_input_data_with_bare_IPHost_attribute(
     client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     data = {"address": {"value": ipaddress.ip_address("1.1.1.1"), "is_protected": True}}
@@ -2202,13 +2199,85 @@ async def test_node_IPHost_deserialization(
     assert ip_address.address.value == ipaddress.ip_interface("1.1.1.1/24")
 
 
-@pytest.mark.skip(
-    reason="The IPAddress attribute kind is not yet defined in the Infrahub backend, so the generated "
-    "AttributeKind enum omits it and the schema fixture cannot be built. Re-enable once the backend "
-    "adds the IPAddress attribute type."
-)
+@dataclass
+class IPHostCoercionCase:
+    name: str
+    parameters: dict[str, Any] | None
+    stored_value: str
+    expected: Any
+
+
+IPHOST_COERCION_CASES = [
+    IPHostCoercionCase(
+        name="bare-ipv4",
+        parameters={"allow_prefix": False},
+        stored_value="1.1.1.1",
+        expected=ipaddress.ip_address("1.1.1.1"),
+    ),
+    IPHostCoercionCase(
+        name="bare-ipv6",
+        parameters={"allow_prefix": False},
+        stored_value="2001:db8::1",
+        expected=ipaddress.ip_address("2001:db8::1"),
+    ),
+    IPHostCoercionCase(
+        name="prefixed-ipv4",
+        parameters={"allow_prefix": True},
+        stored_value="1.1.1.1/24",
+        expected=ipaddress.ip_interface("1.1.1.1/24"),
+    ),
+    IPHostCoercionCase(
+        name="prefixed-ipv6",
+        parameters={"allow_prefix": True},
+        stored_value="2001:db8::1/64",
+        expected=ipaddress.ip_interface("2001:db8::1/64"),
+    ),
+    # A server that does not publish the parameter must keep the historical prefixed behaviour,
+    # including re-attaching the host mask to a value that arrives bare.
+    IPHostCoercionCase(
+        name="parameters-absent-prefixed-value",
+        parameters=None,
+        stored_value="1.1.1.1/24",
+        expected=ipaddress.ip_interface("1.1.1.1/24"),
+    ),
+    IPHostCoercionCase(
+        name="parameters-absent-bare-value",
+        parameters=None,
+        stored_value="1.1.1.1",
+        expected=ipaddress.ip_interface("1.1.1.1/32"),
+    ),
+    IPHostCoercionCase(
+        name="parameters-empty-bare-value",
+        parameters={},
+        stored_value="1.1.1.1",
+        expected=ipaddress.ip_interface("1.1.1.1/32"),
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in IPHOST_COERCION_CASES])
 @pytest.mark.parametrize("client_type", client_types)
-async def test_node_IPAddress_deserialization(
+async def test_node_IPHost_deserialization_honours_allow_prefix(
+    client: InfrahubClient, case: IPHostCoercionCase, client_type: str
+) -> None:
+    schema = NodeSchema(
+        name="DnsRecord",
+        namespace="Infra",
+        attributes=[AttributeSchema(name="address", kind="IPHost", parameters=case.parameters)],
+    ).convert_api()
+    data = {"id": "aaaaaaaaaaaaaa", "address": {"value": case.stored_value, "is_protected": True}}
+
+    if client_type == "standard":
+        dns_record = InfrahubNode(client=client, schema=schema, data=data)
+    else:
+        dns_record = InfrahubNodeSync(client=client, schema=schema, data=data)
+
+    assert dns_record.address.value == case.expected
+    assert type(dns_record.address.value) is type(case.expected)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_bare_IPHost_deserialization(
     client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     data = {
