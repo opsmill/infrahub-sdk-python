@@ -30,6 +30,7 @@ inline comments on a value always travel with it.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from io import StringIO
@@ -367,7 +368,11 @@ def _normalize_entity(entity: Any, options: FormatOptions) -> Any:
         if isinstance(items, list):
             items = [_normalize_item(item, defaults, options) for item in items]
             if options.sort_by_order_weight:
-                items = sorted(items, key=lambda it: it.get("name", "") if isinstance(it, dict) else "")
+                # Sort by full item content, not by name or weight (both of
+                # which can repeat): a total, content-based order lets the guard
+                # permit any reorder while still catching a dropped or corrupted
+                # item.
+                items = sorted(items, key=lambda it: json.dumps(it, sort_keys=True, default=str))
             normalized[key] = items
     return normalized
 

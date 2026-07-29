@@ -363,6 +363,28 @@ def test_sort_by_order_weight_ascending_missing_last() -> None:
     assert names == ["a", "d", "c", "b"]
 
 
+def test_sort_permits_same_named_items_with_different_weights() -> None:
+    # The guard must neutralise the reorder by full content, not by name — two
+    # items sharing a name but differing in weight should sort, not abort.
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: dup
+        kind: Text
+        order_weight: 2000
+      - name: dup
+        kind: Number
+        order_weight: 1000
+"""
+    text = format_schema_text(doc, FormatOptions(sort_by_order_weight=True))
+    attrs = yaml.safe_load(text)["nodes"][0]["attributes"]
+    assert [a["order_weight"] for a in attrs] == [1000, 2000]
+
+
 def test_backfill_order_weight_only_fills_missing() -> None:
     doc = """\
 ---
