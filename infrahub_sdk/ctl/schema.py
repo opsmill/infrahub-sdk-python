@@ -4,6 +4,7 @@ import asyncio
 import difflib
 import time
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -36,6 +37,15 @@ SchemaContainer = Literal["nodes", "generics", "relationships"]
 
 app = AsyncTyper()
 console = Console()
+
+
+class FormatOutcome(Enum):
+    """Result of formatting a single schema file."""
+
+    ERROR = "error"
+    SKIPPED = "skipped"
+    UNCHANGED = "unchanged"
+    CHANGED = "changed"
 
 
 @app.callback()
@@ -444,7 +454,7 @@ def _print_schema_diff(location: Path, original: str, formatted: str) -> None:
 
 def _format_one_schema_file(
     location: Path, entries: list[SchemaFile], check: bool, diff: bool, options: FormatOptions
-) -> str:
+) -> FormatOutcome:
     """Format a single schema file and report what happened.
 
     Args:
@@ -456,30 +466,30 @@ def _format_one_schema_file(
         options: Opt-in transforms to apply.
 
     Returns:
-        One of ``"error"``, ``"skipped"``, ``"unchanged"`` or ``"changed"``.
+        The :class:`FormatOutcome` for this file.
 
     """
     if len(entries) > 1:
         console.print(f"[yellow] Skipped {location}: multi-document files are not supported by format")
-        return "skipped"
+        return FormatOutcome.SKIPPED
 
     schema_file = entries[0]
     if not schema_file.valid or schema_file.content is None:
         console.print(f"[red] {location}: {schema_file.error_message or 'invalid file'}")
-        return "error"
+        return FormatOutcome.ERROR
 
     if not is_schema_document(schema_file.content):
-        return "skipped"
+        return FormatOutcome.SKIPPED
 
     original = location.read_text(encoding="utf-8")
     try:
         formatted = format_schema_text(original, options)
     except FormatError as exc:
         console.print(f"[red] {location}: {exc}")
-        return "error"
+        return FormatOutcome.ERROR
 
     if formatted == original:
-        return "unchanged"
+        return FormatOutcome.UNCHANGED
 
     if diff:
         _print_schema_diff(location=location, original=original, formatted=formatted)
@@ -488,7 +498,7 @@ def _format_one_schema_file(
     else:
         location.write_text(formatted, encoding="utf-8")
         console.print(f"[green] Reformatted {location}")
-    return "changed"
+    return FormatOutcome.CHANGED
 
 
 @app.command(name="format")
@@ -555,11 +565,11 @@ def schema_format(
 
     for location, entries in entries_by_location.items():
         status = _format_one_schema_file(location=location, entries=entries, check=check, diff=diff, options=options)
-        if status == "error":
+        if status is FormatOutcome.ERROR:
             has_error = True
-        elif status == "unchanged":
+        elif status is FormatOutcome.UNCHANGED:
             unchanged += 1
-        elif status == "changed":
+        elif status is FormatOutcome.CHANGED:
             if check or diff:
                 would_change += 1
             else:
