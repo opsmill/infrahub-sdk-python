@@ -109,10 +109,9 @@ Protocols make the most difference in generators, transforms, and checks, where 
 ```python
 from .protocols import NetworkDevice
 
-# `kind` is the generated class, not a string, so attributes are type-checked
-leaf_switches: list[NetworkDevice] = await client.filters(
-    kind=NetworkDevice, role__value="leaf", include=["interfaces"]
-)
+# Passing the generated class as `kind` makes `filters()` return `list[NetworkDevice]`,
+# so `switch` is fully typed without annotating the variable yourself
+leaf_switches = await client.filters(kind=NetworkDevice, role__value="leaf", include=["interfaces"])
 
 for switch in leaf_switches:
     switch.name.value  # autocompleted, and checked against the schema
