@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 from typer.testing import CliRunner
 
+from infrahub_sdk.ctl import schema as schema_module
 from infrahub_sdk.ctl.schema import app
+from infrahub_sdk.ctl.schema_format import FormatError
 from tests.helpers.cli import remove_ansi_color
+
+if TYPE_CHECKING:
+    import pytest
 
 runner = CliRunner()
 
@@ -113,6 +119,43 @@ def test_format_preserves_comments(tmp_path: Path) -> None:
     assert result.exit_code == 0
     # The comment survives the reformat.
     assert "# a design note" in schema.read_text(encoding="utf-8")
+
+
+def test_format_skips_multi_document_file(tmp_path: Path) -> None:
+    multi = _write(
+        tmp_path / "multi.yml",
+        '---\nversion: "1.0"\nnodes: []\n---\nversion: "1.0"\ngenerics: []\n',
+    )
+
+    result = runner.invoke(app, env=WIDE, args=["format", str(multi)])
+
+    assert result.exit_code == 0
+    output = remove_ansi_color(result.stdout)
+    assert "multi-document files are not supported" in output
+    # Left untouched.
+    assert multi.read_text(encoding="utf-8").count("---") == 2
+
+
+def test_format_reports_invalid_file(tmp_path: Path) -> None:
+    bad = _write(tmp_path / "bad.yml", 'version: "1.0"\nnodes: [unclosed\n')
+
+    result = runner.invoke(app, env=WIDE, args=["format", str(bad)])
+
+    assert result.exit_code == 1
+
+
+def test_format_reports_format_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    schema = _write(tmp_path / "dcim.yml", UNFORMATTED)
+
+    def _raise(*_args: object, **_kwargs: object) -> str:
+        raise FormatError("would change content")
+
+    monkeypatch.setattr(schema_module, "format_schema_text", _raise)
+
+    result = runner.invoke(app, env=WIDE, args=["format", str(schema)])
+
+    assert result.exit_code == 1
+    assert "would change content" in remove_ansi_color(result.stdout)
 
 
 def test_format_skips_non_schema_yaml(tmp_path: Path) -> None:
