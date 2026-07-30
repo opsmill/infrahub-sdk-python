@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ipaddress
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
 from ..uuidt import UUIDT
@@ -109,7 +108,7 @@ class Attribute:
         self.is_from_profile: bool | None = data.get("is_from_profile")
 
         if self._value:
-            self._value = self._value_coercer()(data.get("value"))
+            self._value = self._coerce_value(data.get("value"))
 
         self.is_inherited: bool | None = data.get("is_inherited")
         self.updated_at: str | None = data.get("updated_at")
@@ -128,17 +127,17 @@ class Attribute:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
 
-    def _value_coercer(self) -> Callable[[Any], Any]:
+    def _coerce_value(self, value: Any) -> Any:
         if self._schema.kind == "IPHost":
             # An attribute declaring ``allow_prefix: false`` holds a bare address, so parsing it as an
             # interface would re-attach the host mask. Absent parameters mean an older server that does
             # not publish the flag, which keeps the historical prefixed behaviour.
             if (self._schema.parameters or {}).get("allow_prefix", True):
-                return ipaddress.ip_interface
-            return ipaddress.ip_address
+                return ipaddress.ip_interface(value)
+            return ipaddress.ip_address(value)
         if self._schema.kind == "IPNetwork":
-            return ipaddress.ip_network
-        return lambda value: value
+            return ipaddress.ip_network(value)
+        return value
 
     @property
     def value(self) -> Any:

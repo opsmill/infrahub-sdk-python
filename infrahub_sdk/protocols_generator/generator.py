@@ -119,9 +119,7 @@ class CodeGenerator:
     def _jinja2_filter_render_attribute(value: AttributeSchemaAPI) -> str:
         attribute_kind: str = ATTRIBUTE_KIND_MAP[value.kind]
 
-        # An attribute declaring ``allow_prefix: false`` holds a bare address rather than an interface.
-        # Absent parameters mean an older server that does not publish the flag, which keeps the
-        # historical prefixed annotation.
+        # An attribute declaring ``allow_prefix: false`` holds a bare address rather than an interface
         if value.kind == AttributeKind.IPHOST and not (value.parameters or {}).get("allow_prefix", True):
             attribute_kind = "IPAddress"
 
