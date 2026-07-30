@@ -85,7 +85,7 @@ class IPHostAttributeParametersWrite(AttributeParametersWrite):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     allow_prefix: bool = Field(
         default=True,
-        description="When false, this attribute holds a bare IP address: a value with a subnet prefix is rejected and a host prefix is dropped.",
+        description="When false, this attribute holds a bare IP address rather than an interface.",
     )
 
 
