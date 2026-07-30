@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import time
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -19,6 +21,13 @@ from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import NodeSchemaAPI, SchemaWarning
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
+from .schema_format import (
+    DEFAULT_BACKFILL_ORDER_WEIGHT,
+    FormatError,
+    FormatOptions,
+    format_schema_text,
+    is_schema_document,
+)
 from .utils import load_yamlfile_from_disk_and_exit
 
 if TYPE_CHECKING:
@@ -28,6 +37,15 @@ SchemaContainer = Literal["nodes", "generics", "relationships"]
 
 app = AsyncTyper()
 console = Console()
+
+
+class FormatOutcome(Enum):
+    """Result of formatting a single schema file."""
+
+    ERROR = "error"
+    SKIPPED = "skipped"
+    UNCHANGED = "unchanged"
+    CHANGED = "changed"
 
 
 @app.callback()
@@ -414,3 +432,153 @@ async def schema_show(
                 "Yes" if rel.optional else "No",
             )
         console.print(rel_table)
+
+
+def _print_schema_diff(location: Path, original: str, formatted: str) -> None:
+    diff = difflib.unified_diff(
+        original.splitlines(keepends=True),
+        formatted.splitlines(keepends=True),
+        fromfile=f"{location} (current)",
+        tofile=f"{location} (formatted)",
+    )
+    for line in diff:
+        # markup=False keeps bracketed diff content (e.g. `[manufacturer, name]`)
+        # literal, so colour is applied via style= rather than inline markup.
+        if line.startswith("+") and not line.startswith("+++"):
+            console.print(line, end="", markup=False, highlight=False, style="green")
+        elif line.startswith("-") and not line.startswith("---"):
+            console.print(line, end="", markup=False, highlight=False, style="red")
+        else:
+            console.print(line, end="", markup=False, highlight=False)
+
+
+def _format_one_schema_file(
+    location: Path, entries: list[SchemaFile], check: bool, diff: bool, options: FormatOptions
+) -> FormatOutcome:
+    """Format a single schema file and report what happened.
+
+    Args:
+        location: Path of the file on disk.
+        entries: SchemaFile entries parsed for this location (more than one means
+            a genuine multi-document file, which is not supported).
+        check: Report changes without writing.
+        diff: Print a diff instead of writing.
+        options: Opt-in transforms to apply.
+
+    Returns:
+        The :class:`FormatOutcome` for this file.
+
+    """
+    if len(entries) > 1:
+        console.print(f"[yellow] Skipped {location}: multi-document files are not supported by format")
+        return FormatOutcome.SKIPPED
+
+    schema_file = entries[0]
+    if not schema_file.valid or schema_file.content is None:
+        console.print(f"[red] {location}: {schema_file.error_message or 'invalid file'}")
+        return FormatOutcome.ERROR
+
+    if not is_schema_document(schema_file.content):
+        return FormatOutcome.SKIPPED
+
+    original = location.read_text(encoding="utf-8")
+    try:
+        formatted = format_schema_text(original, options)
+    except FormatError as exc:
+        console.print(f"[red] {location}: {exc}")
+        return FormatOutcome.ERROR
+
+    if formatted == original:
+        return FormatOutcome.UNCHANGED
+
+    if diff:
+        _print_schema_diff(location=location, original=original, formatted=formatted)
+    elif check:
+        console.print(f"[yellow] Would reformat {location}")
+    else:
+        location.write_text(formatted, encoding="utf-8")
+        console.print(f"[green] Reformatted {location}")
+    return FormatOutcome.CHANGED
+
+
+@app.command(name="format")
+@catch_exception(console=console)
+def schema_format(
+    schemas: list[Path],
+    check: bool = typer.Option(False, "--check", help="Do not write files; exit 1 if any file would be reformatted."),
+    diff: bool = typer.Option(False, "--diff", help="Print a diff of the changes instead of writing files."),
+    strip_defaults: bool = typer.Option(
+        False, "--strip-defaults", help="Remove attribute/relationship/node keys whose value equals the schema default."
+    ),
+    sort_by_order_weight: bool = typer.Option(
+        False,
+        "--sort-by-order-weight",
+        help="Sort attributes and relationships by order_weight (items without one keep their order and go last).",
+    ),
+    backfill_order_weight: bool = typer.Option(
+        False,
+        "--backfill-order-weight",
+        help=f"Give attributes/relationships that lack an order_weight the value {DEFAULT_BACKFILL_ORDER_WEIGHT}.",
+    ),
+    _: str = CONFIG_PARAM,
+) -> None:
+    """Format Infrahub schema files with a canonical key ordering.
+
+    Reorders the keys within each node, generic, attribute, relationship and
+    dropdown choice into a consistent, opinionated order so schema files read
+    the same way and produce small diffs.
+
+    Only your own nodes are formatted; nodes in Infrahub-reserved namespaces are
+    left untouched. Comments, quoting, and inline (flow) sequences are preserved.
+
+    By default the change is purely key ordering. The opt-in flags additionally
+    change content: --strip-defaults drops redundant default values,
+    --sort-by-order-weight reorders attributes/relationships, and
+    --backfill-order-weight fills in a missing order_weight.
+
+    \b
+    Examples:
+      infrahubctl schema format schemas/
+      infrahubctl schema format schemas/dcim.yml --diff
+      infrahubctl schema format schemas/ --check
+      infrahubctl schema format schemas/ --strip-defaults --sort-by-order-weight
+    """
+    options = FormatOptions(
+        strip_defaults=strip_defaults,
+        sort_by_order_weight=sort_by_order_weight,
+        backfill_order_weight=backfill_order_weight,
+    )
+    schema_files = SchemaFile.load_from_disk(paths=schemas)
+
+    # A genuine multi-document file yields several SchemaFile entries for the
+    # same location. The per-file ``multiple_documents`` flag is unreliable
+    # (it is set from a naive `---` substring count that also matches `---`
+    # inside comments), so group by location and count real documents instead.
+    entries_by_location: dict[Path, list[SchemaFile]] = {}
+    for schema_file in schema_files:
+        entries_by_location.setdefault(schema_file.location, []).append(schema_file)
+
+    reformatted = 0
+    unchanged = 0
+    would_change = 0
+    has_error = False
+
+    for location, entries in entries_by_location.items():
+        status = _format_one_schema_file(location=location, entries=entries, check=check, diff=diff, options=options)
+        if status is FormatOutcome.ERROR:
+            has_error = True
+        elif status is FormatOutcome.UNCHANGED:
+            unchanged += 1
+        elif status is FormatOutcome.CHANGED:
+            if check or diff:
+                would_change += 1
+            else:
+                reformatted += 1
+
+    if check or diff:
+        console.print(f"\n[bold]{would_change} file(s) would be reformatted, {unchanged} unchanged.")
+    else:
+        console.print(f"\n[bold]{reformatted} file(s) reformatted, {unchanged} unchanged.")
+
+    if has_error or (check and would_change):
+        raise typer.Exit(1)

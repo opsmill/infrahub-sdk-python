@@ -1,0 +1,32 @@
+---
+# yamllint disable rule:truthy rule:line-length
+name: Schema Drift Check
+
+# Warn-only: surfaces when the published Infrahub JSON schema has drifted from
+# the formatter's committed baseline (infrahub_sdk/ctl/schema_properties.json).
+# This never fails the run — it emits ::warning:: annotations and a job summary
+# so a maintainer can account for the change in schema_format.py.
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  schema-drift:
+    runs-on: "ubuntu-22.04"
+    timeout-minutes: 5
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v6"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+      - name: "Check for Infrahub schema drift (warn only)"
+        run: uv run invoke schema-drift-check
