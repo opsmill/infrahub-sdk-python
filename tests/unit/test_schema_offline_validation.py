@@ -262,6 +262,22 @@ def test_read_only_warning_names_the_owning_kind_and_element() -> None:
     assert warning.element == "hostname"
 
 
+def test_nested_read_only_field_is_named_relative_to_its_owner() -> None:
+    # `id` is settable on an attribute but not on its nested parameters, so reporting the bare name
+    # would claim the wrong field is read-only -- and would collide with an `id` reported elsewhere.
+    schema = _schema_with_parameters({"id": None, "state": "present"})
+    schema["extensions"] = {"nodes": [{"kind": "InfraDevice"}], "id": None}
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert {warning.name for warning in result.warnings} == {
+        "parameters.id",
+        "parameters.state",
+        "extensions.id",
+    }
+
+
 def test_read_only_fields_are_dropped_on_round_trip() -> None:
     # A warning must not mean the value is kept: read-only fields are absent from the validated
     # model, so they never reach the server.
