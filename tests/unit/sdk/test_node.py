@@ -1787,11 +1787,6 @@ async def test_create_input_data_with_IPHost_attribute(
     }
 
 
-@pytest.mark.skip(
-    reason="The IPAddress attribute kind is not yet defined in the Infrahub backend, so the generated "
-    "AttributeKind enum omits it and the schema fixture cannot be built. Re-enable once the backend "
-    "adds the IPAddress attribute type."
-)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_create_input_data_with_IPAddress_attribute(
     client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str
@@ -2202,11 +2197,6 @@ async def test_node_IPHost_deserialization(
     assert ip_address.address.value == ipaddress.ip_interface("1.1.1.1/24")
 
 
-@pytest.mark.skip(
-    reason="The IPAddress attribute kind is not yet defined in the Infrahub backend, so the generated "
-    "AttributeKind enum omits it and the schema fixture cannot be built. Re-enable once the backend "
-    "adds the IPAddress attribute type."
-)
 @pytest.mark.parametrize("client_type", client_types)
 async def test_node_IPAddress_deserialization(
     client: InfrahubClient, bare_ipaddress_schema: NodeSchemaAPI, client_type: str

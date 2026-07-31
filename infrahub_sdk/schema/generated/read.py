@@ -300,6 +300,7 @@ class GenericAttributeRead(AttributeSchemaBaseRead):
         AttributeKind.BANDWIDTH,
         AttributeKind.IPHOST,
         AttributeKind.IPNETWORK,
+        AttributeKind.IPADDRESS,
         AttributeKind.BOOLEAN,
         AttributeKind.CHECKBOX,
         AttributeKind.JSON,

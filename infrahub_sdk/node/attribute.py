@@ -74,8 +74,8 @@ class Attribute:
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
         """Build an ``Attribute`` from raw GraphQL data.
 
-        IP-typed attributes (``IPHost``, ``IPNetwork``) are parsed via the standard
-        ``ipaddress`` module so the in-memory value is a network/interface object.
+        IP-typed attributes (``IPHost``, ``IPNetwork``, ``IPAddress``) are parsed via the standard
+        ``ipaddress`` module so the in-memory value is an interface, network or address object.
 
         Args:
             name (str): The name of the attribute.
