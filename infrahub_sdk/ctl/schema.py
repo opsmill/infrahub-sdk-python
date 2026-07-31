@@ -6,19 +6,19 @@ import time
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 import typer
 import yaml
-from pydantic import ValidationError
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from ..schema import NodeSchemaAPI, SchemaWarning
+from ..schema import NodeSchemaAPI, SchemaWarning, validate_schema
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .schema_format import (
@@ -29,9 +29,6 @@ from .schema_format import (
     is_schema_document,
 )
 from .utils import load_yamlfile_from_disk_and_exit
-
-if TYPE_CHECKING:
-    from .. import InfrahubClient
 
 SchemaContainer = Literal["nodes", "generics", "relationships"]
 
@@ -53,17 +50,21 @@ def callback() -> None:
     """Manage the schema in a remote Infrahub instance."""
 
 
-def validate_schema_content_and_exit(client: InfrahubClient, schemas: list[SchemaFile]) -> None:
+def validate_schema_content_and_exit(schemas: list[SchemaFile]) -> None:
+    """Report every offline contract violation and exit when at least one schema is invalid.
+
+    Read-only fields are reported by the server on the load/check response, so only errors are
+    rendered here to avoid warning about the same field twice.
+    """
     has_error: bool = False
     for schema_file in schemas:
-        try:
-            client.schema.validate(data=schema_file.payload)
-        except ValidationError as exc:
-            console.print(f"[red]Schema not valid, found '{len(exc.errors())}' error(s) in {schema_file.location}")
-            has_error = True
-            for error in exc.errors():
-                loc_str = [str(item) for item in error["loc"]]
-                console.print(f"  '{'/'.join(loc_str)}' | {error['msg']} ({error['type']})")
+        result = validate_schema(schema=schema_file.payload)
+        if result.valid:
+            continue
+        has_error = True
+        console.print(f"[red]Schema not valid, found '{len(result.errors)}' error(s) in {schema_file.location}")
+        for error in result.errors:
+            console.print(f"  {escape(error.message)}")
 
     if has_error:
         raise typer.Exit(1)
@@ -208,7 +209,7 @@ async def load(
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     schema_definition = "schema" if len(schemas_data) == 1 else "schemas"
     client = initialize_client()
-    validate_schema_content_and_exit(client=client, schemas=schemas_data)
+    validate_schema_content_and_exit(schemas=schemas_data)
 
     start_time = time.time()
     response = await client.schema.load(schemas=[item.payload for item in schemas_data], branch=branch)
@@ -258,7 +259,7 @@ async def check(
 
     schemas_data = load_yamlfile_from_disk_and_exit(paths=schemas, file_type=SchemaFile, console=console)
     client = initialize_client()
-    validate_schema_content_and_exit(client=client, schemas=schemas_data)
+    validate_schema_content_and_exit(schemas=schemas_data)
 
     success, response = await client.schema.check(schemas=[item.payload for item in schemas_data], branch=branch)
 
@@ -280,9 +281,9 @@ async def check(
 
 def _display_schema_warnings(console: Console, warnings: list[SchemaWarning]) -> None:
     for warning in warnings:
-        console.print(
-            f"[yellow] {warning.type.value}: {warning.message} [{', '.join([kind.display for kind in warning.kinds])}]"
-        )
+        # A warning about a top-level key has no kind to attribute it to.
+        kinds = f" [{', '.join(kind.display for kind in warning.kinds)}]" if warning.kinds else ""
+        console.print(f"[yellow] {warning.type.value}: {escape(warning.message)}{escape(kinds)}")
 
 
 def _default_export_directory() -> Path:

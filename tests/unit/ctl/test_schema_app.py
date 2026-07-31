@@ -96,8 +96,9 @@ def test_schema_load_notvalid_namespace() -> None:
 
     clean_output = remove_ansi_color(result.stdout.replace("\n", ""))
     assert "Schema not valid" in clean_output
-    assert "nodes/0/namespace" in clean_output
-    assert "string_pattern_mismatch" in clean_output
+    assert "nodes[0].namespace" in clean_output
+    assert "String should match pattern" in clean_output
+    assert "received: 'OuT'" in clean_output
 
 
 def test_load_valid_generic_schema(httpx_mock: HTTPXMock) -> None:

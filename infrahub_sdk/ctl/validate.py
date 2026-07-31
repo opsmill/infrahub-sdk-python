@@ -5,14 +5,15 @@ from pathlib import Path
 
 import typer
 import ujson
-from pydantic import ValidationError
 from rich.console import Console
+from rich.markup import escape
 
 from ..async_typer import AsyncTyper
-from ..ctl.client import initialize_client, initialize_client_sync
+from ..ctl.client import initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
 from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
 from ..exceptions import GraphQLError
+from ..schema import validate_schema as validate_schema_offline
 from ..utils import write_to_file
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
@@ -36,16 +37,16 @@ async def validate_schema(schema: Path, _: str = CONFIG_PARAM) -> None:
         console.print(f"[red]Unable to find {schema}")
         raise typer.Exit(1)
 
-    client = initialize_client()
+    result = validate_schema_offline(schema=schema_data[0].payload)
 
-    try:
-        client.schema.validate(schema_data[0].payload)
-    except ValidationError as exc:
-        console.print(f"[red]Schema not valid, found {len(exc.errors())} error(s)")
-        for error in exc.errors():
-            loc_str = [str(item) for item in error["loc"]]
-            console.print(f"  '{'/'.join(loc_str)}' | {error['msg']} ({error['type']})")
-        raise typer.Exit(1) from None
+    for warning in result.warnings:
+        console.print(f"[yellow]{escape(warning.message)}")
+
+    if not result.valid:
+        console.print(f"[red]Schema not valid, found {len(result.errors)} error(s)")
+        for error in result.errors:
+            console.print(f"  {escape(error.message)}")
+        raise typer.Exit(1)
 
     console.print("[green]Schema is valid !!")
 

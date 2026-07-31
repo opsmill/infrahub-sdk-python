@@ -44,7 +44,12 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
-from .validate import SchemaValidationErrorDetail, SchemaValidationResult, validate_schema
+from .validate import (
+    SchemaValidationErrorDetail,
+    SchemaValidationResult,
+    SchemaValidationWarningDetail,
+    validate_schema,
+)
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -74,6 +79,7 @@ __all__ = [
     "SchemaRootAPI",
     "SchemaValidationErrorDetail",
     "SchemaValidationResult",
+    "SchemaValidationWarningDetail",
     "TemplateSchemaAPI",
     "schema_to_export_dict",
     "validate_schema",
@@ -173,10 +179,19 @@ class InfrahubSchemaBase:
                 ns_map[ns].nodes.append(schema_dict)
         return SchemaExport(namespaces=ns_map)
 
-    def validate(self, data: dict[str, Any]) -> None:
-        # Validate against the generated write contract so this matches what /api/schema/load
-        # enforces (unknown keys rejected, attribute kinds discriminated, extensions understood).
-        InfrahubSchemaWrite.model_validate(data)
+    def validate(self, data: dict[str, Any]) -> SchemaValidationResult:
+        """Validate a schema payload against the generated write contract.
+
+        Returns:
+            The verdict, carrying a warning for every read-only field the payload sets.
+
+        Raises:
+            ValueError: When the payload is invalid, joining every field-level message.
+
+        """
+        # Delegating to the offline validator keeps this verdict identical to the one
+        # /api/schema/load reaches, since the server runs the same models.
+        return validate_schema(schema=data, raise_on_error=True)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
         for key in data:
