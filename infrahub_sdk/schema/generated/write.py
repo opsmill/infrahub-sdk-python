@@ -296,6 +296,7 @@ class GenericAttributeWrite(AttributeSchemaBaseWrite):
         AttributeKind.BANDWIDTH,
         AttributeKind.IPHOST,
         AttributeKind.IPNETWORK,
+        AttributeKind.IPADDRESS,
         AttributeKind.BOOLEAN,
         AttributeKind.CHECKBOX,
         AttributeKind.JSON,
