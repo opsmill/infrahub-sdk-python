@@ -39,7 +39,10 @@ class SchemaValidationWarningDetail(BaseModel):
     """A read-only field set in a schema payload: accepted, but the submitted value is dropped."""
 
     field: str = Field(..., description="Dotted path to the offending field, e.g. 'nodes[0].attributes[1].inherited'")
-    name: str = Field(..., description="Name of the read-only field, e.g. 'inherited'")
+    name: str = Field(
+        ...,
+        description="Field path relative to the owning kind or element, e.g. 'inherited' or 'parameters.id'",
+    )
     kind: str | None = Field(default=None, description="Kind of the schema node carrying the field, when resolvable")
     element: str | None = Field(
         default=None, description="Name of the attribute or relationship carrying the field, when applicable"
@@ -117,18 +120,23 @@ def _read_only_fields(model: type[BaseModel]) -> frozenset[str]:
 
 
 def _descend_context(
-    container: str, item: dict[str, Any], kind: str | None, element: str | None
-) -> tuple[str | None, str | None]:
-    """Resolve the owning kind and element for an item of a payload container."""
-    if container in _KIND_CONTAINERS:
+    field: str, item: dict[str, Any], kind: str | None, element: str | None, qualifier: tuple[str, ...]
+) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """Resolve the owning kind, element and field qualifier for a value nested under a field.
+
+    Entering a kind or element container re-anchors the identity a finding is reported against, so
+    the qualifier resets there. Anywhere else the field name joins the qualifier, which is what
+    distinguishes a nested ``parameters.id`` from an ``id`` set directly on the attribute.
+    """
+    if field in _KIND_CONTAINERS:
         namespace, name = item.get("namespace"), item.get("name")
         # An extension addresses an existing node by kind; a new node is namespace + name.
         resolved = f"{namespace}{name}" if namespace and name else item.get("kind")
-        return (resolved if isinstance(resolved, str) else None), None
-    if container in _ELEMENT_CONTAINERS:
+        return (resolved if isinstance(resolved, str) else None), None, ()
+    if field in _ELEMENT_CONTAINERS:
         name = item.get("name")
-        return kind, name if isinstance(name, str) else None
-    return kind, element
+        return kind, (name if isinstance(name, str) else None), ()
+    return kind, element, (*qualifier, field)
 
 
 def _collect_extra_fields(
@@ -139,6 +147,7 @@ def _collect_extra_fields(
     path: str = "",
     kind: str | None = None,
     element: str | None = None,
+    qualifier: tuple[str, ...] = (),
 ) -> None:
     """Report every payload key the write contract does not declare, walking the validated model.
 
@@ -156,7 +165,7 @@ def _collect_extra_fields(
             warnings.append(
                 SchemaValidationWarningDetail(
                     field=location,
-                    name=key,
+                    name=".".join((*qualifier, key)),
                     kind=kind,
                     element=element,
                     message=f"{location}: Read-only field, the submitted value is ignored (received: {payload[key]!r})",
@@ -179,7 +188,9 @@ def _collect_extra_fields(
             for index, (raw_item, item) in enumerate(zip(raw, value, strict=False)):
                 if not isinstance(item, BaseModel) or not isinstance(raw_item, dict):
                     continue
-                item_kind, item_element = _descend_context(container=name, item=raw_item, kind=kind, element=element)
+                item_kind, item_element, item_qualifier = _descend_context(
+                    field=name, item=raw_item, kind=kind, element=element, qualifier=qualifier
+                )
                 _collect_extra_fields(
                     payload=raw_item,
                     instance=item,
@@ -188,16 +199,21 @@ def _collect_extra_fields(
                     path=f"{child_path}[{index}]",
                     kind=item_kind,
                     element=item_element,
+                    qualifier=item_qualifier,
                 )
         elif isinstance(value, BaseModel) and isinstance(raw, dict):
+            child_kind, child_element, child_qualifier = _descend_context(
+                field=name, item=raw, kind=kind, element=element, qualifier=qualifier
+            )
             _collect_extra_fields(
                 payload=raw,
                 instance=value,
                 errors=errors,
                 warnings=warnings,
                 path=child_path,
-                kind=kind,
-                element=element,
+                kind=child_kind,
+                element=child_element,
+                qualifier=child_qualifier,
             )
 
 
