@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import json
 import warnings
 from collections.abc import MutableMapping
 from enum import Enum
@@ -11,6 +10,7 @@ from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
 from urllib.parse import urlencode
 
 import httpx
+import orjson
 from pydantic import BaseModel, Field
 
 from ..exceptions import (
@@ -283,8 +283,8 @@ class InfrahubSchemaBase:
         response.raise_for_status()
 
         try:
-            data: MutableMapping[str, Any] = response.json()
-        except json.decoder.JSONDecodeError as exc:
+            data: MutableMapping[str, Any] = orjson.loads(response.content)
+        except orjson.JSONDecodeError as exc:
             raise JsonDecodeError(
                 message=f"Invalid Schema response received from the server at {response.url}: {response.text} [{response.status_code}] ",
                 content=response.text,

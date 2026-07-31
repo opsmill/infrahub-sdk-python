@@ -7,7 +7,7 @@ import warnings
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any
 
-import ujson
+import orjson
 from pydantic import BaseModel, Field
 
 from infrahub_sdk.repository import GitRepoManager
@@ -109,7 +109,7 @@ class InfrahubCheck:
         self.logs.append(log_message)
 
         if self.output == "stdout":
-            print(ujson.dumps(log_message))
+            print(orjson.dumps(log_message).decode())
 
     def log_error(self, message: str, object_id: str | None = None, object_type: str | None = None) -> None:
         self._write_log_entry(message=message, level="ERROR", object_id=object_id, object_type=object_type)

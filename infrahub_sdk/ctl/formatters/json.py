@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
+
+import orjson
 
 from .base import extract_node_data, extract_node_detail
 
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 class JsonFormatter:
     """Formats InfrahubNode data as JSON strings.
 
-    Uses stdlib json module with indentation for readable output.
+    Uses orjson with indentation for readable output.
     """
 
     def format_list(
@@ -39,7 +40,9 @@ class JsonFormatter:
 
         """
         items = [extract_node_data(node, schema) for node in nodes]
-        return json.dumps(items, indent=2, default=str)
+        return orjson.dumps(
+            items, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME | orjson.OPT_NON_STR_KEYS, default=str
+        ).decode()
 
     def format_detail(self, node: InfrahubNode, schema: MainSchemaTypesAPI) -> str:
         """Format a single node as a JSON object.
@@ -56,4 +59,6 @@ class JsonFormatter:
 
         """
         detail = extract_node_detail(node, schema)
-        return json.dumps(detail, indent=2, default=str)
+        return orjson.dumps(
+            detail, option=orjson.OPT_INDENT_2 | orjson.OPT_PASSTHROUGH_DATETIME | orjson.OPT_NON_STR_KEYS, default=str
+        ).decode()

@@ -1,0 +1,7 @@
+Standardized JSON serialization across the SDK on `orjson`, replacing `ujson` and stdlib `json`. Behaviour is preserved for ASCII data, with two categories of change for non-ASCII data and legacy on-disk artifacts:
+
+- **Non-ASCII characters are now emitted as raw UTF-8** rather than `\uXXXX` escapes, across all JSON the SDK writes (CLI output, `infrahubctl validate --out`, telemetry and transfer exports, check logs, and pytest failure messages). The output is still valid JSON and round-trips correctly through the SDK; only its exact bytes differ, which may affect external tools that byte-compare or checksum these files.
+- **The tracking-group name** derived from query parameters containing non-ASCII characters shifts once on upgrade (same raw-UTF-8 cause). The previously-created group is orphaned and a new one is created; cleanup of the orphaned group is manual.
+- **Playback recordings created by an earlier SDK version** may no longer be located, because the recorded request body is now serialized compactly as raw UTF-8, changing the content hash used in the recording filename. Re-record fixtures with this version.
+
+Known limitations of the new serializer, unchanged from `orjson`'s defaults: the `from_json` Jinja filter returns a `float` for integers larger than 64 bits (previously an exact `int`), and JSON decoding accepts UTF-8 input only (the Infrahub API always responds in UTF-8).

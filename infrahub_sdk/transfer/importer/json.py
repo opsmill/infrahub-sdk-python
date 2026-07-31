@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import ujson
+import orjson
 from rich.progress import Progress
 
 from ...exceptions import GraphQLError
@@ -74,7 +74,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         with self.wrapped_task_output("Analyzing import"):
             import_nodes_by_kind = defaultdict(list)
             for graphql_data, kind in zip(table.column("graphql_json"), table.column("kind"), strict=False):
-                node = await InfrahubNode.from_graphql(self.client, branch, ujson.loads(str(graphql_data)))
+                node = await InfrahubNode.from_graphql(self.client, branch, orjson.loads(str(graphql_data)))
                 import_nodes_by_kind[str(kind)].append(node)
                 self.all_nodes[node.id] = node
 
@@ -157,7 +157,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
         await self.execute_batches([update_batch], "Adding optional relationships to nodes")
 
     async def update_many_to_many_relationships(self, file: Path) -> None:
-        relationships = ujson.loads(file.read_text(encoding="utf-8"))
+        relationships = orjson.loads(file.read_text(encoding="utf-8"))
         update_batch = await self.client.create_batch(return_exceptions=True)
 
         for relationship in relationships:

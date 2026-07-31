@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import ujson
+import orjson
 from rich.progress import Progress
 
 from ...queries import QUERY_RELATIONSHIPS
@@ -148,13 +148,14 @@ class LineDelimitedJSONExporter(ExporterInterface):
 
         with self.wrapped_task_output("Writing export"):
             json_lines = [
-                ujson.dumps(
+                orjson.dumps(
                     {
                         "id": n.id,
                         "kind": n.get_kind(),
-                        "graphql_json": ujson.dumps(n.get_raw_graphql_data()),
-                    }
-                )
+                        "graphql_json": orjson.dumps(n.get_raw_graphql_data(), option=orjson.OPT_NON_STR_KEYS).decode(),
+                    },
+                    option=orjson.OPT_NON_STR_KEYS,
+                ).decode()
                 for n in all_nodes
             ]
             file_content = "\n".join(json_lines)
@@ -163,7 +164,7 @@ class LineDelimitedJSONExporter(ExporterInterface):
                 export_directory.mkdir()
 
             node_file.write_text(file_content)
-            relationship_file.write_text(ujson.dumps(many_relationships))
+            relationship_file.write_text(orjson.dumps(many_relationships, option=orjson.OPT_NON_STR_KEYS).decode())
 
         if self.console:
             self.console.print(f"Export directory - {export_directory}")

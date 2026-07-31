@@ -1,4 +1,3 @@
-import json
 import tempfile
 import uuid
 from dataclasses import dataclass
@@ -6,6 +5,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
 
+import httpx
 import pytest
 from graphql import OperationDefinitionNode, parse
 from whenever import Instant
@@ -177,6 +177,8 @@ def test_dict_hash() -> None:
     assert dict_hash({"b": 2, "a": {"c": 1, "d": 2}}) == "4d8f1a3d03e0b487983383d0ff984d13"
     assert dict_hash({"b": 2, "a": {"d": 2, "c": 1}}) == "4d8f1a3d03e0b487983383d0ff984d13"
     assert dict_hash({}) == "99914b932bd37a50b983c5e7c90ae93b"
+    # Non-ASCII values hash over raw UTF-8 bytes (b'{"x":"caf\xc3\xa9"}'), pinning the stable value.
+    assert dict_hash({"x": "café"}) == "f030eed1695aa782ca459bfcd03849fb"
 
 
 async def test_extract_fields(query_01: str) -> None:
@@ -263,7 +265,7 @@ def test_calculate_time_diff() -> None:
 def test_decode_json_success() -> None:
     """Test decode_json with valid JSON response."""
     mock_response = Mock()
-    mock_response.json.return_value = {"status": "ok", "data": {"key": "value"}}
+    mock_response.content = b'{"status": "ok", "data": {"key": "value"}}'
 
     result = decode_json(mock_response)
     assert result == {"status": "ok", "data": {"key": "value"}}
@@ -272,7 +274,7 @@ def test_decode_json_success() -> None:
 def test_decode_json_failure_with_content() -> None:
     """Test decode_json with invalid JSON response includes server content in error message."""
     mock_response = Mock()
-    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.content = b"Internal Server Error: Database connection failed"
     mock_response.text = "Internal Server Error: Database connection failed"
     mock_response.url = "https://example.com/api/graphql"
 
@@ -287,7 +289,7 @@ def test_decode_json_failure_with_content() -> None:
 def test_decode_json_failure_without_content() -> None:
     """Test decode_json with invalid JSON response and no content."""
     mock_response = Mock()
-    mock_response.json.side_effect = json.decoder.JSONDecodeError("Invalid JSON", "document", 0)
+    mock_response.content = b""
     mock_response.text = ""
     mock_response.url = "https://example.com/api/graphql"
 
@@ -298,6 +300,18 @@ def test_decode_json_failure_without_content() -> None:
     assert "Unable to decode response as JSON data from https://example.com/api/graphql" in error_message
     # Should not include server response part when content is empty
     assert "Server response:" not in error_message
+
+
+def test_decode_json_malformed_bytes_raises() -> None:
+    """Malformed JSON bytes on a real response raise the SDK's JsonDecodeError."""
+    response = httpx.Response(
+        status_code=200,
+        content=b'{"unterminated": ',
+        request=httpx.Request("POST", "https://example.com/api/graphql"),
+    )
+
+    with pytest.raises(JsonDecodeError, match="Unable to decode response as JSON data"):
+        decode_json(response)
 
 
 def test_json_decode_error_custom_message() -> None:

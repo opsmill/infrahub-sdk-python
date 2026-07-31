@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
-import ujson
+import orjson
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -49,11 +48,10 @@ class JSONPlayback(BaseSettings):
     ) -> httpx.Response:
         content: bytes | None = None
         if payload:
-            content = str(json.dumps(payload)).encode("UTF-8")
+            content = orjson.dumps(payload, option=orjson.OPT_NON_STR_KEYS)
         request = httpx.Request(method=method.value, url=url, headers=headers, content=content)
 
         filename = generate_request_filename(request)
-        with Path(f"{self.directory}/{filename}.json").open(encoding="utf-8") as fobj:
-            data = ujson.load(fobj)
+        data = orjson.loads(Path(f"{self.directory}/{filename}.json").read_text(encoding="utf-8"))
 
         return httpx.Response(status_code=data["status_code"], content=data["response_content"], request=request)

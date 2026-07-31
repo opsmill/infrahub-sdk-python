@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock
 
@@ -131,6 +132,17 @@ class TestJsonFormatterFormatList:
         parsed = json.loads(result)
         assert parsed[0]["site"] == "DC1"
 
+    def test_format_list_coerces_non_string_keys(self) -> None:
+        """Attribute values with non-string dict keys serialize (keys coerced), matching prior behaviour."""
+        schema = _make_mock_schema(["metadata"], [])
+        node = _make_mock_node({"metadata": {1: "a", 2: "b"}}, {})
+        formatter = JsonFormatter()
+
+        result = formatter.format_list([node], schema)
+
+        parsed = json.loads(result)
+        assert parsed[0]["metadata"] == {"1": "a", "2": "b"}
+
 
 class TestJsonFormatterFormatDetail:
     """Tests for JsonFormatter.format_detail."""
@@ -201,3 +213,16 @@ class TestJsonFormatterFormatDetail:
         parsed = json.loads(result)
         assert "site" in parsed
         assert parsed["site"]["display_label"] == "DC1"
+
+    def test_format_detail_renders_datetime_as_str_form(self) -> None:
+        """Datetime values render in the space-separated str() form, not RFC3339 'T' form."""
+        schema = _make_mock_schema(["installed_at"], [])
+        node = _make_mock_node({"installed_at": datetime(2026, 7, 15, 0, 0, 0, tzinfo=timezone.utc)}, {})
+        formatter = JsonFormatter()
+
+        result = formatter.format_detail(node, schema)
+
+        assert '"2026-07-15 00:00:00+00:00"' in result
+        assert "2026-07-15T00:00:00" not in result
+        parsed = json.loads(result)
+        assert parsed["installed_at"]["value"] == "2026-07-15 00:00:00+00:00"

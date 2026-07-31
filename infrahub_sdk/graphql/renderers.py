@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, BinaryIO
 
+import orjson
 from pydantic import BaseModel
 
 from infrahub_sdk.types import Order
@@ -49,9 +49,9 @@ def convert_to_graphql_as_string(value: Any, convert_enum: bool = False) -> str:
             return convert_to_graphql_as_string(value=value.value, convert_enum=True)
         return value.name
     if isinstance(value, str):
-        # Use json.dumps() to properly escape the string according to JSON rules,
+        # Use orjson.dumps() to properly escape the string according to JSON rules,
         # which are compatible with GraphQL string escaping
-        return json.dumps(value)
+        return orjson.dumps(value).decode()
     if isinstance(value, bool):
         return repr(value).lower()
     if isinstance(value, list):

@@ -318,7 +318,7 @@ class TestFromJsonFilter:
             from_json("{not valid json}")
         assert exc.value.filter_name == "from_json"
         assert exc.value.message is not None
-        assert exc.value.message.startswith("Filter 'from_json': invalid JSON: Expecting property name")
+        assert exc.value.message.startswith("Filter 'from_json': invalid JSON:")
 
     async def test_render_through_template(self) -> None:
         jinja = Jinja2Template(template="{{ data | from_json }}")

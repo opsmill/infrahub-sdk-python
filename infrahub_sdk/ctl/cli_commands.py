@@ -11,8 +11,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import orjson
 import typer
-import ujson
 from rich.console import Console
 from rich.layout import Layout
 from rich.logging import RichHandler
@@ -352,7 +352,11 @@ def transform(
     # Run Transform
     result = asyncio.run(transform.run(data=data))
 
-    json_string = result if isinstance(result, str) else ujson.dumps(result, indent=2, sort_keys=True)
+    json_string = (
+        result
+        if isinstance(result, str)
+        else orjson.dumps(result, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS).decode()
+    )
 
     if out:
         write_to_file(Path(out), json_string)

@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import orjson
 import typer
-import ujson
 from pydantic import ValidationError
 from rich.console import Console
 
@@ -104,5 +104,5 @@ def validate_graphql(
         console.print("-" * 40)
 
     if out:
-        json_string = ujson.dumps(response, indent=2, sort_keys=True)
+        json_string = orjson.dumps(response, option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS).decode()
         write_to_file(Path(out), json_string)

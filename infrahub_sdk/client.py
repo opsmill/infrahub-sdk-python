@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, ov
 from urllib.parse import urlencode
 
 import httpx
-import ujson
+import orjson
 from typing_extensions import Self
 
 from .batch import InfrahubBatch, InfrahubBatchSync
@@ -240,7 +240,7 @@ class BaseClient:
             print(f"URL: {url}")
             print(f"QUERY:\n{query}")
             if variables:
-                print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
+                print(f"VARIABLES:\n{orjson.dumps(variables, option=orjson.OPT_INDENT_2).decode()}\n")
 
     def _request_headers(self, tracker: str | None = None, priority: Priority | None = None) -> dict:
         """Build the per-request header delta to layer over the client's base headers.

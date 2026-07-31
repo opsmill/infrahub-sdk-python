@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
+import orjson
 import typer
 
 
@@ -24,8 +24,8 @@ def _coerce_value(value: str) -> Any:
     stripped = value.strip()
     if stripped.startswith("[") and stripped.endswith("]"):
         try:
-            return json.loads(stripped)
-        except json.JSONDecodeError:
+            return orjson.loads(stripped)
+        except orjson.JSONDecodeError:
             pass
 
     # Try integer (preserve leading zeros — "00123" stays a string)
