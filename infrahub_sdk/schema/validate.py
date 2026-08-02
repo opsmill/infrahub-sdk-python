@@ -111,14 +111,6 @@ def _collect_validation_errors(
         errors.append(SchemaValidationErrorDetail(field=location, message=message))
 
 
-def _read_only_fields(model: type[BaseModel]) -> frozenset[str]:
-    """Read-only field names declared for a model, including those it inherits."""
-    names: set[str] = set()
-    for klass in model.__mro__:
-        names |= READ_ONLY_FIELDS.get(klass.__name__, frozenset())
-    return frozenset(names)
-
-
 def _descend_context(
     field: str, item: dict[str, Any], kind: str | None, element: str | None, qualifier: tuple[str, ...]
 ) -> tuple[str | None, str | None, tuple[str, ...]]:
@@ -140,24 +132,40 @@ def _descend_context(
 
 
 def _collect_extra_fields(
-    payload: dict[str, Any],
+    payload: Any,
     instance: BaseModel,
     errors: list[SchemaValidationErrorDetail],
     warnings: list[SchemaValidationWarningDetail],
     path: str = "",
+    field: str | None = None,
     kind: str | None = None,
     element: str | None = None,
     qualifier: tuple[str, ...] = (),
 ) -> None:
     """Report every payload key the write contract does not declare, walking the validated model.
 
-    The validated instance resolves the model that applies at each location -- including which
-    member of a discriminated union an attribute matched -- so the raw payload can be compared
-    against the fields that location actually accepts.
+    The submitted payload is walked alongside the model validated from it, because neither on its
+    own carries what a finding needs. ``extra="ignore"`` means the validated instance no longer
+    knows which keys were dropped, so the raw payload has to supply them; and only the instance
+    resolves which model governs a given location -- notably which member of a discriminated union
+    an attribute matched -- so only it can say which keys that location accepts. Pairing them also
+    yields the owning kind and element, which a finding is reported against by name rather than by
+    position.
+
+    ``field`` is the name this payload was reached through, and is None only at the root.
     """
-    model = type(instance)
-    fields = model.model_fields
-    read_only = _read_only_fields(model)
+    if not isinstance(payload, dict):
+        # A caller may nest an already-built model rather than plain data; a model cannot carry an
+        # undeclared key, so there is nothing to compare and nothing below worth walking.
+        return
+
+    if field is not None:
+        kind, element, qualifier = _descend_context(
+            field=field, item=payload, kind=kind, element=element, qualifier=qualifier
+        )
+
+    fields = type(instance).model_fields
+    read_only = READ_ONLY_FIELDS.get(type(instance).__name__, frozenset())
 
     for key in sorted(set(payload) - set(fields)):
         location = f"{path}.{key}" if path else key
@@ -184,36 +192,33 @@ def _collect_extra_fields(
             continue
         raw, value = payload[name], getattr(instance, name)
         child_path = f"{path}.{name}" if path else name
-        if isinstance(value, list) and isinstance(raw, list):
-            for index, (raw_item, item) in enumerate(zip(raw, value, strict=False)):
-                if not isinstance(item, BaseModel) or not isinstance(raw_item, dict):
-                    continue
-                item_kind, item_element, item_qualifier = _descend_context(
-                    field=name, item=raw_item, kind=kind, element=element, qualifier=qualifier
-                )
-                _collect_extra_fields(
-                    payload=raw_item,
-                    instance=item,
-                    errors=errors,
-                    warnings=warnings,
-                    path=f"{child_path}[{index}]",
-                    kind=item_kind,
-                    element=item_element,
-                    qualifier=item_qualifier,
-                )
-        elif isinstance(value, BaseModel) and isinstance(raw, dict):
-            child_kind, child_element, child_qualifier = _descend_context(
-                field=name, item=raw, kind=kind, element=element, qualifier=qualifier
-            )
+        # Validation succeeded, so a list field is index-aligned with the list it was built from.
+        # A list of plain values carries no nested model and is skipped.
+        if isinstance(value, list):
+            for index, (raw_item, item) in enumerate(zip(raw, value, strict=True)):
+                if isinstance(item, BaseModel):
+                    _collect_extra_fields(
+                        payload=raw_item,
+                        instance=item,
+                        errors=errors,
+                        warnings=warnings,
+                        path=f"{child_path}[{index}]",
+                        field=name,
+                        kind=kind,
+                        element=element,
+                        qualifier=qualifier,
+                    )
+        elif isinstance(value, BaseModel):
             _collect_extra_fields(
                 payload=raw,
                 instance=value,
                 errors=errors,
                 warnings=warnings,
                 path=child_path,
-                kind=child_kind,
-                element=child_element,
-                qualifier=child_qualifier,
+                field=name,
+                kind=kind,
+                element=element,
+                qualifier=qualifier,
             )
 
 

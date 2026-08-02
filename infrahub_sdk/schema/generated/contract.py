@@ -5,7 +5,8 @@ A field listed here is one the contract knows at that location but the user may 
 a field the read API returns, the bookkeeping a schema dumped from the internal models
 carries, or a field belonging to a sibling variant of a discriminated union. Submitting one
 is reported as a warning and the value is dropped, where an extra field that is not listed
-is an error. Lookups union the entries of every class in the model's MRO.
+is an error. Each entry already includes what the class inherits, so a lookup is by class
+name alone.
 """
 
 READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
@@ -16,14 +17,19 @@ READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
     "ComputedAttributeTransformPythonWrite": frozenset({"id", "jinja2_template", "state"}),
     "ComputedAttributeUserWrite": frozenset({"id", "jinja2_template", "state", "transform"}),
     "DropdownChoiceWrite": frozenset({"id", "state"}),
-    "GenericSchemaWrite": frozenset({"used_by"}),
+    "GenericAttributeWrite": frozenset({"inherited"}),
+    "GenericSchemaWrite": frozenset({"hash", "kind", "used_by"}),
     "InfrahubSchemaWrite": frozenset({"main", "namespaces", "profiles", "templates"}),
     "ListAttributeParametersWrite": frozenset({"id", "state"}),
+    "ListAttributeWrite": frozenset({"inherited"}),
     "NodeExtensionWrite": frozenset({"id", "state"}),
-    "NodeSchemaWrite": frozenset({"hierarchy"}),
+    "NodeSchemaWrite": frozenset({"hash", "hierarchy", "kind"}),
     "NumberAttributeParametersWrite": frozenset({"id", "state"}),
+    "NumberAttributeWrite": frozenset({"inherited"}),
+    "NumberPoolAttributeWrite": frozenset({"inherited"}),
     "NumberPoolParametersWrite": frozenset({"id", "state"}),
     "RelationshipSchemaWrite": frozenset({"hierarchical", "inherited"}),
     "SchemaExtensionWrite": frozenset({"id", "state"}),
     "TextAttributeParametersWrite": frozenset({"id", "state"}),
+    "TextAttributeWrite": frozenset({"inherited"}),
 }
