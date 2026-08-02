@@ -1,10 +1,10 @@
 """Offline schema validation: with only the SDK installed (pydantic, no server).
 
 Validates a schema payload against the generated write models and asserts the
-field-level verdict, without importing the backend/server package. The write models
-set ``extra="ignore"``, so non-settable (read-level, internal) and unknown fields are
-dropped silently rather than rejected; enum, constraint and required-field violations
-are still reported naming the field and the invalid value.
+field-level verdict, without importing the backend/server package. Values the user may not
+set never reach the server, but they are reported: a read-only field -- one the read API
+returns -- as a warning, and any other extra field as an error. Enum, constraint and
+required-field violations are reported naming the field and the invalid value.
 """
 
 from __future__ import annotations
@@ -157,91 +157,250 @@ def test_enum_backed_relationship_cardinality_valid_value_passes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Non-write fields are tolerated and dropped, not rejected
+# Read-only fields are accepted with a warning
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class ToleratedCase:
+class ReadOnlyCase:
     name: str
     schema: dict
+    # Exact dotted paths expected among the reported warnings.
+    expected_fields: set[str]
 
 
-TOLERATED_CASES = [
-    # Read-level / internal fields the user may not set: dropped silently on validation.
-    ToleratedCase(name="attribute-read-level-inherited", schema=_schema_with_attribute_fields(inherited=True)),
-    ToleratedCase(
-        name="relationship-read-level",
-        schema=_schema_with_relationship_fields(inherited=True, hierarchical="SomeGeneric"),
+READ_ONLY_CASES = [
+    ReadOnlyCase(
+        name="attribute-inherited",
+        schema=_schema_with_attribute_fields(inherited=True),
+        expected_fields={"nodes[0].attributes[0].inherited"},
     ),
-    ToleratedCase(name="generic-read-level-used-by", schema=_schema_with_generic_fields(used_by=["InfraThing"])),
-    ToleratedCase(name="node-read-level-hierarchy", schema=_schema_with_node_fields(hierarchy="SomeGeneric")),
-    ToleratedCase(
-        name="extension-attribute-read-level-inherited",
+    ReadOnlyCase(
+        name="relationship-inherited-and-hierarchical",
+        schema=_schema_with_relationship_fields(inherited=True, hierarchical="SomeGeneric"),
+        expected_fields={
+            "nodes[0].relationships[0].inherited",
+            "nodes[0].relationships[0].hierarchical",
+        },
+    ),
+    ReadOnlyCase(
+        name="generic-used-by",
+        schema=_schema_with_generic_fields(used_by=["InfraThing"]),
+        expected_fields={"generics[0].used_by"},
+    ),
+    ReadOnlyCase(
+        name="node-hierarchy",
+        schema=_schema_with_node_fields(hierarchy="SomeGeneric"),
+        expected_fields={"nodes[0].hierarchy"},
+    ),
+    ReadOnlyCase(
+        name="node-derived-kind-and-hash",
+        schema=_schema_with_node_fields(kind="InfraDevice", hash="abc123"),
+        expected_fields={"nodes[0].kind", "nodes[0].hash"},
+    ),
+    ReadOnlyCase(
+        name="extension-attribute-inherited",
         schema=_extension_node_schema(
             {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "inherited": True}]}
         ),
+        expected_fields={"extensions.nodes[0].attributes[0].inherited"},
     ),
-    # Genuinely unknown fields (typos, removed fields): also dropped silently.
-    ToleratedCase(name="node-unknown-field", schema=_schema_with_node_fields(not_a_field="boom")),
-    ToleratedCase(name="unknown-top-level-key", schema=_schema_with_root_fields(not_a_root_field="boom")),
-    ToleratedCase(
-        name="extension-attribute-unknown-field",
-        schema=_extension_node_schema(
-            {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}
-        ),
+    ReadOnlyCase(
+        name="root-keys-of-a-read-api-response",
+        schema=_schema_with_root_fields(main="abc123", profiles=[], templates=[], namespaces=[]),
+        expected_fields={"main", "profiles", "templates", "namespaces"},
     ),
-    ToleratedCase(
-        name="computed-attribute-unknown-field",
-        schema=_schema_with_computed_attribute({"kind": "Jinja2", "jinja2_template": "x", "not_a_real_field": "x"}),
+    # Every internal schema model carries `id` and `state`, so they appear on the nested value
+    # models of a schema dumped from those models even though they are not settable there.
+    ReadOnlyCase(
+        name="parameters-bookkeeping-fields",
+        schema=_schema_with_parameters({"min_length": 1, "id": None, "state": "present"}),
+        expected_fields={
+            "nodes[0].attributes[0].parameters.id",
+            "nodes[0].attributes[0].parameters.state",
+        },
     ),
-    ToleratedCase(
-        name="choice-unknown-field",
-        schema=_schema_with_choices([{"name": "active", "not_a_real_field": "x"}]),
+    ReadOnlyCase(
+        name="choice-bookkeeping-fields",
+        schema=_schema_with_choices([{"name": "active", "id": None, "state": "present"}]),
+        expected_fields={
+            "nodes[0].attributes[0].choices[0].id",
+            "nodes[0].attributes[0].choices[0].state",
+        },
     ),
-    ToleratedCase(name="parameters-unknown-field", schema=_schema_with_parameters({"not_a_real_param": 1})),
-    # Parameters valid only for a different attribute kind: dropped, not rejected.
-    ToleratedCase(
-        name="number-attribute-number-pool-parameters",
-        schema=_schema_with_kind_and_parameters("Number", {"start_range": 1, "end_range": 9}),
-    ),
-    ToleratedCase(
-        name="text-attribute-number-parameters",
-        schema=_schema_with_kind_and_parameters("Text", {"min_value": 1}),
-    ),
-    ToleratedCase(
-        name="generic-attribute-any-parameters",
-        schema=_schema_with_kind_and_parameters("Dropdown", {"regex": "x"}),
+    # `transform` belongs to the TransformPython variant of the computed-attribute union, so it is
+    # known at this location but not settable on a Jinja2 one.
+    ReadOnlyCase(
+        name="computed-attribute-sibling-variant-field",
+        schema=_schema_with_computed_attribute({"kind": "Jinja2", "jinja2_template": "x", "transform": "t"}),
+        expected_fields={"nodes[0].attributes[0].computed_attribute.transform"},
     ),
 ]
 
 
-@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in TOLERATED_CASES])
-def test_non_write_field_is_tolerated(case: ToleratedCase) -> None:
-    # extra="ignore" on the write models drops the field silently, so validation passes.
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in READ_ONLY_CASES])
+def test_read_only_field_is_accepted_with_a_warning(case: ReadOnlyCase) -> None:
+    # A payload read back from Infrahub carries read-only fields, so it must still load; the user
+    # is told the value is ignored rather than having it dropped silently.
     result = validate_schema(schema=case.schema)
 
     assert result.valid is True, result.messages
+    assert {warning.field for warning in result.warnings} == case.expected_fields
 
 
-def test_non_write_fields_are_dropped_on_round_trip() -> None:
-    # Tolerated fields must not round-trip into the payload: read-level and unknown fields are
-    # absent from the validated model, so they never reach the server.
+def test_read_only_warning_names_the_owning_kind_and_element() -> None:
+    # Consumers render a warning as kind + field rather than as a path, so the owning schema kind
+    # and the attribute/relationship carrying the field travel with the finding.
+    schema = _schema_with_attribute_fields(inherited=True)
+
+    result = validate_schema(schema=schema)
+
+    assert len(result.warnings) == 1
+    warning = result.warnings[0]
+    assert warning.name == "inherited"
+    assert warning.kind == "InfraDevice"
+    assert warning.element == "hostname"
+
+
+def test_nested_read_only_field_is_named_relative_to_its_owner() -> None:
+    # `id` is settable on an attribute but not on its nested parameters, so reporting the bare name
+    # would claim the wrong field is read-only -- and would collide with an `id` reported elsewhere.
+    schema = _schema_with_parameters({"id": None, "state": "present"})
+    schema["extensions"] = {"nodes": [{"kind": "InfraDevice"}], "id": None}
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert {warning.name for warning in result.warnings} == {
+        "parameters.id",
+        "parameters.state",
+        "extensions.id",
+    }
+
+
+def test_read_only_fields_are_dropped_on_round_trip() -> None:
+    # A warning must not mean the value is kept: read-only fields are absent from the validated
+    # model, so they never reach the server.
     schema = _valid_schema()
-    schema["not_a_root_field"] = "boom"
     schema["nodes"][0]["hierarchy"] = "SomeGeneric"
     schema["nodes"][0]["attributes"][0]["inherited"] = True
-    schema["nodes"][0]["attributes"][0]["not_a_field"] = "boom"
 
     assert validate_schema(schema=schema).valid is True
 
     dumped = InfrahubSchemaWrite.model_validate(schema).model_dump()
-    assert "not_a_root_field" not in dumped
     node = dumped["nodes"][0]
     assert "hierarchy" not in node
-    attribute = node["attributes"][0]
-    assert "inherited" not in attribute
-    assert "not_a_field" not in attribute
+    assert "inherited" not in node["attributes"][0]
+
+
+# ---------------------------------------------------------------------------
+# Any other extra field is rejected
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class UnknownFieldCase:
+    name: str
+    schema: dict
+    # Exact dotted paths expected among the reported error fields.
+    expected_fields: set[str]
+
+
+UNKNOWN_FIELD_CASES = [
+    UnknownFieldCase(
+        name="node-unknown-field",
+        schema=_schema_with_node_fields(not_a_field="boom"),
+        expected_fields={"nodes[0].not_a_field"},
+    ),
+    UnknownFieldCase(
+        name="unknown-top-level-key",
+        schema=_schema_with_root_fields(not_a_root_field="boom"),
+        expected_fields={"not_a_root_field"},
+    ),
+    UnknownFieldCase(
+        name="extension-attribute-unknown-field",
+        schema=_extension_node_schema(
+            {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}
+        ),
+        expected_fields={"extensions.nodes[0].attributes[0].not_a_field"},
+    ),
+    UnknownFieldCase(
+        name="computed-attribute-unknown-field",
+        schema=_schema_with_computed_attribute({"kind": "Jinja2", "jinja2_template": "x", "not_a_real_field": "x"}),
+        expected_fields={"nodes[0].attributes[0].computed_attribute.not_a_real_field"},
+    ),
+    UnknownFieldCase(
+        name="choice-unknown-field",
+        schema=_schema_with_choices([{"name": "active", "not_a_real_field": "x"}]),
+        expected_fields={"nodes[0].attributes[0].choices[0].not_a_real_field"},
+    ),
+    UnknownFieldCase(
+        name="parameters-unknown-field",
+        schema=_schema_with_parameters({"not_a_real_param": 1}),
+        expected_fields={"nodes[0].attributes[0].parameters.not_a_real_param"},
+    ),
+    # Parameters only valid for a different attribute kind do nothing on this one, so naming them
+    # is the only way the author learns the setting had no effect.
+    UnknownFieldCase(
+        name="number-attribute-number-pool-parameters",
+        schema=_schema_with_kind_and_parameters("Number", {"start_range": 1, "end_range": 9}),
+        expected_fields={
+            "nodes[0].attributes[0].parameters.start_range",
+            "nodes[0].attributes[0].parameters.end_range",
+        },
+    ),
+    UnknownFieldCase(
+        name="text-attribute-number-parameters",
+        schema=_schema_with_kind_and_parameters("Text", {"min_value": 1}),
+        expected_fields={"nodes[0].attributes[0].parameters.min_value"},
+    ),
+    UnknownFieldCase(
+        name="generic-attribute-any-parameters",
+        schema=_schema_with_kind_and_parameters("Dropdown", {"regex": "x"}),
+        expected_fields={"nodes[0].attributes[0].parameters.regex"},
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in UNKNOWN_FIELD_CASES])
+def test_unknown_field_is_rejected_naming_the_field(case: UnknownFieldCase) -> None:
+    result = validate_schema(schema=case.schema)
+
+    assert result.valid is False
+    assert _fields_named(result) == case.expected_fields
+    assert result.warnings == []
+
+
+def test_unknown_fields_are_reported_at_every_nesting_level_at_once() -> None:
+    # One pass must name every offending key rather than stopping at the first, so a payload is
+    # corrected in a single round.
+    schema = _valid_schema()
+    schema["not_a_root_field"] = "boom"
+    schema["nodes"][0]["not_a_node_field"] = "boom"
+    schema["nodes"][0]["attributes"][0]["not_an_attribute_field"] = "boom"
+    schema["nodes"][0]["relationships"][0]["not_a_relationship_field"] = "boom"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert _fields_named(result) == {
+        "not_a_root_field",
+        "nodes[0].not_a_node_field",
+        "nodes[0].attributes[0].not_an_attribute_field",
+        "nodes[0].relationships[0].not_a_relationship_field",
+    }
+
+
+def test_unknown_fields_are_not_reported_while_the_payload_is_otherwise_invalid() -> None:
+    # The validated model is what resolves the contract at each location, so a payload that fails
+    # validation reports that failure first and the extra fields once it is corrected.
+    schema = _schema_with_node_fields(not_a_field="boom")
+    schema["nodes"][0]["attributes"][0]["kind"] = "NotARealKind"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    assert _fields_named(result) == {"nodes[0].attributes[0]"}
 
 
 # ---------------------------------------------------------------------------
