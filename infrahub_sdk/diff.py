@@ -23,6 +23,7 @@ class NodeDiffElement(TypedDict):
     action: str
     summary: NodeDiffSummary
     peers: NotRequired[list[NodeDiffPeer]]
+    properties: NotRequired[list[NodeDiffProperty]]
 
 
 class NodeDiffSummary(TypedDict):
@@ -34,6 +35,18 @@ class NodeDiffSummary(TypedDict):
 class NodeDiffPeer(TypedDict):
     action: str
     summary: NodeDiffSummary
+    peer_id: NotRequired[str]
+    peer_label: NotRequired[str | None]
+    properties: NotRequired[list[NodeDiffProperty]]
+
+
+class NodeDiffProperty(TypedDict):
+    property_type: str
+    action: str
+    previous_value: str | None
+    new_value: str | None
+    previous_label: str | None
+    new_label: str | None
 
 
 class DiffTreeData(TypedDict):
@@ -88,6 +101,20 @@ def get_diff_summary_query() -> str:
     """
 
 
+def _diff_properties_to_node_diff_properties(property_dicts: list[dict[str, Any]]) -> list[NodeDiffProperty]:
+    return [
+        NodeDiffProperty(
+            property_type=str(property_dict.get("property_type")),
+            action=str(property_dict.get("status")),
+            previous_value=property_dict.get("previous_value"),
+            new_value=property_dict.get("new_value"),
+            previous_label=property_dict.get("previous_label"),
+            new_label=property_dict.get("new_label"),
+        )
+        for property_dict in property_dicts
+    ]
+
+
 def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> NodeDiff:
     element_diffs: list[NodeDiffElement] = []
     if "attributes" in node_dict:
@@ -102,6 +129,8 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     "updated": int(attr_dict.get("num_updated") or 0),
                 },
             )
+            if attr_dict.get("properties"):
+                attr_diff["properties"] = _diff_properties_to_node_diff_properties(attr_dict["properties"])
             element_diffs.append(attr_diff)
     if "relationships" in node_dict:
         for relationship_dict in node_dict["relationships"]:
@@ -117,8 +146,9 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                 },
             )
             if not is_cardinality_one and "elements" in relationship_dict:
-                peer_diffs = [
-                    NodeDiffPeer(
+                peer_diffs = []
+                for element_dict in relationship_dict["elements"]:
+                    peer_diff = NodeDiffPeer(
                         action=str(element_dict.get("status")),
                         summary={
                             "added": int(element_dict.get("num_added") or 0),
@@ -126,9 +156,17 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                             "updated": int(element_dict.get("num_updated") or 0),
                         },
                     )
-                    for element_dict in relationship_dict["elements"]
-                ]
+                    if "peer_id" in element_dict:
+                        peer_diff["peer_id"] = str(element_dict["peer_id"])
+                        peer_diff["peer_label"] = element_dict.get("peer_label")
+                    if element_dict.get("properties"):
+                        peer_diff["properties"] = _diff_properties_to_node_diff_properties(element_dict["properties"])
+                    peer_diffs.append(peer_diff)
                 relationship_diff["peers"] = peer_diffs
+            elif is_cardinality_one and relationship_dict.get("elements"):
+                element_properties = relationship_dict["elements"][0].get("properties")
+                if element_properties:
+                    relationship_diff["properties"] = _diff_properties_to_node_diff_properties(element_properties)
             element_diffs.append(relationship_diff)
     return NodeDiff(
         branch=branch_name,
@@ -140,8 +178,8 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
     )
 
 
-def get_diff_tree_query() -> Query:
-    node_structure = {
+def get_diff_tree_query(include_properties: bool = False) -> Query:
+    node_structure: dict[str, Any] = {
         "uuid": None,
         "kind": None,
         "status": None,
@@ -171,6 +209,20 @@ def get_diff_tree_query() -> Query:
             },
         },
     }
+
+    if include_properties:
+        property_structure = {
+            "property_type": None,
+            "status": None,
+            "previous_value": None,
+            "new_value": None,
+            "previous_label": None,
+            "new_label": None,
+        }
+        node_structure["attributes"]["properties"] = property_structure
+        node_structure["relationships"]["elements"]["peer_id"] = None
+        node_structure["relationships"]["elements"]["peer_label"] = None
+        node_structure["relationships"]["elements"]["properties"] = property_structure
 
     return Query(
         name="GetDiffTree",

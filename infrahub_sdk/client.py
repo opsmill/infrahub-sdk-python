@@ -1841,8 +1841,12 @@ class InfrahubClient(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         priority: Priority | None = None,
+        include_properties: bool = False,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
+
+        Set ``include_properties`` to True to also retrieve the value-level details
+        of each change (previous/new values per property).
 
         Returns None if no diff exists.
 
@@ -1850,7 +1854,7 @@ class InfrahubClient(BaseClient):
             ValueError: If ``from_time`` is later than ``to_time``.
 
         """
-        query = get_diff_tree_query()
+        query = get_diff_tree_query(include_properties=include_properties)
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
@@ -3433,8 +3437,12 @@ class InfrahubClientSync(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         priority: Priority | None = None,
+        include_properties: bool = False,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
+
+        Set ``include_properties`` to True to also retrieve the value-level details
+        of each change (previous/new values per property).
 
         Returns None if no diff exists.
 
@@ -3442,7 +3450,7 @@ class InfrahubClientSync(BaseClient):
             ValueError: If ``from_time`` is later than ``to_time``.
 
         """
-        query = get_diff_tree_query()
+        query = get_diff_tree_query(include_properties=include_properties)
         input_data = {"branch_name": branch}
         if name:
             input_data["name"] = name
