@@ -403,10 +403,13 @@ get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime
 #### `get_diff_tree`
 
 ```python
-get_diff_tree(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, priority: Priority | None = None) -> DiffTreeData | None
+get_diff_tree(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, priority: Priority | None = None, include_properties: bool = False) -> DiffTreeData | None
 ```
 
 Get complete diff tree with metadata and nodes.
+
+Set ``include_properties`` to True to also retrieve the value-level details
+of each change (previous/new values per property).
 
 Returns None if no diff exists.
 
@@ -932,10 +935,13 @@ get_diff_summary(self, branch: str, name: str | None = None, from_time: datetime
 #### `get_diff_tree`
 
 ```python
-get_diff_tree(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, priority: Priority | None = None) -> DiffTreeData | None
+get_diff_tree(self, branch: str, name: str | None = None, from_time: datetime | None = None, to_time: datetime | None = None, timeout: int | None = None, tracker: str | None = None, priority: Priority | None = None, include_properties: bool = False) -> DiffTreeData | None
 ```
 
 Get complete diff tree with metadata and nodes.
+
+Set ``include_properties`` to True to also retrieve the value-level details
+of each change (previous/new values per property).
 
 Returns None if no diff exists.
 
