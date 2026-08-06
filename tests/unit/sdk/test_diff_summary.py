@@ -595,6 +595,8 @@ async def test_get_diff_tree_with_properties(
     car = next(node for node in diff_tree["nodes"] if node["kind"] == "TestCar")
     owner_element = next(element for element in car["elements"] if element["name"] == "owner")
     assert owner_element["element_type"] == "RELATIONSHIP_ONE"
+    assert owner_element["peer_id"] == "17fbadf0-634f-05a8-43e4-1677e744d4c0"
+    assert owner_element["peer_label"] == "Jane"
     assert owner_element["properties"] == [
         {
             "property_type": "IS_RELATED",

@@ -23,6 +23,8 @@ class NodeDiffElement(TypedDict):
     action: str
     summary: NodeDiffSummary
     peers: NotRequired[list[NodeDiffPeer]]
+    peer_id: NotRequired[str]
+    peer_label: NotRequired[str | None]
     properties: NotRequired[list[NodeDiffProperty]]
 
 
@@ -164,9 +166,14 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     peer_diffs.append(peer_diff)
                 relationship_diff["peers"] = peer_diffs
             elif is_cardinality_one and relationship_dict.get("elements"):
-                element_properties = relationship_dict["elements"][0].get("properties")
-                if element_properties:
-                    relationship_diff["properties"] = _diff_properties_to_node_diff_properties(element_properties)
+                element_dict = relationship_dict["elements"][0]
+                if "peer_id" in element_dict:
+                    relationship_diff["peer_id"] = str(element_dict["peer_id"])
+                    relationship_diff["peer_label"] = element_dict.get("peer_label")
+                if element_dict.get("properties"):
+                    relationship_diff["properties"] = _diff_properties_to_node_diff_properties(
+                        element_dict["properties"]
+                    )
             element_diffs.append(relationship_diff)
     return NodeDiff(
         branch=branch_name,

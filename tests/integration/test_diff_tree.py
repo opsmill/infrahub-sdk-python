@@ -79,6 +79,8 @@ class TestGetDiffTree(TestInfrahubDockerClient, SchemaAnimal):
 
         owner_element = next(element for element in dog_node["elements"] if element["name"] == "owner")
         assert owner_element["element_type"] == "RELATIONSHIP_ONE"
+        assert owner_element["peer_id"] in {person_liam.id, person_sophia.id}
+        assert "peer_label" in owner_element
         owner_value = next(prop for prop in owner_element["properties"] if prop["property_type"] == "IS_RELATED")
         assert owner_value["action"] == "UPDATED"
         assert owner_value["previous_value"] == person_sophia.id
