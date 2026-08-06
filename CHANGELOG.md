@@ -11,6 +11,22 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.22.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.2) - 2026-07-27
+
+### Added
+
+- Added a `--dependencies` flag to `infrahubctl marketplace get`. When downloading a schema or a collection, it now also resolves and downloads the schemas they depend on, via the marketplace API. Dependencies are grouped by the collection they belong to: prerequisite collections (and, for a single schema, dependencies that are members of a collection) are placed in their own `<collection>/` directory, while dependencies that belong to no collection land in the output root. Referenced kinds the marketplace cannot resolve are reported as unresolved dependencies. A schema that already exists in the output directory is reconciled to a single file rather than duplicated across directories — kept by default, or overwritten with the new `-y`/`--yes` flag. ([#1117](https://github.com/opsmill/infrahub-sdk-python/issues/1117))
+- Added `infrahubctl marketplace list`, `search`, and `show` commands for browsing schemas and collections on the Infrahub Marketplace.
+
+### Fixed
+
+- Branch names containing URL-significant characters (such as `#` or `/`) are now percent-encoded in the GraphQL URL, so requests against those branches resolve correctly instead of returning a 404. ([#1209](https://github.com/opsmill/infrahub-sdk-python/issues/1209))
+- Fixed several cases where `InfrahubClientSync` had drifted from `InfrahubClient`: sync `branch.merge` now applies the same 120-second minimum timeout floor as the async client, and sync `create(allow_upsert=True)` now excludes the `hfid` from the mutation payload to avoid server-side upsert overhead. Also corrected an incorrect "feature not supported" message on async artifact fetch and a resource-pool error message typo.
+
+### Housekeeping
+
+- Replaced `markdownlint-cli2` with [rumdl](https://github.com/rvben/rumdl) for markdown linting. This removes the Node.js/npm dependency for the markdown check, speeds up linting, and consolidates the configuration into `pyproject.toml` under `[tool.rumdl]`. ([#1138](https://github.com/opsmill/infrahub-sdk-python/issues/1138))
+
 ## [1.22.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.1) - 2026-07-03
 
 ### Added
