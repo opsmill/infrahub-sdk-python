@@ -4,7 +4,7 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk import InfrahubClient
-from infrahub_sdk.diff import get_diff_tree_query
+from infrahub_sdk.diff import diff_tree_node_to_node_diff, get_diff_tree_query
 from tests.unit.sdk.conftest import BothClients
 
 client_types = ["standard", "sync"]
@@ -606,4 +606,55 @@ async def test_get_diff_tree_with_properties(
             "previous_label": "Jane",
             "new_label": "Jonathan",
         }
+    ]
+
+
+def test_cardinality_one_with_multiple_elements_keeps_all_peers() -> None:
+    """A cardinality-one relationship with several elements must not flatten to a single peer."""
+    node_dict = {
+        "uuid": "17fbadf0-6637-4fa2-43e6-1677ea170e0f",
+        "kind": "TestCar",
+        "status": "UPDATED",
+        "label": "nolt #444444",
+        "attributes": [],
+        "relationships": [
+            {
+                "cardinality": "ONE",
+                "name": "owner",
+                "num_added": 1,
+                "num_removed": 1,
+                "num_updated": 0,
+                "status": "UPDATED",
+                "elements": [
+                    {
+                        "status": "REMOVED",
+                        "num_added": 0,
+                        "num_removed": 1,
+                        "num_updated": 0,
+                        "peer_id": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
+                        "peer_label": "Jane",
+                        "properties": [],
+                    },
+                    {
+                        "status": "ADDED",
+                        "num_added": 1,
+                        "num_removed": 0,
+                        "num_updated": 0,
+                        "peer_id": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
+                        "peer_label": "Jonathan",
+                        "properties": [],
+                    },
+                ],
+            }
+        ],
+    }
+
+    node_diff = diff_tree_node_to_node_diff(node_dict=node_dict, branch_name="branch2")
+
+    owner_element = node_diff["elements"][0]
+    assert owner_element["element_type"] == "RELATIONSHIP_ONE"
+    assert "peer_id" not in owner_element
+    assert [(peer["peer_id"], peer["action"]) for peer in owner_element["peers"]] == [
+        ("17fbadf0-634f-05a8-43e4-1677e744d4c0", "REMOVED"),
+        ("17fbadf0-6243-5d3c-43ee-167718ff8dac", "ADDED"),
     ]
