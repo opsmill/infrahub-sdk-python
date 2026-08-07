@@ -28,6 +28,54 @@ def test_emptyconfig(pytester: pytest.Pytester) -> None:
     result.assert_outcomes()
 
 
+def test_markers_are_registered(pytester: pytest.Pytester) -> None:
+    """Every marker the plugin applies must be registered, otherwise --strict-markers rejects it."""
+    pytester.makefile(
+        ".yml",
+        test_markers="""
+        ---
+        version: "1.0"
+        infrahub_tests:
+          - resource: "Jinja2Transform"
+            resource_name: "bgp_config"
+            tests:
+              - name: "smoke"
+                spec:
+                  kind: "jinja2-transform-smoke"
+              - name: "unit"
+                spec:
+                  kind: "jinja2-transform-unit-render"
+              - name: "integration"
+                spec:
+                  kind: "jinja2-transform-integration"
+                  variables: {}
+    """,
+    )
+    pytester.makefile(
+        ".yml",
+        infrahub_config="""
+        ---
+        jinja2_transforms:
+          - name: bgp_config
+            description: "Template for BGP config base"
+            query: "bgp_sessions"
+            template_path: "templates/bgp_config.j2"
+    """,
+    )
+    pytester.makefile(".json", input="{}")
+
+    result = pytester.runpytest("--infrahub-repo-config=infrahub_config.yml", "--strict-markers", "--collect-only")
+
+    assert result.ret == pytest.ExitCode.OK
+    result.stdout.fnmatch_lines(
+        [
+            "*infrahub_jinja2_transform__bgp_config__smoke*",
+            "*infrahub_jinja2_transform__bgp_config__unit*",
+            "*infrahub_jinja2_transform__bgp_config__integration*",
+        ]
+    )
+
+
 def test_jinja2_transform_config_missing_directory(pytester: pytest.Pytester) -> None:
     """Make sure tests raise errors if directories are not found."""
     pytester.makefile(
