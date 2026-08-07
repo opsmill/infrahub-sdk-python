@@ -4,7 +4,11 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk import InfrahubClient
-from infrahub_sdk.diff import diff_tree_node_to_node_diff, get_diff_tree_query
+from infrahub_sdk.diff import (
+    _diff_element_to_node_diff_peer,  # noqa: PLC2701
+    diff_tree_node_to_node_diff,
+    get_diff_tree_query,
+)
 from tests.unit.sdk.conftest import BothClients
 
 client_types = ["standard", "sync"]
@@ -658,3 +662,72 @@ def test_cardinality_one_with_multiple_elements_keeps_all_peers() -> None:
         ("17fbadf0-634f-05a8-43e4-1677e744d4c0", "REMOVED"),
         ("17fbadf0-6243-5d3c-43ee-167718ff8dac", "ADDED"),
     ]
+
+
+def test_diff_element_to_node_diff_peer_counts_only() -> None:
+    """Elements from the summary query carry only a status and counts."""
+    peer = _diff_element_to_node_diff_peer({"status": "UPDATED", "num_added": 1, "num_removed": 0, "num_updated": 2})
+
+    assert peer == {"action": "UPDATED", "summary": {"added": 1, "removed": 0, "updated": 2}}
+
+
+def test_diff_element_to_node_diff_peer_with_peer_and_properties() -> None:
+    peer = _diff_element_to_node_diff_peer(
+        {
+            "status": "ADDED",
+            "num_added": 1,
+            "num_removed": 0,
+            "num_updated": 0,
+            "peer_id": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
+            "peer_label": "Jonathan",
+            "properties": [
+                {
+                    "property_type": "IS_RELATED",
+                    "status": "UPDATED",
+                    "previous_value": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
+                    "new_value": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
+                    "previous_label": "Jane",
+                    "new_label": "Jonathan",
+                }
+            ],
+        }
+    )
+
+    assert peer == {
+        "action": "ADDED",
+        "summary": {"added": 1, "removed": 0, "updated": 0},
+        "peer_id": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
+        "peer_label": "Jonathan",
+        "properties": [
+            {
+                "property_type": "IS_RELATED",
+                "action": "UPDATED",
+                "previous_value": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
+                "new_value": "17fbadf0-6243-5d3c-43ee-167718ff8dac",
+                "previous_label": "Jane",
+                "new_label": "Jonathan",
+            }
+        ],
+    }
+
+
+def test_diff_element_to_node_diff_peer_defaults() -> None:
+    """Null counts coerce to 0, a null peer_label is kept, an empty properties list is dropped."""
+    peer = _diff_element_to_node_diff_peer(
+        {
+            "status": "REMOVED",
+            "num_added": None,
+            "num_removed": None,
+            "num_updated": None,
+            "peer_id": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
+            "peer_label": None,
+            "properties": [],
+        }
+    )
+
+    assert peer == {
+        "action": "REMOVED",
+        "summary": {"added": 0, "removed": 0, "updated": 0},
+        "peer_id": "17fbadf0-634f-05a8-43e4-1677e744d4c0",
+        "peer_label": None,
+    }

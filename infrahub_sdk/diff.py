@@ -170,14 +170,12 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     _diff_element_to_node_diff_peer(element_dict) for element_dict in element_dicts
                 ]
             elif is_cardinality_one and len(element_dicts) == 1:
-                element_dict = element_dicts[0]
-                if "peer_id" in element_dict:
-                    relationship_diff["peer_id"] = str(element_dict["peer_id"])
-                    relationship_diff["peer_label"] = element_dict.get("peer_label")
-                if element_dict.get("properties"):
-                    relationship_diff["properties"] = _diff_properties_to_node_diff_properties(
-                        element_dict["properties"]
-                    )
+                peer_diff = _diff_element_to_node_diff_peer(element_dicts[0])
+                if "peer_id" in peer_diff:
+                    relationship_diff["peer_id"] = peer_diff["peer_id"]
+                    relationship_diff["peer_label"] = peer_diff.get("peer_label")
+                if "properties" in peer_diff:
+                    relationship_diff["properties"] = peer_diff["properties"]
             elif is_cardinality_one and element_dicts:
                 # a cardinality-one diff normally has a single element; if the server
                 # ever returns several, keep them all instead of flattening one
