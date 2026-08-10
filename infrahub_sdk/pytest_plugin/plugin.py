@@ -100,7 +100,7 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "infrahub_unit: Unit test for an Infrahub resource, works without dependencies")
     config.addinivalue_line(
         "markers",
-        "infrahub_integraton: Integation test for an Infrahub resource, depends on an Infrahub running instance",
+        "infrahub_integration: Integration test for an Infrahub resource, depends on an Infrahub running instance",
     )
     config.addinivalue_line("markers", "infrahub_check: Test related to an Infrahub Check")
     config.addinivalue_line("markers", "infrahub_graphql_query: Test related to an Infrahub GraphQL query")

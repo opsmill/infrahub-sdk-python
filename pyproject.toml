@@ -117,7 +117,7 @@ filterwarnings = [
     "ignore:Module already imported so cannot be rewritten",
     "ignore:Deprecated call to",
 ]
-addopts = "-vs --cov-report term-missing --cov-report xml --dist loadscope"
+addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dist loadscope"
 
 [tool.ty]
 
