@@ -1,5 +1,7 @@
 import pytest
 
+from infrahub_sdk.pytest_plugin.loader import MARKER_MAPPING
+
 
 def test_help_message(pytester: pytest.Pytester) -> None:
     """Make sure that the plugin is loaded by capturing an option it adds in the help message."""
@@ -28,8 +30,26 @@ def test_emptyconfig(pytester: pytest.Pytester) -> None:
     result.assert_outcomes()
 
 
-def test_markers_are_registered(pytester: pytest.Pytester) -> None:
-    """Every marker the plugin applies must be registered, otherwise --strict-markers rejects it."""
+def test_resource_markers_are_registered(pytester: pytest.Pytester) -> None:
+    """The resource markers are built when the loader is imported, before a config exists.
+
+    `--strict-markers` only validates a marker created once a config is attached, so it never sees
+    these. Compare them against the registered list instead.
+    """
+    result = pytester.runpytest("--markers")
+
+    registered = {
+        line.removeprefix("@pytest.mark.").split(":")[0].split("(")[0]
+        for line in result.stdout.lines
+        if line.startswith("@pytest.mark.")
+    }
+    missing = {mark.markname for mark in MARKER_MAPPING.values()} - registered
+
+    assert not missing, f"markers applied by the loader but never registered: {sorted(missing)}"
+
+
+def test_type_markers_are_registered(pytester: pytest.Pytester) -> None:
+    """The type markers are applied during collection, so --strict-markers rejects an unregistered one."""
     pytester.makefile(
         ".yml",
         test_markers="""
