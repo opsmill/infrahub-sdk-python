@@ -17,13 +17,7 @@ class NodeDiff(TypedDict):
     elements: list[NodeDiffElement]
 
 
-class NodeDiffPeerFields(TypedDict, total=False):
-    peer_id: str
-    peer_label: str | None
-    properties: list[NodeDiffProperty]
-
-
-class NodeDiffElement(NodeDiffPeerFields):
+class NodeDiffElement(TypedDict):
     name: str
     element_type: str
     action: str
@@ -37,18 +31,9 @@ class NodeDiffSummary(TypedDict):
     removed: int
 
 
-class NodeDiffPeer(NodeDiffPeerFields):
+class NodeDiffPeer(TypedDict):
     action: str
     summary: NodeDiffSummary
-
-
-class NodeDiffProperty(TypedDict):
-    property_type: str
-    action: str
-    previous_value: str | None
-    new_value: str | None
-    previous_label: str | None
-    new_label: str | None
 
 
 class DiffTreeData(TypedDict):
@@ -103,43 +88,6 @@ def get_diff_summary_query() -> str:
     """
 
 
-def _diff_properties_to_node_diff_properties(property_dicts: list[dict[str, Any]]) -> list[NodeDiffProperty]:
-    return [
-        NodeDiffProperty(
-            property_type=str(property_dict.get("property_type")),
-            action=str(property_dict.get("status")),
-            previous_value=property_dict.get("previous_value"),
-            new_value=property_dict.get("new_value"),
-            previous_label=property_dict.get("previous_label"),
-            new_label=property_dict.get("new_label"),
-        )
-        for property_dict in property_dicts
-    ]
-
-
-def _element_to_node_diff_peer_fields(element_dict: dict[str, Any]) -> NodeDiffPeerFields:
-    fields = NodeDiffPeerFields()
-    if "peer_id" in element_dict:
-        fields["peer_id"] = str(element_dict["peer_id"])
-        fields["peer_label"] = element_dict.get("peer_label")
-    if element_dict.get("properties"):
-        fields["properties"] = _diff_properties_to_node_diff_properties(element_dict["properties"])
-    return fields
-
-
-def _diff_element_to_node_diff_peer(element_dict: dict[str, Any]) -> NodeDiffPeer:
-    peer_diff = NodeDiffPeer(
-        action=str(element_dict.get("status")),
-        summary={
-            "added": int(element_dict.get("num_added") or 0),
-            "removed": int(element_dict.get("num_removed") or 0),
-            "updated": int(element_dict.get("num_updated") or 0),
-        },
-    )
-    peer_diff.update(_element_to_node_diff_peer_fields(element_dict))
-    return peer_diff
-
-
 def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> NodeDiff:
     element_diffs: list[NodeDiffElement] = []
     if "attributes" in node_dict:
@@ -154,8 +102,6 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     "updated": int(attr_dict.get("num_updated") or 0),
                 },
             )
-            if attr_dict.get("properties"):
-                attr_diff["properties"] = _diff_properties_to_node_diff_properties(attr_dict["properties"])
             element_diffs.append(attr_diff)
     if "relationships" in node_dict:
         for relationship_dict in node_dict["relationships"]:
@@ -170,19 +116,19 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
                     "updated": int(relationship_dict.get("num_updated") or 0),
                 },
             )
-            element_dicts = relationship_dict.get("elements") or []
             if not is_cardinality_one and "elements" in relationship_dict:
-                relationship_diff["peers"] = [
-                    _diff_element_to_node_diff_peer(element_dict) for element_dict in element_dicts
+                peer_diffs = [
+                    NodeDiffPeer(
+                        action=str(element_dict.get("status")),
+                        summary={
+                            "added": int(element_dict.get("num_added") or 0),
+                            "removed": int(element_dict.get("num_removed") or 0),
+                            "updated": int(element_dict.get("num_updated") or 0),
+                        },
+                    )
+                    for element_dict in relationship_dict["elements"]
                 ]
-            elif is_cardinality_one and len(element_dicts) == 1:
-                relationship_diff.update(_element_to_node_diff_peer_fields(element_dicts[0]))
-            elif is_cardinality_one and element_dicts:
-                # a cardinality-one diff normally has a single element; if the server
-                # ever returns several, keep them all instead of flattening one
-                relationship_diff["peers"] = [
-                    _diff_element_to_node_diff_peer(element_dict) for element_dict in element_dicts
-                ]
+                relationship_diff["peers"] = peer_diffs
             element_diffs.append(relationship_diff)
     return NodeDiff(
         branch=branch_name,
@@ -194,8 +140,8 @@ def diff_tree_node_to_node_diff(node_dict: dict[str, Any], branch_name: str) -> 
     )
 
 
-def get_diff_tree_query(include_properties: bool = False) -> Query:
-    node_structure: dict[str, Any] = {
+def get_diff_tree_query() -> Query:
+    node_structure = {
         "uuid": None,
         "kind": None,
         "status": None,
@@ -225,20 +171,6 @@ def get_diff_tree_query(include_properties: bool = False) -> Query:
             },
         },
     }
-
-    if include_properties:
-        property_structure = {
-            "property_type": None,
-            "status": None,
-            "previous_value": None,
-            "new_value": None,
-            "previous_label": None,
-            "new_label": None,
-        }
-        node_structure["attributes"]["properties"] = property_structure
-        node_structure["relationships"]["elements"]["peer_id"] = None
-        node_structure["relationships"]["elements"]["peer_label"] = None
-        node_structure["relationships"]["elements"]["properties"] = property_structure
 
     return Query(
         name="GetDiffTree",
