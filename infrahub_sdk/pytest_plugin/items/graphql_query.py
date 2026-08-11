@@ -6,6 +6,7 @@ import ujson
 from httpx import HTTPStatusError
 
 from ...analyzer import GraphQLQueryAnalyzer
+from .._stash import INFRAHUB_CLIENT_KEY, INFRAHUB_CONFIG_PATH_KEY
 from ..exceptions import OutputMatchError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -20,7 +21,7 @@ class InfrahubGraphQLQueryItem(InfrahubItem):
         return
 
     def execute_query(self) -> Any:
-        return self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
+        return self.session.stash[INFRAHUB_CLIENT_KEY].query_gql_query(
             self.test.spec.query,  # type: ignore[union-attr]
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]
         )
@@ -47,7 +48,7 @@ class InfrahubGraphQLQueryItem(InfrahubItem):
 
 class InfrahubGraphQLQuerySmokeItem(InfrahubGraphQLQueryItem):
     def runtest(self) -> None:
-        query = (self.session.infrahub_config_path.parent / self.test.spec.path).read_text()  # type: ignore[attr-defined,union-attr]
+        query = (self.session.stash[INFRAHUB_CONFIG_PATH_KEY].parent / self.test.spec.path).read_text()  # type: ignore[union-attr]
         GraphQLQueryAnalyzer(query)
 
 

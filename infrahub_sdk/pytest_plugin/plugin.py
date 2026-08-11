@@ -7,6 +7,7 @@ import pytest
 
 from .. import InfrahubClientSync
 from ..utils import is_valid_url
+from ._stash import INFRAHUB_CLIENT_KEY, INFRAHUB_CONFIG_PATH_KEY, INFRAHUB_REPO_CONFIG_KEY
 from .loader import InfrahubYamlFile
 from .utils import find_repository_config_file, load_repository_config
 
@@ -62,13 +63,15 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    if session.config.option.infrahub_repo_config:
-        session.infrahub_config_path = Path(session.config.option.infrahub_repo_config)  # type: ignore[attr-defined]
-    else:
-        session.infrahub_config_path = find_repository_config_file()  # type: ignore[attr-defined]
+    config_path = (
+        Path(session.config.option.infrahub_repo_config)
+        if session.config.option.infrahub_repo_config
+        else find_repository_config_file()
+    )
+    session.stash[INFRAHUB_CONFIG_PATH_KEY] = config_path
 
-    if session.infrahub_config_path.is_file():  # type: ignore[attr-defined]
-        session.infrahub_repo_config = load_repository_config(repo_config_file=session.infrahub_config_path)  # type: ignore[attr-defined]
+    if config_path.is_file():
+        session.stash[INFRAHUB_REPO_CONFIG_KEY] = load_repository_config(repo_config_file=config_path)
 
     if not is_valid_url(session.config.option.infrahub_address):
         pytest.exit("Infrahub test instance address is not a valid URL", returncode=1)
@@ -84,8 +87,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
         client_config["username"] = session.config.option.infrahub_username
         client_config["password"] = session.config.option.infrahub_password
 
-    infrahub_client = InfrahubClientSync(config=client_config)
-    session.infrahub_client = infrahub_client  # type: ignore[attr-defined]
+    session.stash[INFRAHUB_CLIENT_KEY] = InfrahubClientSync(config=client_config)
 
 
 def pytest_collect_file(parent: pytest.Collector | pytest.Item, file_path: Path) -> InfrahubYamlFile | None:

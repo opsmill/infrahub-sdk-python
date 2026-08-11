@@ -7,14 +7,13 @@ from typing import TYPE_CHECKING, Any
 import pytest
 import ujson
 
+from .._stash import INFRAHUB_CONFIG_PATH_KEY
 from ..exceptions import InvalidResourceConfigError
 from ..models import InfrahubInputOutputTest
 
 if TYPE_CHECKING:
     from ...schema.repository import InfrahubRepositoryConfigElement
     from ..models import InfrahubTest
-
-_infrahub_config_path_attribute = "infrahub_config_path"
 
 
 class InfrahubItem(pytest.Item):
@@ -83,7 +82,7 @@ class InfrahubItem(pytest.Item):
         This will be an absolute path if --infrahub-config-path is an absolute path as happens when
         tests are started from within Infrahub server.
         """
-        config_path: Path = getattr(self.session, _infrahub_config_path_attribute)
+        config_path = self.session.stash[INFRAHUB_CONFIG_PATH_KEY]
         if config_path.is_absolute():
             return str(config_path.parent)
 

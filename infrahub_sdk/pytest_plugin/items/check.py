@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import ujson
 from httpx import HTTPStatusError
 
+from .._stash import INFRAHUB_CLIENT_KEY
 from ..exceptions import CheckDefinitionError, CheckResultError
 from ..models import InfrahubTestExpectedResult
 from .base import InfrahubItem
@@ -83,7 +84,7 @@ class InfrahubCheckUnitProcessItem(InfrahubCheckItem):
 
 class InfrahubCheckIntegrationItem(InfrahubCheckItem):
     def runtest(self) -> None:
-        input_data = self.session.infrahub_client.query_gql_query(  # type: ignore[attr-defined]
+        input_data = self.session.stash[INFRAHUB_CLIENT_KEY].query_gql_query(
             self.check_instance.query,
             variables=self.test.spec.get_variables_data(),  # type: ignore[union-attr]
         )

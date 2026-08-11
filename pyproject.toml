@@ -60,7 +60,7 @@ all = [
     "numpy>=1.24.2; python_version<'3.12'",
     "numpy>=1.26.2; python_version>='3.12'",
     "pyarrow>=14",
-    "pytest",
+    "pytest>=7.0",
     "pyyaml>=6",
     "ruamel.yaml>=0.18",
     "rich>=12,<14",
