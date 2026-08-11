@@ -11,7 +11,7 @@ from enum import Enum
 from functools import wraps
 from time import sleep
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, overload
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 import ujson
@@ -334,7 +334,7 @@ class BaseClient:
     ) -> str:
         url = f"{self.config.address}/graphql"
         if branch_name:
-            url += f"/{branch_name}"
+            url += f"/{quote(branch_name, safe='')}"
 
         url_params = {}
         if at:
