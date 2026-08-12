@@ -175,7 +175,7 @@ def get_node(
     return None
 
 
-@app.command()
+@app.command(short_help="Load one or multiple schema files into Infrahub.")
 @catch_exception(console=console)
 async def load(
     schemas: list[Path],
@@ -227,7 +227,7 @@ async def load(
                 await asyncio.sleep(delay=1)
 
 
-@app.command()
+@app.command(short_help="Check if schema files are valid and their impact on Infrahub.")
 @catch_exception(console=console)
 async def check(
     schemas: list[Path],
