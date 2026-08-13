@@ -5,7 +5,7 @@ import warnings
 from datetime import datetime, timezone
 from typing import Literal, TypedDict
 
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, Self
 from whenever import Date, Instant, OffsetDateTime, PlainDateTime, Time, ZonedDateTime
 
 from .exceptions import TimestampFormatError
@@ -147,7 +147,7 @@ class Timestamp:
     def __hash__(self) -> int:
         return hash(self.to_string())
 
-    def add_delta(self, hours: int = 0, minutes: int = 0, seconds: int = 0, microseconds: int = 0) -> Timestamp:
+    def add_delta(self, hours: int = 0, minutes: int = 0, seconds: int = 0, microseconds: int = 0) -> Self:
         warnings.warn(
             "add_delta() is deprecated. Use add() instead.",
             UserWarning,
@@ -168,7 +168,7 @@ class Timestamp:
         microseconds: float = 0,
         nanoseconds: int = 0,
         disambiguate: Literal["compatible"] = "compatible",
-    ) -> Timestamp:
+    ) -> Self:
         return self.__class__(
             self._obj.add(
                 years=years,
@@ -198,7 +198,7 @@ class Timestamp:
         microseconds: float = 0,
         nanoseconds: int = 0,
         disambiguate: Literal["compatible"] = "compatible",
-    ) -> Timestamp:
+    ) -> Self:
         return self.__class__(
             self._obj.subtract(
                 years=years,
