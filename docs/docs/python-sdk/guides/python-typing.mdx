@@ -7,7 +7,7 @@ import TabItem from '@theme/TabItem';
 
 # Overview
 
-This guide explains how to use Python's type system effectively with the Infrahub SDK, focusing on the use of Protocols for type-safe development.
+Use Python's type system with the Infrahub SDK to catch schema mismatches while you write code, not when it runs. This guide shows how to type your SDK calls with Protocols, generate typed classes from your own schema, and generate Pydantic models from your GraphQL queries.
 
 :::note What is Python Typing
 
@@ -101,6 +101,31 @@ my_object = client.get(MyOwnObject, name__value="example")
 ```
 
 > if you don't have your own Python module, it's possible to use relative path by having the `protocols.py` in the same directory as your script/transform/generator
+
+### Using protocols in generators and transforms
+
+Protocols make the most difference in generators, transforms, and checks, where you traverse relationships and set attributes across many object kinds. Import the generated class, pass it as the `kind` argument, and use it as a type hint:
+
+```python
+from .protocols import NetworkDevice
+
+# Passing the generated class as `kind` makes `filters()` return `list[NetworkDevice]`,
+# so `switch` is fully typed without annotating the variable yourself
+leaf_switches = await client.filters(kind=NetworkDevice, role__value="leaf", include=["interfaces"])
+
+for switch in leaf_switches:
+    switch.name.value  # autocompleted, and checked against the schema
+```
+
+### Keep protocols in sync with your schema
+
+The generated file is a build artifact: regenerate it whenever your schema changes, and commit the result. When the schema changes and you regenerate, your type checker reports every line that no longer matches the schema, so you find the mismatch while you write code instead of at runtime.
+
+Regenerate with the same command you used to create the file:
+
+```shell
+infrahubctl protocols --out lib/protocols.py
+```
 
 ## Generating Pydantic models from GraphQL queries
 
