@@ -43,7 +43,10 @@ MISSING_WATCH_MESSAGE = (
     "change. Use an empty 'files: []' to record that nothing extra needs watching."
 )
 
-INCOMPLETE_WATCH_MESSAGE = "The 'watch' block needs a 'files' list. Use 'files: []' if nothing extra needs watching."
+MALFORMED_WATCH_MESSAGE = (
+    "The 'watch' block must be a mapping. Put the watched paths under 'files', or use 'files: []' to "
+    "confirm that nothing extra needs watching."
+)
 
 # Advisory only: nothing here is enforced by the models. A YAML language server reports a missing
 # required property as a warning, which is how editors flag an absent 'watch' block while someone
@@ -51,10 +54,12 @@ INCOMPLETE_WATCH_MESSAGE = "The 'watch' block needs a 'files' list. Use 'files: 
 # json_schema_extra replace the ones pydantic generates, which would drop the real required fields.
 REQUIRE_WATCH_JSON_SCHEMA: dict[str, Any] = {"allOf": [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]}
 
-# A 'watch' block only counts as an answer once it says what to watch, so the schema narrows the
-# field to an object. That rejects the half-written 'watch:' and 'watch: null' forms, which pydantic
-# would otherwise accept through the null half of the generated anyOf.
-WATCH_FIELD_JSON_SCHEMA: dict[str, Any] = {"type": "object", "errorMessage": INCOMPLETE_WATCH_MESSAGE}
+# Narrowing the field to an object rejects a bare 'watch:' or 'watch: null', which pydantic accepts
+# through the null half of the generated anyOf. Those forms leave 'watch' as None, indistinguishable
+# from never having declared it, so the acknowledgement the block exists to record is lost. An empty
+# 'watch: {}' is deliberately fine: 'files' defaults to an empty list, so it carries that
+# acknowledgement without the author having to spell the key out.
+WATCH_FIELD_JSON_SCHEMA: dict[str, Any] = {"type": "object", "errorMessage": MALFORMED_WATCH_MESSAGE}
 
 
 class InfrahubWatchConfig(BaseModel):
@@ -64,12 +69,12 @@ class InfrahubWatchConfig(BaseModel):
     depends on files that cannot be detected automatically, such as templates pulled in dynamically
     or helper modules imported at runtime. When any watched file changes, the transform's artifacts
     are regenerated.
+
+    An empty 'files' list is a valid answer: it records that the author checked and nothing beyond
+    what Infrahub detects needs watching.
     """
 
-    model_config = ConfigDict(
-        extra="forbid",
-        json_schema_extra={"allOf": [{"required": ["files"], "errorMessage": INCOMPLETE_WATCH_MESSAGE}]},
-    )
+    model_config = ConfigDict(extra="forbid")
     files: list[str] = Field(
         default_factory=list,
         description="Files or directories the transform depends on, relative to the repository root. A directory watches every file beneath it.",

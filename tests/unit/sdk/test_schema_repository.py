@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNotFoundError, ResourceNotDefinedError
 from infrahub_sdk.schema.repository import (
-    INCOMPLETE_WATCH_MESSAGE,
+    MALFORMED_WATCH_MESSAGE,
     MISSING_WATCH_MESSAGE,
     InfrahubGeneratorDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -479,12 +479,12 @@ def missing_watch_paths(document: dict[str, Any]) -> list[str]:
     ]
 
 
-def incomplete_watch_paths(document: dict[str, Any]) -> list[str]:
+def flagged_watch_paths(document: dict[str, Any]) -> list[str]:
     """'watch' blocks in ``document`` the schema flags for not saying what to watch.
 
-    Anchored on the location rather than the keyword: a bare 'watch:' trips the object type, while
-    'watch: {}' trips the nested 'files' requirement, and both mean the same thing to the author.
-    Duplicates are collapsed because one malformed block can fail several keywords at once.
+    Anchored on the location rather than the keyword, so it covers both a block that omits 'files'
+    and a value that is not a mapping at all. Duplicates are collapsed because one malformed block
+    can fail several keywords at once.
     """
     paths = [
         "/".join(str(part) for part in error.absolute_path)
@@ -499,7 +499,7 @@ class WatchWarningCase:
     name: str
     document: dict[str, Any]
     missing: list[str] = field(default_factory=list)
-    incomplete: list[str] = field(default_factory=list)
+    flagged: list[str] = field(default_factory=list)
 
 
 WATCH_WARNING_CASES = [
@@ -524,22 +524,25 @@ WATCH_WARNING_CASES = [
     WatchWarningCase(
         name="bare-watch-key-is-not-an-answer",
         document={"python_transforms": [PYTHON_TRANSFORM | {"watch": None}]},
-        incomplete=["python_transforms/0/watch"],
+        flagged=["python_transforms/0/watch"],
     ),
     WatchWarningCase(
-        name="watch-block-without-files",
+        name="empty-watch-block-is-a-deliberate-choice",
         document={"python_transforms": [PYTHON_TRANSFORM | {"watch": {}}]},
-        incomplete=["python_transforms/0/watch"],
     ),
     WatchWarningCase(
-        name="generator-watch-block-without-files",
+        name="empty-generator-watch-block-is-a-deliberate-choice",
         document={"generator_definitions": [GENERATOR | {"watch": {}}]},
-        incomplete=["generator_definitions/0/watch"],
     ),
     WatchWarningCase(
-        name="jinja2-incomplete-watch-is-still-flagged",
-        document={"jinja2_transforms": [JINJA2_TRANSFORM | {"watch": {}}]},
-        incomplete=["jinja2_transforms/0/watch"],
+        name="watch-as-a-bare-list",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": ["lib/"]}]},
+        flagged=["python_transforms/0/watch"],
+    ),
+    WatchWarningCase(
+        name="watch-as-a-string",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": "lib/"}]},
+        flagged=["python_transforms/0/watch"],
     ),
     WatchWarningCase(
         name="python-transform-with-watch",
@@ -567,7 +570,7 @@ WATCH_WARNING_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in WATCH_WARNING_CASES])
 def test_watch_warnings_flagged_by_json_schema(case: WatchWarningCase) -> None:
     assert missing_watch_paths(case.document) == case.missing
-    assert incomplete_watch_paths(case.document) == case.incomplete
+    assert flagged_watch_paths(case.document) == case.flagged
 
 
 def test_watch_warnings_carry_their_guidance_messages() -> None:
@@ -579,11 +582,26 @@ def test_watch_warnings_carry_their_guidance_messages() -> None:
     defs = InfrahubRepositoryConfig.model_json_schema()["$defs"]
     for name in ("InfrahubPythonTransformConfig", "InfrahubGeneratorDefinitionConfig"):
         assert defs[name]["allOf"] == [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]
-    assert defs["InfrahubWatchConfig"]["allOf"] == [{"required": ["files"], "errorMessage": INCOMPLETE_WATCH_MESSAGE}]
     for name in ("InfrahubPythonTransformConfig", "InfrahubGeneratorDefinitionConfig", "InfrahubJinja2TransformConfig"):
         watch = defs[name]["properties"]["watch"]
         assert watch["type"] == "object"
-        assert watch["errorMessage"] == INCOMPLETE_WATCH_MESSAGE
+        assert watch["errorMessage"] == MALFORMED_WATCH_MESSAGE
+
+
+def test_empty_watch_block_records_the_acknowledgement_a_bare_key_does_not() -> None:
+    """The runtime difference is the whole reason only one of the two forms warns.
+
+    'files' defaults to an empty list, so 'watch: {}' still produces a watch config and carries the
+    author's "nothing extra needs watching" either way. A bare 'watch:' parses to None, which is
+    indistinguishable from never having declared it, so nothing is recorded and the schema flags it.
+    Collapsing that difference would make one of the two warnings wrong.
+    """
+    empty_block = InfrahubPythonTransformConfig.model_validate(PYTHON_TRANSFORM | {"watch": {}})
+    bare_key = InfrahubPythonTransformConfig.model_validate(PYTHON_TRANSFORM | {"watch": None})
+
+    assert empty_block.watch is not None
+    assert empty_block.watch.files == []
+    assert bare_key.watch is None
 
 
 def test_genuine_required_fields_survive_alongside_the_watch_warning() -> None:
