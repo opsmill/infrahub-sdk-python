@@ -43,11 +43,18 @@ MISSING_WATCH_MESSAGE = (
     "change. Use an empty 'files: []' to record that nothing extra needs watching."
 )
 
+INCOMPLETE_WATCH_MESSAGE = "The 'watch' block needs a 'files' list. Use 'files: []' if nothing extra needs watching."
+
 # Advisory only: nothing here is enforced by the models. A YAML language server reports a missing
 # required property as a warning, which is how editors flag an absent 'watch' block while someone
 # edits .infrahub.yml. 'allOf' is used rather than a top-level 'required' because keys in
 # json_schema_extra replace the ones pydantic generates, which would drop the real required fields.
 REQUIRE_WATCH_JSON_SCHEMA: dict[str, Any] = {"allOf": [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]}
+
+# A 'watch' block only counts as an answer once it says what to watch, so the schema narrows the
+# field to an object. That rejects the half-written 'watch:' and 'watch: null' forms, which pydantic
+# would otherwise accept through the null half of the generated anyOf.
+WATCH_FIELD_JSON_SCHEMA: dict[str, Any] = {"type": "object", "errorMessage": INCOMPLETE_WATCH_MESSAGE}
 
 
 class InfrahubWatchConfig(BaseModel):
@@ -59,7 +66,10 @@ class InfrahubWatchConfig(BaseModel):
     are regenerated.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"allOf": [{"required": ["files"], "errorMessage": INCOMPLETE_WATCH_MESSAGE}]},
+    )
     files: list[str] = Field(
         default_factory=list,
         description="Files or directories the transform depends on, relative to the repository root. A directory watches every file beneath it.",
@@ -74,6 +84,7 @@ class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
     description: str | None = Field(default=None, description="Description for this transform")
     watch: InfrahubWatchConfig | None = Field(
         default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
         description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
     )
 
@@ -146,6 +157,7 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
     )
     watch: InfrahubWatchConfig | None = Field(
         default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
         description="Extra files and directories this generator depends on, in addition to the ones Infrahub detects automatically.",
     )
 
@@ -176,6 +188,7 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
     description: str | None = Field(default=None, description="Description for this transform")
     watch: InfrahubWatchConfig | None = Field(
         default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
         description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
     )
 

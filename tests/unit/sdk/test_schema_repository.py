@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNotFoundError, ResourceNotDefinedError
 from infrahub_sdk.schema.repository import (
+    INCOMPLETE_WATCH_MESSAGE,
     MISSING_WATCH_MESSAGE,
     InfrahubGeneratorDefinitionConfig,
     InfrahubJinja2TransformConfig,
@@ -446,47 +447,71 @@ def test_generator_watch_list_form_rejected() -> None:
 # --- Advisory 'watch' warning carried by the generated JSON schema ---
 #
 # The JSON schema generated from InfrahubRepositoryConfig is published to the infrahub-jsonschema
-# repository, where YAML language servers use it to validate .infrahub.yml while it is edited.
-# Python transforms and generators declare 'watch' as a required property purely so that editors
-# warn when it is absent. The models themselves keep 'watch' optional, so these tests pin the split:
-# the JSON schema nudges, the runtime stays permissive.
+# repository, where YAML language servers use it to validate .infrahub.yml while it is edited. Two
+# advisory rules exist purely so editors can nudge:
+#
+#   - Python transforms and generators declare 'watch' as required, flagging an absent block.
+#   - A 'watch' block must be an object carrying 'files', flagging the half-written 'watch:',
+#     'watch: null' and 'watch: {}' forms that would otherwise pass as an answer.
+#
+# Neither rule is enforced by the models, so these tests pin the split: the JSON schema nudges, the
+# runtime stays permissive. 'files: []' is a deliberate "nothing extra to watch" and stays clean.
 
 PYTHON_TRANSFORM = {"name": "device_config", "file_path": "transforms/device.py"}
 GENERATOR = {"name": "build_interfaces", "file_path": "generators/iface.py", "query": "q", "targets": "grp"}
 JINJA2_TRANSFORM = {"name": "device_config", "query": "q", "template_path": "templates/device.j2"}
 
 
+def _validation_errors(document: dict[str, Any]) -> list[Any]:
+    return list(Draft202012Validator(InfrahubRepositoryConfig.model_json_schema()).iter_errors(document))
+
+
 def missing_watch_paths(document: dict[str, Any]) -> list[str]:
-    """Locations in ``document`` the generated JSON schema flags for having no 'watch' block.
+    """Definitions in ``document`` the schema flags for having no 'watch' block at all.
 
     Filtering on ``validator_value`` isolates the advisory requirement from the genuine required
     fields, so an unrelated omission elsewhere in the document cannot be mistaken for a watch warning.
     """
-    validator = Draft202012Validator(InfrahubRepositoryConfig.model_json_schema())
     return [
         "/".join(str(part) for part in error.absolute_path)
-        for error in validator.iter_errors(document)
+        for error in _validation_errors(document)
         if error.validator == "required" and error.validator_value == ["watch"]
     ]
+
+
+def incomplete_watch_paths(document: dict[str, Any]) -> list[str]:
+    """'watch' blocks in ``document`` the schema flags for not saying what to watch.
+
+    Anchored on the location rather than the keyword: a bare 'watch:' trips the object type, while
+    'watch: {}' trips the nested 'files' requirement, and both mean the same thing to the author.
+    Duplicates are collapsed because one malformed block can fail several keywords at once.
+    """
+    paths = [
+        "/".join(str(part) for part in error.absolute_path)
+        for error in _validation_errors(document)
+        if error.absolute_path and error.absolute_path[-1] == "watch"
+    ]
+    return list(dict.fromkeys(paths))
 
 
 @dataclass
 class WatchWarningCase:
     name: str
     document: dict[str, Any]
-    expected_paths: list[str] = field(default_factory=list)
+    missing: list[str] = field(default_factory=list)
+    incomplete: list[str] = field(default_factory=list)
 
 
 WATCH_WARNING_CASES = [
     WatchWarningCase(
         name="python-transform-without-watch",
         document={"python_transforms": [PYTHON_TRANSFORM]},
-        expected_paths=["python_transforms/0"],
+        missing=["python_transforms/0"],
     ),
     WatchWarningCase(
         name="generator-without-watch",
         document={"generator_definitions": [GENERATOR]},
-        expected_paths=["generator_definitions/0"],
+        missing=["generator_definitions/0"],
     ),
     WatchWarningCase(
         name="each-entry-flagged-independently",
@@ -494,7 +519,27 @@ WATCH_WARNING_CASES = [
             "python_transforms": [PYTHON_TRANSFORM | {"watch": {"files": ["lib/"]}}, PYTHON_TRANSFORM],
             "generator_definitions": [GENERATOR],
         },
-        expected_paths=["python_transforms/1", "generator_definitions/0"],
+        missing=["python_transforms/1", "generator_definitions/0"],
+    ),
+    WatchWarningCase(
+        name="bare-watch-key-is-not-an-answer",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": None}]},
+        incomplete=["python_transforms/0/watch"],
+    ),
+    WatchWarningCase(
+        name="watch-block-without-files",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": {}}]},
+        incomplete=["python_transforms/0/watch"],
+    ),
+    WatchWarningCase(
+        name="generator-watch-block-without-files",
+        document={"generator_definitions": [GENERATOR | {"watch": {}}]},
+        incomplete=["generator_definitions/0/watch"],
+    ),
+    WatchWarningCase(
+        name="jinja2-incomplete-watch-is-still-flagged",
+        document={"jinja2_transforms": [JINJA2_TRANSFORM | {"watch": {}}]},
+        incomplete=["jinja2_transforms/0/watch"],
     ),
     WatchWarningCase(
         name="python-transform-with-watch",
@@ -509,7 +554,7 @@ WATCH_WARNING_CASES = [
         document={"python_transforms": [PYTHON_TRANSFORM | {"watch": {"files": []}}]},
     ),
     WatchWarningCase(
-        name="jinja2-transform-is-out-of-scope",
+        name="jinja2-transform-without-watch-is-out-of-scope",
         document={"jinja2_transforms": [JINJA2_TRANSFORM]},
     ),
     WatchWarningCase(
@@ -520,19 +565,25 @@ WATCH_WARNING_CASES = [
 
 
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in WATCH_WARNING_CASES])
-def test_missing_watch_flagged_by_json_schema(case: WatchWarningCase) -> None:
-    assert missing_watch_paths(case.document) == case.expected_paths
+def test_watch_warnings_flagged_by_json_schema(case: WatchWarningCase) -> None:
+    assert missing_watch_paths(case.document) == case.missing
+    assert incomplete_watch_paths(case.document) == case.incomplete
 
 
-def test_watch_warning_carries_the_guidance_message() -> None:
-    """Both definitions ship 'errorMessage', which is what a YAML language server displays.
+def test_watch_warnings_carry_their_guidance_messages() -> None:
+    """Both rules ship 'errorMessage', which is what a YAML language server displays.
 
-    Without it editors fall back to a bare `Missing property "watch"`, which does not tell anyone
-    why they should care.
+    Without them editors fall back to a bare `Missing property "watch"` or `Incorrect type`, neither
+    of which tells anyone why they should care.
     """
     defs = InfrahubRepositoryConfig.model_json_schema()["$defs"]
     for name in ("InfrahubPythonTransformConfig", "InfrahubGeneratorDefinitionConfig"):
         assert defs[name]["allOf"] == [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]
+    assert defs["InfrahubWatchConfig"]["allOf"] == [{"required": ["files"], "errorMessage": INCOMPLETE_WATCH_MESSAGE}]
+    for name in ("InfrahubPythonTransformConfig", "InfrahubGeneratorDefinitionConfig", "InfrahubJinja2TransformConfig"):
+        watch = defs[name]["properties"]["watch"]
+        assert watch["type"] == "object"
+        assert watch["errorMessage"] == INCOMPLETE_WATCH_MESSAGE
 
 
 def test_genuine_required_fields_survive_alongside_the_watch_warning() -> None:
@@ -546,14 +597,35 @@ def test_genuine_required_fields_survive_alongside_the_watch_warning() -> None:
     assert defs["InfrahubGeneratorDefinitionConfig"]["required"] == ["name", "file_path", "query", "targets"]
 
 
+def test_watch_field_keeps_its_nullable_reference() -> None:
+    """Narrowing the field to an object must not replace the reference pydantic generates.
+
+    The 'type' keyword sits alongside the anyOf so a well-formed block still validates against
+    InfrahubWatchConfig, which is what drives editor completion inside the block.
+    """
+    watch = InfrahubRepositoryConfig.model_json_schema()["$defs"]["InfrahubPythonTransformConfig"]["properties"][
+        "watch"
+    ]
+    assert watch["anyOf"] == [{"$ref": "#/$defs/InfrahubWatchConfig"}, {"type": "null"}]
+
+
 def test_repository_json_schema_is_a_valid_draft_2020_12_schema() -> None:
     Draft202012Validator.check_schema(InfrahubRepositoryConfig.model_json_schema())
 
 
-def test_missing_watch_stays_valid_at_runtime() -> None:
-    """The warning is editor-only: parsing a config without 'watch' must keep working."""
+@pytest.mark.parametrize(
+    "watch",
+    [pytest.param(None, id="watch-omitted"), pytest.param({"watch": None}, id="watch-explicitly-null")],
+)
+def test_incomplete_watch_stays_valid_at_runtime(watch: dict[str, Any] | None) -> None:
+    """The warnings are editor-only.
+
+    The schema is deliberately stricter than the models here, so parsing a config the editor warns
+    about must keep working.
+    """
+    extra = watch or {}
     config = InfrahubRepositoryConfig.model_validate(
-        {"python_transforms": [PYTHON_TRANSFORM], "generator_definitions": [GENERATOR]}
+        {"python_transforms": [PYTHON_TRANSFORM | extra], "generator_definitions": [GENERATOR | extra]}
     )
     assert config.python_transforms[0].watch is None
     assert config.generator_definitions[0].watch is None
