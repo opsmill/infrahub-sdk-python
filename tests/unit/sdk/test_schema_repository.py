@@ -1,11 +1,15 @@
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from infrahub_sdk.exceptions import FragmentFileNotFoundError, RepositoryFileNotFoundError, ResourceNotDefinedError
 from infrahub_sdk.schema.repository import (
+    MISSING_WATCH_MESSAGE,
     InfrahubGeneratorDefinitionConfig,
     InfrahubJinja2TransformConfig,
     InfrahubPythonTransformConfig,
@@ -437,3 +441,119 @@ def test_generator_watch_list_form_rejected() -> None:
                 "watch": ["a", "b"],
             }
         )
+
+
+# --- Advisory 'watch' warning carried by the generated JSON schema ---
+#
+# The JSON schema generated from InfrahubRepositoryConfig is published to the infrahub-jsonschema
+# repository, where YAML language servers use it to validate .infrahub.yml while it is edited.
+# Python transforms and generators declare 'watch' as a required property purely so that editors
+# warn when it is absent. The models themselves keep 'watch' optional, so these tests pin the split:
+# the JSON schema nudges, the runtime stays permissive.
+
+PYTHON_TRANSFORM = {"name": "device_config", "file_path": "transforms/device.py"}
+GENERATOR = {"name": "build_interfaces", "file_path": "generators/iface.py", "query": "q", "targets": "grp"}
+JINJA2_TRANSFORM = {"name": "device_config", "query": "q", "template_path": "templates/device.j2"}
+
+
+def missing_watch_paths(document: dict[str, Any]) -> list[str]:
+    """Locations in ``document`` the generated JSON schema flags for having no 'watch' block.
+
+    Filtering on ``validator_value`` isolates the advisory requirement from the genuine required
+    fields, so an unrelated omission elsewhere in the document cannot be mistaken for a watch warning.
+    """
+    validator = Draft202012Validator(InfrahubRepositoryConfig.model_json_schema())
+    return [
+        "/".join(str(part) for part in error.absolute_path)
+        for error in validator.iter_errors(document)
+        if error.validator == "required" and error.validator_value == ["watch"]
+    ]
+
+
+@dataclass
+class WatchWarningCase:
+    name: str
+    document: dict[str, Any]
+    expected_paths: list[str] = field(default_factory=list)
+
+
+WATCH_WARNING_CASES = [
+    WatchWarningCase(
+        name="python-transform-without-watch",
+        document={"python_transforms": [PYTHON_TRANSFORM]},
+        expected_paths=["python_transforms/0"],
+    ),
+    WatchWarningCase(
+        name="generator-without-watch",
+        document={"generator_definitions": [GENERATOR]},
+        expected_paths=["generator_definitions/0"],
+    ),
+    WatchWarningCase(
+        name="each-entry-flagged-independently",
+        document={
+            "python_transforms": [PYTHON_TRANSFORM | {"watch": {"files": ["lib/"]}}, PYTHON_TRANSFORM],
+            "generator_definitions": [GENERATOR],
+        },
+        expected_paths=["python_transforms/1", "generator_definitions/0"],
+    ),
+    WatchWarningCase(
+        name="python-transform-with-watch",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": {"files": ["lib/helpers.py"]}}]},
+    ),
+    WatchWarningCase(
+        name="generator-with-watch",
+        document={"generator_definitions": [GENERATOR | {"watch": {"files": ["lib/"]}}]},
+    ),
+    WatchWarningCase(
+        name="empty-files-list-is-a-deliberate-choice",
+        document={"python_transforms": [PYTHON_TRANSFORM | {"watch": {"files": []}}]},
+    ),
+    WatchWarningCase(
+        name="jinja2-transform-is-out-of-scope",
+        document={"jinja2_transforms": [JINJA2_TRANSFORM]},
+    ),
+    WatchWarningCase(
+        name="check-definition-has-no-watch-to-warn-about",
+        document={"check_definitions": [{"name": "my_check", "file_path": "check.py"}]},
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in WATCH_WARNING_CASES])
+def test_missing_watch_flagged_by_json_schema(case: WatchWarningCase) -> None:
+    assert missing_watch_paths(case.document) == case.expected_paths
+
+
+def test_watch_warning_carries_the_guidance_message() -> None:
+    """Both definitions ship 'errorMessage', which is what a YAML language server displays.
+
+    Without it editors fall back to a bare `Missing property "watch"`, which does not tell anyone
+    why they should care.
+    """
+    defs = InfrahubRepositoryConfig.model_json_schema()["$defs"]
+    for name in ("InfrahubPythonTransformConfig", "InfrahubGeneratorDefinitionConfig"):
+        assert defs[name]["allOf"] == [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]
+
+
+def test_genuine_required_fields_survive_alongside_the_watch_warning() -> None:
+    """The advisory requirement must not displace the fields pydantic marks as required.
+
+    Declaring it through a top-level 'required' in json_schema_extra would overwrite the generated
+    list, silently making genuinely mandatory fields optional in the published schema.
+    """
+    defs = InfrahubRepositoryConfig.model_json_schema()["$defs"]
+    assert defs["InfrahubPythonTransformConfig"]["required"] == ["name", "file_path"]
+    assert defs["InfrahubGeneratorDefinitionConfig"]["required"] == ["name", "file_path", "query", "targets"]
+
+
+def test_repository_json_schema_is_a_valid_draft_2020_12_schema() -> None:
+    Draft202012Validator.check_schema(InfrahubRepositoryConfig.model_json_schema())
+
+
+def test_missing_watch_stays_valid_at_runtime() -> None:
+    """The warning is editor-only: parsing a config without 'watch' must keep working."""
+    config = InfrahubRepositoryConfig.model_validate(
+        {"python_transforms": [PYTHON_TRANSFORM], "generator_definitions": [GENERATOR]}
+    )
+    assert config.python_transforms[0].watch is None
+    assert config.generator_definitions[0].watch is None

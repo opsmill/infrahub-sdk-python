@@ -37,6 +37,19 @@ class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement
     transformation: str = Field(..., description="The transformation to use.")
 
 
+MISSING_WATCH_MESSAGE = (
+    "Missing 'watch' block. Infrahub cannot detect every file this depends on, so list templates, "
+    "helper modules and data files under 'watch.files' to have the results regenerated when they "
+    "change. Use an empty 'files: []' to record that nothing extra needs watching."
+)
+
+# Advisory only: nothing here is enforced by the models. A YAML language server reports a missing
+# required property as a warning, which is how editors flag an absent 'watch' block while someone
+# edits .infrahub.yml. 'allOf' is used rather than a top-level 'required' because keys in
+# json_schema_extra replace the ones pydantic generates, which would drop the real required fields.
+REQUIRE_WATCH_JSON_SCHEMA: dict[str, Any] = {"allOf": [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]}
+
+
 class InfrahubWatchConfig(BaseModel):
     """Extra files and directories a transform depends on.
 
@@ -102,7 +115,7 @@ class InfrahubCheckDefinitionConfig(InfrahubRepositoryConfigElement):
 
 
 class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=REQUIRE_WATCH_JSON_SCHEMA)
 
     name: str = Field(..., description="The name of the Generator Definition")
     file_path: Path = Field(..., description="The file within the repository with the generator code.")
@@ -151,7 +164,7 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
 
 
 class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=REQUIRE_WATCH_JSON_SCHEMA)
 
     name: str = Field(..., description="The name of the Transform")
     file_path: Path = Field(..., description="The file within the repository with the transform code.")
