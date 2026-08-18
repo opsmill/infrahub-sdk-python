@@ -73,6 +73,7 @@ all = [
 # Core optional dependencies
 tests = [
     "infrahub-testcontainers>=1.7.3",
+    "jsonschema>=4.25.1",
     "pytest>=9.0,<9.1",
     "pytest-asyncio>=1.3,<1.4",
     "pytest-clarity>=1.0.1",
