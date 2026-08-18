@@ -451,11 +451,12 @@ def test_generator_watch_list_form_rejected() -> None:
 # advisory rules exist purely so editors can nudge:
 #
 #   - Python transforms and generators declare 'watch' as required, flagging an absent block.
-#   - A 'watch' block must be an object carrying 'files', flagging the half-written 'watch:',
-#     'watch: null' and 'watch: {}' forms that would otherwise pass as an answer.
+#   - A 'watch' value must be a mapping, flagging the bare 'watch:' and 'watch: null' forms that
+#     parse to None and so record nothing, along with any other non-mapping value.
 #
 # Neither rule is enforced by the models, so these tests pin the split: the JSON schema nudges, the
-# runtime stays permissive. 'files: []' is a deliberate "nothing extra to watch" and stays clean.
+# runtime stays permissive. Any mapping stays clean, including an empty 'watch: {}' and an explicit
+# 'files: []': both record that the author checked and nothing extra needs watching.
 
 PYTHON_TRANSFORM = {"name": "device_config", "file_path": "transforms/device.py"}
 GENERATOR = {"name": "build_interfaces", "file_path": "generators/iface.py", "query": "q", "targets": "grp"}
@@ -480,11 +481,10 @@ def missing_watch_paths(document: dict[str, Any]) -> list[str]:
 
 
 def flagged_watch_paths(document: dict[str, Any]) -> list[str]:
-    """'watch' blocks in ``document`` the schema flags for not saying what to watch.
+    """'watch' values in ``document`` the schema flags for not being a mapping.
 
-    Anchored on the location rather than the keyword, so it covers both a block that omits 'files'
-    and a value that is not a mapping at all. Duplicates are collapsed because one malformed block
-    can fail several keywords at once.
+    Anchored on the location rather than the keyword, so it catches every non-mapping value however
+    it fails. Duplicates are collapsed because one such value can fail several keywords at once.
     """
     paths = [
         "/".join(str(part) for part in error.absolute_path)
@@ -635,7 +635,7 @@ def test_repository_json_schema_is_a_valid_draft_2020_12_schema() -> None:
     "watch",
     [pytest.param(None, id="watch-omitted"), pytest.param({"watch": None}, id="watch-explicitly-null")],
 )
-def test_incomplete_watch_stays_valid_at_runtime(watch: dict[str, Any] | None) -> None:
+def test_warned_about_watch_forms_stay_valid_at_runtime(watch: dict[str, Any] | None) -> None:
     """The warnings are editor-only.
 
     The schema is deliberately stricter than the models here, so parsing a config the editor warns
