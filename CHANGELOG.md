@@ -11,6 +11,13 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.22.3](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.3) - 2026-08-19
+
+### Fixed
+
+- Register the `infrahub_integration` pytest marker under its real name. It was registered as `infrahub_integraton`, so integration tests raised a `PytestUnknownMarkWarning` on every run and failed to collect under `--strict-markers`. ([#1231](https://github.com/opsmill/infrahub-sdk-python/issues/1231))
+- Fixed the `load` and `check` command descriptions in the `infrahubctl schema` help output and generated docs, which were cut off mid-sentence.
+
 ## [1.22.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.22.2) - 2026-07-27
 
 ### Added
