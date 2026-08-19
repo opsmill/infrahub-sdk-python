@@ -1,6 +1,6 @@
 [project]
 name = "infrahub-sdk"
-version = "1.22.2"
+version = "1.22.3"
 description = "Python Client to interact with Infrahub"
 authors = [
     {name = "OpsMill", email = "info@opsmill.com"}
