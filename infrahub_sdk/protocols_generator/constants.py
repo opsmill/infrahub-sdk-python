@@ -17,6 +17,7 @@ ATTRIBUTE_KIND_MAP = {
     "Bandwidth": "Integer",
     "IPHost": "IPHost",
     "IPNetwork": "IPNetwork",
+    "IPAddress": "IPAddress",
     "Boolean": "Boolean",
     "Checkbox": "Boolean",
     "List": "ListAttribute",

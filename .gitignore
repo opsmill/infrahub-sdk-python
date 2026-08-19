@@ -30,7 +30,13 @@ dist/*
 
 # Generated files
 generated/
+# Committed, generated schema models (write/read variants) must be version-controlled.
+!infrahub_sdk/schema/generated/
+!infrahub_sdk/schema/generated/*.py
 sandbox/
+
+# hatch-vcs version file (written at build time; must not be tracked)
+infrahub_sdk/_version.py
 
 # SpecKit internal cache
 .specify/**/.cache/

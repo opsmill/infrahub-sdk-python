@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipKind, SchemaRoot
+from infrahub_sdk.schema.main import AttributeKind, NodeSchema, RelationshipCardinality, RelationshipKind, SchemaRoot
 from infrahub_sdk.schema.main import AttributeSchema as Attr
 from infrahub_sdk.schema.main import RelationshipSchema as Rel
 
@@ -57,7 +57,13 @@ class SchemaCarPerson:
                 Attr(name="age", kind=AttributeKind.NUMBER, optional=True),
             ],
             relationships=[
-                Rel(name="cars", kind=RelationshipKind.GENERIC, optional=True, peer=TESTING_CAR, cardinality="many")
+                Rel(
+                    name="cars",
+                    kind=RelationshipKind.GENERIC,
+                    optional=True,
+                    peer=TESTING_CAR,
+                    cardinality=RelationshipCardinality.MANY,
+                )
             ],
         )
 
@@ -81,21 +87,21 @@ class SchemaCarPerson:
                     kind=RelationshipKind.ATTRIBUTE,
                     optional=False,
                     peer=TESTING_PERSON,
-                    cardinality="one",
+                    cardinality=RelationshipCardinality.ONE,
                 ),
                 Rel(
                     name="manufacturer",
                     kind=RelationshipKind.ATTRIBUTE,
                     optional=False,
                     peer=TESTING_MANUFACTURER,
-                    cardinality="one",
+                    cardinality=RelationshipCardinality.ONE,
                     identifier="car__manufacturer",
                 ),
                 Rel(
                     name="tags",
                     optional=True,
                     peer=BUILTIN_TAG,
-                    cardinality="many",
+                    cardinality=RelationshipCardinality.MANY,
                 ),
             ],
         )
@@ -118,7 +124,7 @@ class SchemaCarPerson:
                     kind=RelationshipKind.GENERIC,
                     optional=True,
                     peer=TESTING_CAR,
-                    cardinality="many",
+                    cardinality=RelationshipCardinality.MANY,
                     identifier="car__manufacturer",
                 ),
                 Rel(
@@ -126,7 +132,7 @@ class SchemaCarPerson:
                     kind=RelationshipKind.GENERIC,
                     optional=True,
                     peer=TESTING_PERSON,
-                    cardinality="many",
+                    cardinality=RelationshipCardinality.MANY,
                     identifier="person__manufacturer",
                 ),
             ],

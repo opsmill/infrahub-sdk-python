@@ -151,6 +151,10 @@ class CoreGroup(CoreNode):
     children: RelationshipManager
 
 
+class CoreIPPool(CoreNode):
+    pass
+
+
 class CoreKeyValue(CoreNode):
     name: String
     key: String
@@ -212,9 +216,13 @@ class CoreTransformation(CoreNode):
     label: StringOptional
     description: StringOptional
     timeout: Integer
+    fingerprint: StringOptional
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
     query: RelatedNode
     repository: RelatedNode
     tags: RelationshipManager
+    artifact_definitions: RelationshipManager
 
 
 class CoreTriggerRule(CoreNode):
@@ -269,6 +277,7 @@ class CoreAccount(LineageOwner, LineageSource, CoreGenericAccount):
 
 
 class CoreAccountGroup(LineageOwner, LineageSource, CoreGroup):
+    origin: StringOptional
     roles: RelationshipManager
 
 
@@ -303,8 +312,11 @@ class CoreArtifactDefinition(CoreTaskTarget):
     description: StringOptional
     parameters: JSONAttribute
     content_type: Enum
+    fingerprint: StringOptional
     targets: RelatedNode
     transformation: RelatedNode
+    artifacts: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreArtifactThread(CoreThread):
@@ -336,6 +348,7 @@ class CoreCheckDefinition(CoreTaskTarget):
     query: RelatedNode
     targets: RelatedNode
     tags: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreCustomWebhook(CoreWebhook, CoreTaskTarget):
@@ -390,9 +403,14 @@ class CoreGeneratorDefinition(CoreTaskTarget):
     convert_query_response: BooleanOptional
     execute_in_proposed_change: BooleanOptional
     execute_after_merge: BooleanOptional
+    fingerprint: StringOptional
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
     query: RelatedNode
     repository: RelatedNode
     targets: RelatedNode
+    instances: RelationshipManager
+    validators: RelationshipManager
 
 
 class CoreGeneratorGroup(CoreGroup):
@@ -419,6 +437,7 @@ class CoreGraphQLQuery(CoreNode):
     name: String
     description: StringOptional
     query: String
+    fingerprint: StringOptional
     variables: JSONAttributeOptional
     operations: ListAttributeOptional
     models: ListAttributeOptional
@@ -426,6 +445,7 @@ class CoreGraphQLQuery(CoreNode):
     height: IntegerOptional
     repository: RelatedNode
     tags: RelationshipManager
+    query_groups: RelationshipManager
 
 
 class CoreGraphQLQueryGroup(CoreGroup):
@@ -443,14 +463,14 @@ class CoreGroupTriggerRule(CoreTriggerRule):
     group: RelatedNode
 
 
-class CoreIPAddressPool(CoreResourcePool, LineageSource):
+class CoreIPAddressPool(CoreResourcePool, LineageSource, CoreIPPool):
     default_address_type: String
     default_prefix_length: IntegerOptional
     resources: RelationshipManager
     ip_namespace: RelatedNode
 
 
-class CoreIPPrefixPool(CoreResourcePool, LineageSource):
+class CoreIPPrefixPool(CoreResourcePool, LineageSource, CoreIPPool):
     default_prefix_length: IntegerOptional
     default_member_type: Enum
     default_prefix_type: StringOptional
@@ -736,6 +756,10 @@ class CoreGroupSync(CoreNodeSync):
     children: RelationshipManagerSync
 
 
+class CoreIPPoolSync(CoreNodeSync):
+    pass
+
+
 class CoreKeyValueSync(CoreNodeSync):
     name: String
     key: String
@@ -797,9 +821,13 @@ class CoreTransformationSync(CoreNodeSync):
     label: StringOptional
     description: StringOptional
     timeout: Integer
+    fingerprint: StringOptional
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
     query: RelatedNodeSync
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
+    artifact_definitions: RelationshipManagerSync
 
 
 class CoreTriggerRuleSync(CoreNodeSync):
@@ -854,6 +882,7 @@ class CoreAccountSync(LineageOwnerSync, LineageSourceSync, CoreGenericAccountSyn
 
 
 class CoreAccountGroupSync(LineageOwnerSync, LineageSourceSync, CoreGroupSync):
+    origin: StringOptional
     roles: RelationshipManagerSync
 
 
@@ -888,8 +917,11 @@ class CoreArtifactDefinitionSync(CoreTaskTargetSync):
     description: StringOptional
     parameters: JSONAttribute
     content_type: Enum
+    fingerprint: StringOptional
     targets: RelatedNodeSync
     transformation: RelatedNodeSync
+    artifacts: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreArtifactThreadSync(CoreThreadSync):
@@ -921,6 +953,7 @@ class CoreCheckDefinitionSync(CoreTaskTargetSync):
     query: RelatedNodeSync
     targets: RelatedNodeSync
     tags: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreCustomWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
@@ -975,9 +1008,14 @@ class CoreGeneratorDefinitionSync(CoreTaskTargetSync):
     convert_query_response: BooleanOptional
     execute_in_proposed_change: BooleanOptional
     execute_after_merge: BooleanOptional
+    fingerprint: StringOptional
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
     query: RelatedNodeSync
     repository: RelatedNodeSync
     targets: RelatedNodeSync
+    instances: RelationshipManagerSync
+    validators: RelationshipManagerSync
 
 
 class CoreGeneratorGroupSync(CoreGroupSync):
@@ -1004,6 +1042,7 @@ class CoreGraphQLQuerySync(CoreNodeSync):
     name: String
     description: StringOptional
     query: String
+    fingerprint: StringOptional
     variables: JSONAttributeOptional
     operations: ListAttributeOptional
     models: ListAttributeOptional
@@ -1011,6 +1050,7 @@ class CoreGraphQLQuerySync(CoreNodeSync):
     height: IntegerOptional
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
+    query_groups: RelationshipManagerSync
 
 
 class CoreGraphQLQueryGroupSync(CoreGroupSync):
@@ -1028,14 +1068,14 @@ class CoreGroupTriggerRuleSync(CoreTriggerRuleSync):
     group: RelatedNodeSync
 
 
-class CoreIPAddressPoolSync(CoreResourcePoolSync, LineageSourceSync):
+class CoreIPAddressPoolSync(CoreResourcePoolSync, LineageSourceSync, CoreIPPoolSync):
     default_address_type: String
     default_prefix_length: IntegerOptional
     resources: RelationshipManagerSync
     ip_namespace: RelatedNodeSync
 
 
-class CoreIPPrefixPoolSync(CoreResourcePoolSync, LineageSourceSync):
+class CoreIPPrefixPoolSync(CoreResourcePoolSync, LineageSourceSync, CoreIPPoolSync):
     default_prefix_length: IntegerOptional
     default_member_type: Enum
     default_prefix_type: StringOptional

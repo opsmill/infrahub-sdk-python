@@ -33,10 +33,10 @@ def test_version_command() -> None:
     assert "Python SDK: v" in result.stdout
 
 
-def test_info_command_success(mock_query_infrahub_version: HTTPXMock, mock_query_infrahub_user: HTTPXMock) -> None:
+def test_info_command_success(mock_query_infrahub_server_info: HTTPXMock, mock_query_infrahub_user: HTTPXMock) -> None:
     result = runner.invoke(app, ["info"], env={"INFRAHUB_API_TOKEN": "foo"})
     assert result.exit_code == 0
-    for expected in ["Connection Status", "Python Version", "SDK Version", "Infrahub Version"]:
+    for expected in ["Connection Status", "Python Version", "SDK Version", "Infrahub Version", "Deployment ID"]:
         assert expected in result.stdout, f"'{expected}' not found in info command output"
 
 
@@ -47,7 +47,7 @@ def test_info_command_failure() -> None:
 
 
 def test_info_detail_command_success(
-    mock_query_infrahub_version: HTTPXMock, mock_query_infrahub_user: HTTPXMock
+    mock_query_infrahub_server_info: HTTPXMock, mock_query_infrahub_user: HTTPXMock
 ) -> None:
     result = runner.invoke(app, ["info", "--detail"], env={"INFRAHUB_API_TOKEN": "foo"})
     assert result.exit_code == 0
@@ -55,7 +55,7 @@ def test_info_detail_command_success(
         assert expected in result.stdout, f"'{expected}' not found in detailed info command output"
 
 
-def test_anonymous_info_detail_command_success(mock_query_infrahub_version: HTTPXMock) -> None:
+def test_anonymous_info_detail_command_success(mock_query_infrahub_server_info: HTTPXMock) -> None:
     result = runner.invoke(app, ["info", "--detail"])
     assert result.exit_code == 0
     for expected in ["Connection Status", "Version Information", "Client Info", "Infrahub Info", "anonymous"]:

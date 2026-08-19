@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
     from .context import RequestContext
     from .node.metadata import NodeMetadata
-    from .schema import MainSchemaTypes
+    from .schema import MainSchemaTypesAPI
 
 
 @runtime_checkable
@@ -140,6 +140,14 @@ class IPNetworkOptional(Attribute):
     value: ipaddress.IPv4Network | ipaddress.IPv6Network | None
 
 
+class IPAddress(Attribute):
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address
+
+
+class IPAddressOptional(Attribute):
+    value: ipaddress.IPv4Address | ipaddress.IPv6Address | None
+
+
 class Boolean(Attribute):
     value: bool
 
@@ -173,7 +181,7 @@ class AnyAttributeOptional(Attribute):
 
 
 class CoreNodeBase:
-    _schema: MainSchemaTypes
+    _schema: MainSchemaTypesAPI
     _internal_id: str
     id: str  # NOTE this is incorrect, should be str | None
     display_label: str | None

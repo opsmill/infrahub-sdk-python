@@ -23,8 +23,8 @@ async def hierarchical_schema() -> NodeSchemaAPI:
         "namespace": "Infra",
         "default_filter": "name__value",
         "attributes": [
-            {"name": "name", "kind": "String", "unique": True},
-            {"name": "description", "kind": "String", "optional": True},
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "description", "kind": "Text", "optional": True},
         ],
         "relationships": [
             {

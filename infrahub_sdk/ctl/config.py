@@ -81,8 +81,8 @@ class ConfiguredSettings:
         In such cases, a message is printed to the screen indicating the settings which don't pass validation.
 
         Args:
-            config_file_name (str, optional): [description]. Defaults to "pyprojectctl.toml".
-            config_data (dict, optional): [description]. Defaults to None.
+            config_file (str | Path, optional): Path to the configuration file. Defaults to "infrahubctl.toml".
+            config_data (dict, optional): In-memory configuration overriding the file contents. Defaults to None.
 
         """
         try:

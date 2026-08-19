@@ -18,7 +18,7 @@ nodes:
         kind: Text
         optional: true
     relationships:
-      - name: Organization
+      - name: organization
         peer: TestOrganization
         optional: false
         cardinality: one

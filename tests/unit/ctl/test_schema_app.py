@@ -81,53 +81,24 @@ def test_schema_load_multiple(httpx_mock: HTTPXMock) -> None:
     assert content_json == {"schemas": [fixture_file1_content, fixture_file2_content]}
 
 
-def test_schema_load_notvalid_namespace(httpx_mock: HTTPXMock) -> None:
+def test_schema_load_notvalid_namespace() -> None:
+    """An invalid namespace is now rejected client-side by the write contract.
+
+    The SDK write models mirror the server's field constraints, so ``infrahubctl load``
+    catches an invalid namespace during local validation and exits before sending the
+    payload to the server.
+    """
     fixture_file = get_fixtures_dir() / "models" / "non_valid_namespace.json"
 
-    httpx_mock.add_response(
-        method="POST",
-        url="http://mock/api/schema/load?branch=main",
-        status_code=422,
-        json={
-            "detail": [
-                {
-                    "type": "string_pattern_mismatch",
-                    "loc": ["body", "schemas", 0, "nodes", 0, "namespace"],
-                    "msg": "String should match pattern '^[A-Z][a-z0-9]+$'",
-                    "input": "OuT",
-                    "ctx": {"pattern": "^[A-Z][a-z0-9]+$"},
-                    "url": "https://errors.pydantic.dev/2.7/v/string_pattern_mismatch",
-                },
-                {
-                    "type": "value_error",
-                    "loc": ["body", "schemas", 0, "nodes", 0, "attributes", 0, "kind"],
-                    "msg": "Value error, Only valid Attribute Kind are : ['ID', 'Dropdown'] ",
-                    "input": "NotValid",
-                    "ctx": {"error": {}},
-                    "url": "https://errors.pydantic.dev/2.7/v/value_error",
-                },
-            ]
-        },
-    )
     result = runner.invoke(app=app, args=["load", str(fixture_file)])
 
     assert result.exit_code == 1
 
     clean_output = remove_ansi_color(result.stdout.replace("\n", ""))
-    expected_result = (
-        "Unable to load the schema:  Node: OuTDevice | "
-        "namespace (OuT) | String should match pattern '^[A-Z][a-z0-9]+$' (string_pattern_mismatch) "
-        " Node: OuTDevice | Attribute: name (NotValid) | Value error, Only valid Attribute Kind "
-        "are : ['ID', 'Dropdown']  (value_error)"
-    )
-    assert expected_result == clean_output
-
-    content = httpx_mock.get_requests()[0].content.decode("utf8")
-    content_json = yaml.safe_load(content)
-    fixture_file_content = yaml.safe_load(
-        fixture_file.read_text(encoding="utf-8"),
-    )
-    assert content_json == {"schemas": [fixture_file_content]}
+    assert "Schema not valid" in clean_output
+    assert "nodes[0].namespace" in clean_output
+    assert "String should match pattern" in clean_output
+    assert "received: 'OuT'" in clean_output
 
 
 def test_load_valid_generic_schema(httpx_mock: HTTPXMock) -> None:

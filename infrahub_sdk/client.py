@@ -5,7 +5,7 @@ import copy
 import logging
 import time
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager, suppress
 from datetime import datetime
 from enum import Enum
 from functools import wraps
@@ -20,9 +20,9 @@ from typing_extensions import Self
 from .batch import InfrahubBatch, InfrahubBatchSync
 from .branch import MUTATION_QUERY_TASK, BranchData, InfrahubBranchManager, InfrahubBranchManagerSync
 from .config import Config
-from .constants import InfrahubClientMode
+from .constants import InfrahubClientMode, Priority
 from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
-from .data import RepositoryBranchInfo, RepositoryData
+from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
     AuthenticationError,
@@ -49,6 +49,7 @@ from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
+from .rate_limit import RateLimitRetryHandler
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
@@ -77,6 +78,20 @@ class ProcessRelationsNode(TypedDict):
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+def _rewind_multipart_files(files: dict[str, Any]) -> None:
+    """Rewind seekable file objects in a multipart ``files`` payload to position 0.
+
+    httpx reads file-like objects to EOF on send; rewinding before each attempt lets a retried
+    upload (e.g. after a 429) carry the full body rather than an already-consumed stream.
+    """
+    for value in files.values():
+        file_obj = value[1] if isinstance(value, tuple) and len(value) > 1 else value
+        seek = getattr(file_obj, "seek", None)
+        if callable(seek):
+            with suppress(OSError, ValueError):  # non-seekable stream: leave as-is
+                seek(0)
 
 
 class ProxyConfigSync(TypedDict):
@@ -186,6 +201,13 @@ class BaseClient:
         self.config.address = address or self.config.address
         self.insert_tracker = self.config.insert_tracker
         self.log = self.config.logger or logging.getLogger("infrahub_sdk")
+        self._rate_limit_handler = RateLimitRetryHandler(
+            max_retries=self.config.rate_limit_max_retries,
+            backoff_base=self.config.rate_limit_backoff_base,
+            backoff_max=self.config.rate_limit_backoff_max,
+            enabled=self.config.rate_limit_retry_enabled,
+            log=self.log,
+        )
         self.address = self.config.address
         self.mode = self.config.mode
         self.pagination_size = self.config.pagination_size
@@ -194,6 +216,9 @@ class BaseClient:
 
         if self.config.api_token:
             self.headers["X-INFRAHUB-KEY"] = self.config.api_token
+
+        if self.config.priority is not None:
+            self.headers["X-Priority"] = self.config.priority.value
 
         self.max_concurrent_execution = self.config.max_concurrent_execution
 
@@ -216,6 +241,37 @@ class BaseClient:
             print(f"QUERY:\n{query}")
             if variables:
                 print(f"VARIABLES:\n{ujson.dumps(variables, indent=4)}\n")
+
+    def _request_headers(self, tracker: str | None = None, priority: Priority | None = None) -> dict:
+        """Build the per-request header delta to layer over the client's base headers.
+
+        Returns only the request-specific entries (tracker, ``X-Priority``); the base headers
+        (auth, ``content-type``, and any client-wide default priority) are merged in per request
+        by the transport helpers. Keeping this a delta means the freshest ``self.headers`` — e.g.
+        an auth token refreshed during a relogin retry — always applies, while a caller can still
+        override any header, including auth, for a single request.
+        """
+        headers: dict = {}
+        if self.insert_tracker and tracker:
+            headers["X-Infrahub-Tracker"] = tracker
+        effective_priority = priority
+        if effective_priority is None and self._request_context is not None:
+            effective_priority = self._request_context.priority
+        if effective_priority is not None:
+            headers["X-Priority"] = effective_priority.value
+        return headers
+
+    def _merge_request_headers(self, headers: dict | None) -> dict:
+        """Merge a per-request header delta over the client's current base headers.
+
+        Per-request entries take precedence over the client-wide base headers, so a caller may
+        override any header (including auth) for a single request, and a token refreshed mid-flight
+        during the automatic relogin retry is picked up from the freshly-copied ``self.headers``.
+        """
+        merged = copy.copy(self.headers or {})
+        if headers:
+            merged.update(headers)
+        return merged
 
     @property
     def request_context(self) -> RequestContext | None:
@@ -365,6 +421,15 @@ class InfrahubClient(BaseClient):
         response = await self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    async def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = await self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
+
     async def get_user(self) -> dict:
         """Return user information."""
         return await self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
@@ -434,6 +499,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -455,6 +521,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -476,6 +543,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -497,6 +565,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -518,6 +587,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -539,6 +609,7 @@ class InfrahubClient(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -559,6 +630,7 @@ class InfrahubClient(BaseClient):
         property: bool = False,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
@@ -596,6 +668,7 @@ class InfrahubClient(BaseClient):
             property=property,
             include_metadata=include_metadata,
             query_name=query_name,
+            priority=priority,
             **filters,
         )
 
@@ -657,6 +730,7 @@ class InfrahubClient(BaseClient):
         timeout: int | None = None,
         partial_match: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -683,6 +757,7 @@ class InfrahubClient(BaseClient):
             at=at,
             timeout=timeout,
             operation_name=query_name,
+            priority=priority,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -898,6 +973,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -919,6 +995,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -939,6 +1016,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = None,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind.
 
@@ -958,6 +1036,8 @@ class InfrahubClient(BaseClient):
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             query_name (str, optional): If provided is used as the GraphQL operation name else All_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
 
         Returns:
             list[InfrahubNode]: List of Nodes
@@ -982,6 +1062,7 @@ class InfrahubClient(BaseClient):
             order=order,
             include_metadata=include_metadata,
             query_name=query_name,
+            priority=priority,
         )
 
     @overload
@@ -1004,6 +1085,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -1027,6 +1109,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -1049,6 +1132,7 @@ class InfrahubClient(BaseClient):
         order: Order | None = None,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1070,6 +1154,8 @@ class InfrahubClient(BaseClient):
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             query_name (str, optional): If provided is used as the GraphQL operation name else Filters_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -1086,29 +1172,38 @@ class InfrahubClient(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
+        # Pagination is passed as GraphQL variables so the rendered query text stays
+        # identical across pages and can hit the server-side query cache.
+        query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
+            offset="$offset",
+            limit="$limit",
+            filters=filters,
+            include=include,
+            exclude=exclude,
+            fragment=fragment,
+            prefetch_relationships=prefetch_relationships,
+            partial_match=partial_match,
+            property=property,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
+        query_str = query.render()
+
         async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
             """Process a single page of results."""
-            query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=page_offset if offset is None else offset,
-                limit=limit or pagination_size,
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
-            query = Query(query=query_data, name=query_name)
             response = await self.execute_graphql(
-                query=query.render(),
+                query=query_str,
+                variables={
+                    "offset": page_offset if offset is None else offset,
+                    "limit": limit or pagination_size,
+                },
                 branch_name=branch,
                 at=at,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
                 timeout=timeout,
                 operation_name=query.name,
+                priority=priority,
             )
 
             process_result: ProcessRelationsNode = await self._process_nodes_and_relationships(
@@ -1126,7 +1221,9 @@ class InfrahubClient(BaseClient):
             nodes = []
             related_nodes = []
             batch_process = await self.create_batch()
-            count = await self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
+            count = await self.count(
+                kind=schema.kind, branch=branch, partial_match=partial_match, priority=priority, **filters
+            )
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -1185,6 +1282,7 @@ class InfrahubClient(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         operation_name: str | None = None,
+        priority: Priority | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
 
@@ -1198,6 +1296,8 @@ class InfrahubClient(BaseClient):
             timeout (int, optional): Timeout in second for the query. Defaults to None.
             operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
                 so tracing/observability tools can identify the operation. Defaults to None.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header. Overrides the
+                client-wide default for this request only. When None, the client default (if any) is used.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
@@ -1219,9 +1319,7 @@ class InfrahubClient(BaseClient):
         if operation_name:
             payload["operationName"] = operation_name
 
-        headers = copy.copy(self.headers or {})
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -1275,6 +1373,7 @@ class InfrahubClient(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         operation_name: str | None = None,
+        priority: Priority | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -1289,6 +1388,8 @@ class InfrahubClient(BaseClient):
             branch_name: Name of the branch on which the mutation will be executed.
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
+            priority: Per-request priority emitted as the X-Priority header, overriding the client
+                default for this request only. When None, the client default (if any) is used.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
@@ -1304,11 +1405,9 @@ class InfrahubClient(BaseClient):
         variables = variables or {}
         variables["file"] = None
 
-        headers = copy.copy(self.headers or {})
-        # Remove content-type header - httpx will set it for multipart
-        headers.pop("content-type", None)
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        # content-type is popped from the base headers by _post_multipart (httpx sets the
+        # multipart boundary itself); only the request-specific delta is built here.
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -1349,11 +1448,9 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        # Remove content-type from base headers - httpx will set it for multipart
-        base_headers.pop("content-type", None)
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
+        # Remove content-type - httpx sets it (with the multipart boundary) itself
+        headers.pop("content-type", None)
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
@@ -1390,14 +1487,18 @@ class InfrahubClient(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = await client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        async def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return await client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -1418,9 +1519,7 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
         return await self._request(
             url=url,
@@ -1441,9 +1540,7 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
         return await self._request(
             url=url,
@@ -1461,6 +1558,9 @@ class InfrahubClient(BaseClient):
         Returns an async context manager that yields the streaming response.
         Use this for downloading large files without loading into memory.
 
+        Yields:
+            httpx.Response: The streaming HTTP response.
+
         Raises:
             ServerNotReachableError: If we are not able to connect to the server.
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
@@ -1468,20 +1568,41 @@ class InfrahubClient(BaseClient):
         """
         await self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
+        request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, AsyncExitStack] = {}
+
+            async def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = AsyncExitStack()
+                response = await stack.enter_async_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        await response.aread()
+                    finally:
+                        await stack.aclose()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                async with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = await self._rate_limit_handler.asend(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        await stack.aclose()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     async def _request(
         self,
@@ -1491,7 +1612,10 @@ class InfrahubClient(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        async def send() -> httpx.Response:
+            return await self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = await self._rate_limit_handler.asend(send=send, url=url)
         self._record(response)
         return response
 
@@ -1597,10 +1721,7 @@ class InfrahubClient(BaseClient):
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
 
-        headers = copy.copy(self.headers or {})
-
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker)
 
         if at:
             url_params["at"] = at
@@ -1647,6 +1768,7 @@ class InfrahubClient(BaseClient):
         from_time: datetime,
         to_time: datetime,
         wait_until_completion: bool = True,
+        priority: Priority | None = None,
     ) -> bool | str:
         if from_time > to_time:
             raise ValueError("from_time must be <= to_time")
@@ -1662,7 +1784,7 @@ class InfrahubClient(BaseClient):
 
         mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
         query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
-        response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+        response = await self.execute_graphql(query=query.render(), tracker="mutation-diff-update", priority=priority)
 
         if not wait_until_completion and "task" in response["DiffUpdate"]:
             return response["DiffUpdate"]["task"]["id"]
@@ -1677,6 +1799,7 @@ class InfrahubClient(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        priority: Priority | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -1695,6 +1818,7 @@ class InfrahubClient(BaseClient):
             tracker=tracker,
             variables=input_data,
             operation_name="GetDiffTree",
+            priority=priority,
         )
 
         node_diffs: list[NodeDiff] = []
@@ -1716,6 +1840,7 @@ class InfrahubClient(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        priority: Priority | None = None,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
 
@@ -1743,6 +1868,7 @@ class InfrahubClient(BaseClient):
             tracker=tracker,
             variables=input_data,
             operation_name=query.name,
+            priority=priority,
         )
 
         diff_tree = response["DiffTree"]
@@ -2072,6 +2198,15 @@ class InfrahubClientSync(BaseClient):
         response = self.execute_graphql(query="query { InfrahubInfo { version }}")
         return response.get("InfrahubInfo", {}).get("version", "")
 
+    def get_server_information(self) -> ServerInfo:
+        """Return the Infrahub server information (version and deployment ID)."""
+        response = self.execute_graphql(
+            query="query { InfrahubInfo { version deployment_id }}",
+            tracker="query-server-info",
+        )
+        info = response.get("InfrahubInfo", {})
+        return ServerInfo(version=info.get("version", ""), deployment_id=info.get("deployment_id", ""))
+
     def get_user(self) -> dict:
         """Return user information."""
         return self.execute_graphql(query=QUERY_USER, operation_name="GET_PROFILE_DETAILS")
@@ -2135,6 +2270,7 @@ class InfrahubClientSync(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         operation_name: str | None = None,
+        priority: Priority | None = None,
     ) -> dict:
         """Execute a GraphQL query (or mutation).
 
@@ -2148,6 +2284,8 @@ class InfrahubClientSync(BaseClient):
             timeout (int, optional): Timeout in second for the query. Defaults to None.
             operation_name (str, optional): GraphQL operation name, sent as `operationName` in the request payload
                 so tracing/observability tools can identify the operation. Defaults to None.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header. Overrides the
+                client-wide default for this request only. When None, the client default (if any) is used.
 
         Returns:
             dict: The GraphQL data payload (`response["data"]`).
@@ -2169,9 +2307,7 @@ class InfrahubClientSync(BaseClient):
         if operation_name:
             payload["operationName"] = operation_name
 
-        headers = copy.copy(self.headers or {})
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -2225,6 +2361,7 @@ class InfrahubClientSync(BaseClient):
         timeout: int | None = None,
         tracker: str | None = None,
         operation_name: str | None = None,
+        priority: Priority | None = None,
     ) -> dict:
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
@@ -2239,6 +2376,8 @@ class InfrahubClientSync(BaseClient):
             branch_name: Name of the branch on which the mutation will be executed.
             timeout: Timeout in seconds for the query.
             tracker: Optional tracker for request tracing.
+            priority: Per-request priority emitted as the X-Priority header, overriding the client
+                default for this request only. When None, the client default (if any) is used.
 
         Returns:
             dict: The GraphQL data payload (response["data"]).
@@ -2254,11 +2393,9 @@ class InfrahubClientSync(BaseClient):
         variables = variables or {}
         variables["file"] = None
 
-        headers = copy.copy(self.headers or {})
-        # Remove content-type header - httpx will set it for multipart
-        headers.pop("content-type", None)
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        # content-type is popped from the base headers by _post_multipart (httpx sets the
+        # multipart boundary itself); only the request-specific delta is built here.
+        headers = self._request_headers(tracker=tracker, priority=priority)
 
         self._echo(url=url, query=query, variables=variables)
 
@@ -2299,11 +2436,9 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        # Remove content-type from base headers - httpx will set it for multipart
-        base_headers.pop("content-type", None)
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
+        # Remove content-type - httpx sets it (with the multipart boundary) itself
+        headers.pop("content-type", None)
 
         # Build the multipart form data according to GraphQL Multipart Request Spec
         files = MultipartBuilder.build_payload(
@@ -2338,14 +2473,18 @@ class InfrahubClientSync(BaseClient):
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
 
         """
-        with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
-            try:
-                response = client.post(url=url, headers=headers, timeout=timeout, files=files)
-            except httpx.NetworkError as exc:
-                raise ServerNotReachableError(address=self.address) from exc
-            except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
+        def send() -> httpx.Response:
+            _rewind_multipart_files(files)
+            with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+                try:
+                    return client.post(url=url, headers=headers, timeout=timeout, files=files)
+                except httpx.NetworkError as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 
@@ -2357,6 +2496,7 @@ class InfrahubClientSync(BaseClient):
         timeout: int | None = None,
         partial_match: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> int:
         """Return the number of nodes of a given kind."""
@@ -2383,6 +2523,7 @@ class InfrahubClientSync(BaseClient):
             at=at,
             timeout=timeout,
             operation_name=query_name,
+            priority=priority,
         )
         return int(response.get(schema.kind, {}).get("count", 0))
 
@@ -2598,6 +2739,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2619,6 +2761,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2639,6 +2782,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = None,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind.
 
@@ -2658,6 +2802,8 @@ class InfrahubClientSync(BaseClient):
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             query_name (str, optional): If provided is used as the GraphQL operation name else All_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
@@ -2682,6 +2828,7 @@ class InfrahubClientSync(BaseClient):
             order=order,
             include_metadata=include_metadata,
             query_name=query_name,
+            priority=priority,
         )
 
     def _process_nodes_and_relationships(
@@ -2745,6 +2892,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -2768,6 +2916,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -2790,6 +2939,7 @@ class InfrahubClientSync(BaseClient):
         order: Order | None = None,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -2811,6 +2961,8 @@ class InfrahubClientSync(BaseClient):
             order (Order, optional): Ordering related options. Setting `disable=True` enhances performances.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
             query_name (str, optional): If provided is used as the GraphQL operation name else Filters_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -2827,29 +2979,38 @@ class InfrahubClientSync(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
+        # Pagination is passed as GraphQL variables so the rendered query text stays
+        # identical across pages and can hit the server-side query cache.
+        query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
+            offset="$offset",
+            limit="$limit",
+            filters=filters,
+            include=include,
+            exclude=exclude,
+            fragment=fragment,
+            prefetch_relationships=prefetch_relationships,
+            partial_match=partial_match,
+            property=property,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
+        query_str = query.render()
+
         def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
             """Process a single page of results."""
-            query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
-                offset=page_offset if offset is None else offset,
-                limit=limit or pagination_size,
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
-            query = Query(query=query_data, name=query_name)
             response = self.execute_graphql(
-                query=query.render(),
+                query=query_str,
+                variables={
+                    "offset": page_offset if offset is None else offset,
+                    "limit": limit or pagination_size,
+                },
                 branch_name=branch,
                 at=at,
                 timeout=timeout,
                 tracker=f"query-{str(schema.kind).lower()}-page{page_number}",
                 operation_name=query.name,
+                priority=priority,
             )
 
             process_result: ProcessRelationsNodeSync = self._process_nodes_and_relationships(
@@ -2868,7 +3029,9 @@ class InfrahubClientSync(BaseClient):
             related_nodes = []
             batch_process = self.create_batch()
 
-            count = self.count(kind=schema.kind, branch=branch, partial_match=partial_match, **filters)
+            count = self.count(
+                kind=schema.kind, branch=branch, partial_match=partial_match, priority=priority, **filters
+            )
             total_pages = (count + pagination_size - 1) // pagination_size
 
             for page_number in range(1, total_pages + 1):
@@ -2933,6 +3096,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -2954,6 +3118,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2975,6 +3140,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -2996,6 +3162,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -3017,6 +3184,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3038,6 +3206,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
+        priority: Priority | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3058,6 +3227,7 @@ class InfrahubClientSync(BaseClient):
         property: bool = False,
         include_metadata: bool = False,
         query_name: str | None = None,
+        priority: Priority | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
@@ -3095,6 +3265,7 @@ class InfrahubClientSync(BaseClient):
             property=property,
             include_metadata=include_metadata,
             query_name=query_name,
+            priority=priority,
             **filters,
         )
 
@@ -3143,10 +3314,7 @@ class InfrahubClientSync(BaseClient):
         url_params = copy.deepcopy(params or {})
         url_params["branch"] = branch_name or self.default_branch
 
-        headers = copy.copy(self.headers or {})
-
-        if self.insert_tracker and tracker:
-            headers["X-Infrahub-Tracker"] = tracker
+        headers = self._request_headers(tracker=tracker)
 
         if at:
             url_params["at"] = at
@@ -3192,6 +3360,7 @@ class InfrahubClientSync(BaseClient):
         from_time: datetime,
         to_time: datetime,
         wait_until_completion: bool = True,
+        priority: Priority | None = None,
     ) -> bool | str:
         if from_time > to_time:
             raise ValueError("from_time must be <= to_time")
@@ -3207,7 +3376,7 @@ class InfrahubClientSync(BaseClient):
 
         mutation_query = MUTATION_QUERY_TASK if not wait_until_completion else {"ok": None}
         query = Mutation(mutation="DiffUpdate", input_data=input_data, query=mutation_query)
-        response = self.execute_graphql(query=query.render(), tracker="mutation-diff-update")
+        response = self.execute_graphql(query=query.render(), tracker="mutation-diff-update", priority=priority)
 
         if not wait_until_completion and "task" in response["DiffUpdate"]:
             return response["DiffUpdate"]["task"]["id"]
@@ -3222,6 +3391,7 @@ class InfrahubClientSync(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        priority: Priority | None = None,
     ) -> list[NodeDiff]:
         query = get_diff_summary_query()
         input_data = {"branch_name": branch}
@@ -3240,6 +3410,7 @@ class InfrahubClientSync(BaseClient):
             tracker=tracker,
             variables=input_data,
             operation_name="GetDiffTree",
+            priority=priority,
         )
 
         node_diffs: list[NodeDiff] = []
@@ -3261,6 +3432,7 @@ class InfrahubClientSync(BaseClient):
         to_time: datetime | None = None,
         timeout: int | None = None,
         tracker: str | None = None,
+        priority: Priority | None = None,
     ) -> DiffTreeData | None:
         """Get complete diff tree with metadata and nodes.
 
@@ -3288,6 +3460,7 @@ class InfrahubClientSync(BaseClient):
             tracker=tracker,
             variables=input_data,
             operation_name=query.name,
+            priority=priority,
         )
 
         diff_tree = response["DiffTree"]
@@ -3446,7 +3619,7 @@ class InfrahubClientSync(BaseClient):
         Args:
             resource_pool (InfrahubNodeSync): Node corresponding to the pool to allocate resources from.
             identifier (str, optional): Value to perform idempotent allocation, the same resource will be returned for a given identifier.
-            size (int, optional): Length of the prefix to allocate.
+            prefix_length (int, optional): Length of the prefix to allocate.
             member_type (str, optional): Member type of the prefix to allocate.
             prefix_type (str, optional): Kind of the prefix to allocate.
             data (dict, optional): A key/value map to use to set attributes values on the allocated prefix.
@@ -3509,9 +3682,7 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
         return self._request(
             url=url,
@@ -3529,6 +3700,9 @@ class InfrahubClientSync(BaseClient):
         Returns a context manager that yields the streaming response.
         Use this for downloading large files without loading into memory.
 
+        Yields:
+            httpx.Response: The streaming HTTP response.
+
         Raises:
             ServerNotReachableError: If we are not able to connect to the server.
             ServerNotResponsiveError: If the server didn't respond before the timeout expired.
@@ -3536,20 +3710,41 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
+        request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
+            open_stream: dict[str, ExitStack] = {}
+
+            def send() -> httpx.Response:
+                # Retry stream initiation only (a 429 arrives in the headers before the body): a
+                # failed attempt is read and closed here, a successful stream is left open for
+                # the caller and closed afterwards.
+                stack = ExitStack()
+                response = stack.enter_context(
+                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                )
+                if response.status_code == 429:
+                    try:
+                        response.read()
+                    finally:
+                        stack.close()
+                else:
+                    open_stream["stack"] = stack
+                return response
+
             try:
-                with client.stream(
-                    method="GET", url=url, headers=headers, timeout=timeout or self.default_timeout
-                ) as response:
+                response = self._rate_limit_handler.send(send=send, url=url)
+                try:
                     yield response
+                finally:
+                    stack = open_stream.get("stack")
+                    if stack is not None:
+                        stack.close()
             except httpx.NetworkError as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
-                raise ServerNotResponsiveError(url=url, timeout=timeout or self.default_timeout) from exc
+                raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
 
     @handle_relogin_sync
     def _post(
@@ -3568,9 +3763,7 @@ class InfrahubClientSync(BaseClient):
         """
         self.login()
 
-        headers = headers or {}
-        base_headers = copy.copy(self.headers or {})
-        headers.update(base_headers)
+        headers = self._merge_request_headers(headers)
 
         return self._request(
             url=url,
@@ -3588,7 +3781,10 @@ class InfrahubClientSync(BaseClient):
         timeout: int,
         payload: dict | None = None,
     ) -> httpx.Response:
-        response = self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+        def send() -> httpx.Response:
+            return self._request_method(url=url, method=method, headers=headers, timeout=timeout, payload=payload)
+
+        response = self._rate_limit_handler.send(send=send, url=url)
         self._record(response)
         return response
 

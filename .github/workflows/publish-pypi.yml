@@ -50,6 +50,9 @@ jobs:
         uses: "actions/checkout@v7"
         with:
           submodules: true
+          # Full history + tags so hatch-vcs stamps the real tag version at build time, not the fallback
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Cache UV dependencies
         uses: "actions/cache@v6"

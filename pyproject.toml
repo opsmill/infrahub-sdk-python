@@ -1,6 +1,6 @@
 [project]
 name = "infrahub-sdk"
-version = "1.22.3"
+dynamic = ["version"]
 description = "Python Client to interact with Infrahub"
 authors = [
     {name = "OpsMill", email = "info@opsmill.com"}
@@ -47,6 +47,7 @@ ctl = [
     "numpy>=1.26.2; python_version>='3.12'",
     "pyarrow>=14",
     "pyyaml>=6",
+    "ruamel.yaml>=0.18",
     "rich>=12,<14",
     "typer>=0.15.0",
     "click>=8.3,<9",
@@ -61,6 +62,7 @@ all = [
     "pyarrow>=14",
     "pytest",
     "pyyaml>=6",
+    "ruamel.yaml>=0.18",
     "rich>=12,<14",
     "typer>=0.15.0",
     "click>=8.3,<9",
@@ -71,6 +73,7 @@ all = [
 # Core optional dependencies
 tests = [
     "infrahub-testcontainers>=1.7.3",
+    "jsonschema>=4.25.1",
     "pytest>=9.0,<9.1",
     "pytest-asyncio>=1.3,<1.4",
     "pytest-clarity>=1.0.1",
@@ -275,6 +278,20 @@ disable_error_code = ["call-overload"]
 module = "infrahub_sdk.utils"
 disable_error_code = ["arg-type", "attr-defined", "return-value", "union-attr"]
 
+[[tool.mypy.overrides]]
+# ``main.py`` intentionally narrows the ``attributes``/``relationships``/``choices`` fields inherited
+# from the generated write/read models to the user-facing constructible variants (``AttributeSchema``,
+# ``RelationshipSchema``, and the ``*API`` read models). pydantic invariance makes mypy flag these
+# deliberate overrides; the narrowed types are a superset-safe refinement validated at runtime.
+module = "infrahub_sdk.schema.main"
+disable_error_code = ["assignment"]
+
+[[tool.mypy.overrides]]
+# The generated read models expose ``kind`` via ``@computed_field`` stacked on ``@property``. mypy
+# does not support decorators on top of ``@property`` and flags it, but pydantic requires this order.
+module = "infrahub_sdk.schema.generated.read"
+disable_error_code = ["misc"]
+
 [tool.ruff]
 line-length = 120
 
@@ -304,8 +321,6 @@ ignore = [
     "CPY",    # flake8-copyright
     "T201",   # use of `print`
     "COM812", # missing-trailing-comma
-    "D203",     # incorrect-blank-line-before-class (incompatible with D211)
-    "D213",     # multi-line-summary-second-line (incompatible with D212)
 
     ##################################################################################################
     # Rules below needs to be Investigated                                                           #
@@ -350,13 +365,9 @@ ignore = [
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method
     "D107",    # Missing docstring in `__init__`
-    "D301",    # Use `r"""` if any backslashes in a docstring
-    "D401",    # First line of docstring should be in imperative mood
-    "D404",    # First word of the docstring should not be "This"
+    "D301",    # Use `r"""` if any backslashes in a docstring — conflicts with Typer's `\b` no-wrap marker in CLI command docstrings, which must stay a real escape (not a raw string)
     "D417",    # Missing argument description in the docstring
-    "DOC102",  # Docstring contains extraneous parameter(s)
     "DOC201",  # `return` is not documented in docstring
-    "DOC402",  # `yield` is not documented in docstring
     "DOC502",  # Raised exception is not explicitly raised (false positives for transitive raises through helpers)
 ]
 
@@ -382,6 +393,10 @@ ignorelist = [
 [tool.ruff.lint.isort]
 known-first-party = ["infrahub_sdk", "infrahub_ctl"]
 
+[tool.ruff.lint.pydocstyle]
+# Also lets the DOC (pydoclint) rules parse Args/Returns/Yields sections correctly.
+convention = "google"
+
 [tool.ruff.lint.pycodestyle]
 max-line-length = 150
 
@@ -390,6 +405,15 @@ max-line-length = 150
 max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
+
+"infrahub_sdk/schema/generated/*.py" = [
+    # Generated pydantic models use `from __future__ import annotations`, so the enum imports
+    # they reference are required at runtime for pydantic to resolve the annotations; moving
+    # them into a type-checking block would break model construction.
+    "TC001", # Move application import into a type-checking block
+    # The AttributeKind enum carries a member whose value is the literal string "Password".
+    "S105", # Possible hardcoded password assigned to a variable
+]
 
 "infrahub_sdk/**/*.py" = [
     ##################################################################################################
@@ -549,8 +573,25 @@ front_matter_title = ""
 prohibited_texts = []
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+# Static sentinel for tag-less checkouts (e.g. a shallow clone without tags). It is identical on
+# every branch so releases never touch it — a moving value would conflict on every stable/develop
+# merge, which is exactly what dynamic versioning removes. Tag-less builds resolve 0.0.0.devN+g<hash>,
+# unmistakably a non-release, and are publish-guarded in release.yml.
+fallback-version = "0.0.0.dev0"
+
+[tool.hatch.version.raw-options]
+# No --dirty: keeps the resolved version derived from committed git state only, independent of the
+# work tree contents, so a build from a dirty/stripped tree never bumps an on-tag build to a dev
+# version.
+git_describe_command = ["git", "describe", "--tags", "--long", "--match", "v*"]
+
+[tool.hatch.build.hooks.vcs]
+version-file = "infrahub_sdk/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["infrahub_sdk"]

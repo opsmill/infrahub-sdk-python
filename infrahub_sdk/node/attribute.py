@@ -5,7 +5,14 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
 from ..uuidt import UUIDT
-from .constants import ATTRIBUTE_METADATA_OBJECT, IP_TYPES, PROPERTIES_FLAG, PROPERTIES_OBJECT, SAFE_VALUE
+from .constants import (
+    ATTRIBUTE_METADATA_OBJECT,
+    IP_ADDRESS_TYPES,
+    IP_TYPES,
+    PROPERTIES_FLAG,
+    PROPERTIES_OBJECT,
+    SAFE_VALUE,
+)
 from .property import NodeProperty
 
 if TYPE_CHECKING:
@@ -67,8 +74,8 @@ class Attribute:
     def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
         """Build an ``Attribute`` from raw GraphQL data.
 
-        IP-typed attributes (``IPHost``, ``IPNetwork``) are parsed via the standard
-        ``ipaddress`` module so the in-memory value is a network/interface object.
+        IP-typed attributes (``IPHost``, ``IPNetwork``, ``IPAddress``) are parsed via the standard
+        ``ipaddress`` module so the in-memory value is an interface, network or address object.
 
         Args:
             name (str): The name of the attribute.
@@ -105,6 +112,7 @@ class Attribute:
             value_mapper: dict[str, Callable] = {
                 "IPHost": ipaddress.ip_interface,
                 "IPNetwork": ipaddress.ip_network,
+                "IPAddress": ipaddress.ip_address,
             }
             mapper = value_mapper.get(schema.kind, lambda value: value)
             self._value = mapper(data.get("value"))
@@ -160,7 +168,13 @@ class Attribute:
             )
 
         # Safe strings, IP types, and everything else
-        value = self.value.with_prefixlen if isinstance(self.value, get_args(IP_TYPES)) else self.value
+        if isinstance(self.value, get_args(IP_TYPES)):
+            value = self.value.with_prefixlen
+        elif isinstance(self.value, get_args(IP_ADDRESS_TYPES)):
+            # bare addresses have no prefix; serialize their canonical string form
+            value = str(self.value)
+        else:
+            value = self.value
         return _GraphQLPayloadAttribute(payload={"value": value}, variables={}, needs_metadata=True)
 
     def _generate_input_data(self) -> _GraphQLPayloadAttribute:

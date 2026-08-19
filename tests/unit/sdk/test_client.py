@@ -215,6 +215,19 @@ async def test_method_get_version(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_method_get_server_information(
+    clients: BothClients, mock_query_infrahub_server_info: HTTPXMock, client_type: str
+) -> None:
+    if client_type == "standard":
+        server_info = await clients.standard.get_server_information()
+    else:
+        server_info = clients.sync.get_server_information()
+
+    assert server_info.version == "1.1.0"
+    assert server_info.deployment_id == "abc123"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_method_get_user(clients: BothClients, mock_query_infrahub_user: HTTPXMock, client_type: str) -> None:
     if client_type == "standard":
         user = await clients.standard.get_user()
@@ -278,6 +291,31 @@ async def test_method_all_multiple_pages(
         assert clients.sync.store.count() == 5
 
     assert len(repos) == 5
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_all_pagination_uses_graphql_variables(
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    mock_query_repository_page1_2: HTTPXMock,
+    mock_query_repository_page2_2: HTTPXMock,
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        repos = await clients.standard.all(kind="CoreRepository", populate_store=False)
+    else:
+        repos = clients.sync.all(kind="CoreRepository", populate_store=False)
+
+    assert len(repos) == 5
+
+    payloads = [json.loads(request.content) for request in httpx_mock.get_requests() if request.method == "POST"]
+    assert len(payloads) == 2
+    page1, page2 = payloads
+    assert page1["query"] == page2["query"]
+    assert "offset: $offset" in page1["query"]
+    assert "limit: $limit" in page1["query"]
+    assert page1["variables"] == {"offset": 0, "limit": 3}
+    assert page2["variables"] == {"offset": 3, "limit": 3}
 
 
 @pytest.mark.parametrize(("client_type", "use_parallel"), batch_client_types)
@@ -755,7 +793,7 @@ async def test_query_name_all(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query MyAllQuery {" in payload["query"]
+    assert "query MyAllQuery ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "MyAllQuery"
 
 
@@ -771,7 +809,7 @@ async def test_query_name_filters(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query MyFiltersQuery {" in payload["query"]
+    assert "query MyFiltersQuery ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "MyFiltersQuery"
 
 
@@ -789,7 +827,7 @@ async def test_query_name_get(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query MyGetQuery {" in payload["query"]
+    assert "query MyGetQuery ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "MyGetQuery"
 
 
@@ -821,7 +859,7 @@ async def test_query_name_for_all_ommitted(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query All_CoreRepository {" in payload["query"]
+    assert "query All_CoreRepository ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "All_CoreRepository"
 
 
@@ -837,7 +875,7 @@ async def test_query_name_for_filters_ommitted(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query Filters_CoreRepository {" in payload["query"]
+    assert "query Filters_CoreRepository ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "Filters_CoreRepository"
 
 
@@ -853,7 +891,7 @@ async def test_query_name_for_get_ommitted(
     post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
     assert len(post_requests) == 1
     payload = json.loads(post_requests[0].content)
-    assert "query Get_CoreRepository {" in payload["query"]
+    assert "query Get_CoreRepository ($offset: Int!, $limit: Int!) {" in payload["query"]
     assert payload["operationName"] == "Get_CoreRepository"
 
 

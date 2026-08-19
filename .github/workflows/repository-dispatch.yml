@@ -37,6 +37,7 @@ jobs:
         repo:
           - "opsmill/emma"
           - "opsmill/infrahub-demo-dc"
+          - "opsmill/infrahub-sync"
           - "INFRAHUB_CUSTOMER1_REPOSITORY"
 
     steps:
