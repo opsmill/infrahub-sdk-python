@@ -1,1 +1,0 @@
-Added an opt-in `include_diagnostics` flag to the task manager's `all()`, `filter()`, and `get()` methods. When enabled, tasks expose an `error` field, and `webhook-send` tasks are returned as `WebhookDeliveryTask` instances carrying `http_request` / `http_response` delivery details.

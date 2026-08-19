@@ -1,1 +1,0 @@
-Import `pyarrow` lazily in the line-delimited JSON importer so that `infrahubctl` commands other than `object load` no longer require the `ctl` extra (and its heavy `pyarrow` dependency) to be installed.

@@ -1,1 +1,0 @@
-Add `infrahubctl schema format` command, an opinionated offline formatter that normalises the key ordering of schema files. Optional flags can also strip redundant default values (`--strip-defaults`), sort attributes/relationships by `order_weight` (`--sort-by-order-weight`), and backfill a missing `order_weight` (`--backfill-order-weight`).
