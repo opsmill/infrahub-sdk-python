@@ -45,6 +45,7 @@ exceptions:
   - IP
   - IP Fabric
   - IPAM
+  - IPAddress
   - IPHost
   - IPNetwork
   - JavaScript

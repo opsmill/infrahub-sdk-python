@@ -49,6 +49,7 @@ _FIELD_EXPORT_EXCLUDE: set[str] = {"inherited", "allow_override", "hierarchical"
 _ATTR_EXPORT_DEFAULTS: dict[str, Any] = {
     "read_only": False,
     "optional": False,
+    "ordered": True,
 }
 
 # Relationship field values that match schema loading defaults — omitted for cleaner output
