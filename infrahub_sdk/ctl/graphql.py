@@ -112,7 +112,9 @@ query ($q: String!) {
 @app.command(name="query-report")
 @catch_exception(console=console)
 async def query_report(
-    name: str = typer.Argument(..., help="Name of the GraphQL query to analyze."),
+    name: str = typer.Argument(
+        ..., help="Name of the GraphQL query to analyze, as declared under queries in .infrahub.yml."
+    ),
     online: bool = typer.Option(
         False,
         "--online",
@@ -121,10 +123,25 @@ async def query_report(
             "instead of reading it from the local .infrahub.yml file."
         ),
     ),
-    branch: str | None = typer.Option(None, help="Branch on which to run the report."),
+    branch: str | None = typer.Option(
+        None,
+        help=(
+            "Branch on which to run the report. Uniqueness constraints come from the schema, "
+            "so the result can differ between branches."
+        ),
+    ),
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Run a GraphQL query through InfrahubGraphQLQueryReport and report its analysis."""
+    """Report how Infrahub will interpret a GraphQL query.
+
+    Reports whether the query targets unique nodes, meaning every query it contains returns a
+    single object. Artifact and generator definitions use this to decide how much to regenerate
+    when data changes: when it is true, only the artifacts or generator instances of the objects
+    that changed are regenerated, and when it is false, all of them are.
+
+    A query returns a single object when it filters on ids or hfid, or on every part of one
+    uniqueness constraint of the model, and the values it filters on are always provided.
+    """
     client = initialize_client(branch=branch)
 
     if online:
