@@ -257,7 +257,7 @@ from ``source.name`` when ``name`` is omitted.
 #### `delete`
 
 ```python
-delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Delete this node on the backend.
@@ -268,11 +268,13 @@ Delete this node on the backend.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `save`
 
 ```python
-save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Persist this node to the backend, creating or updating it as appropriate.
@@ -293,11 +295,13 @@ to ``True``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -310,8 +314,10 @@ relevant attributes are returned alongside the generic fields.
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `fragment`: When ``True`` and the schema is a generic, emit
@@ -388,7 +394,7 @@ the listed peers, leaving every other field untouched.
 #### `create`
 
 ```python
-create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Create this node on the backend.
@@ -408,6 +414,8 @@ erroring on a duplicate. Defaults to ``False``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 **Raises:**
 
@@ -416,7 +424,7 @@ to the mutation. When omitted, the client's request context is used.
 #### `update`
 
 ```python
-update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Update this node on the backend.
@@ -436,6 +444,8 @@ unmodified. Defaults to ``False``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `get_pool_allocated_resources`
 
@@ -776,7 +786,7 @@ from ``source.name`` when ``name`` is omitted.
 #### `delete`
 
 ```python
-delete(self, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+delete(self, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Delete this node on the backend.
@@ -787,11 +797,13 @@ Delete this node on the backend.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `save`
 
 ```python
-save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+save(self, allow_upsert: bool = False, update_group_context: bool | None = None, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Persist this node to the backend, creating or updating it as appropriate.
@@ -812,11 +824,13 @@ to ``True``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -829,8 +843,10 @@ relevant attributes are returned alongside the generic fields.
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `fragment`: When ``True`` and the schema is a generic, emit
@@ -907,7 +923,7 @@ the listed peers, leaving every other field untouched.
 #### `create`
 
 ```python
-create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+create(self, allow_upsert: bool = False, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Create this node on the backend.
@@ -927,6 +943,8 @@ erroring on a duplicate. Defaults to ``False``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 **Raises:**
 
@@ -935,7 +953,7 @@ to the mutation. When omitted, the client's request context is used.
 #### `update`
 
 ```python
-update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None) -> None
+update(self, do_full_update: bool = False, timeout: int | None = None, request_context: RequestContext | None = None, priority: Priority | None = None) -> None
 ```
 
 Update this node on the backend.
@@ -955,6 +973,8 @@ unmodified. Defaults to ``False``.
 GraphQL API. Specified in seconds.
 - `request_context`: Request-level context passed through
 to the mutation. When omitted, the client's request context is used.
+- `priority`: Per-request priority emitted as the X-Priority header,
+overriding the client default for this request only.
 
 #### `get_pool_allocated_resources`
 
@@ -1336,7 +1356,7 @@ Return the raw GraphQL payload used to build this node.
 #### `generate_query_data_init`
 
 ```python
-generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
 ```
 
 Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
@@ -1348,8 +1368,10 @@ The returned dict is the outer structure consumed by
 **Args:**
 
 - `filters`: Filters to apply to the query.
-- `offset`: Pagination offset.
-- `limit`: Pagination limit.
+- `offset`: Pagination offset, either a literal value or a
+GraphQL variable placeholder such as ``"$offset"``.
+- `limit`: Pagination limit, either a literal value or a
+GraphQL variable placeholder such as ``"$limit"``.
 - `include`: Attributes or relationships to include.
 - `exclude`: Attributes or relationships to exclude.
 - `partial_match`: When ``True``, allow partial matches on filter

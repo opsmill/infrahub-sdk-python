@@ -37,6 +37,31 @@ class InfrahubRepositoryArtifactDefinitionConfig(InfrahubRepositoryConfigElement
     transformation: str = Field(..., description="The transformation to use.")
 
 
+MISSING_WATCH_MESSAGE = (
+    "Missing 'watch' block. Infrahub cannot detect every file this depends on, so list templates, "
+    "helper modules and data files under 'watch.files' to have the results regenerated when they "
+    "change. Use an empty 'files: []' to record that nothing extra needs watching."
+)
+
+MALFORMED_WATCH_MESSAGE = (
+    "The 'watch' block must be a mapping. Put the watched paths under 'files', or use 'files: []' to "
+    "confirm that nothing extra needs watching."
+)
+
+# Advisory only: nothing here is enforced by the models. A YAML language server reports a missing
+# required property as a warning, which is how editors flag an absent 'watch' block while someone
+# edits .infrahub.yml. 'allOf' is used rather than a top-level 'required' because keys in
+# json_schema_extra replace the ones pydantic generates, which would drop the real required fields.
+REQUIRE_WATCH_JSON_SCHEMA: dict[str, Any] = {"allOf": [{"required": ["watch"], "errorMessage": MISSING_WATCH_MESSAGE}]}
+
+# Narrowing the field to an object rejects a bare 'watch:' or 'watch: null', which pydantic accepts
+# through the null half of the generated anyOf. Those forms leave 'watch' as None, indistinguishable
+# from never having declared it, so the acknowledgement the block exists to record is lost. An empty
+# 'watch: {}' is deliberately fine: 'files' defaults to an empty list, so it carries that
+# acknowledgement without the author having to spell the key out.
+WATCH_FIELD_JSON_SCHEMA: dict[str, Any] = {"type": "object", "errorMessage": MALFORMED_WATCH_MESSAGE}
+
+
 class InfrahubWatchConfig(BaseModel):
     """Extra files and directories a transform depends on.
 
@@ -44,6 +69,9 @@ class InfrahubWatchConfig(BaseModel):
     depends on files that cannot be detected automatically, such as templates pulled in dynamically
     or helper modules imported at runtime. When any watched file changes, the transform's artifacts
     are regenerated.
+
+    An empty 'files' list is a valid answer: it records that the author checked and nothing beyond
+    what Infrahub detects needs watching.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -61,6 +89,7 @@ class InfrahubJinja2TransformConfig(InfrahubRepositoryConfigElement):
     description: str | None = Field(default=None, description="Description for this transform")
     watch: InfrahubWatchConfig | None = Field(
         default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
         description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
     )
 
@@ -102,7 +131,7 @@ class InfrahubCheckDefinitionConfig(InfrahubRepositoryConfigElement):
 
 
 class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=REQUIRE_WATCH_JSON_SCHEMA)
 
     name: str = Field(..., description="The name of the Generator Definition")
     file_path: Path = Field(..., description="The file within the repository with the generator code.")
@@ -131,6 +160,11 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
         default=True,
         description="When true (default), the Generator runs after a branch merge. Set to false for Generators that only run via event triggers.",
     )
+    watch: InfrahubWatchConfig | None = Field(
+        default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
+        description="Extra files and directories this generator depends on, in addition to the ones Infrahub detects automatically.",
+    )
 
     def load_class(self, import_root: str | None = None, relative_path: str | None = None) -> type[InfrahubGenerator]:
         module = import_module(module_path=self.file_path, import_root=import_root, relative_path=relative_path)
@@ -147,7 +181,7 @@ class InfrahubGeneratorDefinitionConfig(InfrahubRepositoryConfigElement):
 
 
 class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=REQUIRE_WATCH_JSON_SCHEMA)
 
     name: str = Field(..., description="The name of the Transform")
     file_path: Path = Field(..., description="The file within the repository with the transform code.")
@@ -159,6 +193,7 @@ class InfrahubPythonTransformConfig(InfrahubRepositoryConfigElement):
     description: str | None = Field(default=None, description="Description for this transform")
     watch: InfrahubWatchConfig | None = Field(
         default=None,
+        json_schema_extra=WATCH_FIELD_JSON_SCHEMA,
         description="Extra files and directories this transform depends on, in addition to the ones Infrahub detects automatically.",
     )
 

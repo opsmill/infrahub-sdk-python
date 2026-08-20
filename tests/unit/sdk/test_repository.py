@@ -13,7 +13,11 @@ from infrahub_sdk.utils import get_fixtures_dir
 
 @pytest.fixture
 def temp_dir() -> Generator[str]:
-    """Fixture to create a temporary directory for testing."""
+    """Fixture to create a temporary directory for testing.
+
+    Yields:
+        str: Path to the temporary directory.
+    """
     with tempfile.TemporaryDirectory() as tmp_dir:
         yield tmp_dir
 

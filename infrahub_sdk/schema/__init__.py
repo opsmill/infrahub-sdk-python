@@ -24,6 +24,8 @@ from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
+from .generated.read import InfrahubSchemaRead
+from .generated.write import InfrahubSchemaWrite
 from .main import (
     AttributeSchema,
     AttributeSchemaAPI,
@@ -42,6 +44,12 @@ from .main import (
     SchemaRootAPI,
     TemplateSchemaAPI,
 )
+from .validate import (
+    SchemaValidationErrorDetail,
+    SchemaValidationResult,
+    SchemaValidationWarningDetail,
+    validate_schema,
+)
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync, SchemaType, SchemaTypeSync
@@ -56,6 +64,8 @@ __all__ = [
     "BranchSupportType",
     "GenericSchema",
     "GenericSchemaAPI",
+    "InfrahubSchemaRead",
+    "InfrahubSchemaWrite",
     "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
@@ -67,8 +77,12 @@ __all__ = [
     "SchemaExport",
     "SchemaRoot",
     "SchemaRootAPI",
+    "SchemaValidationErrorDetail",
+    "SchemaValidationResult",
+    "SchemaValidationWarningDetail",
     "TemplateSchemaAPI",
     "schema_to_export_dict",
+    "validate_schema",
 ]
 
 
@@ -165,8 +179,19 @@ class InfrahubSchemaBase:
                 ns_map[ns].nodes.append(schema_dict)
         return SchemaExport(namespaces=ns_map)
 
-    def validate(self, data: dict[str, Any]) -> None:
-        SchemaRoot(**data)
+    def validate(self, data: dict[str, Any]) -> SchemaValidationResult:
+        """Validate a schema payload against the generated write contract.
+
+        Returns:
+            The verdict, carrying a warning for every read-only field the payload sets.
+
+        Raises:
+            ValueError: When the payload is invalid, joining every field-level message.
+
+        """
+        # Delegating to the offline validator keeps this verdict identical to the one
+        # /api/schema/load reaches, since the server runs the same models.
+        return validate_schema(schema=data, raise_on_error=True)
 
     def validate_data_against_schema(self, schema: MainSchemaTypesAPI, data: dict) -> None:
         for key in data:
@@ -362,7 +387,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if wait_until_converged:
@@ -394,7 +421,9 @@ class InfrahubSchema(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = await self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:
@@ -892,7 +921,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/load?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if wait_until_converged:
@@ -924,7 +955,9 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         branch = branch or self.client.default_branch
         url = f"{self.client.address}/api/schema/check?branch={branch}"
         response = self.client._post(
-            url=url, timeout=max(120, self.client.default_timeout), payload={"schemas": schemas}
+            url=url,
+            timeout=max(120, self.client.default_timeout),
+            payload={"schemas": schemas},
         )
 
         if response.status_code == httpx.codes.ACCEPTED:

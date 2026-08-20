@@ -66,7 +66,11 @@ class InfrahubYamlFile(pytest.File):
         return resource_config
 
     def collect_group(self, group: InfrahubTestGroup) -> Iterable[pytest.Item]:
-        """Collect all items for a group."""
+        """Collect all items for a group.
+
+        Yields:
+            pytest.Item: Each collected test item for the group.
+        """
         marker = MARKER_MAPPING[group.resource]
         resource_config = self.get_resource_config(group)
 

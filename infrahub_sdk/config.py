@@ -8,7 +8,7 @@ from pydantic import Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, InitSettingsSource, PydanticBaseSettingsSource, SettingsConfigDict
 from typing_extensions import Self
 
-from .constants import InfrahubClientMode
+from .constants import InfrahubClientMode, Priority
 from .playback import JSONPlayback
 from .recorder import JSONRecorder, NoRecorder, Recorder, RecorderType
 from .types import AsyncRequester, InfrahubLoggers, RequesterTransport, SyncRequester
@@ -56,6 +56,13 @@ class ConfigBase(BaseSettings):
     max_concurrent_execution: int = Field(default=5, description="Max concurrent execution in batch mode")
     mode: InfrahubClientMode = Field(default=InfrahubClientMode.DEFAULT, description="Default mode for the client")
     pagination_size: int = Field(default=50, description="Page size for queries to the server")
+    priority: Priority | None = Field(
+        default=None,
+        description=(
+            "Default request priority emitted as the X-Priority header on every request; "
+            "one of high|medium|low (case-insensitive). When unset, no header is sent."
+        ),
+    )
     retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
     retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
     rate_limit_retry_enabled: bool = Field(
@@ -63,7 +70,7 @@ class ConfigBase(BaseSettings):
         description="Retry requests that receive HTTP 429 using backoff. Set False to disable.",
     )
     rate_limit_max_retries: int = Field(
-        default=5,
+        default=10,
         ge=0,
         description="Maximum number of retries after the initial attempt when receiving HTTP 429.",
     )
