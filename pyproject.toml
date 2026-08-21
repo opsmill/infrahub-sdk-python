@@ -163,7 +163,7 @@ invalid-assignment = "ignore" # 1 violation in importer/json.py
 include = ["infrahub_sdk/node/node.py"]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 9 violations - lines 776, 855, 859, 862
+invalid-argument-type = "ignore" # 8 violations
 
 
 [[tool.ty.overrides]]
@@ -183,7 +183,6 @@ unused-ignore-comment = "ignore" # Clashes with mypy's type ignore comments
 include = ["tests/fixtures/**"]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # Test fixtures - dynamic mock data
 possibly-missing-attribute = "ignore" # Test fixtures use dynamic attributes
 
 # Test-specific overrides - tests have more lenient type checking
@@ -231,9 +230,8 @@ include = [
 ]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 29 violations
+invalid-argument-type = "ignore" # 25 violations
 invalid-assignment = "ignore"
-no-matching-overload = "ignore"
 possibly-missing-attribute = "ignore"
 
 [[tool.ty.overrides]]
@@ -276,7 +274,7 @@ disable_error_code = ["call-overload"]
 
 [[tool.mypy.overrides]]
 module = "infrahub_sdk.utils"
-disable_error_code = ["arg-type", "attr-defined", "return-value", "union-attr"]
+disable_error_code = ["attr-defined", "return-value", "union-attr"]
 
 [[tool.mypy.overrides]]
 # ``main.py`` intentionally narrows the ``attributes``/``relationships``/``choices`` fields inherited
@@ -290,7 +288,7 @@ disable_error_code = ["assignment"]
 # The generated read models expose ``kind`` via ``@computed_field`` stacked on ``@property``. mypy
 # does not support decorators on top of ``@property`` and flags it, but pydantic requires this order.
 module = "infrahub_sdk.schema.generated.read"
-disable_error_code = ["misc"]
+disable_error_code = ["prop-decorator"]
 
 [tool.ruff]
 line-length = 120
