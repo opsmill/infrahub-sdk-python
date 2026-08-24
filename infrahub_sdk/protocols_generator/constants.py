@@ -1,4 +1,5 @@
 TEMPLATE_FILE_NAME = "template.j2"
+HEADER_FILE_NAME = "header.j2"
 
 ATTRIBUTE_KIND_MAP = {
     "ID": "String",
