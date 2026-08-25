@@ -6,7 +6,12 @@ import pytest
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.protocols_generator.generator import CodeGenerator
 from infrahub_sdk.protocols_generator.target import ProtocolTarget
-from infrahub_sdk.schema import AttributeSchemaAPI
+from infrahub_sdk.schema import (
+    AttributeSchemaAPI,
+    GenericSchemaAPI,
+    RelationshipCardinality,
+    RelationshipSchemaAPI,
+)
 from tests.helpers.fixtures import read_fixture
 
 if TYPE_CHECKING:
@@ -74,6 +79,20 @@ RENDER_ATTRIBUTE_TEST_CASES = [
         default_value=True,
         expected="enabled: Boolean",
     ),
+]
+
+
+@dataclass
+class HierarchyTestCase:
+    name: str
+    declared_relationships: list[str]
+
+
+HIERARCHY_TEST_CASES = [
+    HierarchyTestCase(name="neither-declared", declared_relationships=[]),
+    HierarchyTestCase(name="only-parent-declared", declared_relationships=["parent"]),
+    HierarchyTestCase(name="only-children-declared", declared_relationships=["children"]),
+    HierarchyTestCase(name="both-declared", declared_relationships=["parent", "children"]),
 ]
 
 
@@ -169,6 +188,34 @@ async def test_render_user_schema_matches_golden(
     rendered = CodeGenerator(schema=schemas).render(sync=test_case.sync)
 
     assert rendered == read_fixture(test_case.fixture, GOLDEN_SUBDIR)
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in HIERARCHY_TEST_CASES],
+)
+async def test_hierarchy_members_are_declared_once(test_case: HierarchyTestCase) -> None:
+    """A hierarchical kind declares `parent` and `children` exactly once.
+
+    Both come from the hierarchy unless the schema already exposes them as relationships, which
+    it does for anything read from the API. Emitting either one twice is not a type error, so a
+    duplicate silently overrides the first declaration with whatever the second one says.
+    """
+    relationships = [
+        RelationshipSchemaAPI(
+            name=name,
+            peer="LocationSite",
+            cardinality=RelationshipCardinality.ONE if name == "parent" else RelationshipCardinality.MANY,
+        )
+        for name in test_case.declared_relationships
+    ]
+    generic = GenericSchemaAPI(name="Site", namespace="Location", hierarchical=True, relationships=relationships)
+
+    rendered = CodeGenerator(schema={"LocationSite": generic}).render(sync=False)
+
+    body = rendered[rendered.index("class LocationSite") :]
+    assert body.count("parent:") == 1
+    assert body.count("children:") == 1
 
 
 async def test_render_sdk_core_emits_both_variants(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:

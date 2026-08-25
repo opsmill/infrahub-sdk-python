@@ -10,9 +10,14 @@ class {{ generic.namespace + generic.name }}{{ suffix }}({{core_node_name}}):
     {% for relationship in generic.relationships | sort(attribute='name') | default([]) %}
     {{ relationship | render_relationship(sync) }}
     {% endfor %}
-    {% if generic.hierarchical | default(false) and "parent" not in generic.relationships | default([]) | map(attribute="name") %}
+    {% if generic.hierarchical | default(false) %}
+    {% set relationship_names = generic.relationships | default([]) | map(attribute="name") | list %}
+    {% if "parent" not in relationship_names %}
     parent: {{ "RelationshipAttribute" | syncify(sync) }}[{{ generic.namespace + generic.name }}{{ suffix }}]
+    {% endif %}
+    {% if "children" not in relationship_names %}
     children: {{ "RelationshipManager" | syncify(sync) }}[{{ generic.namespace + generic.name }}{{ suffix }}]
+    {% endif %}
     {% endif %}
 {% endfor %}
 
@@ -29,9 +34,14 @@ class {{ node.namespace + node.name }}{{ suffix }}({{ node.inherit_from | syncif
     {% for relationship in node.relationships | sort(attribute='name') | default([]) %}
     {{ relationship | render_relationship(sync) }}
     {% endfor %}
-    {% if node.hierarchical | default(false) and "parent" not in node.relationships | default([]) | map(attribute="name") %}
+    {% if node.hierarchical | default(false) %}
+    {% set relationship_names = node.relationships | default([]) | map(attribute="name") | list %}
+    {% if "parent" not in relationship_names %}
     parent: {{ "RelationshipAttribute" | syncify(sync) }}[{{ node.namespace + node.name }}{{ suffix }}]
+    {% endif %}
+    {% if "children" not in relationship_names %}
     children: {{ "RelationshipManager" | syncify(sync) }}[{{ node.namespace + node.name }}{{ suffix }}]
+    {% endif %}
     {% endif %}
 
 {% endfor %}
@@ -49,9 +59,14 @@ class {{ node.namespace + node.name }}{{ suffix }}({{ node.inherit_from | syncif
     {% for relationship in node.relationships | sort(attribute='name') | default([]) %}
     {{ relationship | render_relationship(sync) }}
     {% endfor %}
-    {% if node.hierarchical | default(false) and "parent" not in node.relationships | default([]) | map(attribute="name") %}
+    {% if node.hierarchical | default(false) %}
+    {% set relationship_names = node.relationships | default([]) | map(attribute="name") | list %}
+    {% if "parent" not in relationship_names %}
     parent: {{ "RelationshipAttribute" | syncify(sync) }}[{{ node.namespace + node.name }}{{ suffix }}]
+    {% endif %}
+    {% if "children" not in relationship_names %}
     children: {{ "RelationshipManager" | syncify(sync) }}[{{ node.namespace + node.name }}{{ suffix }}]
+    {% endif %}
     {% endif %}
 
 {% endfor %}
