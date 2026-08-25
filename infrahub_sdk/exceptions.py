@@ -66,6 +66,19 @@ class GraphQLError(Error):
         super().__init__(self.message)
 
 
+class TrackingGroupCleanupError(Error):
+    """Raised when unused members of a tracking group could not be deleted.
+
+    Every unused member is attempted before this is raised, and the ones that failed are
+    kept in the tracking group so a later run retries them.
+    """
+
+    def __init__(self, failures: dict[str, str]) -> None:
+        self.failures = failures
+        details = "; ".join(f"{node_id} ({reason})" for node_id, reason in failures.items())
+        super().__init__(f"Unable to delete {len(failures)} unused member(s) of the tracking group: {details}")
+
+
 class VersionNotSupportedError(Error):
     """Raised when a feature is used against an Infrahub server version that does not support it."""
 
