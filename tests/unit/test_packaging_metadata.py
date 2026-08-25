@@ -41,6 +41,12 @@ IMPORT_NAME_TO_DISTRIBUTION = {
     "yaml": "pyyaml",
 }
 
+# Standard library on a Python newer than the interpreter running these checks, so absent from
+# this interpreter's `sys.stdlib_module_names`. They are imported behind a `sys.version_info`
+# guard alongside a declared backport, and must not be mistaken for undeclared packages on the
+# older interpreters in the test matrix.
+STDLIB_ON_NEWER_PYTHON = frozenset({"tomllib"})
+
 # Distributions declared on purpose without being imported, with the reason why.
 DECLARED_WITHOUT_IMPORT = {
     "click": "Constrains the `click` version that `typer` resolves to; never imported directly.",
@@ -101,7 +107,11 @@ def _imported_distributions() -> dict[str, Path]:
                 continue
             for module in modules:
                 top_level = module.split(".")[0]
-                if top_level in sys.stdlib_module_names or top_level == PACKAGE_DIR.name:
+                if (
+                    top_level in sys.stdlib_module_names
+                    or top_level in STDLIB_ON_NEWER_PYTHON
+                    or top_level == PACKAGE_DIR.name
+                ):
                     continue
                 distribution = _normalize(IMPORT_NAME_TO_DISTRIBUTION.get(top_level, top_level))
                 imported.setdefault(distribution, path.relative_to(REPO_ROOT))
