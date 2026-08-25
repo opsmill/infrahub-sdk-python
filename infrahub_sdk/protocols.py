@@ -130,6 +130,7 @@ class CoreGenericRepository(CoreNode):
     location: String
     internal_status: Dropdown
     operational_status: Dropdown
+    commit: StringOptional
     sync_status: Dropdown
     credential: RelatedNode
     tags: RelationshipManager
@@ -735,6 +736,7 @@ class CoreGenericRepositorySync(CoreNodeSync):
     location: String
     internal_status: Dropdown
     operational_status: Dropdown
+    commit: StringOptional
     sync_status: Dropdown
     credential: RelatedNodeSync
     tags: RelationshipManagerSync
