@@ -39,6 +39,12 @@ The `tests` extra provides all the components for the testing framework of Trans
 pip install 'infrahub-sdk[tests]'
 ```
 
+:::note
+
+This extra is much larger than the others. The `infrahub_sdk.testing` helpers run Infrahub in containers, which adds roughly 66 packages on top of the base SDK. Install the `ctl` extra on its own if you only need the `infrahubctl` command.
+
+:::
+
 <!-- vale off -->
 
 ### all
