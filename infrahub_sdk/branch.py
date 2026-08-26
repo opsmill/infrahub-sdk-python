@@ -133,14 +133,7 @@ class InfrahubBranchManager:
             }
         }
 
-        query_data = {
-            "ok": None,
-            "messages": None,
-            "object": {
-                "id": None,
-                "name": None,
-            },
-        }
+        query_data = {"ok": None}
 
         query = Mutation(mutation="BranchValidate", input_data=input_data, query=query_data)
         response = await self.client.execute_graphql(query=query.render(), tracker="mutation-branch-validate")
@@ -288,14 +281,7 @@ class InfrahubBranchManagerSync:
             }
         }
 
-        query_data = {
-            "ok": None,
-            "messages": None,
-            "object": {
-                "id": None,
-                "name": None,
-            },
-        }
+        query_data = {"ok": None}
 
         query = Mutation(mutation="BranchValidate", input_data=input_data, query=query_data)
         response = self.client.execute_graphql(query=query.render(), tracker="mutation-branch-validate")
