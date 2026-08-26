@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,7 +40,7 @@ def test_update_with_set_args() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name", "description"]
     mock_schema.relationship_names = []
-    mock_schema.get_attribute = MagicMock(return_value=MagicMock(read_only=False))
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old-name"
@@ -82,7 +83,7 @@ def test_update_with_set_args_attribute_applied() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["description"]
     mock_schema.relationship_names = []
-    mock_schema.get_attribute = MagicMock(return_value=MagicMock(read_only=False))
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old description"
@@ -120,7 +121,7 @@ def test_update_with_set_args_and_branch() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name"]
     mock_schema.relationship_names = []
-    mock_schema.get_attribute = MagicMock(return_value=MagicMock(read_only=False))
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old"
@@ -173,13 +174,10 @@ def test_update_invalid_field() -> None:
 
 def test_update_read_only_field_rejected() -> None:
     """Using --set on a read-only attribute exits non-zero before resolving the node."""
-    read_only_attr = MagicMock()
-    read_only_attr.read_only = True
-
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["computed_address"]
     mock_schema.relationship_names = []
-    mock_schema.get_attribute = MagicMock(return_value=read_only_attr)
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=True)
 
     mock_client = MagicMock()
     mock_client.schema = MagicMock()
@@ -287,7 +285,7 @@ def test_update_with_set_args_attribute_noop() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["description"]
     mock_schema.relationship_names = []
-    mock_schema.get_attribute = MagicMock(return_value=MagicMock(read_only=False))
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "same value"

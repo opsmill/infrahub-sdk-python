@@ -20,14 +20,28 @@ FILE_NAME = "contract.pdf"
 FILE_MIME_TYPE = "application/pdf"
 
 
-def _set_server_checksum(node: InfrahubNode | InfrahubNodeSync, value: str) -> None:
-    """Populate the read-only ``checksum`` as a fetched node carries it.
+def _fetched_file_node(
+    clients: BothClients,
+    client_type: str,
+    schema: NodeSchemaAPI,
+    *,
+    checksum: str,
+    node_id: str | None = "node-1",
+    existing: bool = False,
+) -> InfrahubNode | InfrahubNodeSync:
+    """Build a file node the way a server fetch delivers it.
 
-    ``checksum`` is read-only, so a user assignment would raise. A real fetch
-    populates it via the ``Attribute`` constructor, which sets the backing value
-    directly and leaves ``value_has_been_mutated`` False; mirror that here.
+    ``checksum`` is read-only, so it is populated through the constructor payload -
+    the same path a real query uses - rather than assigned, which would raise.
     """
-    node.checksum._value = value  # type: ignore[attr-defined, union-attr]
+    client = getattr(clients, client_type)
+    node_cls = InfrahubNode if client_type == "standard" else InfrahubNodeSync
+    node = node_cls(client=client, schema=schema, branch="main", data={"checksum": {"value": checksum}})
+    if node_id is not None:
+        node.id = node_id
+    if existing:
+        node._existing = True
+    return node
 
 
 @pytest.fixture
@@ -323,13 +337,7 @@ class TestMatchesLocalChecksum:
         payload = b"matching content"
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "node-1"
-        _set_server_checksum(node, digest)
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum=digest)
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(payload) is True
@@ -339,13 +347,7 @@ class TestMatchesLocalChecksum:
     async def test_bytes_differ(
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "node-1"
-        _set_server_checksum(node, "different-digest")
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum="different-digest")
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(b"hello world") is False
@@ -364,13 +366,7 @@ class TestMatchesLocalChecksum:
         target.write_bytes(payload)
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "node-1"
-        _set_server_checksum(node, digest)
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum=digest)
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(target) is True
@@ -430,14 +426,9 @@ class TestUploadIfChanged:
         payload = b"unchanged content"
         digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "already-on-server"
-        node._existing = True
-        _set_server_checksum(node, digest)
+        node = _fetched_file_node(
+            clients, client_type, file_object_schema, checksum=digest, node_id="already-on-server", existing=True
+        )
 
         if isinstance(node, InfrahubNode):
             result = await node.upload_if_changed(source=payload, name="f.bin")
@@ -460,14 +451,14 @@ class TestUploadIfChanged:
         new_content = b"new content"
         expected_digest = hashlib.sha1(new_content, usedforsecurity=False).hexdigest()
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "existing-file-node-456"
-        node._existing = True
-        _set_server_checksum(node, "old-server-digest")
+        node = _fetched_file_node(
+            clients,
+            client_type,
+            file_object_schema,
+            checksum="old-server-digest",
+            node_id="existing-file-node-456",
+            existing=True,
+        )
 
         if isinstance(node, InfrahubNode):
             result = await node.upload_if_changed(source=new_content, name="f.bin")
@@ -523,14 +514,14 @@ class TestUploadIfChanged:
         target = tmp_path / "derived-name.bin"
         target.write_bytes(b"content")
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "existing-file-node-456"
-        node._existing = True
-        _set_server_checksum(node, "old-server-digest")
+        node = _fetched_file_node(
+            clients,
+            client_type,
+            file_object_schema,
+            checksum="old-server-digest",
+            node_id="existing-file-node-456",
+            existing=True,
+        )
 
         # No explicit name — should derive from target.name internally.
         if isinstance(node, InfrahubNode):
@@ -546,13 +537,7 @@ class TestUploadIfChanged:
         clients: BothClients,
         file_object_schema: NodeSchemaAPI,
     ) -> None:
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "some-id"
-        _set_server_checksum(node, "x")
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum="x", node_id="some-id")
 
         if isinstance(node, InfrahubNode):
             with pytest.raises(ValueError, match=r"name is required"):
@@ -602,15 +587,7 @@ class TestDownloadSkipIfUnchanged:
         dest = tmp_path / "local.bin"
         dest.write_bytes(payload)
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
-                client=client, schema=file_object_schema, branch="main"
-            )
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "file-node-skip"
-        _set_server_checksum(node, digest)
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum=digest, node_id="file-node-skip")
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -633,15 +610,14 @@ class TestDownloadSkipIfUnchanged:
         dest = tmp_path / "local.bin"
         dest.write_bytes(b"stale content")  # different from FILE_CONTENT
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
-                client=client, schema=file_object_schema, branch="main"
-            )
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "file-node-stream"  # id matches mock_download_file_to_disk
-        _set_server_checksum(node, "server-digest-different-from-local")
+        # id matches mock_download_file_to_disk
+        node = _fetched_file_node(
+            clients,
+            client_type,
+            file_object_schema,
+            checksum="server-digest-different-from-local",
+            node_id="file-node-stream",
+        )
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -669,15 +645,9 @@ class TestDownloadSkipIfUnchanged:
         dest = tmp_path / "missing.bin"  # does not exist
         assert not dest.exists()
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
-                client=client, schema=file_object_schema, branch="main"
-            )
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "file-node-stream"
-        _set_server_checksum(node, "any-digest")
+        node = _fetched_file_node(
+            clients, client_type, file_object_schema, checksum="any-digest", node_id="file-node-stream"
+        )
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -693,15 +663,9 @@ class TestDownloadSkipIfUnchanged:
         clients: BothClients,
         file_object_schema: NodeSchemaAPI,
     ) -> None:
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
-                client=client, schema=file_object_schema, branch="main"
-            )
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "file-node-1"
-        _set_server_checksum(node, "any-digest")
+        node = _fetched_file_node(
+            clients, client_type, file_object_schema, checksum="any-digest", node_id="file-node-1"
+        )
 
         with pytest.raises(ValueError, match=r"skip_if_unchanged requires dest"):
             if isinstance(node, InfrahubNode):
@@ -749,15 +713,8 @@ class TestDownloadSkipIfUnchanged:
         dest = tmp_path / "local.bin"
         dest.write_bytes(payload)
 
-        client = getattr(clients, client_type)
-        if client_type == "standard":
-            node: InfrahubNode | InfrahubNodeSync = InfrahubNode(
-                client=client, schema=file_object_schema, branch="main"
-            )
-        else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         # Do NOT set node.id — unsaved.
-        _set_server_checksum(node, digest)
+        node = _fetched_file_node(clients, client_type, file_object_schema, checksum=digest, node_id=None)
 
         with pytest.raises(ValueError, match=r"hasn't been saved yet"):
             if isinstance(node, InfrahubNode):
