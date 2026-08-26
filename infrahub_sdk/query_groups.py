@@ -175,7 +175,9 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             return
 
         # Calculate how many nodes should be deleted
-        self.unused_member_ids = list(set(existing_group.members.peer_ids) - set(members))  # type: ignore[union-attr]
+        self.unused_member_ids = list(
+            set(existing_group._get_relationship_many(name="members").peer_ids) - set(members)
+        )
 
         if not self.delete_unused_nodes:
             return
@@ -267,7 +269,9 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             return
 
         # Calculate how many nodes should be deleted
-        self.unused_member_ids = list(set(existing_group.members.peer_ids) - set(members))  # type: ignore[union-attr]
+        self.unused_member_ids = list(
+            set(existing_group._get_relationship_many(name="members").peer_ids) - set(members)
+        )
 
         if not self.delete_unused_nodes:
             return
