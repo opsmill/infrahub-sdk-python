@@ -9,7 +9,9 @@ declared dependencies and the imports in the shipped package agree with each oth
 from __future__ import annotations
 
 import ast
+import re
 import sys
+from collections.abc import Container, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,15 @@ else:
     import tomli as tomllib  # type: ignore[import-not-found]
 
 PROJECT_NAME = "infrahub-sdk"
+BASE_SECTION = "project.dependencies"
+
+# Modules that ship in the wheel but are allowed to need an extra, mapped to the extra that
+# supplies them. `ctl/` is the CLI; `async_typer` and `graphql/plugin.py` sit outside it but are
+# only reachable from it. Everything else must import on a plain install.
+EXTRA_ONLY_MODULES = {
+    "ctl": ("ctl/", "async_typer.py", "graphql/plugin.py"),
+    "tests": ("pytest_plugin/", "testing/"),
+}
 
 # Operators that establish a floor. A requirement without one of these lets a resolver reach back
 # to the first release ever published, which is never a version we have tested against.
@@ -55,7 +66,7 @@ DECLARED_WITHOUT_IMPORT = {
 
 def _normalize(name: str) -> str:
     """Normalise a distribution name per PEP 503 so `ruamel.yaml` and `Jinja2` compare cleanly."""
-    return "".join("-" if character in "-_." else character for character in name.lower())
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 def _pyproject() -> dict[str, Any]:
@@ -74,47 +85,86 @@ def _is_self_reference(requirement: Requirement) -> bool:
 @dataclass
 class RequirementCase:
     name: str
+    section: str
     requirement: str
 
 
 def _requirement_cases() -> list[RequirementCase]:
     """Every requirement a user can install, labelled with the section that declares it."""
     project = _pyproject()
-    sections = {"project.dependencies": project["dependencies"], **project["optional-dependencies"]}
+    sections = {BASE_SECTION: project["dependencies"], **project["optional-dependencies"]}
     return [
-        RequirementCase(name=f"{section}-{Requirement(requirement).name}", requirement=requirement)
+        RequirementCase(name=f"{section}-{Requirement(requirement).name}", section=section, requirement=requirement)
         for section, requirements in sections.items()
         for requirement in requirements
     ]
 
 
-def _declared_distributions() -> set[str]:
-    """Every distribution a user can install, across the core dependencies and all extras."""
-    parsed = (Requirement(case.requirement) for case in _requirement_cases())
-    return {_normalize(requirement.name) for requirement in parsed if not _is_self_reference(requirement)}
+def _declared_in(sections: Container[str]) -> set[str]:
+    """The distributions installed by the given sections of `pyproject.toml`."""
+    return {
+        _normalize(requirement.name)
+        for requirement in (Requirement(case.requirement) for case in _requirement_cases() if case.section in sections)
+        if not _is_self_reference(requirement)
+    }
+
+
+def _surface_of(relative_path: Path) -> str | None:
+    """The extra a shipped module may rely on, or None when it has to work on a base install."""
+    posix = relative_path.as_posix()
+    for extra, prefixes in EXTRA_ONLY_MODULES.items():
+        if any(posix.startswith(prefix) for prefix in prefixes):
+            return extra
+    return None
+
+
+def _import_time_nodes(tree: ast.Module) -> Iterator[ast.AST]:
+    """Walk the nodes that execute when the module is first loaded, so excluding function bodies.
+
+    An import inside a function is the sanctioned way to reach for an extra, as the JSON importer
+    does for pyarrow, and must not count against the install its module ships in.
+
+    Yields:
+        Each node reachable at import time, including those nested in module-level `if` and `try`
+        blocks and in class bodies.
+    """
+    stack: list[ast.AST] = list(tree.body)
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def _imports_of(path: Path, *, include_deferred: bool) -> set[str]:
+    """The third-party distributions a single module imports."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    distributions = set()
+    for node in ast.walk(tree) if include_deferred else _import_time_nodes(tree):
+        if isinstance(node, ast.Import):
+            modules = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            modules = [node.module]
+        else:
+            continue
+        for module in modules:
+            top_level = module.split(".")[0]
+            if (
+                top_level in sys.stdlib_module_names
+                or top_level in STDLIB_ON_NEWER_PYTHON
+                or top_level == PACKAGE_DIR.name
+            ):
+                continue
+            distributions.add(_normalize(IMPORT_NAME_TO_DISTRIBUTION.get(top_level, top_level)))
+    return distributions
 
 
 def _imported_distributions() -> dict[str, Path]:
     """Map each third-party distribution imported under the package to a file that imports it."""
     imported: dict[str, Path] = {}
     for path in sorted(PACKAGE_DIR.rglob("*.py")):
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Import):
-                modules = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                modules = [node.module]
-            else:
-                continue
-            for module in modules:
-                top_level = module.split(".")[0]
-                if (
-                    top_level in sys.stdlib_module_names
-                    or top_level in STDLIB_ON_NEWER_PYTHON
-                    or top_level == PACKAGE_DIR.name
-                ):
-                    continue
-                distribution = _normalize(IMPORT_NAME_TO_DISTRIBUTION.get(top_level, top_level))
-                imported.setdefault(distribution, path.relative_to(REPO_ROOT))
+        for distribution in sorted(_imports_of(path, include_deferred=True)):
+            imported.setdefault(distribution, path.relative_to(REPO_ROOT))
     return imported
 
 
@@ -145,9 +195,30 @@ def test_all_extra_aggregates_every_other_extra() -> None:
     assert aggregated == {_normalize(name) for name in extras if name != "all"}
 
 
+def test_shipped_modules_only_import_what_their_install_provides() -> None:
+    """Every shipped module must be importable with the install its own surface implies.
+
+    Checking against the union of every extra would let a module that ships in the base wheel
+    import a package only the `ctl` extra installs, which is how `infrahub_sdk.template` came to
+    raise `ModuleNotFoundError` on a plain install.
+    """
+    base = _declared_in({BASE_SECTION})
+    failures = []
+    for path in sorted(PACKAGE_DIR.rglob("*.py")):
+        extra = _surface_of(path.relative_to(PACKAGE_DIR))
+        available = base if extra is None else base | _declared_in({extra})
+        install = "a base install" if extra is None else f"the '{extra}' extra"
+        failures += [
+            f"{path.relative_to(REPO_ROOT)} imports {distribution}, which is not installed by {install}"
+            for distribution in sorted(_imports_of(path, include_deferred=False) - available)
+        ]
+
+    assert not failures, "\n".join(failures)
+
+
 def test_imports_in_shipped_package_are_declared() -> None:
     """Anything the wheel imports must be installable, not left to arrive as a transitive dependency."""
-    declared = _declared_distributions()
+    declared = _declared_in({BASE_SECTION, *_optional_dependencies()})
     undeclared = {
         distribution: source
         for distribution, source in _imported_distributions().items()
@@ -164,7 +235,7 @@ def test_declared_dependencies_are_imported() -> None:
     imported = _imported_distributions()
     unused = sorted(
         distribution
-        for distribution in _declared_distributions()
+        for distribution in _declared_in({BASE_SECTION, *_optional_dependencies()})
         if distribution not in imported and distribution not in DECLARED_WITHOUT_IMPORT
     )
     assert not unused, (
