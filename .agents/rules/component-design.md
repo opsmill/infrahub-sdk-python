@@ -30,7 +30,7 @@ Anything that comes from outside the component's own domain - resolved configura
 - **Configuration resolves at the entry point, not in the component.** A component takes plain values (`max_retries: int`, `backoff_base: float`), never a `Config` object and never a module-global read. `RateLimitRetryHandler` is the example to copy: the client reads `self.config.rate_limit_*` once and passes plain numbers down, so the handler is the only thing that has to be understood to test the retry decisions, and it is testable with hand-picked values.
 - **A factory takes its out-of-domain collaborators as parameters too**, rather than choosing them. A factory that both reads config *and* picks the concrete implementations has only moved the coupling one level out; take them as arguments so the entry point names them and the factory stays reusable with different ones.
 - **Configure at construction, never by assignment afterwards.** Reaching into a built object to finish setting it up leaves a window in which it is misconfigured, makes a fixed value look mutable, and scatters the wiring across two places. Pass it to `__init__`, and expose it through a read-only property if callers need to read it back.
-- **Avoid mutable module-level registries.** A dict at module scope that other modules write into makes behaviour depend on which imports have run and leaks between tests in the same worker. Prefer passing the mapping into the factory, so the entry point names what is registered.
+- **Avoid mutable module-level registries.** A dict at module scope that other modules write into makes behaviour depend on which imports have run and leaks between tests in the same worker. Prefer passing the mapping into the factory, so the entry point names what is registered. `PROCESSOR_PER_KIND` in `infrahub_sdk/spec/processors/factory.py` is the existing shape to avoid, not to copy.
 
 ## Single entry point, operating on arguments
 
@@ -58,15 +58,22 @@ The corollary is a design test: if a rule can only be exercised through an await
 
 ## Interfaces for multiple implementations
 
-When more than one implementation of a component is required (different formats, different backends, a no-op variant), define a `Protocol` or abstract base class. The correct implementation is selected at the wiring layer and injected to the constructor - the consumer codes against the interface, not a concrete class. `ExporterInterface` / `ImporterInterface` (`infrahub_sdk/transfer/`) and `DataProcessor` (`infrahub_sdk/spec/processors/`) are the existing examples.
+When more than one implementation of a component is required (different formats, different backends, a no-op variant), define a `Protocol` or abstract base class. The correct implementation is selected at the wiring layer and injected to the constructor - the consumer codes against the interface, not a concrete class.
+
+Two examples in this codebase carry a genuine second implementation, both selected in `Config`:
+
+- `Recorder` (`infrahub_sdk/recorder.py`), with the no-op `NoRecorder` and the real `JSONRecorder`.
+- `AsyncRequester` / `SyncRequester` (`infrahub_sdk/types.py`), with the client's own httpx path and `JSONPlayback` (`infrahub_sdk/playback.py`) replaying recorded responses.
 
 A single implementation does not need an interface yet; introduce one when the second implementation arrives. Note that the second implementation can be either a no-op version or a testing version of a component.
+
+`ExporterInterface` / `ImporterInterface` (`infrahub_sdk/transfer/`) and `DataProcessor` (`infrahub_sdk/spec/processors/`) each have exactly one implementer today, so they are not examples of this reason to declare an interface. They earn their place under the next heading instead: they keep `ujson` and the file layout out of the `ctl` command that drives them.
 
 ## Interfaces to keep an out-of-domain dependency out
 
 The other reason to declare a `Protocol` is to invert a dependency direction, and there **one implementation is enough**. The situation: a component's logic has no business knowing about some out-of-domain concern - logging, a recorder, a progress display, telemetry - but something has to feed that concern from inside the component's flow. Importing the concrete client directly is what you are avoiding: it makes the dependency viral, drags a third-party package into the import chain of pure logic, and means the component can no longer be constructed in a test without it.
 
-`Recorder` (`infrahub_sdk/recorder.py`) and `InfrahubLogger` (`infrahub_sdk/types.py`) are this pattern already: a `Protocol` the SDK owns, satisfied structurally by whatever the caller supplies.
+`InfrahubLogger` (`infrahub_sdk/types.py`) is this pattern already: a `Protocol` the SDK owns, satisfied structurally by whatever the caller supplies, so no logging library reaches the client's own logic. `Recorder` does both jobs at once - it inverts the file-writing dependency *and* has a second implementation - which is the common case once an interface has been in place for a while.
 
 There are two acceptable shapes for the interface itself. Both keep the adapter and the logic from importing each other; pick one per interface and be consistent within it.
 

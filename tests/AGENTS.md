@@ -37,7 +37,8 @@ async def test_async_operation(httpx_mock: HTTPXMock):
         url="http://mock/graphql/main",
         json={"data": {"result": "success"}},
     )
-    client = InfrahubClient()
+    # The mocked URL must match the client's configured address
+    client = InfrahubClient(config=Config(address="http://mock"))
     result = await client.execute_graphql(query="...")
     assert result == {"result": "success"}
 
