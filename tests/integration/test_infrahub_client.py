@@ -63,6 +63,9 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         assert async_branch in pre_delete
         assert async_branch not in post_delete
 
+    async def test_branch_validate(self, client: InfrahubClient, base_dataset: None) -> None:
+        assert await client.branch.validate(branch_name="branch01") is True
+
     async def test_get_all(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_CAT)
         assert len(nodes) == 2
