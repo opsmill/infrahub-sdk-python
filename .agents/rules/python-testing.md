@@ -57,9 +57,11 @@ async def test_branch_conflict(case: BranchCase) -> None:
 Always pass `match=` to `pytest.raises()`:
 
 ```python
-with pytest.raises(Error, match=r"^Cannot use an unsaved node as the graph traversal source; save it first\.$"):
-    await client.traverse_paths(source=unsaved_node, destination=saved_node)
+with pytest.raises(BranchNotFoundError, match=r"^Unable to find the branch 'missing' in the Database\.$"):
+    await client.branch.get(branch_name="missing")
 ```
+
+Name the narrowest exception the call can raise, never the base `Error` (or `Exception`). A broad class passes when the code fails for an entirely unrelated reason, which is the failure mode the test exists to catch. Ruff's `PT011` is disabled under `tests/`, so nothing enforces this but review.
 
 Make `match` cover the whole stable message, anchored with `^...$` where practical, rather than a short fragment. A fragment keeps passing even when the rest of the wording regresses. Match only a substring when the message has a genuinely variable part (an id, a path, a count) that cannot be pinned down.
 
