@@ -1,0 +1,1 @@
+Routed the two remaining `existing_group.members.peer_ids` accesses in `infrahub_sdk/query_groups.py` through the typed `_get_relationship_many(name="members")` accessor, removing the last two `# type: ignore[union-attr]` suppressions in that module. Internal typing hygiene with no behavioural change.
