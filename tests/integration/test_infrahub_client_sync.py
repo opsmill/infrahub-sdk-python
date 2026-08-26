@@ -60,7 +60,7 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
         assert sync_branch not in post_delete
 
     def test_branch_validate(self, client_sync: InfrahubClientSync, base_dataset: None) -> None:
-        assert client_sync.branch.validate(branch_name="branch01") is True
+        assert client_sync.branch.validate(branch_name="sync-branch01") is True
 
     def test_get_all(self, client_sync: InfrahubClientSync, base_dataset: None) -> None:
         nodes = client_sync.all(kind=TESTING_CAT)
