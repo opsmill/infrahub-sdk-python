@@ -26,6 +26,9 @@ dependencies = [
     "httpx>=0.20",
     "anyio>=3.3.0", # 3.3.0 introduced `anyio.Path`, used by the async file handler
     "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
+    "Jinja2>=3", # template rendering in `template/` and `protocols_generator/`
+    "pyyaml>=6", # YAML parsing in `yaml.py`, `spec/`, `template/infrahub_filters.py` and the pytest plugin
+    "rich>=12,<14", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
     "ujson>=5",
     "dulwich>=0.24.7",
     "whenever>=0.9.3,<0.10.0",
@@ -46,11 +49,8 @@ infrahubctl = "infrahub_sdk.ctl.cli:app"
 
 [project.optional-dependencies]
 ctl = [
-    "Jinja2>=3",
     "pyarrow>=14",
-    "pyyaml>=6",
-    "ruamel.yaml>=0.18",
-    "rich>=12,<14",
+    "ruamel.yaml>=0.18", # round-trip mode preserves comments when `schema format` rewrites a file
     "typer>=0.15.0",
     # Not imported directly; constrains the `click` that `typer` resolves to.
     "click>=8.3,<9",
