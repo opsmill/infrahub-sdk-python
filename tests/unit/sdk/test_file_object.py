@@ -20,6 +20,16 @@ FILE_NAME = "contract.pdf"
 FILE_MIME_TYPE = "application/pdf"
 
 
+def _set_server_checksum(node: InfrahubNode | InfrahubNodeSync, value: str) -> None:
+    """Populate the read-only ``checksum`` as a fetched node carries it.
+
+    ``checksum`` is read-only, so a user assignment would raise. A real fetch
+    populates it via the ``Attribute`` constructor, which sets the backing value
+    directly and leaves ``value_has_been_mutated`` False; mirror that here.
+    """
+    node.checksum._value = value  # type: ignore[attr-defined, union-attr]
+
+
 @pytest.fixture
 def mock_node_create_with_file(httpx_mock: HTTPXMock) -> HTTPXMock:
     """Mock the HTTP response for node create with file upload."""
@@ -319,7 +329,7 @@ class TestMatchesLocalChecksum:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
-        node.checksum.value = digest  # type: ignore[attr-defined]
+        _set_server_checksum(node, digest)
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(payload) is True
@@ -335,7 +345,7 @@ class TestMatchesLocalChecksum:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
-        node.checksum.value = "different-digest"  # type: ignore[attr-defined]
+        _set_server_checksum(node, "different-digest")
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(b"hello world") is False
@@ -360,7 +370,7 @@ class TestMatchesLocalChecksum:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "node-1"
-        node.checksum.value = digest  # type: ignore[attr-defined]
+        _set_server_checksum(node, digest)
 
         if isinstance(node, InfrahubNode):
             assert await node.matches_local_checksum(target) is True
@@ -427,7 +437,7 @@ class TestUploadIfChanged:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "already-on-server"
         node._existing = True
-        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, digest)
 
         if isinstance(node, InfrahubNode):
             result = await node.upload_if_changed(source=payload, name="f.bin")
@@ -457,7 +467,7 @@ class TestUploadIfChanged:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "existing-file-node-456"
         node._existing = True
-        node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "old-server-digest")
 
         if isinstance(node, InfrahubNode):
             result = await node.upload_if_changed(source=new_content, name="f.bin")
@@ -520,7 +530,7 @@ class TestUploadIfChanged:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "existing-file-node-456"
         node._existing = True
-        node.checksum.value = "old-server-digest"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "old-server-digest")
 
         # No explicit name — should derive from target.name internally.
         if isinstance(node, InfrahubNode):
@@ -542,7 +552,7 @@ class TestUploadIfChanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "some-id"
-        node.checksum.value = "x"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "x")
 
         if isinstance(node, InfrahubNode):
             with pytest.raises(ValueError, match=r"name is required"):
@@ -600,7 +610,7 @@ class TestDownloadSkipIfUnchanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-skip"
-        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, digest)
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -631,7 +641,7 @@ class TestDownloadSkipIfUnchanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-stream"  # id matches mock_download_file_to_disk
-        node.checksum.value = "server-digest-different-from-local"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "server-digest-different-from-local")
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -667,7 +677,7 @@ class TestDownloadSkipIfUnchanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-stream"
-        node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "any-digest")
 
         if isinstance(node, InfrahubNode):
             bytes_written = await node.download_file(dest=dest, skip_if_unchanged=True)
@@ -691,7 +701,7 @@ class TestDownloadSkipIfUnchanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         node.id = "file-node-1"
-        node.checksum.value = "any-digest"  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, "any-digest")
 
         with pytest.raises(ValueError, match=r"skip_if_unchanged requires dest"):
             if isinstance(node, InfrahubNode):
@@ -747,7 +757,7 @@ class TestDownloadSkipIfUnchanged:
         else:
             node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
         # Do NOT set node.id — unsaved.
-        node.checksum.value = digest  # type: ignore[attr-defined, union-attr]
+        _set_server_checksum(node, digest)
 
         with pytest.raises(ValueError, match=r"hasn't been saved yet"):
             if isinstance(node, InfrahubNode):
