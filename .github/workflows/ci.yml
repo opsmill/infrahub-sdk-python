@@ -317,7 +317,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled') &&
       needs.files-changed.outputs.python == 'true'
-    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint", "unit-tests"]
     runs-on:
       group: "huge-runners"
     timeout-minutes: 40
@@ -355,7 +355,7 @@ jobs:
   #     !contains(needs.*.result, 'cancelled') &&
   #     needs.files-changed.outputs.python == 'true' &&
   #     (github.base_ref == 'stable' || github.base_ref == 'develop')
-  #   needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
+  #   needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint", "unit-tests"]
   #   runs-on:
   #     group: "huge-runners"
   #   timeout-minutes: 30
