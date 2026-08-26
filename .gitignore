@@ -41,3 +41,6 @@ infrahub_sdk/_version.py
 # SpecKit internal cache
 .specify/**/.cache/
 .specify/feature.json
+
+# Claude Code per-developer local settings (shared config stays tracked)
+.claude/settings.local.json
