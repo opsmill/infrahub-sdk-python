@@ -66,20 +66,6 @@ class NetworkManagementServer(CoreNodeSync):
 
 
 
-class LocationCountry(LocationGeneric):
-    description: StringOptional
-    name: String
-    shortname: String
-    timezone: StringOptional
-    children: RelationshipManagerSync[LocationSite]
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    parent: RelationshipAttributeSync[LocationGeneric]
-    profiles: RelationshipManagerSync[CoreProfileSync]
-    servers: RelationshipManagerSync[NetworkManagementServer]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-    tags: RelationshipManagerSync[BuiltinTagSync]
-
-
 class InfraDevice(CoreNodeSync):
     description: StringOptional
     name: String
@@ -94,46 +80,12 @@ class InfraDevice(CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class NetworkDhcpServer(NetworkManagementServer):
-    description: StringOptional
-    lease_time: String
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManagerSync[IpamIPAddress]
-    location: RelationshipAttributeSync[LocationGeneric]
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    profiles: RelationshipManagerSync[CoreProfileSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
 class IpamIPAddress(BuiltinIPAddress):
     address: IPHost
     description: StringOptional
     fqdn: StringOptional
     ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
     ip_prefix: RelationshipAttributeSync[BuiltinIPPrefixSync]
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    profiles: RelationshipManagerSync[CoreProfileSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
-class NetworkNTPServer(NetworkManagementServer):
-    description: StringOptional
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManagerSync[IpamIPAddress]
-    location: RelationshipAttributeSync[LocationGeneric]
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    profiles: RelationshipManagerSync[CoreProfileSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
-class NetworkNameServer(NetworkManagementServer):
-    description: StringOptional
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManagerSync[IpamIPAddress]
-    location: RelationshipAttributeSync[LocationGeneric]
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     profiles: RelationshipManagerSync[CoreProfileSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
@@ -160,6 +112,20 @@ class IpamPrefix(BuiltinIPPrefix):
     profiles: RelationshipManagerSync[CoreProfileSync]
     resource_pool: RelationshipManagerSync[CoreIPAddressPoolSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class LocationCountry(LocationGeneric):
+    description: StringOptional
+    name: String
+    shortname: String
+    timezone: StringOptional
+    children: RelationshipManagerSync[LocationSite]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelationshipAttributeSync[LocationGeneric]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    servers: RelationshipManagerSync[NetworkManagementServer]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class LocationRack(LocationGeneric):
@@ -190,6 +156,40 @@ class LocationSite(LocationGeneric):
     servers: RelationshipManagerSync[NetworkManagementServer]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
     tags: RelationshipManagerSync[BuiltinTagSync]
+
+
+class NetworkDhcpServer(NetworkManagementServer):
+    description: StringOptional
+    lease_time: String
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManagerSync[IpamIPAddress]
+    location: RelationshipAttributeSync[LocationGeneric]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class NetworkNameServer(NetworkManagementServer):
+    description: StringOptional
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManagerSync[IpamIPAddress]
+    location: RelationshipAttributeSync[LocationGeneric]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class NetworkNTPServer(NetworkManagementServer):
+    description: StringOptional
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManagerSync[IpamIPAddress]
+    location: RelationshipAttributeSync[LocationGeneric]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 
@@ -324,21 +324,21 @@ class ProfileNetworkManagementServer(LineageSource, CoreProfileSync, CoreNodeSyn
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileNetworkNTPServer(LineageSource, CoreProfileSync, CoreNodeSync):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    related_nodes: RelationshipManagerSync[NetworkNTPServer]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
 class ProfileNetworkNameServer(LineageSource, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     related_nodes: RelationshipManagerSync[NetworkNameServer]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class ProfileNetworkNTPServer(LineageSource, CoreProfileSync, CoreNodeSync):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    related_nodes: RelationshipManagerSync[NetworkNTPServer]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
