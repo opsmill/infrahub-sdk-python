@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk import InfrahubClient
+from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
+from infrahub_sdk.utils import get_branch
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -72,3 +73,26 @@ async def test_validate_sync_async(mock_gql_query_my_query: HTTPXMock) -> None:
     await check.run()
 
     assert check.passed is False
+
+
+async def test_branch_name_falls_back_to_configured_default_branch() -> None:
+    """Without an explicit branch, the configured default branch wins over the local Git branch."""
+
+    class IFCheck(InfrahubCheck):
+        query = "my_query"
+
+        def validate(self, data: dict) -> None: ...
+
+    client = InfrahubClient(config=Config(address="http://mock", default_branch="test"))
+
+    assert IFCheck(client=client).branch_name == "test"
+    assert IFCheck(client=client, branch="explicit").branch_name == "explicit"
+
+
+async def test_branch_name_falls_back_to_git_branch_without_a_client() -> None:
+    class IFCheck(InfrahubCheck):
+        query = "my_query"
+
+        def validate(self, data: dict) -> None: ...
+
+    assert IFCheck().branch_name == get_branch()
