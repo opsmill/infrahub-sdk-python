@@ -28,7 +28,7 @@ dependencies = [
     "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
     "Jinja2>=3", # template rendering in `template/` and `protocols_generator/`
     "pyyaml>=6", # YAML parsing in `yaml.py`, `spec/`, `template/infrahub_filters.py` and the pytest plugin
-    "rich>=12,<14", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
+    "rich>=12", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
     "ujson>=5",
     "dulwich>=0.24.7",
     "whenever>=0.9.3,<0.10.0",

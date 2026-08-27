@@ -14,7 +14,7 @@ import sys
 from collections.abc import Container, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 import pytest
 from packaging.requirements import Requirement
@@ -89,6 +89,43 @@ class RequirementCase:
     requirement: str
 
 
+@dataclass
+class ImportCase:
+    name: str
+    source: str
+    runs_on_import: bool
+
+
+IMPORT_CLASSIFICATION_CASES = [
+    ImportCase(name="module-level", source="import pyarrow\n", runs_on_import=True),
+    ImportCase(
+        name="module-level-try",
+        source="try:\n    import pyarrow\nexcept ImportError:\n    pyarrow = None\n",
+        runs_on_import=True,
+    ),
+    ImportCase(
+        name="inside-function",
+        source="def load():\n    import pyarrow\n    return pyarrow\n",
+        runs_on_import=False,
+    ),
+    ImportCase(
+        name="type-checking-guard",
+        source="from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    import pyarrow\n",
+        runs_on_import=False,
+    ),
+    ImportCase(
+        name="qualified-type-checking-guard",
+        source="import typing\nif typing.TYPE_CHECKING:\n    import pyarrow\n",
+        runs_on_import=False,
+    ),
+    ImportCase(
+        name="runtime-fallback-of-type-checking-guard",
+        source="from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\nelse:\n    import pyarrow\n",
+        runs_on_import=True,
+    ),
+]
+
+
 def _requirement_cases() -> list[RequirementCase]:
     """Every requirement a user can install, labelled with the section that declares it."""
     project = _pyproject()
@@ -118,11 +155,21 @@ def _surface_of(relative_path: Path) -> str | None:
     return None
 
 
-def _import_time_nodes(tree: ast.Module) -> Iterator[ast.AST]:
-    """Walk the nodes that execute when the module is first loaded, so excluding function bodies.
+def _is_type_checking_guard(node: ast.AST) -> TypeGuard[ast.If]:
+    """Whether *node* is an `if TYPE_CHECKING:` (or `if typing.TYPE_CHECKING:`) statement."""
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    name = test.id if isinstance(test, ast.Name) else test.attr if isinstance(test, ast.Attribute) else None
+    return name == "TYPE_CHECKING"
 
-    An import inside a function is the sanctioned way to reach for an extra, as the JSON importer
-    does for pyarrow, and must not count against the install its module ships in.
+
+def _import_time_nodes(tree: ast.Module) -> Iterator[ast.AST]:
+    """Walk the nodes that execute when the module is first loaded.
+
+    Function bodies and `if TYPE_CHECKING:` blocks are both skipped, because neither runs on
+    import: a deferred import is the sanctioned way to reach for an extra, as the JSON importer
+    does for pyarrow, and a type-checking import never executes at all.
 
     Yields:
         Each node reachable at import time, including those nested in module-level `if` and `try`
@@ -132,8 +179,13 @@ def _import_time_nodes(tree: ast.Module) -> Iterator[ast.AST]:
     while stack:
         node = stack.pop()
         yield node
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            stack.extend(ast.iter_child_nodes(node))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if _is_type_checking_guard(node):
+            # The else branch of a type-checking guard is the runtime fallback, so it still counts.
+            stack.extend(node.orelse)
+            continue
+        stack.extend(ast.iter_child_nodes(node))
 
 
 def _imports_of(path: Path, *, include_deferred: bool) -> set[str]:
@@ -166,6 +218,18 @@ def _imported_distributions() -> dict[str, Path]:
         for distribution in sorted(_imports_of(path, include_deferred=True)):
             imported.setdefault(distribution, path.relative_to(REPO_ROOT))
     return imported
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in IMPORT_CLASSIFICATION_CASES])
+def test_import_classification(case: ImportCase, tmp_path: Path) -> None:
+    """Whether an import counts at import time decides what the surface check enforces."""
+    module = tmp_path / "probe.py"
+    module.write_text(case.source, encoding="utf-8")
+
+    assert ("pyarrow" in _imports_of(module, include_deferred=False)) is case.runs_on_import
+    assert "pyarrow" in _imports_of(module, include_deferred=True), (
+        "every import should be found when deferred ones are included"
+    )
 
 
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in _requirement_cases()])

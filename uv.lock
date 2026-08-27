@@ -859,7 +859,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'all'", specifier = ">=7.0" },
     { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6" },
-    { name = "rich", specifier = ">=12,<14" },
+    { name = "rich", specifier = ">=12" },
     { name = "ruamel-yaml", marker = "extra == 'all'", specifier = ">=0.18" },
     { name = "ruamel-yaml", marker = "extra == 'ctl'", specifier = ">=0.18" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
