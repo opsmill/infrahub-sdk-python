@@ -18,10 +18,10 @@ class InfrahubOperation:
         branch: str,
         root_directory: str,
     ) -> None:
-        # The client default already honours the `default_branch_from_git` config flag.
-        self.branch = branch or client.default_branch
         self.convert_query_response = convert_query_response
         self.root_directory = root_directory or str(pathlib.Path.cwd())
+        # The config resolver honours the `default_branch_from_git` flag.
+        self.branch = branch or client.config.get_default_infrahub_branch(directory=self.root_directory)
         self.infrahub_node = infrahub_node
         self._nodes: list[InfrahubNode] = []
         self._related_nodes: list[InfrahubNode] = []

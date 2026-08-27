@@ -135,8 +135,8 @@ class InfrahubCheck:
             return self.branch
 
         if self._client:
-            # The client default already honours the `default_branch_from_git` config flag.
-            self.branch = self._client.default_branch
+            # The config resolver honours the `default_branch_from_git` flag.
+            self.branch = self._client.config.get_default_infrahub_branch(directory=self.root_directory)
         else:
             self.branch = get_branch(directory=self.root_directory)
 

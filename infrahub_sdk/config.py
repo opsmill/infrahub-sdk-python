@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ssl
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field, PrivateAttr, field_validator, model_validator
@@ -221,13 +222,16 @@ class ConfigBase(BaseSettings):
             raise ValueError("'proxy' and 'proxy_mounts' are mutually exclusive")
         return self
 
-    @property
-    def default_infrahub_branch(self) -> str:
+    def get_default_infrahub_branch(self, directory: str | Path = ".") -> str:
         branch: str | None = None
         if not self.default_branch_from_git:
             branch = self.default_branch
 
-        return get_branch(branch=branch)
+        return get_branch(branch=branch, directory=directory)
+
+    @property
+    def default_infrahub_branch(self) -> str:
+        return self.get_default_infrahub_branch()
 
     @property
     def password_authentication(self) -> bool:

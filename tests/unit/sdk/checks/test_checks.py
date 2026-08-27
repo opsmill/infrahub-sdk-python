@@ -7,7 +7,6 @@ import pytest
 
 from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
-from infrahub_sdk.utils import get_branch
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -89,10 +88,11 @@ async def test_branch_name_falls_back_to_configured_default_branch() -> None:
     assert IFCheck(client=client, branch="explicit").branch_name == "explicit"
 
 
-async def test_branch_name_falls_back_to_git_branch_without_a_client() -> None:
+async def test_branch_name_falls_back_to_git_branch_without_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
     class IFCheck(InfrahubCheck):
         query = "my_query"
 
         def validate(self, data: dict) -> None: ...
 
-    assert IFCheck().branch_name == get_branch()
+    monkeypatch.setattr("infrahub_sdk.checks.get_branch", lambda **_: "my-git-branch")
+    assert IFCheck().branch_name == "my-git-branch"
