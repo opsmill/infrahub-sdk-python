@@ -50,6 +50,33 @@ async def test_get_branches(clients: BothClients, mock_branches_list_query: HTTP
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_branch_validate_query_excludes_removed_fields(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str
+) -> None:
+    """validate() must only request fields the BranchValidate mutation still exposes.
+
+    The server removed the `messages` field from BranchValidate, so the rendered
+    mutation must not request it, otherwise the server rejects the whole query.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BranchValidate": {"ok": True}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-branch-validate"},
+    )
+
+    if client_type == "standard":
+        result = await clients.standard.branch.validate(branch_name="branch01")
+    else:
+        result = clients.sync.branch.validate(branch_name="branch01")
+
+    assert result is True
+
+    post_requests = [r for r in httpx_mock.get_requests() if r.method == "POST"]
+    assert len(post_requests) == 1
+    assert b"messages" not in post_requests[0].content
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_branch_merge_enforces_minimum_timeout(
     httpx_mock: HTTPXMock, clients: BothClients, client_type: str
 ) -> None:
