@@ -7,7 +7,12 @@ from typing import TYPE_CHECKING
 from .protocols_base import CoreNode, CoreNodeSync
 
 if TYPE_CHECKING:
-    from infrahub_sdk.node import RelatedNode, RelatedNodeSync, RelationshipManager, RelationshipManagerSync
+    from infrahub_sdk.node import (
+        RelationshipAttribute,
+        RelationshipAttributeSync,
+        RelationshipManager,
+        RelationshipManagerSync,
+    )
 
     from .protocols_base import (
         URL,
@@ -16,12 +21,14 @@ if TYPE_CHECKING:
         DateTime,
         DateTimeOptional,
         Dropdown,
-        Enum,
+        DropdownOptional,
         HashedPassword,
         Integer,
         IntegerOptional,
         IPHost,
+        IPHostOptional,
         IPNetwork,
+        IPNetworkOptional,
         JSONAttribute,
         JSONAttributeOptional,
         ListAttributeOptional,
@@ -30,234 +37,282 @@ if TYPE_CHECKING:
     )
 
 
-# ---------------------------------------------
-# ASYNC
-# ---------------------------------------------
-
-
 class BuiltinIPAddress(CoreNode):
     address: IPHost
     description: StringOptional
-    ip_namespace: RelatedNode
-    ip_prefix: RelatedNode
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    ip_prefix: RelationshipAttribute[BuiltinIPPrefix]
+    member_of_groups: RelationshipManager[CoreGroup]
+    profiles: RelationshipManager[CoreProfile]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class BuiltinIPNamespace(CoreNode):
-    name: String
     description: StringOptional
-    ip_prefixes: RelationshipManager
-    ip_addresses: RelationshipManager
+    name: String
+    ip_addresses: RelationshipManager[BuiltinIPAddress]
+    ip_prefixes: RelationshipManager[BuiltinIPPrefix]
+    member_of_groups: RelationshipManager[CoreGroup]
+    profiles: RelationshipManager[CoreProfile]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class BuiltinIPPrefix(CoreNode):
-    prefix: IPNetwork
+    broadcast_address: StringOptional
     description: StringOptional
-    member_type: Dropdown
+    hostmask: StringOptional
     is_pool: Boolean
     is_top_level: BooleanOptional
-    utilization: IntegerOptional
+    member_type: Dropdown
     netmask: StringOptional
-    hostmask: StringOptional
     network_address: StringOptional
-    broadcast_address: StringOptional
-    ip_namespace: RelatedNode
-    ip_addresses: RelationshipManager
-    resource_pool: RelationshipManager
-    parent: RelatedNode
-    children: RelationshipManager
+    prefix: IPNetwork
+    utilization: IntegerOptional
+    children: RelationshipManager[BuiltinIPPrefix]
+    ip_addresses: RelationshipManager[BuiltinIPAddress]
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    parent: RelationshipAttribute[BuiltinIPPrefix]
+    profiles: RelationshipManager[CoreProfile]
+    resource_pool: RelationshipManager[CoreIPPool]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreAction(CoreNode):
-    name: String
     description: StringOptional
-    triggers: RelationshipManager
+    name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    triggers: RelationshipManager[CoreTriggerRule]
 
 
 class CoreArtifactTarget(CoreNode):
-    artifacts: RelationshipManager
+    artifacts: RelationshipManager[CoreArtifact]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreBasePermission(CoreNode):
     description: StringOptional
     identifier: StringOptional
-    roles: RelationshipManager
+    member_of_groups: RelationshipManager[CoreGroup]
+    roles: RelationshipManager[CoreAccountRole]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreCheck(CoreNode):
-    name: StringOptional
-    label: StringOptional
-    origin: String
-    kind: String
-    message: StringOptional
-    conclusion: Enum
-    severity: Enum
+    conclusion: String
     created_at: DateTimeOptional
-    validator: RelatedNode
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreComment(CoreNode):
     text: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreCredential(CoreNode):
-    name: String
-    label: StringOptional
     description: StringOptional
+    label: StringOptional
+    name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreFileObject(CoreNode):
-    file_name: String
     checksum: String
+    file_name: String
     file_size: Integer
     file_type: String
     storage_id: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGenericAccount(CoreNode):
+    account_type: String
+    description: StringOptional
+    label: StringOptional
     name: String
     password: HashedPassword
-    label: StringOptional
-    description: StringOptional
-    account_type: Enum
     status: Dropdown
-    tokens: RelationshipManager
-    external_identities: RelationshipManager
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGenericRepository(CoreNode):
-    name: String
-    description: StringOptional
-    location: String
-    internal_status: Dropdown
-    operational_status: Dropdown
     commit: StringOptional
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
     sync_status: Dropdown
-    credential: RelatedNode
-    tags: RelationshipManager
-    transformations: RelationshipManager
-    queries: RelationshipManager
-    checks: RelationshipManager
-    generators: RelationshipManager
-    groups_objects: RelationshipManager
+    checks: RelationshipManager[CoreCheckDefinition]
+    credential: RelationshipAttribute[CoreCredential]
+    generators: RelationshipManager[CoreGeneratorDefinition]
+    groups_objects: RelationshipManager[CoreRepositoryGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    queries: RelationshipManager[CoreGraphQLQuery]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
+    transformations: RelationshipManager[CoreTransformation]
 
 
 class CoreGroup(CoreNode):
-    name: String
-    label: StringOptional
     description: StringOptional
-    group_type: Enum
-    members: RelationshipManager
-    subscribers: RelationshipManager
-    parent: RelatedNode
-    children: RelationshipManager
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreIPPool(CoreNode):
-    pass
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreKeyValue(CoreNode):
-    name: String
-    key: String
     description: StringOptional
+    key: String
+    name: String
     value: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreMenu(CoreNode):
-    namespace: String
-    name: String
-    label: StringOptional
-    kind: StringOptional
-    path: StringOptional
     description: StringOptional
     icon: StringOptional
-    protected: Boolean
+    kind: StringOptional
+    label: StringOptional
+    name: String
+    namespace: String
     order_weight: Integer
+    path: StringOptional
+    protected: Boolean
     required_permissions: ListAttributeOptional
-    section: Enum
-    parent: RelatedNode
-    children: RelationshipManager
+    section: String
+    children: RelationshipManager[CoreMenu]
+    member_of_groups: RelationshipManager[CoreGroup]
+    parent: RelationshipAttribute[CoreMenu]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreNodeTriggerMatch(CoreNode):
-    trigger: RelatedNode
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    trigger: RelationshipAttribute[CoreNodeTriggerRule]
 
 
 class CoreObjectComponentTemplate(CoreNode):
     template_name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreObjectTemplate(CoreNode):
     template_name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreProfile(CoreNode):
     profile_name: String
-    profile_priority: IntegerOptional
+    profile_priority: Integer
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreResourcePool(CoreNode):
-    name: String
     description: StringOptional
+    name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreTaskTarget(CoreNode):
-    pass
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreThread(CoreNode):
     label: StringOptional
     resolved: Boolean
-    change: RelatedNode
-    comments: RelationshipManager
+    change: RelationshipAttribute[CoreProposedChange]
+    comments: RelationshipManager[CoreThreadComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreTransformation(CoreNode):
-    name: String
-    label: StringOptional
-    description: StringOptional
-    timeout: Integer
-    fingerprint: StringOptional
     dependencies: ListAttributeOptional
     dependencies_complete: BooleanOptional
-    query: RelatedNode
-    repository: RelatedNode
-    tags: RelationshipManager
-    artifact_definitions: RelationshipManager
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    artifact_definitions: RelationshipManager[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
 
 
 class CoreTriggerRule(CoreNode):
-    name: String
-    description: StringOptional
     active: Boolean
     branch_scope: Dropdown
-    action: RelatedNode
+    description: StringOptional
+    name: String
+    action: RelationshipAttribute[CoreAction]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreValidator(CoreNode):
-    label: StringOptional
-    state: Enum
-    conclusion: Enum
     completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
     started_at: DateTimeOptional
-    proposed_change: RelatedNode
-    checks: RelationshipManager
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreWebhook(CoreNode):
-    name: String
-    event_type: Enum
     active: Boolean
     branch_scope: Dropdown
-    node_kind: StringOptional
     description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     url: URL
     validate_certificates: BooleanOptional
-    headers: RelationshipManager
+    headers: RelationshipManager[CoreKeyValue]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreWeightedPoolResource(CoreNode):
     allocation_weight: IntegerOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class LineageOwner(CoreNode):
@@ -269,601 +324,1106 @@ class LineageSource(CoreNode):
 
 
 class BuiltinTag(CoreNode):
-    name: String
     description: StringOptional
+    name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    profiles: RelationshipManager[CoreProfile]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreAccount(LineageOwner, LineageSource, CoreGenericAccount):
-    pass
+    account_type: String
+    description: StringOptional
+    label: StringOptional
+    name: String
+    password: HashedPassword
+    status: Dropdown
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreAccountGroup(LineageOwner, LineageSource, CoreGroup):
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
     origin: StringOptional
-    roles: RelationshipManager
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    roles: RelationshipManager[CoreAccountRole]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreAccountRole(CoreNode):
     name: String
-    groups: RelationshipManager
-    permissions: RelationshipManager
+    groups: RelationshipManager[CoreAccountGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    permissions: RelationshipManager[CoreBasePermission]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreArtifact(CoreTaskTarget):
-    name: String
-    status: Enum
-    content_type: Enum
     checksum: StringOptional
-    storage_id: StringOptional
+    content_type: String
+    name: String
     parameters: JSONAttributeOptional
-    object: RelatedNode
-    definition: RelatedNode
+    status: String
+    storage_id: StringOptional
+    definition: RelationshipAttribute[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    object: RelationshipAttribute[CoreArtifactTarget]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreArtifactCheck(CoreCheck):
+    artifact_id: StringOptional
     changed: BooleanOptional
     checksum: StringOptional
-    artifact_id: StringOptional
-    storage_id: StringOptional
+    conclusion: String
+    created_at: DateTimeOptional
+    kind: String
+    label: StringOptional
     line_number: IntegerOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    storage_id: StringOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreArtifactDefinition(CoreTaskTarget):
-    name: String
     artifact_name: String
+    content_type: String
     description: StringOptional
-    parameters: JSONAttribute
-    content_type: Enum
     fingerprint: StringOptional
-    targets: RelatedNode
-    transformation: RelatedNode
-    artifacts: RelationshipManager
-    validators: RelationshipManager
+    name: String
+    parameters: JSONAttribute
+    artifacts: RelationshipManager[CoreArtifact]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    targets: RelationshipAttribute[CoreGroup]
+    transformation: RelationshipAttribute[CoreTransformation]
+    validators: RelationshipManager[CoreArtifactValidator]
 
 
 class CoreArtifactThread(CoreThread):
     artifact_id: StringOptional
-    storage_id: StringOptional
+    label: StringOptional
     line_number: IntegerOptional
+    resolved: Boolean
+    storage_id: StringOptional
+    change: RelationshipAttribute[CoreProposedChange]
+    comments: RelationshipManager[CoreThreadComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreArtifactValidator(CoreValidator):
-    definition: RelatedNode
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    definition: RelationshipAttribute[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreChangeComment(CoreComment):
-    change: RelatedNode
+    text: String
+    change: RelationshipAttribute[CoreProposedChange]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreChangeThread(CoreThread):
-    pass
+    label: StringOptional
+    resolved: Boolean
+    change: RelationshipAttribute[CoreProposedChange]
+    comments: RelationshipManager[CoreThreadComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreCheckDefinition(CoreTaskTarget):
-    name: String
+    class_name: String
     description: StringOptional
     file_path: String
-    class_name: String
-    timeout: Integer
+    name: String
     parameters: JSONAttributeOptional
-    repository: RelatedNode
-    query: RelatedNode
-    targets: RelatedNode
-    tags: RelationshipManager
-    validators: RelationshipManager
+    timeout: Integer
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
+    targets: RelationshipAttribute[CoreGroup]
+    validators: RelationshipManager[CoreUserValidator]
 
 
 class CoreCustomWebhook(CoreWebhook, CoreTaskTarget):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     shared_key: StringOptional
-    transformation: RelatedNode
+    url: URL
+    validate_certificates: BooleanOptional
+    headers: RelationshipManager[CoreKeyValue]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    transformation: RelationshipAttribute[CoreTransformPython]
 
 
 class CoreDataCheck(CoreCheck):
+    conclusion: String
     conflicts: JSONAttribute
-    keep_branch: Enum
+    created_at: DateTimeOptional
     enriched_conflict_id: StringOptional
+    keep_branch: StringOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreDataValidator(CoreValidator):
-    pass
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreEnvKeyValue(CoreKeyValue):
-    pass
+    description: StringOptional
+    key: String
+    name: String
+    value: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreFileCheck(CoreCheck):
-    files: ListAttributeOptional
     commit: StringOptional
+    conclusion: String
+    created_at: DateTimeOptional
+    files: ListAttributeOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreFileThread(CoreThread):
-    file: StringOptional
     commit: StringOptional
+    file: StringOptional
+    label: StringOptional
     line_number: IntegerOptional
-    repository: RelatedNode
+    resolved: Boolean
+    change: RelationshipAttribute[CoreProposedChange]
+    comments: RelationshipManager[CoreThreadComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    repository: RelationshipAttribute[CoreRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGeneratorAction(CoreAction):
-    generator: RelatedNode
+    description: StringOptional
+    name: String
+    generator: RelationshipAttribute[CoreGeneratorDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    triggers: RelationshipManager[CoreTriggerRule]
 
 
 class CoreGeneratorAwareGroup(CoreGroup):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreGeneratorCheck(CoreCheck):
+    conclusion: String
+    created_at: DateTimeOptional
     instance: String
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreGeneratorDefinition(CoreTaskTarget):
-    name: String
-    description: StringOptional
-    parameters: JSONAttribute
-    file_path: String
     class_name: String
-    convert_query_response: BooleanOptional
-    execute_in_proposed_change: BooleanOptional
-    execute_after_merge: BooleanOptional
-    fingerprint: StringOptional
+    convert_query_response: Boolean
     dependencies: ListAttributeOptional
     dependencies_complete: BooleanOptional
-    query: RelatedNode
-    repository: RelatedNode
-    targets: RelatedNode
-    instances: RelationshipManager
-    validators: RelationshipManager
+    description: StringOptional
+    execute_after_merge: Boolean
+    execute_in_proposed_change: Boolean
+    file_path: String
+    fingerprint: StringOptional
+    name: String
+    parameters: JSONAttribute
+    instances: RelationshipManager[CoreGeneratorInstance]
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    targets: RelationshipAttribute[CoreGroup]
+    validators: RelationshipManager[CoreGeneratorValidator]
 
 
 class CoreGeneratorGroup(CoreGroup):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreGeneratorInstance(CoreTaskTarget):
     name: String
-    status: Enum
-    object: RelatedNode
-    definition: RelatedNode
+    status: String
+    definition: RelationshipAttribute[CoreGeneratorDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    object: RelationshipAttribute[CoreNode]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGeneratorValidator(CoreValidator):
-    definition: RelatedNode
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    definition: RelationshipAttribute[CoreGeneratorDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGlobalPermission(CoreBasePermission):
     action: Dropdown
-    decision: Enum
+    decision: Integer
+    description: StringOptional
+    identifier: StringOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    roles: RelationshipManager[CoreAccountRole]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreGraphQLQuery(CoreNode):
-    name: String
-    description: StringOptional
-    query: String
-    fingerprint: StringOptional
-    variables: JSONAttributeOptional
-    operations: ListAttributeOptional
-    models: ListAttributeOptional
     depth: IntegerOptional
+    description: StringOptional
+    fingerprint: StringOptional
     height: IntegerOptional
-    repository: RelatedNode
-    tags: RelationshipManager
-    query_groups: RelationshipManager
+    models: ListAttributeOptional
+    name: String
+    operations: ListAttributeOptional
+    query: String
+    variables: JSONAttributeOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    query_groups: RelationshipManager[CoreGraphQLQueryGroup]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
 
 
 class CoreGraphQLQueryGroup(CoreGroup):
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
     parameters: JSONAttributeOptional
-    query: RelatedNode
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreGroupAction(CoreAction):
+    description: StringOptional
     member_action: Dropdown
-    group: RelatedNode
+    name: String
+    group: RelationshipAttribute[CoreGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    triggers: RelationshipManager[CoreTriggerRule]
 
 
 class CoreGroupTriggerRule(CoreTriggerRule):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
     member_update: Dropdown
-    group: RelatedNode
+    name: String
+    action: RelationshipAttribute[CoreAction]
+    group: RelationshipAttribute[CoreGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreIPAddressPool(CoreResourcePool, LineageSource, CoreIPPool):
     default_address_type: String
     default_prefix_length: IntegerOptional
-    resources: RelationshipManager
-    ip_namespace: RelatedNode
+    description: StringOptional
+    name: String
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    resources: RelationshipManager[BuiltinIPPrefix]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreIPPrefixPool(CoreResourcePool, LineageSource, CoreIPPool):
+    default_member_type: String
     default_prefix_length: IntegerOptional
-    default_member_type: Enum
     default_prefix_type: StringOptional
-    resources: RelationshipManager
-    ip_namespace: RelatedNode
+    description: StringOptional
+    name: String
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    resources: RelationshipManager[BuiltinIPPrefix]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreMenuItem(CoreMenu):
-    pass
+    description: StringOptional
+    icon: StringOptional
+    kind: StringOptional
+    label: StringOptional
+    name: String
+    namespace: String
+    order_weight: Integer
+    path: StringOptional
+    protected: Boolean
+    required_permissions: ListAttributeOptional
+    section: String
+    children: RelationshipManager[CoreMenu]
+    member_of_groups: RelationshipManager[CoreGroup]
+    parent: RelationshipAttribute[CoreMenu]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreNodeTriggerAttributeMatch(CoreNodeTriggerMatch):
     attribute_name: String
     value: StringOptional
-    value_previous: StringOptional
     value_match: Dropdown
+    value_previous: StringOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    trigger: RelationshipAttribute[CoreNodeTriggerRule]
 
 
 class CoreNodeTriggerRelationshipMatch(CoreNodeTriggerMatch):
-    relationship_name: String
     modification_type: Dropdown
     peer: StringOptional
+    relationship_name: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    trigger: RelationshipAttribute[CoreNodeTriggerRule]
 
 
 class CoreNodeTriggerRule(CoreTriggerRule):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    mutation_action: String
+    name: String
     node_kind: String
-    mutation_action: Enum
-    matches: RelationshipManager
+    action: RelationshipAttribute[CoreAction]
+    matches: RelationshipManager[CoreNodeTriggerMatch]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreNumberPool(CoreResourcePool, LineageSource):
+    description: StringOptional
+    end_range: Integer
+    name: String
     node: String
     node_attribute: String
+    pool_type: String
     start_range: Integer
-    end_range: Integer
-    pool_type: Enum
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreObjectPermission(CoreBasePermission):
-    namespace: String
+    action: String
+    decision: Integer
+    description: StringOptional
+    identifier: StringOptional
     name: String
-    action: Enum
-    decision: Enum
+    namespace: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    roles: RelationshipManager[CoreAccountRole]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreObjectThread(CoreThread):
+    label: StringOptional
     object_path: String
+    resolved: Boolean
+    change: RelationshipAttribute[CoreProposedChange]
+    comments: RelationshipManager[CoreThreadComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CorePasswordCredential(CoreCredential):
-    username: StringOptional
+    description: StringOptional
+    label: StringOptional
+    name: String
     password: StringOptional
+    username: StringOptional
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreProposedChange(CoreTaskTarget):
-    name: String
     description: StringOptional
-    source_branch: String
     destination_branch: String
-    state: Enum
     is_draft: Boolean
+    name: String
+    source_branch: String
+    state: String
     total_comments: IntegerOptional
-    approved_by: RelationshipManager
-    rejected_by: RelationshipManager
-    reviewers: RelationshipManager
-    comments: RelationshipManager
-    threads: RelationshipManager
-    validations: RelationshipManager
+    approved_by: RelationshipManager[CoreGenericAccount]
+    comments: RelationshipManager[CoreChangeComment]
+    member_of_groups: RelationshipManager[CoreGroup]
+    rejected_by: RelationshipManager[CoreGenericAccount]
+    reviewers: RelationshipManager[CoreGenericAccount]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    threads: RelationshipManager[CoreThread]
+    validations: RelationshipManager[CoreValidator]
 
 
 class CoreReadOnlyRepository(LineageOwner, LineageSource, CoreGenericRepository, CoreTaskTarget):
-    ref: String
     commit: StringOptional
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
+    ref: String
+    sync_status: Dropdown
+    checks: RelationshipManager[CoreCheckDefinition]
+    credential: RelationshipAttribute[CoreCredential]
+    generators: RelationshipManager[CoreGeneratorDefinition]
+    groups_objects: RelationshipManager[CoreRepositoryGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    queries: RelationshipManager[CoreGraphQLQuery]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
+    transformations: RelationshipManager[CoreTransformation]
 
 
 class CoreRepository(LineageOwner, LineageSource, CoreGenericRepository, CoreTaskTarget):
-    default_branch: String
     commit: StringOptional
+    default_branch: String
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
+    sync_status: Dropdown
+    checks: RelationshipManager[CoreCheckDefinition]
+    credential: RelationshipAttribute[CoreCredential]
+    generators: RelationshipManager[CoreGeneratorDefinition]
+    groups_objects: RelationshipManager[CoreRepositoryGroup]
+    member_of_groups: RelationshipManager[CoreGroup]
+    queries: RelationshipManager[CoreGraphQLQuery]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
+    transformations: RelationshipManager[CoreTransformation]
 
 
 class CoreRepositoryGroup(CoreGroup):
     content: Dropdown
-    repository: RelatedNode
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreRepositoryValidator(CoreValidator):
-    repository: RelatedNode
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreSchemaCheck(CoreCheck):
+    conclusion: String
     conflicts: JSONAttribute
+    created_at: DateTimeOptional
     enriched_conflict_id: StringOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreSchemaValidator(CoreValidator):
-    pass
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManager[CoreCheck]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreStandardCheck(CoreCheck):
-    pass
+    conclusion: String
+    created_at: DateTimeOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    validator: RelationshipAttribute[CoreValidator]
 
 
 class CoreStandardGroup(CoreGroup):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManager[CoreGroup]
+    members: RelationshipManager[CoreNode]
+    parent: RelationshipAttribute[CoreGroup]
+    subscribers: RelationshipManager[CoreNode]
 
 
 class CoreStandardWebhook(CoreWebhook, CoreTaskTarget):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     shared_key: String
+    url: URL
+    validate_certificates: BooleanOptional
+    headers: RelationshipManager[CoreKeyValue]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreStaticKeyValue(CoreKeyValue):
-    pass
+    description: StringOptional
+    key: String
+    name: String
+    value: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class CoreThreadComment(CoreComment):
-    thread: RelatedNode
+    text: String
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    thread: RelationshipAttribute[CoreThread]
 
 
 class CoreTransformJinja2(CoreTransformation):
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
     template_path: String
+    timeout: Integer
+    artifact_definitions: RelationshipManager[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
 
 
 class CoreTransformPython(CoreTransformation):
-    file_path: String
     class_name: String
-    convert_query_response: BooleanOptional
+    convert_query_response: Boolean
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    file_path: String
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    artifact_definitions: RelationshipManager[CoreArtifactDefinition]
+    member_of_groups: RelationshipManager[CoreGroup]
+    query: RelationshipAttribute[CoreGraphQLQuery]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
 
 
 class CoreUserValidator(CoreValidator):
-    check_definition: RelatedNode
-    repository: RelatedNode
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    check_definition: RelationshipAttribute[CoreCheckDefinition]
+    checks: RelationshipManager[CoreCheck]
+    member_of_groups: RelationshipManager[CoreGroup]
+    proposed_change: RelationshipAttribute[CoreProposedChange]
+    repository: RelationshipAttribute[CoreGenericRepository]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class InternalAccountToken(CoreNode):
+    expiration: DateTimeOptional
     name: StringOptional
     token: String
-    expiration: DateTimeOptional
-    account: RelatedNode
+    account: RelationshipAttribute[CoreGenericAccount]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class InternalExternalIdentity(CoreNode):
-    sub: String
-    provider_name: String
     protocol: String
-    account: RelatedNode
+    provider_name: String
+    sub: String
+    account: RelationshipAttribute[CoreGenericAccount]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class InternalIPPrefixAvailable(BuiltinIPPrefix):
-    pass
+    broadcast_address: StringOptional
+    description: StringOptional
+    hostmask: StringOptional
+    is_pool: Boolean
+    is_top_level: BooleanOptional
+    member_type: Dropdown
+    netmask: StringOptional
+    network_address: StringOptional
+    prefix: IPNetwork
+    utilization: IntegerOptional
+    children: RelationshipManager[BuiltinIPPrefix]
+    ip_addresses: RelationshipManager[BuiltinIPAddress]
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    parent: RelationshipAttribute[BuiltinIPPrefix]
+    profiles: RelationshipManager[CoreProfile]
+    resource_pool: RelationshipManager[CoreIPPool]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class InternalIPRangeAvailable(BuiltinIPAddress):
+    address: IPHost
+    description: StringOptional
     last_address: IPHost
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    ip_prefix: RelationshipAttribute[BuiltinIPPrefix]
+    member_of_groups: RelationshipManager[CoreGroup]
+    profiles: RelationshipManager[CoreProfile]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class InternalRefreshToken(CoreNode):
     expiration: DateTime
-    account: RelatedNode
+    account: RelationshipAttribute[CoreGenericAccount]
+    member_of_groups: RelationshipManager[CoreGroup]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class IpamNamespace(BuiltinIPNamespace):
     default: BooleanOptional
+    description: StringOptional
+    name: String
+    ip_addresses: RelationshipManager[BuiltinIPAddress]
+    ip_prefixes: RelationshipManager[BuiltinIPPrefix]
+    member_of_groups: RelationshipManager[CoreGroup]
+    profiles: RelationshipManager[CoreProfile]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
-# ---------------------------------------------
-# SYNC
-# ---------------------------------------------
+class ProfileBuiltinIPAddress(LineageSource, CoreProfile, CoreNode):
+    address: IPHostOptional
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    related_nodes: RelationshipManager[BuiltinIPAddress]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class ProfileBuiltinIPPrefix(LineageSource, CoreProfile, CoreNode):
+    description: StringOptional
+    is_pool: BooleanOptional
+    member_type: DropdownOptional
+    prefix: IPNetworkOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
+    member_of_groups: RelationshipManager[CoreGroup]
+    related_nodes: RelationshipManager[BuiltinIPPrefix]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class ProfileBuiltinTag(LineageSource, CoreProfile, CoreNode):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    member_of_groups: RelationshipManager[CoreGroup]
+    related_nodes: RelationshipManager[BuiltinTag]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class ProfileIpamNamespace(LineageSource, CoreProfile, CoreNode):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_addresses: RelationshipManager[BuiltinIPAddress]
+    ip_prefixes: RelationshipManager[BuiltinIPPrefix]
+    member_of_groups: RelationshipManager[CoreGroup]
+    related_nodes: RelationshipManager[IpamNamespace]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
 class BuiltinIPAddressSync(CoreNodeSync):
     address: IPHost
     description: StringOptional
-    ip_namespace: RelatedNodeSync
-    ip_prefix: RelatedNodeSync
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    ip_prefix: RelationshipAttributeSync[BuiltinIPPrefixSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class BuiltinIPNamespaceSync(CoreNodeSync):
-    name: String
     description: StringOptional
-    ip_prefixes: RelationshipManagerSync
-    ip_addresses: RelationshipManagerSync
+    name: String
+    ip_addresses: RelationshipManagerSync[BuiltinIPAddressSync]
+    ip_prefixes: RelationshipManagerSync[BuiltinIPPrefixSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class BuiltinIPPrefixSync(CoreNodeSync):
-    prefix: IPNetwork
+    broadcast_address: StringOptional
     description: StringOptional
-    member_type: Dropdown
+    hostmask: StringOptional
     is_pool: Boolean
     is_top_level: BooleanOptional
-    utilization: IntegerOptional
+    member_type: Dropdown
     netmask: StringOptional
-    hostmask: StringOptional
     network_address: StringOptional
-    broadcast_address: StringOptional
-    ip_namespace: RelatedNodeSync
-    ip_addresses: RelationshipManagerSync
-    resource_pool: RelationshipManagerSync
-    parent: RelatedNodeSync
-    children: RelationshipManagerSync
+    prefix: IPNetwork
+    utilization: IntegerOptional
+    children: RelationshipManagerSync[BuiltinIPPrefixSync]
+    ip_addresses: RelationshipManagerSync[BuiltinIPAddressSync]
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelationshipAttributeSync[BuiltinIPPrefixSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    resource_pool: RelationshipManagerSync[CoreIPPoolSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreActionSync(CoreNodeSync):
-    name: String
     description: StringOptional
-    triggers: RelationshipManagerSync
+    name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    triggers: RelationshipManagerSync[CoreTriggerRuleSync]
 
 
 class CoreArtifactTargetSync(CoreNodeSync):
-    artifacts: RelationshipManagerSync
+    artifacts: RelationshipManagerSync[CoreArtifactSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreBasePermissionSync(CoreNodeSync):
     description: StringOptional
     identifier: StringOptional
-    roles: RelationshipManagerSync
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    roles: RelationshipManagerSync[CoreAccountRoleSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreCheckSync(CoreNodeSync):
-    name: StringOptional
-    label: StringOptional
-    origin: String
-    kind: String
-    message: StringOptional
-    conclusion: Enum
-    severity: Enum
+    conclusion: String
     created_at: DateTimeOptional
-    validator: RelatedNodeSync
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreCommentSync(CoreNodeSync):
     text: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreCredentialSync(CoreNodeSync):
-    name: String
-    label: StringOptional
     description: StringOptional
+    label: StringOptional
+    name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreFileObjectSync(CoreNodeSync):
-    file_name: String
     checksum: String
+    file_name: String
     file_size: Integer
     file_type: String
     storage_id: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGenericAccountSync(CoreNodeSync):
+    account_type: String
+    description: StringOptional
+    label: StringOptional
     name: String
     password: HashedPassword
-    label: StringOptional
-    description: StringOptional
-    account_type: Enum
     status: Dropdown
-    tokens: RelationshipManagerSync
-    external_identities: RelationshipManagerSync
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGenericRepositorySync(CoreNodeSync):
-    name: String
-    description: StringOptional
-    location: String
-    internal_status: Dropdown
-    operational_status: Dropdown
     commit: StringOptional
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
     sync_status: Dropdown
-    credential: RelatedNodeSync
-    tags: RelationshipManagerSync
-    transformations: RelationshipManagerSync
-    queries: RelationshipManagerSync
-    checks: RelationshipManagerSync
-    generators: RelationshipManagerSync
-    groups_objects: RelationshipManagerSync
+    checks: RelationshipManagerSync[CoreCheckDefinitionSync]
+    credential: RelationshipAttributeSync[CoreCredentialSync]
+    generators: RelationshipManagerSync[CoreGeneratorDefinitionSync]
+    groups_objects: RelationshipManagerSync[CoreRepositoryGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    queries: RelationshipManagerSync[CoreGraphQLQuerySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
+    transformations: RelationshipManagerSync[CoreTransformationSync]
 
 
 class CoreGroupSync(CoreNodeSync):
-    name: String
-    label: StringOptional
     description: StringOptional
-    group_type: Enum
-    members: RelationshipManagerSync
-    subscribers: RelationshipManagerSync
-    parent: RelatedNodeSync
-    children: RelationshipManagerSync
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreIPPoolSync(CoreNodeSync):
-    pass
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreKeyValueSync(CoreNodeSync):
-    name: String
-    key: String
     description: StringOptional
+    key: String
+    name: String
     value: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreMenuSync(CoreNodeSync):
-    namespace: String
-    name: String
-    label: StringOptional
-    kind: StringOptional
-    path: StringOptional
     description: StringOptional
     icon: StringOptional
-    protected: Boolean
+    kind: StringOptional
+    label: StringOptional
+    name: String
+    namespace: String
     order_weight: Integer
+    path: StringOptional
+    protected: Boolean
     required_permissions: ListAttributeOptional
-    section: Enum
-    parent: RelatedNodeSync
-    children: RelationshipManagerSync
+    section: String
+    children: RelationshipManagerSync[CoreMenuSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelationshipAttributeSync[CoreMenuSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreNodeTriggerMatchSync(CoreNodeSync):
-    trigger: RelatedNodeSync
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    trigger: RelationshipAttributeSync[CoreNodeTriggerRuleSync]
 
 
 class CoreObjectComponentTemplateSync(CoreNodeSync):
     template_name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreObjectTemplateSync(CoreNodeSync):
     template_name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreProfileSync(CoreNodeSync):
     profile_name: String
-    profile_priority: IntegerOptional
+    profile_priority: Integer
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreResourcePoolSync(CoreNodeSync):
-    name: String
     description: StringOptional
+    name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreTaskTargetSync(CoreNodeSync):
-    pass
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreThreadSync(CoreNodeSync):
     label: StringOptional
     resolved: Boolean
-    change: RelatedNodeSync
-    comments: RelationshipManagerSync
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    comments: RelationshipManagerSync[CoreThreadCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreTransformationSync(CoreNodeSync):
-    name: String
-    label: StringOptional
-    description: StringOptional
-    timeout: Integer
-    fingerprint: StringOptional
     dependencies: ListAttributeOptional
     dependencies_complete: BooleanOptional
-    query: RelatedNodeSync
-    repository: RelatedNodeSync
-    tags: RelationshipManagerSync
-    artifact_definitions: RelationshipManagerSync
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    artifact_definitions: RelationshipManagerSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class CoreTriggerRuleSync(CoreNodeSync):
-    name: String
-    description: StringOptional
     active: Boolean
     branch_scope: Dropdown
-    action: RelatedNodeSync
+    description: StringOptional
+    name: String
+    action: RelationshipAttributeSync[CoreActionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreValidatorSync(CoreNodeSync):
-    label: StringOptional
-    state: Enum
-    conclusion: Enum
     completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
     started_at: DateTimeOptional
-    proposed_change: RelatedNodeSync
-    checks: RelationshipManagerSync
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreWebhookSync(CoreNodeSync):
-    name: String
-    event_type: Enum
     active: Boolean
     branch_scope: Dropdown
-    node_kind: StringOptional
     description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     url: URL
     validate_certificates: BooleanOptional
-    headers: RelationshipManagerSync
+    headers: RelationshipManagerSync[CoreKeyValueSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreWeightedPoolResourceSync(CoreNodeSync):
     allocation_weight: IntegerOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class LineageOwnerSync(CoreNodeSync):
@@ -875,368 +1435,825 @@ class LineageSourceSync(CoreNodeSync):
 
 
 class BuiltinTagSync(CoreNodeSync):
-    name: String
     description: StringOptional
+    name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreAccountSync(LineageOwnerSync, LineageSourceSync, CoreGenericAccountSync):
-    pass
+    account_type: String
+    description: StringOptional
+    label: StringOptional
+    name: String
+    password: HashedPassword
+    status: Dropdown
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreAccountGroupSync(LineageOwnerSync, LineageSourceSync, CoreGroupSync):
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
     origin: StringOptional
-    roles: RelationshipManagerSync
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    roles: RelationshipManagerSync[CoreAccountRoleSync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreAccountRoleSync(CoreNodeSync):
     name: String
-    groups: RelationshipManagerSync
-    permissions: RelationshipManagerSync
+    groups: RelationshipManagerSync[CoreAccountGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    permissions: RelationshipManagerSync[CoreBasePermissionSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreArtifactSync(CoreTaskTargetSync):
-    name: String
-    status: Enum
-    content_type: Enum
     checksum: StringOptional
-    storage_id: StringOptional
+    content_type: String
+    name: String
     parameters: JSONAttributeOptional
-    object: RelatedNodeSync
-    definition: RelatedNodeSync
+    status: String
+    storage_id: StringOptional
+    definition: RelationshipAttributeSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    object: RelationshipAttributeSync[CoreArtifactTargetSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreArtifactCheckSync(CoreCheckSync):
+    artifact_id: StringOptional
     changed: BooleanOptional
     checksum: StringOptional
-    artifact_id: StringOptional
-    storage_id: StringOptional
+    conclusion: String
+    created_at: DateTimeOptional
+    kind: String
+    label: StringOptional
     line_number: IntegerOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    storage_id: StringOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreArtifactDefinitionSync(CoreTaskTargetSync):
-    name: String
     artifact_name: String
+    content_type: String
     description: StringOptional
-    parameters: JSONAttribute
-    content_type: Enum
     fingerprint: StringOptional
-    targets: RelatedNodeSync
-    transformation: RelatedNodeSync
-    artifacts: RelationshipManagerSync
-    validators: RelationshipManagerSync
+    name: String
+    parameters: JSONAttribute
+    artifacts: RelationshipManagerSync[CoreArtifactSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    targets: RelationshipAttributeSync[CoreGroupSync]
+    transformation: RelationshipAttributeSync[CoreTransformationSync]
+    validators: RelationshipManagerSync[CoreArtifactValidatorSync]
 
 
 class CoreArtifactThreadSync(CoreThreadSync):
     artifact_id: StringOptional
-    storage_id: StringOptional
+    label: StringOptional
     line_number: IntegerOptional
+    resolved: Boolean
+    storage_id: StringOptional
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    comments: RelationshipManagerSync[CoreThreadCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreArtifactValidatorSync(CoreValidatorSync):
-    definition: RelatedNodeSync
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    definition: RelationshipAttributeSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreChangeCommentSync(CoreCommentSync):
-    change: RelatedNodeSync
+    text: String
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreChangeThreadSync(CoreThreadSync):
-    pass
+    label: StringOptional
+    resolved: Boolean
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    comments: RelationshipManagerSync[CoreThreadCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreCheckDefinitionSync(CoreTaskTargetSync):
-    name: String
+    class_name: String
     description: StringOptional
     file_path: String
-    class_name: String
-    timeout: Integer
+    name: String
     parameters: JSONAttributeOptional
-    repository: RelatedNodeSync
-    query: RelatedNodeSync
-    targets: RelatedNodeSync
-    tags: RelationshipManagerSync
-    validators: RelationshipManagerSync
+    timeout: Integer
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
+    targets: RelationshipAttributeSync[CoreGroupSync]
+    validators: RelationshipManagerSync[CoreUserValidatorSync]
 
 
 class CoreCustomWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     shared_key: StringOptional
-    transformation: RelatedNodeSync
+    url: URL
+    validate_certificates: BooleanOptional
+    headers: RelationshipManagerSync[CoreKeyValueSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    transformation: RelationshipAttributeSync[CoreTransformPythonSync]
 
 
 class CoreDataCheckSync(CoreCheckSync):
+    conclusion: String
     conflicts: JSONAttribute
-    keep_branch: Enum
+    created_at: DateTimeOptional
     enriched_conflict_id: StringOptional
+    keep_branch: StringOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreDataValidatorSync(CoreValidatorSync):
-    pass
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreEnvKeyValueSync(CoreKeyValueSync):
-    pass
+    description: StringOptional
+    key: String
+    name: String
+    value: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreFileCheckSync(CoreCheckSync):
-    files: ListAttributeOptional
     commit: StringOptional
+    conclusion: String
+    created_at: DateTimeOptional
+    files: ListAttributeOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreFileThreadSync(CoreThreadSync):
-    file: StringOptional
     commit: StringOptional
+    file: StringOptional
+    label: StringOptional
     line_number: IntegerOptional
-    repository: RelatedNodeSync
+    resolved: Boolean
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    comments: RelationshipManagerSync[CoreThreadCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    repository: RelationshipAttributeSync[CoreRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGeneratorActionSync(CoreActionSync):
-    generator: RelatedNodeSync
+    description: StringOptional
+    name: String
+    generator: RelationshipAttributeSync[CoreGeneratorDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    triggers: RelationshipManagerSync[CoreTriggerRuleSync]
 
 
 class CoreGeneratorAwareGroupSync(CoreGroupSync):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreGeneratorCheckSync(CoreCheckSync):
+    conclusion: String
+    created_at: DateTimeOptional
     instance: String
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreGeneratorDefinitionSync(CoreTaskTargetSync):
-    name: String
-    description: StringOptional
-    parameters: JSONAttribute
-    file_path: String
     class_name: String
-    convert_query_response: BooleanOptional
-    execute_in_proposed_change: BooleanOptional
-    execute_after_merge: BooleanOptional
-    fingerprint: StringOptional
+    convert_query_response: Boolean
     dependencies: ListAttributeOptional
     dependencies_complete: BooleanOptional
-    query: RelatedNodeSync
-    repository: RelatedNodeSync
-    targets: RelatedNodeSync
-    instances: RelationshipManagerSync
-    validators: RelationshipManagerSync
+    description: StringOptional
+    execute_after_merge: Boolean
+    execute_in_proposed_change: Boolean
+    file_path: String
+    fingerprint: StringOptional
+    name: String
+    parameters: JSONAttribute
+    instances: RelationshipManagerSync[CoreGeneratorInstanceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    targets: RelationshipAttributeSync[CoreGroupSync]
+    validators: RelationshipManagerSync[CoreGeneratorValidatorSync]
 
 
 class CoreGeneratorGroupSync(CoreGroupSync):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreGeneratorInstanceSync(CoreTaskTargetSync):
     name: String
-    status: Enum
-    object: RelatedNodeSync
-    definition: RelatedNodeSync
+    status: String
+    definition: RelationshipAttributeSync[CoreGeneratorDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    object: RelationshipAttributeSync[CoreNodeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGeneratorValidatorSync(CoreValidatorSync):
-    definition: RelatedNodeSync
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    definition: RelationshipAttributeSync[CoreGeneratorDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGlobalPermissionSync(CoreBasePermissionSync):
     action: Dropdown
-    decision: Enum
+    decision: Integer
+    description: StringOptional
+    identifier: StringOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    roles: RelationshipManagerSync[CoreAccountRoleSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreGraphQLQuerySync(CoreNodeSync):
-    name: String
-    description: StringOptional
-    query: String
-    fingerprint: StringOptional
-    variables: JSONAttributeOptional
-    operations: ListAttributeOptional
-    models: ListAttributeOptional
     depth: IntegerOptional
+    description: StringOptional
+    fingerprint: StringOptional
     height: IntegerOptional
-    repository: RelatedNodeSync
-    tags: RelationshipManagerSync
-    query_groups: RelationshipManagerSync
+    models: ListAttributeOptional
+    name: String
+    operations: ListAttributeOptional
+    query: String
+    variables: JSONAttributeOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query_groups: RelationshipManagerSync[CoreGraphQLQueryGroupSync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class CoreGraphQLQueryGroupSync(CoreGroupSync):
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
     parameters: JSONAttributeOptional
-    query: RelatedNodeSync
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreGroupActionSync(CoreActionSync):
+    description: StringOptional
     member_action: Dropdown
-    group: RelatedNodeSync
+    name: String
+    group: RelationshipAttributeSync[CoreGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    triggers: RelationshipManagerSync[CoreTriggerRuleSync]
 
 
 class CoreGroupTriggerRuleSync(CoreTriggerRuleSync):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
     member_update: Dropdown
-    group: RelatedNodeSync
+    name: String
+    action: RelationshipAttributeSync[CoreActionSync]
+    group: RelationshipAttributeSync[CoreGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreIPAddressPoolSync(CoreResourcePoolSync, LineageSourceSync, CoreIPPoolSync):
     default_address_type: String
     default_prefix_length: IntegerOptional
-    resources: RelationshipManagerSync
-    ip_namespace: RelatedNodeSync
+    description: StringOptional
+    name: String
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    resources: RelationshipManagerSync[BuiltinIPPrefixSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreIPPrefixPoolSync(CoreResourcePoolSync, LineageSourceSync, CoreIPPoolSync):
+    default_member_type: String
     default_prefix_length: IntegerOptional
-    default_member_type: Enum
     default_prefix_type: StringOptional
-    resources: RelationshipManagerSync
-    ip_namespace: RelatedNodeSync
+    description: StringOptional
+    name: String
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    resources: RelationshipManagerSync[BuiltinIPPrefixSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreMenuItemSync(CoreMenuSync):
-    pass
+    description: StringOptional
+    icon: StringOptional
+    kind: StringOptional
+    label: StringOptional
+    name: String
+    namespace: String
+    order_weight: Integer
+    path: StringOptional
+    protected: Boolean
+    required_permissions: ListAttributeOptional
+    section: String
+    children: RelationshipManagerSync[CoreMenuSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelationshipAttributeSync[CoreMenuSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreNodeTriggerAttributeMatchSync(CoreNodeTriggerMatchSync):
     attribute_name: String
     value: StringOptional
-    value_previous: StringOptional
     value_match: Dropdown
+    value_previous: StringOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    trigger: RelationshipAttributeSync[CoreNodeTriggerRuleSync]
 
 
 class CoreNodeTriggerRelationshipMatchSync(CoreNodeTriggerMatchSync):
-    relationship_name: String
     modification_type: Dropdown
     peer: StringOptional
+    relationship_name: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    trigger: RelationshipAttributeSync[CoreNodeTriggerRuleSync]
 
 
 class CoreNodeTriggerRuleSync(CoreTriggerRuleSync):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    mutation_action: String
+    name: String
     node_kind: String
-    mutation_action: Enum
-    matches: RelationshipManagerSync
+    action: RelationshipAttributeSync[CoreActionSync]
+    matches: RelationshipManagerSync[CoreNodeTriggerMatchSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
+    description: StringOptional
+    end_range: Integer
+    name: String
     node: String
     node_attribute: String
+    pool_type: String
     start_range: Integer
-    end_range: Integer
-    pool_type: Enum
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreObjectPermissionSync(CoreBasePermissionSync):
-    namespace: String
+    action: String
+    decision: Integer
+    description: StringOptional
+    identifier: StringOptional
     name: String
-    action: Enum
-    decision: Enum
+    namespace: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    roles: RelationshipManagerSync[CoreAccountRoleSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreObjectThreadSync(CoreThreadSync):
+    label: StringOptional
     object_path: String
+    resolved: Boolean
+    change: RelationshipAttributeSync[CoreProposedChangeSync]
+    comments: RelationshipManagerSync[CoreThreadCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CorePasswordCredentialSync(CoreCredentialSync):
-    username: StringOptional
+    description: StringOptional
+    label: StringOptional
+    name: String
     password: StringOptional
+    username: StringOptional
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreProposedChangeSync(CoreTaskTargetSync):
-    name: String
     description: StringOptional
-    source_branch: String
     destination_branch: String
-    state: Enum
     is_draft: Boolean
+    name: String
+    source_branch: String
+    state: String
     total_comments: IntegerOptional
-    approved_by: RelationshipManagerSync
-    rejected_by: RelationshipManagerSync
-    reviewers: RelationshipManagerSync
-    comments: RelationshipManagerSync
-    threads: RelationshipManagerSync
-    validations: RelationshipManagerSync
+    approved_by: RelationshipManagerSync[CoreGenericAccountSync]
+    comments: RelationshipManagerSync[CoreChangeCommentSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    rejected_by: RelationshipManagerSync[CoreGenericAccountSync]
+    reviewers: RelationshipManagerSync[CoreGenericAccountSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    threads: RelationshipManagerSync[CoreThreadSync]
+    validations: RelationshipManagerSync[CoreValidatorSync]
 
 
 class CoreReadOnlyRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGenericRepositorySync, CoreTaskTargetSync):
-    ref: String
     commit: StringOptional
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
+    ref: String
+    sync_status: Dropdown
+    checks: RelationshipManagerSync[CoreCheckDefinitionSync]
+    credential: RelationshipAttributeSync[CoreCredentialSync]
+    generators: RelationshipManagerSync[CoreGeneratorDefinitionSync]
+    groups_objects: RelationshipManagerSync[CoreRepositoryGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    queries: RelationshipManagerSync[CoreGraphQLQuerySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
+    transformations: RelationshipManagerSync[CoreTransformationSync]
 
 
 class CoreRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGenericRepositorySync, CoreTaskTargetSync):
-    default_branch: String
     commit: StringOptional
+    default_branch: String
+    description: StringOptional
+    internal_status: Dropdown
+    location: String
+    name: String
+    operational_status: Dropdown
+    sync_status: Dropdown
+    checks: RelationshipManagerSync[CoreCheckDefinitionSync]
+    credential: RelationshipAttributeSync[CoreCredentialSync]
+    generators: RelationshipManagerSync[CoreGeneratorDefinitionSync]
+    groups_objects: RelationshipManagerSync[CoreRepositoryGroupSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    queries: RelationshipManagerSync[CoreGraphQLQuerySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
+    transformations: RelationshipManagerSync[CoreTransformationSync]
 
 
 class CoreRepositoryGroupSync(CoreGroupSync):
     content: Dropdown
-    repository: RelatedNodeSync
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreRepositoryValidatorSync(CoreValidatorSync):
-    repository: RelatedNodeSync
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreSchemaCheckSync(CoreCheckSync):
+    conclusion: String
     conflicts: JSONAttribute
+    created_at: DateTimeOptional
     enriched_conflict_id: StringOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreSchemaValidatorSync(CoreValidatorSync):
-    pass
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    checks: RelationshipManagerSync[CoreCheckSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreStandardCheckSync(CoreCheckSync):
-    pass
+    conclusion: String
+    created_at: DateTimeOptional
+    kind: String
+    label: StringOptional
+    message: StringOptional
+    name: StringOptional
+    origin: String
+    severity: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    validator: RelationshipAttributeSync[CoreValidatorSync]
 
 
 class CoreStandardGroupSync(CoreGroupSync):
-    pass
+    description: StringOptional
+    group_type: String
+    label: StringOptional
+    name: String
+    children: RelationshipManagerSync[CoreGroupSync]
+    members: RelationshipManagerSync[CoreNodeSync]
+    parent: RelationshipAttributeSync[CoreGroupSync]
+    subscribers: RelationshipManagerSync[CoreNodeSync]
 
 
 class CoreStandardWebhookSync(CoreWebhookSync, CoreTaskTargetSync):
+    active: Boolean
+    branch_scope: Dropdown
+    description: StringOptional
+    event_type: String
+    name: String
+    node_kind: StringOptional
     shared_key: String
+    url: URL
+    validate_certificates: BooleanOptional
+    headers: RelationshipManagerSync[CoreKeyValueSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreStaticKeyValueSync(CoreKeyValueSync):
-    pass
+    description: StringOptional
+    key: String
+    name: String
+    value: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class CoreThreadCommentSync(CoreCommentSync):
-    thread: RelatedNodeSync
+    text: String
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    thread: RelationshipAttributeSync[CoreThreadSync]
 
 
 class CoreTransformJinja2Sync(CoreTransformationSync):
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
     template_path: String
+    timeout: Integer
+    artifact_definitions: RelationshipManagerSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class CoreTransformPythonSync(CoreTransformationSync):
-    file_path: String
     class_name: String
-    convert_query_response: BooleanOptional
+    convert_query_response: Boolean
+    dependencies: ListAttributeOptional
+    dependencies_complete: BooleanOptional
+    description: StringOptional
+    file_path: String
+    fingerprint: StringOptional
+    label: StringOptional
+    name: String
+    timeout: Integer
+    artifact_definitions: RelationshipManagerSync[CoreArtifactDefinitionSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    query: RelationshipAttributeSync[CoreGraphQLQuerySync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+    tags: RelationshipManagerSync[BuiltinTagSync]
 
 
 class CoreUserValidatorSync(CoreValidatorSync):
-    check_definition: RelatedNodeSync
-    repository: RelatedNodeSync
+    completed_at: DateTimeOptional
+    conclusion: String
+    label: StringOptional
+    started_at: DateTimeOptional
+    state: String
+    check_definition: RelationshipAttributeSync[CoreCheckDefinitionSync]
+    checks: RelationshipManagerSync[CoreCheckSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    proposed_change: RelationshipAttributeSync[CoreProposedChangeSync]
+    repository: RelationshipAttributeSync[CoreGenericRepositorySync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class InternalAccountTokenSync(CoreNodeSync):
+    expiration: DateTimeOptional
     name: StringOptional
     token: String
-    expiration: DateTimeOptional
-    account: RelatedNodeSync
+    account: RelationshipAttributeSync[CoreGenericAccountSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class InternalExternalIdentitySync(CoreNodeSync):
-    sub: String
-    provider_name: String
     protocol: String
-    account: RelatedNodeSync
+    provider_name: String
+    sub: String
+    account: RelationshipAttributeSync[CoreGenericAccountSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class InternalIPPrefixAvailableSync(BuiltinIPPrefixSync):
-    pass
+    broadcast_address: StringOptional
+    description: StringOptional
+    hostmask: StringOptional
+    is_pool: Boolean
+    is_top_level: BooleanOptional
+    member_type: Dropdown
+    netmask: StringOptional
+    network_address: StringOptional
+    prefix: IPNetwork
+    utilization: IntegerOptional
+    children: RelationshipManagerSync[BuiltinIPPrefixSync]
+    ip_addresses: RelationshipManagerSync[BuiltinIPAddressSync]
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    parent: RelationshipAttributeSync[BuiltinIPPrefixSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    resource_pool: RelationshipManagerSync[CoreIPPoolSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class InternalIPRangeAvailableSync(BuiltinIPAddressSync):
+    address: IPHost
+    description: StringOptional
     last_address: IPHost
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    ip_prefix: RelationshipAttributeSync[BuiltinIPPrefixSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class InternalRefreshTokenSync(CoreNodeSync):
     expiration: DateTime
-    account: RelatedNodeSync
+    account: RelationshipAttributeSync[CoreGenericAccountSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
 class IpamNamespaceSync(BuiltinIPNamespaceSync):
     default: BooleanOptional
+    description: StringOptional
+    name: String
+    ip_addresses: RelationshipManagerSync[BuiltinIPAddressSync]
+    ip_prefixes: RelationshipManagerSync[BuiltinIPPrefixSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    profiles: RelationshipManagerSync[CoreProfileSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class ProfileBuiltinIPAddressSync(LineageSourceSync, CoreProfileSync, CoreNodeSync):
+    address: IPHostOptional
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    related_nodes: RelationshipManagerSync[BuiltinIPAddressSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class ProfileBuiltinIPPrefixSync(LineageSourceSync, CoreProfileSync, CoreNodeSync):
+    description: StringOptional
+    is_pool: BooleanOptional
+    member_type: DropdownOptional
+    prefix: IPNetworkOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_namespace: RelationshipAttributeSync[BuiltinIPNamespaceSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    related_nodes: RelationshipManagerSync[BuiltinIPPrefixSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class ProfileBuiltinTagSync(LineageSourceSync, CoreProfileSync, CoreNodeSync):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    related_nodes: RelationshipManagerSync[BuiltinTagSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class ProfileIpamNamespaceSync(LineageSourceSync, CoreProfileSync, CoreNodeSync):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    ip_addresses: RelationshipManagerSync[BuiltinIPAddressSync]
+    ip_prefixes: RelationshipManagerSync[BuiltinIPPrefixSync]
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    related_nodes: RelationshipManagerSync[IpamNamespaceSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]

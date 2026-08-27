@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from infrahub_sdk.protocols import CoreNodeSync, BuiltinIPAddress, BuiltinIPAddressSync, BuiltinIPNamespace, BuiltinIPNamespaceSync, BuiltinIPPrefix, BuiltinIPPrefixSync, BuiltinTag, BuiltinTagSync, CoreAccount, CoreAccountGroup, CoreAccountGroupSync, CoreAccountRole, CoreAccountRoleSync, CoreAccountSync, CoreAction, CoreActionSync, CoreArtifact, CoreArtifactCheck, CoreArtifactCheckSync, CoreArtifactDefinition, CoreArtifactDefinitionSync, CoreArtifactSync, CoreArtifactTarget, CoreArtifactTargetSync, CoreArtifactThread, CoreArtifactThreadSync, CoreArtifactValidator, CoreArtifactValidatorSync, CoreBasePermission, CoreBasePermissionSync, CoreChangeComment, CoreChangeCommentSync, CoreChangeThread, CoreChangeThreadSync, CoreCheck, CoreCheckDefinition, CoreCheckDefinitionSync, CoreCheckSync, CoreComment, CoreCommentSync, CoreCredential, CoreCredentialSync, CoreCustomWebhook, CoreCustomWebhookSync, CoreDataCheck, CoreDataCheckSync, CoreDataValidator, CoreDataValidatorSync, CoreEnvKeyValue, CoreEnvKeyValueSync, CoreFileCheck, CoreFileCheckSync, CoreFileObject, CoreFileObjectSync, CoreFileThread, CoreFileThreadSync, CoreGeneratorAction, CoreGeneratorActionSync, CoreGeneratorAwareGroup, CoreGeneratorAwareGroupSync, CoreGeneratorCheck, CoreGeneratorCheckSync, CoreGeneratorDefinition, CoreGeneratorDefinitionSync, CoreGeneratorGroup, CoreGeneratorGroupSync, CoreGeneratorInstance, CoreGeneratorInstanceSync, CoreGeneratorValidator, CoreGeneratorValidatorSync, CoreGenericAccount, CoreGenericAccountSync, CoreGenericRepository, CoreGenericRepositorySync, CoreGlobalPermission, CoreGlobalPermissionSync, CoreGraphQLQuery, CoreGraphQLQueryGroup, CoreGraphQLQueryGroupSync, CoreGraphQLQuerySync, CoreGroup, CoreGroupAction, CoreGroupActionSync, CoreGroupSync, CoreGroupTriggerRule, CoreGroupTriggerRuleSync, CoreIPAddressPool, CoreIPAddressPoolSync, CoreIPPool, CoreIPPoolSync, CoreIPPrefixPool, CoreIPPrefixPoolSync, CoreKeyValue, CoreKeyValueSync, CoreMenu, CoreMenuItem, CoreMenuItemSync, CoreMenuSync, CoreNodeSync, CoreNodeTriggerAttributeMatch, CoreNodeTriggerAttributeMatchSync, CoreNodeTriggerMatch, CoreNodeTriggerMatchSync, CoreNodeTriggerRelationshipMatch, CoreNodeTriggerRelationshipMatchSync, CoreNodeTriggerRule, CoreNodeTriggerRuleSync, CoreNumberPool, CoreNumberPoolSync, CoreObjectComponentTemplate, CoreObjectComponentTemplateSync, CoreObjectPermission, CoreObjectPermissionSync, CoreObjectTemplate, CoreObjectTemplateSync, CoreObjectThread, CoreObjectThreadSync, CorePasswordCredential, CorePasswordCredentialSync, CoreProfile, CoreProfileSync, CoreProposedChange, CoreProposedChangeSync, CoreReadOnlyRepository, CoreReadOnlyRepositorySync, CoreRepository, CoreRepositoryGroup, CoreRepositoryGroupSync, CoreRepositorySync, CoreRepositoryValidator, CoreRepositoryValidatorSync, CoreResourcePool, CoreResourcePoolSync, CoreSchemaCheck, CoreSchemaCheckSync, CoreSchemaValidator, CoreSchemaValidatorSync, CoreStandardCheck, CoreStandardCheckSync, CoreStandardGroup, CoreStandardGroupSync, CoreStandardWebhook, CoreStandardWebhookSync, CoreStaticKeyValue, CoreStaticKeyValueSync, CoreTaskTarget, CoreTaskTargetSync, CoreThread, CoreThreadComment, CoreThreadCommentSync, CoreThreadSync, CoreTransformJinja2, CoreTransformJinja2Sync, CoreTransformPython, CoreTransformPythonSync, CoreTransformation, CoreTransformationSync, CoreTriggerRule, CoreTriggerRuleSync, CoreUserValidator, CoreUserValidatorSync, CoreValidator, CoreValidatorSync, CoreWebhook, CoreWebhookSync, CoreWeightedPoolResource, CoreWeightedPoolResourceSync, InternalAccountToken, InternalAccountTokenSync, InternalExternalIdentity, InternalExternalIdentitySync, InternalIPPrefixAvailable, InternalIPPrefixAvailableSync, InternalIPRangeAvailable, InternalIPRangeAvailableSync, InternalRefreshToken, InternalRefreshTokenSync, IpamNamespace, IpamNamespaceSync, LineageOwner, LineageOwnerSync, LineageSource, LineageSourceSync
+from infrahub_sdk.protocols import CoreNodeSync, BuiltinIPAddress, BuiltinIPAddressSync, BuiltinIPNamespace, BuiltinIPNamespaceSync, BuiltinIPPrefix, BuiltinIPPrefixSync, BuiltinTag, BuiltinTagSync, CoreAccount, CoreAccountGroup, CoreAccountGroupSync, CoreAccountRole, CoreAccountRoleSync, CoreAccountSync, CoreAction, CoreActionSync, CoreArtifact, CoreArtifactCheck, CoreArtifactCheckSync, CoreArtifactDefinition, CoreArtifactDefinitionSync, CoreArtifactSync, CoreArtifactTarget, CoreArtifactTargetSync, CoreArtifactThread, CoreArtifactThreadSync, CoreArtifactValidator, CoreArtifactValidatorSync, CoreBasePermission, CoreBasePermissionSync, CoreChangeComment, CoreChangeCommentSync, CoreChangeThread, CoreChangeThreadSync, CoreCheck, CoreCheckDefinition, CoreCheckDefinitionSync, CoreCheckSync, CoreComment, CoreCommentSync, CoreCredential, CoreCredentialSync, CoreCustomWebhook, CoreCustomWebhookSync, CoreDataCheck, CoreDataCheckSync, CoreDataValidator, CoreDataValidatorSync, CoreEnvKeyValue, CoreEnvKeyValueSync, CoreFileCheck, CoreFileCheckSync, CoreFileObject, CoreFileObjectSync, CoreFileThread, CoreFileThreadSync, CoreGeneratorAction, CoreGeneratorActionSync, CoreGeneratorAwareGroup, CoreGeneratorAwareGroupSync, CoreGeneratorCheck, CoreGeneratorCheckSync, CoreGeneratorDefinition, CoreGeneratorDefinitionSync, CoreGeneratorGroup, CoreGeneratorGroupSync, CoreGeneratorInstance, CoreGeneratorInstanceSync, CoreGeneratorValidator, CoreGeneratorValidatorSync, CoreGenericAccount, CoreGenericAccountSync, CoreGenericRepository, CoreGenericRepositorySync, CoreGlobalPermission, CoreGlobalPermissionSync, CoreGraphQLQuery, CoreGraphQLQueryGroup, CoreGraphQLQueryGroupSync, CoreGraphQLQuerySync, CoreGroup, CoreGroupAction, CoreGroupActionSync, CoreGroupSync, CoreGroupTriggerRule, CoreGroupTriggerRuleSync, CoreIPAddressPool, CoreIPAddressPoolSync, CoreIPPool, CoreIPPoolSync, CoreIPPrefixPool, CoreIPPrefixPoolSync, CoreKeyValue, CoreKeyValueSync, CoreMenu, CoreMenuItem, CoreMenuItemSync, CoreMenuSync, CoreNodeSync, CoreNodeTriggerAttributeMatch, CoreNodeTriggerAttributeMatchSync, CoreNodeTriggerMatch, CoreNodeTriggerMatchSync, CoreNodeTriggerRelationshipMatch, CoreNodeTriggerRelationshipMatchSync, CoreNodeTriggerRule, CoreNodeTriggerRuleSync, CoreNumberPool, CoreNumberPoolSync, CoreObjectComponentTemplate, CoreObjectComponentTemplateSync, CoreObjectPermission, CoreObjectPermissionSync, CoreObjectTemplate, CoreObjectTemplateSync, CoreObjectThread, CoreObjectThreadSync, CorePasswordCredential, CorePasswordCredentialSync, CoreProfile, CoreProfileSync, CoreProposedChange, CoreProposedChangeSync, CoreReadOnlyRepository, CoreReadOnlyRepositorySync, CoreRepository, CoreRepositoryGroup, CoreRepositoryGroupSync, CoreRepositorySync, CoreRepositoryValidator, CoreRepositoryValidatorSync, CoreResourcePool, CoreResourcePoolSync, CoreSchemaCheck, CoreSchemaCheckSync, CoreSchemaValidator, CoreSchemaValidatorSync, CoreStandardCheck, CoreStandardCheckSync, CoreStandardGroup, CoreStandardGroupSync, CoreStandardWebhook, CoreStandardWebhookSync, CoreStaticKeyValue, CoreStaticKeyValueSync, CoreTaskTarget, CoreTaskTargetSync, CoreThread, CoreThreadComment, CoreThreadCommentSync, CoreThreadSync, CoreTransformJinja2, CoreTransformJinja2Sync, CoreTransformPython, CoreTransformPythonSync, CoreTransformation, CoreTransformationSync, CoreTriggerRule, CoreTriggerRuleSync, CoreUserValidator, CoreUserValidatorSync, CoreValidator, CoreValidatorSync, CoreWebhook, CoreWebhookSync, CoreWeightedPoolResource, CoreWeightedPoolResourceSync, InternalAccountToken, InternalAccountTokenSync, InternalExternalIdentity, InternalExternalIdentitySync, InternalIPPrefixAvailable, InternalIPPrefixAvailableSync, InternalIPRangeAvailable, InternalIPRangeAvailableSync, InternalRefreshToken, InternalRefreshTokenSync, IpamNamespace, IpamNamespaceSync, LineageOwner, LineageOwnerSync, LineageSource, LineageSourceSync, ProfileBuiltinIPAddress, ProfileBuiltinIPAddressSync, ProfileBuiltinIPPrefix, ProfileBuiltinIPPrefixSync, ProfileBuiltinTag, ProfileBuiltinTagSync, ProfileIpamNamespace, ProfileIpamNamespaceSync
 
 if TYPE_CHECKING:
     from infrahub_sdk.node import RelatedNodeSync, RelationshipAttributeSync, RelationshipManagerSync
@@ -194,35 +194,6 @@ class NetworkNTPServer(NetworkManagementServer):
 
 
 
-class ProfileBuiltinIPAddress(LineageSource, CoreProfileSync, CoreNodeSync):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    related_nodes: RelationshipManagerSync[BuiltinIPAddressSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
-class ProfileBuiltinIPPrefix(LineageSource, CoreProfileSync, CoreNodeSync):
-    description: StringOptional
-    is_pool: BooleanOptional
-    member_type: DropdownOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    related_nodes: RelationshipManagerSync[BuiltinIPPrefixSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
-class ProfileBuiltinTag(LineageSource, CoreProfileSync, CoreNodeSync):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    related_nodes: RelationshipManagerSync[BuiltinTagSync]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
 class ProfileInfraDevice(LineageSource, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
@@ -241,15 +212,6 @@ class ProfileIpamIPAddress(LineageSource, CoreProfileSync, CoreNodeSync):
     profile_priority: Integer
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     related_nodes: RelationshipManagerSync[IpamIPAddress]
-    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-
-
-class ProfileIpamNamespace(LineageSource, CoreProfileSync, CoreNodeSync):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManagerSync[CoreGroupSync]
-    related_nodes: RelationshipManagerSync[IpamNamespaceSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
