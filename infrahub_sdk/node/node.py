@@ -109,7 +109,9 @@ class InfrahubNodeBase:
         # This is done to avoid confusion and potential conflicts between the IDs
         self._internal_id = generate_short_id()
 
-        self.id = data.get("id", None) if isinstance(data, dict) else None
+        # Typed as Any to preserve pre-2.3.1 mypy behavior: newer mypy no longer collapses
+        # ``Any | None`` to ``Any``, which would otherwise force None-narrowing on every id use.
+        self.id: Any = data.get("id", None) if isinstance(data, dict) else None
         self.display_label: str | None = data.get("display_label", None) if isinstance(data, dict) else None
         self.typename: str | None = data.get("__typename", schema.kind) if isinstance(data, dict) else schema.kind
 
