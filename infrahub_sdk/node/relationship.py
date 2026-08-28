@@ -134,12 +134,11 @@ class RelationshipManagerBase(Generic[PeerT]):
 
         Returns:
             Dict: A dictionary representing the basic structure of a GraphQL query for multiple related nodes.
-                It includes count, edges, and node information (ID, display label, and typename), along with additional properties
+                It includes edges and node information (ID, display label, and typename), along with additional properties
                 and any peer_data provided.
 
         """
         data: dict[str, Any] = {
-            "count": None,
             "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
         }
 
