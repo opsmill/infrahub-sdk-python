@@ -1250,7 +1250,6 @@ async def test_query_data_include_property(
                         },
                     },
                     "tags": {
-                        "count": None,
                         "edges": {
                             "properties": {
                                 "is_protected": None,
@@ -1324,7 +1323,6 @@ async def test_query_data_include(
                         },
                     },
                     "tags": {
-                        "count": None,
                         "edges": {
                             "node": {
                                 "id": None,
@@ -3062,7 +3060,7 @@ def test_relationship_manager_generate_query_data_with_include_metadata() -> Non
     """Test that RelationshipManagerBase._generate_query_data includes metadata when include_metadata=True."""
     data = RelationshipManagerBase._generate_query_data(include_metadata=True)
 
-    assert "count" in data
+    assert "count" not in data
     assert "edges" in data
     assert "node" in data["edges"]
     assert data["edges"]["node"]["id"] is None
@@ -3108,7 +3106,7 @@ def test_relationship_manager_generate_query_data_without_include_metadata() -> 
     assert "node_metadata" not in data["edges"]
     assert "relationship_metadata" not in data["edges"]
 
-    assert "count" in data
+    assert "count" not in data
     assert "edges" in data
     assert "node" in data["edges"]
 

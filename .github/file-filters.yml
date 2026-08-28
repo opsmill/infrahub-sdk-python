@@ -1,13 +1,16 @@
 ---
+# A bad edit to a workflow or to this filter file can silently skip jobs, so
+# every filter below folds in *ci_config: any change to the CI plumbing runs the
+# full pipeline.
 ci_config: &ci_config
-  - ".github/workflows/ci.yml"
+  - ".github/workflows/**"
   - ".github/file-filters.yml"
 
 coverage_config: &coverage_config
   - "codecov.yml"
 
 github_workflows: &github_workflows
-  - ".github/workflows/*.yml"
+  - *ci_config
 
 development_files: &development_files
   - "development/**"
@@ -43,6 +46,8 @@ documentation_all:
   - *development_files
   - *doc_files
   - *markdown_all
+  - *ci_config
 
 documentation_generated_all:
   - *infrahub_reference_generated
+  - *ci_config
