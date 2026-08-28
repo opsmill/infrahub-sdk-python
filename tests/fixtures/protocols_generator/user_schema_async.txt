@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from infrahub_sdk.protocols import CoreNode, BuiltinIPAddress, BuiltinIPAddressSync, BuiltinIPNamespace, BuiltinIPNamespaceSync, BuiltinIPPrefix, BuiltinIPPrefixSync, BuiltinTag, BuiltinTagSync, CoreAccount, CoreAccountGroup, CoreAccountGroupSync, CoreAccountRole, CoreAccountRoleSync, CoreAccountSync, CoreAction, CoreActionSync, CoreArtifact, CoreArtifactCheck, CoreArtifactCheckSync, CoreArtifactDefinition, CoreArtifactDefinitionSync, CoreArtifactSync, CoreArtifactTarget, CoreArtifactTargetSync, CoreArtifactThread, CoreArtifactThreadSync, CoreArtifactValidator, CoreArtifactValidatorSync, CoreBasePermission, CoreBasePermissionSync, CoreChangeComment, CoreChangeCommentSync, CoreChangeThread, CoreChangeThreadSync, CoreCheck, CoreCheckDefinition, CoreCheckDefinitionSync, CoreCheckSync, CoreComment, CoreCommentSync, CoreCredential, CoreCredentialSync, CoreCustomWebhook, CoreCustomWebhookSync, CoreDataCheck, CoreDataCheckSync, CoreDataValidator, CoreDataValidatorSync, CoreEnvKeyValue, CoreEnvKeyValueSync, CoreFileCheck, CoreFileCheckSync, CoreFileObject, CoreFileObjectSync, CoreFileThread, CoreFileThreadSync, CoreGeneratorAction, CoreGeneratorActionSync, CoreGeneratorAwareGroup, CoreGeneratorAwareGroupSync, CoreGeneratorCheck, CoreGeneratorCheckSync, CoreGeneratorDefinition, CoreGeneratorDefinitionSync, CoreGeneratorGroup, CoreGeneratorGroupSync, CoreGeneratorInstance, CoreGeneratorInstanceSync, CoreGeneratorValidator, CoreGeneratorValidatorSync, CoreGenericAccount, CoreGenericAccountSync, CoreGenericRepository, CoreGenericRepositorySync, CoreGlobalPermission, CoreGlobalPermissionSync, CoreGraphQLQuery, CoreGraphQLQueryGroup, CoreGraphQLQueryGroupSync, CoreGraphQLQuerySync, CoreGroup, CoreGroupAction, CoreGroupActionSync, CoreGroupSync, CoreGroupTriggerRule, CoreGroupTriggerRuleSync, CoreIPAddressPool, CoreIPAddressPoolSync, CoreIPPool, CoreIPPoolSync, CoreIPPrefixPool, CoreIPPrefixPoolSync, CoreKeyValue, CoreKeyValueSync, CoreMenu, CoreMenuItem, CoreMenuItemSync, CoreMenuSync, CoreNodeSync, CoreNodeTriggerAttributeMatch, CoreNodeTriggerAttributeMatchSync, CoreNodeTriggerMatch, CoreNodeTriggerMatchSync, CoreNodeTriggerRelationshipMatch, CoreNodeTriggerRelationshipMatchSync, CoreNodeTriggerRule, CoreNodeTriggerRuleSync, CoreNumberPool, CoreNumberPoolSync, CoreObjectComponentTemplate, CoreObjectComponentTemplateSync, CoreObjectPermission, CoreObjectPermissionSync, CoreObjectTemplate, CoreObjectTemplateSync, CoreObjectThread, CoreObjectThreadSync, CorePasswordCredential, CorePasswordCredentialSync, CoreProfile, CoreProfileSync, CoreProposedChange, CoreProposedChangeSync, CoreReadOnlyRepository, CoreReadOnlyRepositorySync, CoreRepository, CoreRepositoryGroup, CoreRepositoryGroupSync, CoreRepositorySync, CoreRepositoryValidator, CoreRepositoryValidatorSync, CoreResourcePool, CoreResourcePoolSync, CoreSchemaCheck, CoreSchemaCheckSync, CoreSchemaValidator, CoreSchemaValidatorSync, CoreStandardCheck, CoreStandardCheckSync, CoreStandardGroup, CoreStandardGroupSync, CoreStandardWebhook, CoreStandardWebhookSync, CoreStaticKeyValue, CoreStaticKeyValueSync, CoreTaskTarget, CoreTaskTargetSync, CoreThread, CoreThreadComment, CoreThreadCommentSync, CoreThreadSync, CoreTransformJinja2, CoreTransformJinja2Sync, CoreTransformPython, CoreTransformPythonSync, CoreTransformation, CoreTransformationSync, CoreTriggerRule, CoreTriggerRuleSync, CoreUserValidator, CoreUserValidatorSync, CoreValidator, CoreValidatorSync, CoreWebhook, CoreWebhookSync, CoreWeightedPoolResource, CoreWeightedPoolResourceSync, InternalAccountToken, InternalAccountTokenSync, InternalExternalIdentity, InternalExternalIdentitySync, InternalIPPrefixAvailable, InternalIPPrefixAvailableSync, InternalIPRangeAvailable, InternalIPRangeAvailableSync, InternalRefreshToken, InternalRefreshTokenSync, IpamNamespace, IpamNamespaceSync, LineageOwner, LineageOwnerSync, LineageSource, LineageSourceSync
+from infrahub_sdk.protocols import CoreNode, BuiltinIPAddress, BuiltinIPAddressSync, BuiltinIPNamespace, BuiltinIPNamespaceSync, BuiltinIPPrefix, BuiltinIPPrefixSync, BuiltinTag, BuiltinTagSync, CoreAccount, CoreAccountGroup, CoreAccountGroupSync, CoreAccountRole, CoreAccountRoleSync, CoreAccountSync, CoreAction, CoreActionSync, CoreArtifact, CoreArtifactCheck, CoreArtifactCheckSync, CoreArtifactDefinition, CoreArtifactDefinitionSync, CoreArtifactSync, CoreArtifactTarget, CoreArtifactTargetSync, CoreArtifactThread, CoreArtifactThreadSync, CoreArtifactValidator, CoreArtifactValidatorSync, CoreBasePermission, CoreBasePermissionSync, CoreChangeComment, CoreChangeCommentSync, CoreChangeThread, CoreChangeThreadSync, CoreCheck, CoreCheckDefinition, CoreCheckDefinitionSync, CoreCheckSync, CoreComment, CoreCommentSync, CoreCredential, CoreCredentialSync, CoreCustomWebhook, CoreCustomWebhookSync, CoreDataCheck, CoreDataCheckSync, CoreDataValidator, CoreDataValidatorSync, CoreEnvKeyValue, CoreEnvKeyValueSync, CoreFileCheck, CoreFileCheckSync, CoreFileObject, CoreFileObjectSync, CoreFileThread, CoreFileThreadSync, CoreGeneratorAction, CoreGeneratorActionSync, CoreGeneratorAwareGroup, CoreGeneratorAwareGroupSync, CoreGeneratorCheck, CoreGeneratorCheckSync, CoreGeneratorDefinition, CoreGeneratorDefinitionSync, CoreGeneratorGroup, CoreGeneratorGroupSync, CoreGeneratorInstance, CoreGeneratorInstanceSync, CoreGeneratorValidator, CoreGeneratorValidatorSync, CoreGenericAccount, CoreGenericAccountSync, CoreGenericRepository, CoreGenericRepositorySync, CoreGlobalPermission, CoreGlobalPermissionSync, CoreGraphQLQuery, CoreGraphQLQueryGroup, CoreGraphQLQueryGroupSync, CoreGraphQLQuerySync, CoreGroup, CoreGroupAction, CoreGroupActionSync, CoreGroupSync, CoreGroupTriggerRule, CoreGroupTriggerRuleSync, CoreIPAddressPool, CoreIPAddressPoolSync, CoreIPPool, CoreIPPoolSync, CoreIPPrefixPool, CoreIPPrefixPoolSync, CoreKeyValue, CoreKeyValueSync, CoreMenu, CoreMenuItem, CoreMenuItemSync, CoreMenuSync, CoreNodeSync, CoreNodeTriggerAttributeMatch, CoreNodeTriggerAttributeMatchSync, CoreNodeTriggerMatch, CoreNodeTriggerMatchSync, CoreNodeTriggerRelationshipMatch, CoreNodeTriggerRelationshipMatchSync, CoreNodeTriggerRule, CoreNodeTriggerRuleSync, CoreNumberPool, CoreNumberPoolSync, CoreObjectComponentTemplate, CoreObjectComponentTemplateSync, CoreObjectPermission, CoreObjectPermissionSync, CoreObjectTemplate, CoreObjectTemplateSync, CoreObjectThread, CoreObjectThreadSync, CorePasswordCredential, CorePasswordCredentialSync, CoreProfile, CoreProfileSync, CoreProposedChange, CoreProposedChangeSync, CoreReadOnlyRepository, CoreReadOnlyRepositorySync, CoreRepository, CoreRepositoryGroup, CoreRepositoryGroupSync, CoreRepositorySync, CoreRepositoryValidator, CoreRepositoryValidatorSync, CoreResourcePool, CoreResourcePoolSync, CoreSchemaCheck, CoreSchemaCheckSync, CoreSchemaValidator, CoreSchemaValidatorSync, CoreStandardCheck, CoreStandardCheckSync, CoreStandardGroup, CoreStandardGroupSync, CoreStandardWebhook, CoreStandardWebhookSync, CoreStaticKeyValue, CoreStaticKeyValueSync, CoreTaskTarget, CoreTaskTargetSync, CoreThread, CoreThreadComment, CoreThreadCommentSync, CoreThreadSync, CoreTransformJinja2, CoreTransformJinja2Sync, CoreTransformPython, CoreTransformPythonSync, CoreTransformation, CoreTransformationSync, CoreTriggerRule, CoreTriggerRuleSync, CoreUserValidator, CoreUserValidatorSync, CoreValidator, CoreValidatorSync, CoreWebhook, CoreWebhookSync, CoreWeightedPoolResource, CoreWeightedPoolResourceSync, InternalAccountToken, InternalAccountTokenSync, InternalExternalIdentity, InternalExternalIdentitySync, InternalIPPrefixAvailable, InternalIPPrefixAvailableSync, InternalIPRangeAvailable, InternalIPRangeAvailableSync, InternalRefreshToken, InternalRefreshTokenSync, IpamNamespace, IpamNamespaceSync, LineageOwner, LineageOwnerSync, LineageSource, LineageSourceSync, ProfileBuiltinIPAddress, ProfileBuiltinIPAddressSync, ProfileBuiltinIPPrefix, ProfileBuiltinIPPrefixSync, ProfileBuiltinTag, ProfileBuiltinTagSync, ProfileIpamNamespace, ProfileIpamNamespaceSync
 
 if TYPE_CHECKING:
     from infrahub_sdk.node import RelatedNode, RelationshipAttribute, RelationshipManager
@@ -66,20 +66,6 @@ class NetworkManagementServer(CoreNode):
 
 
 
-class LocationCountry(LocationGeneric):
-    description: StringOptional
-    name: String
-    shortname: String
-    timezone: StringOptional
-    children: RelationshipManager[LocationSite]
-    member_of_groups: RelationshipManager[CoreGroup]
-    parent: RelationshipAttribute[LocationGeneric]
-    profiles: RelationshipManager[CoreProfile]
-    servers: RelationshipManager[NetworkManagementServer]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-    tags: RelationshipManager[BuiltinTag]
-
-
 class InfraDevice(CoreNode):
     description: StringOptional
     name: String
@@ -94,46 +80,12 @@ class InfraDevice(CoreNode):
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
-class NetworkDhcpServer(NetworkManagementServer):
-    description: StringOptional
-    lease_time: String
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManager[IpamIPAddress]
-    location: RelationshipAttribute[LocationGeneric]
-    member_of_groups: RelationshipManager[CoreGroup]
-    profiles: RelationshipManager[CoreProfile]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-
-
 class IpamIPAddress(BuiltinIPAddress):
     address: IPHost
     description: StringOptional
     fqdn: StringOptional
     ip_namespace: RelationshipAttribute[BuiltinIPNamespace]
     ip_prefix: RelationshipAttribute[BuiltinIPPrefix]
-    member_of_groups: RelationshipManager[CoreGroup]
-    profiles: RelationshipManager[CoreProfile]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-
-
-class NetworkNTPServer(NetworkManagementServer):
-    description: StringOptional
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManager[IpamIPAddress]
-    location: RelationshipAttribute[LocationGeneric]
-    member_of_groups: RelationshipManager[CoreGroup]
-    profiles: RelationshipManager[CoreProfile]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-
-
-class NetworkNameServer(NetworkManagementServer):
-    description: StringOptional
-    name: String
-    status: Dropdown
-    ip_addresses: RelationshipManager[IpamIPAddress]
-    location: RelationshipAttribute[LocationGeneric]
     member_of_groups: RelationshipManager[CoreGroup]
     profiles: RelationshipManager[CoreProfile]
     subscriber_of_groups: RelationshipManager[CoreGroup]
@@ -160,6 +112,20 @@ class IpamPrefix(BuiltinIPPrefix):
     profiles: RelationshipManager[CoreProfile]
     resource_pool: RelationshipManager[CoreIPAddressPool]
     subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class LocationCountry(LocationGeneric):
+    description: StringOptional
+    name: String
+    shortname: String
+    timezone: StringOptional
+    children: RelationshipManager[LocationSite]
+    member_of_groups: RelationshipManager[CoreGroup]
+    parent: RelationshipAttribute[LocationGeneric]
+    profiles: RelationshipManager[CoreProfile]
+    servers: RelationshipManager[NetworkManagementServer]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+    tags: RelationshipManager[BuiltinTag]
 
 
 class LocationRack(LocationGeneric):
@@ -192,35 +158,40 @@ class LocationSite(LocationGeneric):
     tags: RelationshipManager[BuiltinTag]
 
 
-
-
-class ProfileBuiltinIPAddress(LineageSource, CoreProfile, CoreNode):
+class NetworkDhcpServer(NetworkManagementServer):
     description: StringOptional
-    profile_name: String
-    profile_priority: Integer
+    lease_time: String
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManager[IpamIPAddress]
+    location: RelationshipAttribute[LocationGeneric]
     member_of_groups: RelationshipManager[CoreGroup]
-    related_nodes: RelationshipManager[BuiltinIPAddress]
+    profiles: RelationshipManager[CoreProfile]
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
-class ProfileBuiltinIPPrefix(LineageSource, CoreProfile, CoreNode):
+class NetworkNameServer(NetworkManagementServer):
     description: StringOptional
-    is_pool: BooleanOptional
-    member_type: DropdownOptional
-    profile_name: String
-    profile_priority: Integer
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManager[IpamIPAddress]
+    location: RelationshipAttribute[LocationGeneric]
     member_of_groups: RelationshipManager[CoreGroup]
-    related_nodes: RelationshipManager[BuiltinIPPrefix]
+    profiles: RelationshipManager[CoreProfile]
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
-class ProfileBuiltinTag(LineageSource, CoreProfile, CoreNode):
+class NetworkNTPServer(NetworkManagementServer):
     description: StringOptional
-    profile_name: String
-    profile_priority: Integer
+    name: String
+    status: Dropdown
+    ip_addresses: RelationshipManager[IpamIPAddress]
+    location: RelationshipAttribute[LocationGeneric]
     member_of_groups: RelationshipManager[CoreGroup]
-    related_nodes: RelationshipManager[BuiltinTag]
+    profiles: RelationshipManager[CoreProfile]
     subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
 
 
 class ProfileInfraDevice(LineageSource, CoreProfile, CoreNode):
@@ -241,15 +212,6 @@ class ProfileIpamIPAddress(LineageSource, CoreProfile, CoreNode):
     profile_priority: Integer
     member_of_groups: RelationshipManager[CoreGroup]
     related_nodes: RelationshipManager[IpamIPAddress]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-
-
-class ProfileIpamNamespace(LineageSource, CoreProfile, CoreNode):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManager[CoreGroup]
-    related_nodes: RelationshipManager[IpamNamespace]
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
@@ -324,21 +286,21 @@ class ProfileNetworkManagementServer(LineageSource, CoreProfile, CoreNode):
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
-class ProfileNetworkNTPServer(LineageSource, CoreProfile, CoreNode):
-    description: StringOptional
-    profile_name: String
-    profile_priority: Integer
-    member_of_groups: RelationshipManager[CoreGroup]
-    related_nodes: RelationshipManager[NetworkNTPServer]
-    subscriber_of_groups: RelationshipManager[CoreGroup]
-
-
 class ProfileNetworkNameServer(LineageSource, CoreProfile, CoreNode):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
     member_of_groups: RelationshipManager[CoreGroup]
     related_nodes: RelationshipManager[NetworkNameServer]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class ProfileNetworkNTPServer(LineageSource, CoreProfile, CoreNode):
+    description: StringOptional
+    profile_name: String
+    profile_priority: Integer
+    member_of_groups: RelationshipManager[CoreGroup]
+    related_nodes: RelationshipManager[NetworkNTPServer]
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 

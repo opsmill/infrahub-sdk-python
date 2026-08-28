@@ -97,6 +97,39 @@ HIERARCHY_TEST_CASES = [
 
 
 @dataclass
+class OrderTestCase:
+    name: str
+    first_namespace: str
+    first_name: str
+    second_namespace: str
+    second_name: str
+    expected_first: str
+    expected_second: str
+
+
+ORDER_TEST_CASES = [
+    OrderTestCase(
+        name="same-name-different-namespace",
+        first_namespace="Location",
+        first_name="Site",
+        second_namespace="Network",
+        second_name="Site",
+        expected_first="LocationSite",
+        expected_second="NetworkSite",
+    ),
+    OrderTestCase(
+        name="names-differing-only-in-case",
+        first_namespace="Infra",
+        first_name="DEvice",
+        second_namespace="Infra",
+        second_name="Device",
+        expected_first="InfraDEvice",
+        expected_second="InfraDevice",
+    ),
+]
+
+
+@dataclass
 class GoldenTestCase:
     name: str
     sync: bool
@@ -216,6 +249,27 @@ async def test_hierarchy_members_are_declared_once(test_case: HierarchyTestCase)
     body = rendered[rendered.index("class LocationSite") :]
     assert body.count("parent:") == 1
     assert body.count("children:") == 1
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in ORDER_TEST_CASES],
+)
+async def test_render_order_does_not_depend_on_input_order(test_case: OrderTestCase) -> None:
+    """Kinds a sort key could compare equal render in the same order however they are supplied.
+
+    The rendered file is committed and validated by regenerating it and diffing, so an ordering
+    that depends on how the schema was handed over turns into a build that fails intermittently.
+    Ordering on the kind is total, because that is the name the class renders as.
+    """
+    first = GenericSchemaAPI(name=test_case.first_name, namespace=test_case.first_namespace)
+    second = GenericSchemaAPI(name=test_case.second_name, namespace=test_case.second_namespace)
+
+    forwards = CodeGenerator(schema={first.kind: first, second.kind: second}).render(sync=False)
+    backwards = CodeGenerator(schema={second.kind: second, first.kind: first}).render(sync=False)
+
+    assert forwards == backwards
+    assert forwards.index(f"class {test_case.expected_first}(") < forwards.index(f"class {test_case.expected_second}(")
 
 
 async def test_render_sdk_core_emits_both_variants(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:

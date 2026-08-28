@@ -220,4 +220,7 @@ class CodeGenerator:
                 continue
             filtered.append(model)
 
-        return sorted(filtered, key=lambda k: k.name)
+        # Sorted on the kind, which is the name each class renders as. Case is ignored so the file
+        # reads in alphabetical order, with the kind itself breaking ties: a key that can compare
+        # two kinds equal would leave them ordered by however the caller supplied them.
+        return sorted(filtered, key=lambda k: (k.kind.lower(), k.kind))
