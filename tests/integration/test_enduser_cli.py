@@ -220,37 +220,45 @@ class TestEnduserCliWrite(_EnduserCliBase):
         tmp_path: Path,
     ) -> None:
         """Round-trip cardinality-many attribute relationships through the CLI."""
-        response = await client.schema.load(schemas=[schema_extension_01], wait_until_converged=True)
-        assert not response.errors
+        tags: list[InfrahubNode] = []
+        rack: InfrahubNode | None = None
+        try:
+            response = await client.schema.load(schemas=[schema_extension_01], wait_until_converged=True)
+            assert not response.errors
 
-        suffix = uuid4().hex
-        tag_names = [f"yaml-round-trip-{suffix}-one", f"yaml-round-trip-{suffix}-two"]
-        tags = []
-        for tag_name in tag_names:
-            tag = await client.create(kind="BuiltinTag", name=tag_name)
-            await tag.save()
-            tags.append(tag)
+            suffix = uuid4().hex
+            tag_names = [f"yaml-round-trip-{suffix}-one", f"yaml-round-trip-{suffix}-two"]
+            for tag_name in tag_names:
+                tag = await client.create(kind="BuiltinTag", name=tag_name)
+                await tag.save()
+                tags.append(tag)
 
-        rack_name = f"yaml-round-trip-rack-{suffix}"
-        rack = await client.create(kind="InfraRack", name=rack_name, tags=tags)
-        await rack.save()
+            rack_name = f"yaml-round-trip-rack-{suffix}"
+            created_rack = await client.create(kind="InfraRack", name=rack_name, tags=tags)
+            await created_rack.save()
+            rack = created_rack
 
-        get_result = await asyncio.to_thread(
-            runner.invoke,
-            app,
-            ["object", "get", "InfraRack", "--filter", f"name__value={rack_name}", "--output", "yaml"],
-        )
-        assert get_result.exit_code == 0, f"object get failed: {get_result.output}"
+            get_result = await asyncio.to_thread(
+                runner.invoke,
+                app,
+                ["object", "get", "InfraRack", "--filter", f"name__value={rack_name}", "--output", "yaml"],
+            )
+            assert get_result.exit_code == 0, f"object get failed: {get_result.output}"
 
-        object_file = tmp_path / "infra-rack.yaml"
-        object_file.write_text(get_result.stdout, encoding="utf-8")
-        load_result = await asyncio.to_thread(runner.invoke, app, ["object", "load", str(object_file)])
-        assert load_result.exit_code == 0, f"object load failed: {load_result.output}"
+            object_file = tmp_path / "infra-rack.yaml"
+            object_file.write_text(get_result.stdout, encoding="utf-8")
+            load_result = await asyncio.to_thread(runner.invoke, app, ["object", "load", str(object_file)])
+            assert load_result.exit_code == 0, f"object load failed: {load_result.output}"
 
-        fetched_rack = await client.get(kind="InfraRack", id=rack.id)
-        fetched_tags = fetched_rack._get_relationship_many(name="tags")
-        await fetched_tags.fetch()
-        assert sorted(peer.hfid or [] for peer in fetched_tags.peers) == sorted([[name] for name in tag_names])
+            fetched_rack = await client.get(kind="InfraRack", id=rack.id)
+            fetched_tags = fetched_rack._get_relationship_many(name="tags")
+            await fetched_tags.fetch()
+            assert sorted(peer.hfid or [] for peer in fetched_tags.peers) == sorted([[name] for name in tag_names])
+        finally:
+            if rack is not None:
+                await rack.delete()
+            for tag in reversed(tags):
+                await tag.delete()
 
     def test_update_inline(self, base_dataset: None) -> None:
         """Update a person's height using --set."""
