@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from infrahub_sdk.constants import InfrahubClientMode
 from infrahub_sdk.exceptions import NodeNotFoundError, TrackingGroupCleanupError
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_CAT, TESTING_PERSON, SchemaAnimal
@@ -119,6 +120,8 @@ class TestTrackingRefusedDeleteOnZeroMemberRun(TestInfrahubDockerClient, SchemaA
             async with client.start_tracking(params=params, delete_unused_nodes=True):
                 pass
 
+        assert client.mode == InfrahubClientMode.DEFAULT
+
         group_name = client.group_context._generate_group_name()
         group = await client.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
         assert group.members.peer_ids == [person.id]
@@ -203,7 +206,10 @@ class TestTrackingZeroMembersSync(TestInfrahubDockerClient, SchemaAnimal):
 
         # Second run saves only a new tag, so the person and the first tag both
         # become reap candidates. The person's delete is refused by the server.
-        with pytest.raises(TrackingGroupCleanupError) as exc_info, client_sync.start_tracking(params=params, delete_unused_nodes=True) as clt:
+        with (
+            pytest.raises(TrackingGroupCleanupError) as exc_info,
+            client_sync.start_tracking(params=params, delete_unused_nodes=True) as clt,
+        ):
             keeper_tag = clt.create(kind="BuiltinTag", name=keeper_tag_name)
             keeper_tag.save(allow_upsert=True)
 
@@ -238,8 +244,13 @@ class TestTrackingRefusedDeleteOnZeroMemberRunSync(TestInfrahubDockerClient, Sch
         cat.save()
 
         # A zero-member run now attempts the reap; the person's delete is refused.
-        with pytest.raises(TrackingGroupCleanupError), client_sync.start_tracking(params=params, delete_unused_nodes=True):
+        with (
+            pytest.raises(TrackingGroupCleanupError),
+            client_sync.start_tracking(params=params, delete_unused_nodes=True),
+        ):
             pass
+
+        assert client_sync.mode == InfrahubClientMode.DEFAULT
 
         group_name = client_sync.group_context._generate_group_name()
         group = client_sync.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import GraphQLError, NodeNotFoundError, TrackingGroupCleanupError
+from .exceptions import Error, NodeNotFoundError, TrackingGroupCleanupError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -126,8 +126,8 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             if member.id not in self.unused_member_ids or not member.typename:
                 continue
             try:
-                await self.client.delete(kind=member.typename, id=member.id)
-            except GraphQLError as exc:
+                await self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
+            except Error as exc:
                 if exc.message and "Unable to find the node" in exc.message:
                     # The node was already removed by the cascade delete of another node
                     continue
@@ -220,7 +220,9 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
     def get_group(self, store_peers: bool = False) -> InfrahubNodeSync | None:
         group_name = self._generate_group_name()
         try:
-            group = self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
+            group = self.client.get(
+                kind=self.group_type, name__value=group_name, include=["members"], branch=self.branch
+            )
         except NodeNotFoundError:
             return None
 
@@ -248,8 +250,8 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             if member.id not in self.unused_member_ids or not member.typename:
                 continue
             try:
-                self.client.delete(kind=member.typename, id=member.id)
-            except GraphQLError as exc:
+                self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
+            except Error as exc:
                 if exc.message and "Unable to find the node" in exc.message:
                     # The node was already removed by the cascade delete of another node
                     continue
