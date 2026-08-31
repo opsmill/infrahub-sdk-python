@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import yaml  # pyright: ignore[reportMissingModuleSource]
 
 from infrahub_sdk.ctl.formatters.yaml import YamlFormatter
+from infrahub_sdk.schema import RelationshipCardinality, RelationshipSchemaAPI
+from infrahub_sdk.spec.object import InfrahubObjectFileData, RelationshipDataFormat, get_relationship_info
 
 
 def _make_mock_schema(
@@ -327,7 +329,48 @@ class TestYamlFormatterEdgeCases:
 
         result = formatter.format_detail(node, schema)
         parsed = yaml.safe_load(result)
-        assert parsed["spec"]["data"][0]["tags"] == {"data": ["tag1", "tag2"]}
+        assert parsed["spec"]["data"][0]["tags"] == ["tag1", "tag2"]
+
+    async def test_rel_cardinality_many_output_is_loadable_reference(self) -> None:
+        """Cardinality-many YAML output is accepted by the object loader as HFID references."""
+        schema = MagicMock()
+        schema.kind = "TestKind"
+        schema.attribute_names = []
+        schema.relationship_names = ["tags"]
+        rel_schema = RelationshipSchemaAPI(
+            name="tags",
+            peer="BuiltinTag",
+            cardinality=RelationshipCardinality.MANY,
+        )
+        schema.get_relationship.return_value = rel_schema
+
+        peer1 = MagicMock(display_label="tag1", hfid=["tag1"])
+        peer2 = MagicMock(display_label="tag2", hfid=["tag2"])
+        node = MagicMock()
+        node.tags.peers = [peer1, peer2]
+
+        parsed = yaml.safe_load(YamlFormatter().format_detail(node, schema))
+        relationship_value = parsed["spec"]["data"][0]["tags"]
+
+        peer_schema = MagicMock(human_friendly_id=["name"])
+        client = MagicMock()
+        client.schema.get = AsyncMock(return_value=peer_schema)
+        rel_info = await get_relationship_info(
+            client=client,
+            schema=schema,
+            name="tags",
+            value=relationship_value,
+        )
+        errors = await InfrahubObjectFileData.validate_related_nodes(
+            client=client,
+            position=[1, "tags"],
+            rel_info=rel_info,
+            data=relationship_value,
+        )
+
+        assert rel_info.format == RelationshipDataFormat.MANY_REF
+        assert rel_info.is_reference
+        assert errors == []
 
     def test_rel_multi_component_hfid(self) -> None:
         """Multi-component HFID renders as a list."""
