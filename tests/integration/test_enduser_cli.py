@@ -222,6 +222,7 @@ class TestEnduserCliWrite(_EnduserCliBase):
         """Round-trip cardinality-many attribute relationships through the CLI."""
         tags: list[InfrahubNode] = []
         rack: InfrahubNode | None = None
+        body_succeeded = False
         try:
             response = await client.schema.load(schemas=[schema_extension_01], wait_until_converged=True)
             assert not response.errors
@@ -254,11 +255,21 @@ class TestEnduserCliWrite(_EnduserCliBase):
             fetched_tags = fetched_rack._get_relationship_many(name="tags")
             await fetched_tags.fetch()
             assert sorted(peer.hfid or [] for peer in fetched_tags.peers) == sorted([[name] for name in tag_names])
+            body_succeeded = True
         finally:
+            cleanup_errors: list[Exception] = []
             if rack is not None:
-                await rack.delete()
+                try:
+                    await rack.delete()
+                except Exception as exc:
+                    cleanup_errors.append(exc)
             for tag in reversed(tags):
-                await tag.delete()
+                try:
+                    await tag.delete()
+                except Exception as exc:
+                    cleanup_errors.append(exc)
+            if body_succeeded and cleanup_errors:
+                raise cleanup_errors[0]
 
     def test_update_inline(self, base_dataset: None) -> None:
         """Update a person's height using --set."""
