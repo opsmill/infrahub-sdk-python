@@ -10,6 +10,7 @@ from infrahub_sdk.branch import BranchData
 from infrahub_sdk.constants import InfrahubClientMode
 from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNodeSync
+from infrahub_sdk.node.metadata import NodeMetadata, RelationshipMetadata
 from infrahub_sdk.playback import JSONPlayback
 from infrahub_sdk.recorder import JSONRecorder
 from infrahub_sdk.schema import GenericSchema, NodeSchema, ProfileSchemaAPI
@@ -331,6 +332,81 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
             kind="CoreStandardGroup", name__value=client_sync.group_context._generate_group_name(), include=["members"]
         )
         assert len(group.members.peers) == 2
+
+    def test_node_metadata_not_fetched_by_default(
+        self, client_sync: InfrahubClientSync, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = client_sync.get(kind=TESTING_CAT, id=cat_luna.id)
+        assert node.get_node_metadata() is None
+
+    def test_node_metadata_with_get(
+        self, client_sync: InfrahubClientSync, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = client_sync.get(kind=TESTING_CAT, id=cat_luna.id, include_metadata=True)
+
+        metadata = node.get_node_metadata()
+        assert isinstance(metadata, NodeMetadata)
+        assert metadata.created_at is not None
+        assert metadata.updated_at is not None
+        assert metadata.created_by.display_label == "Admin"
+
+    def test_attribute_metadata(
+        self, client_sync: InfrahubClientSync, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        disposable = client_sync.create(
+            kind=TESTING_CAT, name="MetadataTestCat", breed="Siamese", color="#FFFFFF", owner=person_ethan
+        )
+        disposable.save()
+
+        node = client_sync.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+
+        assert node.name.updated_by.display_label == "Admin"
+        assert node.breed.updated_by.display_label == "Admin"
+        original_name_updated_at = node.name.updated_at
+        original_breed_updated_at = node.breed.updated_at
+        assert original_name_updated_at is not None
+
+        node.name.value = "MetadataTestCat Updated"
+        node.save()
+
+        node_after = client_sync.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+        assert node_after.name.value == "MetadataTestCat Updated"
+        assert node_after.name.updated_by.display_label == "Admin"
+        assert node_after.name.updated_at is not None
+        assert node_after.name.updated_at > original_name_updated_at
+        assert node_after.breed.updated_at == original_breed_updated_at
+
+        node_after.delete()
+
+    def test_relationship_metadata_cardinality_one(
+        self, client_sync: InfrahubClientSync, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = client_sync.get(kind=TESTING_CAT, id=cat_luna.id, include_metadata=True)
+
+        rel_metadata = node.owner.get_relationship_metadata()
+        assert isinstance(rel_metadata, RelationshipMetadata)
+        assert rel_metadata.updated_at is not None
+        assert rel_metadata.updated_by.display_label == "Admin"
+
+    def test_relationship_metadata_cardinality_many(
+        self, client_sync: InfrahubClientSync, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        # Use include=["animals"] rather than prefetch_relationships=True — see async counterpart
+        # in test_infrahub_client.py for full explanation.
+        node = client_sync.get(
+            kind=TESTING_PERSON,
+            id=person_ethan.id,
+            include_metadata=True,
+            include=["animals"],
+            exclude=["favorite_animal"],
+        )
+
+        assert node.animals.peers
+        for peer in node.animals.peers:
+            rel_metadata = peer.get_relationship_metadata()
+            assert isinstance(rel_metadata, RelationshipMetadata)
+            assert rel_metadata.updated_at is not None
+            assert rel_metadata.updated_by.display_label == "Admin"
 
     @pytest.mark.xfail(reason="https://github.com/opsmill/infrahub-sdk-python/issues/733")
     def test_recorder_with_playback_rewrite_host(self, base_dataset: None, tmp_path: Path, infrahub_port: int) -> None:
