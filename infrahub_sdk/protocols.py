@@ -121,6 +121,7 @@ class CoreGenericAccount(CoreNode):
     account_type: Enum
     status: Dropdown
     tokens: RelationshipManager
+    refresh_tokens: RelationshipManager
     external_identities: RelationshipManager
 
 
@@ -726,6 +727,7 @@ class CoreGenericAccountSync(CoreNodeSync):
     account_type: Enum
     status: Dropdown
     tokens: RelationshipManagerSync
+    refresh_tokens: RelationshipManagerSync
     external_identities: RelationshipManagerSync
 
 
