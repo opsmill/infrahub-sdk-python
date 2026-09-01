@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -8,6 +9,53 @@ class Error(Exception):
     def __init__(self, message: str | None = None) -> None:
         self.message = message
         super().__init__(self.message)
+
+
+@dataclass(frozen=True)
+class GraphQLErrorDetail:
+    """Structured view of a single entry from a GraphQL response's `errors` array.
+
+    `code`, `http_status` and `data` come from the error catalogue extensions
+    that the Infrahub server attaches to each error (`extensions.code`,
+    `extensions.http_status`, `extensions.data`). They are `None` when the
+    server did not provide them.
+
+    The raw `locations` field is intentionally not exposed here; the unparsed
+    entry remains available through the exception's `errors` attribute.
+    """
+
+    message: str | None = None
+    code: str | None = None
+    http_status: int | None = None
+    data: dict[str, Any] | None = None
+    path: list[str | int] | None = None
+
+
+def _parse_graphql_error_details(errors: Any) -> list[GraphQLErrorDetail]:
+    entries = errors if isinstance(errors, list) else [errors]
+    details: list[GraphQLErrorDetail] = []
+    for entry in entries:
+        if isinstance(entry, dict):
+            extensions = entry.get("extensions")
+            if not isinstance(extensions, dict):
+                extensions = {}
+            message = entry.get("message")
+            code = extensions.get("code")
+            http_status = extensions.get("http_status")
+            data = extensions.get("data")
+            path = entry.get("path")
+            details.append(
+                GraphQLErrorDetail(
+                    message=str(message) if message is not None else None,
+                    code=code if isinstance(code, str) else None,
+                    http_status=http_status if isinstance(http_status, int) else None,
+                    data=data if isinstance(data, dict) else None,
+                    path=path if isinstance(path, list) else None,
+                )
+            )
+        elif entry is not None:
+            details.append(GraphQLErrorDetail(message=str(entry)))
+    return details
 
 
 class JsonDecodeError(Error):
@@ -58,12 +106,30 @@ class ServerNotResponsiveError(Error):
 
 
 class GraphQLError(Error):
+    """Raised when a GraphQL response contains entries in its `errors` array.
+
+    The exception message only carries the server-provided error messages; the
+    executed query and its variables stay available on the `query` and
+    `variables` attributes so they never leak into logs or tracebacks by
+    default. Catalogue metadata attached by the server is exposed through
+    `details` and `codes`.
+    """
+
     def __init__(self, errors: list[dict[str, Any]], query: str | None = None, variables: dict | None = None) -> None:
         self.query = query
         self.variables = variables
         self.errors = errors
-        self.message = f"An error occurred while executing the GraphQL Query {self.query}, {self.errors}"
+        self.details = _parse_graphql_error_details(errors)
+        detail_messages = "; ".join(detail.message for detail in self.details if detail.message)
+        self.message = "An error occurred while executing the GraphQL Query"
+        if detail_messages:
+            self.message += f": {detail_messages}"
         super().__init__(self.message)
+
+    @property
+    def codes(self) -> list[str]:
+        """Return the catalogue error codes reported by the server, one per error that carried one."""
+        return [detail.code for detail in self.details if detail.code]
 
 
 class VersionNotSupportedError(Error):
