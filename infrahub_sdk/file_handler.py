@@ -145,11 +145,13 @@ class FileHandlerBase:
         return PreparedFile(file_object=cast("BinaryIO", content), filename=filename, should_close=False)
 
     @staticmethod
-    def handle_error_response(exc: httpx.HTTPStatusError) -> None:
+    def handle_error_response(exc: httpx.HTTPStatusError, branch: str, node_id: str) -> None:
         """Handle HTTP error responses for file operations.
 
         Args:
             exc: The HTTP status error from httpx.
+            branch: The branch name used for the request.
+            node_id: The ID of the FileObject node being accessed.
 
         Raises:
             AuthenticationError: If authentication fails (401/403).
@@ -165,15 +167,22 @@ class FileHandlerBase:
         if exc.response.status_code == 404:
             response = exc.response.json()
             detail = response.get("detail", "File not found")
-            raise NodeNotFoundError(node_type="FileObject", identifier=detail) from exc
+            raise NodeNotFoundError(
+                branch_name=branch,
+                node_type="FileObject",
+                identifier={"id": [node_id]},
+                message=detail,
+            ) from exc
         raise exc
 
     @staticmethod
-    def handle_response(resp: httpx.Response) -> bytes:
+    def handle_response(resp: httpx.Response, branch: str, node_id: str) -> bytes:
         """Handle the HTTP response and return file content as bytes.
 
         Args:
             resp: The HTTP response from httpx.
+            branch: The branch name used for the request.
+            node_id: The ID of the FileObject node being accessed.
 
         Returns:
             The file content as bytes.
@@ -186,7 +195,7 @@ class FileHandlerBase:
         try:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            FileHandlerBase.handle_error_response(exc=exc)
+            FileHandlerBase.handle_error_response(exc=exc, branch=branch, node_id=node_id)
         return resp.content
 
 
@@ -253,7 +262,7 @@ class FileHandler(FileHandlerBase):
         url = self._build_url(node_id=node_id, branch=effective_branch)
 
         if dest is not None:
-            return await self._stream_to_file(url=url, dest=dest)
+            return await self._stream_to_file(url=url, dest=dest, branch=effective_branch, node_id=node_id)
 
         try:
             resp = await self._client._get(url=url)
@@ -261,14 +270,16 @@ class FileHandler(FileHandlerBase):
             self._client.log.error(f"Unable to connect to {self._client.address}")
             raise
 
-        return self.handle_response(resp=resp)
+        return self.handle_response(resp=resp, branch=effective_branch, node_id=node_id)
 
-    async def _stream_to_file(self, url: str, dest: Path) -> int:
+    async def _stream_to_file(self, url: str, dest: Path, branch: str, node_id: str) -> int:
         """Stream download directly to a file without loading into memory.
 
         Args:
             url: The URL to download from.
             dest: The destination path to write to.
+            branch: The branch name used for the request.
+            node_id: The ID of the FileObject node being downloaded.
 
         Returns:
             The number of bytes written to the file.
@@ -286,7 +297,7 @@ class FileHandler(FileHandlerBase):
                 except httpx.HTTPStatusError as exc:
                     # Need to read the response body for error details
                     await resp.aread()
-                    self.handle_error_response(exc=exc)
+                    self.handle_error_response(exc=exc, branch=branch, node_id=node_id)
 
                 bytes_written = 0
                 async with await anyio.Path(dest).open("wb") as f:
@@ -362,7 +373,7 @@ class FileHandlerSync(FileHandlerBase):
         url = self._build_url(node_id=node_id, branch=effective_branch)
 
         if dest is not None:
-            return self._stream_to_file(url=url, dest=dest)
+            return self._stream_to_file(url=url, dest=dest, branch=effective_branch, node_id=node_id)
 
         try:
             resp = self._client._get(url=url)
@@ -370,14 +381,16 @@ class FileHandlerSync(FileHandlerBase):
             self._client.log.error(f"Unable to connect to {self._client.address}")
             raise
 
-        return self.handle_response(resp=resp)
+        return self.handle_response(resp=resp, branch=effective_branch, node_id=node_id)
 
-    def _stream_to_file(self, url: str, dest: Path) -> int:
+    def _stream_to_file(self, url: str, dest: Path, branch: str, node_id: str) -> int:
         """Stream download directly to a file without loading into memory.
 
         Args:
             url: The URL to download from.
             dest: The destination path to write to.
+            branch: The branch name used for the request.
+            node_id: The ID of the FileObject node being downloaded.
 
         Returns:
             The number of bytes written to the file.
@@ -395,7 +408,7 @@ class FileHandlerSync(FileHandlerBase):
                 except httpx.HTTPStatusError as exc:
                     # Need to read the response body for error details
                     resp.read()
-                    self.handle_error_response(exc=exc)
+                    self.handle_error_response(exc=exc, branch=branch, node_id=node_id)
 
                 bytes_written = 0
                 with dest.open("wb") as f:
