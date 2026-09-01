@@ -34,12 +34,13 @@ tests/
 # Async test - NO decorator needed (auto mode)
 async def test_async_operation(httpx_mock: HTTPXMock):
     httpx_mock.add_response(
-        url="http://localhost:8000/api/graphql",
+        url="http://mock/graphql/main",
         json={"data": {"result": "success"}},
     )
-    client = InfrahubClient()
-    result = await client.execute(query="...")
-    assert result is not None
+    # The mocked URL must match the client's configured address
+    client = InfrahubClient(config=Config(address="http://mock"))
+    result = await client.execute_graphql(query="...")
+    assert result == {"result": "success"}
 
 # Sync test
 def test_sync_operation():
