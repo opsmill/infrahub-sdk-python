@@ -1,0 +1,1 @@
+Added unit tests over the packaging metadata so the declared dependencies stay honest. They check that every requirement has a lower bound, that the `all` extra keeps covering the other extras, and that the packages the SDK imports and the packages it declares match each other.

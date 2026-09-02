@@ -18,10 +18,17 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "pydantic>=2.0.0,!=2.0.1,!=2.1.0,<3.0.0",
+    # 2.0 and 2.0.2 cannot build the generated schema models: their regex engine rejects the
+    # `\_` escape in the model field patterns, so `import infrahub_sdk` fails outright.
+    "pydantic>=2.0.3,!=2.1.0,<3.0.0",
     "pydantic-settings>=2.0",
     "graphql-core>=3.1,<3.3",
     "httpx>=0.20",
+    "anyio>=3.3.0", # 3.3.0 introduced `anyio.Path`, used by the async file handler
+    "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
+    "Jinja2>=3", # template rendering in `template/` and `protocols_generator/`
+    "pyyaml>=6", # YAML parsing in `yaml.py`, `spec/`, `template/infrahub_filters.py` and the pytest plugin
+    "rich>=12", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
     "ujson>=5",
     "dulwich>=0.24.7",
     "whenever>=0.9.3,<0.10.0",
@@ -42,31 +49,26 @@ infrahubctl = "infrahub_sdk.ctl.cli:app"
 
 [project.optional-dependencies]
 ctl = [
-    "Jinja2>=3",
-    "numpy>=1.24.2; python_version<'3.12'",
-    "numpy>=1.26.2; python_version>='3.12'",
     "pyarrow>=14",
-    "pyyaml>=6",
-    "ruamel.yaml>=0.18",
-    "rich>=12,<14",
+    "ruamel.yaml>=0.18", # round-trip mode preserves comments when `schema format` rewrites a file
     "typer>=0.15.0",
+    # Not imported directly; constrains the `click` that `typer` resolves to.
     "click>=8.3,<9",
     "ariadne-codegen==0.18.0",
-    "mdxify>=0.2.23; python_version>='3.10'",
 ]
 
+# The user-facing testing surface: `infrahub_sdk.testing` and the bundled `pytest-infrahub`
+# plugin. Both ship in the wheel but import packages that no other extra installs. Distinct from
+# the `tests` dependency group below, which is the tooling used to test the SDK itself.
+tests = [
+    "infrahub-testcontainers>=1.7.3",
+    "packaging>=21.0",
+    "pytest>=7.0",
+]
+
+# Self-referential so it cannot drift out of sync with the extras it aggregates.
 all = [
-    "Jinja2>=3",
-    "numpy>=1.24.2; python_version<'3.12'",
-    "numpy>=1.26.2; python_version>='3.12'",
-    "pyarrow>=14",
-    "pytest",
-    "pyyaml>=6",
-    "ruamel.yaml>=0.18",
-    "rich>=12,<14",
-    "typer>=0.15.0",
-    "click>=8.3,<9",
-    "ariadne-codegen==0.18.0",
+    "infrahub-sdk[ctl,tests]",
 ]
 
 [dependency-groups]
@@ -94,10 +96,14 @@ types = [
     "types-pyyaml",
     "types-python-slugify>=8.0.0.3",
 ]
+docs = [
+    "mdxify>=0.2.23",
+]
 dev = [
     {include-group = "tests"},
     {include-group = "lint"},
     {include-group = "types"},
+    {include-group = "docs"},
     "ipython",
     "requests>=2.33.0",
     "prek>=0.3.0",
