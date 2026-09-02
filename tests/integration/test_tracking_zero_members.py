@@ -265,3 +265,93 @@ class TestTrackingRefusedDeleteOnZeroMemberRunSync(TestInfrahubDockerClient, Sch
         assert len(group.members.peers) == 0
         with pytest.raises(NodeNotFoundError):
             client_sync.get(kind=TESTING_PERSON, name__value=person_name)
+
+
+class TestTrackingOnNonDefaultBranch(TestInfrahubDockerClient, SchemaAnimal):
+    """The reap must act on the branch the tracking context targets, not the client default."""
+
+    BRANCH = "tracking-branch01"
+
+    @pytest.fixture(scope="class")
+    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> None:
+        await client.branch.create(branch_name=self.BRANCH)
+
+    async def test_zero_member_run_prunes_on_the_tracked_branch(
+        self, client: InfrahubClient, base_dataset: None
+    ) -> None:
+        person_name = "BranchTrackingPerson"
+        tag_name = "branch-tracking-TAG"
+        params = {"person_name": person_name}
+
+        async with client.start_tracking(params=params, delete_unused_nodes=True, branch=self.BRANCH) as clt:
+            tag = await clt.create(kind="BuiltinTag", name=tag_name, branch=self.BRANCH)
+            await tag.save(allow_upsert=True)
+            person = await clt.create(kind=TESTING_PERSON, name=person_name, tags=[tag], branch=self.BRANCH)
+            await person.save(allow_upsert=True)
+
+        group_name = client.group_context._generate_group_name()
+        group = await client.get(
+            kind="CoreStandardGroup", name__value=group_name, include=["members"], branch=self.BRANCH
+        )
+        assert len(group.members.peers) == 2
+
+        # The group belongs to the branch, not to main.
+        with pytest.raises(NodeNotFoundError):
+            await client.get(kind="CoreStandardGroup", name__value=group_name, branch="main")
+
+        # A zero-member run on the branch must delete the branch's nodes. Deleting on the
+        # client default branch instead would not find them and would silently succeed.
+        async with client.start_tracking(params=params, delete_unused_nodes=True, branch=self.BRANCH):
+            pass
+
+        group = await client.get(
+            kind="CoreStandardGroup", name__value=group_name, include=["members"], branch=self.BRANCH
+        )
+        assert len(group.members.peers) == 0
+
+        with pytest.raises(NodeNotFoundError):
+            await client.get(kind="BuiltinTag", name__value=tag_name, branch=self.BRANCH)
+        with pytest.raises(NodeNotFoundError):
+            await client.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
+
+
+class TestTrackingOnNonDefaultBranchSync(TestInfrahubDockerClient, SchemaAnimal):
+    BRANCH = "sync-tracking-branch01"
+
+    @pytest.fixture(scope="class")
+    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> None:
+        await client.branch.create(branch_name=self.BRANCH)
+
+    def test_zero_member_run_prunes_on_the_tracked_branch(
+        self, client_sync: InfrahubClientSync, base_dataset: None
+    ) -> None:
+        person_name = "SyncBranchTrackingPerson"
+        tag_name = "sync-branch-tracking-TAG"
+        params = {"person_name": person_name}
+
+        with client_sync.start_tracking(params=params, delete_unused_nodes=True, branch=self.BRANCH) as clt:
+            tag = clt.create(kind="BuiltinTag", name=tag_name, branch=self.BRANCH)
+            tag.save(allow_upsert=True)
+            person = clt.create(kind=TESTING_PERSON, name=person_name, tags=[tag], branch=self.BRANCH)
+            person.save(allow_upsert=True)
+
+        group_name = client_sync.group_context._generate_group_name()
+        group = client_sync.get(
+            kind="CoreStandardGroup", name__value=group_name, include=["members"], branch=self.BRANCH
+        )
+        assert len(group.members.peers) == 2
+
+        # The sync group lookup must target the branch. Looking on the client default
+        # branch would miss this group entirely and skip the cleanup.
+        with client_sync.start_tracking(params=params, delete_unused_nodes=True, branch=self.BRANCH):
+            pass
+
+        group = client_sync.get(
+            kind="CoreStandardGroup", name__value=group_name, include=["members"], branch=self.BRANCH
+        )
+        assert len(group.members.peers) == 0
+
+        with pytest.raises(NodeNotFoundError):
+            client_sync.get(kind="BuiltinTag", name__value=tag_name, branch=self.BRANCH)
+        with pytest.raises(NodeNotFoundError):
+            client_sync.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
