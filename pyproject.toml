@@ -57,18 +57,23 @@ ctl = [
     "ariadne-codegen==0.18.0",
 ]
 
-# The user-facing testing surface: `infrahub_sdk.testing` and the bundled `pytest-infrahub`
-# plugin. Both ship in the wheel but import packages that no other extra installs. Distinct from
-# the `tests` dependency group below, which is the tooling used to test the SDK itself.
-tests = [
+# The bundled `pytest-infrahub` plugin and the schemas under `infrahub_sdk.testing`, for writing
+# tests against your own Transforms, Queries and Checks.
+testing = [
+    "pytest>=7.0",
+]
+
+# `infrahub_sdk.testing.docker`, which starts a real Infrahub in containers. Kept apart from
+# `testing` because it is the only module that needs it and it is a far heavier install.
+testcontainers = [
+    "infrahub-sdk[testing]",
     "infrahub-testcontainers>=1.7.3",
     "packaging>=21.0",
-    "pytest>=7.0",
 ]
 
 # Self-referential so it cannot drift out of sync with the extras it aggregates.
 all = [
-    "infrahub-sdk[ctl,tests]",
+    "infrahub-sdk[ctl,testing,testcontainers]",
 ]
 
 [dependency-groups]

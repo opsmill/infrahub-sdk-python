@@ -775,9 +775,12 @@ ctl = [
     { name = "ruamel-yaml" },
     { name = "typer" },
 ]
-tests = [
+testcontainers = [
     { name = "infrahub-testcontainers" },
     { name = "packaging" },
+    { name = "pytest" },
+]
+testing = [
     { name = "pytest" },
 ]
 
@@ -847,17 +850,18 @@ requires-dist = [
     { name = "graphql-core", specifier = ">=3.1,<3.3" },
     { name = "httpx", specifier = ">=0.20" },
     { name = "infrahub-testcontainers", marker = "extra == 'all'", specifier = ">=1.7.3" },
-    { name = "infrahub-testcontainers", marker = "extra == 'tests'", specifier = ">=1.7.3" },
+    { name = "infrahub-testcontainers", marker = "extra == 'testcontainers'", specifier = ">=1.7.3" },
     { name = "jinja2", specifier = ">=3" },
     { name = "netutils", specifier = ">=1.0.0" },
     { name = "packaging", marker = "extra == 'all'", specifier = ">=21.0" },
-    { name = "packaging", marker = "extra == 'tests'", specifier = ">=21.0" },
+    { name = "packaging", marker = "extra == 'testcontainers'", specifier = ">=21.0" },
     { name = "pyarrow", marker = "extra == 'all'", specifier = ">=14" },
     { name = "pyarrow", marker = "extra == 'ctl'", specifier = ">=14" },
     { name = "pydantic", specifier = ">=2.0.3,!=2.1.0,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'all'", specifier = ">=7.0" },
-    { name = "pytest", marker = "extra == 'tests'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'testcontainers'", specifier = ">=7.0" },
+    { name = "pytest", marker = "extra == 'testing'", specifier = ">=7.0" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "rich", specifier = ">=12" },
     { name = "ruamel-yaml", marker = "extra == 'all'", specifier = ">=0.18" },
@@ -869,7 +873,7 @@ requires-dist = [
     { name = "ujson", specifier = ">=5" },
     { name = "whenever", specifier = ">=0.9.3,<0.10.0" },
 ]
-provides-extras = ["all", "ctl", "tests"]
+provides-extras = ["all", "ctl", "testcontainers", "testing"]
 
 [package.metadata.requires-dev]
 dev = [
