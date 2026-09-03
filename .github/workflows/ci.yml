@@ -310,6 +310,127 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # ------------------------------------------ Dependency Bounds  ------------------------------------------
+  # `unit-tests` above installs exactly what uv.lock pins, so it never exercises the version ranges
+  # declared in pyproject.toml. The two jobs below cover the parts of that gap that a pull request
+  # can be held to. Upper bounds are deliberately absent: any upstream release could turn such a job
+  # red without a line of our code changing, which is not something a PR should be blocked on.
+
+  # Re-resolves at the declared lower bounds. Safe as a required check because the result only moves
+  # when pyproject.toml does; a floor is a fixed point, unlike a ceiling.
+  #
+  # What this does not reach: where a development dependency constrains a package more tightly than
+  # we do, it wins, so pytest, httpx, graphql-core, pydantic, anyio and typing-extensions all resolve
+  # above their declared floors here. Those need an environment with no development dependencies.
+  dependency-lower-bounds:
+    env:
+      # workaround for Rich table column width
+      COLUMNS: 140
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.files-changed.outputs.python == 'true'
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v7"
+      # Pinned to the oldest interpreter we support, because that is where floor-era wheels exist.
+      # The resolver selects the same floors on every supported version, but installing them does
+      # not work everywhere: pyarrow 14, pyyaml 6.0 and ujson 5.0 ship no wheels past cp312, so on
+      # 3.13 or 3.14 this job would compile them from source and fail for reasons unrelated to our
+      # code. A matrix would therefore add nothing. A floor states the oldest version we have
+      # validated, not one installable on every interpreter; a newer interpreter simply resolves
+      # higher, which `install-matrix` below confirms still works.
+      # Bump this when the oldest supported version changes. If it goes stale the job fails loudly,
+      # because `requires-python` will reject the interpreter.
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+          python-version: "3.10"
+      # Rewrites uv.lock in the checkout, which is discarded with the runner.
+      - name: "Re-resolve at the declared lower bounds"
+        run: uv lock --resolution lowest-direct
+      - name: Install dependencies
+        run: uv sync --all-groups --all-extras
+      # Printed so a failure can be read against the versions that produced it.
+      - name: "Report the resolved versions"
+        run: uv pip list
+      - name: Unit Tests
+        run: uv run pytest --cov infrahub_sdk tests/unit/
+
+  # Confirms the published package installs and imports on every supported interpreter, resolving
+  # fresh rather than from uv.lock. `unit-tests` proves the pinned set works; this proves that what
+  # a user actually gets from a plain install does too.
+  install-matrix:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    if: |
+      always() && !cancelled() &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.files-changed.outputs.python == 'true'
+    needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Check out repository code"
+        uses: "actions/checkout@v7"
+        with:
+          # hatch-vcs derives the version from git tags, and a shallow clone has none.
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
+          python-version: ${{ matrix.python-version }}
+      - name: "Build the wheel"
+        run: uv build --wheel --out-dir dist/
+      # Deliberately not `uv sync`: installing the built wheel with a fresh resolution is what a
+      # user experiences, and it is the only thing here that does not consult uv.lock.
+      - name: "Install the wheel with every extra"
+        run: |
+          uv venv --python ${{ matrix.python-version }} .venv-install
+          uv pip install --python .venv-install "$(echo dist/*.whl)[all]"
+      - name: "Report the resolved versions"
+        run: uv pip list --python .venv-install
+      # Importing every module catches a dependency that resolves but cannot be imported, which is
+      # how `infrahub_sdk.template` was broken on a plain install before it was declared core.
+      - name: "Import every shipped module"
+        run: |
+          .venv-install/bin/python - <<'PY'
+          import importlib, pkgutil, sys
+          import infrahub_sdk
+
+          failures = []
+          for module in pkgutil.walk_packages(infrahub_sdk.__path__, "infrahub_sdk."):
+              try:
+                  importlib.import_module(module.name)
+              except BaseException as exc:  # noqa: BLE001
+                  failures.append(f"{module.name}: {type(exc).__name__}: {exc}")
+          for failure in failures:
+              print(f"FAIL {failure}")
+          print(f"{len(failures)} module(s) failed to import")
+          sys.exit(1 if failures else 0)
+          PY
+      - name: "Run the CLI"
+        run: |
+          .venv-install/bin/infrahubctl --help
+          .venv-install/bin/infrahubctl schema --help
+          .venv-install/bin/infrahubctl branch --help
+
   # ------------------------------------------ Integration Tests  ------------------------------------------
   integration-tests-latest-infrahub:
     if: |
