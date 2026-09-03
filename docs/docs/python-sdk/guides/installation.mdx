@@ -29,19 +29,31 @@ pip install 'infrahub-sdk[ctl]'
 
 <!-- vale off -->
 
-### tests
+### testing
 
 <!-- vale on -->
 
-The `tests` extra provides all the components for the testing framework of Transforms, Queries and Checks.
+The `testing` extra provides the components for the testing framework of Transforms, Queries and Checks. It installs `pytest` and enables the bundled `pytest-infrahub` plugin, which discovers the `infrahub_tests` blocks in your repository's `.infrahub.yml` and turns them into test cases.
 
 ```shell
-pip install 'infrahub-sdk[tests]'
+pip install 'infrahub-sdk[testing]'
+```
+
+<!-- vale off -->
+
+### testcontainers
+
+<!-- vale on -->
+
+The `testcontainers` extra provides `infrahub_sdk.testing.docker`, which starts a real Infrahub in containers so your tests can run against a live instance rather than mocked responses. Inherit `TestInfrahubDockerClient` to get a client connected to that instance.
+
+```shell
+pip install 'infrahub-sdk[testcontainers]'
 ```
 
 :::note
 
-This extra is much larger than the others. The `infrahub_sdk.testing` helpers run Infrahub in containers, which adds roughly 61 packages on top of the base SDK. Install the `ctl` extra on its own if you only need the `infrahubctl` command.
+This extra is considerably larger than the others, since running Infrahub in containers pulls in Docker, FastAPI and Prefect client libraries. Install `testing` on its own if you only need to test Transforms, Queries and Checks.
 
 :::
 

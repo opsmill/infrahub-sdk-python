@@ -11,7 +11,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
-from collections.abc import Container, Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeGuard
@@ -34,10 +34,13 @@ BASE_SECTION = "project.dependencies"
 
 # Modules that ship in the wheel but are allowed to need an extra, mapped to the extra that
 # supplies them. `ctl/` is the CLI; `async_typer` and `graphql/plugin.py` sit outside it but are
-# only reachable from it. Everything else must import on a plain install.
+# only reachable from it. Everything else must import on a plain install, which is why the entries
+# are per-file where a package is split: `testing/repository.py` needs nothing beyond the core
+# dependencies, so it is deliberately absent and held to the base install.
 EXTRA_ONLY_MODULES = {
     "ctl": ("ctl/", "async_typer.py", "graphql/plugin.py"),
-    "tests": ("pytest_plugin/", "testing/"),
+    "testing": ("pytest_plugin/", "testing/schemas/"),
+    "testcontainers": ("testing/docker.py",),
 }
 
 # Operators that establish a floor. A requirement without one of these lets a resolver reach back
@@ -137,13 +140,29 @@ def _requirement_cases() -> list[RequirementCase]:
     ]
 
 
-def _declared_in(sections: Container[str]) -> set[str]:
-    """The distributions installed by the given sections of `pyproject.toml`."""
-    return {
-        _normalize(requirement.name)
-        for requirement in (Requirement(case.requirement) for case in _requirement_cases() if case.section in sections)
-        if not _is_self_reference(requirement)
-    }
+def _declared_in(sections: Iterable[str]) -> set[str]:
+    """The distributions installed by the given sections of `pyproject.toml`.
+
+    Self-referential extras are followed, so asking for `testcontainers` also returns whatever
+    the `testing` extra it references installs. Without that, an extra defined by self-reference
+    would look as though it installed nothing.
+    """
+    cases = _requirement_cases()
+    pending, seen, declared = [_normalize(section) for section in sections], set(), set()
+    while pending:
+        section = pending.pop()
+        if section in seen:
+            continue
+        seen.add(section)
+        for case in cases:
+            if _normalize(case.section) != section:
+                continue
+            requirement = Requirement(case.requirement)
+            if _is_self_reference(requirement):
+                pending.extend(_normalize(extra) for extra in requirement.extras)
+            else:
+                declared.add(_normalize(requirement.name))
+    return declared
 
 
 def _surface_of(relative_path: Path) -> str | None:

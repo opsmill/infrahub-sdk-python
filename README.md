@@ -41,12 +41,20 @@ The ctl extra provides the `infrahubctl` command, which allows you to intera
 pip install 'infrahub-sdk[ctl]'
 ```
 
-#### tests
+#### testing
 
-The tests extra provides all the components for the testing framework of Transforms, Queries and Checks.
+The testing extra provides the components for the testing framework of Transforms, Queries and Checks.
 
 ```bash
-pip install 'infrahub-sdk[tests]'
+pip install 'infrahub-sdk[testing]'
+```
+
+#### testcontainers
+
+The testcontainers extra provides infrahub_sdk.testing.docker, which starts a real Infrahub in containers so tests can run against a live instance.
+
+```bash
+pip install 'infrahub-sdk[testcontainers]'
 ```
 
 #### all
