@@ -26,7 +26,9 @@ dependencies = [
     "httpx>=0.20",
     "anyio>=3.3.0", # 3.3.0 introduced `anyio.Path`, used by the async file handler
     "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
-    "Jinja2>=3", # template rendering in `template/` and `protocols_generator/`
+    # 3.1.5 for the error positions the template error reporting relies on; 3.1.4 reports
+    # the wrong template for a nested undefined and omits the source path on a missing file.
+    "Jinja2>=3.1.5", # template rendering in `template/` and `protocols_generator/`
     "pyyaml>=6", # YAML parsing in `yaml.py`, `spec/`, `template/infrahub_filters.py` and the pytest plugin
     "rich>=12", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
     "ujson>=5",
@@ -51,7 +53,10 @@ infrahubctl = "infrahub_sdk.ctl.cli:app"
 ctl = [
     "pyarrow>=14",
     "ruamel.yaml>=0.18", # round-trip mode preserves comments when `schema format` rewrites a file
-    "typer>=0.15.0",
+    # 0.16 is the first release that calls click's `Parameter.make_metavar()` with the `ctx`
+    # argument click 8.3 made mandatory. Below it, any `--help` raises TypeError against the
+    # `click` floor below. Widening this means lowering that floor, not this one.
+    "typer>=0.16.0",
     # Not imported directly; constrains the `click` that `typer` resolves to.
     "click>=8.3,<9",
     "ariadne-codegen==0.18.0",
@@ -89,7 +94,7 @@ tests = [
     "pytest-xdist>=3.3.1",
 ]
 lint = [
-    "yamllint",
+    "yamllint>=1.35",
     "mypy==2.3.1",
     "ruff==0.15.12",
     "astroid>=3.1,<4.0",
@@ -97,8 +102,8 @@ lint = [
     "rumdl==0.2.28",
 ]
 types = [
-    "types-ujson",
-    "types-pyyaml",
+    "types-ujson>=5.10",
+    "types-pyyaml>=6.0.12",
     "types-python-slugify>=8.0.0.3",
 ]
 docs = [
@@ -109,10 +114,10 @@ dev = [
     {include-group = "lint"},
     {include-group = "types"},
     {include-group = "docs"},
-    "ipython",
+    "ipython>=8.18",
     "requests>=2.33.0",
     "prek>=0.3.0",
-    "codecov",
+    "codecov>=2.1",
     "invoke>=2.2.1",
     "towncrier>=24.8.0",
 ]
