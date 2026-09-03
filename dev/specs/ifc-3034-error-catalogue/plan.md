@@ -73,8 +73,9 @@ one pydantic validation.
 - `infrahub_sdk.exceptions` is the one supported import path for every exception, and no name
   importable from it today may stop being importable from it. The restructuring must be invisible from
   outside the package.
-- The raised class is a function of the response's first error code alone — never of payload validity,
-  binding freshness, or which transport observed it.
+- The raised class is a function of the response alone — the first error's code, its payload's validity,
+  and the transport the SDK observed — and never of binding freshness. Regenerating bindings must not
+  change which exception a byte-identical response produces for a code the SDK already knows.
 
 **Scale/Scope**: 15 catalogue codes; 11 `AuthenticationError` raise sites and 4 `GraphQLError`
 raise sites collapse onto two factories; one generated module; one CLI ladder reordering; one new
@@ -159,7 +160,7 @@ pyproject.toml                      # per-file-ignore for the façade's re-expor
 tasks.py                            # Add `exceptions` to packages_to_ignore for API-doc generation
 ```
 
-Infrahub repository (`/Users/patrick/Code/opsmill/infrahub`, requirements FR-025 to FR-027):
+The `opsmill/infrahub` repository (requirements FR-025 to FR-027):
 
 ```text
 backend/templates/

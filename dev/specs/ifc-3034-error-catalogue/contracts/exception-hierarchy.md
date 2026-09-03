@@ -92,9 +92,14 @@ does, the generic class for the branch is raised.
 
 ## Messages
 
-A catalogued failure's message names the code and the server's message and contains no query text.
-An uncatalogued failure's message is byte-identical to today's, query text included. The query is
-available as an attribute in both cases.
+A **server-reported** catalogued failure's message names the code and the server's message, and contains
+no query text. An uncatalogued failure's message is byte-identical to today's, query text included. The
+query is available as an attribute in both cases.
+
+The qualifier matters because three catalogued classes can also be raised client-side, with no server
+response behind them: `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`. Those
+raises keep the message they produce today, since there is no code and no server message to name. As
+everywhere else, `exc.code is not None` is the test for which case you are holding.
 
 Where the catalogue provides them, the server's message names the failing action and resource kind, so
 that detail now appears in logs and CLI output in place of the query text that used to be there.

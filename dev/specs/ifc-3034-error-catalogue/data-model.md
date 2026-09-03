@@ -11,8 +11,9 @@ classes are generated into `catalogue.py`; `factory.py` sits above both. Imports
 downward.
 
 The payload of a catalogued error is read as **typed attributes on the exception**, not as a payload
-object. No class in this design exposes a `data` attribute, and nothing here is typed `Any` — see
-[research.md](./research.md) R6.
+object. No class in this design exposes a `data` attribute, and no payload attribute is typed `Any` —
+see [research.md](./research.md) R6. `Any` appears only in the raw decoded JSON that `extensions` and
+`errors` hold, where the value types genuinely are unknown at the type level.
 
 ## Hierarchy
 
@@ -44,7 +45,7 @@ The base for "the server reported an error", carrying the parsed envelope (FR-00
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
-| `code` | `str \| None` | A catalogue code string, or `None`. Never an integer, so the REST envelope's integer `code` cannot be mistaken for a catalogue code (FR-003). Set as a class attribute on generated classes; set per-instance by the factory when a code is present but unrecognised. |
+| `code` | `str \| None` | A catalogue code string, or `None`. Never an integer, so the REST envelope's integer `code` cannot be mistaken for a catalogue code (FR-003). Generated classes carry it as a class attribute, since they are only ever raised from a response. The factory sets it per-instance in the two cases a class attribute cannot cover: an unrecognised code on a generic class, and **an adopted class**, whose `code` must stay `None` on a client-side raise and be set when the same class carries a server-reported failure. |
 | `http_status` | `int \| None` | The code's catalogue-declared status, not the status observed on the wire. `None` when no code resolved. The wire value stays available in `extensions` and can legitimately differ — the server replaces a declared 500 with the real HTTP status when it has a more accurate one. |
 | `extensions` | `dict[str, Any] \| None` | The raw `extensions` mapping of the governing error, so nothing the SDK does not model is lost. `Any` here is the honest type of decoded JSON, not an escape hatch: the mapping's value types genuinely are not known at the type level. |
 | `errors` | `Sequence[dict[str, Any]]` (empty tuple by default) | The complete, unreordered server error list (FR-013). Lives here rather than only on `GraphQLError` because the authentication branch must retain it too and FR-015 freezes `AuthenticationError`'s constructor. The default is an immutable empty tuple and is only a floor for a directly constructed `AuthenticationError`; anything built from a response, and every adopted class, is constructed with a list. |

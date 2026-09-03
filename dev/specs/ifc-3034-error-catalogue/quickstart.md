@@ -111,7 +111,8 @@ grep -rn "Expired Signature" infrahub_sdk/
 
 Expected: a refresh is attempted for a 401 carrying `TOKEN_EXPIRED` and for a 401 carrying the legacy
 `"Expired Signature"` message, and not for an unrelated 401. The `grep` returns exactly one site — the
-documented pre-catalogue fallback — and no other message match for a catalogued failure. The GraphQL
+documented pre-catalogue fallback inside the shared decision helper, down from the two occurrences
+today, one in each relogin wrapper — and no other message match for a catalogued failure. The GraphQL
 schema-validation probing used for server feature detection is out of scope and still present.
 
 ## Scenario 6 — Messages, lint, and docs

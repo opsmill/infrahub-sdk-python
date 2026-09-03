@@ -239,10 +239,13 @@ These are specific hazards found while surveying the current code, not hypotheti
   both the GraphQL and the authentication branches descend. The base MUST NOT declare an attribute for
   the typed payload: a payload's fields belong to the specific class that has a type for them, and a
   base-level payload attribute could only be typed loosely enough to be useless.
-- **FR-002**: The SDK MUST parse the error envelope onto the base GraphQL error itself, so the code is
-  readable against any server version without regenerated bindings.
-- **FR-003**: The code attribute MUST be either a catalogue code string or absent. The REST envelope's
-  integer `code` MUST NOT be surfaced through it; the HTTP status is already available separately.
+- **FR-002**: The SDK MUST parse the error envelope onto the shared base class of FR-001 — not onto the
+  generated per-code classes — so the code is readable against any server version without regenerated
+  bindings.
+- **FR-003**: The code attribute MUST always exist, holding either a catalogue code string or `None`.
+  Reading it MUST NOT raise, so a consumer can test it without first testing which class it holds. The
+  REST envelope's integer `code` MUST NOT be surfaced through it; the HTTP status is already available
+  separately.
 - **FR-004**: Payload parsing MUST tolerate unknown fields, which is the inverse of the server's
   strict emission contract. Where a payload does not validate at all, the operation MUST fall back to
   the generic class for the branch, with the code still readable, and MUST NOT raise from parsing.
@@ -311,7 +314,7 @@ These are specific hazards found while surveying the current code, not hypotheti
   raises is the generic one, which has a single parent. Only the transport rule preserves the coverage.
 
   Where a string code was on the wire it MUST remain readable as `exc.code` even though the generic
-  class was raised; `exc.code` is absent only when no string code was present.
+  class was raised; `exc.code` is `None` only when no string code was present.
 - **FR-013**: Where a response carries several errors, the **first** error in the response determines
   the class raised. The exception MUST retain the complete list, and MUST NOT discard or reorder it.
   The first error governs even when it carries no code and a later one does, in which case the generic
@@ -365,8 +368,9 @@ These are specific hazards found while surveying the current code, not hypotheti
 
 #### Messages
 
-- **FR-022**: A catalogued error's message MUST name the code and the server's message, and MUST NOT
-  embed the query text.
+- **FR-022**: A server-reported catalogued error's message MUST name the code and the server's message,
+  and MUST NOT embed the query text. Where one of the unified classes is raised client-side, with no
+  code and no server message to name, its message MUST remain exactly as it is today.
 - **FR-023**: An uncatalogued error's message MUST remain exactly as it is today, query text included.
 - **FR-024**: The query and variables MUST remain available as attributes on the exception in both
   cases.

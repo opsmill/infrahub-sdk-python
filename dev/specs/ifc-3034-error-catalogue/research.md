@@ -6,12 +6,18 @@ mechanism questions it deliberately left to the plan.
 
 ## Survey findings the decisions rest on
 
-The catalogue (`schema/error-catalogue.json`, `infrahub_catalogue_version: "1"`) holds 15 codes.
-Twelve declare a non-auth status (400, 404, 422, 423, 500) and three declare 401/403
-(`AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, `PERMISSION_DENIED`). Two codes declare an empty payload
-(`AUTHENTICATION_REQUIRED`, `UNDEFINED_ERROR`). One field carries `format: date-time`
-(`TOKEN_EXPIRED.expired_at`); the rest are strings, nullable strings, and one string array
-(`UNIQUENESS_VIOLATION.fields`).
+Every count and example below is read from `schema/error-catalogue.json` on **`opsmill/infrahub@develop`**,
+which is the line this feature pairs with. That matters: `stable` currently carries 14 codes and no
+`UNIQUENESS_VIOLATION`, so a reviewer reading the wrong branch will find the numbers off by one and the
+headline example missing. The design does not depend on the count — the generator reads whatever the
+catalogue holds — but the acceptance scenarios do, and US1 scenario 1 is only demonstrable against a
+server whose catalogue includes `UNIQUENESS_VIOLATION`.
+
+On `develop` the catalogue (`infrahub_catalogue_version: "1"`) holds 15 codes. Twelve declare a non-auth
+status (400, 404, 422, 423, 500) and three declare 401/403 (`AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`,
+`PERMISSION_DENIED`). Two codes declare an empty payload (`AUTHENTICATION_REQUIRED`,
+`UNDEFINED_ERROR`). One field carries `format: date-time` (`TOKEN_EXPIRED.expired_at`); the rest are
+strings, nullable strings, and one string array (`UNIQUENESS_VIOLATION.fields`).
 
 Three derived class names collide exactly with hand-written SDK classes: `NODE_NOT_FOUND` →
 `NodeNotFoundError`, `BRANCH_NOT_FOUND` → `BranchNotFoundError`, `SCHEMA_NOT_FOUND` →
@@ -499,6 +505,11 @@ leaves the file handler's existing string still outside the declared type.
 `"Expired Signature" in messages` check when no code is present (FR-019). The helper tolerates a
 non-JSON or empty 401 body rather than letting `response.json()` raise, since the wrapper sees REST
 responses too and only GraphQL carries the catalogue envelope.
+
+Both the code check and the legacy fallback live *inside* that helper, so the literal
+`"Expired Signature"` appears exactly once in the SDK afterwards, where it appears twice today — once
+in each wrapper. That is what makes the grep in the quickstart's scenario 5 a meaningful check rather
+than a count of duplicated logic.
 
 **Rationale**: the wrapper inspects the raw response before any exception exists, so it cannot reuse
 the factory; a small shared reader keeps the async and sync copies from drifting. Keeping the legacy
