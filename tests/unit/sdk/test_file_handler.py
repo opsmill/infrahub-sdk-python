@@ -4,7 +4,7 @@ import hashlib
 import tempfile
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, BinaryIO
 
 import anyio
 import httpx
@@ -21,6 +21,15 @@ if TYPE_CHECKING:
 
 FILE_CONTENT_BYTES = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."
 NODE_ID = "test-node-123"
+
+
+def _open_binary_handle(path: str) -> BinaryIO:
+    """Sync helper to open a file in binary read mode.
+
+    Defined as a sync function so ruff's ASYNC* rules don't apply when called from async tests.
+    The handle is the realistic non-BytesIO BinaryIO that production callers pass to ``prepare_upload``.
+    """
+    return Path(path).open("rb")
 
 
 async def test_prepare_upload_with_bytes() -> None:
@@ -84,6 +93,26 @@ async def test_prepare_upload_with_binary_io() -> None:
     assert prepared.file_object is content
     assert prepared.filename == "binary.bin"
     assert prepared.should_close is False
+
+
+async def test_prepare_upload_with_open_file() -> None:
+    """Test preparing upload with a real file handle (not BytesIO) — async.
+
+    Locks in BinaryIO branch behaviour for callers passing the result of opening a real
+    file, not just ``BytesIO``. Guards against narrowing the dispatch to a too-specific
+    type.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
+        tmp.write(b"content from open file")
+        tmp.flush()
+
+        with _open_binary_handle(tmp.name) as file_handle:
+            prepared = await FileHandlerBase.prepare_upload(content=file_handle, name="from_open.bin")
+
+            assert prepared.file_object is file_handle
+            assert prepared.filename == "from_open.bin"
+            assert prepared.should_close is False
+            assert prepared.file_object.read() == b"content from open file"
 
 
 async def test_prepare_upload_with_none() -> None:
@@ -156,6 +185,26 @@ def test_prepare_upload_sync_with_binary_io() -> None:
     assert prepared.file_object is content
     assert prepared.filename == "binary.bin"
     assert prepared.should_close is False
+
+
+def test_prepare_upload_sync_with_open_file() -> None:
+    """Test preparing upload with a real file handle (not BytesIO) — sync.
+
+    Locks in BinaryIO branch behaviour for callers passing the result of opening a real
+    file, not just ``BytesIO``. Guards against narrowing the dispatch to a too-specific
+    type.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
+        tmp.write(b"content from open file")
+        tmp.flush()
+
+        with _open_binary_handle(tmp.name) as file_handle:
+            prepared = FileHandlerBase.prepare_upload_sync(content=file_handle, name="from_open.bin")
+
+            assert prepared.file_object is file_handle
+            assert prepared.filename == "from_open.bin"
+            assert prepared.should_close is False
+            assert prepared.file_object.read() == b"content from open file"
 
 
 def test_prepare_upload_sync_with_none() -> None:
