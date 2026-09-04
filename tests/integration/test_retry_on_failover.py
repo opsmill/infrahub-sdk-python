@@ -12,17 +12,24 @@ while that mutation is still in flight, in each of the two shapes a failover tak
 The mutation is an upsert on purpose: the server keeps processing a request whose client has gone
 away, so the first attempt may well have been applied by the time the retry is sent. Retrying is
 at-least-once, and only an idempotent mutation can be replayed safely.
+
+The module is opt-in and skipped by default, so CI never runs it: the tests restart containers,
+pin a host port and take several minutes. Run them with::
+
+    INFRAHUB_TESTING_FAILOVER=1 uv run pytest tests/integration/test_retry_on_failover.py
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
 import socket
 import subprocess  # noqa: S404
 import threading
 import time
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from pathlib import Path
+from typing import TypeVar
 
 import httpx
 import pytest
@@ -46,6 +53,16 @@ API_SERVER = "infrahub-server"
 
 ADMIN_TOKEN = PROJECT_ENV_VARIABLES["INFRAHUB_TESTING_INITIAL_ADMIN_TOKEN"]
 
+FAILOVER_TESTS_ENV = "INFRAHUB_TESTING_FAILOVER"
+"""Environment variable that opts into these tests; unset, the whole module is skipped."""
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get(FAILOVER_TESTS_ENV) != "1",
+    reason=f"failover tests restart containers and take minutes; opt in with {FAILOVER_TESTS_ENV}=1",
+)
+
+T = TypeVar("T")
+
 
 def reserve_host_port() -> int:
     """Return a free TCP port on the host."""
@@ -67,6 +84,32 @@ async def restart_after(container_names: Sequence[str], delay: float) -> None:
     """Restart containers ``delay`` seconds from now, while the caller has a request in flight."""
     await asyncio.sleep(delay)
     await asyncio.to_thread(restart_containers, container_names)
+
+
+def run_with_timeout(func: Callable[[], T], timeout: float) -> T:
+    """Run ``func`` in a daemon thread and fail the test if it has not returned after ``timeout`` seconds.
+
+    The synchronous client has no counterpart to ``asyncio.wait_for``, and an unlimited retry budget
+    against a load balancer that never comes back would otherwise hang the whole suite. The thread is
+    a daemon so a call that is still retrying cannot block interpreter exit either.
+    """
+    outcome: list[T] = []
+    failure: list[BaseException] = []
+
+    def target() -> None:
+        try:
+            outcome.append(func())
+        except BaseException as exc:  # re-raised in the calling thread below
+            failure.append(exc)
+
+    worker = threading.Thread(target=target, daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive():
+        pytest.fail(f"the call was still running after {timeout} seconds")
+    if failure:
+        raise failure[0]
+    return outcome[0]
 
 
 def wait_until_reachable(address: str, timeout: float = 120.0) -> None:
@@ -148,19 +191,22 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
 
     @pytest.fixture
     def slow_api_across_api_restart(
-        self, infrahub_compose: InfrahubDockerCompose, slow_api: None
+        self, infrahub_compose: InfrahubDockerCompose, address: str, slow_api: None
     ) -> Generator[None, None, None]:
         """Re-apply the response delay for a test that restarts the API servers and so clears it.
 
         The delay lives in the memory of each API worker process, set by a broadcast on the
         message bus, so restarting those processes drops it. Restoring it here keeps the class
-        fixture's promise and leaves this test independent of the order tests run in.
+        fixture's promise and leaves this test independent of the order tests run in. The
+        broadcast only reaches workers that are up, so the teardown first waits for the restarted
+        servers to answer again.
 
         Yields:
             None: with the delay active, as ``slow_api`` leaves it.
 
         """
         yield
+        wait_until_reachable(address)
         infrahub_compose.set_server_response_delay(RESPONSE_DELAY)
 
     def build_client(self, address: str, *, retry_on_failure: bool) -> InfrahubClient:
@@ -227,7 +273,7 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
         restart = threading.Timer(RESTART_AFTER, restart_containers, args=([load_balancer_container],))
         restart.start()
         try:
-            node.save(allow_upsert=True)
+            run_with_timeout(lambda: node.save(allow_upsert=True), timeout=RETRY_TIMEOUT)
         finally:
             restart.join()
 
