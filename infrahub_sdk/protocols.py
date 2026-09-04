@@ -145,14 +145,8 @@ class CoreGenericAccount(CoreNode):
     name: String
     password: HashedPassword
     status: Dropdown
-<<<<<<< HEAD
     member_of_groups: RelationshipManager[CoreGroup]
     subscriber_of_groups: RelationshipManager[CoreGroup]
-=======
-    tokens: RelationshipManager
-    refresh_tokens: RelationshipManager
-    external_identities: RelationshipManager
->>>>>>> origin/develop
 
 
 class CoreGenericRepository(CoreNode):
@@ -1262,14 +1256,8 @@ class CoreGenericAccountSync(CoreNodeSync):
     name: String
     password: HashedPassword
     status: Dropdown
-<<<<<<< HEAD
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
-=======
-    tokens: RelationshipManagerSync
-    refresh_tokens: RelationshipManagerSync
-    external_identities: RelationshipManagerSync
->>>>>>> origin/develop
 
 
 class CoreGenericRepositorySync(CoreNodeSync):
