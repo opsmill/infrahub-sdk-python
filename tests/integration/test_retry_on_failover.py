@@ -86,12 +86,14 @@ async def restart_after(container_names: Sequence[str], delay: float) -> None:
     await asyncio.to_thread(restart_containers, container_names)
 
 
-def run_with_timeout(func: Callable[[], T], timeout: float) -> T:
-    """Run ``func`` in a daemon thread and fail the test if it has not returned after ``timeout`` seconds.
+def run_with_timeout(func: Callable[[], T], timeout: float, on_timeout: Callable[[], None], grace: float = 30.0) -> T:
+    """Run ``func`` in a thread and fail the test if it has not returned after ``timeout`` seconds.
 
     The synchronous client has no counterpart to ``asyncio.wait_for``, and an unlimited retry budget
-    against a load balancer that never comes back would otherwise hang the whole suite. The thread is
-    a daemon so a call that is still retrying cannot block interpreter exit either.
+    against a load balancer that never comes back would otherwise hang the whole suite. On timeout,
+    ``on_timeout`` is called to make the call give up, so the thread does not keep retrying against
+    the deployment behind the next test, and it gets ``grace`` seconds to end before the test fails.
+    The thread is a daemon so, should it not end even then, it cannot block interpreter exit.
     """
     outcome: list[T] = []
     failure: list[BaseException] = []
@@ -106,7 +108,10 @@ def run_with_timeout(func: Callable[[], T], timeout: float) -> T:
     worker.start()
     worker.join(timeout)
     if worker.is_alive():
-        pytest.fail(f"the call was still running after {timeout} seconds")
+        on_timeout()
+        worker.join(grace)
+        still_running = " and did not stop within the grace period" if worker.is_alive() else ""
+        pytest.fail(f"the call was still running after {timeout} seconds{still_running}")
     if failure:
         raise failure[0]
     return outcome[0]
@@ -270,10 +275,14 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
 
         node = client.create(kind="BuiltinTag", name="failover-sync")
 
+        def stop_retrying() -> None:
+            # With retries off, the next failed attempt raises instead of sleeping again.
+            client.retry_on_failure = False
+
         restart = threading.Timer(RESTART_AFTER, restart_containers, args=([load_balancer_container],))
         restart.start()
         try:
-            run_with_timeout(lambda: node.save(allow_upsert=True), timeout=RETRY_TIMEOUT)
+            run_with_timeout(lambda: node.save(allow_upsert=True), timeout=RETRY_TIMEOUT, on_timeout=stop_retrying)
         finally:
             restart.join()
 
