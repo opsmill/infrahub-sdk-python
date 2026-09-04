@@ -1,0 +1,1 @@
+Add the `connect_timeout` setting (`INFRAHUB_CONNECT_TIMEOUT`, default 10 seconds) so the TCP/TLS connection phase of every request is bounded separately from the request `timeout`. An unreachable address now fails fast instead of consuming the whole request budget, which lets endpoints published through DNS round robin fall over to the next address quickly.

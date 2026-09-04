@@ -273,6 +273,16 @@ class BaseClient:
             merged.update(headers)
         return merged
 
+    def _build_timeout(self, timeout: int) -> httpx.Timeout:
+        """Build the httpx timeout for a single request.
+
+        ``timeout`` bounds the read, write and pool phases. The connect phase (TCP and TLS
+        handshake) is bounded by ``config.connect_timeout`` instead, so an unreachable address
+        fails fast rather than consuming the whole request budget, and the caller's ``timeout``
+        remains an upper bound for it.
+        """
+        return httpx.Timeout(timeout, connect=min(self.config.connect_timeout, timeout))
+
     @property
     def request_context(self) -> RequestContext | None:
         return self._request_context
@@ -1492,8 +1502,10 @@ class InfrahubClient(BaseClient):
             _rewind_multipart_files(files)
             async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
                 try:
-                    return await client.post(url=url, headers=headers, timeout=timeout, files=files)
-                except httpx.NetworkError as exc:
+                    return await client.post(
+                        url=url, headers=headers, timeout=self._build_timeout(timeout), files=files
+                    )
+                except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -1580,7 +1592,7 @@ class InfrahubClient(BaseClient):
                 # the caller and closed afterwards.
                 stack = AsyncExitStack()
                 response = await stack.enter_async_context(
-                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                    client.stream(method="GET", url=url, headers=headers, timeout=self._build_timeout(request_timeout))
                 )
                 if response.status_code == 429:
                     try:
@@ -1599,7 +1611,7 @@ class InfrahubClient(BaseClient):
                     stack = open_stream.get("stack")
                     if stack is not None:
                         await stack.aclose()
-            except httpx.NetworkError as exc:
+            except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
@@ -1637,10 +1649,10 @@ class InfrahubClient(BaseClient):
                     method=method.value,
                     url=url,
                     headers=headers,
-                    timeout=timeout,
+                    timeout=self._build_timeout(timeout),
                     **params,
                 )
-            except httpx.NetworkError as exc:
+            except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -2478,8 +2490,8 @@ class InfrahubClientSync(BaseClient):
             _rewind_multipart_files(files)
             with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
                 try:
-                    return client.post(url=url, headers=headers, timeout=timeout, files=files)
-                except httpx.NetworkError as exc:
+                    return client.post(url=url, headers=headers, timeout=self._build_timeout(timeout), files=files)
+                except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -3722,7 +3734,7 @@ class InfrahubClientSync(BaseClient):
                 # the caller and closed afterwards.
                 stack = ExitStack()
                 response = stack.enter_context(
-                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                    client.stream(method="GET", url=url, headers=headers, timeout=self._build_timeout(request_timeout))
                 )
                 if response.status_code == 429:
                     try:
@@ -3741,7 +3753,7 @@ class InfrahubClientSync(BaseClient):
                     stack = open_stream.get("stack")
                     if stack is not None:
                         stack.close()
-            except httpx.NetworkError as exc:
+            except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
@@ -3806,10 +3818,10 @@ class InfrahubClientSync(BaseClient):
                     method=method.value,
                     url=url,
                     headers=headers,
-                    timeout=timeout,
+                    timeout=self._build_timeout(timeout),
                     **params,
                 )
-            except httpx.NetworkError as exc:
+            except (httpx.NetworkError, httpx.ConnectTimeout) as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
