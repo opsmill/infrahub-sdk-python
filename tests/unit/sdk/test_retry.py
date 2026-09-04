@@ -9,6 +9,7 @@ the opt-in default, budget exhaustion, unlimited mode, log escalation and config
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import time
 from collections.abc import Sequence
@@ -730,3 +731,133 @@ def test_config_reads_retry_settings_from_environment(monkeypatch: pytest.Monkey
     assert config.retry_on_failure is True
     assert config.max_retry_duration == 0
     assert config.retry_status_codes == [503, 504]
+
+
+# --- Every request path: multipart uploads and streamed downloads ------------------------------------
+
+ALL_REQUEST_PATHS = ["regular", "multipart", "streaming"]
+MULTIPART_FILE_CONTENT = b"multipart file body that must survive a transient retry\n" * 8
+UPLOAD_MUTATION = "mutation ($file: Upload!) { InfrahubObjectUpload(data: { file: $file }) { ok } }"
+
+
+def _multipart_files() -> dict[str, Any]:
+    return {"file": ("upload.bin", io.BytesIO(MULTIPART_FILE_CONTENT), "application/octet-stream")}
+
+
+async def _drive_path(client: InfrahubClient | InfrahubClientSync, path: str) -> int:
+    """Drive one request path and return the final status; a streamed body is read inside its context."""
+    if path == "regular":
+        return (await _request(client)).status_code
+    if path == "multipart":
+        if isinstance(client, InfrahubClient):
+            response = await client._request_multipart(
+                url=GRAPHQL_URL, headers={}, timeout=10, files=_multipart_files()
+            )
+        else:
+            response = client._request_multipart(url=GRAPHQL_URL, headers={}, timeout=10, files=_multipart_files())
+        return response.status_code
+    if isinstance(client, InfrahubClient):
+        async with client._get_streaming(url=GRAPHQL_URL) as response:
+            await response.aread()
+            return response.status_code
+    with client._get_streaming(url=GRAPHQL_URL) as response:
+        response.read()
+        return response.status_code
+
+
+async def _upload(client: InfrahubClient | InfrahubClientSync, file_content: io.BytesIO) -> dict:
+    if isinstance(client, InfrahubClient):
+        return await client._execute_graphql_with_file(
+            query=UPLOAD_MUTATION, variables={}, file_content=file_content, file_name="upload.bin"
+        )
+    return client._execute_graphql_with_file(
+        query=UPLOAD_MUTATION, variables={}, file_content=file_content, file_name="upload.bin"
+    )
+
+
+@pytest.mark.parametrize("path", ALL_REQUEST_PATHS)
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_all_request_paths_retry_transient_status_then_succeed(
+    client_type: str, path: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_response(status_code=503)
+    httpx_mock.add_response(status_code=200, json={"data": {"result": "success"}})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True)
+
+    status = await _drive_path(client, path)
+
+    assert status == 200
+    assert len(httpx_mock.get_requests()) == 2
+    assert len(recorded_sleeps) == 1
+
+
+@pytest.mark.parametrize("path", ALL_REQUEST_PATHS)
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_all_request_paths_retry_lost_connection_then_succeed(
+    client_type: str, path: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_exception(httpx.ConnectError("connection refused"))
+    httpx_mock.add_response(status_code=200, json={"data": {"result": "success"}})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True)
+
+    status = await _drive_path(client, path)
+
+    assert status == 200
+    assert len(httpx_mock.get_requests()) == 2
+    assert len(recorded_sleeps) == 1
+
+
+@pytest.mark.parametrize("path", ALL_REQUEST_PATHS)
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_all_request_paths_pass_transient_status_through_when_disabled(
+    client_type: str, path: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_response(status_code=503, content=b"upstream unavailable")
+    client = _build_client_over_httpx(client_type)
+
+    status = await _drive_path(client, path)
+
+    assert status == 503
+    assert len(httpx_mock.get_requests()) == 1
+    assert recorded_sleeps == []
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_multipart_mutation_retries_transient_graphql_errors_on_the_shared_budget(
+    client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A transient status and then a transient GraphQL envelope are retried on one attempt counter, re-sending the file."""
+    _no_jitter(monkeypatch)
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_response(status_code=503)
+    httpx_mock.add_response(status_code=200, json={"data": None, "errors": [_transient_error(503)]})
+    httpx_mock.add_response(status_code=200, json={"data": {"InfrahubObjectUpload": {"ok": True}}})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True)
+
+    data = await _upload(client, io.BytesIO(MULTIPART_FILE_CONTENT))
+
+    assert data == {"InfrahubObjectUpload": {"ok": True}}
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 3
+    assert recorded_sleeps == [5, 10]
+    assert all(MULTIPART_FILE_CONTENT in request.content for request in requests)
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_multipart_mutation_raises_non_transient_graphql_errors_immediately(
+    client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    errors = [{"message": "Unknown field", "extensions": {"code": "GRAPHQL_VALIDATION", "http_status": 400}}]
+    httpx_mock.add_response(status_code=200, json={"data": None, "errors": errors})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True, max_retry_duration=0)
+
+    with pytest.raises(GraphQLError, match="An error occurred while executing the GraphQL Query") as exc:
+        await _upload(client, io.BytesIO(MULTIPART_FILE_CONTENT))
+
+    assert exc.value.errors == errors
+    assert len(httpx_mock.get_requests()) == 1
+    assert recorded_sleeps == []

@@ -251,6 +251,12 @@ class BaseClient:
     def retry_delay(self, value: float) -> None:
         self._retry_handler.base_delay = value
 
+    def _is_retried_stream_status(self, status_code: int) -> bool:
+        """Whether a streamed response with this status is read and closed for a retry instead of handed over."""
+        return status_code == 429 or (
+            self._retry_handler.enabled and self._retry_handler.is_transient_status(status_code)
+        )
+
     def _initialize(self) -> None:
         """Sets the properties for each version of the client."""
 
@@ -1395,7 +1401,9 @@ class InfrahubClient(BaseClient):
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
         This method follows the GraphQL Multipart Request Spec for file uploads.
-        The file is attached to the 'file' variable in the mutation.
+        The file is attached to the 'file' variable in the mutation. Transient failures, including GraphQL
+        errors the server flags as transient, are retried like in ``execute_graphql`` when retry_on_failure is
+        enabled; the file is rewound before every attempt.
 
         Args:
             query: GraphQL mutation query that includes a $file variable of type Upload!
@@ -1428,24 +1436,35 @@ class InfrahubClient(BaseClient):
 
         self._echo(url=url, query=query, variables=variables)
 
-        resp = await self._post_multipart(
-            url=url,
-            query=query,
-            variables=variables,
-            file_content=file_content,
-            file_name=file_name or "upload",
-            headers=headers,
-            timeout=timeout,
-            operation_name=operation_name,
-        )
+        retry_state = self._retry_handler.new_state()
+        while True:
+            resp = await self._post_multipart(
+                url=url,
+                query=query,
+                variables=variables,
+                file_content=file_content,
+                file_name=file_name or "upload",
+                headers=headers,
+                timeout=timeout,
+                operation_name=operation_name,
+                retry_state=retry_state,
+            )
 
-        resp.raise_for_status()
-        response = decode_json(response=resp)
+            resp.raise_for_status()
+            response = decode_json(response=resp)
 
-        if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            if "errors" in response:
+                errors = response["errors"]
+                if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
+                    retry_state
+                ):
+                    await self._retry_handler.asleep_before_retry(
+                        state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
+                    )
+                    continue
+                raise GraphQLError(errors=errors, query=query, variables=variables)
 
-        return response["data"]
+            return response["data"]
 
     @handle_relogin
     async def _post_multipart(
@@ -1458,6 +1477,7 @@ class InfrahubClient(BaseClient):
         headers: dict | None = None,
         timeout: int | None = None,
         operation_name: str | None = None,
+        retry_state: RetryState | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -1479,7 +1499,7 @@ class InfrahubClient(BaseClient):
         )
 
         return await self._request_multipart(
-            url=url, headers=headers, timeout=timeout or self.default_timeout, files=files
+            url=url, headers=headers, timeout=timeout or self.default_timeout, files=files, retry_state=retry_state
         )
 
     def _build_proxy_config(self) -> ProxyConfig:
@@ -1495,7 +1515,12 @@ class InfrahubClient(BaseClient):
         return proxy_config
 
     async def _request_multipart(
-        self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
+        self,
+        url: str,
+        headers: dict[str, Any],
+        timeout: int,
+        files: dict[str, Any],
+        retry_state: RetryState | None = None,
     ) -> httpx.Response:
         """Execute a multipart HTTP POST request.
 
@@ -1515,7 +1540,10 @@ class InfrahubClient(BaseClient):
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
-        response = await self._rate_limit_handler.asend(send=send, url=url)
+        async def send_with_rate_limit() -> httpx.Response:
+            return await self._rate_limit_handler.asend(send=send, url=url)
+
+        response = await self._retry_handler.asend(send=send_with_rate_limit, url=url, state=retry_state)
         self._record(response)
         return response
 
@@ -1597,14 +1625,19 @@ class InfrahubClient(BaseClient):
             open_stream: dict[str, AsyncExitStack] = {}
 
             async def send() -> httpx.Response:
-                # Retry stream initiation only (a 429 arrives in the headers before the body): a
-                # failed attempt is read and closed here, a successful stream is left open for
-                # the caller and closed afterwards.
+                # Retry stream initiation only (a 429 or a transient status arrives in the headers
+                # before the body): a failed attempt is read and closed here, a successful stream is
+                # left open for the caller and closed afterwards.
                 stack = AsyncExitStack()
-                response = await stack.enter_async_context(
-                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
-                )
-                if response.status_code == 429:
+                try:
+                    response = await stack.enter_async_context(
+                        client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                    )
+                except CONNECTION_LOST_EXCEPTIONS as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
+                if self._is_retried_stream_status(response.status_code):
                     try:
                         await response.aread()
                     finally:
@@ -1613,8 +1646,11 @@ class InfrahubClient(BaseClient):
                     open_stream["stack"] = stack
                 return response
 
+            async def send_with_rate_limit() -> httpx.Response:
+                return await self._rate_limit_handler.asend(send=send, url=url)
+
             try:
-                response = await self._rate_limit_handler.asend(send=send, url=url)
+                response = await self._retry_handler.asend(send=send_with_rate_limit, url=url)
                 try:
                     yield response
                 finally:
@@ -2387,7 +2423,9 @@ class InfrahubClientSync(BaseClient):
         """Execute a GraphQL mutation with a file upload using multipart/form-data.
 
         This method follows the GraphQL Multipart Request Spec for file uploads.
-        The file is attached to the 'file' variable in the mutation.
+        The file is attached to the 'file' variable in the mutation. Transient failures, including GraphQL
+        errors the server flags as transient, are retried like in ``execute_graphql`` when retry_on_failure is
+        enabled; the file is rewound before every attempt.
 
         Args:
             query: GraphQL mutation query that includes a $file variable of type Upload!
@@ -2420,24 +2458,35 @@ class InfrahubClientSync(BaseClient):
 
         self._echo(url=url, query=query, variables=variables)
 
-        resp = self._post_multipart(
-            url=url,
-            query=query,
-            variables=variables,
-            file_content=file_content,
-            file_name=file_name or "upload",
-            headers=headers,
-            timeout=timeout,
-            operation_name=operation_name,
-        )
+        retry_state = self._retry_handler.new_state()
+        while True:
+            resp = self._post_multipart(
+                url=url,
+                query=query,
+                variables=variables,
+                file_content=file_content,
+                file_name=file_name or "upload",
+                headers=headers,
+                timeout=timeout,
+                operation_name=operation_name,
+                retry_state=retry_state,
+            )
 
-        resp.raise_for_status()
-        response = decode_json(response=resp)
+            resp.raise_for_status()
+            response = decode_json(response=resp)
 
-        if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            if "errors" in response:
+                errors = response["errors"]
+                if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
+                    retry_state
+                ):
+                    self._retry_handler.sleep_before_retry(
+                        state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
+                    )
+                    continue
+                raise GraphQLError(errors=errors, query=query, variables=variables)
 
-        return response["data"]
+            return response["data"]
 
     @handle_relogin_sync
     def _post_multipart(
@@ -2450,6 +2499,7 @@ class InfrahubClientSync(BaseClient):
         headers: dict | None = None,
         timeout: int | None = None,
         operation_name: str | None = None,
+        retry_state: RetryState | None = None,
     ) -> httpx.Response:
         """Execute a HTTP POST with multipart/form-data for GraphQL file uploads.
 
@@ -2470,7 +2520,9 @@ class InfrahubClientSync(BaseClient):
             operation_name=operation_name,
         )
 
-        return self._request_multipart(url=url, headers=headers, timeout=timeout or self.default_timeout, files=files)
+        return self._request_multipart(
+            url=url, headers=headers, timeout=timeout or self.default_timeout, files=files, retry_state=retry_state
+        )
 
     def _build_proxy_config(self) -> ProxyConfigSync:
         """Build proxy configuration for httpx Client."""
@@ -2485,7 +2537,12 @@ class InfrahubClientSync(BaseClient):
         return proxy_config
 
     def _request_multipart(
-        self, url: str, headers: dict[str, Any], timeout: int, files: dict[str, Any]
+        self,
+        url: str,
+        headers: dict[str, Any],
+        timeout: int,
+        files: dict[str, Any],
+        retry_state: RetryState | None = None,
     ) -> httpx.Response:
         """Execute a multipart HTTP POST request.
 
@@ -2505,7 +2562,10 @@ class InfrahubClientSync(BaseClient):
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
 
-        response = self._rate_limit_handler.send(send=send, url=url)
+        def send_with_rate_limit() -> httpx.Response:
+            return self._rate_limit_handler.send(send=send, url=url)
+
+        response = self._retry_handler.send(send=send_with_rate_limit, url=url, state=retry_state)
         self._record(response)
         return response
 
@@ -3738,14 +3798,19 @@ class InfrahubClientSync(BaseClient):
             open_stream: dict[str, ExitStack] = {}
 
             def send() -> httpx.Response:
-                # Retry stream initiation only (a 429 arrives in the headers before the body): a
-                # failed attempt is read and closed here, a successful stream is left open for
-                # the caller and closed afterwards.
+                # Retry stream initiation only (a 429 or a transient status arrives in the headers
+                # before the body): a failed attempt is read and closed here, a successful stream is
+                # left open for the caller and closed afterwards.
                 stack = ExitStack()
-                response = stack.enter_context(
-                    client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
-                )
-                if response.status_code == 429:
+                try:
+                    response = stack.enter_context(
+                        client.stream(method="GET", url=url, headers=headers, timeout=request_timeout)
+                    )
+                except CONNECTION_LOST_EXCEPTIONS as exc:
+                    raise ServerNotReachableError(address=self.address) from exc
+                except httpx.ReadTimeout as exc:
+                    raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
+                if self._is_retried_stream_status(response.status_code):
                     try:
                         response.read()
                     finally:
@@ -3754,8 +3819,11 @@ class InfrahubClientSync(BaseClient):
                     open_stream["stack"] = stack
                 return response
 
+            def send_with_rate_limit() -> httpx.Response:
+                return self._rate_limit_handler.send(send=send, url=url)
+
             try:
-                response = self._rate_limit_handler.send(send=send, url=url)
+                response = self._retry_handler.send(send=send_with_rate_limit, url=url)
                 try:
                     yield response
                 finally:
