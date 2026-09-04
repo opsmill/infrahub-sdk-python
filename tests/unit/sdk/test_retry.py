@@ -38,11 +38,14 @@ LOGGER_NAME = "infrahub_sdk"
 class FakeClock:
     """Deterministic monotonic clock advanced explicitly or by the patched sleeps."""
 
-    def __init__(self, now: float = 1000.0) -> None:
+    def __init__(self, now: float = 1000.0, step: float = 0.0) -> None:
         self.now = now
+        self.step = step
 
     def __call__(self) -> float:
-        return self.now
+        value = self.now
+        self.now += self.step
+        return value
 
     def advance(self, seconds: float) -> None:
         self.now += seconds
@@ -893,3 +896,28 @@ async def test_multipart_retry_re_sends_a_non_seekable_upload_in_full(
     requests = httpx_mock.get_requests()
     assert len(requests) == 3
     assert all(MULTIPART_FILE_CONTENT in request.content for request in requests)
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_streaming_hands_over_an_open_transient_response_once_the_budget_is_spent(
+    client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A transient status the handler will not retry is not pre-read: the caller gets the stream untouched."""
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_response(status_code=503, content=b"upstream unavailable")
+    client = _build_client_over_httpx(client_type, retry_on_failure=True, max_retry_duration=1)
+    client._retry_handler.clock = FakeClock(step=1.0)  # every look at the clock moves it past the budget
+
+    if isinstance(client, InfrahubClient):
+        async with client._get_streaming(url=GRAPHQL_URL) as response:
+            assert response.status_code == 503
+            assert not response.is_stream_consumed
+            assert await response.aread() == b"upstream unavailable"
+    else:
+        with client._get_streaming(url=GRAPHQL_URL) as sync_response:
+            assert sync_response.status_code == 503
+            assert not sync_response.is_stream_consumed
+            assert sync_response.read() == b"upstream unavailable"
+
+    assert len(httpx_mock.get_requests()) == 1
+    assert recorded_sleeps == []

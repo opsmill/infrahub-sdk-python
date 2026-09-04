@@ -273,11 +273,15 @@ class BaseClient:
     def retry_delay(self, value: float) -> None:
         self._retry_handler.base_delay = value
 
-    def _is_retried_stream_status(self, status_code: int) -> bool:
-        """Whether a streamed response with this status is read and closed for a retry instead of handed over."""
-        return status_code == 429 or (
-            self._retry_handler.enabled and self._retry_handler.is_transient_status(status_code)
-        )
+    def _is_retried_stream_status(self, status_code: int, retry_state: RetryState) -> bool:
+        """Whether a streamed response with this status will be retried, so its body is read and closed first.
+
+        A transient status that the handler will not retry, because retries are disabled or the budget is
+        spent, is handed to the caller open like any other response.
+        """
+        if status_code == 429:
+            return True
+        return self._retry_handler.is_transient_status(status_code) and self._retry_handler.should_retry(retry_state)
 
     def _initialize(self) -> None:
         """Sets the properties for each version of the client."""
@@ -1647,6 +1651,7 @@ class InfrahubClient(BaseClient):
         request_timeout = timeout or self.default_timeout
         async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             open_stream: dict[str, AsyncExitStack] = {}
+            retry_state = self._retry_handler.new_state()
 
             async def send() -> httpx.Response:
                 # Retry stream initiation only (a 429 or a transient status arrives in the headers
@@ -1661,7 +1666,7 @@ class InfrahubClient(BaseClient):
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
-                if self._is_retried_stream_status(response.status_code):
+                if self._is_retried_stream_status(response.status_code, retry_state):
                     try:
                         await response.aread()
                     finally:
@@ -1674,7 +1679,7 @@ class InfrahubClient(BaseClient):
                 return await self._rate_limit_handler.asend(send=send, url=url)
 
             try:
-                response = await self._retry_handler.asend(send=send_with_rate_limit, url=url)
+                response = await self._retry_handler.asend(send=send_with_rate_limit, url=url, state=retry_state)
                 try:
                     yield response
                 finally:
@@ -3822,6 +3827,7 @@ class InfrahubClientSync(BaseClient):
         request_timeout = timeout or self.default_timeout
         with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
             open_stream: dict[str, ExitStack] = {}
+            retry_state = self._retry_handler.new_state()
 
             def send() -> httpx.Response:
                 # Retry stream initiation only (a 429 or a transient status arrives in the headers
@@ -3836,7 +3842,7 @@ class InfrahubClientSync(BaseClient):
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
-                if self._is_retried_stream_status(response.status_code):
+                if self._is_retried_stream_status(response.status_code, retry_state):
                     try:
                         response.read()
                     finally:
@@ -3849,7 +3855,7 @@ class InfrahubClientSync(BaseClient):
                 return self._rate_limit_handler.send(send=send, url=url)
 
             try:
-                response = self._retry_handler.send(send=send_with_rate_limit, url=url)
+                response = self._retry_handler.send(send=send_with_rate_limit, url=url, state=retry_state)
                 try:
                     yield response
                 finally:
