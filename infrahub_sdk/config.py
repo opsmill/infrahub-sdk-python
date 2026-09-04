@@ -68,7 +68,7 @@ class ConfigBase(BaseSettings):
         ge=0,
         description=(
             "Base delay in seconds before retrying a request that failed with a transient error. "
-            "The delay doubles after every attempt, with jitter, up to retry_max_delay."
+            "The delay doubles after every attempt, with jitter, up to the maximum retry delay."
         ),
     )
     retry_max_delay: int = Field(
@@ -80,15 +80,15 @@ class ConfigBase(BaseSettings):
         default=False,
         description=(
             "Retry requests that fail with a transient error: connection error, timeout, an HTTP status listed in "
-            "retry_status_codes, or a GraphQL error the server flags with one of those statuses. "
-            "Other errors are never retried. See max_retry_duration for how long to keep retrying."
+            "the retry status codes, or a GraphQL error the server flags with one of those statuses. "
+            "Other errors are never retried. The maximum retry duration controls how long to keep retrying."
         ),
     )
     retry_status_codes: list[int] = Field(
         default=[500, 502, 503, 504],
         description=(
-            "HTTP status codes treated as transient when retry_on_failure is enabled. Also matched against the "
-            "http_status reported in GraphQL error extensions. 500 is included because Infrahub reports some "
+            "HTTP status codes treated as transient when retrying on failure is enabled. Also matched against the "
+            "HTTP status reported in GraphQL error extensions. 500 is included because Infrahub reports some "
             "transient database errors without further classification; remove it to fail fast on them."
         ),
     )
@@ -116,7 +116,7 @@ class ConfigBase(BaseSettings):
         ge=0,
         description=(
             "Maximum number of seconds to keep retrying a request that fails with transient errors when "
-            "retry_on_failure is enabled. Set to 0 to retry indefinitely."
+            "retrying on failure is enabled. Set to 0 to retry indefinitely."
         ),
     )
     schema_converge_timeout: int = Field(

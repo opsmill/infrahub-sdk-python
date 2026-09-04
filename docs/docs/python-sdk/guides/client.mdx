@@ -434,9 +434,9 @@ The `proxy` and `proxy_mounts` configurations are mutually exclusive and cannot 
 
 ### Retry transient failures
 
-Long-running scripts and generators can fail halfway through when Infrahub is temporarily unavailable: a database failover, an overloaded backend or a short network outage. With `retry_on_failure` enabled, the client retries a request when it fails with a transient error and raises immediately for every other error. A failure is transient when it is one of:
+Long-running scripts and generators can fail halfway through when Infrahub is temporarily unavailable: a database restart, an overloaded backend or a short network outage. With `retry_on_failure` enabled, the client retries a request when it fails with a transient error and raises immediately for every other error. A failure is transient when it is one of:
 
-- A connection error, or a connection dropped before the response arrived, such as during a load balancer failover.
+- A connection error, or a connection dropped before the response arrived, such as when a load balancer restarts.
 - A read timeout.
 - An HTTP response with a status listed in `retry_status_codes` (`500`, `502`, `503` and `504` by default).
 - A GraphQL response in which every error is flagged by the server with one of those statuses.
@@ -471,7 +471,7 @@ Retries use exponential backoff with jitter, starting at `retry_delay` seconds a
 Every retry is logged at `WARNING` level with the attempt number and the time spent so far. After 5 minutes of retrying the log level switches to `ERROR`, so an operation that keeps retrying stays visible.
 
 :::warning Retrying mutations
-A mutation that timed out may have been applied by the server before the retry. Upserts (`save(allow_upsert=True)`) are safe to retry. A plain create that had already succeeded fails on retry with a non-transient error, which is raised.
+A mutation that timed out may have been applied by the server before the retry. Saving with `allow_upsert=True` is safe to retry. A plain create that had already succeeded fails on retry with a non-transient error, which is raised.
 :::
 
 :::note Unclassified server errors
