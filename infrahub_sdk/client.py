@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import shutil
@@ -80,6 +81,14 @@ class ProxyConfig(TypedDict):
     mounts: Mapping[str, AsyncBaseTransport | None] | None
 
 
+def _is_rewindable(file_content: BinaryIO | None) -> bool:
+    """Whether ``file_content`` can be rewound for a retried upload; no file needs no rewinding."""
+    if file_content is None:
+        return True
+    seekable = getattr(file_content, "seekable", None)
+    return callable(seekable) and bool(seekable())
+
+
 @contextmanager
 def _seekable_upload(file_content: BinaryIO | None) -> Iterator[BinaryIO | None]:
     """Yield ``file_content`` when it can be rewound, otherwise a seekable copy that is closed afterwards.
@@ -89,14 +98,29 @@ def _seekable_upload(file_content: BinaryIO | None) -> Iterator[BinaryIO | None]
     empty body. Such a stream is copied once, to a temporary file so the size does not matter, before
     the first attempt.
     """
-    seekable = getattr(file_content, "seekable", None)
-    if file_content is None or (callable(seekable) and seekable()):
+    if _is_rewindable(file_content):
         yield file_content
         return
     with tempfile.TemporaryFile() as buffer:
         shutil.copyfileobj(file_content, buffer)
         buffer.seek(0)
         # TemporaryFile is typed as IO[bytes]; it offers every call the multipart sender makes.
+        yield cast("BinaryIO", buffer)
+
+
+@asynccontextmanager
+async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[BinaryIO | None]:
+    """Async counterpart of :func:`_seekable_upload`.
+
+    The copy runs in a worker thread, so draining a slow or large stream does not block the event loop
+    for the other tasks sharing it.
+    """
+    if _is_rewindable(file_content):
+        yield file_content
+        return
+    with tempfile.TemporaryFile() as buffer:
+        await asyncio.to_thread(shutil.copyfileobj, file_content, buffer)
+        buffer.seek(0)
         yield cast("BinaryIO", buffer)
 
 
@@ -1464,7 +1488,7 @@ class InfrahubClient(BaseClient):
         self._echo(url=url, query=query, variables=variables)
 
         retry_state = self._retry_handler.new_state()
-        with _seekable_upload(file_content) as upload:
+        async with _aseekable_upload(file_content) as upload:
             while True:
                 resp = await self._post_multipart(
                     url=url,

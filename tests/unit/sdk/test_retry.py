@@ -12,7 +12,7 @@ import asyncio
 import io
 import logging
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, BinaryIO
 
@@ -921,3 +921,25 @@ async def test_streaming_hands_over_an_open_transient_response_once_the_budget_i
 
     assert len(httpx_mock.get_requests()) == 1
     assert recorded_sleeps == []
+
+
+async def test_async_upload_copies_a_non_seekable_stream_off_the_event_loop(
+    httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Draining a stream that cannot be rewound is blocking I/O, so the async client hands it to a worker thread."""
+    offloaded: list[str] = []
+    real_to_thread = asyncio.to_thread
+
+    async def recording_to_thread(func: Callable[..., object], /, *args: object, **kwargs: object) -> object:
+        offloaded.append(func.__name__)
+        return await real_to_thread(func, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", recording_to_thread)
+    httpx_mock.add_response(status_code=200, json={"data": {"InfrahubObjectUpload": {"ok": True}}})
+    client = _build_client_over_httpx("standard")
+
+    data = await _upload(client, NonSeekableStream(MULTIPART_FILE_CONTENT))
+
+    assert data == {"InfrahubObjectUpload": {"ok": True}}
+    assert offloaded == ["copyfileobj"]
+    assert MULTIPART_FILE_CONTENT in httpx_mock.get_requests()[0].content
