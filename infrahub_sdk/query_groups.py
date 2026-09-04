@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import Error, NodeNotFoundError, TrackingGroupCleanupError
+from .exceptions import GraphQLError, NodeNotFoundError, TrackingGroupCleanupError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -111,11 +111,12 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
     async def delete_unused(self) -> dict[str, str]:
         """Delete the members that this run no longer uses.
 
-        Every candidate is attempted even when some deletes are refused, so one refusal
-        cannot leave the rest of the unused members behind.
+        Every candidate is attempted even when the server refuses some of them, so one
+        refusal cannot leave the rest of the unused members behind. Only refusals are
+        collected; any other failure propagates for the caller to handle.
 
         Returns:
-            The id of each member that could not be deleted, mapped to the reason.
+            The id of each member the server refused to delete, mapped to the reason.
 
         """
         failures: dict[str, str] = {}
@@ -127,7 +128,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                 continue
             try:
                 await self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
-            except Error as exc:
+            except GraphQLError as exc:
                 if exc.message and "Unable to find the node" in exc.message:
                     # The node was already removed by the cascade delete of another node
                     continue
@@ -235,11 +236,12 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
     def delete_unused(self) -> dict[str, str]:
         """Delete the members that this run no longer uses.
 
-        Every candidate is attempted even when some deletes are refused, so one refusal
-        cannot leave the rest of the unused members behind.
+        Every candidate is attempted even when the server refuses some of them, so one
+        refusal cannot leave the rest of the unused members behind. Only refusals are
+        collected; any other failure propagates for the caller to handle.
 
         Returns:
-            The id of each member that could not be deleted, mapped to the reason.
+            The id of each member the server refused to delete, mapped to the reason.
 
         """
         failures: dict[str, str] = {}
@@ -251,7 +253,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
                 continue
             try:
                 self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
-            except Error as exc:
+            except GraphQLError as exc:
                 if exc.message and "Unable to find the node" in exc.message:
                     # The node was already removed by the cascade delete of another node
                     continue
