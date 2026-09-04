@@ -47,7 +47,7 @@ from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .rate_limit import RateLimitRetryHandler
-from .retry import RetryState, TransientRetryHandler
+from .retry import CONNECTION_LOST_EXCEPTIONS, RetryState, TransientRetryHandler
 from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
@@ -1510,7 +1510,7 @@ class InfrahubClient(BaseClient):
             async with httpx.AsyncClient(**self._build_proxy_config(), verify=self.config.tls_context) as client:
                 try:
                     return await client.post(url=url, headers=headers, timeout=timeout, files=files)
-                except httpx.NetworkError as exc:
+                except CONNECTION_LOST_EXCEPTIONS as exc:
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -1621,7 +1621,7 @@ class InfrahubClient(BaseClient):
                     stack = open_stream.get("stack")
                     if stack is not None:
                         await stack.aclose()
-            except httpx.NetworkError as exc:
+            except CONNECTION_LOST_EXCEPTIONS as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
@@ -1666,7 +1666,7 @@ class InfrahubClient(BaseClient):
                     timeout=timeout,
                     **params,
                 )
-            except httpx.NetworkError as exc:
+            except CONNECTION_LOST_EXCEPTIONS as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -2500,7 +2500,7 @@ class InfrahubClientSync(BaseClient):
             with httpx.Client(**self._build_proxy_config(), verify=self.config.tls_context) as client:
                 try:
                     return client.post(url=url, headers=headers, timeout=timeout, files=files)
-                except httpx.NetworkError as exc:
+                except CONNECTION_LOST_EXCEPTIONS as exc:
                     raise ServerNotReachableError(address=self.address) from exc
                 except httpx.ReadTimeout as exc:
                     raise ServerNotResponsiveError(url=url, timeout=timeout) from exc
@@ -3762,7 +3762,7 @@ class InfrahubClientSync(BaseClient):
                     stack = open_stream.get("stack")
                     if stack is not None:
                         stack.close()
-            except httpx.NetworkError as exc:
+            except CONNECTION_LOST_EXCEPTIONS as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=request_timeout) from exc
@@ -3839,7 +3839,7 @@ class InfrahubClientSync(BaseClient):
                     timeout=timeout,
                     **params,
                 )
-            except httpx.NetworkError as exc:
+            except CONNECTION_LOST_EXCEPTIONS as exc:
                 raise ServerNotReachableError(address=self.address) from exc
             except httpx.ReadTimeout as exc:
                 raise ServerNotResponsiveError(url=url, timeout=timeout) from exc

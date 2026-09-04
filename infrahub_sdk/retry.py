@@ -7,11 +7,11 @@ import time
 from collections.abc import Callable, Coroutine, Iterable
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 from .exceptions import ServerNotReachableError, ServerNotResponsiveError
 
 if TYPE_CHECKING:
-    import httpx
-
     from .types import InfrahubLoggers
 
 LOGGER = logging.getLogger("infrahub_sdk")
@@ -24,6 +24,14 @@ ESCALATE_AFTER_SECONDS = 300.0
 
 TRANSIENT_EXCEPTIONS = (ServerNotReachableError, ServerNotResponsiveError)
 """Client-side failures (connection error, read timeout) that are always considered transient."""
+
+CONNECTION_LOST_EXCEPTIONS = (httpx.NetworkError, httpx.RemoteProtocolError)
+"""httpx failures meaning the connection was lost or never established, mapped to ``ServerNotReachableError``.
+
+``RemoteProtocolError`` is included because a server or load balancer that goes away mid-request closes the
+socket before answering. httpx reports that as a protocol error rather than a network error, and it is the
+shape a failover takes on a request that was already in flight.
+"""
 
 
 class RetryState:

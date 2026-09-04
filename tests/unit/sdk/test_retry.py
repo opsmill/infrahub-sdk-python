@@ -13,7 +13,7 @@ import logging
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
@@ -24,6 +24,9 @@ from infrahub_sdk.config import Config
 from infrahub_sdk.exceptions import GraphQLError, ServerNotReachableError, ServerNotResponsiveError
 from infrahub_sdk.retry import ESCALATE_AFTER_SECONDS, TransientRetryHandler
 from infrahub_sdk.types import HTTPMethod
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
 
 CLIENT_TYPES = ["standard", "sync"]
 GRAPHQL_URL = "http://mock/graphql/main"
@@ -127,6 +130,14 @@ def _build_client(
     if clock is not None:
         client._retry_handler.clock = clock
     return client
+
+
+def _build_client_over_httpx(client_type: str, **overrides: bool | int) -> InfrahubClient | InfrahubClientSync:
+    """Build a client without a custom requester, so requests go through httpx and its exceptions."""
+    config_kwargs: dict[str, Any] = dict(overrides)
+    if client_type == "standard":
+        return InfrahubClient(config=Config(address="http://mock", **config_kwargs))
+    return InfrahubClientSync(config=Config(address="http://mock", **config_kwargs))
 
 
 async def _execute_graphql(client: InfrahubClient | InfrahubClientSync) -> dict:
@@ -433,6 +444,59 @@ async def test_rest_endpoints_are_retried_too(client_type: str, monkeypatch: pyt
 
     assert result == payload
     assert requester.call_count == 2
+
+
+# --- Lost connections, whichever way httpx reports them ----------------------------------------------
+
+
+@dataclass
+class LostConnectionCase:
+    name: str
+    exception: Exception
+
+
+LOST_CONNECTION_CASES = [
+    LostConnectionCase(name="refused", exception=httpx.ConnectError("connection refused")),
+    LostConnectionCase(name="reset", exception=httpx.ReadError("connection reset by peer")),
+    LostConnectionCase(
+        name="disconnected-mid-request",
+        exception=httpx.RemoteProtocolError("Server disconnected without sending a response."),
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in LOST_CONNECTION_CASES])
+async def test_lost_connection_is_transient_whichever_httpx_error_reports_it(
+    client_type: str, case: LostConnectionCase, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Losing the connection before a response arrives is transient however httpx classifies it.
+
+    ``RemoteProtocolError`` is the shape a failover takes on a request that is already in flight:
+    the server or the load balancer in front of it closes the socket before sending a single byte
+    of the response. httpx reports that as a protocol error rather than a network error, so it
+    only reaches the retry handler if the client maps it too.
+    """
+    _no_jitter(monkeypatch)
+    recorded_sleeps = _patch_sleep(monkeypatch)
+    httpx_mock.add_exception(case.exception, url=GRAPHQL_URL)
+    httpx_mock.add_response(url=GRAPHQL_URL, json={"data": {"result": "ok"}})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True)
+
+    assert await _execute_graphql(client) == {"result": "ok"}
+    assert recorded_sleeps == [5]
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in LOST_CONNECTION_CASES])
+async def test_lost_connection_surfaces_as_unreachable_when_retries_are_disabled(
+    client_type: str, case: LostConnectionCase, httpx_mock: HTTPXMock
+) -> None:
+    httpx_mock.add_exception(case.exception, url=GRAPHQL_URL)
+    client = _build_client_over_httpx(client_type, retry_on_failure=False)
+
+    with pytest.raises(ServerNotReachableError, match="Unable to connect to 'http://mock'"):
+        await _execute_graphql(client)
 
 
 # --- GraphQL-envelope retries -----------------------------------------------------------------------

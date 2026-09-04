@@ -436,7 +436,8 @@ The `proxy` and `proxy_mounts` configurations are mutually exclusive and cannot 
 
 Long-running scripts and generators can fail halfway through when Infrahub is temporarily unavailable: a database failover, an overloaded backend or a short network outage. With `retry_on_failure` enabled, the client retries a request when it fails with a transient error and raises immediately for every other error. A failure is transient when it is one of:
 
-- A connection error or a read timeout.
+- A connection error, or a connection dropped before the response arrived, such as during a load balancer failover.
+- A read timeout.
 - An HTTP response with a status listed in `retry_status_codes` (`500`, `502`, `503` and `504` by default).
 - A GraphQL response in which every error is flagged by the server with one of those statuses.
 
