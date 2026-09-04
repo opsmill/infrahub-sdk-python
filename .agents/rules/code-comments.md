@@ -17,4 +17,11 @@ Do not reference specs, tasks, plans, tickets, issue numbers, user stories, or t
 
 ## Type-ignore comments
 
-Use the standard `# type: ignore[<code>]` form (for example `# type: ignore[arg-type]`), never `# ty: ignore`. Only `# type: ignore[...]` is honored by mypy, pyright, and pytype, so a `# ty:` comment suppresses nothing and is dead.
+Use the standard `# type: ignore[<code>]` form (for example `# type: ignore[arg-type]`), never `# ty: ignore`.
+Inline comments carry mypy codes only.
+
+`ty` does not read a bare mypy code as a suppression; it wants either `# ty: ignore[<code>]` or a
+`ty:`-prefixed code inside the standard brackets (`# type: ignore[arg-type, ty:invalid-argument-type]`).
+Do not use either form. Remaining `ty` violations belong in `[[tool.ty.overrides]]` in `pyproject.toml`,
+scoped to the narrowest file or glob that covers them and annotated with the violation count so they can be
+retired incrementally.
