@@ -344,7 +344,9 @@ execute_graphql(self, query: str, variables: dict | None = None, branch_name: st
 
 Execute a GraphQL query (or mutation).
 
-If retry_on_failure is True, the query will retry until the server becomes reachable.
+If retry_on_failure is True, transient failures (connection errors, timeouts, transient HTTP statuses and
+GraphQL errors the server flags as transient) are retried until max_retry_duration is exhausted, or
+indefinitely when max_retry_duration is 0.
 
 **Args:**
 
@@ -364,11 +366,12 @@ client-wide default for this request only. When None, the client default (if any
 
 **Raises:**
 
-- `GraphQLError`: When the GraphQL response contains errors.
-- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `GraphQLError`: When the GraphQL response contains errors that are not transient, or transient ones
+once the retry budget is exhausted.
+- `ServerNotReachableError`: If the server is not reachable, after exhausting retries when enabled.
+- `ServerNotResponsiveError`: If the server does not answer before the timeout, after exhausting retries.
 - `AuthenticationError`: If the server returns a 401 or 403 response.
 - `URLNotFoundError`: If the server returns a 404 response.
-- `Error`: If the response is unexpectedly missing.
 
 #### `refresh_login`
 
@@ -661,7 +664,9 @@ execute_graphql(self, query: str, variables: dict | None = None, branch_name: st
 
 Execute a GraphQL query (or mutation).
 
-If retry_on_failure is True, the query will retry until the server becomes reachable.
+If retry_on_failure is True, transient failures (connection errors, timeouts, transient HTTP statuses and
+GraphQL errors the server flags as transient) are retried until max_retry_duration is exhausted, or
+indefinitely when max_retry_duration is 0.
 
 **Args:**
 
@@ -681,11 +686,12 @@ client-wide default for this request only. When None, the client default (if any
 
 **Raises:**
 
-- `GraphQLError`: When the GraphQL response contains errors.
-- `ServerNotReachableError`: If the server is not reachable after exhausting retries.
+- `GraphQLError`: When the GraphQL response contains errors that are not transient, or transient ones
+once the retry budget is exhausted.
+- `ServerNotReachableError`: If the server is not reachable, after exhausting retries when enabled.
+- `ServerNotResponsiveError`: If the server does not answer before the timeout, after exhausting retries.
 - `AuthenticationError`: If the server returns a 401 or 403 response.
 - `URLNotFoundError`: If the server returns a 404 response.
-- `Error`: If the response is unexpectedly missing.
 
 #### `count`
 
@@ -1075,6 +1081,34 @@ mapping. See https://docs.infrahub.app/guides/object-conversion for more informa
 Base class for InfrahubClient and InfrahubClientSync.
 
 **Methods:**
+
+#### `retry_on_failure`
+
+```python
+retry_on_failure(self) -> bool
+```
+
+Whether transient failures are retried. Can be toggled at runtime, e.g. by a long-running generator.
+
+#### `retry_on_failure`
+
+```python
+retry_on_failure(self, value: bool) -> None
+```
+
+#### `retry_delay`
+
+```python
+retry_delay(self) -> float
+```
+
+Base delay in seconds between retries of a transient failure; doubles per attempt up to retry_max_delay.
+
+#### `retry_delay`
+
+```python
+retry_delay(self, value: float) -> None
+```
 
 #### `request_context`
 
