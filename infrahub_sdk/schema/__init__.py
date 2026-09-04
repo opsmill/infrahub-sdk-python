@@ -506,7 +506,7 @@ class InfrahubSchema(InfrahubSchemaBase):
         if schema_attr.kind != "Dropdown":
             raise ValueError(f"Attribute '{schema_attr.name}' is not of kind Dropdown")
 
-        input_data: dict[str, Any] = {
+        input_data: dict[str, dict[str, Any]] = {
             "data": {
                 "kind": node_kind,
                 "attribute": schema_attr.name,
@@ -783,7 +783,7 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         if schema_attr.kind != "Dropdown":
             raise ValueError(f"Attribute '{schema_attr.name}' is not of kind Dropdown")
 
-        input_data: dict[str, Any] = {
+        input_data: dict[str, dict[str, Any]] = {
             "data": {
                 "kind": node_kind,
                 "attribute": schema_attr.name,

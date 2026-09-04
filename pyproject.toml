@@ -86,7 +86,7 @@ lint = [
     "mypy==2.3.1",
     "ruff==0.15.12",
     "astroid>=3.1,<4.0",
-    "ty==0.0.14",
+    "ty==0.0.74",
     "rumdl==0.2.28",
 ]
 types = [
@@ -164,6 +164,40 @@ include = ["infrahub_sdk/node/node.py"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # 8 violations
+unresolved-attribute = "ignore" # 22 violations - `_schema` is a union and only some members carry the attribute
+unsupported-operator = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/pytest_plugin/**"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 35 violations - resource_config is a union of repository config element types
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/node/attribute.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 2 violations
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/config.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+# Mirrors the module-level mypy `return-value` override for the same code.
+include = ["infrahub_sdk/utils.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+# Mirrors the module-level mypy `call-overload` override for the same code.
+include = ["infrahub_sdk/ctl/check.py"]
+
+[tool.ty.overrides.rules]
+no-matching-overload = "ignore" # 1 violation - `**filters` cannot be matched against `get()` overloads
 
 
 [[tool.ty.overrides]]
@@ -184,6 +218,7 @@ include = ["tests/fixtures/**"]
 
 [tool.ty.overrides.rules]
 possibly-missing-attribute = "ignore" # Test fixtures use dynamic attributes
+unresolved-attribute = "ignore" # 5 violations - fixtures use dynamic node attributes
 
 # Test-specific overrides - tests have more lenient type checking
 # Fix these incrementally, starting with files that have fewer violations
@@ -221,6 +256,7 @@ invalid-argument-type = "ignore" # ~120 violations across integration tests
 invalid-assignment = "ignore"
 no-matching-overload = "ignore"
 possibly-missing-attribute = "ignore" # Tests use dynamic node attributes
+unresolved-attribute = "ignore" # ~205 violations - `node.<field>.value` resolves to a union of attribute/relationship types
 
 [[tool.ty.overrides]]
 include = [
@@ -233,6 +269,7 @@ include = [
 invalid-argument-type = "ignore" # 25 violations
 invalid-assignment = "ignore"
 possibly-missing-attribute = "ignore"
+unresolved-attribute = "ignore" # 1 violation in test_client.py
 
 [[tool.ty.overrides]]
 include = [
@@ -245,12 +282,38 @@ include = [
     "tests/unit/sdk/test_schema_sorter.py",
     "tests/unit/sdk/test_topological_sort.py",
     "tests/unit/sdk/test_schema_export.py",
+    "tests/unit/ctl/formatters/test_init.py",
+    "tests/unit/ctl/test_marketplace_app.py",
+    "tests/unit/sdk/test_file_handler.py",
+    "tests/unit/sdk/test_graph_traversal.py",
+    "tests/unit/sdk/test_store.py",
 ]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # Remaining files with 1-5 violations each
 invalid-method-override = "ignore"
 no-matching-overload = "ignore"
+
+[[tool.ty.overrides]]
+include = ["tests/__init__.py", "tests/unit/__init__.py", "tests/unit/sdk/pool/test_allocate.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 5 violations - `builtins` is patched with rich helpers for tests
+
+[[tool.ty.overrides]]
+include = ["tests/conftest.py", "tests/unit/sdk/test_file_object.py"]
+
+[tool.ty.overrides.rules]
+invalid-assignment = "ignore" # 21 violations - assigning to `node.<field>.value` through a union
+
+[[tool.ty.overrides]]
+include = ["tests/unit/sdk/test_priority.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 22 violations total
+invalid-await = "ignore"
+unknown-argument = "ignore"
+unresolved-attribute = "ignore"
 
 [[tool.ty.overrides]]
 include = ["docs/**"]
