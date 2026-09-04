@@ -90,7 +90,18 @@ class ConfigBase(BaseSettings):
     schema_converge_timeout: int = Field(
         default=60, description="Number of seconds to wait for schema to have converged"
     )
-    timeout: int = Field(default=60, description="Default connection timeout in seconds")
+    timeout: int = Field(
+        default=60,
+        description="Default request timeout in seconds, applied to the read, write and pool phases of a request.",
+    )
+    connect_timeout: int = Field(
+        default=10,
+        gt=0,
+        description=(
+            "Timeout in seconds for establishing the TCP/TLS connection to Infrahub. Kept short so an "
+            "unreachable address fails fast; it never exceeds the request timeout."
+        ),
+    )
     transport: RequesterTransport = Field(
         default=RequesterTransport.HTTPX, description="Set an alternate transport using a predefined option"
     )
