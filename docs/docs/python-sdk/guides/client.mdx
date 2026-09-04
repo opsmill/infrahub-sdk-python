@@ -432,6 +432,51 @@ export INFRAHUB_PROXY_MOUNTS_HTTPS=http://https-proxy.example.com:8080
 The `proxy` and `proxy_mounts` configurations are mutually exclusive and cannot be used together. Specifying both will cause a `ValueError` to be raised when the client is initialized.
 :::
 
+### Retry transient failures
+
+Long-running scripts and generators can fail halfway through when Infrahub is temporarily unavailable: a database failover, an overloaded backend or a short network outage. With `retry_on_failure` enabled, the client retries a request when it fails with a transient error and raises immediately for every other error. A failure is transient when it is one of:
+
+- A connection error or a read timeout.
+- An HTTP response with a status listed in `retry_status_codes` (`500`, `502`, `503` and `504` by default).
+- A GraphQL response in which every error is flagged by the server with one of those statuses.
+
+Retries use exponential backoff with jitter, starting at `retry_delay` seconds and capped at `retry_max_delay`. They stop after `max_retry_duration` seconds (5 minutes by default). Set `max_retry_duration` to `0` to keep retrying until the request succeeds, which lets a generator survive an outage instead of aborting.
+
+<Tabs groupId="env-config">
+  <TabItem value="Code" default>
+
+  ```python
+  from infrahub_sdk import Config, InfrahubClient
+  config = Config(retry_on_failure=True, max_retry_duration=0)
+  client = InfrahubClient(config=config)
+  ```
+
+  </TabItem>
+  <TabItem value="Environment">
+
+  ```bash
+  export INFRAHUB_RETRY_ON_FAILURE=true
+  export INFRAHUB_MAX_RETRY_DURATION=0
+  ```
+
+  ```python
+  from infrahub_sdk import InfrahubClient
+  client = InfrahubClient()  # retry settings are read from the environment variables
+  ```
+
+  </TabItem>
+</Tabs>
+
+Every retry is logged at `WARNING` level with the attempt number and the time spent so far. After 5 minutes of retrying the log level switches to `ERROR`, so an operation that keeps retrying stays visible.
+
+:::warning Retrying mutations
+A mutation that timed out may have been applied by the server before the retry. Upserts (`save(allow_upsert=True)`) are safe to retry. A plain create that had already succeeded fails on retry with a non-transient error, which is raised.
+:::
+
+:::note Unclassified server errors
+Infrahub reports some transient database failures as HTTP `500` without further classification, so `500` is part of the default `retry_status_codes`. The same status also covers genuine bugs, which are therefore retried until `max_retry_duration` expires. Remove `500` from `retry_status_codes` to fail fast on them instead.
+:::
+
 ## Next steps
 
 Now that you have a fully configured Infrahub client, you're ready to start working with your infrastructure data. Here's what you can explore next:

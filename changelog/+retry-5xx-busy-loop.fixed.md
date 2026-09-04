@@ -1,0 +1,1 @@
+`execute_graphql` with `retry_on_failure` enabled no longer retries HTTP 5xx responses in a tight loop without any delay until `max_retry_duration` expires, and once the retry budget is exhausted it raises the original `ServerNotReachableError` instead of a generic "resp hasn't been initialized" error.

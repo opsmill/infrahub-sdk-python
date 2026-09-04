@@ -144,19 +144,37 @@ The following settings can be defined in the `Config` class
 ## retry_delay
 
 <!-- vale on -->
-**Description**: Number of seconds to wait until attempting a retry.<br />
+**Description**: Base delay in seconds before retrying a request that failed with a transient error. The delay doubles after every attempt, with jitter, up to retry_max_delay.<br />
 **Type**: `integer`<br />
 **Default value**: 5<br />
 **Environment variable**: `INFRAHUB_RETRY_DELAY`<br />
 <!-- vale off -->
 
+## retry_max_delay
+
+<!-- vale on -->
+**Description**: Maximum delay in seconds between two retries of a request that failed with a transient error.<br />
+**Type**: `integer`<br />
+**Default value**: 60<br />
+**Environment variable**: `INFRAHUB_RETRY_MAX_DELAY`<br />
+<!-- vale off -->
+
 ## retry_on_failure
 
 <!-- vale on -->
-**Description**: Retry operation in case of failure<br />
+**Description**: Retry requests that fail with a transient error: connection error, timeout, an HTTP status listed in retry_status_codes, or a GraphQL error the server flags with one of those statuses. Other errors are never retried. See max_retry_duration for how long to keep retrying.<br />
 **Type**: `boolean`<br />
 **Default value**: False<br />
 **Environment variable**: `INFRAHUB_RETRY_ON_FAILURE`<br />
+<!-- vale off -->
+
+## retry_status_codes
+
+<!-- vale on -->
+**Description**: HTTP status codes treated as transient when retry_on_failure is enabled. Also matched against the http_status reported in GraphQL error extensions. 500 is included because Infrahub reports some transient database errors without further classification; remove it to fail fast on them.<br />
+**Type**: `array`<br />
+**Default value**: [500, 502, 503, 504]<br />
+**Environment variable**: `INFRAHUB_RETRY_STATUS_CODES`<br />
 <!-- vale off -->
 
 ## rate_limit_retry_enabled
@@ -198,7 +216,7 @@ The following settings can be defined in the `Config` class
 ## max_retry_duration
 
 <!-- vale on -->
-**Description**: Maximum duration until we stop attempting to retry if enabled.<br />
+**Description**: Maximum number of seconds to keep retrying a request that fails with transient errors when retry_on_failure is enabled. Set to 0 to retry indefinitely.<br />
 **Type**: `integer`<br />
 **Default value**: 300<br />
 **Environment variable**: `INFRAHUB_MAX_RETRY_DURATION`<br />

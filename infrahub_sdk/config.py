@@ -63,8 +63,35 @@ class ConfigBase(BaseSettings):
             "one of high|medium|low (case-insensitive). When unset, no header is sent."
         ),
     )
-    retry_delay: int = Field(default=5, description="Number of seconds to wait until attempting a retry.")
-    retry_on_failure: bool = Field(default=False, description="Retry operation in case of failure")
+    retry_delay: int = Field(
+        default=5,
+        ge=0,
+        description=(
+            "Base delay in seconds before retrying a request that failed with a transient error. "
+            "The delay doubles after every attempt, with jitter, up to retry_max_delay."
+        ),
+    )
+    retry_max_delay: int = Field(
+        default=60,
+        ge=0,
+        description="Maximum delay in seconds between two retries of a request that failed with a transient error.",
+    )
+    retry_on_failure: bool = Field(
+        default=False,
+        description=(
+            "Retry requests that fail with a transient error: connection error, timeout, an HTTP status listed in "
+            "retry_status_codes, or a GraphQL error the server flags with one of those statuses. "
+            "Other errors are never retried. See max_retry_duration for how long to keep retrying."
+        ),
+    )
+    retry_status_codes: list[int] = Field(
+        default=[500, 502, 503, 504],
+        description=(
+            "HTTP status codes treated as transient when retry_on_failure is enabled. Also matched against the "
+            "http_status reported in GraphQL error extensions. 500 is included because Infrahub reports some "
+            "transient database errors without further classification; remove it to fail fast on them."
+        ),
+    )
     rate_limit_retry_enabled: bool = Field(
         default=True,
         description="Retry requests that receive HTTP 429 using backoff. Set False to disable.",
@@ -85,7 +112,12 @@ class ConfigBase(BaseSettings):
         description="Maximum wait in seconds for any single 429 retry (also clamps Retry-After).",
     )
     max_retry_duration: int = Field(
-        default=300, description="Maximum duration until we stop attempting to retry if enabled."
+        default=300,
+        ge=0,
+        description=(
+            "Maximum number of seconds to keep retrying a request that fails with transient errors when "
+            "retry_on_failure is enabled. Set to 0 to retry indefinitely."
+        ),
     )
     schema_converge_timeout: int = Field(
         default=60, description="Number of seconds to wait for schema to have converged"
