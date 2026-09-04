@@ -24,6 +24,7 @@ from infrahub_sdk.spec.object import ObjectFile
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.node.relationship import RelationshipManager
     from infrahub_sdk.schema import MainSchemaTypesAPI
 
 console = Console()
@@ -205,7 +206,7 @@ def _apply_relationship(
         return
 
     # Cardinality many: access the RelationshipManager from internal storage
-    many_data: dict[str, object] = getattr(node, "_relationship_cardinality_many_data", {})
+    many_data: dict[str, RelationshipManager] = getattr(node, "_relationship_cardinality_many_data", {})
     rel_manager = many_data.get(key)
     if rel_manager is None or not hasattr(rel_manager, "peers"):
         return
