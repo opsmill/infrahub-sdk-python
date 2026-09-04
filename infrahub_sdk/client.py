@@ -114,6 +114,10 @@ async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[Bina
 
     The copy runs in a worker thread, so draining a slow or large stream does not block the event loop
     for the other tasks sharing it.
+
+    Yields:
+        BinaryIO | None: ``file_content`` itself when it can be rewound, otherwise its seekable copy.
+
     """
     if _is_rewindable(file_content):
         yield file_content
