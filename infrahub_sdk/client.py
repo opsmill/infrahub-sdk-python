@@ -111,10 +111,15 @@ async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[Bina
     """Async counterpart of :func:`_seekable_upload`.
 
     The copy runs in a worker thread, so draining a slow or large stream does not block the event loop
-    for the other tasks sharing it.
+    for the other tasks sharing it. A thread cannot be interrupted, so a cancellation arriving during
+    the copy is honoured only once the copy has ended: otherwise the temporary file would be closed
+    under a worker still writing to it.
 
     Yields:
         BinaryIO | None: ``file_content`` itself when it can be rewound, otherwise its seekable copy.
+
+    Raises:
+        asyncio.CancelledError: If the caller is cancelled during the copy, once the copy has ended.
 
     """
     if file_content is None or _is_rewindable(file_content):
@@ -126,7 +131,14 @@ async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[Bina
         def copy() -> None:
             shutil.copyfileobj(source, buffer)
 
-        await asyncio.to_thread(copy)
+        copy_task = asyncio.ensure_future(asyncio.to_thread(copy))
+        try:
+            await asyncio.shield(copy_task)
+        except asyncio.CancelledError:
+            await asyncio.wait({copy_task})
+            if not copy_task.cancelled():
+                copy_task.exception()  # the cancellation is what the caller sees; mark any copy error retrieved
+            raise
         buffer.seek(0)
         yield cast("BinaryIO", buffer)
 

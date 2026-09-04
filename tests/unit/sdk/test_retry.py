@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ import pytest
 from pydantic import ValidationError
 
 from infrahub_sdk import InfrahubClient, InfrahubClientSync
+from infrahub_sdk import client as client_module
 from infrahub_sdk.config import Config
 from infrahub_sdk.exceptions import GraphQLError, ServerNotReachableError, ServerNotResponsiveError
 from infrahub_sdk.retry import ESCALATE_AFTER_SECONDS, TransientRetryHandler
@@ -943,3 +945,34 @@ async def test_async_upload_copies_a_non_seekable_stream_off_the_event_loop(
     assert data == {"InfrahubObjectUpload": {"ok": True}}
     assert len(offloaded) == 1, f"expected exactly the stream copy to be offloaded, got {offloaded}"
     assert MULTIPART_FILE_CONTENT in httpx_mock.get_requests()[0].content
+
+
+async def test_cancelled_async_upload_waits_for_the_stream_copy_before_closing_the_buffer() -> None:
+    """Cancelling mid-copy must not close the temporary file under the worker thread still filling it."""
+    started = threading.Event()
+    release = threading.Event()
+    reads: list[bytes] = []
+
+    class BlockingStream(NonSeekableStream):
+        def read(self, size: int | None = -1) -> bytes:
+            started.set()
+            assert release.wait(timeout=5), "the test never released the copy"
+            chunk = super().read(size)
+            reads.append(chunk)
+            return chunk
+
+    async def upload() -> None:
+        async with client_module._aseekable_upload(BlockingStream(MULTIPART_FILE_CONTENT)):
+            pytest.fail("the upload body should never run once cancelled during the copy")
+
+    task = asyncio.create_task(upload())
+    assert await asyncio.to_thread(started.wait, 5), "the copy never started"  # the worker is now blocked mid-copy
+
+    task.cancel()
+    await asyncio.sleep(0.05)
+    assert not task.done(), "the cancellation surfaced while the worker thread was still copying"
+
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert reads[-1] == b"", "the copy should have drained the stream to EOF before the cancellation surfaced"
