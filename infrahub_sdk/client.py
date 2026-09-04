@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import copy
 import logging
+import shutil
+import tempfile
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable, Iterator, Mapping, MutableMapping
 from contextlib import AsyncExitStack, ExitStack, asynccontextmanager, contextmanager, suppress
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, overload
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypedDict, TypeVar, cast, overload
 from urllib.parse import quote, urlencode
 
 import httpx
@@ -76,6 +78,26 @@ class ProcessRelationsNode(TypedDict):
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
+
+
+@contextmanager
+def _seekable_upload(file_content: BinaryIO | None) -> Iterator[BinaryIO | None]:
+    """Yield ``file_content`` when it can be rewound, otherwise a seekable copy that is closed afterwards.
+
+    A retried upload re-sends the file from the start, which a pipe, a socket or another non-seekable
+    stream cannot do: ``_rewind_multipart_files`` would leave it consumed and the retry would carry an
+    empty body. Such a stream is copied once, to a temporary file so the size does not matter, before
+    the first attempt.
+    """
+    seekable = getattr(file_content, "seekable", None)
+    if file_content is None or (callable(seekable) and seekable()):
+        yield file_content
+        return
+    with tempfile.TemporaryFile() as buffer:
+        shutil.copyfileobj(file_content, buffer)
+        buffer.seek(0)
+        # TemporaryFile is typed as IO[bytes]; it offers every call the multipart sender makes.
+        yield cast("BinaryIO", buffer)
 
 
 def _rewind_multipart_files(files: dict[str, Any]) -> None:
@@ -1403,7 +1425,8 @@ class InfrahubClient(BaseClient):
         This method follows the GraphQL Multipart Request Spec for file uploads.
         The file is attached to the 'file' variable in the mutation. Transient failures, including GraphQL
         errors the server flags as transient, are retried like in ``execute_graphql`` when retry_on_failure is
-        enabled; the file is rewound before every attempt.
+        enabled; the file is rewound before every attempt, and a non-seekable stream is copied once up front so
+        every attempt carries the full body.
 
         Args:
             query: GraphQL mutation query that includes a $file variable of type Upload!
@@ -1437,34 +1460,35 @@ class InfrahubClient(BaseClient):
         self._echo(url=url, query=query, variables=variables)
 
         retry_state = self._retry_handler.new_state()
-        while True:
-            resp = await self._post_multipart(
-                url=url,
-                query=query,
-                variables=variables,
-                file_content=file_content,
-                file_name=file_name or "upload",
-                headers=headers,
-                timeout=timeout,
-                operation_name=operation_name,
-                retry_state=retry_state,
-            )
+        with _seekable_upload(file_content) as upload:
+            while True:
+                resp = await self._post_multipart(
+                    url=url,
+                    query=query,
+                    variables=variables,
+                    file_content=upload,
+                    file_name=file_name or "upload",
+                    headers=headers,
+                    timeout=timeout,
+                    operation_name=operation_name,
+                    retry_state=retry_state,
+                )
 
-            resp.raise_for_status()
-            response = decode_json(response=resp)
+                resp.raise_for_status()
+                response = decode_json(response=resp)
 
-            if "errors" in response:
-                errors = response["errors"]
-                if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
-                    retry_state
-                ):
-                    await self._retry_handler.asleep_before_retry(
-                        state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
-                    )
-                    continue
-                raise GraphQLError(errors=errors, query=query, variables=variables)
+                if "errors" in response:
+                    errors = response["errors"]
+                    if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
+                        retry_state
+                    ):
+                        await self._retry_handler.asleep_before_retry(
+                            state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
+                        )
+                        continue
+                    raise GraphQLError(errors=errors, query=query, variables=variables)
 
-            return response["data"]
+                return response["data"]
 
     @handle_relogin
     async def _post_multipart(
@@ -2425,7 +2449,8 @@ class InfrahubClientSync(BaseClient):
         This method follows the GraphQL Multipart Request Spec for file uploads.
         The file is attached to the 'file' variable in the mutation. Transient failures, including GraphQL
         errors the server flags as transient, are retried like in ``execute_graphql`` when retry_on_failure is
-        enabled; the file is rewound before every attempt.
+        enabled; the file is rewound before every attempt, and a non-seekable stream is copied once up front so
+        every attempt carries the full body.
 
         Args:
             query: GraphQL mutation query that includes a $file variable of type Upload!
@@ -2459,34 +2484,35 @@ class InfrahubClientSync(BaseClient):
         self._echo(url=url, query=query, variables=variables)
 
         retry_state = self._retry_handler.new_state()
-        while True:
-            resp = self._post_multipart(
-                url=url,
-                query=query,
-                variables=variables,
-                file_content=file_content,
-                file_name=file_name or "upload",
-                headers=headers,
-                timeout=timeout,
-                operation_name=operation_name,
-                retry_state=retry_state,
-            )
+        with _seekable_upload(file_content) as upload:
+            while True:
+                resp = self._post_multipart(
+                    url=url,
+                    query=query,
+                    variables=variables,
+                    file_content=upload,
+                    file_name=file_name or "upload",
+                    headers=headers,
+                    timeout=timeout,
+                    operation_name=operation_name,
+                    retry_state=retry_state,
+                )
 
-            resp.raise_for_status()
-            response = decode_json(response=resp)
+                resp.raise_for_status()
+                response = decode_json(response=resp)
 
-            if "errors" in response:
-                errors = response["errors"]
-                if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
-                    retry_state
-                ):
-                    self._retry_handler.sleep_before_retry(
-                        state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
-                    )
-                    continue
-                raise GraphQLError(errors=errors, query=query, variables=variables)
+                if "errors" in response:
+                    errors = response["errors"]
+                    if self._retry_handler.is_transient_graphql_errors(errors) and self._retry_handler.should_retry(
+                        retry_state
+                    ):
+                        self._retry_handler.sleep_before_retry(
+                            state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
+                        )
+                        continue
+                    raise GraphQLError(errors=errors, query=query, variables=variables)
 
-            return response["data"]
+                return response["data"]
 
     @handle_relogin_sync
     def _post_multipart(

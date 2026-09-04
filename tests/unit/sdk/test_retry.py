@@ -14,7 +14,7 @@ import logging
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 import httpx
 import pytest
@@ -740,6 +740,19 @@ MULTIPART_FILE_CONTENT = b"multipart file body that must survive a transient ret
 UPLOAD_MUTATION = "mutation ($file: Upload!) { InfrahubObjectUpload(data: { file: $file }) { ok } }"
 
 
+class NonSeekableStream(io.BytesIO):
+    """A read-only stream that cannot be rewound, like a pipe or an HTTP body."""
+
+    def seekable(self) -> bool:
+        return False
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        raise io.UnsupportedOperation("seek")
+
+    def tell(self) -> int:
+        raise io.UnsupportedOperation("tell")
+
+
 def _multipart_files() -> dict[str, Any]:
     return {"file": ("upload.bin", io.BytesIO(MULTIPART_FILE_CONTENT), "application/octet-stream")}
 
@@ -765,7 +778,7 @@ async def _drive_path(client: InfrahubClient | InfrahubClientSync, path: str) ->
         return response.status_code
 
 
-async def _upload(client: InfrahubClient | InfrahubClientSync, file_content: io.BytesIO) -> dict:
+async def _upload(client: InfrahubClient | InfrahubClientSync, file_content: BinaryIO) -> dict:
     if isinstance(client, InfrahubClient):
         return await client._execute_graphql_with_file(
             query=UPLOAD_MUTATION, variables={}, file_content=file_content, file_name="upload.bin"
@@ -861,3 +874,22 @@ async def test_multipart_mutation_raises_non_transient_graphql_errors_immediatel
     assert exc.value.errors == errors
     assert len(httpx_mock.get_requests()) == 1
     assert recorded_sleeps == []
+
+
+@pytest.mark.parametrize("client_type", CLIENT_TYPES)
+async def test_multipart_retry_re_sends_a_non_seekable_upload_in_full(
+    client_type: str, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stream that cannot be rewound is copied once, so the transport and envelope retries still carry the body."""
+    _patch_sleep(monkeypatch)
+    httpx_mock.add_response(status_code=503)
+    httpx_mock.add_response(status_code=200, json={"data": None, "errors": [_transient_error(503)]})
+    httpx_mock.add_response(status_code=200, json={"data": {"InfrahubObjectUpload": {"ok": True}}})
+    client = _build_client_over_httpx(client_type, retry_on_failure=True)
+
+    data = await _upload(client, NonSeekableStream(MULTIPART_FILE_CONTENT))
+
+    assert data == {"InfrahubObjectUpload": {"ok": True}}
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 3
+    assert all(MULTIPART_FILE_CONTENT in request.content for request in requests)
