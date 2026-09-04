@@ -948,7 +948,7 @@ async def test_async_upload_copies_a_non_seekable_stream_off_the_event_loop(
 
 
 async def test_cancelled_async_upload_waits_for_the_stream_copy_before_closing_the_buffer() -> None:
-    """Cancelling mid-copy must not close the temporary file under the worker thread still filling it."""
+    """Cancelling mid-copy, once or repeatedly, must not close the temporary file under the worker still filling it."""
     started = threading.Event()
     release = threading.Event()
     reads: list[bytes] = []
@@ -971,6 +971,10 @@ async def test_cancelled_async_upload_waits_for_the_stream_copy_before_closing_t
     task.cancel()
     await asyncio.sleep(0.05)
     assert not task.done(), "the cancellation surfaced while the worker thread was still copying"
+
+    task.cancel()  # a second cancellation, aimed at the drain itself, must not shortcut it either
+    await asyncio.sleep(0.05)
+    assert not task.done(), "a repeated cancellation surfaced while the worker thread was still copying"
 
     release.set()
     with pytest.raises(asyncio.CancelledError):

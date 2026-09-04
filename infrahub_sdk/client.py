@@ -106,6 +106,19 @@ def _seekable_upload(file_content: BinaryIO | None) -> Iterator[BinaryIO | None]
         yield cast("BinaryIO", buffer)
 
 
+async def _wait_despite_cancellation(task: asyncio.Future[None]) -> None:
+    """Wait for ``task`` to finish, absorbing every cancellation aimed at the caller meanwhile.
+
+    Used to drain a worker thread that cannot be interrupted: the resources it uses must outlive it,
+    and the caller re-raises the cancellation it already holds once this returns.
+    """
+    while not task.done():
+        try:
+            await asyncio.wait({task})
+        except asyncio.CancelledError:
+            continue
+
+
 @asynccontextmanager
 async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[BinaryIO | None]:
     """Async counterpart of :func:`_seekable_upload`.
@@ -135,7 +148,7 @@ async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[Bina
         try:
             await asyncio.shield(copy_task)
         except asyncio.CancelledError:
-            await asyncio.wait({copy_task})
+            await _wait_despite_cancellation(copy_task)
             if not copy_task.cancelled():
                 copy_task.exception()  # the cancellation is what the caller sees; mark any copy error retrieved
             raise
