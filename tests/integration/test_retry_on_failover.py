@@ -1,10 +1,13 @@
 """Retry behaviour when Infrahub goes away in the middle of a request.
 
-These tests reproduce a load balancer failover against a real Infrahub deployment. The API is
-told to sit on every GraphQL request for a few seconds, an upsert mutation is started, and the
-HAProxy container fronting the API servers is killed and restarted while that mutation is still
-in flight. The client therefore sees the connection drop before any response arrives, which is
-what a failover looks like from the outside.
+These tests reproduce a failover against a real Infrahub deployment. The API is told to sit on
+every GraphQL request for a few seconds, an upsert mutation is started, and containers are killed
+while that mutation is still in flight, in each of the two shapes a failover takes:
+
+- The HAProxy load balancer in front of the API servers is restarted, so the connection is dropped
+  before a single byte of the response arrives.
+- The API servers behind it are restarted while HAProxy stays up, so the connection to the client
+  holds and HAProxy answers for them with a transient HTTP status.
 
 The mutation is an upsert on purpose: the server keeps processing a request whose client has gone
 away, so the first attempt may well have been applied by the time the retry is sent. Retrying is
@@ -18,7 +21,7 @@ import socket
 import subprocess  # noqa: S404
 import threading
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from pathlib import Path
 
 import httpx
@@ -33,12 +36,13 @@ RESPONSE_DELAY = 10
 """Seconds the API waits before handling each GraphQL request, to widen the in-flight window."""
 
 RESTART_AFTER = 3.0
-"""Seconds into the mutation at which the load balancer is restarted."""
+"""Seconds into the mutation at which the containers are restarted."""
 
 RETRY_TIMEOUT = 180.0
 """Upper bound on a retrying call, so an unlimited retry budget cannot hang the suite."""
 
 LOAD_BALANCER = "infrahub-server-lb"
+API_SERVER = "infrahub-server"
 
 ADMIN_TOKEN = PROJECT_ENV_VARIABLES["INFRAHUB_TESTING_INITIAL_ADMIN_TOKEN"]
 
@@ -50,13 +54,19 @@ def reserve_host_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def restart_load_balancer(container_name: str) -> None:
-    """Kill and restart the load balancer, dropping every connection it was carrying."""
+def restart_containers(container_names: Sequence[str]) -> None:
+    """Kill and restart containers, dropping every connection they were carrying."""
     subprocess.run(  # noqa: S603
-        ["docker", "restart", "--time", "0", container_name],  # noqa: S607
+        ["docker", "restart", "--time", "0", *container_names],  # noqa: S607
         check=True,
         capture_output=True,
     )
+
+
+async def restart_after(container_names: Sequence[str], delay: float) -> None:
+    """Restart containers ``delay`` seconds from now, while the caller has a request in flight."""
+    await asyncio.sleep(delay)
+    await asyncio.to_thread(restart_containers, container_names)
 
 
 def wait_until_reachable(address: str, timeout: float = 120.0) -> None:
@@ -116,6 +126,12 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
         return str(infrahub_compose.get_container(service_name=LOAD_BALANCER).Name)
 
     @pytest.fixture(scope="class")
+    def api_server_containers(self, infrahub_compose: InfrahubDockerCompose, infrahub_port: int) -> list[str]:
+        return [
+            str(container.Name) for container in infrahub_compose.get_containers() if container.Service == API_SERVER
+        ]
+
+    @pytest.fixture(scope="class")
     def slow_api(
         self, infrahub_compose: InfrahubDockerCompose, address: str, infrahub_port: int
     ) -> Generator[None, None, None]:
@@ -129,6 +145,23 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
         yield
         wait_until_reachable(address)
         infrahub_compose.set_server_response_delay(0)
+
+    @pytest.fixture
+    def slow_api_across_api_restart(
+        self, infrahub_compose: InfrahubDockerCompose, slow_api: None
+    ) -> Generator[None, None, None]:
+        """Re-apply the response delay for a test that restarts the API servers and so clears it.
+
+        The delay lives in the memory of each API worker process, set by a broadcast on the
+        message bus, so restarting those processes drops it. Restoring it here keeps the class
+        fixture's promise and leaves this test independent of the order tests run in.
+
+        Yields:
+            None: with the delay active, as ``slow_api`` leaves it.
+
+        """
+        yield
+        infrahub_compose.set_server_response_delay(RESPONSE_DELAY)
 
     def build_client(self, address: str, *, retry_on_failure: bool) -> InfrahubClient:
         return InfrahubClient(config=self.build_config(address, retry_on_failure=retry_on_failure))
@@ -152,11 +185,7 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
 
         node = await client.create(kind="BuiltinTag", name="failover-no-retry")
 
-        async def restart_once() -> None:
-            await asyncio.sleep(RESTART_AFTER)
-            await asyncio.to_thread(restart_load_balancer, load_balancer_container)
-
-        restart = asyncio.create_task(restart_once())
+        restart = asyncio.create_task(restart_after([load_balancer_container], RESTART_AFTER))
         with pytest.raises(ServerNotReachableError):
             await node.save(allow_upsert=True)
         await restart
@@ -173,11 +202,7 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
 
         node = await client.create(kind="BuiltinTag", name="failover-async")
 
-        async def restart_once() -> None:
-            await asyncio.sleep(RESTART_AFTER)
-            await asyncio.to_thread(restart_load_balancer, load_balancer_container)
-
-        restart = asyncio.create_task(restart_once())
+        restart = asyncio.create_task(restart_after([load_balancer_container], RESTART_AFTER))
         await asyncio.wait_for(node.save(allow_upsert=True), timeout=RETRY_TIMEOUT)
         await restart
 
@@ -199,7 +224,7 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
 
         node = client.create(kind="BuiltinTag", name="failover-sync")
 
-        restart = threading.Timer(RESTART_AFTER, restart_load_balancer, args=(load_balancer_container,))
+        restart = threading.Timer(RESTART_AFTER, restart_containers, args=([load_balancer_container],))
         restart.start()
         try:
             node.save(allow_upsert=True)
@@ -212,4 +237,36 @@ class TestRetryOnFailover(TestInfrahubDockerClient):
         )
 
         saved = client.get(kind="BuiltinTag", name__value="failover-sync")
+        assert saved.id == node.id
+
+    async def test_api_server_restart_is_survived_with_unlimited_retries(
+        self,
+        address: str,
+        api_server_containers: list[str],
+        slow_api_across_api_restart: None,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The other shape of a failover: the load balancer survives, the API servers behind it do not.
+
+        Nothing breaks the connection to the client here, so instead of a dropped socket HAProxy
+        answers the in-flight request itself with 502, and answers whatever arrives while the
+        servers boot with 503. Both are in retry_status_codes, so the mutation only has to wait.
+        """
+        caplog.set_level("WARNING", logger="infrahub_sdk")
+        client = self.build_client(address, retry_on_failure=True)
+        await client.schema.all()
+
+        node = await client.create(kind="BuiltinTag", name="failover-api-servers")
+
+        restart = asyncio.create_task(restart_after(api_server_containers, RESTART_AFTER))
+        await asyncio.wait_for(node.save(allow_upsert=True), timeout=RETRY_TIMEOUT)
+        await restart
+
+        assert node.id, "the upsert should have returned the id of the saved node"
+        retries = [record.message for record in caplog.records if "Transient failure" in record.message]
+        assert any("HTTP 502" in message for message in retries), (
+            f"the request in flight when the API servers died should have been retried on a 502: {retries}"
+        )
+
+        saved = await client.get(kind="BuiltinTag", name__value="failover-api-servers")
         assert saved.id == node.id
