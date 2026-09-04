@@ -81,10 +81,8 @@ class ProxyConfig(TypedDict):
     mounts: Mapping[str, AsyncBaseTransport | None] | None
 
 
-def _is_rewindable(file_content: BinaryIO | None) -> bool:
-    """Whether ``file_content`` can be rewound for a retried upload; no file needs no rewinding."""
-    if file_content is None:
-        return True
+def _is_rewindable(file_content: BinaryIO) -> bool:
+    """Whether ``file_content`` can be rewound, so a retried upload can re-send it from the start."""
     seekable = getattr(file_content, "seekable", None)
     return callable(seekable) and bool(seekable())
 
@@ -98,7 +96,7 @@ def _seekable_upload(file_content: BinaryIO | None) -> Iterator[BinaryIO | None]
     empty body. Such a stream is copied once, to a temporary file so the size does not matter, before
     the first attempt.
     """
-    if _is_rewindable(file_content):
+    if file_content is None or _is_rewindable(file_content):
         yield file_content
         return
     with tempfile.TemporaryFile() as buffer:
@@ -119,11 +117,16 @@ async def _aseekable_upload(file_content: BinaryIO | None) -> AsyncIterator[Bina
         BinaryIO | None: ``file_content`` itself when it can be rewound, otherwise its seekable copy.
 
     """
-    if _is_rewindable(file_content):
+    if file_content is None or _is_rewindable(file_content):
         yield file_content
         return
+    source: BinaryIO = file_content
     with tempfile.TemporaryFile() as buffer:
-        await asyncio.to_thread(shutil.copyfileobj, file_content, buffer)
+
+        def copy() -> None:
+            shutil.copyfileobj(source, buffer)
+
+        await asyncio.to_thread(copy)
         buffer.seek(0)
         yield cast("BinaryIO", buffer)
 
