@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import GraphQLError, NodeNotFoundError
+from .exceptions import GraphQLError, NodeNotFoundError, TrackingGroupCleanupError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -108,17 +108,33 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
-    async def delete_unused(self) -> None:
-        if self.previous_members and self.unused_member_ids:
-            for member in self.previous_members:
-                if member.id in self.unused_member_ids and member.typename:
-                    try:
-                        await self.client.delete(kind=member.typename, id=member.id)
-                    except GraphQLError as exc:
-                        if not exc.message or "Unable to find the node" not in exc.message:
-                            # If the node already has been deleted, skip the error as it would have been deleted
-                            # by the cascade delete of another node
-                            raise
+    async def delete_unused(self) -> dict[str, str]:
+        """Delete the members that this run no longer uses.
+
+        Every candidate is attempted even when the server refuses some of them, so one
+        refusal cannot leave the rest of the unused members behind. Only refusals are
+        collected; any other failure propagates for the caller to handle.
+
+        Returns:
+            The id of each member the server refused to delete, mapped to the reason.
+
+        """
+        failures: dict[str, str] = {}
+        if not self.previous_members or not self.unused_member_ids:
+            return failures
+
+        for member in self.previous_members:
+            if member.id not in self.unused_member_ids or not member.typename:
+                continue
+            try:
+                await self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
+            except GraphQLError as exc:
+                if exc.message and "Unable to find the node" in exc.message:
+                    # The node was already removed by the cascade delete of another node
+                    continue
+                failures[member.id] = exc.message or str(exc)
+
+        return failures
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.
@@ -147,42 +163,49 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
             self.related_group_ids.extend(ids)
 
     async def update_group(self) -> None:
-        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution."""
+        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
+
+        Raises:
+            TrackingGroupCleanupError: When one or more unused members could not be deleted.
+
+        """
         members: list[str] = self.related_group_ids + self.related_node_ids
-
-        if not members:
-            return
-
-        group_name = self._generate_group_name()
-        schema = await self.client.schema.get(kind=self.group_type)
-        description = self._generate_group_description(schema=schema)
 
         existing_group = None
         if self.delete_unused_nodes:
             existing_group = await self.get_group(store_peers=True)
 
+        # A run that tracked nothing and has no group to reconcile must not create an empty one.
+        if not members and existing_group is None:
+            return
+
+        failures: dict[str, str] = {}
+        if existing_group:
+            previous_member_ids: list[str] = existing_group._get_relationship_many(name="members").peer_ids
+            self.unused_member_ids = list(set(previous_member_ids) - set(members))
+            failures = await self.delete_unused()
+
+            # An already-empty group that stays empty needs no upsert.
+            if not members and not previous_member_ids:
+                return
+
+        group_name = self._generate_group_name()
+        schema = await self.client.schema.get(kind=self.group_type)
+        description = self._generate_group_description(schema=schema)
+
+        # Members that could not be deleted stay in the group so a later run retries them.
         group = await self.client.create(
             kind=self.group_type,
             name=group_name,
             description=description,
-            members=members,
+            members=members + list(failures),
             branch=self.branch,
             **self.group_params,
         )
         await group.save(allow_upsert=True, update_group_context=False)
 
-        if not existing_group:
-            return
-
-        # Calculate how many nodes should be deleted
-        self.unused_member_ids = list(
-            set(existing_group._get_relationship_many(name="members").peer_ids) - set(members)
-        )
-
-        if not self.delete_unused_nodes:
-            return
-
-        await self.delete_unused()
+        if failures:
+            raise TrackingGroupCleanupError(failures=failures)
         # TODO : create anoter "read" group. Could be based of the store items
         # Need to filters the store items inherited from CoreGroup to add them as children
         # Need to validate that it's UUIDas "key" if we want to implement other methods to store item
@@ -198,7 +221,9 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
     def get_group(self, store_peers: bool = False) -> InfrahubNodeSync | None:
         group_name = self._generate_group_name()
         try:
-            group = self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
+            group = self.client.get(
+                kind=self.group_type, name__value=group_name, include=["members"], branch=self.branch
+            )
         except NodeNotFoundError:
             return None
 
@@ -208,11 +233,33 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
-    def delete_unused(self) -> None:
-        if self.previous_members and self.unused_member_ids:
-            for member in self.previous_members:
-                if member.id in self.unused_member_ids and member.typename:
-                    self.client.delete(kind=member.typename, id=member.id)
+    def delete_unused(self) -> dict[str, str]:
+        """Delete the members that this run no longer uses.
+
+        Every candidate is attempted even when the server refuses some of them, so one
+        refusal cannot leave the rest of the unused members behind. Only refusals are
+        collected; any other failure propagates for the caller to handle.
+
+        Returns:
+            The id of each member the server refused to delete, mapped to the reason.
+
+        """
+        failures: dict[str, str] = {}
+        if not self.previous_members or not self.unused_member_ids:
+            return failures
+
+        for member in self.previous_members:
+            if member.id not in self.unused_member_ids or not member.typename:
+                continue
+            try:
+                self.client.delete(kind=member.typename, id=member.id, branch=self.branch)
+            except GraphQLError as exc:
+                if exc.message and "Unable to find the node" in exc.message:
+                    # The node was already removed by the cascade delete of another node
+                    continue
+                failures[member.id] = exc.message or str(exc)
+
+        return failures
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.
@@ -241,42 +288,49 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
             self.related_group_ids.extend(ids)
 
     def update_group(self) -> None:
-        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution."""
+        """Create or update (using upsert) a CoreStandardGroup to store all the Nodes and Groups used during an execution.
+
+        Raises:
+            TrackingGroupCleanupError: When one or more unused members could not be deleted.
+
+        """
         members: list[str] = self.related_node_ids + self.related_group_ids
-
-        if not members:
-            return
-
-        group_name = self._generate_group_name()
-        schema = self.client.schema.get(kind=self.group_type)
-        description = self._generate_group_description(schema=schema)
 
         existing_group = None
         if self.delete_unused_nodes:
             existing_group = self.get_group(store_peers=True)
 
+        # A run that tracked nothing and has no group to reconcile must not create an empty one.
+        if not members and existing_group is None:
+            return
+
+        failures: dict[str, str] = {}
+        if existing_group:
+            previous_member_ids: list[str] = existing_group._get_relationship_many(name="members").peer_ids
+            self.unused_member_ids = list(set(previous_member_ids) - set(members))
+            failures = self.delete_unused()
+
+            # An already-empty group that stays empty needs no upsert.
+            if not members and not previous_member_ids:
+                return
+
+        group_name = self._generate_group_name()
+        schema = self.client.schema.get(kind=self.group_type)
+        description = self._generate_group_description(schema=schema)
+
+        # Members that could not be deleted stay in the group so a later run retries them.
         group = self.client.create(
             kind=self.group_type,
             name=group_name,
             description=description,
-            members=members,
+            members=members + list(failures),
             branch=self.branch,
             **self.group_params,
         )
         group.save(allow_upsert=True, update_group_context=False)
 
-        if not existing_group:
-            return
-
-        # Calculate how many nodes should be deleted
-        self.unused_member_ids = list(
-            set(existing_group._get_relationship_many(name="members").peer_ids) - set(members)
-        )
-
-        if not self.delete_unused_nodes:
-            return
-
-        self.delete_unused()
+        if failures:
+            raise TrackingGroupCleanupError(failures=failures)
 
         # TODO : create anoter "read" group. Could be based of the store items
         # Need to filters the store items inherited from CoreGroup to add them as children

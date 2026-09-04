@@ -2139,10 +2139,13 @@ class InfrahubClient(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
-            await self.group_context.update_group()
-
-        self.mode = InfrahubClientMode.DEFAULT
+        try:
+            if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
+                await self.group_context.update_group()
+        finally:
+            # update_group() can raise, and leaving the client in tracking mode would
+            # silently enroll every later save into the stale context.
+            self.mode = InfrahubClientMode.DEFAULT
 
     async def convert_object_type(
         self,
@@ -3883,10 +3886,13 @@ class InfrahubClientSync(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
-            self.group_context.update_group()
-
-        self.mode = InfrahubClientMode.DEFAULT
+        try:
+            if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
+                self.group_context.update_group()
+        finally:
+            # update_group() can raise, and leaving the client in tracking mode would
+            # silently enroll every later save into the stale context.
+            self.mode = InfrahubClientMode.DEFAULT
 
     def convert_object_type(
         self,
