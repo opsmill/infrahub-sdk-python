@@ -107,11 +107,15 @@ class NodeStoreBranch:
 
         if kind and found_invalid:
             raise NodeInvalidError(
+                branch_name=self.branch_name,
+                node_type=kind_name or "unknown",
                 identifier={"key": [key] if isinstance(key, str) else key},
                 message=f"Found a node of a different kind instead of {kind} for key {key!r} in the store ({self.branch_name})",
             )
 
         raise NodeNotFoundError(
+            branch_name=self.branch_name,
+            node_type=kind_name or "unknown",
             identifier={"key": [key] if isinstance(key, str) else key},
             message=f"Unable to find the node {key!r} in the store ({self.branch_name})",
         )
@@ -121,6 +125,8 @@ class NodeStoreBranch:
     ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
         if internal_id not in self._objs:
             raise NodeNotFoundError(
+                branch_name=self.branch_name,
+                node_type=kind or "unknown",
                 identifier={"internal_id": [internal_id]},
                 message=f"Unable to find the node {internal_id!r} in the store ({self.branch_name})",
             )
@@ -128,6 +134,7 @@ class NodeStoreBranch:
         node = self._objs[internal_id]
         if kind and kind not in node.get_all_kinds():
             raise NodeInvalidError(
+                branch_name=self.branch_name,
                 node_type=kind,
                 identifier={"internal_id": [internal_id]},
                 message=f"Found a node of kind {node.get_kind()} instead of {kind} for internal_id {internal_id!r} in the store ({self.branch_name})",
@@ -140,6 +147,8 @@ class NodeStoreBranch:
     ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
         if key not in self._keys:
             raise NodeNotFoundError(
+                branch_name=self.branch_name,
+                node_type=kind or "unknown",
                 identifier={"key": [key]},
                 message=f"Unable to find the node {key!r} in the store ({self.branch_name})",
             )
@@ -148,6 +157,7 @@ class NodeStoreBranch:
 
         if kind and node.get_kind() != kind:
             raise NodeInvalidError(
+                branch_name=self.branch_name,
                 node_type=kind,
                 identifier={"key": [key]},
                 message=f"Found a node of kind {node.get_kind()} instead of {kind} for key {key!r} in the store ({self.branch_name})",
@@ -158,6 +168,8 @@ class NodeStoreBranch:
     def _get_by_id(self, id: str, kind: str | None = None) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
         if id not in self._uuids:
             raise NodeNotFoundError(
+                branch_name=self.branch_name,
+                node_type=kind or "unknown",
                 identifier={"id": [id]},
                 message=f"Unable to find the node {id!r} in the store ({self.branch_name})",
             )
@@ -165,6 +177,7 @@ class NodeStoreBranch:
         node = self._get_by_internal_id(self._uuids[id])
         if kind and kind not in node.get_all_kinds():
             raise NodeInvalidError(
+                branch_name=self.branch_name,
                 node_type=kind,
                 identifier={"id": [id]},
                 message=f"Found a node of kind {node.get_kind()} instead of {kind} for id {id!r} in the store ({self.branch_name})",
@@ -182,7 +195,8 @@ class NodeStoreBranch:
             node_hfid = [hfid] if isinstance(hfid, str) else hfid
 
         exception_to_raise_if_not_found = NodeNotFoundError(
-            node_type=node_kind,
+            branch_name=self.branch_name,
+            node_type=node_kind or "unknown",
             identifier={"hfid": node_hfid},
             message=f"Unable to find the node {hfid!r} in the store ({self.branch_name})",
         )
