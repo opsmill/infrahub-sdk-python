@@ -34,7 +34,7 @@ SYNCIFY_TEST_CASES = [
         name="sync-list",
         sync=True,
         input=["LineageSource", "CoreNode", "CoreObjectTemplate"],
-        output=["LineageSource", "CoreObjectTemplateSync", "CoreNodeSync"],
+        output=["LineageSourceSync", "CoreObjectTemplateSync", "CoreNodeSync"],
     ),
     SyncifyTestCase(name="async-str", sync=False, input=["CoreNode"], output=["CoreNode"]),
     SyncifyTestCase(
@@ -175,7 +175,7 @@ async def test_generator(client: InfrahubClient, mock_schema_query_05: "HTTPXMoc
 
     assert "class LocationGeneric(CoreNodeSync)" in sync_protocols
     assert "class LocationCountry(LocationGeneric)" in sync_protocols
-    assert "class TemplateInfraDevice(LineageSource, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
+    assert "class TemplateInfraDevice(LineageSourceSync, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
 
     location_site_sync = """
 class LocationSite(LocationGeneric):

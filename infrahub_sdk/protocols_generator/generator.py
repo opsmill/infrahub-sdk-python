@@ -90,19 +90,16 @@ class CodeGenerator:
         )
 
         # Which referenced names have a Sync counterpart to switch to when rendering sync output.
-        # The two positions resolve names differently for a user schema: a peer may be any core
-        # kind, while an inheritance list only ever switches the few base classes. Generating the
-        # core module makes both the same, since every class in it is local.
+        # Both a peer and an inheritance base take the Sync variant whenever one exists, so a single
+        # set covers both positions. ``CoreNode`` is always included: it is the implicit base and is
+        # excluded from ``base_protocols``, so it would otherwise never be switched.
         match self.target:
             case ProtocolTarget.USER_SCHEMA:
-                self._inherited_sync_names = frozenset(CORE_BASE_CLASS_TO_SYNCIFY)
-                self._peer_sync_names = frozenset(
+                self._sync_names = frozenset(
                     name for name in self.base_protocols if f"{name}Sync" in self.base_protocols
-                )
+                ) | {"CoreNode"}
             case ProtocolTarget.SDK_CORE:
-                local_names = self._local_class_names() | {"CoreNode"}
-                self._inherited_sync_names = local_names
-                self._peer_sync_names = local_names
+                self._sync_names = self._local_class_names() | {"CoreNode"}
             case _:
                 assert_never(self.target)
 
@@ -174,7 +171,7 @@ class CodeGenerator:
             return f"{value}Sync"
 
         if isinstance(value, list):
-            return [f"{item}Sync" if item in self._inherited_sync_names else item for item in value]
+            return [f"{item}Sync" if item in self._sync_names else item for item in value]
 
         return value
 
@@ -202,7 +199,7 @@ class CodeGenerator:
             type_ += "Sync"
             # Peers with a dedicated ``*Sync`` variant are referenced by it in sync output. The
             # rest keep their name, because they already are the sync class.
-            if peer in self._peer_sync_names:
+            if peer in self._sync_names:
                 peer = f"{peer}Sync"
 
         return f"{name}: {type_}[{peer}]"
