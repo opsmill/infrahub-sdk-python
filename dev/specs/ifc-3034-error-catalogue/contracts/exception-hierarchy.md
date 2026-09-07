@@ -96,9 +96,11 @@ A **server-reported** catalogued failure's message names the code and the server
 no query text. An uncatalogued failure's message is byte-identical to today's, query text included. The
 query is available as an attribute in both cases.
 
-The qualifier matters because three catalogued classes can also be raised client-side, with no server
-response behind them: `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`. Those
-raises keep the message they produce today, since there is no code and no server message to name. As
+The qualifier matters because three catalogued classes can also be raised with **no catalogue code
+behind them**: `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`. That covers a
+client-side lookup miss, which has no server response at all, and the REST 404 the file handler turns
+into a `NodeNotFoundError`, which has a response and a message but no catalogue code, since REST carries
+the legacy envelope. Both keep the message they produce today, because there is no code to name. As
 everywhere else, `exc.code is not None` is the test for which case you are holding.
 
 Where the catalogue provides them, the server's message names the failing action and resource kind, so

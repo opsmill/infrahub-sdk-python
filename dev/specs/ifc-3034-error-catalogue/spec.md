@@ -369,8 +369,9 @@ These are specific hazards found while surveying the current code, not hypotheti
 #### Messages
 
 - **FR-022**: A server-reported catalogued error's message MUST name the code and the server's message,
-  and MUST NOT embed the query text. Where one of the unified classes is raised client-side, with no
-  code and no server message to name, its message MUST remain exactly as it is today.
+  and MUST NOT embed the query text. Where one of the unified classes is raised with no catalogue code
+  behind it — a client-side lookup miss, or the REST 404 the file handler turns into a
+  `NodeNotFoundError` — its message MUST remain exactly as it is today.
 - **FR-023**: An uncatalogued error's message MUST remain exactly as it is today, query text included.
 - **FR-024**: The query and variables MUST remain available as attributes on the exception in both
   cases.
