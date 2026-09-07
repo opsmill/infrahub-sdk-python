@@ -851,7 +851,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.20" },
     { name = "infrahub-testcontainers", marker = "extra == 'all'", specifier = ">=1.7.3" },
     { name = "infrahub-testcontainers", marker = "extra == 'testcontainers'", specifier = ">=1.7.3" },
-    { name = "jinja2", specifier = ">=3" },
+    { name = "jinja2", specifier = ">=3.1.5" },
     { name = "netutils", specifier = ">=1.0.0" },
     { name = "packaging", marker = "extra == 'all'", specifier = ">=21.0" },
     { name = "packaging", marker = "extra == 'testcontainers'", specifier = ">=21.0" },
@@ -867,8 +867,8 @@ requires-dist = [
     { name = "ruamel-yaml", marker = "extra == 'all'", specifier = ">=0.18" },
     { name = "ruamel-yaml", marker = "extra == 'ctl'", specifier = ">=0.18" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
-    { name = "typer", marker = "extra == 'all'", specifier = ">=0.15.0" },
-    { name = "typer", marker = "extra == 'ctl'", specifier = ">=0.15.0" },
+    { name = "typer", marker = "extra == 'all'", specifier = ">=0.16.0" },
+    { name = "typer", marker = "extra == 'ctl'", specifier = ">=0.16.0" },
     { name = "typing-extensions", specifier = ">=4.4.0" },
     { name = "ujson", specifier = ">=5" },
     { name = "whenever", specifier = ">=0.9.3,<0.10.0" },
@@ -878,10 +878,10 @@ provides-extras = ["all", "ctl", "testcontainers", "testing"]
 [package.metadata.requires-dev]
 dev = [
     { name = "astroid", specifier = ">=3.1,<4.0" },
-    { name = "codecov" },
+    { name = "codecov", specifier = ">=2.1" },
     { name = "infrahub-testcontainers", specifier = ">=1.7.3" },
     { name = "invoke", specifier = ">=2.2.1" },
-    { name = "ipython" },
+    { name = "ipython", specifier = ">=8.18" },
     { name = "jsonschema", specifier = ">=4.25.1" },
     { name = "mdxify", specifier = ">=0.2.23" },
     { name = "mypy", specifier = "==2.3.1" },
@@ -898,9 +898,9 @@ dev = [
     { name = "towncrier", specifier = ">=24.8.0" },
     { name = "ty", specifier = "==0.0.14" },
     { name = "types-python-slugify", specifier = ">=8.0.0.3" },
-    { name = "types-pyyaml" },
-    { name = "types-ujson" },
-    { name = "yamllint" },
+    { name = "types-pyyaml", specifier = ">=6.0.12" },
+    { name = "types-ujson", specifier = ">=5.10" },
+    { name = "yamllint", specifier = ">=1.35" },
 ]
 docs = [{ name = "mdxify", specifier = ">=0.2.23" }]
 lint = [
@@ -909,7 +909,7 @@ lint = [
     { name = "ruff", specifier = "==0.15.12" },
     { name = "rumdl", specifier = "==0.2.28" },
     { name = "ty", specifier = "==0.0.14" },
-    { name = "yamllint" },
+    { name = "yamllint", specifier = ">=1.35" },
 ]
 tests = [
     { name = "infrahub-testcontainers", specifier = ">=1.7.3" },
@@ -923,8 +923,8 @@ tests = [
 ]
 types = [
     { name = "types-python-slugify", specifier = ">=8.0.0.3" },
-    { name = "types-pyyaml" },
-    { name = "types-ujson" },
+    { name = "types-pyyaml", specifier = ">=6.0.12" },
+    { name = "types-ujson", specifier = ">=5.10" },
 ]
 
 [[package]]
