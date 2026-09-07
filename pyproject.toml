@@ -217,9 +217,9 @@ no-matching-overload = "ignore" # 1 violation - `**filters` cannot be matched ag
 
 
 [[tool.ty.overrides]]
-# Both files fall back to `import tomli as tomllib` below Python 3.11. `tomli` is declared as a
-# `python_version<'3.11'` dependency, so it is absent from the environment ty checks with and the
-# import cannot resolve. Retire alongside Python 3.10 support.
+# Both files fall back to `import tomli as tomllib` below Python 3.11. The `tomli` dependency is
+# marked `python_version<'3.11'`, so on a newer interpreter it is absent from site-packages and ty
+# cannot resolve the import. Retire alongside Python 3.10 support.
 include = ["infrahub_sdk/ctl/config.py", "tests/unit/test_packaging_metadata.py"]
 
 [tool.ty.overrides.rules]
