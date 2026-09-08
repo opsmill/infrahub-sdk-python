@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import suppress
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -9,10 +10,11 @@ from typing import TYPE_CHECKING, BinaryIO, cast, overload
 import anyio
 import httpx
 
-from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachableError
+from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachableError, ServerNotResponsiveError
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
+    from .retry import RetryState
 
 _SHA1_CHUNK_BYTES = 64 * 1024
 
@@ -245,6 +247,7 @@ class FileHandler(FileHandlerBase):
 
         Raises:
             ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server timed out or the connection was lost mid-download.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
 
@@ -266,6 +269,10 @@ class FileHandler(FileHandlerBase):
     async def _stream_to_file(self, url: str, dest: Path) -> int:
         """Stream download directly to a file without loading into memory.
 
+        A transfer interrupted by a transient failure (the connection dropped or timed out mid-body) is
+        restarted from the beginning when the client retries on failure, on the same time budget as the
+        stream initiation; ``dest`` is removed after a failed attempt so it never holds a partial body.
+
         Args:
             url: The URL to download from.
             dest: The destination path to write to.
@@ -275,28 +282,46 @@ class FileHandler(FileHandlerBase):
 
         Raises:
             ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server timed out or the connection was lost mid-download.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
 
         """
-        try:
-            async with self._client._get_streaming(url=url) as resp:
-                try:
-                    resp.raise_for_status()
-                except httpx.HTTPStatusError as exc:
-                    # Need to read the response body for error details
-                    await resp.aread()
-                    self.handle_error_response(exc=exc)
+        retry_handler = self._client._retry_handler
+        retry_state = retry_handler.new_state()
+        while True:
+            try:
+                return await self._download_to_file(url=url, dest=dest, retry_state=retry_state)
+            except (ServerNotReachableError, ServerNotResponsiveError) as exc:
+                if retry_handler.should_retry(retry_state):
+                    await retry_handler.asleep_before_retry(state=retry_state, url=url, reason=str(exc))
+                    continue
+                if isinstance(exc, ServerNotReachableError):
+                    self._client.log.error(f"Unable to connect to {self._client.address}")
+                raise
 
-                bytes_written = 0
-                async with await anyio.Path(dest).open("wb") as f:
+    async def _download_to_file(self, url: str, dest: Path, retry_state: RetryState) -> int:
+        """One attempt at streaming ``url`` into ``dest``; the file is removed again if the transfer fails."""
+        async with self._client._get_streaming(url=url, retry_state=retry_state) as resp:
+            try:
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                # Need to read the response body for error details
+                await resp.aread()
+                self.handle_error_response(exc=exc)
+
+            bytes_written = 0
+            f = await anyio.Path(dest).open("wb")  # a dest that cannot be opened is left as it was
+            try:
+                async with f:
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         await f.write(chunk)
                         bytes_written += len(chunk)
-                return bytes_written
-        except ServerNotReachableError:
-            self._client.log.error(f"Unable to connect to {self._client.address}")
-            raise
+            except BaseException:
+                with suppress(OSError):  # the transfer error is the one to raise, not a failed cleanup
+                    await anyio.Path(dest).unlink(missing_ok=True)
+                raise
+            return bytes_written
 
 
 class FileHandlerSync(FileHandlerBase):
@@ -354,6 +379,7 @@ class FileHandlerSync(FileHandlerBase):
 
         Raises:
             ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server timed out or the connection was lost mid-download.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the node/file is not found.
 
@@ -375,6 +401,10 @@ class FileHandlerSync(FileHandlerBase):
     def _stream_to_file(self, url: str, dest: Path) -> int:
         """Stream download directly to a file without loading into memory.
 
+        A transfer interrupted by a transient failure (the connection dropped or timed out mid-body) is
+        restarted from the beginning when the client retries on failure, on the same time budget as the
+        stream initiation; ``dest`` is removed after a failed attempt so it never holds a partial body.
+
         Args:
             url: The URL to download from.
             dest: The destination path to write to.
@@ -384,25 +414,43 @@ class FileHandlerSync(FileHandlerBase):
 
         Raises:
             ServerNotReachableError: If the server is not reachable.
+            ServerNotResponsiveError: If the server timed out or the connection was lost mid-download.
             AuthenticationError: If authentication fails.
             NodeNotFoundError: If the file is not found.
 
         """
-        try:
-            with self._client._get_streaming(url=url) as resp:
-                try:
-                    resp.raise_for_status()
-                except httpx.HTTPStatusError as exc:
-                    # Need to read the response body for error details
-                    resp.read()
-                    self.handle_error_response(exc=exc)
+        retry_handler = self._client._retry_handler
+        retry_state = retry_handler.new_state()
+        while True:
+            try:
+                return self._download_to_file(url=url, dest=dest, retry_state=retry_state)
+            except (ServerNotReachableError, ServerNotResponsiveError) as exc:
+                if retry_handler.should_retry(retry_state):
+                    retry_handler.sleep_before_retry(state=retry_state, url=url, reason=str(exc))
+                    continue
+                if isinstance(exc, ServerNotReachableError):
+                    self._client.log.error(f"Unable to connect to {self._client.address}")
+                raise
 
-                bytes_written = 0
-                with dest.open("wb") as f:
+    def _download_to_file(self, url: str, dest: Path, retry_state: RetryState) -> int:
+        """One attempt at streaming ``url`` into ``dest``; the file is removed again if the transfer fails."""
+        with self._client._get_streaming(url=url, retry_state=retry_state) as resp:
+            try:
+                resp.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                # Need to read the response body for error details
+                resp.read()
+                self.handle_error_response(exc=exc)
+
+            bytes_written = 0
+            f = dest.open("wb")  # a dest that cannot be opened is left as it was
+            try:
+                with f:
                     for chunk in resp.iter_bytes(chunk_size=65536):
                         f.write(chunk)
                         bytes_written += len(chunk)
-                return bytes_written
-        except ServerNotReachableError:
-            self._client.log.error(f"Unable to connect to {self._client.address}")
-            raise
+            except BaseException:
+                with suppress(OSError):  # the transfer error is the one to raise, not a failed cleanup
+                    dest.unlink(missing_ok=True)
+                raise
+            return bytes_written

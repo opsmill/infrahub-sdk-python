@@ -7,6 +7,7 @@ pytest with async auto-mode enabled.
 ```bash
 uv run pytest tests/unit/                    # Unit tests (fast, mocked)
 uv run pytest tests/integration/             # Integration tests (real Infrahub)
+INFRAHUB_TESTING_FAILOVER=1 uv run pytest tests/integration/test_retry_on_failover.py  # Opt-in failover tests, skipped otherwise
 uv run pytest -n 4                           # Parallel execution
 uv run pytest --cov infrahub_sdk             # With coverage
 uv run pytest tests/unit/test_client.py      # Single file
