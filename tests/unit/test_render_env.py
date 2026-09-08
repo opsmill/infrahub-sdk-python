@@ -45,15 +45,20 @@ def test_console_width_survives_any_term(term: str, monkeypatch: pytest.MonkeyPa
     assert console.no_color is True
 
 
-def test_force_color_is_what_would_clamp_the_width(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("force_color", ["1", "3", ""])
+def test_force_color_is_what_would_clamp_the_width(force_color: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Pin the failure mode the hook exists to prevent.
 
     With ``FORCE_COLOR`` set, Rich treats the captured output as a terminal; combined with
     ``TERM=dumb`` that drops it to width 80, which truncates the wide tables the CLI-output
     fixtures record. This is the state a developer's shell puts the suite in, and the reason
     ``FORCE_COLOR`` is removed rather than merely overridden.
+
+    The empty string is the case that makes *removal* the only correct fix: Rich tests
+    ``FORCE_COLOR is not None``, so ``export FORCE_COLOR=`` forces a terminal just as ``1`` does,
+    and overriding the variable with a falsy value would not defuse it.
     """
-    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("FORCE_COLOR", force_color)
     monkeypatch.setenv("TERM", "dumb")
 
     console = Console(file=StringIO())
