@@ -11,6 +11,12 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.23.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.23.2) - 2026-09-08
+
+### Added
+
+- With `retry_on_failure` enabled, the client now retries every transient failure, not only connection errors: dropped or timed-out connections, HTTP `500`/`502`/`503`/`504` responses, and GraphQL errors the server flags with one of those statuses, on every request path. Retries use exponential backoff with jitter (`retry_delay` up to the new `retry_max_delay`), `retry_status_codes` tunes what counts as transient, and `max_retry_duration=0` retries indefinitely.
+
 ## [1.23.1](https://github.com/opsmill/infrahub-sdk-python/tree/v1.23.1) - 2026-08-28
 
 ### Fixed
