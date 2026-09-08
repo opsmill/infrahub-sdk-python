@@ -541,6 +541,50 @@ notes.
 unchanged `identifier`. Rejected — it adds surface for a problem the widening already solves, and
 leaves the file handler's existing string still outside the declared type.
 
+### Promoted attributes on an adopted class are optional, by policy
+
+Neither provenance can populate the full attribute set, and they fail to in *both* directions:
+
+| Attribute | Client-side raises | Catalogue payload |
+|-----------|--------------------|-------------------|
+| `identifier` | a filter mapping from four `store.py` sites and two `client.py` sites; a plain string from `file_handler.py:168` | a single string, declared required |
+| `node_type` | supplied by three of seven raise sites; the four `store.py` sites omit it and fall back to `"unknown"` | `node_kind`, declared required |
+| `branch_name` | supplied by three of seven raise sites | **not in the payload at all** |
+
+So a promoted attribute on an adopted class MUST be optional and documented as "populated when the
+server reported it", even where the catalogue declares the underlying field required. A field can only
+be non-optional on a class that is always constructed from that field, and these three are not.
+
+Whether the SDK can fill a *new* catalogue field client-side depends entirely on the field: were
+`branch_name` added to `NodeNotFoundData`, three raise sites could supply it and the four store lookups
+could not, since a store miss has no branch in scope. Something genuinely server-side — a database
+identifier, a permission context — could not be supplied anywhere. That variability is why the policy
+has to be optional-by-default rather than decided per field.
+
+**Tripwire for revisiting**: an adopted code gaining a field that is both *required* and semantically
+server-only. At that point the unification has a concrete cost rather than a speculative one, and the
+split below becomes the answer.
+
+### Direction of travel: separate the SDK's own errors from the server's
+
+Unification is a deliberate waypoint, not the end state. The maintainer's intent is to eventually give
+the SDK's own failures their own classes, distinct from the ones representing what the server reported,
+which would retire both problems above: `identifier` would stop carrying two meanings, and
+`branch_name` would be coherent on the class that actually has a branch.
+
+That is not done here because it cannot be done without a breaking change. The derived name for
+`NODE_NOT_FOUND` *is* `NodeNotFoundError`, so a split requires renaming the existing class (which
+FR-005 forbids), giving the generated class a non-derived name (which FR-006 forbids), or moving the
+client-side raises to a new class (which breaks every existing `except NodeNotFoundError` around a store
+lookup). All three cost more today than an optional attribute.
+
+The path that does work is the constitution's deprecation path, in this order: ship the new
+client-side classes as subclasses of the existing ones, so every current `except` clause keeps
+catching them; move the SDK's own raise sites to the new classes; emit a `DeprecationWarning` from the
+old names naming the replacements; keep them working for at least one minor release; and drop them in a
+major. That sequence is a separate change with its own release note, and it is the reason this one
+accepts the dual meaning rather than designing around it.
+
 ## R10 — The typed silent-refresh decision
 
 **Decision**: `handle_relogin` and `handle_relogin_sync` decide via a shared helper that reads
