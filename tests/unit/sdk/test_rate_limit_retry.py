@@ -7,9 +7,11 @@ multipart, streaming init), and the multipart body re-read regression.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -82,8 +84,8 @@ def _patch_driver_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     def fake_sync_sleep(delay: float) -> None:
         recorded.append(delay)
 
-    monkeypatch.setattr(client_module.asyncio, "sleep", fake_async_sleep)
-    monkeypatch.setattr(client_module.time, "sleep", fake_sync_sleep)
+    monkeypatch.setattr(asyncio, "sleep", fake_async_sleep)
+    monkeypatch.setattr(time, "sleep", fake_sync_sleep)
     return recorded
 
 

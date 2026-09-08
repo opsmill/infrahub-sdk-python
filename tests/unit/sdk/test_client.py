@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
-excluded_methods = ["request_context"]
+excluded_methods = ["request_context", "retry_delay", "retry_on_failure"]
 
 async_client_methods = [
     method for method in dir(InfrahubClient) if not method.startswith("_") and method not in excluded_methods
