@@ -260,40 +260,84 @@ hand-written unified classes subclass them. Rejected — the resolution map woul
 generated base, so the factory would raise the generated class and never the unified one that
 consumers catch.
 
-## R5 — Parent class derivation
+## R5 — Which codes get their own class
 
-**Decision**: every generated class descends from `GraphQLError`. Classes for codes declaring 401 or
-403 *additionally* descend from `AuthenticationError`: `class PermissionDeniedError(GraphQLError,
-AuthenticationError)`. Derived from the catalogue entry at generation time, with no per-code table
-(FR-008).
+**Decision**: the code's declared HTTP status decides whether a code gets a class at all, not which
+parent it takes. A code declaring 401 or 403 gets **no class**; every other code gets one, descending
+from `GraphQLError` alone. No class in the design has more than one parent.
 
-Today that yields `AuthenticationRequiredError`, `TokenExpiredError`, and `PermissionDeniedError`
-with both parents, and the remaining twelve with `GraphQLError` alone.
+Today that yields twelve generated classes under `GraphQLError`, and `AUTHENTICATION_REQUIRED`,
+`TOKEN_EXPIRED`, and `PERMISSION_DENIED` carrying their identity in `exc.code` on whichever generic
+class their transport already produces.
 
-**Rationale**: the first design here made the two parents alternatives, which was wrong, and the
-survey proves it rather than suspects it. `backend/infrahub/graphql/app.py:298-300` returns
-`status_code=200` for every executed query, and `graphql/error_formatter.py` maps resolver-raised
-failures onto catalogue codes inside that response's `errors` array — including `PERMISSION_DENIED`,
-`AUTHENTICATION_REQUIRED`, and `TOKEN_EXPIRED`. Only failures that escape *before* execution get a
-real 401/403, which `api/exception_handlers.py:52-55` states outright. So a permission failure can
-arrive on the data path, in a response `except GraphQLError` catches today. A single authentication
-parent would silently remove that coverage and violate FR-018.
+```text
+Error
+└── ApiError
+    ├── GraphQLError            # + code="PERMISSION_DENIED" on an HTTP 200
+    │   ├── NodeNotFoundError, BranchNotFoundError, SchemaNotFoundError   (adopted)
+    │   └── <nine more generated>
+    └── AuthenticationError     # + code="TOKEN_EXPIRED" on a real 401
+```
 
-The diamond closes on `ApiError`, so the MRO is
-`PermissionDeniedError → GraphQLError → AuthenticationError → ApiError → Error`, and `__init__`
-resolves to `GraphQLError`'s — correct, because these classes only ever arise on the GraphQL
-transport. A REST authentication failure raises plain `AuthenticationError` and never a generated
-subclass, since REST carries no catalogue codes (FR-015).
+**The problem this solves.** The three authentication codes are the only ones that reach the SDK on two
+different transports, and the transport determines which existing `except` clause has to keep working.
+`backend/infrahub/graphql/app.py:298-300` returns `status_code=200` for every executed query, and
+`graphql/error_formatter.py` maps resolver-raised failures onto catalogue codes inside that response's
+`errors` array — including all three authentication codes. Only failures escaping *before* execution
+get a real 401/403, which `api/exception_handlers.py:52-55` states outright. So:
 
-**Consequence for the CLI**: its ladder tests `AuthenticationError` before `GraphQLError`, so a
-resolver-raised `PERMISSION_DENIED` will render as "Authentication failure: …" where today it renders
-through `print_graphql_errors`. That is a deliberate, user-visible change; it is pinned by a test, and
-flagged as an open question in the plan rather than assumed to be wanted.
+| Arrival | Raised today | Must keep being caught by |
+|---------|--------------|---------------------------|
+| Real 401/403 on `/graphql` | `AuthenticationError` | `except AuthenticationError` |
+| Inside a 200 `errors` array | `GraphQLError` | `except GraphQLError` |
 
-**Note on `http_status`**: the class attribute is the catalogue's declared value, which is what US1
-acceptance scenario 3 asserts. The wire value can differ — `api/exception_handlers.py:26-27` replaces
-a declared 500 with the real HTTP status when it has a more accurate one — and stays available as
-`exc.extensions["http_status"]`. Documented, so the divergence does not read as a bug.
+One class per code can satisfy both only by inheriting from both branches. Not generating a class lets
+the transport rule already in FR-012 pick the right generic class, and `exc.code` carries the
+distinction.
+
+**Why not the diamond.** An earlier version of this decision generated
+`class PermissionDeniedError(GraphQLError, AuthenticationError)`. It worked — verified: sibling bases,
+the expected linearisation, both `isinstance` checks passing — but it cost more than it bought:
+
+- Multiple inheritance in a public exception hierarchy, which the first maintainer to read it misread
+  as `GraphQLError` descending from `AuthenticationError`.
+- Two constructor footguns, both found in review rather than by design. Method resolution handed those
+  classes `GraphQLError.__init__`, whose first positional parameter is `errors`, so constructing one
+  positionally with a message corrupted the error list. And `GraphQLError.__init__`'s cooperative
+  `super().__init__` reached `AuthenticationError.__init__` rather than `Error.__init__`, where its
+  default message escaped substitution only because `GraphQLError` always computes a non-empty message
+  first.
+- Two shapes in the generator instead of one.
+
+All of that to distinguish three codes whose payloads are empty (`AuthenticationRequiredData`) or
+entirely nullable and usually unset (`TokenExpiredData.expired_at`, `PermissionDeniedData.action` and
+`.resource_kind`). The structural cost is permanent and paid by every consumer; the benefit is a typed
+attribute nobody can populate yet.
+
+**What this costs.** The three authentication codes have no typed payload attributes. If the catalogue
+later gives one of them substantive fields, they are reachable only through `exc.extensions["data"]`
+until the decision is revisited — at which point the trade has a concrete benefit to weigh rather than
+a speculative one. US3's acceptance scenarios were amended to match, since they had specified distinct
+types before the HTTP 200 behaviour was verified.
+
+**Rejected alternatives**:
+
+- *Classes under `AuthenticationError` only.* Single inheritance, all 15 codes typed, but
+  `except GraphQLError` stops catching a 200-response permission failure — an FR-018 violation for
+  exactly the codes FR-008 is about.
+- *Classes under `GraphQLError` only.* Breaks `except AuthenticationError` around a GraphQL call, which
+  is where consumers put their re-login handling. Worse than the above.
+- *Registering the generated classes as virtual subclasses of `AuthenticationError` via `ABCMeta`.*
+  Does not work: CPython matches `except` clauses with real subtype checks and ignores
+  `__subclasshook__`.
+- *All 15 codes as direct children of `ApiError`, retiring the branch split.* The cleanest tree, and it
+  serves `except ApiError` well, but it breaks every existing `except GraphQLError` for the common data
+  failures. Too large a compatibility break for an SDK.
+
+**Note on `http_status`**: a generated class's `http_status` class attribute is the catalogue's declared
+value, which is what US1 acceptance scenario 3 asserts. The wire value can differ —
+`api/exception_handlers.py:26-27` replaces a declared 500 with the real HTTP status when it has a more
+accurate one — and stays available as `exc.extensions["http_status"]`.
 
 ## R6 — How a consumer reads the payload
 
@@ -404,21 +448,20 @@ must retain it too and FR-015 freezes `AuthenticationError`'s constructor.
 
 **The fallback follows the transport, never the code's declared status.** For an unrecognised code the
 SDK has no binding and therefore cannot know the declared status at all; for a recognised one the
-declared status describes the failure, not the transport. So the case that bites is a *recognised*
-401/403 code whose payload fails to validate inside an HTTP 200 body: routing by declared status would
-send it to the authentication branch, where an existing `except GraphQLError` would stop catching it.
+declared status describes the failure, not the transport. Routing by declared status would send a
+401/403 code arriving inside an HTTP 200 body to the authentication branch, where an existing
+`except GraphQLError` would stop catching it.
 
-R5's dual base does not rescue that case, and it is worth being precise about why: the dual base shapes
-the per-code classes, and the class a fallback raises is the *generic* one, which has a single parent.
-Only the transport rule preserves the coverage here.
+Under R5 this rule carries more weight than it first appears: the three authentication codes have no
+class of their own, so *every* one of them takes this path. The transport rule is not an edge-case
+fallback for them, it is the mechanism by which they reach the right class at all.
 
 **Construct with keyword arguments, always.** A generated class's `__init__` takes its promoted fields
-first and forwards the envelope to `super().__init__`, and for the auth-branch classes the MRO resolves
-that to `GraphQLError.__init__`, whose *first positional parameter* is `errors`. Anything constructing
-one of these positionally — the shape the eleven existing `AuthenticationError` raise sites use today,
-`TokenExpiredError(" | ".join(messages))` — assigns a message string into a field expecting a list of
-error dicts, reproducing by construction the exact corruption `analyzer.py` already has. The factories
-construct with keywords only, and a test asserts `exc.errors` is a sequence of dicts on the auth path.
+first and forwards the envelope to `super().__init__`, which resolves to `GraphQLError.__init__` —
+whose *first positional parameter* is `errors`. Anything constructing one positionally with a message
+assigns a string into a field expecting a list of error dicts, reproducing the corruption
+`analyzer.py` already has. The factories construct with keywords only, and a test asserts `exc.errors`
+is a sequence of dicts on both paths.
 
 **The auth factory must tolerate a non-JSON body.** Two of the sites it replaces call
 `exc.response.json()` directly rather than `decode_json`, so a 401 carrying an HTML error page from a
@@ -586,7 +629,7 @@ requirement that unit tests stay fast:
 |-------|-------|
 | Factory | Exhaustive: every catalogue code, its raised class, and every promoted attribute's value. All cross-version cases — unknown code, unknown payload field, absent `extensions`, pre-catalogue integer `code`, invalid payload falling back to the generic class — plus the malformed-envelope totality cases. |
 | Client | Representative parity set covering both branches, both transports, and the file-upload variant, parametrized over `["standard", "sync"]` via the `BothClients` fixture. |
-| Hierarchy | The dual base for auth codes; `NodeInvalidError` inheriting the re-rooting; attribute access on a client-side raise; the ladder's behaviour. |
+| Hierarchy | Each authentication code reaching the class its transport dictates while `exc.code` identifies it; `NodeInvalidError` inheriting the re-rooting; attribute access on a client-side raise; the ladder's behaviour. Also that no class in the package has more than one parent, asserted directly, so the diamond cannot creep back. |
 | Public surface | Every name importable from `infrahub_sdk.exceptions` before the change is still importable from it, pinned against a committed snapshot list. |
 | Broadenings | Both accepted behaviour changes asserted directly: `except GraphQLError` catches a client-side `NodeNotFoundError`; a catalogued message differs from the generic one while an uncatalogued message stays byte-identical. |
 | Integration | A small number of real catalogued failures driven against a live server via testcontainers, on both clients. |
@@ -640,13 +683,13 @@ number. Naming the fragments as work makes FR-016 verifiable instead of aspirati
 
 **Decision**: hand-write one generated-shape class and run both `mypy` and `ty` over it before the
 template is finalised. The shape to check: promoted attributes assigned in `__init__`, a `from_payload`
-classmethod returning `Self`, `**envelope` forwarded to `super().__init__`, and the dual base from R5.
+classmethod returning `Self`, and `**envelope` forwarded to `super().__init__`.
 
-**Rationale**: promotion removed the variance problem that made this a real risk, so what remains is
-routine — but the constitution requires both checkers clean, `ty` is newer, and the dual base plus a
-`Self`-returning classmethod is the least ordinary construct in the design. Finding a disagreement in
-one hand-written class costs minutes; finding it across 15 generated ones costs a regeneration cycle in
-another repository.
+The risk here dropped twice over. Promotion (R6) removed the variance problem that made it real, and
+dropping the diamond (R5) removed the least ordinary construct in the shape — a single-parent class
+with typed attributes and a `Self`-returning classmethod is unremarkable. What is left is a
+confirmation, not a decision input, but the constitution requires both checkers clean and finding a
+disagreement in one hand-written class still costs minutes rather than a regeneration cycle.
 
 Note that no suppression is anticipated anywhere in this design. If the spike shows one is needed, that
 is a signal the shape is wrong rather than a licence to add it.

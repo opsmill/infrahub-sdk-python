@@ -63,8 +63,10 @@ uv run pytest tests/unit/sdk/test_exceptions.py tests/unit/sdk/test_exceptions_p
 uv run pytest tests/unit/ -q
 ```
 
-Expected: `TokenExpiredError` is caught by `except AuthenticationError` **and** by
-`except GraphQLError`; `NodeInvalidError` is an instance of `GraphQLError`; `ApiError` catches both a
+Expected: a real 401 carrying `TOKEN_EXPIRED` is caught by `except AuthenticationError` with
+`exc.code == "TOKEN_EXPIRED"`, and a `PERMISSION_DENIED` inside an HTTP 200 is caught by
+`except GraphQLError` with `exc.code == "PERMISSION_DENIED"`; no class in the package has more than one
+parent; `NodeInvalidError` is an instance of `GraphQLError`; `ApiError` catches both a
 GraphQL and an authentication failure; every name importable from `infrahub_sdk.exceptions` before the
 change is still importable from it; reading `exc.errors`, `exc.query`, and `exc.variables` off a purely
 client-side `NodeNotFoundError` returns empty/`None` rather than raising `AttributeError`; driving

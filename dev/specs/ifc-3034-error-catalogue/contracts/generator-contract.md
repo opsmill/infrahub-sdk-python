@@ -24,12 +24,15 @@ package façade re-export it without a hand-maintained list.
 
 The body holds three things:
 
-- One pydantic payload model per catalogue code, including codes with an empty payload and including
-  adopted codes. These validate the envelope and supply the promoted attributes' types.
-- One exception class per catalogue code the SDK has not adopted, each promoting its payload's fields
-  to directly typed attributes and exposing a `from_payload` classmethod.
-- `CODE_TO_EXCEPTION`, mapping every catalogue code to its class — generated classes for most,
-  imported adopted classes for the rest.
+- One pydantic payload model per catalogue code, including codes with an empty payload, adopted codes,
+  and the 401/403 codes that get no class. These validate the envelope and supply the promoted
+  attributes' types.
+- One exception class per catalogue code that is neither adopted by the SDK nor declares 401/403, each
+  promoting its payload's fields to directly typed attributes and exposing a `from_payload`
+  classmethod, and each with exactly one parent.
+- `CODE_TO_EXCEPTION`, mapping every code that has a class to it — generated classes for most,
+  imported adopted classes for the rest. The 401/403 codes are deliberately absent, so the factory's
+  lookup misses and the transport rule raises the generic class carrying the code.
 
 It imports only `infrahub_sdk.exceptions.base`, which imports nothing from inside the package. That
 keeps the package's import graph one-way with no cycle: `base` → `catalogue` → `factory` → the façade.
@@ -45,7 +48,8 @@ entry:
 |--------|--------------|
 | Exception class name | The code's parts capitalised and joined, with `Error` appended only if it does not already end in `Error`. `UNDEFINED_ERROR` → `UndefinedError`. |
 | Payload model name | `data_schema.title`, verbatim. |
-| Base classes | `GraphQLError` always; `http_status in {401, 403}` additionally adds `AuthenticationError`, emitted as `(GraphQLError, AuthenticationError)`. |
+| Whether a class is emitted | `http_status in {401, 403}` → no class, payload model only. Every other code → a class. |
+| Base class | `GraphQLError`, always exactly one parent. |
 | `http_status` class attribute | The catalogue's declared `http_status`. |
 | Docstring | The catalogue's `description` and `stability`. |
 | Promoted attribute names | The payload field names, verbatim. |
