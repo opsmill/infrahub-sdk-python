@@ -15,8 +15,10 @@ The approach has four parts:
    raw `extensions`, and the server error list; `GraphQLError` and `AuthenticationError` both descend
    from it. The envelope is read by one raise-time factory shared by every existing raise site, so the
    code is readable against any server version even with no generated bindings at all. Because the
-   catalogue is GraphQL-only, every generated class descends from `GraphQLError`, and the 401/403 codes
-   descend from `AuthenticationError` as well.
+   catalogue is GraphQL-only, every generated class descends from `GraphQLError` and from nothing else.
+   The three 401/403 codes get no class: they are the only codes that arrive on two transports, so each
+   is raised as the generic class its transport already produces and identified by `exc.code`. The
+   hierarchy stays a tree.
 
    The payload is **not** an attribute. Each catalogued class promotes its payload's fields to directly
    typed attributes — `exc.node_kind`, `exc.fields` — typed exactly as the catalogue declares them.
@@ -139,7 +141,7 @@ tests/
 │   └── error_catalogue/            # Response-envelope fixtures per code and per cross-version case
 └── unit/
     ├── sdk/
-    │   ├── test_exceptions.py               # Hierarchy, dual base, naming, adoption, messages
+    │   ├── test_exceptions.py               # Hierarchy, single parents, naming, adoption, messages
     │   ├── test_exceptions_layering.py      # Asserts the import graph stays one-way
     │   ├── test_exceptions_public_names.py  # No name importable from the package may disappear
     │   ├── test_error_catalogue.py          # Factory: resolution, precedence, fallbacks, totality

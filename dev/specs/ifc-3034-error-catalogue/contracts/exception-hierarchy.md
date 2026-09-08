@@ -14,36 +14,40 @@ than asserted.
 | Intent | Clause |
 |--------|--------|
 | Anything the server rejected, on either transport | `except ApiError` |
-| Any GraphQL-path failure, including catalogued permission and token failures | `except GraphQLError` |
+| Any GraphQL-path failure | `except GraphQLError` |
 | Any authentication or permission failure, either transport | `except AuthenticationError` |
 | One specific catalogued failure | `except UniquenessViolationError` (and so on per code) |
+| One of the three authentication codes | `except AuthenticationError` then test `exc.code` |
 | Anything the SDK raises | `except Error` |
 
-The catalogued 401/403 classes deliberately satisfy both `except GraphQLError` and
-`except AuthenticationError`, because they reach the SDK on the GraphQL transport two different ways:
+The hierarchy is a plain tree: `GraphQLError` and `AuthenticationError` are siblings under `ApiError`,
+and no class has more than one parent.
 
-- **Inside a 200 response's `errors` array**, when the failure was raised from within a resolver.
-  `except GraphQLError` catches such a response today; the dual base is what keeps that true while also
-  making `except AuthenticationError` catch it.
-- **As a real 401 or 403**, when the failure escapes before query execution.
-  `except AuthenticationError` catches this today. `except GraphQLError` does not, because the SDK
-  raises before reading the body — under this change it will, since the authentication path now resolves
-  the catalogue code and raises the specific class. That is a broadening, listed below.
+**The three authentication codes are the one asymmetry.** `AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`,
+and `PERMISSION_DENIED` have no class of their own, because they are the only codes that reach the SDK
+on two different transports, and each transport already has a class an existing clause depends on:
 
-Every clause that worked before the change still catches what it caught before (FR-018). Three
+| Arrival | Class raised | `exc.code` |
+|---------|--------------|------------|
+| A real 401 or 403, when the failure escapes before query execution | `AuthenticationError`, as today | the catalogue code |
+| Inside an HTTP 200 `errors` array, when a resolver raised it | `GraphQLError`, as today | the catalogue code |
+
+So distinguish them by code, not by type:
+
+```python
+except AuthenticationError as exc:
+    if exc.code == "TOKEN_EXPIRED":
+        ...
+```
+
+Every clause that worked before the change still catches what it caught before (FR-018). Two
 broadenings are deliberate:
 
 - `except GraphQLError` now also catches node, branch, and schema lookup misses that involved no
   GraphQL request at all — both the client-side ones and the REST 404 the file handler turns into a
   `NodeNotFoundError` — because those classes are re-rooted under it.
-- `except GraphQLError` now also catches a real 401 or 403 **whenever the SDK raises a per-code class
-  for it**, where it previously raised a plain `AuthenticationError`. Only those classes carry both
-  parents, so the condition is exactly the condition for reaching one: the code is recognised by this
-  SDK's bindings *and* its payload validates. If either fails, the fallback raises the generic
-  `AuthenticationError` for the observed transport, which is not a `GraphQLError` — unchanged from
-  today.
-- Code that catches the generic error to inspect its message will now sometimes receive a subclass
-  whose message names the code instead of embedding the query.
+- Code that catches a generic error to inspect its message will now sometimes receive a subclass whose
+  message names the code, or the same class carrying a catalogued message instead of the query text.
 
 ## Reading a caught error
 

@@ -29,14 +29,13 @@ Error                                   (existing root, unchanged)
 │   └── AuthenticationError              re-rooted under ApiError, name and constructor unchanged
 └── … every other existing exception, untouched
 
-# The 401/403 codes take both branches, since they arrive on the GraphQL transport
-# either as a real 401/403 or inside a 200 response's errors array:
+# GraphQLError and AuthenticationError are siblings; neither inherits from the other,
+# and no class in the package has more than one parent.
 #
-#   AuthenticationRequiredError(GraphQLError, AuthenticationError)
-#   TokenExpiredError(GraphQLError, AuthenticationError)
-#   PermissionDeniedError(GraphQLError, AuthenticationError)
-#
-# MRO: <class> → GraphQLError → AuthenticationError → ApiError → Error → Exception
+# The three 401/403 codes get no class of their own. They arrive on whichever generic
+# class their transport produces — AuthenticationError for a real 401/403, GraphQLError
+# for a resolver-raised failure inside a 200 response — and carry their identity in
+# `code`: "AUTHENTICATION_REQUIRED", "TOKEN_EXPIRED", "PERMISSION_DENIED".
 ```
 
 ## ApiError
@@ -74,9 +73,15 @@ default.
 
 ## AuthenticationError
 
-Name, constructor, and default message unchanged (FR-015). It remains the class raised for REST
-authentication failures, where `code` is `None`. It gains the three generated subclasses and the
-inherited `ApiError` attributes.
+Name, constructor, and default message unchanged (FR-015). It gains no subclasses and inherits the
+`ApiError` attributes. It remains the class raised for every failure the SDK observed as HTTP 401 or
+403, with `code` set per-instance by the factory: `None` on the REST path, which carries no catalogue
+code, and the catalogue code on the GraphQL path — `"TOKEN_EXPIRED"`, `"AUTHENTICATION_REQUIRED"`, or
+`"PERMISSION_DENIED"`.
+
+`GraphQLError` likewise carries a `code` when a resolver-raised authentication or permission failure
+arrives inside an HTTP 200 response. So both generic classes can be catalogued or uncatalogued, and
+`exc.code` is the only thing that distinguishes those cases.
 
 ## Adopted classes
 
@@ -109,9 +114,9 @@ Generated into `catalogue.py`, one per catalogue code that is not adopted. Each 
 | `from_payload` | Classmethod taking a validated payload plus the envelope, returning the constructed exception. The factory's only construction path. |
 | docstring | The catalogue's `description`, plus its stability level. |
 
-Base classes are derived from the status: every class descends from `GraphQLError`, and a 401/403 code
-additionally descends from `AuthenticationError` (FR-008). Twelve single-parent classes and three
-dual-parent classes today.
+The declared status decides whether a code gets a class at all, not which parent it takes: a 401/403
+code gets none, and everything else descends from `GraphQLError` (FR-008). Twelve generated classes
+today, each with exactly one parent.
 
 ## Generated payload models
 

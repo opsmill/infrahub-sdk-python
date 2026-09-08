@@ -100,14 +100,23 @@ clause in the SDK and CLI still catches what it caught before.
 
 **Acceptance Scenarios**:
 
-1. **Given** a GraphQL request with an expired token, **When** it fails, **Then** `TokenExpiredError`
-   is raised and is caught by an existing `except AuthenticationError` clause.
-2. **Given** a GraphQL request the user is not permitted to make, **When** it fails, **Then**
-   `PermissionDeniedError` is raised, distinguishable from a missing-credentials failure.
+1. **Given** a GraphQL request with an expired token returning a real 401, **When** it fails, **Then**
+   `AuthenticationError` is raised as it is today and caught by an existing
+   `except AuthenticationError` clause, carrying `exc.code == "TOKEN_EXPIRED"`.
+2. **Given** a GraphQL request the user is not permitted to make, **When** it fails, **Then** the
+   failure is distinguishable from a missing-credentials one by `exc.code`, which reads
+   `"PERMISSION_DENIED"` rather than `"AUTHENTICATION_REQUIRED"`.
 3. **Given** a REST request that fails authentication, **When** it fails, **Then**
    `AuthenticationError` is raised as it is today, with `exc.code` as `None`.
 4. **Given** a developer who wants to catch anything the server rejected regardless of transport,
    **When** they catch `ApiError`, **Then** both GraphQL and auth failures are caught.
+5. **Given** a permission failure returned inside an HTTP 200 response, **When** it fails, **Then**
+   `GraphQLError` is raised as it is today, carrying `exc.code == "PERMISSION_DENIED"`, so an existing
+   `except GraphQLError` clause keeps catching it.
+
+**Note on the three authentication codes**: they are distinguished by `exc.code` rather than by
+distinct exception types. See FR-008 — a single class per code cannot satisfy both scenario 1 and
+scenario 5 without multiple inheritance, and the code carries the distinction at no structural cost.
 
 ---
 
@@ -262,12 +271,13 @@ These are specific hazards found while surveying the current code, not hypotheti
 
 #### Generated bindings
 
-- **FR-005**: Every catalogue code MUST have one exception class, rooted at the SDK's base `Error`
-  class, and one typed payload model. Both MUST be importable from `infrahub_sdk.exceptions`, but the
-  payload model is the parsing mechanism rather than the access path: each of its fields MUST be
-  reachable as a directly typed attribute on the exception itself, typed as the catalogue declares it.
-  Every name importable from `infrahub_sdk.exceptions` before this change MUST remain importable from
-  it afterwards, and that MUST be pinned by a test rather than asserted, since the module is being
+- **FR-005**: Every catalogue code MUST have one typed payload model, and every code except the
+  401/403 ones (see FR-008) MUST also have one exception class rooted at the SDK's base `Error` class.
+  Both MUST be importable from `infrahub_sdk.exceptions`, but the payload model is the parsing
+  mechanism rather than the access path: where a code has a class, each payload field MUST be reachable
+  as a directly typed attribute on the exception itself, typed as the catalogue declares it. Every name
+  importable from `infrahub_sdk.exceptions` before this change MUST remain importable from it
+  afterwards, and that MUST be pinned by a test rather than asserted, since the module is being
   restructured.
 - **FR-006**: Exception class names MUST derive from the code deterministically, without producing a
   doubled `Error` suffix for codes that already end in `_ERROR`. A derived name that collides with an
@@ -281,15 +291,24 @@ These are specific hazards found while surveying the current code, not hypotheti
   another one.
 - **FR-007**: Payload model names MUST come from the catalogue's declared payload title, so SDK and
   frontend bindings agree on naming.
-- **FR-008**: Parent classes MUST be derived from the code's declared HTTP status, with no
-  hand-maintained per-code mapping. Every catalogued code descends from the GraphQL branch, because
-  the catalogue is GraphQL-only and any code can reach the SDK inside a GraphQL response. Codes
-  declaring 401 or 403 MUST *additionally* descend from the authentication branch.
+- **FR-008**: The code's declared HTTP status MUST determine *whether a code gets its own exception
+  class*, with no hand-maintained per-code mapping. A code declaring 401 or 403 MUST NOT get a class;
+  every other code MUST get one, descending from the GraphQL branch. Where a code has no class, the
+  generic class for the observed transport is raised and carries the code (FR-012), so the failure is
+  still identifiable without reading a message.
 
-  Rationale: the two are not alternatives. A permission failure raised inside a resolver comes back
-  as an HTTP 200 GraphQL response carrying `PERMISSION_DENIED` in its `errors` array, which is a
-  response `except GraphQLError` catches today. Making the authentication branch the sole parent
-  would silently remove that coverage, violating FR-018.
+  Rationale: the three authentication codes can arrive on two different transports, and the transport
+  determines which existing `except` clause has to keep working. A real 401 must stay catchable by
+  `except AuthenticationError`; a permission failure raised inside a resolver comes back as an HTTP 200
+  GraphQL response and must stay catchable by `except GraphQLError`. One class per code cannot satisfy
+  both without inheriting from both branches, and a diamond in a public exception hierarchy is a
+  permanent structural cost paid by every consumer to distinguish three codes that `exc.code` already
+  distinguishes. The asymmetry is deliberate: 12 codes carry typed payload attributes, and 3 carry
+  their identity in `exc.code`, whose payloads today are empty or entirely nullable.
+
+  Consequence to accept: if the catalogue later gives an authentication code substantive payload
+  fields, they will be reachable only through `exc.extensions["data"]` until this decision is
+  revisited.
 - **FR-009**: The generated artefact MUST carry the same "generated, do not edit" marking as the
   repository's other generated files, and MUST record the catalogue version it was generated from.
 - **FR-010**: The SDK MUST NOT contain a copy of the catalogue schema. The generated bindings are the
@@ -403,8 +422,9 @@ These are specific hazards found while surveying the current code, not hypotheti
   envelope on GraphQL, and the legacy integer-code envelope on REST.
 - **Payload model**: The typed `data` for one code, tolerant of fields it does not recognise. Used to
   validate the envelope and populate the exception's attributes; not the way a consumer reads them.
-- **Exception hierarchy**: Rooted at the SDK's `Error`; below it a base for server-reported errors,
-  splitting into the authentication branch and the GraphQL branch, with one generated class per code.
+- **Exception hierarchy**: A tree rooted at the SDK's `Error`; below it a base for server-reported
+  errors, splitting into the authentication branch and the GraphQL branch, with one generated class per
+  non-401/403 code under the GraphQL branch. No class has more than one parent.
 - **Generated bindings module**: The single artefact crossing from Infrahub into the SDK, holding the
   payload models, the per-code classes with their promoted attributes, and the code-to-class
   resolution used at raise time.
@@ -413,9 +433,9 @@ These are specific hazards found while surveying the current code, not hypotheti
 
 ### Measurable Outcomes
 
-- **SC-001**: Every code in the catalogue is reachable as its own exception type, with the catalogue's
-  payload fields readable as typed attributes on it; a developer can handle any catalogued failure
-  without reading a message.
+- **SC-001**: Every code in the catalogue is identifiable without reading a message — the non-401/403
+  codes as their own exception type with the catalogue's payload fields readable as typed attributes,
+  and the 401/403 codes through `exc.code` on the class their transport already produced.
 - **SC-002**: No message-string matching remains in the SDK for any failure the catalogue covers.
 - **SC-003**: The existing test suite passes with no `except` clause losing coverage it had before;
   every deliberate behaviour change is pinned by a test that asserts the new behaviour.
@@ -449,14 +469,16 @@ These are specific hazards found while surveying the current code, not hypotheti
   not an import path for consumers. This is a stronger promise than the constitution's tiering
   strictly requires, and it is made deliberately, because `infrahubctl`, the Ansible collection, and
   external consumers already import from it directly.
-- **Three broadenings are accepted deliberately**: `except GraphQLError` will additionally catch node,
+- **Two broadenings are accepted deliberately**: `except GraphQLError` will additionally catch node,
   branch, and schema lookup misses that never involved a GraphQL request at all — both the client-side
-  ones and the REST 404 the file handler turns into a `NodeNotFoundError`; it will also catch a real
-  401 or 403 whenever the SDK raises a per-code class for it, since only those classes carry both
-  parents — that is, when the code is recognised and its payload validates, with anything else falling
-  back to `AuthenticationError` exactly as today; and code that catches the generic error to inspect its
-  message will now sometimes receive a subclass with a different message. All three follow from
-  answered decisions rather than oversight.
+  ones and the REST 404 the file handler turns into a `NodeNotFoundError`; and code that catches the
+  generic error to inspect its message will now sometimes receive a subclass with a different message,
+  or the same class carrying a catalogued message. Both follow from answered decisions rather than
+  oversight.
+
+  Nothing changes about which class a 401 or 403 produces: it remains `AuthenticationError`, and a
+  permission failure inside an HTTP 200 response remains a `GraphQLError`. That is what FR-008's
+  no-class rule for the authentication codes preserves.
 - **The repository-import failure handling in the git integrator (GitHub #7498) is out of scope**, as
   is any change to what the server emits.
 - **Both repositories are in scope for this document.** Requirements FR-025 to FR-027 land in the
