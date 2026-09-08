@@ -385,7 +385,9 @@ async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicM
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+    with mock.patch(
+        "infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000, no_color=True, force_terminal=False)
+    ) as console:
         display_schema_load_errors(response=error, schemas_data=[])
         mock_get_node.assert_called_once()
         output = console.file.getvalue()
@@ -418,7 +420,9 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node: Magic
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+    with mock.patch(
+        "infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000, no_color=True, force_terminal=False)
+    ) as console:
         display_schema_load_errors(response=error, schemas_data=[])
         mock_get_node.assert_called_once()
         output = console.file.getvalue()
@@ -479,7 +483,9 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
+    with mock.patch(
+        "infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000, no_color=True, force_terminal=False)
+    ) as console:
         display_schema_load_errors(response=error, schemas_data=[])
         assert mock_get_node.call_count == 2
         output = console.file.getvalue()
