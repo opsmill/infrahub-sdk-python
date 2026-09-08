@@ -369,6 +369,11 @@ These are specific hazards found while surveying the current code, not hypotheti
   - Any attribute whose type widens as a result MUST be documented as such, and the widening MUST be
     called out in the change's release notes, since external consumers read these attributes even
     though nothing in this repository does.
+  - Every attribute carrying a payload field on a unified class MUST be optional, even where the
+    catalogue declares that field required, and MUST be documented as populated only when the server
+    reported the error. Neither provenance can populate the full attribute set: the catalogue supplies
+    no `branch_name`, and four of the seven client-side raise sites supply no node kind. A field can
+    only be non-optional on a class that is always constructed from it.
 - **FR-017**: `BranchNotFoundError` and `SchemaNotFoundError` MUST be reconciled the same way as
   `NodeNotFoundError`.
 - **FR-018**: Every existing `except` clause and `isinstance` check in the SDK and CLI MUST still
@@ -462,6 +467,11 @@ These are specific hazards found while surveying the current code, not hypotheti
   today either; those come from Infrahub's generation task writing into the submodule. Error bindings
   follow that established pattern rather than introducing a second mechanism, which also removes any
   need to keep a vendored catalogue copy in sync.
+- **Unification is a waypoint, not the end state.** Giving the SDK's own failures their own classes,
+  distinct from the ones representing what the server reported, is the intended direction — it would
+  retire `identifier`'s dual meaning and make `branch_name` coherent. It is out of scope here because it
+  cannot be done without a breaking change, and it belongs on the constitution's deprecation path
+  rather than inside this change. See research R9 for the sequence.
 - **`infrahub_sdk.exceptions` is the supported import path, and it is treated as public.** A consumer
   should never need to know which module inside it defines a given exception: every exception the SDK
   raises — hand-written or generated — is importable from `infrahub_sdk.exceptions`, and no name
