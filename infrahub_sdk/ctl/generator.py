@@ -44,11 +44,6 @@ async def run(
 
     variables_dict = parse_cli_vars(variables)
 
-    param_key = list(generator_config.parameters.keys())
-    identifier = None
-    if param_key:
-        identifier = param_key[0]
-
     client = initialize_client(branch=branch)
     if variables_dict:
         data = execute_graphql_query(
@@ -84,11 +79,7 @@ async def run(
             return
 
         for member in targets._get_relationship_many(name="members").peers:
-            check_parameter = {}
-            if identifier:
-                attribute = getattr(member.peer, identifier)
-                check_parameter = {identifier: attribute.value}
-            params = {"name": member.peer._get_attribute(name="name").value}
+            params = await member.peer.extract(params=generator_config.parameters)
             generator = generator_class(
                 query=generator_config.query,
                 client=client,
@@ -101,7 +92,7 @@ async def run(
             )
             data = execute_graphql_query(
                 query=generator_config.query,
-                variables_dict=check_parameter,
+                variables_dict=params,
                 branch=branch,
                 debug=False,
                 repository_config=repository_config,
