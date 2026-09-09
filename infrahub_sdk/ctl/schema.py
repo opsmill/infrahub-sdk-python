@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ast
 import asyncio
 import difflib
+import re
 import time
 from datetime import datetime, timezone
 from enum import Enum
@@ -81,9 +83,119 @@ def display_schema_load_errors(
 
     for error in response["detail"]:
         loc_path = error.get("loc", [])
+        if _is_schema_level_error(error=error, loc_path=loc_path):
+            _render_contract_violations(
+                error=error, schema_index=int(loc_path[2]), schemas_data=schemas_data, output=out
+            )
+            continue
         if not valid_error_path(loc_path=loc_path):
             continue
         _render_schema_error(error=error, loc_path=loc_path, schemas_data=schemas_data, output=out)
+
+
+# The server may report every write-contract violation of one schema as a single value error located on
+# the schema itself. Its message then concatenates one `<field path>: <message> (received: <value>)` entry per
+# violation, separated by `; `.
+# `Value error, extensions.nodes[0].bogus: Unknown field (received: True); nodes[1].namespace: String should ...`
+#  ^^^^^^^^^^^^^ _VALUE_ERROR_PREFIX
+_VALUE_ERROR_PREFIX = "Value error, "
+# `extensions.nodes[0].attributes[1].kind`
+_FIELD_PATH = r"[A-Za-z_][\w.\[\]]*"
+# `... (received: True); nodes[1].namespace: String ...`: the `; ` followed by the next `<field path>: `
+_CONTRACT_VIOLATION_SEPARATOR = re.compile(rf"; (?={_FIELD_PATH}: )")
+# `extensions.nodes[0].bogus: Unknown field, it is not part of the schema (received: True)`
+#  ^field                     ^message                                   ^_RECEIVED_MARKER ^received
+_RECEIVED_MARKER = " (received: "
+_CONTRACT_VIOLATION = re.compile(
+    rf"^(?P<field>{_FIELD_PATH}): (?P<message>.*?)(?: \(received: (?P<received>.*)\))?$", re.DOTALL
+)
+# `extensions.nodes[0].kind`: matches `extensions`, `nodes`, `[0]`, `kind` in turn
+_FIELD_PATH_SEGMENT = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
+
+
+def _is_schema_level_error(error: dict[str, Any], loc_path: list[Any]) -> bool:
+    return (
+        error.get("type") == "value_error"
+        and len(loc_path) == 3
+        and loc_path[0] == "body"
+        and loc_path[1] == "schemas"
+        and isinstance(loc_path[2], int)
+    )
+
+
+def _split_contract_violations(message: str) -> list[str]:
+    """Split the joined message into one entry per violation.
+
+    A separator is only honoured when the text before it forms a complete violation: a received value is
+    rendered with ``repr()`` and may itself contain ``; <word>: `` (e.g. a description), which must not be
+    mistaken for the start of the next violation.
+    """
+    message = message.removeprefix(_VALUE_ERROR_PREFIX)
+    violations: list[str] = []
+    start = 0
+    for separator in _CONTRACT_VIOLATION_SEPARATOR.finditer(message):
+        candidate = message[start : separator.start()]
+        if _is_complete_violation(text=candidate):
+            violations.append(candidate)
+            start = separator.end()
+    if remainder := message[start:]:
+        violations.append(remainder)
+    return violations
+
+
+def _is_complete_violation(text: str) -> bool:
+    match = _CONTRACT_VIOLATION.match(text)
+    if not match:
+        return False
+    if match["received"] is None:
+        # A violation without a received value (e.g. a missing field) is whole unless the value was cut open.
+        return _RECEIVED_MARKER not in text
+    return _is_whole_received_value(received=match["received"])
+
+
+def _is_whole_received_value(received: str) -> bool:
+    # A false split can only land inside a quoted string, so a value without quotes is always whole.
+    if "'" not in received and '"' not in received:
+        return True
+    try:
+        ast.literal_eval(received)
+    except (ValueError, SyntaxError):
+        return False
+    return True
+
+
+def _parse_field_path(field: str) -> list[Any]:
+    # `extensions.nodes[0].attributes[1].kind` -> ["extensions", "nodes", 0, "attributes", 1, "kind"]
+    return [int(index) if index else name for name, index in _FIELD_PATH_SEGMENT.findall(field)]
+
+
+def _parse_received_value(received: str) -> Any:
+    try:
+        return ast.literal_eval(received)
+    except (ValueError, SyntaxError):
+        return received
+
+
+def _render_contract_violations(
+    error: dict[str, Any], schema_index: int, schemas_data: list[SchemaFile], output: Console
+) -> None:
+    schema_label = (
+        str(schemas_data[schema_index].location) if schema_index < len(schemas_data) else f"schema {schema_index}"
+    )
+    err_type = error.get("type", "unknown")
+
+    for violation in _split_contract_violations(message=error.get("msg", "")):
+        match = _CONTRACT_VIOLATION.match(violation)
+        loc_path = ["body", "schemas", schema_index, *_parse_field_path(match["field"])] if match else []
+        if not match or not valid_error_path(loc_path=loc_path):
+            # The violation is not on a node (e.g. a root-level field): report it verbatim rather than drop it.
+            output.print(f"  Schema: {schema_label} | {violation} ({err_type})", markup=False)
+            continue
+        field_error: dict[str, Any] = {"msg": match["message"], "type": err_type}
+        if match["received"] is not None:
+            # A missing field carries no received value: leave `input` out so none is displayed.
+            field_error["input"] = _parse_received_value(match["received"])
+        _render_schema_error(error=field_error, loc_path=loc_path, schemas_data=schemas_data, output=output)
 
 
 def _render_schema_error(
@@ -122,22 +234,23 @@ def _render_schema_error(
         else f"{node.get('namespace', None)}{node.get('name', None)}"
     )
     path_suffix = f" (extensions/{container})" if is_extension else ""
-    input_str = error.get("input")
+    # No `input` key means nothing was submitted (a missing field): show no value rather than `(None)`.
+    input_label = f" ({error['input']})" if "input" in error else ""
     err_msg = error.get("msg", "No error message")
     err_type = error.get("type", "unknown")
 
     if len(tail) == 1:
         # Error on a direct field of the node (e.g. `name`, `namespace`).
         loc_type = tail[0]
-        error_message = f"{loc_type} ({input_str}) | {err_msg} ({err_type})"
+        error_message = f"{loc_type}{input_label} | {err_msg} ({err_type})"
     elif len(tail) > 1:
         # Error nested inside a collection (e.g. attributes[2].kind, relationships[0].peer).
         # loc_type is the collection name; attribute is either its index or the failing field name.
         loc_type = tail[0]
         attribute = tail[1]
-        input_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
+        element_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
         # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
-        error_message = f"{loc_type[:-1].title()}: {input_label} ({input_str}) | {err_msg} ({err_type})"
+        error_message = f"{loc_type[:-1].title()}: {element_label}{input_label} | {err_msg} ({err_type})"
     else:
         return
 

@@ -1,0 +1,1 @@
+Fixed `infrahubctl schema load` and `infrahubctl schema check`, which printed only `Unable to load the schema:` with no detail when an Infrahub 1.11.0+ server rejected a schema. Every violation is now rendered on its own line with the node, the field and the submitted value.
