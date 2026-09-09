@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from .exceptions import AuthenticationError, ServerNotReachableError
+from .exceptions import ServerNotReachableError, authentication_error_from_response
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
@@ -52,10 +52,7 @@ class ObjectStore(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return resp.text
@@ -72,10 +69,7 @@ class ObjectStore(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return resp.json()
@@ -99,10 +93,7 @@ class ObjectStore(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return self._validate_text_content(response=resp, identifier=identifier)
@@ -141,10 +132,7 @@ class ObjectStoreSync(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return resp.text
@@ -161,10 +149,7 @@ class ObjectStoreSync(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return resp.json()
@@ -188,10 +173,7 @@ class ObjectStoreSync(ObjectStoreBase):
             raise
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in {401, 403}:
-                response = exc.response.json()
-                errors = response.get("errors")
-                messages = [error.get("message") for error in errors]
-                raise AuthenticationError(" | ".join(messages)) from exc
+                raise authentication_error_from_response(response=exc.response) from exc
             raise
 
         return self._validate_text_content(resp, identifier)

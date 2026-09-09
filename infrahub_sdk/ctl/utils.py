@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 import traceback
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
@@ -137,10 +137,7 @@ def execute_graphql_query(
     return response
 
 
-def print_graphql_errors(console: Console, errors: list) -> None:
-    if not isinstance(errors, list):
-        console.print(f"[red]{escape(str(errors))}")
-
+def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]]) -> None:
     for error in errors:
         if isinstance(error, dict) and "message" in error and "path" in error:
             console.print(f"[red]{escape(str(error['path']))} {escape(str(error['message']))}")

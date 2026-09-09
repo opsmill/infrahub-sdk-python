@@ -107,15 +107,59 @@ async def test_object_store_get_raises_authentication_error(
     httpx_mock.add_response(
         method="GET",
         status_code=status_code,
-        json={"errors": [{"message": "forbidden"}]},
+        json={"errors": [{"message": "forbidden"}, {"message": "and stay out"}]},
     )
     client = getattr(clients, client_type)
 
-    with pytest.raises(AuthenticationError):
+    with pytest.raises(AuthenticationError, match=r"forbidden \| and stay out") as exc_info:
         if client_type == "standard":
             await client.object_store.get(identifier="whatever")
         else:
             client.object_store.get(identifier="whatever")
+
+    assert exc_info.value.http_status is None
+    assert [error["message"] for error in exc_info.value.errors] == ["forbidden", "and stay out"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("status_code", [401, 403])
+async def test_object_store_upload_raises_authentication_error(
+    client_type: str, status_code: int, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        status_code=status_code,
+        json={"errors": [{"message": "no write access", "extensions": {"code": "PERMISSION_DENIED"}}]},
+    )
+    client = getattr(clients, client_type)
+
+    with pytest.raises(AuthenticationError, match="no write access") as exc_info:
+        if client_type == "standard":
+            await client.object_store.upload(content=FILE_CONTENT_01)
+        else:
+            client.object_store.upload(content=FILE_CONTENT_01)
+
+    assert exc_info.value.code == "PERMISSION_DENIED"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("status_code", [401, 403])
+async def test_object_store_get_file_raises_authentication_error(
+    client_type: str, status_code: int, clients: BothClients, httpx_mock: HTTPXMock
+) -> None:
+    """The file lookups reach the same factory through their own request helper."""
+    httpx_mock.add_response(
+        method="GET",
+        status_code=status_code,
+        json={"errors": [{"message": "forbidden"}]},
+    )
+    client = getattr(clients, client_type)
+
+    with pytest.raises(AuthenticationError, match="forbidden"):
+        if client_type == "standard":
+            await client.object_store.get_file_by_storage_id(storage_id="whatever")
+        else:
+            client.object_store.get_file_by_storage_id(storage_id="whatever")
 
 
 @pytest.mark.parametrize("client_type", client_types)

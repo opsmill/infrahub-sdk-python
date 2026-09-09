@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, BinaryIO, cast, overload
 import anyio
 import httpx
 
-from .exceptions import AuthenticationError, NodeNotFoundError, ServerNotReachableError
+from .exceptions import NodeNotFoundError, ServerNotReachableError, authentication_error_from_response
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
@@ -158,10 +158,7 @@ class FileHandlerBase:
 
         """
         if exc.response.status_code in {401, 403}:
-            response = exc.response.json()
-            errors = response.get("errors", [])
-            messages = [error.get("message") for error in errors]
-            raise AuthenticationError(" | ".join(messages)) from exc
+            raise authentication_error_from_response(response=exc.response) from exc
         if exc.response.status_code == 404:
             response = exc.response.json()
             detail = response.get("detail", "File not found")

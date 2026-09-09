@@ -25,7 +25,6 @@ from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
 from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
-    AuthenticationError,
     Error,
     GraphQLError,
     NodeNotFoundError,
@@ -34,7 +33,10 @@ from .exceptions import (
     ServerNotResponsiveError,
     URLNotFoundError,
     VersionNotSupportedError,
+    authentication_error_from_response,
+    graphql_error_from_response,
 )
+from .exceptions.factory import _catalogue_code, _extensions_of, _server_messages
 from .graph_traversal.models import PathTraversalResult, ReachableNodesResult
 from .graph_traversal.query import (
     PATH_TRAVERSAL_QUERY,
@@ -104,17 +106,40 @@ class ProcessRelationsNodeSync(TypedDict):
     related_nodes: list[InfrahubNodeSync]
 
 
+def _should_refresh_token(response: httpx.Response) -> bool:
+    """Decide whether a 401 is a stale token worth one silent refresh and retry.
+
+    The catalogue code is the signal; the legacy message check remains only for servers that predate
+    the catalogue. The wrapper also sees REST responses, and a proxy can answer with anything at all,
+    so a body that is not a JSON object carries no refresh signal rather than raising.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+
+    if not isinstance(body, dict):
+        return False
+
+    errors = body.get("errors", [])
+    if not isinstance(errors, list):
+        return False
+
+    if any(_catalogue_code(_extensions_of(error)) == "TOKEN_EXPIRED" for error in errors):
+        return True
+
+    return "Expired Signature" in _server_messages(errors)
+
+
 def handle_relogin(
     func: Callable[..., Coroutine[Any, Any, httpx.Response]],
 ) -> Callable[..., Coroutine[Any, Any, httpx.Response]]:
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
-        if response.status_code == 401:
-            errors = response.json().get("errors", [])
-            if "Expired Signature" in [error.get("message") for error in errors]:
-                await client.login(refresh=True)
-                return await func(client, *args, **kwargs)
+        if response.status_code == 401 and _should_refresh_token(response=response):
+            await client.login(refresh=True)
+            return await func(client, *args, **kwargs)
         return response
 
     return wrapper
@@ -124,11 +149,9 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
-        if response.status_code == 401:
-            errors = response.json().get("errors", [])
-            if "Expired Signature" in [error.get("message") for error in errors]:
-                client.login(refresh=True)
-                return func(client, *args, **kwargs)
+        if response.status_code == 401 and _should_refresh_token(response=response):
+            client.login(refresh=True)
+            return func(client, *args, **kwargs)
         return response
 
     return wrapper
@@ -1344,10 +1367,7 @@ class InfrahubClient(BaseClient):
                     raise
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code in {401, 403}:
-                    response = decode_json(response=exc.response)
-                    errors = response.get("errors", [])
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
                 if exc.response.status_code == 404:
                     raise URLNotFoundError(url=url) from exc
 
@@ -1357,7 +1377,7 @@ class InfrahubClient(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            raise graphql_error_from_response(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -1426,7 +1446,7 @@ class InfrahubClient(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            raise graphql_error_from_response(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -1682,10 +1702,7 @@ class InfrahubClient(BaseClient):
                 # If we got a 401 while trying to refresh a token we must restart the authentication process
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
-                    response = exc.response.json()
-                    errors = response.get("errors")
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
 
         url = f"{self.address}/api/auth/login"
         response = await self._request(
@@ -2332,10 +2349,7 @@ class InfrahubClientSync(BaseClient):
                     raise
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code in {401, 403}:
-                    response = decode_json(response=exc.response)
-                    errors = response.get("errors", [])
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
                 if exc.response.status_code == 404:
                     raise URLNotFoundError(url=url) from exc
 
@@ -2345,7 +2359,7 @@ class InfrahubClientSync(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            raise graphql_error_from_response(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -2414,7 +2428,7 @@ class InfrahubClientSync(BaseClient):
         response = decode_json(response=resp)
 
         if "errors" in response:
-            raise GraphQLError(errors=response["errors"], query=query, variables=variables)
+            raise graphql_error_from_response(errors=response["errors"], query=query, variables=variables)
 
         return response["data"]
 
@@ -3851,10 +3865,7 @@ class InfrahubClientSync(BaseClient):
                 # If we got a 401 while trying to refresh a token we must restart the authentication process
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
-                    response = exc.response.json()
-                    errors = response.get("errors")
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
 
         url = f"{self.address}/api/auth/login"
         response = self._request(

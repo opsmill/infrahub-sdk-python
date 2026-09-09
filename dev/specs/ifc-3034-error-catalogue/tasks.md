@@ -51,23 +51,23 @@ US1 remains the feature's reason for existing; it is simply the last brick, not 
 **Purpose**: Restructure `exceptions.py` into a package without changing a single observable behaviour,
 and pin that invisibility before touching anything.
 
-- [ ] T001 Capture the current public surface as a committed snapshot: write every name importable from
+- [X] T001 Capture the current public surface as a committed snapshot: write every name importable from
       `infrahub_sdk.exceptions` today into `tests/fixtures/error_catalogue/public_names.json`, and add
       `tests/unit/sdk/test_exceptions_public_names.py` asserting every snapshot name is still importable.
       Author this **before** the restructure so the snapshot records the pre-change surface.
-- [ ] T002 [P] Create the response-envelope fixture directory `tests/fixtures/error_catalogue/` with a
+- [X] T002 [P] Create the response-envelope fixture directory `tests/fixtures/error_catalogue/` with a
       `README.md` stating that each file is a verbatim server response envelope, not a hand-shaped dict.
-- [ ] T003 Convert `infrahub_sdk/exceptions.py` into `infrahub_sdk/exceptions/base.py` by verbatim move
+- [X] T003 Convert `infrahub_sdk/exceptions.py` into `infrahub_sdk/exceptions/base.py` by verbatim move
       (no behaviour edits in this task), and add `__all__` to it listing every class it defines.
-- [ ] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting with `from .base import *`
+- [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting with `from .base import *`
       and nothing else yet.
-- [ ] T005 [P] Add `"exceptions"` to `packages_to_ignore` in `tasks.py::get_modules_to_document`, so
+- [X] T005 [P] Add `"exceptions"` to `packages_to_ignore` in `tasks.py::get_modules_to_document`, so
       `docs-generate` does not fail with `Uncategorized packages under infrahub_sdk/` and `sdk_ref`
       output stays byte-identical.
-- [ ] T006 [P] Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
+- [X] T006 [P] Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
       `pyproject.toml` silencing `F403`/`F405`, with a comment giving the reason, mirroring the existing
       `infrahub_sdk/schema/generated/*.py` entry.
-- [ ] T007 Run `uv run pytest tests/unit/ -q` and `uv run invoke format lint-code docs-generate docs-validate`
+- [X] T007 Run `uv run pytest tests/unit/ -q` and `uv run invoke format lint-code docs-generate docs-validate`
       to confirm the restructure is invisible from outside the package.
 
 **Checkpoint**: `infrahub_sdk.exceptions` is a package; nothing else has changed.
@@ -81,46 +81,50 @@ raise site funnels through. Every user story below depends on this phase.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T008 Add `ApiError(Error)` to `infrahub_sdk/exceptions/base.py` with class-level defaults for
+- [X] T008 Add `ApiError(Error)` to `infrahub_sdk/exceptions/base.py` with class-level defaults for
       `code` (`str | None`), `http_status` (`int | None`), `extensions` (`dict[str, Any] | None`),
       `errors` (immutable empty tuple), `query`, and `variables`, adding no required constructor
       arguments. The defaults are a can't-crash floor, not a substitute for constructor state.
-- [ ] T009 Re-root `GraphQLError` under `ApiError` in `infrahub_sdk/exceptions/base.py` and give its
+- [X] T009 Re-root `GraphQLError` under `ApiError` in `infrahub_sdk/exceptions/base.py` and give its
       constructor an optional `message` parameter. When `message` is omitted the string it builds MUST be
       byte-identical to today's.
-- [ ] T010 Re-root `AuthenticationError` under `ApiError` in `infrahub_sdk/exceptions/base.py`, leaving
+- [X] T010 Re-root `AuthenticationError` under `ApiError` in `infrahub_sdk/exceptions/base.py`, leaving
       its name, constructor signature, and default message untouched.
-- [ ] T011 Create `infrahub_sdk/exceptions/factory.py` with `graphql_error_from_response(errors, query,
+- [X] T011 Create `infrahub_sdk/exceptions/factory.py` with `graphql_error_from_response(errors, query,
       variables)`: read `extensions.code` from the **first** error only when it is a `str`, read
       `extensions.http_status`, retain the complete unreordered error list, and construct with keyword
       arguments only.
-- [ ] T012 Add `authentication_error_from_response(response)` to `infrahub_sdk/exceptions/factory.py`,
+- [X] T012 Add `authentication_error_from_response(response)` to `infrahub_sdk/exceptions/factory.py`,
       subsuming the eleven-site "decode, collect messages, join with ` | `" shape and preserving that
       message byte-for-byte. It MUST use `decode_json` and fall back to the plain status when the body is
       not JSON, since two of the sites it replaces call `response.json()` directly.
-- [ ] T013 Make both factories total in `infrahub_sdk/exceptions/factory.py`: wrap resolution so any
+- [X] T013 Make both factories total in `infrahub_sdk/exceptions/factory.py`: wrap resolution so any
       unexpected error degrades to constructing today's generic exception rather than replacing the
       server's failure with an SDK `TypeError`, and log every fallback at debug level with the code
       involved.
-- [ ] T014 Extend the façade `infrahub_sdk/exceptions/__init__.py` to import the factory module, keeping
+- [X] T014 Extend the façade `infrahub_sdk/exceptions/__init__.py` to import the factory module, keeping
       imports pointing strictly downward.
-- [ ] T015 Add `tests/unit/sdk/test_exceptions_layering.py`, parsing every module in
+- [X] T015 Add `tests/unit/sdk/test_exceptions_layering.py`, parsing every module in
       `infrahub_sdk/exceptions/` with `ast` and failing on any intra-package import that points at its own
       layer or higher. It MUST walk imports inside function bodies and `TYPE_CHECKING` blocks, not only
       module-level ones.
-- [ ] T016 Replace the four `GraphQLError` raise sites in `infrahub_sdk/client.py` (`_execute_graphql`
+- [X] T016 Replace the four `GraphQLError` raise sites in `infrahub_sdk/client.py` (`_execute_graphql`
       and the file-upload variants, async and sync) with `graphql_error_from_response`.
-- [ ] T017 Replace the four `AuthenticationError` raise sites in `infrahub_sdk/client.py` with
+- [X] T017 Replace the four `AuthenticationError` raise sites in `infrahub_sdk/client.py` with
       `authentication_error_from_response`.
-- [ ] T018 [P] Replace the six `AuthenticationError` raise sites in `infrahub_sdk/object_store.py` with
+- [X] T018 [P] Replace the six `AuthenticationError` raise sites in `infrahub_sdk/object_store.py` with
       `authentication_error_from_response`.
-- [ ] T019 [P] Replace the `AuthenticationError` raise site at `infrahub_sdk/file_handler.py:164` with
+- [X] T019 [P] Replace the `AuthenticationError` raise site at `infrahub_sdk/file_handler.py:164` with
       `authentication_error_from_response`.
-- [ ] T020 [P] Correct the pre-existing constructor misuse at `infrahub_sdk/analyzer.py:42`, which passes
+- [X] T020 [P] Correct the pre-existing constructor misuse at `infrahub_sdk/analyzer.py:42`, which passes
       the bare string `"Schema is not provided"` where a list of error dicts is expected.
-- [ ] T021 [P] Correct the pre-existing constructor misuse at
+      **No change needed - the premise does not hold.** `analyzer.py` imports `GraphQLError` from
+      `graphql` (graphql-core), whose constructor takes a message string, so the call is correct.
+- [X] T021 [P] Correct the pre-existing constructor misuse at
       `infrahub_sdk/testing/schemas/animal.py:154`, which passes a list whose single element is not a dict.
-- [ ] T022 Add `tests/unit/sdk/test_error_catalogue.py` covering the generic factory path with no bindings
+      **No change needed - the premise does not hold.** `SchemaLoadResponse.errors` is annotated
+      `dict` and pydantic rejects a list, so `[resp.errors]` is already a `list[dict]`.
+- [X] T022 Add `tests/unit/sdk/test_error_catalogue.py` covering the generic factory path with no bindings
       present: `code` and `http_status` readable off a `GraphQLError` and an `AuthenticationError`, the
       complete error list retained unreordered, and `exc.errors` asserted to be a sequence of dicts on
       both paths.
@@ -139,26 +143,26 @@ server through the factory and assert no parse failure and the correct fallback 
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Add cross-version envelope fixtures under `tests/fixtures/error_catalogue/`: an
+- [X] T023 [P] [US2] Add cross-version envelope fixtures under `tests/fixtures/error_catalogue/`: an
       unknown string code, a known code carrying an extra payload field, an error with no `extensions`, a
       pre-catalogue integer `extensions.code` on `/graphql`, and a payload that violates its own declared
       schema.
-- [ ] T024 [P] [US2] Add malformed-envelope fixtures under `tests/fixtures/error_catalogue/`: `errors` as
+- [X] T024 [P] [US2] Add malformed-envelope fixtures under `tests/fixtures/error_catalogue/`: `errors` as
       a bare string, `extensions` as a list, and `code` as a nested object.
-- [ ] T025 [US2] Add the `crossversion`-marked cases to `tests/unit/sdk/test_error_catalogue.py`: each
+- [X] T025 [US2] Add the `crossversion`-marked cases to `tests/unit/sdk/test_error_catalogue.py`: each
       fixture from T023 raises the generic class for its transport, none raises during parsing, and
       `exc.code` reads the wire string for the unknown code and `None` for the absent-envelope and
       integer-code cases.
-- [ ] T026 [US2] Add the `malformed`-marked totality cases to `tests/unit/sdk/test_error_catalogue.py`,
+- [X] T026 [US2] Add the `malformed`-marked totality cases to `tests/unit/sdk/test_error_catalogue.py`,
       asserting each fixture from T024 degrades to today's generic exception rather than an SDK `TypeError`.
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] Confirm in `infrahub_sdk/exceptions/factory.py` that an integer `extensions.code` never
+- [X] T027 [US2] Confirm in `infrahub_sdk/exceptions/factory.py` that an integer `extensions.code` never
       reaches `exc.code`, and that `exc.code` is set from the wire whenever a string code was present,
       including when no class matched it. Which class is raised and what `code` reports are separate
       questions.
-- [ ] T028 [US2] Add the debug-level fallback log assertions to `tests/unit/sdk/test_error_catalogue.py`,
+- [X] T028 [US2] Add the debug-level fallback log assertions to `tests/unit/sdk/test_error_catalogue.py`,
       using `caplog`, so a cross-version fallback is diagnosable in the field rather than only in tests.
 
 **Checkpoint**: Every cross-version case is covered and none of them raises during parsing.
@@ -240,21 +244,21 @@ pre-catalogue fallback and appearing exactly once in the SDK.
 
 ### Tests for User Story 4
 
-- [ ] T043 [P] [US4] Extend `tests/unit/sdk/test_relogin_headers.py` with three cases: a 401 carrying
+- [X] T043 [P] [US4] Extend `tests/unit/sdk/test_relogin_headers.py` with three cases: a 401 carrying
       `TOKEN_EXPIRED` refreshes and retries, a 401 carrying the legacy `"Expired Signature"` message
       refreshes and retries, and an unrelated 401 does not.
-- [ ] T044 [P] [US4] Add a case to `tests/unit/sdk/test_relogin_headers.py` driving a 401 with a non-JSON
+- [X] T044 [P] [US4] Add a case to `tests/unit/sdk/test_relogin_headers.py` driving a 401 with a non-JSON
       body (an HTML proxy error page) and an empty body, asserting neither raises a decode error.
 
 ### Implementation for User Story 4
 
-- [ ] T045 [US4] Add the shared refresh-decision helper to `infrahub_sdk/client.py`, reading
+- [X] T045 [US4] Add the shared refresh-decision helper to `infrahub_sdk/client.py`, reading
       `errors[0].extensions.code == "TOKEN_EXPIRED"` and falling back to the existing
       `"Expired Signature" in messages` check when no code is present. It MUST tolerate a non-JSON or empty
       body rather than letting `response.json()` raise, since the wrapper sees REST responses too.
-- [ ] T046 [US4] Route both `handle_relogin` and `handle_relogin_sync` in `infrahub_sdk/client.py` through
+- [X] T046 [US4] Route both `handle_relogin` and `handle_relogin_sync` in `infrahub_sdk/client.py` through
       that helper, so the literal `"Expired Signature"` appears exactly once in the SDK, down from twice.
-- [ ] T047 [US4] Confirm `grep -rn "Expired Signature" infrahub_sdk/` returns exactly one site, and that
+- [X] T047 [US4] Confirm `grep -rn "Expired Signature" infrahub_sdk/` returns exactly one site, and that
       the GraphQL schema-validation probing used for server feature detection is untouched - it detects an
       uncatalogued condition and is deliberately out of scope.
 

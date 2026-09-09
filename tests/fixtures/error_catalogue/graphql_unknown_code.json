@@ -1,0 +1,15 @@
+{
+  "errors": [
+    {
+      "message": "A failure this SDK has never heard of",
+      "extensions": {
+        "code": "SOMETHING_WE_HAVE_NEVER_HEARD_OF",
+        "http_status": 418,
+        "data": {
+          "whatever": "the newer server sent"
+        }
+      }
+    }
+  ],
+  "data": null
+}
