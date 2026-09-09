@@ -43,7 +43,7 @@ fails outright without the submodule. Every Python job in that repository theref
 
 ## R1 — Where the generated bindings live in the SDK, with no circular imports
 
-**Decision**: convert `infrahub_sdk/exceptions.py` into a package of five modules in a strict,
+**Decision**: convert `infrahub_sdk/exceptions.py` into a package of four modules in a strict,
 enforced layer order. No module imports a module at its own level or above, and no module imports the
 package façade.
 
@@ -219,10 +219,12 @@ catalogue entry that omits it fails generation loudly.
 fine when the SDK declared that adoption (R4) and a latent disaster otherwise. The façade re-exports
 `base` and then `catalogue`, so a generated class would win the name and silently shadow the
 hand-written one — changing what an existing `except` clause catches, from a change made in the other
-repository. This is not hypothetical: the SDK already defines `ValidationError`, `RateLimitError`,
-`InvalidResponseError`, `FileNotValidError`, and `ResourceNotDefinedError`, and `VALIDATION_ERROR`,
-`RATE_LIMIT`, `INVALID_RESPONSE`, `FILE_NOT_VALID`, and `RESOURCE_NOT_DEFINED` all derive exactly
-those names. A 429 code in the catalogue is an entirely ordinary thing to add.
+repository. This is not hypothetical. The SDK already defines `ValidationError`, `RateLimitError`,
+`InvalidResponseError`, `FileNotValidError`, `ResourceNotDefinedError`, and `TimestampFormatError`, and
+the codes `VALIDATION_ERROR`, `RATE_LIMIT`, `INVALID_RESPONSE`, `FILE_NOT_VALID`,
+`RESOURCE_NOT_DEFINED`, and `TIMESTAMP_FORMAT` derive exactly those names — checked against the current
+module, and this is the set the collision check in R4 is exercised against. A 429 code in the catalogue
+is an entirely ordinary thing to add.
 
 The generator therefore collects every class name defined in `base.py`, not only those carrying a
 `CODE`, and aborts on any derived name that matches one without a matching `CODE` declaration. The
@@ -259,9 +261,9 @@ sees class bodies.
 classifying every catalogue code through it produces exactly the split this plan claims: nine to
 generate, three with no class (the 401/403 codes), and three colliding with an existing class. Because
 the SDK has not yet declared any `CODE`, those three currently classify as **abort**, which is the
-correct answer pre-adoption and becomes **adopt** the moment `base.py` declares them. The hypothetical
-collision check fires on `VALIDATION_ERROR`, `RATE_LIMIT`, `INVALID_RESPONSE`, and `TIMESTAMP_FORMAT`,
-and a synthetic subclass inheriting `CODE` is correctly invisible to the walk.
+correct answer pre-adoption and becomes **adopt** the moment `base.py` declares them. The collision
+check was run against every hypothetical code R3 enumerates and fires on all of them, and a synthetic
+subclass inheriting `CODE` is correctly invisible to the walk.
 
 **An ordering constraint this surfaced.** The generator aborts until `base.py` declares the three
 `CODE` attributes, so those declarations must land in the SDK *before* the generator is first run
