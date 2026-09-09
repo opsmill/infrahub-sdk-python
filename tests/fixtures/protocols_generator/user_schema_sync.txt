@@ -80,7 +80,7 @@ class InfraDevice(CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class IpamIPAddress(BuiltinIPAddress):
+class IpamIPAddress(BuiltinIPAddressSync):
     address: IPHost
     description: StringOptional
     fqdn: StringOptional
@@ -91,7 +91,7 @@ class IpamIPAddress(BuiltinIPAddress):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class IpamPrefix(BuiltinIPPrefix):
+class IpamPrefix(BuiltinIPPrefixSync):
     broadcast_address: StringOptional
     description: StringOptional
     hostmask: StringOptional
@@ -194,7 +194,7 @@ class NetworkNTPServer(NetworkManagementServer):
 
 
 
-class ProfileInfraDevice(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileInfraDevice(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -205,7 +205,7 @@ class ProfileInfraDevice(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileIpamIPAddress(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileIpamIPAddress(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     fqdn: StringOptional
     profile_name: String
@@ -215,7 +215,7 @@ class ProfileIpamIPAddress(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileIpamPrefix(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileIpamPrefix(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     is_pool: BooleanOptional
     member_type: DropdownOptional
@@ -227,7 +227,7 @@ class ProfileIpamPrefix(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileLocationCountry(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileLocationCountry(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -237,7 +237,7 @@ class ProfileLocationCountry(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileLocationGeneric(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileLocationGeneric(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -246,7 +246,7 @@ class ProfileLocationGeneric(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileLocationRack(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileLocationRack(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     facility_id: StringOptional
     height: IntegerOptional
@@ -257,7 +257,7 @@ class ProfileLocationRack(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileLocationSite(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileLocationSite(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     facility_id: StringOptional
     physical_address: StringOptional
@@ -268,7 +268,7 @@ class ProfileLocationSite(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileNetworkDhcpServer(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileNetworkDhcpServer(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -277,7 +277,7 @@ class ProfileNetworkDhcpServer(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileNetworkManagementServer(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileNetworkManagementServer(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -286,7 +286,7 @@ class ProfileNetworkManagementServer(LineageSource, CoreProfileSync, CoreNodeSyn
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileNetworkNameServer(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileNetworkNameServer(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -295,7 +295,7 @@ class ProfileNetworkNameServer(LineageSource, CoreProfileSync, CoreNodeSync):
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
-class ProfileNetworkNTPServer(LineageSource, CoreProfileSync, CoreNodeSync):
+class ProfileNetworkNTPServer(LineageSourceSync, CoreProfileSync, CoreNodeSync):
     description: StringOptional
     profile_name: String
     profile_priority: Integer
@@ -306,7 +306,7 @@ class ProfileNetworkNTPServer(LineageSource, CoreProfileSync, CoreNodeSync):
 
 
 
-class TemplateInfraDevice(LineageSource, CoreObjectTemplateSync, CoreNodeSync):
+class TemplateInfraDevice(LineageSourceSync, CoreObjectTemplateSync, CoreNodeSync):
     description: StringOptional
     role: Dropdown
     role_id: IntegerOptional

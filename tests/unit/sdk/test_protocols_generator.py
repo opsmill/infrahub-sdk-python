@@ -34,7 +34,7 @@ SYNCIFY_TEST_CASES = [
         name="sync-list",
         sync=True,
         input=["LineageSource", "CoreNode", "CoreObjectTemplate"],
-        output=["LineageSource", "CoreObjectTemplateSync", "CoreNodeSync"],
+        output=["LineageSourceSync", "CoreObjectTemplateSync", "CoreNodeSync"],
     ),
     SyncifyTestCase(name="async-str", sync=False, input=["CoreNode"], output=["CoreNode"]),
     SyncifyTestCase(
@@ -78,6 +78,47 @@ RENDER_ATTRIBUTE_TEST_CASES = [
         optional=True,
         default_value=True,
         expected="enabled: Boolean",
+    ),
+]
+
+
+@dataclass
+class RenderRelationshipTestCase:
+    name: str
+    sync: bool
+    peer: str
+    cardinality: RelationshipCardinality
+    expected: str
+
+
+RENDER_RELATIONSHIP_TEST_CASES = [
+    RenderRelationshipTestCase(
+        name="sync-core-node-peer",
+        sync=True,
+        peer="CoreNode",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManagerSync[CoreNodeSync]",
+    ),
+    RenderRelationshipTestCase(
+        name="async-core-node-peer",
+        sync=False,
+        peer="CoreNode",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManager[CoreNode]",
+    ),
+    RenderRelationshipTestCase(
+        name="sync-peer-with-sync-twin",
+        sync=True,
+        peer="CoreGroup",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManagerSync[CoreGroupSync]",
+    ),
+    RenderRelationshipTestCase(
+        name="sync-peer-without-sync-twin",
+        sync=True,
+        peer="LocationRack",
+        cardinality=RelationshipCardinality.ONE,
+        expected="members: RelationshipAttributeSync[LocationRack]",
     ),
 ]
 
@@ -158,6 +199,27 @@ async def test_filter_render_attribute(test_case: RenderAttributeTestCase) -> No
 
 @pytest.mark.parametrize(
     "test_case",
+    [pytest.param(tc, id=tc.name) for tc in RENDER_RELATIONSHIP_TEST_CASES],
+)
+async def test_filter_render_relationship(test_case: RenderRelationshipTestCase) -> None:
+    """A peer is referenced by its ``*Sync`` variant in sync output whenever one exists.
+
+    ``CoreNode`` is the implicit base and is excluded from ``base_protocols``, so a relationship
+    whose peer is exactly ``CoreNode`` still has to switch to ``CoreNodeSync`` here; a peer with no
+    sync twin keeps its name because it already is the sync class.
+    """
+    generator = CodeGenerator(schema={})
+    relationship = RelationshipSchemaAPI(
+        name="members",
+        peer=test_case.peer,
+        cardinality=test_case.cardinality,
+    )
+
+    assert generator._jinja2_filter_render_relationship(relationship, sync=test_case.sync) == test_case.expected
+
+
+@pytest.mark.parametrize(
+    "test_case",
     [pytest.param(tc, id=tc.name) for tc in SYNCIFY_TEST_CASES],
 )
 async def test_filter_syncify(test_case: SyncifyTestCase) -> None:
@@ -175,7 +237,7 @@ async def test_generator(client: InfrahubClient, mock_schema_query_05: "HTTPXMoc
 
     assert "class LocationGeneric(CoreNodeSync)" in sync_protocols
     assert "class LocationCountry(LocationGeneric)" in sync_protocols
-    assert "class TemplateInfraDevice(LineageSource, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
+    assert "class TemplateInfraDevice(LineageSourceSync, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
 
     location_site_sync = """
 class LocationSite(LocationGeneric):
