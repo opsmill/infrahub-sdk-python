@@ -266,9 +266,10 @@ consumers catch.
 parent it takes. A code declaring 401 or 403 gets **no class**; every other code gets one, descending
 from `GraphQLError` alone. No class in the design has more than one parent.
 
-Today that yields twelve generated classes under `GraphQLError`, and `AUTHENTICATION_REQUIRED`,
-`TOKEN_EXPIRED`, and `PERMISSION_DENIED` carrying their identity in `exc.code` on whichever generic
-class their transport already produces.
+Today that yields twelve codes with a class under `GraphQLError` — nine emitted by the generator and
+three adopted from `base.py` per R4 — while `AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, and
+`PERMISSION_DENIED` carry their identity in `exc.code` on whichever generic class their transport
+already produces.
 
 ```text
 Error
@@ -545,11 +546,14 @@ leaves the file handler's existing string still outside the declared type.
 
 Neither provenance can populate the full attribute set, and they fail to in *both* directions:
 
-| Attribute | Client-side raises | Catalogue payload |
-|-----------|--------------------|-------------------|
-| `identifier` | a filter mapping from four `store.py` sites and two `client.py` sites; a plain string from `file_handler.py:168` | a single string, declared required |
-| `node_type` | supplied by three of seven raise sites; the four `store.py` sites omit it and fall back to `"unknown"` | `node_kind`, declared required |
-| `branch_name` | supplied by three of seven raise sites | **not in the payload at all** |
+`NodeNotFoundError` is constructed at nine sites — eight `raise` statements plus one built for deferred
+raising at `store.py:184`:
+
+| Attribute | The nine construction sites | Catalogue payload |
+|-----------|-----------------------------|-------------------|
+| `identifier` | a mapping at eight (five in `store.py`, two in `client.py`, one in `ctl/object/utils.py`); a plain string at `file_handler.py:168` | a single string, declared required |
+| `node_type` | supplied by five; the four `store.py` `raise` sites omit it and fall back to `"unknown"` | `node_kind`, declared required |
+| `branch_name` | supplied by three | **not in the payload at all** |
 
 So a promoted attribute on an adopted class MUST be optional and documented as "populated when the
 server reported it", even where the catalogue declares the underlying field required. A field can only

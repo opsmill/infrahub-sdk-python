@@ -102,7 +102,7 @@ distinguishes a server-reported raise from a client-side one.
 
 Unlike the generated classes, **every attribute on these three is optional**, even where the catalogue
 declares the underlying field required. Neither provenance populates the full set — the catalogue
-supplies no `branch_name`, and four of the seven client-side raise sites supply no node kind — so a
+supplies no `branch_name`, and four of the nine construction sites supply no node kind — so a
 required attribute would be a promise the class cannot keep. See [research.md](./research.md) R9, which
 also records the tripwire for splitting these classes and why that is a later change.
 

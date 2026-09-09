@@ -328,9 +328,9 @@ These are specific hazards found while surveying the current code, not hypotheti
   at all, and for a recognised one the declared status describes the failure rather than the transport.
   Routing by declared status would therefore send a recognised 401/403 code whose payload fails to
   validate, arriving inside an HTTP 200 body, to the authentication branch — where an existing
-  `except GraphQLError` would stop catching it, the coverage loss FR-018 forbids. Note that the dual
-  inheritance in FR-008 does not help here: it shapes the per-code classes, and the class the fallback
-  raises is the generic one, which has a single parent. Only the transport rule preserves the coverage.
+  `except GraphQLError` would stop catching it, the coverage loss FR-018 forbids. The transport rule is
+  the only thing that preserves that coverage — and under FR-008 it carries more weight still, since the
+  three authentication codes have no class of their own and therefore *always* take this path.
 
   Where a string code was on the wire it MUST remain readable as `exc.code` even though the generic
   class was raised; `exc.code` is `None` only when no string code was present.
@@ -349,8 +349,10 @@ These are specific hazards found while surveying the current code, not hypotheti
 
 #### Reconciling names that already exist
 
-- **FR-015**: `AuthenticationError` MUST keep its name and constructor and MUST remain the class
-  raised for REST authentication failures, while gaining the three catalogue subclasses beneath it.
+- **FR-015**: `AuthenticationError` MUST keep its name and constructor, and MUST remain the class
+  raised for every failure the SDK observes as HTTP 401 or 403 — on the REST path, where `exc.code`
+  stays `None`, and on the GraphQL path, where it carries the catalogue code. It gains no subclasses;
+  per FR-008 the three authentication codes get no class of their own.
 - **FR-016**: `NodeNotFoundError` MUST be unified into a single class covering both the client-side
   and the server-reported cases, re-rooted so that an existing `except GraphQLError` clause catches
   it. The consequent broadening — that clause now also catches purely client-side lookup misses — is
@@ -372,7 +374,7 @@ These are specific hazards found while surveying the current code, not hypotheti
   - Every attribute carrying a payload field on a unified class MUST be optional, even where the
     catalogue declares that field required, and MUST be documented as populated only when the server
     reported the error. Neither provenance can populate the full attribute set: the catalogue supplies
-    no `branch_name`, and four of the seven client-side raise sites supply no node kind. A field can
+    no `branch_name`, and four of the nine construction sites supply no node kind. A field can
     only be non-optional on a class that is always constructed from it.
 - **FR-017**: `BranchNotFoundError` and `SchemaNotFoundError` MUST be reconciled the same way as
   `NodeNotFoundError`.
