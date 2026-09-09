@@ -32,25 +32,25 @@ on two different transports, and each transport already has a class an existing 
 | A real 401 or 403, when the failure escapes before query execution | `AuthenticationError`, as today | the catalogue code |
 | Inside an HTTP 200 `errors` array, when a resolver raised it | `GraphQLError`, as today | the catalogue code |
 
-So distinguish them by code, not by type — and pick the clause for the arrival path you care about:
+**Any of the three can arrive either way**, so the arrival path is a property of how the server
+happened to fail, not of the code. Distinguish them by code, and catch `ApiError` unless you genuinely
+want one arrival path only:
 
 ```python
-# A real 401 or 403. This is where TOKEN_EXPIRED and AUTHENTICATION_REQUIRED arrive.
-except AuthenticationError as exc:
+# Catches the code however it arrived — the form to reach for.
+except ApiError as exc:
     if exc.code == "TOKEN_EXPIRED":
         ...
 
-# Either arrival path. Use this for PERMISSION_DENIED, which a resolver can raise
-# inside an HTTP 200 response, where AuthenticationError is not what gets raised.
-except ApiError as exc:
-    if exc.code == "PERMISSION_DENIED":
-        ...
+# Catches only the pre-execution arrivals, per the table above. A resolver-raised
+# failure carrying the same code raises GraphQLError and escapes this clause.
+except AuthenticationError as exc:
+    ...
 ```
 
-`except AuthenticationError` therefore does **not** catch a resolver-raised permission failure inside a
-200 response. That is not a coverage loss — it does not catch one today either, since such a response
-raises `GraphQLError` — but it does mean `except AuthenticationError` is not the clause that spans both
-arrival paths. `except ApiError` is.
+So `except AuthenticationError` is not the clause that spans both arrival paths for *any* of the three
+codes — `except ApiError` is. That is not a coverage loss: such a response raises `GraphQLError` today
+too, so no existing clause stops catching anything it catches now.
 
 Every clause that worked before the change still catches what it caught before (FR-018). Two
 broadenings are deliberate:

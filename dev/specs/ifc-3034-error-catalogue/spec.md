@@ -110,13 +110,15 @@ clause in the SDK and CLI still catches what it caught before.
    `AuthenticationError` is raised as it is today, with `exc.code` as `None`.
 4. **Given** a developer who wants to catch anything the server rejected regardless of transport,
    **When** they catch `ApiError`, **Then** both GraphQL and auth failures are caught.
-5. **Given** a permission failure returned inside an HTTP 200 response, **When** it fails, **Then**
-   `GraphQLError` is raised as it is today, carrying `exc.code == "PERMISSION_DENIED"`, so an existing
-   `except GraphQLError` clause keeps catching it.
+5. **Given** any of the three authentication codes returned inside an HTTP 200 response, because the
+   failure was raised from within a resolver, **When** it fails, **Then** `GraphQLError` is raised as it
+   is today, carrying that code, so an existing `except GraphQLError` clause keeps catching it.
 
 **Note on the three authentication codes**: they are distinguished by `exc.code` rather than by
 distinct exception types. See FR-008 — a single class per code cannot satisfy both scenario 1 and
 scenario 5 without multiple inheritance, and the code carries the distinction at no structural cost.
+Any of the three can arrive by either route, so `except ApiError` is the only clause that catches a
+given code regardless of how the server happened to fail.
 
 ---
 
