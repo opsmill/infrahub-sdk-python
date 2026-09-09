@@ -37,7 +37,9 @@ The approach has four parts:
 4. **Removing the string matching.** The silent-refresh decision reads the code, falling back to
    the legacy message check only for servers that predate the catalogue.
 
-The catalogue holds 15 codes today (12 on the GraphQL branch, 3 on the authentication branch).
+The catalogue holds 15 codes today: 12 get a class under the GraphQL branch — nine generated, three
+adopted from the SDK's existing names — and the three declaring 401 or 403 get none, carrying their
+identity in `exc.code` instead.
 
 ## Technical Context
 

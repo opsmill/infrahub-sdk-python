@@ -129,8 +129,9 @@ uv run invoke lint-docs
 ls changelog/
 ```
 
-Expected: a catalogued failure's message names the code and the server's message and contains no
-query text; an uncatalogued failure's message is byte-identical to today's. `docs-validate` passes with
+Expected: a *server-reported* catalogued failure's message names the code and the server's message and
+contains no query text; an uncatalogued failure's message is byte-identical to today's, as is that of a
+unified class raised with no catalogue code behind it. `docs-validate` passes with
 no change to `sdk_ref`, since the `exceptions` package is categorised as ignored for API-doc
 generation — if it is not categorised at all, `docs-generate` fails with
 `Uncategorized packages under infrahub_sdk/`. `changelog/` carries fragments for the typed errors, the
