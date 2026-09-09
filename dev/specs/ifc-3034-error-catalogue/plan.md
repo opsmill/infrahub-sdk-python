@@ -206,6 +206,14 @@ generator and its first hand-verified run come first. FR-002 softens this — th
 base classes with no bindings at all, so `code`, `http_status`, and the typed relogin decision (US4) are
 independently landable — but the typed per-code classes are not. See [research.md](./research.md) R16.
 
+## Prerequisite inside the SDK
+
+The generator aborts on a derived name that collides with an existing class which has not declared that
+code, so the three `CODE` declarations in `base.py` are a prerequisite for generation succeeding at all
+— not merely for it producing the right output. Verified by executing the discovery walk against the
+current sources; see [research.md](./research.md) R4. Task ordering must put the adoption declarations
+before the generator's first run, against the instinct to build the generator first.
+
 ## Cross-repository landing order
 
 The SDK change lands first and Infrahub then bumps its submodule pointer to it — the pattern both

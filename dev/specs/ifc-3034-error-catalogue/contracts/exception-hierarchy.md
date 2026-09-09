@@ -36,17 +36,24 @@ on two different transports, and each transport already has a class an existing 
 happened to fail, not of the code. Distinguish them by code, and catch `ApiError` unless you genuinely
 want one arrival path only:
 
+Catch the code however it arrived — the form to reach for:
+
 ```python
-# Catches the code however it arrived — the form to reach for.
 except ApiError as exc:
     if exc.code == "TOKEN_EXPIRED":
         ...
+```
 
-# Catches only the pre-execution arrivals, per the table above. A resolver-raised
-# failure carrying the same code raises GraphQLError and escapes this clause.
+Or, to handle only the pre-execution arrivals from the table above, accepting that a resolver-raised
+failure carrying the same code raises `GraphQLError` and escapes this clause:
+
+```python
 except AuthenticationError as exc:
     ...
 ```
+
+These are alternatives, not a sequence. `AuthenticationError` descends from `ApiError`, so an
+`except ApiError` clause placed first makes any later `except AuthenticationError` unreachable.
 
 So `except AuthenticationError` is not the clause that spans both arrival paths for *any* of the three
 codes — `except ApiError` is. That is not a coverage loss: such a response raises `GraphQLError` today

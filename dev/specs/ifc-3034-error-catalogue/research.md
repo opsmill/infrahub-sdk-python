@@ -255,6 +255,22 @@ inherits `CODE = "NODE_NOT_FOUND"` from `NodeNotFoundError`; it would otherwise 
 claiming the same code and let dict ordering pick the winner. The `ast` walk is immune, since it only
 sees class bodies.
 
+**Executed against the real files.** The walk finds all 32 classes in today's `exceptions.py`, and
+classifying every catalogue code through it produces exactly the split this plan claims: nine to
+generate, three with no class (the 401/403 codes), and three colliding with an existing class. Because
+the SDK has not yet declared any `CODE`, those three currently classify as **abort**, which is the
+correct answer pre-adoption and becomes **adopt** the moment `base.py` declares them. The hypothetical
+collision check fires on `VALIDATION_ERROR`, `RATE_LIMIT`, `INVALID_RESPONSE`, and `TIMESTAMP_FORMAT`,
+and a synthetic subclass inheriting `CODE` is correctly invisible to the walk.
+
+**An ordering constraint this surfaced.** The generator aborts until `base.py` declares the three
+`CODE` attributes, so those declarations must land in the SDK *before* the generator is first run
+against a catalogue containing `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND`, or `SCHEMA_NOT_FOUND` — which is
+to say, before the first run at all. That is consistent with R17's landing order but sharper than it:
+not merely "the SDK lands first", but "the adoption declarations are a prerequisite for generation
+succeeding". Worth stating in the task breakdown, since the natural instinct is to build the generator
+first.
+
 **Alternative considered**: generating all 15 classes under distinct names and having the
 hand-written unified classes subclass them. Rejected — the resolution map would then point at the
 generated base, so the factory would raise the generated class and never the unified one that
@@ -729,15 +745,32 @@ number. Naming the fragments as work makes FR-016 verifiable instead of aspirati
 
 ## R15 — Type-check the generated class shape before generating 15 of it
 
-**Decision**: hand-write one generated-shape class and run both `mypy` and `ty` over it before the
-template is finalised. The shape to check: promoted attributes assigned in `__init__`, a `from_payload`
-classmethod returning `Self`, and `**envelope` forwarded to `super().__init__`.
+**Done, and it passes.** A hand-written class in the generated shape — promoted attributes assigned in
+`__init__`, a `from_payload` classmethod returning `Self`, `**envelope` forwarded to
+`super().__init__`, plus the adopted variant with optional attributes — was checked against both
+checkers at the versions this repository pins (`mypy` 1.11.2, `ty` 0.0.14):
 
-The risk here dropped twice over. Promotion (R6) removed the variance problem that made it real, and
-dropping the diamond (R5) removed the least ordinary construct in the shape — a single-parent class
-with typed attributes and a `Self`-returning classmethod is unremarkable. What is left is a
-confirmation, not a decision input, but the constitution requires both checkers clean and finding a
-disagreement in one hand-written class still costs minutes rather than a regeneration cycle.
+```text
+mypy: Success: no issues found in 1 source file
+ty:   All checks passed!
+```
+
+Zero suppressions were needed. The types a consumer actually sees were asserted by typed assignment
+rather than inspected, so a wrong one would have been an error rather than a note:
+
+| Expression | Type |
+|------------|------|
+| `exc.node_kind` on a generated class | `str` — not optional, not `Any` |
+| `exc.fields` | `list[str]` |
+| `exc.code` on `ApiError` | `str \| None` |
+| `exc.errors` | `Sequence[dict[str, Any]]` |
+| `UniquenessViolationError.from_payload(...)` | `UniquenessViolationError`, so `Self` resolves concretely |
+| `exc.identifier` on the adopted class | `Mapping[str, list[str]] \| str` |
+
+The risk had already dropped twice over — promotion (R6) removed the variance problem that made it
+real, and dropping the diamond (R5) removed the least ordinary construct in the shape — so this is a
+confirmation rather than a decision input. It stays recorded because the constitution requires both
+checkers clean, and because the numbers above are the contract the template has to reproduce.
 
 Note that no suppression is anticipated anywhere in this design. If the spike shows one is needed, that
 is a signal the shape is wrong rather than a licence to add it.
