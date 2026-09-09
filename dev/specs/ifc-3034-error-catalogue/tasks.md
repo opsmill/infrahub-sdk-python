@@ -8,8 +8,8 @@
 **Tests**: Included. Constitution Principle V requires tests to ship in the same change, and
 [research.md](./research.md) R12 fixes the layer split they follow.
 
-**Organization**: Tasks are grouped by user story. **Phase order follows dependency, not priority** -
-see the note below.
+**Organization**: Tasks are grouped by user story. Phase numbering is a nominal sequence, not a strict
+dependency order - see the note below for the two adjacencies that are actually forced.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -25,19 +25,23 @@ Two checkouts are involved:
 - **Infrahub** (`opsmill/infrahub`, phase 7 only): paths are prefixed `[infrahub]`, e.g.
   `[infrahub] tasks/backend.py`.
 
-## Phase order is dependency order, not priority order
+## Phase order is a nominal sequence, not a strict dependency order
 
-[research.md](./research.md) R16 and R4 pin an order that cuts across the priority labels:
+Phases are numbered so there is one obvious path through the work. Only two adjacencies are actually
+forced, and both cut against the priority labels ([research.md](./research.md) R16 and R4):
 
-1. The envelope parses onto the base classes with **no generated bindings at all**, so `code`,
-   `http_status`, cross-version tolerance (US2) and the typed relogin decision (US4) are landable first.
-2. The three `CODE` declarations in `base.py` are a **prerequisite for generation succeeding at all**:
-   the generator aborts on an undeclared name collision. So the US3 hierarchy work comes before the
-   generator.
-3. The generator (US5) produces the per-code classes that US1 (P1) delivers, so US1 lands last among
-   the behaviour phases despite being the MVP story.
+1. **US3 must precede US5.** The three `CODE` declarations (T034) are a prerequisite for generation
+   succeeding at all, not merely for its output: the generator aborts on an undeclared name collision.
+2. **US5 must precede US1.** The generator produces the per-code classes US1 delivers, so the P1 MVP
+   story lands last among the behaviour phases. Priority labels describe value, not order.
 
-Phases therefore run: Setup → Foundational → US2 → US3 → US4 → US6 → US5 → US1 → Polish.
+Everything else is free. **US2, US3, US4, and US6 depend only on Foundational and are mutually
+independent**, so do not serialize them just because they are numbered in sequence. The envelope parses
+onto the base classes with **no generated bindings at all**, which is what makes US2 and US4 landable
+before anything has been generated. See Parallel opportunities below for the file overlaps to watch if
+they are worked concurrently.
+
+Nominal sequence: Setup → Foundational → US2 → US3 → US4 → US6 → US5 → US1 → Polish.
 US1 remains the feature's reason for existing; it is simply the last brick, not the first.
 
 ---
@@ -445,8 +449,10 @@ the raised type and the typed attributes, reading no message (quickstart scenari
 
 - **Phase 1**: T002, T005, T006 are independent files.
 - **Phase 2**: T018, T019, T020, T021 touch four different modules and can run together once T011-T013 exist.
-- **Phases 3, 5, 6 can run concurrently** once Foundational is done: US2, US4, and US6 share no files
-  beyond the factory, and only US6 modifies it.
+- **Phases 3, 4, 5, and 6 are mutually independent** once Foundational is done: US2, US3, US4, and US6
+  each depend on Phase 2 alone. Two file overlaps to coordinate if they are genuinely worked in
+  parallel: US2 and US6 both edit `infrahub_sdk/exceptions/factory.py`, and US3 and US6 both add cases
+  to `tests/unit/sdk/test_exceptions.py`. US4 touches neither.
 - **Phase 4**: T029-T033 are five independent test additions.
 - **Phase 8**: T066, T068, T069, T070, T071 are independent; T070 and T071 are the two integration files.
 - **Phase 9**: T076-T079 are four independent files.
@@ -519,8 +525,9 @@ caught" has to be verified, and it is only fourteen tasks across three files.
   an undeclared name collision. Generation fails outright without them; this is not a preference about
   ordering.
 - **Issue 3 depends on issues 2 and 4.**
-- Issues 1 and 2 both touch `infrahub_sdk/exceptions/base.py`, so run them in sequence rather than in
-  parallel.
+- Not a dependency, but worth scheduling around: issues 1 and 2 both touch
+  `infrahub_sdk/exceptions/base.py`, so running them in sequence avoids a conflict rather than
+  satisfying a constraint.
 
 ### Issue 4 is developed before issue 3 but merges after it
 
