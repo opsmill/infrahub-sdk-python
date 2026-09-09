@@ -86,6 +86,10 @@ Practical consequences:
   `COLUMNS` beyond 200 for a specific test.
 - When a test builds its own `Console`, make it explicit —
   `Console(file=StringIO(), width=1000, no_color=True, force_terminal=False)` — so it does not
-  depend on the ambient environment at all.
+  depend on the ambient environment at all. Prefer wrapping that in a fixture that patches the
+  module-level console and yields it, as `schema_console` in `tests/unit/sdk/test_schema.py`
+  does, rather than repeating the `mock.patch` block per test.
+- Tests that cover the test infrastructure itself, rather than any SDK behaviour, live in
+  `tests/unit/meta/`.
 - Prefer fixing the environment over loosening an assertion, so exact-output tests keep their
   value.
