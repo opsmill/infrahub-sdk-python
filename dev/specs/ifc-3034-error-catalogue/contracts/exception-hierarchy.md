@@ -15,9 +15,9 @@ than asserted.
 |--------|--------|
 | Anything the server rejected, on either transport | `except ApiError` |
 | Any GraphQL-path failure | `except GraphQLError` |
-| Any authentication or permission failure, either transport | `except AuthenticationError` |
+| Any failure the SDK observed as HTTP 401 or 403 | `except AuthenticationError` |
 | One specific catalogued failure | `except UniquenessViolationError` (and so on per code) |
-| One of the three authentication codes | `except AuthenticationError` then test `exc.code` |
+| One of the three authentication codes, whichever way it arrived | `except ApiError` then test `exc.code` |
 | Anything the SDK raises | `except Error` |
 
 The hierarchy is a plain tree: `GraphQLError` and `AuthenticationError` are siblings under `ApiError`,
@@ -32,13 +32,25 @@ on two different transports, and each transport already has a class an existing 
 | A real 401 or 403, when the failure escapes before query execution | `AuthenticationError`, as today | the catalogue code |
 | Inside an HTTP 200 `errors` array, when a resolver raised it | `GraphQLError`, as today | the catalogue code |
 
-So distinguish them by code, not by type:
+So distinguish them by code, not by type — and pick the clause for the arrival path you care about:
 
 ```python
+# A real 401 or 403. This is where TOKEN_EXPIRED and AUTHENTICATION_REQUIRED arrive.
 except AuthenticationError as exc:
     if exc.code == "TOKEN_EXPIRED":
         ...
+
+# Either arrival path. Use this for PERMISSION_DENIED, which a resolver can raise
+# inside an HTTP 200 response, where AuthenticationError is not what gets raised.
+except ApiError as exc:
+    if exc.code == "PERMISSION_DENIED":
+        ...
 ```
+
+`except AuthenticationError` therefore does **not** catch a resolver-raised permission failure inside a
+200 response. That is not a coverage loss — it does not catch one today either, since such a response
+raises `GraphQLError` — but it does mean `except AuthenticationError` is not the clause that spans both
+arrival paths. `except ApiError` is.
 
 Every clause that worked before the change still catches what it caught before (FR-018). Two
 broadenings are deliberate:
@@ -57,7 +69,7 @@ Available on every `ApiError`:
 |-----------|----------|
 | `code` | The catalogue code string, or `None`. Never an integer. `None` means the SDK resolved no catalogue code — a pre-catalogue server, a REST failure, an error with no `extensions`, or an integer `code` on the wire. An unrecognised string code from a newer server is still readable here. |
 | `http_status` | The code's catalogue-declared status, or `None`. This is metadata about the failure, not the HTTP status of the response — a catalogued data error arrives as HTTP 200. Where the error carried an `extensions` mapping, the status the server actually returned is available as `exc.extensions["http_status"]` — guard on `exc.extensions` first, since it is `None` when the error carried none. The two can legitimately differ: the server replaces a declared 500 with the real HTTP status when it has a more accurate one. |
-| the payload's fields | Not on the base. Each catalogued class carries its payload's fields as directly typed attributes — `UniquenessViolationError.node_kind` is a `str`, `.fields` a `list[str]` — typed exactly as the catalogue declares them, so a required field is never optional and needs no guard. The three exceptions are `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`, whose attributes are optional because those classes are also raised without a server response; guard on `exc.code is not None` there. The raw payload dict remains in `extensions["data"]` for anything forwarding it verbatim. |
+| the payload's fields | Not on the base. Each catalogued class carries its payload's fields as directly typed attributes — `UniquenessViolationError.node_kind` is a `str`, `.fields` a `list[str]` — typed exactly as the catalogue declares them, so a required field is never optional and needs no guard. The three exceptions are `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`, whose attributes are optional because those classes are also raised with no catalogue code behind them — a client-side lookup miss, or the REST 404 that has a response but no code; guard on `exc.code is not None` there. The raw payload dict remains in `extensions["data"]` for anything forwarding it verbatim. |
 | `extensions` | The raw `extensions` mapping of the governing error, or `None`. |
 | `errors` | The complete server error list, unreordered — empty for a client-side raise. |
 | `query`, `variables` | The GraphQL query and variables where there was one, otherwise `None`. |
