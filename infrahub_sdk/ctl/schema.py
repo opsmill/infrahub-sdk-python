@@ -239,31 +239,51 @@ def _render_schema_error(
     err_msg = error.get("msg", "No error message")
     err_type = error.get("type", "unknown")
 
-    if len(tail) == 1:
-        # Error on a direct field of the node (e.g. `name`, `namespace`).
-        loc_type = tail[0]
-        error_message = f"{loc_type}{input_label} | {err_msg} ({err_type})"
-    elif len(tail) > 1:
-        # Error nested inside a collection (e.g. attributes[2].kind, relationships[0].peer).
-        # loc_type is the collection name; attribute is either its index or the failing field name.
-        loc_type = tail[0]
-        attribute = tail[1]
-        element_label = _resolve_attribute_label(error_data=node.get(loc_type, []), attribute=attribute)
-        # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
-        error_message = f"{loc_type[:-1].title()}: {element_label}{input_label} | {err_msg} ({err_type})"
-    else:
+    if not tail:
         return
 
-    output.print(f"  Node: {node_label}{path_suffix} | {error_message}", markup=False)
+    if tail[0] in _NODE_ELEMENT_COLLECTIONS and len(tail) > 1:
+        # Error inside an attribute or relationship (e.g. attributes[2].kind, relationships[0].peer).
+        # The second segment is either the element index or, in older payloads, the failing field name.
+        collection, element = tail[0], tail[1]
+        element_label = _resolve_attribute_label(error_data=node.get(collection, []), attribute=element)
+        # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
+        location = f"{collection[:-1].title()}: {element_label}"
+        # Anything below the element (e.g. `parameters.regex`, `choices[1].label`) names the failing field.
+        if field_path := _format_field_path(segments=tail[2:]):
+            location = f"{location} | {field_path}"
+    else:
+        # Error on a field of the node itself (e.g. `namespace`, `display_labels[0]`).
+        location = _format_field_path(segments=tail) or str(tail[0])
+
+    output.print(f"  Node: {node_label}{path_suffix} | {location}{input_label} | {err_msg} ({err_type})", markup=False)
 
 
-def _resolve_attribute_label(error_data: list[dict[str, Any]], attribute: Any) -> str | None:
+_NODE_ELEMENT_COLLECTIONS = {"attributes", "relationships"}
+
+
+def _format_field_path(segments: list[Any]) -> str:
+    """Render location segments as a dotted path: ["choices", 1, "label"] -> "choices[1].label".
+
+    Pydantic tags the branch it validated a union against with a CapitalCase segment (the attribute kind,
+    e.g. `attributes[0].Text.name`); those are not fields and are dropped.
+    """
+    path = ""
+    for segment in segments:
+        if isinstance(segment, int):
+            path = f"{path}[{segment}]"
+        elif not segment[:1].isupper():
+            path = f"{path}.{segment}" if path else segment
+    return path
+
+
+def _resolve_attribute_label(error_data: list[Any], attribute: Any) -> str | None:
     if isinstance(attribute, str):
         for data in error_data:
-            if data.get(attribute) is not None:
+            if isinstance(data, dict) and data.get(attribute) is not None:
                 return data.get("name", None)
         return None
-    if isinstance(attribute, int) and 0 <= attribute < len(error_data):
+    if isinstance(attribute, int) and 0 <= attribute < len(error_data) and isinstance(error_data[attribute], dict):
         return error_data[attribute].get("name", None)
     return None
 

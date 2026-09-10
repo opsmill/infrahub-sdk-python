@@ -561,7 +561,7 @@ async def test_display_schema_load_errors_schema_level_extension_field() -> None
 
 
 async def test_display_schema_load_errors_schema_level_extension_attribute() -> None:
-    """A violation nested in an extension attribute names the attribute it belongs to."""
+    """A violation nested in an extension attribute names the attribute it belongs to and the failing field."""
     schema = {
         "version": "1.0",
         "extensions": {
@@ -574,7 +574,7 @@ async def test_display_schema_load_errors_schema_level_extension_attribute() -> 
 
     assert _render(error=error, schemas=[schema]) == (
         "Unable to load the schema:\n"
-        "  Node: BuiltinTag (extensions/nodes) | Attribute: speed (True) | "
+        "  Node: BuiltinTag (extensions/nodes) | Attribute: speed | made_up (True) | "
         "Unknown field, it is not part of the schema (value_error)\n"
     )
 
@@ -612,7 +612,7 @@ async def test_display_schema_load_errors_schema_level_top_level_node() -> None:
 
 
 async def test_display_schema_load_errors_schema_level_attribute_union_path() -> None:
-    """A path carrying the attribute kind as an extra segment still resolves to the attribute."""
+    """A path carrying the attribute kind as an extra segment resolves to the attribute and drops the kind."""
     schema = {
         "version": "1.0",
         "nodes": [{"name": "Thing", "namespace": "Test", "attributes": [{"name": "x", "kind": "Text"}]}],
@@ -623,7 +623,7 @@ async def test_display_schema_load_errors_schema_level_attribute_union_path() ->
 
     assert _render(error=error, schemas=[schema]) == (
         "Unable to load the schema:\n"
-        "  Node: TestThing | Attribute: x (x) | String should have at least 3 characters (value_error)\n"
+        "  Node: TestThing | Attribute: x | name (x) | String should have at least 3 characters (value_error)\n"
     )
 
 
@@ -681,6 +681,75 @@ async def test_display_schema_load_errors_schema_level_missing_field_shows_no_va
 
     assert _render(error=error, schemas=[schema]) == (
         "Unable to load the schema:\n  Node: InfraNone | name | Field required (value_error)\n"
+    )
+
+
+async def test_display_schema_load_errors_nested_attribute_field_is_not_truncated() -> None:
+    """A violation below an attribute keeps the failing field path instead of stopping at the attribute name."""
+    schema = {
+        "version": "1.0",
+        "nodes": [
+            {
+                "name": "Device",
+                "namespace": "Infra",
+                "attributes": [{"name": "serial", "kind": "Text", "parameters": {"regex": "["}}],
+            }
+        ],
+    }
+    schema_level = _schema_level_error(
+        "Value error, nodes[0].attributes[0].parameters.regex: String should be a valid regex (received: '[')"
+    )
+    field_level = {
+        "detail": [
+            {
+                "type": "value_error",
+                "loc": ["body", "schemas", 0, "nodes", 0, "attributes", 0, "parameters", "regex"],
+                "msg": "String should be a valid regex",
+                "input": "[",
+            }
+        ]
+    }
+    expected = (
+        "Unable to load the schema:\n"
+        "  Node: InfraDevice | Attribute: serial | parameters.regex ([) | String should be a valid regex (value_error)\n"
+    )
+
+    assert _render(error=schema_level, schemas=[schema]) == expected
+    assert _render(error=field_level, schemas=[schema]) == expected
+
+
+async def test_display_schema_load_errors_nested_dropdown_choice_field() -> None:
+    """A violation inside a dropdown choice names the attribute, the choice index and the failing field."""
+    schema = {
+        "version": "1.0",
+        "nodes": [
+            {
+                "name": "Device",
+                "namespace": "Infra",
+                "attributes": [
+                    {"name": "status", "kind": "Dropdown", "choices": [{"name": "active"}, {"name": "x", "label": 1}]}
+                ],
+            }
+        ],
+    }
+    error = _schema_level_error(
+        "Value error, nodes[0].attributes[0].choices[1].label: Input should be a valid string (received: 1)"
+    )
+
+    assert _render(error=error, schemas=[schema]) == (
+        "Unable to load the schema:\n"
+        "  Node: InfraDevice | Attribute: status | choices[1].label (1) | Input should be a valid string (value_error)\n"
+    )
+
+
+async def test_display_schema_load_errors_scalar_list_field_does_not_crash() -> None:
+    """A violation on an item of a scalar list field (e.g. display_labels) is rendered with its index."""
+    schema = {"version": "1.0", "nodes": [{"name": "Device", "namespace": "Infra", "display_labels": [1]}]}
+    error = _schema_level_error("Value error, nodes[0].display_labels[0]: Input should be a valid string (received: 1)")
+
+    assert _render(error=error, schemas=[schema]) == (
+        "Unable to load the schema:\n"
+        "  Node: InfraDevice | display_labels[0] (1) | Input should be a valid string (value_error)\n"
     )
 
 
