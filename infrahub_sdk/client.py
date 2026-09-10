@@ -1332,7 +1332,7 @@ class InfrahubClient(BaseClient):
             URLNotFoundError: If the server returns a 404 response.
             Error: If the response is unexpectedly missing.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -1417,8 +1417,9 @@ class InfrahubClient(BaseClient):
         Raises:
             GraphQLError: When the GraphQL response contains errors.
             AuthenticationError: If the server returns a 401 or 403 response.
+            httpx.HTTPStatusError: For any other non-2xx response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
 
@@ -2320,7 +2321,7 @@ class InfrahubClientSync(BaseClient):
             URLNotFoundError: If the server returns a 404 response.
             Error: If the response is unexpectedly missing.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -2405,8 +2406,9 @@ class InfrahubClientSync(BaseClient):
         Raises:
             GraphQLError: When the GraphQL response contains errors.
             AuthenticationError: If the server returns a 401 or 403 response.
+            httpx.HTTPStatusError: For any other non-2xx response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
 

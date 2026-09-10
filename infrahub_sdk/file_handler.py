@@ -156,7 +156,7 @@ class FileHandlerBase:
             NodeNotFoundError: If the file/node is not found (404).
             httpx.HTTPStatusError: For other HTTP errors.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         if exc.response.status_code in {401, 403}:
             raise authentication_error_from_response(response=exc.response) from exc
         if exc.response.status_code == 404:

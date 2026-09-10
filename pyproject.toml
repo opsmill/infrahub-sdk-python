@@ -419,14 +419,6 @@ max-complexity = 14
     "S105", # Possible hardcoded password assigned to a variable
 ]
 
-# `file_handler` and `object_store` raise from the exception factories in
-# `infrahub_sdk/exceptions/factory.py`. Ruff reads the factory's own name as the raised type, so it asks
-# for a docstring entry naming a function rather than an exception; the docstrings already name the real
-# types. Scoped per file so DOC501 keeps working everywhere else. `client.py` needs the same, and gets it
-# in its own entry below.
-"infrahub_sdk/file_handler.py" = ["DOC501"]
-"infrahub_sdk/object_store.py" = ["DOC501"]
-
 "infrahub_sdk/exceptions/__init__.py" = [
     # The facade re-exports the hierarchy with a star import so the export surface stays automatic as
     # it grows, rather than a second list to edit on every addition. base.py carries the `__all__`
@@ -444,8 +436,6 @@ max-complexity = 14
 ]
 
 "infrahub_sdk/client.py" = [
-    # Raises from the exception factories; see the note on file_handler.py above.
-    "DOC501", # Raised exception missing from docstring
     ##################################################################################################
     # Review and change the below later                                                              #
     ##################################################################################################

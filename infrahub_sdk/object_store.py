@@ -82,7 +82,7 @@ class ObjectStore(ObjectStoreBase):
             AuthenticationError: If the server returns a 401 or 403 response.
             HTTPStatusError: For other non-2xx HTTP responses.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         headers = self.client._request_headers(tracker=tracker)
 
         try:
@@ -162,7 +162,7 @@ class ObjectStoreSync(ObjectStoreBase):
             AuthenticationError: If the server returns a 401 or 403 response.
             HTTPStatusError: For other non-2xx HTTP responses.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         headers = self.client._request_headers(tracker=tracker)
 
         try:
