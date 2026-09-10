@@ -113,12 +113,35 @@ class TestAuthenticationFactory:
         assert exc.code is None
         assert exc.extensions == {"code": 401}
 
-    def test_empty_error_list_keeps_the_default_message(self) -> None:
+    def test_empty_error_list_falls_back_to_the_status(self) -> None:
         response = auth_response(envelope={"errors": []})
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "Authentication Error, unable to execute the query."
+        assert exc.message == "HTTP 401", "an empty join must not discard the status"
+
+    def test_a_rest_detail_string_is_used_when_there_is_no_error_array(self) -> None:
+        """The REST API rejects an unauthenticated request with a bare `detail` and no envelope."""
+        response = auth_response(envelope={"detail": "Not authenticated"})
+
+        exc = authentication_error_from_response(response=response)
+
+        assert exc.message == "Not authenticated"
+        assert exc.errors == []
+
+    def test_a_server_message_wins_over_a_detail_string(self) -> None:
+        response = auth_response(envelope={"detail": "Not authenticated", "errors": [{"message": "real reason"}]})
+
+        exc = authentication_error_from_response(response=response)
+
+        assert exc.message == "real reason"
+
+    def test_an_object_body_carrying_nothing_readable_falls_back_to_the_status(self) -> None:
+        response = auth_response(envelope={"unexpected": "shape"}, status_code=403)
+
+        exc = authentication_error_from_response(response=response)
+
+        assert exc.message == "HTTP 403"
 
     def test_a_403_is_parsed_the_same_way_as_a_401(self) -> None:
         response = auth_response(envelope=load_envelope("auth_two_messages.json"), status_code=403)

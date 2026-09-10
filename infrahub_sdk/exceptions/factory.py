@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger("infrahub_sdk")
 
-__all__ = ["authentication_error_from_response", "graphql_error_from_response"]
+__all__ = ["authentication_error_from_response", "graphql_error_from_response", "token_expired_in"]
 
 
 def _extensions_of(error: Any) -> dict[str, Any] | None:
@@ -61,9 +61,30 @@ def _server_messages(errors: Any) -> list[str]:
     return [error["message"] for error in errors if isinstance(error, dict) and isinstance(error.get("message"), str)]
 
 
+def _detail_message(body: dict[str, Any]) -> str | None:
+    """The REST API rejects a request with a bare `detail` string rather than an `errors` array."""
+    detail = body.get("detail")
+    return detail if isinstance(detail, str) and detail else None
+
+
 def _log_unresolved_code(extensions: dict[str, Any] | None, source: str) -> None:
     if extensions is not None and _catalogue_code(extensions) is None:
         LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions.get("code"))
+
+
+def token_expired_in(errors: Any) -> bool:
+    """Whether a decoded `errors` array reports the caller's token as expired.
+
+    Lives here so the client's silent-refresh decision reads the envelope through the same parser as
+    everything else. Every error is scanned rather than only the first: a stale token is a fact about
+    the request, not about which error happens to lead. The legacy message check is the fallback for
+    servers that predate the catalogue, and is the only place in the SDK that string still appears.
+    """
+    if not isinstance(errors, list):
+        return False
+    if any(_catalogue_code(_extensions_of(error)) == "TOKEN_EXPIRED" for error in errors):
+        return True
+    return "Expired Signature" in _server_messages(errors)
 
 
 def graphql_error_from_response(
@@ -90,30 +111,33 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
 
     Most call sites reach here on a 401 or 403, but the two that handle a failed token refresh reach
     it on any other status, so the status itself is not assumed. The message joins the server's
-    messages with `" | "`, as every call site this replaces did. A body that is not JSON degrades to
-    the plain status rather than surfacing a decode error in place of the authentication failure.
+    messages with `" | "`, as every call site this replaces did, falling back to the REST API's bare
+    `detail` string and then to the plain status. A body the SDK cannot read as an envelope therefore
+    still names the status rather than surfacing a decode error in place of the authentication failure.
     """
-    # Imported here rather than at module scope: infrahub_sdk.utils imports this package, so a
-    # module-level import would be a cycle whenever utils is imported first.
-    from ..utils import decode_json  # noqa: PLC0415
-
     errors: Any = []
     message = f"HTTP {response.status_code}"
 
+    # Read raw rather than through utils.decode_json, which raises JsonDecodeError on a body that is
+    # not JSON. Tolerating that body is the whole point here, so the wrapping would be built and then
+    # discarded. The catch stays broad because this runs while the caller is already failing: whatever
+    # a proxy answered with, the authentication failure is what has to reach them.
     try:
-        body = decode_json(response=response)
+        body = response.json()
     except Exception:
         LOGGER.debug("Authentication response body could not be parsed; using the plain status", exc_info=True)
     else:
         if isinstance(body, dict):
             errors = body.get("errors", [])
-            message = " | ".join(_server_messages(errors))
+            # Each fallback only applies when the one before it yielded nothing, so a body carrying
+            # no readable reason keeps the status rather than losing it to an empty join.
+            message = " | ".join(_server_messages(errors)) or _detail_message(body) or message
         else:
             LOGGER.debug("Authentication response body is not an envelope object; using the plain status: %r", body)
 
     extensions = _first_extensions(errors)
 
-    exc = AuthenticationError(message or None)
+    exc = AuthenticationError(message)
     exc.code = _catalogue_code(extensions)
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
