@@ -265,15 +265,8 @@ FORMAT_PATH_CASES = [
     FormatPathCase(name="dotted", segments=["parameters", "regex"], expected="parameters.regex"),
     FormatPathCase(name="bare-index", segments=[0], expected="[0]"),
     FormatPathCase(name="two-bare-indexes", segments=[0, 1], expected="[0][1]"),
-    FormatPathCase(name="leading-union-tag-dropped", segments=["Text", "name"], expected="name"),
-    FormatPathCase(name="trailing-union-tag-dropped", segments=["name", "Text"], expected="name"),
-    FormatPathCase(name="only-union-tag", segments=["Text"], expected=""),
-    FormatPathCase(
-        name="acronym-union-tag-dropped", segments=["IPHost", "parameters", "regex"], expected="parameters.regex"
-    ),
-    FormatPathCase(
-        name="union-tag-between-segments", segments=["choices", "Dropdown", 1, "label"], expected="choices[1].label"
-    ),
+    FormatPathCase(name="capital-case-segment-kept", segments=["parameters", "Regex"], expected="parameters.Regex"),
+    FormatPathCase(name="kind-like-segment-kept", segments=["Text", "name"], expected="Text.name"),
 ]
 
 

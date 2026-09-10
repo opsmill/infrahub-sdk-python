@@ -160,6 +160,24 @@ FIELD_LEVEL_CASES = [
         expected_line="Node: InfraDevice | Attribute: serial | name (serial) | Boom (value_error)",
     ),
     FieldLevelCase(
+        name="attribute-capital-case-key-is-not-a-union-tag",
+        loc=["body", "schemas", 0, "nodes", 0, "attributes", 0, "Made_up"],
+        extra={"input": True},
+        expected_line="Node: InfraDevice | Attribute: serial | Made_up (True) | Boom (value_error)",
+    ),
+    FieldLevelCase(
+        name="attribute-nested-capital-case-key-kept",
+        loc=["body", "schemas", 0, "nodes", 0, "attributes", 0, "parameters", "Regex"],
+        extra={"input": "a"},
+        expected_line="Node: InfraDevice | Attribute: serial | parameters.Regex (a) | Boom (value_error)",
+    ),
+    FieldLevelCase(
+        name="relationship-kind-named-key-kept",
+        loc=["body", "schemas", 0, "nodes", 0, "relationships", 0, "Text"],
+        extra={"input": 1},
+        expected_line="Node: InfraDevice | Relationship: site | Text (1) | Boom (value_error)",
+    ),
+    FieldLevelCase(
         name="legacy-attribute-located-by-field-name",
         loc=["body", "schemas", 0, "nodes", 0, "attributes", "parameters"],
         extra={"input": {"regex": "["}},

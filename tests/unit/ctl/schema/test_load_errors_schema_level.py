@@ -83,6 +83,16 @@ SCHEMA_LEVEL_RENDER_CASES = [
         expected_line="Node: InfraDevice | Attribute: serial | name (serial) | bad (value_error)",
     ),
     SchemaLevelRenderCase(
+        name="attribute-capital-case-key-is-not-a-union-tag",
+        message="Value error, nodes[0].attributes[0].Made_up: Unknown field (received: True)",
+        expected_line="Node: InfraDevice | Attribute: serial | Made_up (True) | Unknown field (value_error)",
+    ),
+    SchemaLevelRenderCase(
+        name="attribute-nested-capital-case-key-kept",
+        message="Value error, nodes[0].attributes[0].parameters.Regex: Unknown field (received: 'a')",
+        expected_line="Node: InfraDevice | Attribute: serial | parameters.Regex (a) | Unknown field (value_error)",
+    ),
+    SchemaLevelRenderCase(
         name="attribute-as-a-whole",
         message="Value error, nodes[0].attributes[1]: bad (received: {'name': 'status'})",
         expected_line="Node: InfraDevice | Attribute: status ({'name': 'status'}) | bad (value_error)",

@@ -21,6 +21,7 @@ from ..ctl.client import initialize_client
 from ..ctl.utils import catch_exception, init_logging
 from ..queries import SCHEMA_HASH_SYNC_STATUS
 from ..schema import NodeSchemaAPI, SchemaWarning, validate_schema
+from ..schema.generated.enums import AttributeKind
 from ..yaml import SchemaFile
 from .parameters import CONFIG_PARAM
 from .schema_format import (
@@ -243,38 +244,41 @@ def _render_schema_error(
         return
 
     if tail[0] in _NODE_ELEMENT_COLLECTIONS and len(tail) > 1:
-        # Error inside an attribute or relationship (e.g. attributes[2].kind, relationships[0].peer).
-        # The second segment is either the element index or, in older payloads, the failing field name.
-        collection, element = tail[0], tail[1]
-        element_label = _resolve_attribute_label(error_data=node.get(collection, []), attribute=element)
-        # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
-        location = f"{collection[:-1].title()}: {element_label}"
-        # Anything below the element (e.g. `parameters.regex`, `choices[1].label`) names the failing field.
-        if field_path := _format_field_path(segments=tail[2:]):
-            location = f"{location} | {field_path}"
+        location = _element_location(node=node, tail=tail)
     else:
         # Error on a field of the node itself (e.g. `namespace`, `display_labels[0]`).
-        location = _format_field_path(segments=tail) or str(tail[0])
+        location = _format_field_path(segments=tail)
 
     output.print(f"  Node: {node_label}{path_suffix} | {location}{input_label} | {err_msg} ({err_type})", markup=False)
 
 
 _NODE_ELEMENT_COLLECTIONS = {"attributes", "relationships"}
+_ATTRIBUTE_KINDS = frozenset(kind.value for kind in AttributeKind)
+
+
+def _element_location(node: dict[str, Any], tail: list[Any]) -> str:
+    """Locate an error inside an attribute or relationship: ["attributes", 0, "parameters", "regex"] -> "Attribute: serial | parameters.regex".
+
+    The second segment is either the element index or, in older payloads, the failing field name.
+    """
+    collection, element = tail[0], tail[1]
+    element_label = _resolve_attribute_label(error_data=node.get(collection, []), attribute=element)
+    # Trim the trailing 's' so "attributes" → "Attribute" in the rendered label.
+    location = f"{collection[:-1].title()}: {element_label}"
+    field_segments = tail[2:]
+    # Pydantic tags the union branch it validated an attribute against with its kind (`attributes[0].Text.name`).
+    # That segment is not a submitted key and is dropped; any other segment is kept, CapitalCase or not.
+    if collection == "attributes" and field_segments and field_segments[0] in _ATTRIBUTE_KINDS:
+        field_segments = field_segments[1:]
+    if field_path := _format_field_path(segments=field_segments):
+        location = f"{location} | {field_path}"
+    return location
 
 
 def _format_field_path(segments: list[Any]) -> str:
-    """Render location segments as a dotted path: ["choices", 1, "label"] -> "choices[1].label".
-
-    Pydantic tags the branch it validated a union against with a CapitalCase segment (the attribute kind,
-    e.g. `attributes[0].Text.name`); those are not fields and are dropped.
-    """
-    path = ""
-    for segment in segments:
-        if isinstance(segment, int):
-            path = f"{path}[{segment}]"
-        elif not segment[:1].isupper():
-            path = f"{path}.{segment}" if path else segment
-    return path
+    """Render location segments as a dotted path: ["choices", 1, "label"] -> "choices[1].label"."""
+    parts = [f"[{segment}]" if isinstance(segment, int) else f".{segment}" for segment in segments]
+    return "".join(parts).removeprefix(".")
 
 
 def _resolve_attribute_label(error_data: list[Any], attribute: Any) -> str | None:
