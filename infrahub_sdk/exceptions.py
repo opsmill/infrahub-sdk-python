@@ -78,6 +78,11 @@ class TrackingGroupCleanupError(Error):
         details = "; ".join(f"{node_id} ({reason})" for node_id, reason in failures.items())
         super().__init__(f"Unable to delete {len(failures)} unused member(s) of the tracking group: {details}")
 
+    def __reduce__(self) -> tuple[type[TrackingGroupCleanupError], tuple[dict[str, str]]]:
+        # Rebuild from the failures rather than the formatted message, so the exception
+        # survives the serialization that a task orchestrator applies to a failed run.
+        return (self.__class__, (self.failures,))
+
 
 class VersionNotSupportedError(Error):
     """Raised when a feature is used against an Infrahub server version that does not support it."""
