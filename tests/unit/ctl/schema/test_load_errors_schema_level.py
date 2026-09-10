@@ -360,17 +360,15 @@ def test_contract_unknown_field_on_extension_attribute_with_markup_in_value() ->
     )
 
 
-def test_contract_description_containing_a_separator_is_kept_whole() -> None:
-    node = {**VALID_NODE, "namespace": "infra", "description": "Uplinks; note: keep"}
-    schema = {"version": "1.0", "nodes": [node]}
-    message = _server_message(schema)
-    schema_with_bad_description = {"version": "1.0", "nodes": [{**node, "description": "x" * 300}]}
-    long_message = _server_message(schema_with_bad_description)
+def test_contract_received_value_containing_a_separator_is_kept_whole() -> None:
+    """A rejected description that contains `; <word>: ` reaches the message as a received value and stays whole."""
+    description = "Uplinks; note: keep " + "x" * 120
+    schema = {"version": "1.0", "nodes": [{**VALID_NODE, "description": description}]}
 
-    assert render([schema_level_error(message)], schema) == (
-        f"{HEADER}  Node: infraDevice | namespace (infra) | String should match pattern '^[A-Z][a-z0-9]+$' (value_error)\n"
+    assert render([schema_level_error(_server_message(schema))], schema) == (
+        f"{HEADER}  Node: InfraDevice | description ({description}) | "
+        "String should have at most 128 characters (value_error)\n"
     )
-    assert render([schema_level_error(long_message)], schema_with_bad_description).count("\n") == 3
 
 
 def test_contract_missing_required_field_shows_no_value() -> None:
