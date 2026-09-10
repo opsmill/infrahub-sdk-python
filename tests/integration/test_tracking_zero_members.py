@@ -10,15 +10,33 @@ from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_CAT, TESTING_PERSON, SchemaAnimal
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
+
+# Cats are deleted before persons: an animal holds a mandatory relationship to its owner.
+TRACKED_KINDS = (TESTING_CAT, TESTING_PERSON, "BuiltinTag", "CoreStandardGroup")
+
+
+async def _delete_tracked_nodes(client: InfrahubClient, prefixes: tuple[str, ...], branch: str) -> None:
+    """Delete the nodes and tracking groups a test class created, on main and on its branch."""
+    for branch_name in ("main", branch):
+        for kind in TRACKED_KINDS:
+            for node in await client.filters(kind=kind, branch=branch_name):
+                if str(node.name.value or "").startswith(prefixes):
+                    await node.delete()
 
 
 class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
     BRANCH = "tracking-branch01"
+    NAME_PREFIXES = ("Tracking", "tracking-", "BranchTracking", "branch-tracking-", "sdk-")
 
     @pytest.fixture(scope="class")
-    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> None:
+    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> AsyncGenerator[None, None]:
         await client.branch.create(branch_name=self.BRANCH)
+        yield
+        await _delete_tracked_nodes(client=client, prefixes=self.NAME_PREFIXES, branch=self.BRANCH)
+        await client.branch.delete(branch_name=self.BRANCH)
 
     async def test_zero_member_run_prunes_previous_members(self, client: InfrahubClient, base_dataset: None) -> None:
         person_name = "TrackingZeroMemberPerson"
@@ -42,9 +60,9 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         group = await client.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
         assert len(group.members.peers) == 0
 
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=tag_name):
             await client.get(kind="BuiltinTag", name__value=tag_name)
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             await client.get(kind=TESTING_PERSON, name__value=person_name)
 
     async def test_zero_member_run_without_existing_group_creates_nothing(
@@ -56,7 +74,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
             pass
 
         group_name = client.group_context._generate_group_name()
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=group_name):
             await client.get(kind="CoreStandardGroup", name__value=group_name)
 
     async def test_refused_delete_does_not_abort_remaining_reaps(
@@ -84,7 +102,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
 
         # Second run saves only a new tag, so the person and the first tag both
         # become reap candidates. The person's delete is refused by the server.
-        with pytest.raises(TrackingGroupCleanupError) as exc_info:
+        with pytest.raises(TrackingGroupCleanupError, match="Unable to delete 1 unused member") as exc_info:
             async with client.start_tracking(params=params, delete_unused_nodes=True) as clt:
                 keeper_tag = await clt.create(kind="BuiltinTag", name=keeper_tag_name)
                 await keeper_tag.save(allow_upsert=True)
@@ -92,7 +110,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         assert list(exc_info.value.failures) == [person.id]
 
         # The refused delete must not prevent the other unused member from being reaped.
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=doomed_tag_name):
             await client.get(kind="BuiltinTag", name__value=doomed_tag_name)
 
         # The person survived, and must still be a group member so a later run can retry it.
@@ -112,7 +130,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         await cat.save()
 
         # A zero-member run now attempts the reap; the person's delete is refused.
-        with pytest.raises(TrackingGroupCleanupError):
+        with pytest.raises(TrackingGroupCleanupError, match="Unable to delete 1 unused member"):
             async with client.start_tracking(params=params, delete_unused_nodes=True):
                 pass
 
@@ -129,7 +147,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
 
         group = await client.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
         assert len(group.members.peers) == 0
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             await client.get(kind=TESTING_PERSON, name__value=person_name)
 
     async def test_zero_member_run_prunes_on_the_tracked_branch(
@@ -152,7 +170,7 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         assert len(group.members.peers) == 2
 
         # The group belongs to the branch, not to main.
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=group_name):
             await client.get(kind="CoreStandardGroup", name__value=group_name, branch="main")
 
         # A zero-member run on the branch must delete the branch's nodes. Deleting on the
@@ -165,18 +183,22 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         )
         assert len(group.members.peers) == 0
 
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=tag_name):
             await client.get(kind="BuiltinTag", name__value=tag_name, branch=self.BRANCH)
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             await client.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
 
 
 class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
     BRANCH = "sync-tracking-branch01"
+    NAME_PREFIXES = ("SyncTracking", "sync-tracking-", "SyncBranchTracking", "sync-branch-tracking-", "sdk-")
 
     @pytest.fixture(scope="class")
-    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> None:
+    async def base_dataset(self, client: InfrahubClient, load_schema: None) -> AsyncGenerator[None, None]:
         await client.branch.create(branch_name=self.BRANCH)
+        yield
+        await _delete_tracked_nodes(client=client, prefixes=self.NAME_PREFIXES, branch=self.BRANCH)
+        await client.branch.delete(branch_name=self.BRANCH)
 
     def test_zero_member_run_prunes_previous_members(self, client_sync: InfrahubClientSync, base_dataset: None) -> None:
         person_name = "SyncTrackingZeroMemberPerson"
@@ -200,9 +222,9 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
         group = client_sync.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
         assert len(group.members.peers) == 0
 
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=tag_name):
             client_sync.get(kind="BuiltinTag", name__value=tag_name)
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             client_sync.get(kind=TESTING_PERSON, name__value=person_name)
 
     def test_zero_member_run_without_existing_group_creates_nothing(
@@ -214,7 +236,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
             pass
 
         group_name = client_sync.group_context._generate_group_name()
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=group_name):
             client_sync.get(kind="CoreStandardGroup", name__value=group_name)
 
     def test_refused_delete_does_not_abort_remaining_reaps(
@@ -243,7 +265,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
         # Second run saves only a new tag, so the person and the first tag both
         # become reap candidates. The person's delete is refused by the server.
         with (
-            pytest.raises(TrackingGroupCleanupError) as exc_info,
+            pytest.raises(TrackingGroupCleanupError, match="Unable to delete 1 unused member") as exc_info,
             client_sync.start_tracking(params=params, delete_unused_nodes=True) as clt,
         ):
             keeper_tag = clt.create(kind="BuiltinTag", name=keeper_tag_name)
@@ -252,7 +274,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
         assert list(exc_info.value.failures) == [person.id]
 
         # The refused delete must not prevent the other unused member from being reaped.
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=doomed_tag_name):
             client_sync.get(kind="BuiltinTag", name__value=doomed_tag_name)
 
         # The person survived, and must still be a group member so a later run can retry it.
@@ -275,7 +297,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
 
         # A zero-member run now attempts the reap; the person's delete is refused.
         with (
-            pytest.raises(TrackingGroupCleanupError),
+            pytest.raises(TrackingGroupCleanupError, match="Unable to delete 1 unused member"),
             client_sync.start_tracking(params=params, delete_unused_nodes=True),
         ):
             pass
@@ -293,7 +315,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
 
         group = client_sync.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
         assert len(group.members.peers) == 0
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             client_sync.get(kind=TESTING_PERSON, name__value=person_name)
 
     def test_zero_member_run_prunes_on_the_tracked_branch(
@@ -325,7 +347,7 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
         )
         assert len(group.members.peers) == 0
 
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=tag_name):
             client_sync.get(kind="BuiltinTag", name__value=tag_name, branch=self.BRANCH)
-        with pytest.raises(NodeNotFoundError):
+        with pytest.raises(NodeNotFoundError, match=person_name):
             client_sync.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
