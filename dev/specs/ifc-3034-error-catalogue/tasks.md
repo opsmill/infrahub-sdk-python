@@ -108,8 +108,13 @@ raise site funnels through. Every user story below depends on this phase.
       arguments only.
 - [X] T012 Add `authentication_error_from_response(response)` to `infrahub_sdk/exceptions/factory.py`,
       subsuming the eleven-site "decode, collect messages, join with ` | `" shape and preserving that
-      message byte-for-byte. It MUST use `decode_json` and fall back to the plain status when the body is
-      not JSON, since two of the sites it replaces call `response.json()` directly.
+      message byte-for-byte, falling back to the plain status when the body is not JSON, since two of the
+      sites it replaces call `response.json()` directly. **Landed reading `response.json()` directly
+      rather than `decode_json`.** The only thing `decode_json` adds over `.json()` is raising
+      `JsonDecodeError`, which this factory catches and discards, so it was building an exception it
+      never wanted. It also cost a deferred import inside the function body — `infrahub_sdk.utils`
+      imports this package, so the module-level spelling is a cycle — which is precisely the shape T015's
+      layering test exists to catch. The tolerance R10 asks for is unchanged.
 - [X] T013 Make both factories total in `infrahub_sdk/exceptions/factory.py`: wrap resolution so any
       unexpected error degrades to constructing today's generic exception rather than replacing the
       server's failure with an SDK `TypeError`, and log every fallback at debug level with the code
@@ -119,7 +124,10 @@ raise site funnels through. Every user story below depends on this phase.
 - [X] T015 Add `tests/unit/sdk/test_exceptions_layering.py`, parsing every module in
       `infrahub_sdk/exceptions/` with `ast` and failing on any intra-package import that points at its own
       layer or higher. It MUST walk imports inside function bodies and `TYPE_CHECKING` blocks, not only
-      module-level ones.
+      module-level ones. **Landed also asserting the package imports nothing else in the SDK**, in either
+      the relative or the absolute spelling. The internal ordering was only ever half the property: every
+      other module is free to raise, so any dependency in that direction is a cycle waiting to be found,
+      and the deferred import that works around one is invisible to the intra-package check.
 - [X] T016 Replace the four `GraphQLError` raise sites in `infrahub_sdk/client.py` (`_execute_graphql`
       and the file-upload variants, async and sync) with `graphql_error_from_response`.
 - [X] T017 Replace the four `AuthenticationError` raise sites in `infrahub_sdk/client.py` with
@@ -220,9 +228,11 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
       calling `super().__init__(errors=[], query=None, variables=None, message=...)` explicitly so their
       envelope attributes are set by the constructor that owns them. This is the first caller of
       `GraphQLError`'s optional `message` parameter, which T009 deferred, so add the parameter here.
-- [ ] T036 [US3] Widen `NodeNotFoundError.identifier` to `Mapping[str, list[str]] | str` in
+- [X] T036 [US3] Widen `NodeNotFoundError.identifier` to `Mapping[str, list[str]] | str` in
       `infrahub_sdk/exceptions/base.py`, admitting the plain string `infrahub_sdk/file_handler.py:168`
-      already passes.
+      already passes. **Landed in issue 1.** Hardening the 404 branch against a body carrying no
+      `detail` narrowed the argument from `Any` to `str`, which made the type checker report the
+      violation that had been there all along. Widening is the fix; a suppression would not be.
 - [ ] T037 [US3] Add a hand-written `from_payload` classmethod to each of the three classes in
       `infrahub_sdk/exceptions/base.py`, mapping `node_kind`→`node_type` and `identifier`→`identifier`,
       `branch_name`→`identifier`, and `kind`→`identifier`. Every promoted attribute on these three stays
@@ -233,14 +243,22 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
 - [ ] T039 [US3] Move the `(SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError,
       GraphQLQueryError)` branch **above** the `GraphQLError` branch in
       `infrahub_sdk/ctl/utils.py::handle_exception`, which re-rooting would otherwise make unreachable.
-- [ ] T040 [US3] Fix `print_graphql_errors` in `infrahub_sdk/ctl/utils.py`: degrade to the exception's
+- [X] T040 [US3] Fix `print_graphql_errors` in `infrahub_sdk/ctl/utils.py`: degrade to the exception's
       message when there are no server errors to render. The `isinstance(errors, list)` guard this task
       also meant to fix is already gone: issue 1 made `exc.errors` a list of dicts by construction, so the
       guard became unreachable and was removed with the annotation widened to `Sequence[dict[str, Any]]`.
-      The remaining gap is the empty-list case, where the renderer currently prints nothing at all.
-- [ ] T041 [US3] Verify no other ordered `isinstance` ladder is shadowed by the re-rooting: check
+      **Landed in issue 1, via an optional `fallback` argument** rather than by passing the exception, so
+      the existing signature keeps working for any caller outside this repository. Pulled forward because
+      the empty-list gap is a regression issue 1 introduces: without it `infrahubctl` exits non-zero with
+      no output at all where it previously printed the payload.
+- [X] T041 [US3] Verify no other ordered `isinstance` ladder is shadowed by the re-rooting: check
       `infrahub_sdk/ctl/cli_commands.py:237` and `infrahub_sdk/ctl/validate.py:88`, and grep the SDK and
-      CLI for further sequential tests of these classes.
+      CLI for further sequential tests of these classes. **Landed in issue 1, and the two sites needed
+      fixing rather than only checking.** Both rendered a `str` entry through an `isinstance(error, str)`
+      branch that filtering `exc.errors` to dicts made unreachable, taking the `--branch` hint with it and
+      reporting `0 error(s)` for a payload the SDK could not read. Both now share
+      `print_graphql_query_errors`, which keys the hint on the server's message and degrades to the
+      exception's message. No further sequential tests of these classes exist outside `handle_exception`.
 - [ ] T042 [US3] Update `tests/unit/sdk/test_exceptions_public_names.py` so the snapshot check runs against
       the re-rooted hierarchy, confirming the restructure is still invisible from outside the package.
 
@@ -439,7 +457,8 @@ the raised type and the typed attributes, reading no message (quickstart scenari
       the code list rather than restating it, and note that a catalogued message now names the failing
       action and resource kind where the catalogue provides them.
 - [ ] T077 [P] Add a towncrier fragment for the typed errors in `changelog/`.
-- [ ] T078 [P] Add a towncrier fragment for the `NodeNotFoundError.identifier` widening in `changelog/`.
+- [X] T078 [P] Add a towncrier fragment for the `NodeNotFoundError.identifier` widening in `changelog/`.
+      **Landed in issue 1**, alongside the widening itself (T036).
 - [ ] T079 [P] Add a towncrier fragment for the `except GraphQLError` broadening in `changelog/`.
 - [ ] T080 Run `uv run invoke format lint-code` and confirm both `mypy` and `ty` pass with **zero**
       suppressions. A needed `# type: ignore` is a signal the shape is wrong, not a licence to add one.
@@ -530,8 +549,8 @@ below are set by three things, none of which is task count:
 
 | # | Issue | Repo | Tasks | Scope |
 |---|-------|------|-------|-------|
-| 1 | Parse the catalogue envelope onto the base classes | SDK | T001-T028, T043-T047 | The exceptions package, `ApiError`, the two factories, every raise site rewired, cross-version tolerance, and the typed refresh decision. No generated bindings, no re-rooting, no class anyone catches changes shape. |
-| 2 | Unify and re-root the not-found classes | SDK | T029-T042, T048-T051, T078-T079 | The `CODE` declarations, the re-rooting, the CLI ladder and renderer, the message change, and the two changelog fragments documenting the `identifier` widening and the `except GraphQLError` broadening. |
+| 1 | Parse the catalogue envelope onto the base classes | SDK | T001-T028, T036, T040-T041, T043-T047, T078 | The exceptions package, `ApiError`, the two factories, every raise site rewired, cross-version tolerance, and the typed refresh decision. No generated bindings, no re-rooting, no class anyone catches changes shape. |
+| 2 | Unify and re-root the not-found classes | SDK | T029-T035, T037-T039, T042, T048-T051, T079 | The `CODE` declarations, the re-rooting, the CLI ladder, the message change, and the changelog fragment documenting the `except GraphQLError` broadening. |
 | 3 | Typed per-code exceptions | SDK | T063-T064, T066-T077 | The generated `catalogue.py`, per-code resolution and its validation-failure fallback, both-client parity, the integration tests, the topic page, and the typed-errors changelog fragment. |
 | 4 | Generate the SDK's error bindings | **Infrahub** | T052-T062, T065 | The template, the renderer, the adoption walk and collision check, `validate_generated`, the CI trigger, and the submodule pointer bump. |
 
@@ -541,7 +560,7 @@ with whoever owns the release flow) belongs to issue 1's timeframe, before issue
 
 Two pull requests would also work (one SDK, one Infrahub), since the tasks are ordered so a single branch
 carries them. It is not recommended: issue 2 is where "every existing `except` clause still catches what it
-caught" has to be verified, and it is only fourteen tasks across three files.
+caught" has to be verified, and it is only eleven tasks across three files.
 
 ### Issue dependencies to record
 
