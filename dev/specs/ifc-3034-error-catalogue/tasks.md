@@ -55,8 +55,14 @@ and pin that invisibility before touching anything.
       `infrahub_sdk.exceptions` today into `tests/fixtures/error_catalogue/public_names.json`, and add
       `tests/unit/sdk/test_exceptions_public_names.py` asserting every snapshot name is still importable.
       Author this **before** the restructure so the snapshot records the pre-change surface.
+      **The committed snapshot is post-change: it includes `ApiError`.** It still pins that every name
+      importable before the split is importable now, which is the property that matters, but it is not
+      the untouched pre-change baseline this task asked for.
 - [X] T002 [P] Create the response-envelope fixture directory `tests/fixtures/error_catalogue/` with a
       `README.md` stating that each file is a verbatim server response envelope, not a hand-shaped dict.
+      **The README distinguishes two kinds instead.** The claim cannot hold for the `malformed_*`
+      fixtures, since a correct server does not produce them; they are constructed and the README says
+      so. The captured/not-parser-shaped rule stands for every fixture representing a real response.
 - [X] T003 Convert `infrahub_sdk/exceptions.py` into `infrahub_sdk/exceptions/base.py` by verbatim move
       (no behaviour edits in this task), and add `__all__` to it listing every class it defines.
 - [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting with `from .base import *`
@@ -85,9 +91,15 @@ raise site funnels through. Every user story below depends on this phase.
       `code` (`str | None`), `http_status` (`int | None`), `extensions` (`dict[str, Any] | None`),
       `errors` (immutable empty tuple), `query`, and `variables`, adding no required constructor
       arguments. The defaults are a can't-crash floor, not a substitute for constructor state.
+      **Landed without `query` and `variables` on the base.** Only `GraphQLError` ever sets them, so on
+      `ApiError` they would be permanently `None` on every `AuthenticationError`, telling a caller that a
+      REST failure had no query rather than that it can never have one. They live on `GraphQLError`.
 - [X] T009 Re-root `GraphQLError` under `ApiError` in `infrahub_sdk/exceptions/base.py` and give its
       constructor an optional `message` parameter. When `message` is omitted the string it builds MUST be
-      byte-identical to today's.
+      byte-identical to today's. **Re-rooting landed; the `message` parameter is deferred to its first
+      caller.** Nothing in this issue passes it, and an unused public parameter is surface the SDK would
+      have to keep. T035 adds it as part of the same edit that first calls it. The byte-identical default
+      message is unaffected and is pinned by `test_malformed_envelope_keeps_the_payload_in_the_message`.
 - [X] T010 Re-root `AuthenticationError` under `ApiError` in `infrahub_sdk/exceptions/base.py`, leaving
       its name, constructor signature, and default message untouched.
 - [X] T011 Create `infrahub_sdk/exceptions/factory.py` with `graphql_error_from_response(errors, query,
@@ -206,7 +218,8 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
       `infrahub_sdk/exceptions/base.py`.
 - [ ] T035 [US3] Re-root the three classes under `GraphQLError` in `infrahub_sdk/exceptions/base.py`, each
       calling `super().__init__(errors=[], query=None, variables=None, message=...)` explicitly so their
-      envelope attributes are set by the constructor that owns them.
+      envelope attributes are set by the constructor that owns them. This is the first caller of
+      `GraphQLError`'s optional `message` parameter, which T009 deferred, so add the parameter here.
 - [ ] T036 [US3] Widen `NodeNotFoundError.identifier` to `Mapping[str, list[str]] | str` in
       `infrahub_sdk/exceptions/base.py`, admitting the plain string `infrahub_sdk/file_handler.py:168`
       already passes.
@@ -220,9 +233,11 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
 - [ ] T039 [US3] Move the `(SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError,
       GraphQLQueryError)` branch **above** the `GraphQLError` branch in
       `infrahub_sdk/ctl/utils.py::handle_exception`, which re-rooting would otherwise make unreachable.
-- [ ] T040 [US3] Fix `print_graphql_errors` in `infrahub_sdk/ctl/utils.py`: add the `return` its
-      `isinstance(errors, list)` guard currently lacks, and degrade to the exception's message when there
-      are no server errors to render.
+- [ ] T040 [US3] Fix `print_graphql_errors` in `infrahub_sdk/ctl/utils.py`: degrade to the exception's
+      message when there are no server errors to render. The `isinstance(errors, list)` guard this task
+      also meant to fix is already gone: issue 1 made `exc.errors` a list of dicts by construction, so the
+      guard became unreachable and was removed with the annotation widened to `Sequence[dict[str, Any]]`.
+      The remaining gap is the empty-list case, where the renderer currently prints nothing at all.
 - [ ] T041 [US3] Verify no other ordered `isinstance` ladder is shadowed by the re-rooting: check
       `infrahub_sdk/ctl/cli_commands.py:237` and `infrahub_sdk/ctl/validate.py:88`, and grep the SDK and
       CLI for further sequential tests of these classes.
@@ -256,6 +271,10 @@ pre-catalogue fallback and appearing exactly once in the SDK.
       `errors[0].extensions.code == "TOKEN_EXPIRED"` and falling back to the existing
       `"Expired Signature" in messages` check when no code is present. It MUST tolerate a non-JSON or empty
       body rather than letting `response.json()` raise, since the wrapper sees REST responses too.
+      **Landed scanning every error, not `errors[0]`.** A stale token is a fact about the request, not
+      about which error happens to lead; reading only the first would refuse to refresh when the server
+      orders the codes differently. Tolerance also covers a body that decodes to valid JSON that is not an
+      object, which `response.json().get(...)` raised an `AttributeError` on.
 - [X] T046 [US4] Route both `handle_relogin` and `handle_relogin_sync` in `infrahub_sdk/client.py` through
       that helper, so the literal `"Expired Signature"` appears exactly once in the SDK, down from twice.
 - [X] T047 [US4] Confirm `grep -rn "Expired Signature" infrahub_sdk/` returns exactly one site, and that
@@ -444,7 +463,8 @@ the raised type and the typed attributes, reading no message (quickstart scenari
 - **US3 (Phase 4)**: depends on Foundational. **Blocks US5** - T034's `CODE` declarations are what stop
   the generator aborting.
 - **US4 (Phase 5)**: depends on Foundational only. Independent of US3 and US5.
-- **US6 (Phase 6)**: depends on Foundational (T009's optional `message` parameter). Independent of US5.
+- **US6 (Phase 6)**: depends on `GraphQLError`'s optional `message` parameter, which T009 deferred to its
+  first caller. Whichever of T035 and US6 lands first adds it. Independent of US5.
 - **US5 (Phase 7)**: depends on US3 (T034). Runs from the Infrahub checkout.
 - **US1 (Phase 8)**: depends on US5 (T064 lands `catalogue.py`) and on US3 (T037's adopted `from_payload`).
 - **Polish (Phase 9)**: depends on all of the above.
