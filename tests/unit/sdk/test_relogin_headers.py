@@ -128,6 +128,36 @@ async def test_refresh_decision_reads_the_code_then_falls_back_to_the_message(
     assert len(graphql_requests) == case.expected_attempts
 
 
+@pytest.mark.parametrize("client_type", client_types)
+async def test_an_api_token_client_does_not_retry_a_stale_token_401(client_type: str, httpx_mock: HTTPXMock) -> None:
+    """`login(refresh=True)` cannot mint a token for an API-token client, so the retry is skipped.
+
+    Retrying would replay the same token the server just rejected and earn a second 401 for nothing.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        status_code=401,
+        json={"errors": [{"message": "Token has expired", "extensions": {"code": "TOKEN_EXPIRED"}}]},
+        is_reusable=True,
+    )
+    config = Config(address="http://mock", api_token="static-token", insert_tracker=True)
+    client: InfrahubClient | InfrahubClientSync = (
+        InfrahubClient(config=config) if client_type == "standard" else InfrahubClientSync(config=config)
+    )
+    query = "query { InfrahubInfo { version }}"
+
+    with pytest.raises(AuthenticationError, match="Token has expired"):
+        if isinstance(client, InfrahubClient):
+            await client.execute_graphql(query=query, branch_name="main")
+        else:
+            client.execute_graphql(query=query, branch_name="main")
+
+    graphql_requests = [r for r in httpx_mock.get_requests() if str(r.url) == "http://mock/graphql/main"]
+    assert len(graphql_requests) == 1
+    assert not [r for r in httpx_mock.get_requests() if "auth/refresh" in str(r.url)]
+
+
 @dataclass
 class UnreadableBodyCase:
     name: str

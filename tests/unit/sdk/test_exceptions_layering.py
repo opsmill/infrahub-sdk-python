@@ -1,4 +1,4 @@
-"""The exceptions package is strictly layered, and imports may only point downward.
+"""The exceptions package is strictly layered, and imports may only point downward or outside the SDK.
 
 Parsed rather than imported, so the property is checked against the source of every module in the
 package and cannot decay silently.
@@ -13,7 +13,8 @@ import pytest
 
 import infrahub_sdk.exceptions as exceptions_package
 
-PACKAGE = "infrahub_sdk.exceptions"
+ROOT = "infrahub_sdk"
+PACKAGE = f"{ROOT}.exceptions"
 PACKAGE_DIR = Path(exceptions_package.__file__).parent
 
 # base.py sits at the bottom, which is what keeps the hand-written hierarchy independent of anything
@@ -68,6 +69,74 @@ def intra_package_targets(tree: ast.AST, own_module: str) -> list[tuple[str, int
                     targets.append((submodule, node.lineno))
 
     return [(module, lineno) for module, lineno in targets if module != own_module]
+
+
+def _points_outside_package(dotted: str) -> bool:
+    return dotted.startswith(f"{ROOT}.") and dotted != PACKAGE and not dotted.startswith(f"{PACKAGE}.")
+
+
+def outward_targets(tree: ast.AST) -> list[tuple[str, int]]:
+    """Return (module, lineno) for every import reaching another part of the SDK.
+
+    A relative import climbing out of the package counts, and so does the absolute spelling of the
+    same module. Imports of the standard library and of third-party packages do not: the package may
+    depend on those freely.
+    """
+    targets: list[tuple[str, int]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            if node.level >= 2:
+                # `from ..utils import x` — one level up is the package itself, two is out of it.
+                targets.append((f"{'.' * node.level}{node.module or ''}", node.lineno))
+            elif node.level == 0 and node.module and _points_outside_package(node.module):
+                targets.append((node.module, node.lineno))
+        elif isinstance(node, ast.Import):
+            targets.extend((alias.name, node.lineno) for alias in node.names if _points_outside_package(alias.name))
+
+    return targets
+
+
+@pytest.mark.parametrize("path", module_paths(), ids=lambda p: p.name)
+def test_the_package_depends_on_no_other_part_of_the_sdk(path: Path) -> None:
+    """Nothing in the SDK may sit below the exceptions package.
+
+    Every other module is free to raise, so a dependency in this direction is a cycle waiting to be
+    discovered — and the workaround for one is a deferred import inside a function body, which the
+    walk below catches exactly like a module-level one.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+
+    assert outward_targets(tree=tree) == [], (
+        f"{path.name} imports from elsewhere in the SDK; keep the package self-contained instead"
+    )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param("from ..utils import decode_json", id="relative-parent"),
+        pytest.param("from ...infrahub_sdk import utils", id="relative-grandparent"),
+        pytest.param("from infrahub_sdk.utils import decode_json", id="absolute-from"),
+        pytest.param("import infrahub_sdk.utils", id="absolute-import"),
+    ],
+)
+def test_an_outward_import_is_detected_however_it_is_spelled(source: str) -> None:
+    assert outward_targets(tree=ast.parse(source)) != []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        pytest.param("from .base import Error", id="intra-package-relative"),
+        pytest.param("from infrahub_sdk.exceptions.base import Error", id="intra-package-absolute"),
+        pytest.param("from infrahub_sdk.exceptions import Error", id="package-facade"),
+        pytest.param("import httpx", id="third-party"),
+        pytest.param("from collections.abc import Mapping", id="standard-library"),
+    ],
+)
+def test_an_allowed_import_is_not_mistaken_for_an_outward_one(source: str) -> None:
+    assert outward_targets(tree=ast.parse(source)) == []
 
 
 @pytest.mark.parametrize("path", module_paths(), ids=lambda p: p.name)

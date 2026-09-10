@@ -36,7 +36,7 @@ from .exceptions import (
     authentication_error_from_response,
     graphql_error_from_response,
 )
-from .exceptions.factory import _catalogue_code, _extensions_of, _server_messages
+from .exceptions.factory import token_expired_in
 from .graph_traversal.models import PathTraversalResult, ReachableNodesResult
 from .graph_traversal.query import (
     PATH_TRAVERSAL_QUERY,
@@ -109,9 +109,8 @@ class ProcessRelationsNodeSync(TypedDict):
 def _should_refresh_token(response: httpx.Response) -> bool:
     """Decide whether a 401 is a stale token worth one silent refresh and retry.
 
-    The catalogue code is the signal; the legacy message check remains only for servers that predate
-    the catalogue. The wrapper also sees REST responses, and a proxy can answer with anything at all,
-    so a body that is not a JSON object carries no refresh signal rather than raising.
+    The wrapper also sees REST responses, and a proxy can answer with anything at all, so a body that
+    is not a JSON object carries no refresh signal rather than raising.
     """
     try:
         body = response.json()
@@ -121,14 +120,17 @@ def _should_refresh_token(response: httpx.Response) -> bool:
     if not isinstance(body, dict):
         return False
 
-    errors = body.get("errors", [])
-    if not isinstance(errors, list):
-        return False
+    return token_expired_in(body.get("errors", []))
 
-    if any(_catalogue_code(_extensions_of(error)) == "TOKEN_EXPIRED" for error in errors):
-        return True
 
-    return "Expired Signature" in _server_messages(errors)
+def _can_refresh_token(client: InfrahubClient | InfrahubClientSync) -> bool:
+    """Whether this client has a login it could refresh into a working token.
+
+    `login(refresh=True)` returns without touching the auth header unless the client authenticates
+    with a username and password, so retrying an API-token client would replay the same stale token
+    and earn a second 401 for nothing.
+    """
+    return client.config.password_authentication
 
 
 def handle_relogin(
@@ -137,7 +139,7 @@ def handle_relogin(
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
-        if response.status_code == 401 and _should_refresh_token(response=response):
+        if response.status_code == 401 and _can_refresh_token(client) and _should_refresh_token(response=response):
             await client.login(refresh=True)
             return await func(client, *args, **kwargs)
         return response
@@ -149,7 +151,7 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
-        if response.status_code == 401 and _should_refresh_token(response=response):
+        if response.status_code == 401 and _can_refresh_token(client) and _should_refresh_token(response=response):
             client.login(refresh=True)
             return func(client, *args, **kwargs)
         return response
