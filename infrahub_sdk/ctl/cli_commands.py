@@ -43,6 +43,7 @@ from ..ctl.utils import (
     execute_graphql_query,
     load_yamlfile_from_disk_and_exit,
     parse_cli_vars,
+    print_graphql_query_errors,
 )
 from ..ctl.validate import app as validate_app
 from ..exceptions import GraphQLError, ModuleImportError
@@ -235,14 +236,7 @@ async def _run_transform(
         console.print(f"[red]Unable to find query : {exc}")
         raise typer.Exit(1) from exc
     except GraphQLError as exc:
-        console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")
-        for error in exc.errors:
-            if isinstance(error, dict) and "message" in error and "locations" in error:
-                console.print(f"[yellow] - Message: {error['message']}")  # type: ignore[typeddict-item]
-                console.print(f"[yellow]   Location: {error['locations']}")  # type: ignore[typeddict-item]
-            elif isinstance(error, str) and "Branch:" in error:
-                console.print(f"[yellow] - {error}")
-                console.print("[yellow]   you can specify a different branch with --branch")
+        print_graphql_query_errors(console=console, exc=exc)
         raise typer.Abort from None
 
     if inspect.iscoroutinefunction(transform_func):
