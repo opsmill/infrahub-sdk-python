@@ -1,4 +1,6 @@
 # ruff: noqa: PLC2701
+# Private imports are accepted here, since this a first step of a refactoring which will make this method part of
+# dedicated components
 """Parsing of the schema-level error message an Infrahub 1.11.0+ server returns on `schema load`.
 
 The message joins every write-contract violation as `<field path>: <message> (received: <value>)` separated
