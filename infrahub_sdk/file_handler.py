@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import suppress
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -160,9 +161,14 @@ class FileHandlerBase:
         if exc.response.status_code in {401, 403}:
             raise authentication_error_from_response(response=exc.response) from exc
         if exc.response.status_code == 404:
-            response = exc.response.json()
-            detail = response.get("detail", "File not found")
-            raise NodeNotFoundError(node_type="FileObject", identifier=detail) from exc
+            # The body is whatever the server or an intermediary sent, so a shape carrying no detail
+            # must degrade to the generic reason rather than raising out of the error handler.
+            detail: str | None = None
+            with suppress(ValueError):
+                body = exc.response.json()
+                if isinstance(body, dict) and isinstance(body.get("detail"), str):
+                    detail = body["detail"]
+            raise NodeNotFoundError(node_type="FileObject", identifier=detail or "File not found") from exc
         raise exc
 
     @staticmethod

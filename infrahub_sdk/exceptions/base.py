@@ -170,7 +170,9 @@ class ModuleImportError(Error):
 class NodeNotFoundError(Error):
     def __init__(
         self,
-        identifier: Mapping[str, list[str]],
+        # A plain string is admitted because the file handler names the missing file that way, and
+        # the identifier is only ever interpolated into the message.
+        identifier: Mapping[str, list[str]] | str,
         message: str = "Unable to find the node in the database.",
         branch_name: str | None = None,
         node_type: str | None = None,
