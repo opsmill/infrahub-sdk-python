@@ -1,10 +1,17 @@
+# ruff: noqa: PLC2701
+from dataclasses import dataclass
+
+import pytest
+import typer
 import yaml
 from pytest_httpx import HTTPXMock
 from typer.testing import CliRunner
 
-from infrahub_sdk.ctl.schema import app
+from infrahub_sdk.ctl.schema import _display_schema_warnings, app, validate_schema_content_and_exit
 from infrahub_sdk.ctl.utils import get_fixtures_dir
+from infrahub_sdk.schema import SchemaWarning, SchemaWarningKind, SchemaWarningType
 from tests.helpers.cli import remove_ansi_color
+from tests.helpers.schema_load_errors import INVALID_SCHEMA, VALID_SCHEMA, capture_console, make_console, schema_files
 
 runner = CliRunner()
 
@@ -143,3 +150,87 @@ def test_load_valid_generic_schema(httpx_mock: HTTPXMock) -> None:
     sent_generics = content_json["schemas"][0]["generics"]
     assert len(sent_generics) == 1
     assert sent_generics[0]["restricted_namespaces"] == ["Dog"]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def test_validate_schema_content_valid_schemas_print_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    output = capture_console(monkeypatch)
+    validate_schema_content_and_exit(schemas=schema_files(VALID_SCHEMA, VALID_SCHEMA))
+    assert not output.getvalue()
+
+
+def test_validate_schema_content_no_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    output = capture_console(monkeypatch)
+    validate_schema_content_and_exit(schemas=[])
+    assert not output.getvalue()
+
+
+def test_validate_schema_content_reports_every_error_of_every_invalid_file_then_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = capture_console(monkeypatch)
+    markup = {"version": "1.0", "bogus": "[red]x[/red]", "nodes": []}
+
+    with pytest.raises(typer.Exit) as exc:
+        validate_schema_content_and_exit(schemas=schema_files(VALID_SCHEMA, INVALID_SCHEMA, markup))
+
+    assert exc.value.exit_code == 1
+    assert output.getvalue() == (
+        "Schema not valid, found '2' error(s) in schema-1.yml\n"
+        "  nodes[0].namespace: String should match pattern '^[A-Z][a-z0-9]+$' (received: 'infra')\n"
+        "  nodes[0].attributes[0].Text.name: String should have at least 3 characters (received: 'n')\n"
+        "Schema not valid, found '1' error(s) in schema-2.yml\n"
+        "  bogus: Unknown field, it is not part of the schema (received: '[red]x[/red]')\n"
+    )
+
+
+@dataclass
+class WarningCase:
+    name: str
+    warning: SchemaWarning
+    expected: str
+
+
+WARNING_CASES = [
+    WarningCase(
+        name="no-kind",
+        warning=SchemaWarning(type=SchemaWarningType.DEPRECATION, message="gone soon"),
+        expected=" deprecation: gone soon\n",
+    ),
+    WarningCase(
+        name="one-kind",
+        warning=SchemaWarning(
+            type=SchemaWarningType.DEPRECATION, message="gone soon", kinds=[SchemaWarningKind(kind="InfraDevice")]
+        ),
+        expected=" deprecation: gone soon [InfraDevice]\n",
+    ),
+    WarningCase(
+        name="kinds-with-field",
+        warning=SchemaWarning(
+            type=SchemaWarningType.DEPRECATION,
+            message="gone soon",
+            kinds=[SchemaWarningKind(kind="InfraDevice", field="serial"), SchemaWarningKind(kind="InfraSite")],
+        ),
+        expected=" deprecation: gone soon [InfraDevice.serial, InfraSite]\n",
+    ),
+    WarningCase(
+        name="markup-in-message-is-escaped",
+        warning=SchemaWarning(type=SchemaWarningType.DEPRECATION, message="[bold]x[/bold] stays literal"),
+        expected=" deprecation: [bold]x[/bold] stays literal\n",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in WARNING_CASES])
+def test_display_schema_warnings(case: WarningCase) -> None:
+    console, output = make_console()
+    _display_schema_warnings(console=console, warnings=[case.warning])
+    assert output.getvalue() == case.expected
+
+
+def test_display_schema_warnings_none() -> None:
+    console, output = make_console()
+    _display_schema_warnings(console=console, warnings=[])
+    assert not output.getvalue()
