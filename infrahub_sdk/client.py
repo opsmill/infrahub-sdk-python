@@ -1416,6 +1416,7 @@ class InfrahubClient(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            AuthenticationError: If the server returns a 401 or 403 response.
 
         """
         branch_name = branch_name or self.default_branch
@@ -1442,7 +1443,12 @@ class InfrahubClient(BaseClient):
             operation_name=operation_name,
         )
 
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 403}:
+                raise authentication_error_from_response(response=exc.response) from exc
+            raise
         response = decode_json(response=resp)
 
         if "errors" in response:
@@ -2398,6 +2404,7 @@ class InfrahubClientSync(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            AuthenticationError: If the server returns a 401 or 403 response.
 
         """
         branch_name = branch_name or self.default_branch
@@ -2424,7 +2431,12 @@ class InfrahubClientSync(BaseClient):
             operation_name=operation_name,
         )
 
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in {401, 403}:
+                raise authentication_error_from_response(response=exc.response) from exc
+            raise
         response = decode_json(response=resp)
 
         if "errors" in response:

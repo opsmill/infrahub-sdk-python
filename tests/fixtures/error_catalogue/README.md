@@ -1,12 +1,17 @@
 # Error catalogue fixtures
 
-Two envelope shapes appear here:
+Two transports appear here:
 
-- **GraphQL** (`/graphql`), the catalogue envelope. Data failures arrive as HTTP 200 with an `errors`
-  array; authentication failures arrive as a real 401 or 403. `extensions.code` is a catalogue code
-  string.
-- **REST** (`/api/...`), the legacy envelope, where `extensions.code` is an *integer* mirroring the
-  HTTP status. It carries no catalogue code and no `data`.
+- **GraphQL** (`/graphql`). Data failures arrive as HTTP 200 with an `errors` array; authentication
+  failures arrive as a real 401 or 403.
+- **REST** (`/api/...`), which carries no `data`.
+
+Cutting across both is what `extensions.code` holds. A catalogue-aware server sends a **string**, the
+catalogue code. A pre-catalogue server sends an **integer** mirroring the HTTP status, which is not a
+catalogue code and which the parser resolves to `code=None`. The integer shape is the norm on REST
+(`rest_legacy_401.json`) but also reaches the GraphQL path from an older server
+(`graphql_integer_code.json`), so the two axes are independent: do not read a `graphql_*` filename as a
+promise that the code is a string.
 
 The `graphql_*`, `auth_*`, and `rest_*` files are captured responses, kept in the shape the server
 sends rather than hand-shaped to suit the parser. A fixture authored against the parser can only

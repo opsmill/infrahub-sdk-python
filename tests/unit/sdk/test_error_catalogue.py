@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from io import BytesIO
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -356,6 +357,43 @@ class TestRaisedThroughTheClient:
         assert exc_info.value.http_status == 401, (
             "http_status is the status the envelope declares, not the one the transport observed"
         )
+
+    @pytest.mark.parametrize("client_type", ["standard", "sync"])
+    @pytest.mark.parametrize("status_code", [401, 403])
+    async def test_a_rejected_file_upload_carries_the_envelope(
+        self, client_type: str, status_code: int, clients: BothClients, httpx_mock: HTTPXMock
+    ) -> None:
+        """The multipart path observes 401 and 403 too, so it owes the same exception as every other."""
+        httpx_mock.add_response(
+            method="POST",
+            status_code=status_code,
+            json={"errors": [{"message": "no upload rights", "extensions": {"code": "PERMISSION_DENIED"}}]},
+        )
+        client = getattr(clients, client_type)
+        query = "mutation ($file: Upload!) { CoreFileUpload(data: {file: $file}) { ok }}"
+
+        with pytest.raises(AuthenticationError, match="no upload rights") as exc_info:
+            if client_type == "standard":
+                await client._execute_graphql_with_file(query=query, file_content=BytesIO(b"x"), file_name="f.txt")
+            else:
+                client._execute_graphql_with_file(query=query, file_content=BytesIO(b"x"), file_name="f.txt")
+
+        assert exc_info.value.code == "PERMISSION_DENIED"
+
+    @pytest.mark.parametrize("client_type", ["standard", "sync"])
+    async def test_a_file_upload_rejected_for_another_reason_still_raises_the_status_error(
+        self, client_type: str, clients: BothClients, httpx_mock: HTTPXMock
+    ) -> None:
+        """Only 401 and 403 are converted; every other status keeps reaching the caller as it did."""
+        httpx_mock.add_response(method="POST", status_code=500, json={"errors": [{"message": "boom"}]})
+        client = getattr(clients, client_type)
+        query = "mutation ($file: Upload!) { CoreFileUpload(data: {file: $file}) { ok }}"
+
+        with pytest.raises(httpx.HTTPStatusError):
+            if client_type == "standard":
+                await client._execute_graphql_with_file(query=query, file_content=BytesIO(b"x"), file_name="f.txt")
+            else:
+                client._execute_graphql_with_file(query=query, file_content=BytesIO(b"x"), file_name="f.txt")
 
     @pytest.mark.parametrize("client_type", ["standard", "sync"])
     async def test_a_failed_token_refresh_surfaces_as_an_authentication_error(
