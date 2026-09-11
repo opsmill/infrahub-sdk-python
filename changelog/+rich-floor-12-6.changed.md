@@ -1,0 +1,1 @@
+Raised the `rich` requirement from `>=12` to `>=12.6`, the first release that honours `FORCE_COLOR`. Earlier releases ignore the variable, so the test suite's rendering guard could not describe them; nothing in the SDK itself changes.
