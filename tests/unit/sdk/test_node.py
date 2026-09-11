@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
+from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError, ReadOnlyAttributeError
 from infrahub_sdk.node import (
     InfrahubNode,
     InfrahubNodeBase,
@@ -2310,7 +2310,24 @@ async def test_read_only_attr(
             "postal_code": {"is_protected": False, "value": "123ABC"},
         },
     }
+    # read-only value is loaded and readable
     assert address.computed_address.value == "1234 Fake Street 123ABC"
+
+    # users cannot change a read-only attribute, via the node or the attribute
+    with pytest.raises(ReadOnlyAttributeError, match="'computed_address' is read-only"):
+        address.computed_address = "somewhere else"
+    with pytest.raises(ReadOnlyAttributeError, match="'computed_address' is read-only"):
+        address.computed_address.value = "somewhere else"
+
+    # the rejected assignment left the loaded value untouched
+    assert address.computed_address.value == "1234 Fake Street 123ABC"
+
+    # re-loading the same payload (as a fresh query would) re-populates the read-only value
+    if client_type == "standard":
+        reloaded = InfrahubNode(client=client, schema=address_schema, data=address_data)
+    else:
+        reloaded = InfrahubNodeSync(client=client, schema=address_schema, data=address_data)
+    assert reloaded.computed_address.value == "1234 Fake Street 123ABC"
 
 
 @pytest.mark.parametrize("client_type", client_types)
