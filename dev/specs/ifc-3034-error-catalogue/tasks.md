@@ -110,9 +110,10 @@ raise site funnels through. Every user story below depends on this phase.
       subsuming the eleven-site "decode, collect messages, join with ` | `" shape and preserving that
       message byte-for-byte, falling back to the plain status when the body is not JSON, since two of the
       sites it replaces call `response.json()` directly. **Landed reading `response.json()` directly
-      rather than `decode_json`.** The only thing `decode_json` adds over `.json()` is raising
-      `JsonDecodeError`, which this factory catches and discards, so it was building an exception it
-      never wanted. It also cost a deferred import inside the function body — `infrahub_sdk.utils`
+      rather than `decode_json`.** What `decode_json` adds over `.json()` is raising `JsonDecodeError`
+      carrying the response URL and body, and this factory catches and discards both, so it was building
+      context it never surfaces: on this path the status and the server's reason are what the caller
+      needs. It also cost a deferred import inside the function body — `infrahub_sdk.utils`
       imports this package, so the module-level spelling is a cycle — which is precisely the shape T015's
       layering test exists to catch. The tolerance R10 asks for is unchanged.
 - [X] T013 Make both factories total in `infrahub_sdk/exceptions/factory.py`: wrap resolution so any
@@ -560,7 +561,8 @@ with whoever owns the release flow) belongs to issue 1's timeframe, before issue
 
 Two pull requests would also work (one SDK, one Infrahub), since the tasks are ordered so a single branch
 carries them. It is not recommended: issue 2 is where "every existing `except` clause still catches what it
-caught" has to be verified, and it is only eleven tasks across three files.
+caught" has to be verified, and the implementation that has to be verified is only eleven tasks
+(T029-T035, T037-T039, T042) across three files, ahead of its tests and changelog fragment.
 
 ### Issue dependencies to record
 
