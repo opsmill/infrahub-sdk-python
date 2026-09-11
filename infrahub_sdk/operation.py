@@ -3,8 +3,6 @@ from __future__ import annotations
 import pathlib
 from typing import TYPE_CHECKING
 
-from .repository import GitRepoManager
-
 if TYPE_CHECKING:
     from . import InfrahubClient
     from .node import InfrahubNode
@@ -20,26 +18,18 @@ class InfrahubOperation:
         branch: str,
         root_directory: str,
     ) -> None:
-        self.branch = branch
         self.convert_query_response = convert_query_response
         self.root_directory = root_directory or str(pathlib.Path.cwd())
+        # The config resolver honours the `default_branch_from_git` flag.
+        self.branch = branch or client.config.get_default_infrahub_branch(directory=self.root_directory)
         self.infrahub_node = infrahub_node
         self._nodes: list[InfrahubNode] = []
         self._related_nodes: list[InfrahubNode] = []
-        self._init_client = client.clone(branch=self.branch_name)
-        self.git: GitRepoManager | None = None
+        self._init_client = client.clone(branch=self.branch)
 
     @property
     def branch_name(self) -> str:
-        """Return the name of the current git branch."""
-        if self.branch:
-            return self.branch
-
-        if not hasattr(self, "git") or not self.git:
-            self.git = GitRepoManager(self.root_directory)
-
-        self.branch = str(self.git.active_branch)
-
+        """Return the name of the Infrahub branch this operation targets."""
         return self.branch
 
     @property
