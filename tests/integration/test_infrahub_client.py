@@ -11,6 +11,7 @@ from infrahub_sdk.branch import BranchData
 from infrahub_sdk.constants import InfrahubClientMode
 from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
 from infrahub_sdk.node import InfrahubNode
+from infrahub_sdk.node.metadata import NodeMetadata, RelationshipMetadata
 from infrahub_sdk.playback import JSONPlayback
 from infrahub_sdk.recorder import JSONRecorder
 from infrahub_sdk.schema import GenericSchema, NodeSchema, ProfileSchemaAPI
@@ -329,6 +330,98 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
             kind="CoreStandardGroup", name__value=client.group_context._generate_group_name(), include=["members"]
         )
         assert len(group.members.peers) == 2
+
+    async def test_node_metadata_not_fetched_by_default(
+        self, client: InfrahubClient, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = await client.get(kind=TESTING_CAT, id=cat_luna.id)
+        assert node.get_node_metadata() is None
+
+    async def test_node_metadata_with_get(
+        self, client: InfrahubClient, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = await client.get(kind=TESTING_CAT, id=cat_luna.id, include_metadata=True)
+
+        metadata = node.get_node_metadata()
+        assert isinstance(metadata, NodeMetadata)
+        assert metadata.created_at is not None
+        assert metadata.updated_at is not None
+        assert metadata.created_by.display_label == "Admin"
+
+    async def test_node_metadata_with_all(self, client: InfrahubClient, base_dataset: None) -> None:
+        nodes = await client.all(kind=TESTING_CAT, include_metadata=True)
+        assert nodes
+
+        for node in nodes:
+            metadata = node.get_node_metadata()
+            assert isinstance(metadata, NodeMetadata)
+            assert metadata.created_at is not None
+            assert metadata.updated_at is not None
+            assert metadata.created_by.display_label == "Admin"
+
+    async def test_attribute_metadata(
+        self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        disposable = await client.create(
+            kind=TESTING_CAT, name="MetadataTestCat", breed="Siamese", color="#FFFFFF", owner=person_ethan
+        )
+        await disposable.save()
+
+        node = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+
+        assert node.name.updated_by.display_label == "Admin"
+        assert node.breed.updated_by.display_label == "Admin"
+        original_name_updated_at = node.name.updated_at
+        original_breed_updated_at = node.breed.updated_at
+
+        node.name.value = "MetadataTestCat Updated"
+        await node.save()
+
+        assert original_name_updated_at is not None
+
+        node_after = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+        assert node_after.name.value == "MetadataTestCat Updated"
+        assert node_after.name.updated_by.display_label == "Admin"
+        assert node_after.name.updated_at is not None
+        assert node_after.name.updated_at > original_name_updated_at
+        assert node_after.breed.updated_at == original_breed_updated_at
+
+        await node_after.delete()
+
+    async def test_relationship_metadata_cardinality_one(
+        self, client: InfrahubClient, base_dataset: None, cat_luna: InfrahubNode
+    ) -> None:
+        node = await client.get(kind=TESTING_CAT, id=cat_luna.id, include_metadata=True)
+
+        rel_metadata = node.owner.get_relationship_metadata()
+        assert isinstance(rel_metadata, RelationshipMetadata)
+        assert rel_metadata.updated_at is not None
+        assert rel_metadata.updated_by.display_label == "Admin"
+
+    async def test_relationship_metadata_cardinality_many(
+        self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        # Use include=["animals"] rather than prefetch_relationships=True.
+        # prefetch_relationships=True recursively fetches each animal's peer relationships,
+        # which in turn include person_ethan's null favorite_animal cardinality-one relationship.
+        # The server GraphQL schema marks NestedEdgedTestingAnimal.node_metadata as non-nullable,
+        # so requesting include_metadata=True on that null edge causes the server to silently
+        # return empty edges. include=["animals"] fetches only the animals relationship shallowly.
+        # Also exclude favorite_animal (null cardinality-one inbound) for the same reason.
+        node = await client.get(
+            kind=TESTING_PERSON,
+            id=person_ethan.id,
+            include_metadata=True,
+            include=["animals"],
+            exclude=["favorite_animal"],
+        )
+
+        assert node.animals.peers
+        for peer in node.animals.peers:
+            rel_metadata = peer.get_relationship_metadata()
+            assert isinstance(rel_metadata, RelationshipMetadata)
+            assert rel_metadata.updated_at is not None
+            assert rel_metadata.updated_by.display_label == "Admin"
 
     @pytest.mark.xfail(reason="https://github.com/opsmill/infrahub-sdk-python/issues/733")
     async def test_recorder_with_playback_rewrite_host(
