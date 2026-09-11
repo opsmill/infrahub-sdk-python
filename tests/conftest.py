@@ -14,8 +14,10 @@ ENV_VARS_TO_CLEAN = ["INFRAHUB_ADDRESS", "INFRAHUB_TOKEN", "INFRAHUB_BRANCH", "I
 # Rendering environment for every test in this suite.
 #
 # Rich snapshots ``no_color`` when a ``Console`` is constructed, and a ``Console`` reports
-# itself as a terminal if ``FORCE_COLOR`` is set to *any* value, empty string included. Many
-# ``infrahub_sdk.ctl`` modules build a module-level ``Console()``, and that happens while pytest
+# itself as a terminal if ``FORCE_COLOR`` is set -- on Rich 12.6 through 13 to *any* value, empty
+# string included; from Rich 14 to any non-empty value. Removing the variable is the one strategy that
+# is correct on both, so it is removed rather than overridden. Many ``infrahub_sdk.ctl`` modules
+# build a module-level ``Console()``, and that happens while pytest
 # imports the test modules -- before any fixture can run. So the environment has to be pinned
 # from a hook that runs ahead of collection, which is what ``pytest_configure`` does.
 #

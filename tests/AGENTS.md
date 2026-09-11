@@ -76,10 +76,12 @@ Tests that assert on CLI text compare against output whose colour and width Rich
 are pinned centrally by `pytest_configure` in `tests/conftest.py`, which unsets `FORCE_COLOR`
 and sets `NO_COLOR=1` and `COLUMNS=200` before any test module is imported.
 
-The timing matters. Rich snapshots `no_color` when a `Console` is constructed, and treats *any*
-`FORCE_COLOR` value — the empty string included — as proof it is writing to a terminal. Many
-`infrahub_sdk.ctl` modules build a module-level `Console()`, which runs during collection, so a
-fixture or an env override passed to `CliRunner.invoke()` is already too late for those consoles.
+The timing matters. Rich snapshots `no_color` when a `Console` is constructed, and treats a set
+`FORCE_COLOR` as proof it is writing to a terminal — on Rich 12.6 through 13 *any* value, the
+empty string included; from Rich 14 any non-empty value. Removing the variable is the only strategy correct on
+both, which is why the hook removes it rather than overriding it. Many `infrahub_sdk.ctl` modules
+build a module-level `Console()`, which runs during collection, so a fixture or an env override
+passed to `CliRunner.invoke()` is already too late for those consoles.
 
 Practical consequences:
 
