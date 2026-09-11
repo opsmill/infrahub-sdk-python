@@ -1,4 +1,5 @@
 import inspect
+from collections.abc import Generator
 from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock
@@ -362,6 +363,22 @@ async def test_python_transform_config_description() -> None:
     assert config_explicit_none.description is None
 
 
+@pytest.fixture
+def schema_console() -> Generator[Console, None, None]:
+    """Capture what ``infrahub_sdk.ctl.schema`` prints, with colour and width pinned.
+
+    ``width`` is set high so the error lines under test are never wrapped, and ``no_color`` /
+    ``force_terminal`` are explicit so the captured text does not depend on the ambient
+    environment even though ``tests/conftest.py`` already pins it.
+
+    Yields:
+        Console: The console patched in place of ``infrahub_sdk.ctl.schema.console``.
+    """
+    console = Console(file=StringIO(), width=1000, no_color=True, force_terminal=False)
+    with mock.patch("infrahub_sdk.ctl.schema.console", console):
+        yield console
+
+
 @mock.patch(
     "infrahub_sdk.ctl.schema.get_node",
     return_value={
@@ -370,7 +387,7 @@ async def test_python_transform_config_description() -> None:
         "attributes": [{"name": "name", "kind": "Text"}, {"name": "status", "kind": "Dropdown"}],
     },
 )
-async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicMock) -> None:
+async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicMock, schema_console: Console) -> None:
     """Validate error message with details when loading schema."""
     error = {
         "detail": [
@@ -385,14 +402,14 @@ async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicM
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        mock_get_node.assert_called_once()
-        output = console.file.getvalue()
-        expected_console = """Unable to load the schema:
+    display_schema_load_errors(response=error, schemas_data=[])
+
+    mock_get_node.assert_called_once()
+    output = schema_console.file.getvalue()
+    expected_console = """Unable to load the schema:
   Node: CloudInstance | Attribute: status ({'name': 'status', 'kind': 'Dropdown'}) | Value error, The property 'choices' is required for kind=Dropdown (value_error)
 """  # noqa: E501
-        assert output == expected_console
+    assert output == expected_console
 
 
 @mock.patch(
@@ -403,7 +420,7 @@ async def test_display_schema_load_errors_details_dropdown(mock_get_node: MagicM
         "attributes": [{"name": "name", "kind": "Text"}, {"name": "status", "kind": "Dropdown"}],
     },
 )
-async def test_display_schema_load_errors_details_namespace(mock_get_node: MagicMock) -> None:
+async def test_display_schema_load_errors_details_namespace(mock_get_node: MagicMock, schema_console: Console) -> None:
     """Validate error message with details when loading schema."""
     error = {
         "detail": [
@@ -418,14 +435,14 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node: Magic
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        mock_get_node.assert_called_once()
-        output = console.file.getvalue()
-        expected_console = """Unable to load the schema:
+    display_schema_load_errors(response=error, schemas_data=[])
+
+    mock_get_node.assert_called_once()
+    output = schema_console.file.getvalue()
+    expected_console = """Unable to load the schema:
   Node: OuTInstance | namespace (OuT) | String should match pattern '^[A-Z][a-z0-9]+$' (string_pattern_mismatch)
 """
-        assert output == expected_console
+    assert output == expected_console
 
 
 @mock.patch(
@@ -459,7 +476,7 @@ async def test_display_schema_load_errors_details_namespace(mock_get_node: Magic
     },
 )
 async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_relationship(
-    mock_get_node: MagicMock,
+    mock_get_node: MagicMock, schema_console: Console
 ) -> None:
     """Validate error message with details when loading schema and errors are in attribute or relationship."""
     error = {
@@ -479,15 +496,15 @@ async def test_display_schema_load_errors_details_when_error_is_in_attribute_or_
         ]
     }
 
-    with mock.patch("infrahub_sdk.ctl.schema.console", Console(file=StringIO(), width=1000)) as console:
-        display_schema_load_errors(response=error, schemas_data=[])
-        assert mock_get_node.call_count == 2
-        output = console.file.getvalue()
-        expected_console = """Unable to load the schema:
+    display_schema_load_errors(response=error, schemas_data=[])
+
+    assert mock_get_node.call_count == 2
+    output = schema_console.file.getvalue()
+    expected_console = """Unable to load the schema:
   Node: SecurityTailscaleSSHRule | Attribute: check_period (0) | Extra inputs are not permitted (extra_forbidden)
   Node: SecurityTailscaleSSHRule | Attribute: check_period (10080) | Extra inputs are not permitted (extra_forbidden)
 """
-        assert output == expected_console
+    assert output == expected_console
 
 
 @pytest.mark.parametrize(
