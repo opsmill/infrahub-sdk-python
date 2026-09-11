@@ -345,8 +345,6 @@ jobs:
       # Rewrites uv.lock in the checkout, which is discarded with the runner.
       - name: "Re-resolve at the declared lower bounds"
         run: uv lock --resolution lowest-direct
-      # `--frozen`: a plain `uv sync` sees the lock's resolution mode differ from its own default
-      # and re-resolves at `highest`, which installs the newest versions instead of the floors.
       - name: Install dependencies
         run: uv sync --frozen --all-groups --all-extras
       - name: "Report the resolved versions"
