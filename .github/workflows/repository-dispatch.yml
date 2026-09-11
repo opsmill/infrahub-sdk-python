@@ -36,8 +36,17 @@ jobs:
         # Either a literal path, or the name of a secret...
         repo:
           - "opsmill/emma"
+          - "opsmill/infrahub-ansible"
+          - "opsmill/infrahub-arista-avd"
           - "opsmill/infrahub-demo-dc"
+          - "opsmill/infrahub-demo-otn"
+          - "opsmill/infrahub-demo-service-catalog"
+          - "opsmill/infrahub-demo-sp"
+          - "opsmill/infrahub-mcp"
+          - "opsmill/infrahub-solution-ai-dc"
           - "opsmill/infrahub-sync"
+          - "opsmill/infrahub-sync-lab"
+          - "opsmill/nornir-infrahub"
           - "INFRAHUB_CUSTOMER1_REPOSITORY"
 
     steps:
