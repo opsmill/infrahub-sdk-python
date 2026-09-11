@@ -651,6 +651,9 @@ jobs:
       - validate-documentation-style
       - unit-tests
       - integration-tests-latest-infrahub
+      - dependency-lower-bounds
+      - dependency-lower-bounds-no-harness
+      - install-matrix
     runs-on: "ubuntu-latest"
     timeout-minutes: 5
     steps:
