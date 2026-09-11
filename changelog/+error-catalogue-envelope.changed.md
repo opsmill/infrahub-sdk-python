@@ -1,3 +1,5 @@
 Authentication failures now surface the server's error envelope. `AuthenticationError` and `GraphQLError` share a new `ApiError` base carrying `code`, `http_status`, `extensions`, and `errors`, so a caller can branch on the server's catalogue code instead of matching on message text.
 
 A 401 or 403 whose body the SDK cannot read as an error envelope now raises `AuthenticationError` carrying the best reason available: the REST API's bare `detail` string where the body has one, and otherwise the plain status. Previously the same responses raised `JsonDecodeError` (or, from the object store and file handler, a raw `json.JSONDecodeError`) when the body was not JSON, and `TypeError` when the body was JSON but carried no `errors` key. Code that catches those types around `object_store`, `file_handler`, or a client request should catch `AuthenticationError` instead.
+
+`from infrahub_sdk.exceptions import *` now yields exactly the exception classes. It previously also carried whatever the module imported for its own annotations, such as `Mapping` and `Any`. Every exception class keeps its name and its import path.

@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger("infrahub_sdk")
 
-__all__ = ["authentication_error_from_response", "graphql_error_from_response", "token_expired_in"]
+# The names the package façade re-exports. `token_expired_in` is deliberately absent: it is public to
+# the SDK, which imports it from this module, but it is not part of the published exception surface.
+__all__ = ["authentication_error_from_response", "graphql_error_from_response"]
 
 
 def _extensions_of(error: Any) -> dict[str, Any] | None:
