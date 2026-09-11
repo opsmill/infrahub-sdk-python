@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from infrahub_sdk import exceptions
-from infrahub_sdk.exceptions import authentication_error_from_response, graphql_error_from_response
+from infrahub_sdk.exceptions import authentication_error_from_response, base, graphql_error_from_response
 from tests.helpers.fixtures import read_fixture
 
 
@@ -25,6 +25,42 @@ def star_imported_names() -> dict[str, object]:
     namespace: dict[str, object] = {}
     exec("from infrahub_sdk.exceptions import *", namespace)  # noqa: S102
     return {name: value for name, value in namespace.items() if not name.startswith("__")}
+
+
+def classes_defined_in(module: object) -> set[str]:
+    """The exception classes a module defines itself, ignoring any it merely imported."""
+    return {
+        name
+        for name, value in vars(module).items()
+        if isinstance(value, type) and issubclass(value, BaseException) and value.__module__ == module.__name__  # type: ignore[attr-defined]
+    }
+
+
+def test_the_facade_lists_every_class_base_declares() -> None:
+    """The façade writes its exports out by hand, so nothing may drift out of step with `base`.
+
+    A class added to `base.__all__` has to be added to both lists in
+    `infrahub_sdk/exceptions/__init__.py`: the import block and `__all__`.
+    """
+    assert set(exceptions.__all__) == set(base.__all__)
+
+
+def test_every_name_the_facade_declares_is_bound() -> None:
+    """A name in `__all__` that the import block omits would only fail at a caller's `import *`."""
+    missing = sorted(name for name in exceptions.__all__ if not hasattr(exceptions, name))
+
+    assert missing == [], f"declared in __all__ but never imported: {missing}"
+
+
+def test_base_declares_every_exception_it_defines() -> None:
+    """An exception class left out of `base.__all__` never reaches the façade at all.
+
+    Without this the omission is invisible: the class is simply absent everywhere downstream, so the
+    snapshot below still matches and nothing else notices.
+    """
+    undeclared = sorted(classes_defined_in(base) - set(base.__all__))
+
+    assert undeclared == [], f"defined in base.py but missing from base.__all__: {undeclared}"
 
 
 def test_snapshot_matches_the_exported_exceptions() -> None:

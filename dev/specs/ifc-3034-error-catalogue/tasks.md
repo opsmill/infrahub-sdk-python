@@ -121,11 +121,16 @@ raise site funnels through. Every user story below depends on this phase.
       server's failure with an SDK `TypeError`, and log every fallback at debug level with the code
       involved.
 - [X] T014 Extend the façade `infrahub_sdk/exceptions/__init__.py` to import the factory module, keeping
-      imports pointing strictly downward. **Landed declaring `__all__` on the façade as well**, taken from
-      `base` so there is one list rather than two. Importing the submodules makes `base` and `factory`
-      attributes of the package, so without it `import *` hands a caller two names that are an artefact of
-      the layout and shadow those names in their scope. The raise-time factories stay importable by name;
-      they are simply not part of the wildcard, since what an end user catches is the classes.
+      imports pointing strictly downward. **Landed declaring `__all__` on the façade as well**, and writing
+      the class list out by hand rather than star-importing it: a wildcard hides what the package exports,
+      which is the one thing this file exists to state. Importing the submodules makes `base` and `factory`
+      attributes of the package, so without `__all__` an `import *` hands a caller two names that are an
+      artefact of the layout and shadow those names in their scope. The raise-time factories stay
+      importable by name; they are simply not part of the wildcard, since what an end user catches is the
+      classes. Three tests hold the hand-written lists in step with `base`: the façade's `__all__` against
+      `base.__all__`, every declared name against what the import block actually binds, and
+      `base.__all__` against the classes `base` defines — the last one closing a gap where omitting a
+      class from `base.__all__` left it absent everywhere downstream with nothing to notice.
 - [X] T015 Add `tests/unit/sdk/test_exceptions_layering.py`, parsing every module in
       `infrahub_sdk/exceptions/` with `ast` and failing on any intra-package import that points at its own
       layer or higher. It MUST walk imports inside function bodies and `TYPE_CHECKING` blocks, not only
