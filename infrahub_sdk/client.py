@@ -1987,7 +1987,7 @@ class InfrahubClient(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
-            operation_name="GetDiffTree",
+            operation_name="GetDiffSummary",
             priority=priority,
         )
 
@@ -3600,7 +3600,7 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout,
             tracker=tracker,
             variables=input_data,
-            operation_name="GetDiffTree",
+            operation_name="GetDiffSummary",
             priority=priority,
         )
 

@@ -51,7 +51,7 @@ class DiffTreeData(TypedDict):
 
 def get_diff_summary_query() -> str:
     return """
-        query GetDiffTree($branch_name: String!, $name: String, $from_time: DateTime, $to_time: DateTime) {
+        query GetDiffSummary($branch_name: String!, $name: String, $from_time: DateTime, $to_time: DateTime) {
             DiffTree(branch: $branch_name, name: $name, from_time: $from_time, to_time: $to_time) {
                 nodes {
                     uuid
