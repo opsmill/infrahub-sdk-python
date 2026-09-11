@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock
 
 import yaml  # pyright: ignore[reportMissingModuleSource]
 
+from infrahub_sdk import InfrahubClient
+from infrahub_sdk.config import Config
 from infrahub_sdk.ctl.formatters.yaml import YamlFormatter
+from infrahub_sdk.spec.object import InfrahubObjectFileData, RelationshipDataFormat, get_relationship_info
+from tests.helpers.fixtures import read_fixture
 
 
 def _make_mock_schema(
@@ -327,7 +332,39 @@ class TestYamlFormatterEdgeCases:
 
         result = formatter.format_detail(node, schema)
         parsed = yaml.safe_load(result)
-        assert parsed["spec"]["data"][0]["tags"] == {"data": ["tag1", "tag2"]}
+        assert parsed["spec"]["data"][0]["tags"] == ["tag1", "tag2"]
+
+    async def test_rel_cardinality_many_output_is_loadable_reference(self) -> None:
+        """Cardinality-many YAML output is accepted by the object loader as HFID references."""
+        client = InfrahubClient(config=Config(address="http://mock"))
+        client.schema.set_cache(json.loads(read_fixture("schema_01.json")), branch="main")
+        schema = await client.schema.get(kind="CoreGraphQLQuery", branch="main")
+
+        peer1 = await client.create(kind="BuiltinTag", name="tag1")
+        peer2 = await client.create(kind="BuiltinTag", name="tag2")
+        node = await client.create(
+            kind="CoreGraphQLQuery", name="query1", query="query Test { ok }", tags=[peer1, peer2]
+        )
+
+        parsed = yaml.safe_load(YamlFormatter().format_detail(node, schema))
+        relationship_value = parsed["spec"]["data"][0]["tags"]
+        rel_info = await get_relationship_info(
+            client=client,
+            schema=schema,
+            name="tags",
+            value=relationship_value,
+        )
+        errors = await InfrahubObjectFileData.validate_related_nodes(
+            client=client,
+            position=[1, "tags"],
+            rel_info=rel_info,
+            data=relationship_value,
+        )
+
+        assert relationship_value == ["tag1", "tag2"]
+        assert rel_info.format == RelationshipDataFormat.MANY_REF
+        assert rel_info.is_reference
+        assert errors == []
 
     def test_rel_multi_component_hfid(self) -> None:
         """Multi-component HFID renders as a list."""
