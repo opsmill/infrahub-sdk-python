@@ -72,7 +72,14 @@ def intra_package_targets(tree: ast.AST, own_module: str) -> list[tuple[str, int
 
 
 def _points_outside_package(dotted: str) -> bool:
-    return dotted.startswith(f"{ROOT}.") and dotted != PACKAGE and not dotted.startswith(f"{PACKAGE}.")
+    """Whether a dotted name reaches the SDK outside this package.
+
+    The root itself counts: `import infrahub_sdk` and `from infrahub_sdk import utils` pull in the
+    façade, which imports the client, so they are dependencies like any other.
+    """
+    if dotted != ROOT and not dotted.startswith(f"{ROOT}."):
+        return False
+    return dotted != PACKAGE and not dotted.startswith(f"{PACKAGE}.")
 
 
 def outward_targets(tree: ast.AST) -> list[tuple[str, int]]:
@@ -119,6 +126,8 @@ def test_the_package_depends_on_no_other_part_of_the_sdk(path: Path) -> None:
         pytest.param("from ...infrahub_sdk import utils", id="relative-grandparent"),
         pytest.param("from infrahub_sdk.utils import decode_json", id="absolute-from"),
         pytest.param("import infrahub_sdk.utils", id="absolute-import"),
+        pytest.param("from infrahub_sdk import utils", id="root-from"),
+        pytest.param("import infrahub_sdk", id="root-import"),
     ],
 )
 def test_an_outward_import_is_detected_however_it_is_spelled(source: str) -> None:
