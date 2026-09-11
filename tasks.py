@@ -200,6 +200,7 @@ def get_modules_to_document() -> list[str]:
     # Packages explicitly ignored for API doc generation.
     packages_to_ignore = [
         "ctl",
+        "exceptions",
         "graphql",
         "protocols_generator",
         "pytest_plugin",

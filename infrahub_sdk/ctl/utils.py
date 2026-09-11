@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import logging
 import traceback
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Coroutine, Sequence
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
@@ -65,7 +65,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
         console.print(f"[red]HTTP communication failure: {exc!s} on {exc.request.method} to {exc.request.url}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
-        print_graphql_errors(console=console, errors=exc.errors)
+        print_graphql_errors(console=console, errors=exc.errors, fallback=str(exc))
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError, GraphQLQueryError)):
         console.print(f"[red]Error: {exc!s}")
@@ -137,15 +137,42 @@ def execute_graphql_query(
     return response
 
 
-def print_graphql_errors(console: Console, errors: list) -> None:
-    if not isinstance(errors, list):
-        console.print(f"[red]{escape(str(errors))}")
+def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]], fallback: str | None = None) -> None:
+    """Render the server's errors, degrading to `fallback` when there is nothing to render.
+
+    An envelope whose entries did not match the declared shape leaves `errors` empty, and exiting
+    non-zero with no output at all would tell the user nothing.
+    """
+    if not errors:
+        if fallback:
+            console.print(f"[red]{escape(fallback)}")
+        return
 
     for error in errors:
         if isinstance(error, dict) and "message" in error and "path" in error:
             console.print(f"[red]{escape(str(error['path']))} {escape(str(error['message']))}")
         else:
             console.print(f"[red]{escape(str(error))}")
+
+
+def print_graphql_query_errors(console: Console, exc: GraphQLError) -> None:
+    """Render the failure of a GraphQL query the CLI ran on the user's behalf.
+
+    The branch hint is keyed on the server's message rather than on the entry's Python type, because
+    the exception's `errors` are dicts by construction and a bare string never reaches here.
+    """
+    if not exc.errors:
+        console.print(f"[red]{escape(str(exc))}")
+        return
+
+    console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")
+    for error in exc.errors:
+        message = str(error.get("message", error))
+        console.print(f"[yellow] - Message: {escape(message)}")
+        if "locations" in error:
+            console.print(f"[yellow]   Location: {escape(str(error['locations']))}")
+        if "Branch:" in message:
+            console.print("[yellow]   you can specify a different branch with --branch")
 
 
 def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:

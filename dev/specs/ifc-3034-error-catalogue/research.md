@@ -483,10 +483,15 @@ assigns a string into a field expecting a list of error dicts, reproducing the c
 is a sequence of dicts on both paths.
 
 **The auth factory must tolerate a non-JSON body.** Two of the sites it replaces call
-`exc.response.json()` directly rather than `decode_json`, so a 401 carrying an HTML error page from a
-proxy currently raises a JSON decode error in place of the authentication error. The factory uses
-`decode_json` and falls back to the plain status when the body is not JSON, which is the same tolerance
-R10 requires of the relogin helper for the same reason.
+`exc.response.json()` directly, so a 401 carrying an HTML error page from a proxy currently raises a
+JSON decode error in place of the authentication error. The factory reads `response.json()` and falls
+back to the plain status when the body is not JSON, which is the same tolerance R10 requires of the
+relogin helper for the same reason. Not `utils.decode_json`: what it adds over `.json()` is raising
+`JsonDecodeError` carrying the response URL and body, and a factory built to absorb that case catches
+and discards both — the status and the server's reason are what the caller needs here — and since
+`infrahub_sdk.utils` imports the exceptions package, reaching for it would force a deferred import
+inside the function body, the exact shape R1's layering test exists to catch. The exceptions package
+therefore depends on nothing else in the SDK, which is a property the test now asserts directly.
 
 **The factory must be total.** It sits on the failure path of every client method, so an unexpected
 exception inside it would replace a legitimate server error with an SDK `TypeError` and lose the
