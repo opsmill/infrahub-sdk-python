@@ -493,6 +493,61 @@ def test_missing_version_is_rejected() -> None:
     assert _fields_named(result) == {"version"}
 
 
+def test_error_detail_carries_the_location_reason_and_value_of_an_unknown_field() -> None:
+    schema = _extension_node_schema(
+        {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}
+    )
+
+    result = validate_schema(schema=schema)
+
+    assert len(result.errors) == 1, result.messages
+    error = result.errors[0]
+    assert error.loc == ("extensions", "nodes", 0, "attributes", 0, "not_a_field")
+    assert error.input == "boom"
+    assert error.reason == "Unknown field, it is not part of the schema"
+    assert error.field == "extensions.nodes[0].attributes[0].not_a_field"
+    assert error.message == f"{error.field}: {error.reason} (received: 'boom')"
+
+
+def test_error_detail_carries_the_location_reason_and_value_of_an_out_of_enum_value() -> None:
+    schema = _relationship_out_of_enum("cardinality", "both")
+
+    result = validate_schema(schema=schema)
+
+    assert len(result.errors) == 1, result.messages
+    error = result.errors[0]
+    assert error.loc == ("nodes", 0, "relationships", 0, "cardinality")
+    assert error.input == "both"
+    assert error.reason == "Input should be 'one' or 'many'"
+    assert error.message == f"{error.field}: {error.reason} (received: 'both')"
+
+
+def test_error_detail_of_a_missing_field_carries_the_enclosing_object() -> None:
+    schema = _valid_schema()
+    del schema["version"]
+
+    result = validate_schema(schema=schema)
+
+    assert len(result.errors) == 1, result.messages
+    error = result.errors[0]
+    assert error.loc == ("version",)
+    assert error.reason == "Field required"
+    assert error.input == schema
+    assert error.message == "version: Field required"
+
+
+@pytest.mark.parametrize(
+    "schema", [pytest.param(tc.schema, id=tc.name) for tc in (*UNKNOWN_FIELD_CASES, *OUT_OF_ENUM_CASES)]
+)
+def test_field_and_message_render_the_structured_parts(schema: dict) -> None:
+    result = validate_schema(schema=schema)
+
+    assert result.errors, "the case is expected to be rejected"
+    for error in result.errors:
+        assert error.message.startswith(f"{error.field}: {error.reason}"), error.message
+        assert error.field.replace("[", ".").replace("]", "") == ".".join(str(part) for part in error.loc)
+
+
 def test_raise_on_error_raises_value_error_naming_field() -> None:
     # Exercises the raise_on_error path rather than the result verdict: an out-of-enum value must
     # raise a ValueError naming the offending field.
