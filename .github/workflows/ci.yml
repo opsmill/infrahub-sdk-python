@@ -350,7 +350,7 @@ jobs:
       - name: "Report the resolved versions"
         run: uv pip list
       - name: Unit Tests
-        run: uv run pytest --cov infrahub_sdk tests/unit/
+        run: uv run --frozen pytest --cov infrahub_sdk tests/unit/
 
   # Proves a plain install works on every supported interpreter, which the uv.lock-based jobs cannot.
   install-matrix:
