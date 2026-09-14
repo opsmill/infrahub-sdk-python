@@ -116,7 +116,7 @@ class InfrahubBranchManager:
         response = await self.client.execute_graphql(query=query.render(), tracker="mutation-branch-delete")
         return response["BranchDelete"]["ok"]
 
-    async def rebase(self, branch_name: str) -> BranchData:
+    async def rebase(self, branch_name: str) -> bool:
         input_data = {
             "data": {
                 "name": branch_name,
@@ -126,7 +126,7 @@ class InfrahubBranchManager:
         response = await self.client.execute_graphql(query=query.render(), tracker="mutation-branch-rebase")
         return response["BranchRebase"]["ok"]
 
-    async def validate(self, branch_name: str) -> BranchData:
+    async def validate(self, branch_name: str) -> bool:
         input_data = {
             "data": {
                 "name": branch_name,
@@ -264,7 +264,7 @@ class InfrahubBranchManagerSync:
 
         return response["BranchMerge"]["ok"]
 
-    def rebase(self, branch_name: str) -> BranchData:
+    def rebase(self, branch_name: str) -> bool:
         input_data = {
             "data": {
                 "name": branch_name,
@@ -274,7 +274,7 @@ class InfrahubBranchManagerSync:
         response = self.client.execute_graphql(query=query.render(), tracker="mutation-branch-rebase")
         return response["BranchRebase"]["ok"]
 
-    def validate(self, branch_name: str) -> BranchData:
+    def validate(self, branch_name: str) -> bool:
         input_data = {
             "data": {
                 "name": branch_name,
