@@ -52,12 +52,19 @@ infrahubctl = "infrahub_sdk.ctl.cli:app"
 [project.optional-dependencies]
 ctl = [
     "pyarrow>=14",
+<<<<<<< HEAD
     "ruamel.yaml>=0.18", # round-trip mode preserves comments when `schema format` rewrites a file
     # 0.16 is the first release that calls click's `Parameter.make_metavar()` with the `ctx`
     # argument click 8.3 made mandatory. Below it, any `--help` raises TypeError against the
     # `click` floor below. Widening this means lowering that floor, not this one.
     "typer>=0.16.0",
     # Not imported directly; constrains the `click` that `typer` resolves to.
+=======
+    "pyyaml>=6",
+    "ruamel.yaml>=0.18",
+    "rich>=12.6,<14",
+    "typer>=0.15.0",
+>>>>>>> origin/develop
     "click>=8.3,<9",
     "ariadne-codegen==0.18.0",
 ]
@@ -78,7 +85,21 @@ testcontainers = [
 
 # Self-referential so it cannot drift out of sync with the extras it aggregates.
 all = [
+<<<<<<< HEAD
     "infrahub-sdk[ctl,testing,testcontainers]",
+=======
+    "Jinja2>=3",
+    "numpy>=1.24.2; python_version<'3.12'",
+    "numpy>=1.26.2; python_version>='3.12'",
+    "pyarrow>=14",
+    "pytest",
+    "pyyaml>=6",
+    "ruamel.yaml>=0.18",
+    "rich>=12.6,<14",
+    "typer>=0.15.0",
+    "click>=8.3,<9",
+    "ariadne-codegen==0.18.0",
+>>>>>>> origin/develop
 ]
 
 [dependency-groups]
