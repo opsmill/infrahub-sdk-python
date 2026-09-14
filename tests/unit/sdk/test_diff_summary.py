@@ -1,10 +1,11 @@
+import json
 from datetime import datetime, timezone
 
 import pytest
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk import InfrahubClient
-from infrahub_sdk.diff import get_diff_tree_query
+from infrahub_sdk.diff import get_diff_summary_query, get_diff_tree_query
 from tests.unit.sdk.conftest import BothClients
 
 client_types = ["standard", "sync"]
@@ -393,3 +394,42 @@ async def test_get_diff_tree_time_validation(clients: BothClients, client_type: 
                 from_time=from_time,
                 to_time=to_time,
             )
+
+
+def test_get_diff_summary_query_operation_name() -> None:
+    """The summary query must declare its own operation, distinct from the diff tree query."""
+    rendered = get_diff_summary_query()
+
+    assert "query GetDiffSummary" in rendered
+    assert "GetDiffTree" not in rendered
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_get_diff_summary_reports_own_operation_name(
+    clients: BothClients, mock_diff_tree_query: HTTPXMock, client_type: str
+) -> None:
+    """get_diff_summary() must send its own operationName, not get_diff_tree()'s."""
+    if client_type == "standard":
+        await clients.standard.get_diff_summary(branch="branch2", tracker="query-difftree")
+    else:
+        clients.sync.get_diff_summary(branch="branch2", tracker="query-difftree")
+
+    payload = json.loads(mock_diff_tree_query.get_requests()[-1].content)
+    assert payload["operationName"] == "GetDiffSummary"
+    # The payload operationName must match the operation named in the query document.
+    assert f"query {payload['operationName']}" in payload["query"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_get_diff_tree_reports_own_operation_name(
+    clients: BothClients, mock_diff_tree_with_metadata: HTTPXMock, client_type: str
+) -> None:
+    """get_diff_tree() keeps reporting GetDiffTree, so the two methods stay distinguishable."""
+    if client_type == "standard":
+        await clients.standard.get_diff_tree(branch="feature-branch", tracker="query-difftree-metadata")
+    else:
+        clients.sync.get_diff_tree(branch="feature-branch", tracker="query-difftree-metadata")
+
+    payload = json.loads(mock_diff_tree_with_metadata.get_requests()[-1].content)
+    assert payload["operationName"] == "GetDiffTree"
+    assert f"query {payload['operationName']}" in payload["query"]
