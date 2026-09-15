@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "message": "Expired Signature",
+      "extensions": {
+        "code": "TOKEN_EXPIRED",
+        "http_status": 401,
+        "data": {}
+      }
+    }
+  ]
+}

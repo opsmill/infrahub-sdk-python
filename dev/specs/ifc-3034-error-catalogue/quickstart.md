@@ -83,13 +83,15 @@ avoid cannot creep back in.
 
 ```bash
 uv run pytest tests/unit/sdk/test_exceptions_layering.py -v
+uv run python -c "import infrahub_sdk.exceptions"
 uv run python -c "import infrahub_sdk.exceptions.base"
 ```
 
 Expected: the layering test passes, reporting any intra-package import that points at its own layer or
-higher — including imports written inside a function body, which is how a cycle usually returns once the
-obvious route is closed. The bare import succeeds on its own, which is the observable form of the rule
-that `base.py` depends on nothing else in the package, generated or otherwise.
+higher, and any import reaching another part of the SDK at all — including imports written inside a
+function body, which is how a cycle usually returns once the obvious route is closed. Both bare imports
+succeed on their own: the package depends on nothing else in the SDK, and `base.py` depends on nothing
+else in the package, generated or otherwise.
 
 ## Scenario 4 — Async and sync parity
 

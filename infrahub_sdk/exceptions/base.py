@@ -1,7 +1,43 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
+
+__all__ = [
+    "ApiError",
+    "AuthenticationError",
+    "BranchNotFoundError",
+    "CircularFragmentError",
+    "DuplicateFragmentError",
+    "Error",
+    "FeatureNotSupportedError",
+    "FileNotValidError",
+    "FragmentFileNotFoundError",
+    "FragmentNotFoundError",
+    "GraphQLError",
+    "GraphQLQueryError",
+    "InfrahubCheckNotFoundError",
+    "InfrahubTransformNotFoundError",
+    "InvalidResponseError",
+    "JsonDecodeError",
+    "ModuleImportError",
+    "NodeInvalidError",
+    "NodeNotFoundError",
+    "NodeNotSavedError",
+    "ObjectValidationError",
+    "QuerySyntaxError",
+    "RateLimitError",
+    "RepositoryFileNotFoundError",
+    "ResourceNotDefinedError",
+    "SchemaNotFoundError",
+    "ServerNotReachableError",
+    "ServerNotResponsiveError",
+    "TimestampFormatError",
+    "URLNotFoundError",
+    "UninitializedError",
+    "ValidationError",
+    "VersionNotSupportedError",
+]
 
 
 class Error(Exception):
@@ -57,12 +93,47 @@ class ServerNotResponsiveError(Error):
         super().__init__(self.message)
 
 
-class GraphQLError(Error):
-    def __init__(self, errors: list[dict[str, Any]], query: str | None = None, variables: dict | None = None) -> None:
+def as_error_list(errors: Any) -> list[dict[str, Any]]:
+    """The subset of a server's `errors` payload that matches the declared shape.
+
+    Anything else keeps its text in the exception message, so the attribute can stay a list of dicts
+    and a caller iterating it never has to guard.
+    """
+    if not isinstance(errors, list):
+        return []
+    return [error for error in errors if isinstance(error, dict)]
+
+
+class ApiError(Error):
+    """Base for a server-reported failure carrying the parsed response envelope.
+
+    Not every failure the server reports is an ApiError. The ones raised from a status code alone,
+    such as URLNotFoundError and RateLimitError, have no envelope to carry and stay under Error.
+
+    The defaults guarantee the attributes exist even on an instance no factory ever touched.
+    """
+
+    code: str | None = None
+    http_status: int | None = None
+    extensions: dict[str, Any] | None = None
+    errors: Sequence[dict[str, Any]] = ()
+
+
+class GraphQLError(ApiError):
+    query: str | None = None
+    variables: dict | None = None
+
+    def __init__(
+        self,
+        errors: list[dict[str, Any]],
+        query: str | None = None,
+        variables: dict | None = None,
+    ) -> None:
         self.query = query
         self.variables = variables
-        self.errors = errors
-        self.message = f"An error occurred while executing the GraphQL Query {self.query}, {self.errors}"
+        # The message keeps the payload verbatim so a shape we cannot read still reaches the reader.
+        self.message = f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        self.errors = as_error_list(errors)
         super().__init__(self.message)
 
 
@@ -99,7 +170,9 @@ class ModuleImportError(Error):
 class NodeNotFoundError(Error):
     def __init__(
         self,
-        identifier: Mapping[str, list[str]],
+        # A plain string is admitted because the file handler names the missing file that way, and
+        # the identifier is only ever interpolated into the message.
+        identifier: Mapping[str, list[str]] | str,
         message: str = "Unable to find the node in the database.",
         branch_name: str | None = None,
         node_type: str | None = None,
@@ -175,7 +248,7 @@ class ObjectValidationError(Error):
         return f"{'.'.join(str(p) for p in self.position)}: {self.message}"
 
 
-class AuthenticationError(Error):
+class AuthenticationError(ApiError):
     def __init__(self, message: str | None = None) -> None:
         self.message = message or "Authentication Error, unable to execute the query."
         super().__init__(self.message)
