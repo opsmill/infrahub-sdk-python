@@ -17,7 +17,7 @@ optional fields omitted (the server applies its own defaults).
 ### `is_unknown_field_error`
 
 ```python
-is_unknown_field_error(errors: list[dict[str, Any]], field_name: str) -> bool
+is_unknown_field_error(errors: Sequence[dict[str, Any]], field_name: str) -> bool
 ```
 
 Return True if the GraphQL errors indicate ``field_name`` is an unknown query field.
