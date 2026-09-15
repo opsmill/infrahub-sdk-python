@@ -545,7 +545,19 @@ def test_field_and_message_render_the_structured_parts(schema: dict) -> None:
     assert result.errors, "the case is expected to be rejected"
     for error in result.errors:
         assert error.message.startswith(f"{error.field}: {error.reason}"), error.message
-        assert error.field.replace("[", ".").replace("]", "") == ".".join(str(part) for part in error.loc)
+
+
+def test_field_is_the_dotted_rendering_of_loc_with_indexes_in_brackets() -> None:
+    schema = _extension_node_schema(
+        {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}
+    )
+
+    result = validate_schema(schema=schema)
+
+    assert len(result.errors) == 1, result.messages
+    error = result.errors[0]
+    assert error.loc == ("extensions", "nodes", 0, "attributes", 0, "not_a_field")
+    assert error.field == "extensions.nodes[0].attributes[0].not_a_field"
 
 
 def test_raise_on_error_raises_value_error_naming_field() -> None:
