@@ -194,7 +194,9 @@ class LineDelimitedJSONImporter(ImporterInterface):
                         if self.console:
                             progress.stop()
                         raise result
-                    if isinstance(result, GraphQLError):
+                    # Keyed on there being server errors to render rather than on the class: a
+                    # lookup miss is a GraphQLError too, and carries its reason in its message.
+                    if isinstance(result, GraphQLError) and result.errors:
                         error_name = type(result).__name__
                         error_msgs = [err["message"] for err in result.errors]
                         error_str = f"{error_name}: {error_msgs}"

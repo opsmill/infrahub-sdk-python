@@ -103,7 +103,9 @@ class TestAuthenticationFactory:
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "first problem | second problem"
+        assert exc.message == "AUTHENTICATION_REQUIRED: first problem | second problem", (
+            "every server message is joined, behind the code the envelope reported"
+        )
 
     def test_rest_integer_code_is_never_a_catalogue_code(self) -> None:
         response = auth_response(envelope=load_envelope("rest_legacy_401.json"))
@@ -148,7 +150,7 @@ class TestAuthenticationFactory:
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "first problem | second problem"
+        assert exc.message == "AUTHENTICATION_REQUIRED: first problem | second problem"
 
     def test_a_non_auth_status_falls_back_to_that_status(self) -> None:
         """A failed token refresh reaches this factory on whatever status the server sent."""

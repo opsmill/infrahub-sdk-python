@@ -1,15 +1,34 @@
+import json
 from io import StringIO
+from typing import Any
 
+import httpx
+import pytest
 import typer
 from rich.console import Console
 from typer.testing import CliRunner
 
 from infrahub_sdk.async_typer import AsyncTyper
-from infrahub_sdk.ctl.utils import catch_exception, print_graphql_errors, print_graphql_query_errors
-from infrahub_sdk.exceptions import graphql_error_from_response
+from infrahub_sdk.ctl.utils import (
+    catch_exception,
+    handle_exception,
+    print_graphql_errors,
+    print_graphql_query_errors,
+)
+from infrahub_sdk.exceptions import (
+    AuthenticationError,
+    BranchNotFoundError,
+    NodeNotFoundError,
+    SchemaNotFoundError,
+    authentication_error_from_response,
+    graphql_error_from_response,
+)
 from tests.helpers.cli import remove_ansi_color
+from tests.helpers.fixtures import read_fixture
 
 runner = CliRunner()
+
+FIXTURE_SUBDIR = "error_catalogue"
 
 
 def rendered(recorder: Console) -> str:
@@ -19,6 +38,20 @@ def rendered(recorder: Console) -> str:
 def recording_console() -> Console:
     """A console that captures its output instead of writing it to the terminal."""
     return Console(record=True, file=StringIO(), width=200)
+
+
+def load_envelope(name: str) -> dict[str, Any]:
+    return json.loads(read_fixture(file_name=name, fixture_subdir=FIXTURE_SUBDIR))
+
+
+def rendered_for(exc: Exception) -> str:
+    """Drive the ladder and return what the user would have seen."""
+    console = recording_console()
+
+    with pytest.raises(typer.Exit):
+        handle_exception(exc=exc, console=console, exit_code=1)
+
+    return rendered(console)
 
 
 def test_catch_exception_async_passes_through_typer_exit() -> None:
@@ -96,6 +129,86 @@ def test_print_graphql_query_errors_degrades_to_the_exception_message() -> None:
     output = rendered(console)
     assert "a bare string where an array belongs" in output
     assert "0 error(s)" not in output
+
+
+class TestHandleExceptionLadder:
+    """Asserts the rendering each class reaches, rather than reading the order off the source."""
+
+    def test_a_node_lookup_miss_is_not_rendered_as_a_graphql_failure(self) -> None:
+        """Re-rooting puts this class under `GraphQLError`, whose branch would print an error list."""
+        output = rendered_for(NodeNotFoundError(identifier={"name": ["john"]}, node_type="TestPerson"))
+
+        assert "Error: " in output
+        assert "TestPerson" in output
+        assert "error(s) occurred" not in output
+
+    def test_a_schema_lookup_miss_keeps_its_own_rendering(self) -> None:
+        output = rendered_for(SchemaNotFoundError(identifier="TestPerson"))
+
+        assert "Error: Unable to find the schema 'TestPerson'." in output
+
+    def test_a_catalogued_graphql_failure_names_the_code_and_the_server_message(self) -> None:
+        envelope = load_envelope("graphql_uniqueness_violation.json")
+        exc = graphql_error_from_response(errors=envelope["errors"], query="mutation { TestPersonCreate }")
+
+        output = rendered_for(exc)
+
+        assert "UNIQUENESS_VIOLATION" in output
+        assert "already has name" in output
+        assert "mutation { TestPersonCreate }" not in output
+
+    def test_a_catalogued_authentication_failure_is_named_rather_than_labelled(self) -> None:
+        """Labelling every 401 an authentication failure mislabels PERMISSION_DENIED, so the code wins."""
+        request = httpx.Request("POST", "http://mock/graphql/main")
+        response = httpx.Response(status_code=401, json=load_envelope("auth_token_expired.json"), request=request)
+        exc = authentication_error_from_response(response=response)
+
+        output = rendered_for(exc)
+
+        assert "TOKEN_EXPIRED" in output
+        assert "Authentication failure" not in output
+
+    def test_an_uncatalogued_authentication_failure_keeps_todays_rendering(self) -> None:
+        """Only errors carrying a code take the new branch; everything else is unchanged."""
+        output = rendered_for(AuthenticationError("no token supplied"))
+
+        assert "Authentication failure: no token supplied" in output
+
+    def test_a_branch_lookup_miss_is_not_rendered_as_a_graphql_failure(self) -> None:
+        """Re-rooted alongside the other two, so it owes the same rendering as the other two."""
+        output = rendered_for(BranchNotFoundError(identifier="does-not-exist"))
+
+        assert "Error: Unable to find the branch 'does-not-exist' in the Database." in output
+        assert "error(s) occurred" not in output
+
+    def test_a_server_message_is_not_read_as_console_markup(self) -> None:
+        """Rich eats anything shaped like a tag, and a branch name in brackets is exactly that."""
+        exc = graphql_error_from_response(
+            errors=[{"message": "Branch [main] does not exist", "extensions": {"code": "BRANCH_NOT_FOUND"}}]
+        )
+
+        output = rendered_for(exc)
+
+        assert "Branch [main] does not exist" in output
+
+    def test_every_server_error_is_rendered_not_just_the_governing_one(self) -> None:
+        """The code names the first error only, so the rest must still reach the user."""
+        envelope = load_envelope("graphql_multiple_errors.json")
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        output = rendered_for(exc)
+
+        assert "SCHEMA_NOT_FOUND: first failure" in output
+        assert "second failure" in output
+        assert "third failure" in output
+
+    def test_an_uncatalogued_graphql_failure_still_renders_the_server_errors(self) -> None:
+        exc = graphql_error_from_response(errors=[{"message": "boom", "path": ["TestPerson"]}])
+
+        output = rendered_for(exc)
+
+        assert "boom" in output
+        assert "TestPerson" in output
 
 
 def test_catch_exception_sync_passes_through_typer_exit() -> None:

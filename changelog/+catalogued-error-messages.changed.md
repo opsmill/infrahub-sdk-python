@@ -1,0 +1,5 @@
+A failure the server reported with a catalogue code now carries a message naming that code and the server's own words, in place of the query text. `GraphQLError` previously rendered as `An error occurred while executing the GraphQL Query <query>, <errors>` and now reads `UNIQUENESS_VIOLATION: Node of kind TestPerson already has name 'John'`; `AuthenticationError` keeps the reason it reported before, with the code named ahead of it. The code names the first error only, which is the one that determines the exception raised; the complete list stays on `exc.errors`, and the query and variables stay on `exc.query` and `exc.variables`.
+
+A failure carrying no catalogue code keeps today's message exactly, query text included, as does one of the lookup-miss classes raised without a server behind it.
+
+In `infrahubctl`, a catalogued failure is now reported by its code and message rather than prefixed with `Authentication failure:` or rendered as a bare error list. Code matching on any of these strings should branch on `exc.code` instead.

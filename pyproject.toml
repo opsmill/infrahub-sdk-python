@@ -123,6 +123,7 @@ filterwarnings = [
 markers = [
     "crossversion: Parses an envelope from a server whose version differs from the SDK's",
     "malformed: Parses an envelope that violates the shape the SDK expects",
+    "message: Pins an exception's message text, in either the catalogued or the uncatalogued direction",
 ]
 addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dist loadscope"
 

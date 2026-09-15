@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Protocol
+
+from typing_extensions import Self
 
 __all__ = [
     "ApiError",
@@ -128,11 +130,13 @@ class GraphQLError(ApiError):
         errors: list[dict[str, Any]],
         query: str | None = None,
         variables: dict | None = None,
+        message: str | None = None,
     ) -> None:
         self.query = query
         self.variables = variables
-        # The message keeps the payload verbatim so a shape we cannot read still reaches the reader.
-        self.message = f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        # The default keeps the payload verbatim so a shape we cannot read still reaches the reader.
+        # A catalogued failure supplies a message naming the code instead, and carries no query text.
+        self.message = message or f"An error occurred while executing the GraphQL Query {query}, {errors}"
         self.errors = as_error_list(errors)
         super().__init__(self.message)
 
@@ -147,18 +151,55 @@ class VersionNotSupportedError(Error):
         super().__init__(self.message)
 
 
-class BranchNotFoundError(Error):
-    def __init__(self, identifier: str, message: str | None = None) -> None:
-        self.identifier = identifier
-        self.message = message or f"Unable to find the branch '{identifier}' in the Database."
-        super().__init__(self.message)
+class BranchNotFoundPayload(Protocol):
+    """The fields a server-reported BRANCH_NOT_FOUND carries."""
+
+    branch_name: str
 
 
-class SchemaNotFoundError(Error):
+class BranchNotFoundError(GraphQLError):
+    CODE = "BRANCH_NOT_FOUND"
+
     def __init__(self, identifier: str, message: str | None = None) -> None:
         self.identifier = identifier
-        self.message = message or f"Unable to find the schema '{identifier}'."
-        super().__init__(self.message)
+        super().__init__(
+            errors=[],
+            query=None,
+            variables=None,
+            message=message or f"Unable to find the branch '{identifier}' in the Database.",
+        )
+
+    @classmethod
+    def from_payload(cls, payload: BranchNotFoundPayload) -> Self:
+        """Build the exception from the payload a server-reported failure carries.
+
+        The mapping onto `identifier` is hand-written because the attribute predates the catalogue
+        and keeps its own name.
+        """
+        return cls(identifier=payload.branch_name)
+
+
+class SchemaNotFoundPayload(Protocol):
+    """The fields a server-reported SCHEMA_NOT_FOUND carries."""
+
+    kind: str
+
+
+class SchemaNotFoundError(GraphQLError):
+    CODE = "SCHEMA_NOT_FOUND"
+
+    def __init__(self, identifier: str, message: str | None = None) -> None:
+        self.identifier = identifier
+        super().__init__(
+            errors=[],
+            query=None,
+            variables=None,
+            message=message or f"Unable to find the schema '{identifier}'.",
+        )
+
+    @classmethod
+    def from_payload(cls, payload: SchemaNotFoundPayload) -> Self:
+        return cls(identifier=payload.kind)
 
 
 class ModuleImportError(Error):
@@ -167,7 +208,16 @@ class ModuleImportError(Error):
         super().__init__(self.message)
 
 
-class NodeNotFoundError(Error):
+class NodeNotFoundPayload(Protocol):
+    """The fields a server-reported NODE_NOT_FOUND carries."""
+
+    node_kind: str
+    identifier: str
+
+
+class NodeNotFoundError(GraphQLError):
+    CODE = "NODE_NOT_FOUND"
+
     def __init__(
         self,
         # A plain string is admitted because the file handler names the missing file that way, and
@@ -181,14 +231,18 @@ class NodeNotFoundError(Error):
         self.identifier = identifier
         self.branch_name = branch_name
 
-        self.message = message
-        super().__init__(self.message)
+        super().__init__(errors=[], query=None, variables=None, message=message)
 
     def __str__(self) -> str:
         return f"""
         {self.message}
         {self.branch_name} | {self.node_type} | {self.identifier}
         """
+
+    @classmethod
+    def from_payload(cls, payload: NodeNotFoundPayload) -> Self:
+        """`node_kind` lands on `node_type`, the name this class has always used for it."""
+        return cls(identifier=payload.identifier, node_type=payload.node_kind)
 
 
 class NodeInvalidError(NodeNotFoundError):

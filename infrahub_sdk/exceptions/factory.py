@@ -69,6 +69,28 @@ def _detail_message(body: dict[str, Any]) -> str | None:
     return detail if isinstance(detail, str) and detail else None
 
 
+def _governing_message(errors: Any) -> str:
+    """The message of the error the code came from, which is the first one.
+
+    Only this error's message may be named beside the code. Joining the whole list would file every
+    later error under a code that is not theirs; the complete list stays on `exc.errors`.
+    """
+    if not isinstance(errors, list) or not errors:
+        return ""
+    first = errors[0]
+    message = first.get("message") if isinstance(first, dict) else None
+    return message if isinstance(message, str) else ""
+
+
+def _named_by_code(code: str, message: str) -> str:
+    """The message for a catalogued failure: the code and the server's message, and no query text.
+
+    A catalogued failure is one the server described, so its own words are what the reader needs;
+    the query stays on the exception as an attribute.
+    """
+    return f"{code}: {message}" if message else code
+
+
 def _log_unresolved_code(extensions: dict[str, Any] | None, source: str) -> None:
     if extensions is not None and _catalogue_code(extensions) is None:
         LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions.get("code"))
@@ -97,11 +119,14 @@ def graphql_error_from_response(
     """Build the exception for an `errors` array returned on the GraphQL path.
 
     `errors` is raw decoded JSON, so it is read defensively. The complete list is retained
-    unreordered, and the message is the one this call site has always produced.
+    unreordered, and an uncatalogued failure keeps the message this call site has always produced.
     """
     extensions = _first_extensions(errors)
-    exc = GraphQLError(errors=errors, query=query, variables=variables)
-    exc.code = _catalogue_code(extensions)
+    code = _catalogue_code(extensions)
+    message = _named_by_code(code, _governing_message(errors)) if code else None
+
+    exc = GraphQLError(errors=errors, query=query, variables=variables, message=message)
+    exc.code = code
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
     _log_unresolved_code(extensions=extensions, source="GraphQL")
@@ -116,6 +141,7 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     messages with `" | "`, as every call site this replaces did, falling back to the REST API's bare
     `detail` string and then to the plain status. A body the SDK cannot read as an envelope therefore
     still names the status rather than surfacing a decode error in place of the authentication failure.
+    Whichever of those reasons survives, a catalogued failure names its code ahead of it.
     """
     errors: Any = []
     message = f"HTTP {response.status_code}"
@@ -138,9 +164,12 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
             LOGGER.debug("Authentication response body is not an envelope object; using the plain status: %r", body)
 
     extensions = _first_extensions(errors)
+    code = _catalogue_code(extensions)
+    if code is not None:
+        message = _named_by_code(code, message)
 
     exc = AuthenticationError(message)
-    exc.code = _catalogue_code(extensions)
+    exc.code = code
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
     exc.errors = as_error_list(errors)

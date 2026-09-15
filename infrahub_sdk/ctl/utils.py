@@ -15,7 +15,9 @@ from rich.logging import RichHandler
 from rich.markup import escape
 
 from ..exceptions import (
+    ApiError,
     AuthenticationError,
+    BranchNotFoundError,
     Error,
     FileNotValidError,
     GraphQLError,
@@ -55,6 +57,15 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     """Handle exception in a different fashion based on its type."""
     if isinstance(exc, typer.Exit):
         raise exc
+    if isinstance(exc, ApiError) and exc.code is not None:
+        # A failure the server named. Its message already carries the code and the governing error's
+        # words, which every branch below would either mislabel or replace with the raw error list.
+        # Keying on the code rather than on a class also keeps the branch immune to re-rooting.
+        console.print(f"[red]{escape(str(exc))}")
+        # The code names only the first error, so the rest still have to be rendered on their own.
+        if len(exc.errors) > 1:
+            print_graphql_errors(console=console, errors=exc.errors)
+        raise typer.Exit(code=exit_code)
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {exc!s}")
         raise typer.Exit(code=exit_code)
@@ -64,11 +75,22 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, HTTPError):
         console.print(f"[red]HTTP communication failure: {exc!s} on {exc.request.method} to {exc.request.url}")
         raise typer.Exit(code=exit_code)
+    # Ahead of GraphQLError, which the lookup misses now descend from and which would otherwise
+    # claim them and render an empty server error list in place of their message.
+    if isinstance(
+        exc,
+        (
+            SchemaNotFoundError,
+            NodeNotFoundError,
+            BranchNotFoundError,
+            ResourceNotDefinedError,
+            GraphQLQueryError,
+        ),
+    ):
+        console.print(f"[red]Error: {exc!s}")
+        raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors, fallback=str(exc))
-        raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError, GraphQLQueryError)):
-        console.print(f"[red]Error: {exc!s}")
         raise typer.Exit(code=exit_code)
 
     console.print(f"[red]Error: {exc!s}")
