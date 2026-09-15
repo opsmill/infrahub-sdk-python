@@ -58,13 +58,15 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, typer.Exit):
         raise exc
     if isinstance(exc, ApiError) and exc.code is not None:
-        # A failure the server named. Its message already carries the code and the governing error's
-        # words, which every branch below would either mislabel or replace with the raw error list.
-        # Keying on the code rather than on a class also keeps the branch immune to re-rooting.
-        console.print(f"[red]{escape(str(exc))}")
-        # The code names only the first error, so the rest still have to be rendered on their own.
-        if len(exc.errors) > 1:
+        # A failure the server named. Every branch below would either mislabel it or drop the code,
+        # and keying on the code rather than on a class keeps this one immune to re-rooting.
+        if exc.errors:
+            # The server's errors carry the path naming the operation that failed, which the coded
+            # line has nowhere to put, so they render the detail and the code just names the failure.
+            console.print(f"[red]{escape(exc.code)}")
             print_graphql_errors(console=console, errors=exc.errors)
+        else:
+            console.print(f"[red]{escape(str(exc))}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {exc!s}")
@@ -171,10 +173,16 @@ def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]], fal
         return
 
     for error in errors:
-        if isinstance(error, dict) and "message" in error and "path" in error:
-            console.print(f"[red]{escape(str(error['path']))} {escape(str(error['message']))}")
-        else:
+        if not isinstance(error, dict) or "message" not in error:
             console.print(f"[red]{escape(str(error))}")
+            continue
+        message = escape(str(error["message"]))
+        # The path names the operation that failed. An envelope without one still has its message,
+        # which beats rendering the whole entry as a dict.
+        if "path" in error:
+            console.print(f"[red]{escape(str(error['path']))} {message}")
+        else:
+            console.print(f"[red]{message}")
 
 
 def print_graphql_query_errors(console: Console, exc: GraphQLError) -> None:

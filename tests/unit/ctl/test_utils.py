@@ -157,6 +157,22 @@ class TestHandleExceptionLadder:
         assert "already has name" in output
         assert "mutation { TestPersonCreate }" not in output
 
+    def test_a_single_error_keeps_the_path_naming_the_failed_operation(self) -> None:
+        """The coded line has nowhere to put the path, so the error list still has to render."""
+        envelope = load_envelope("graphql_uniqueness_violation.json")
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        output = rendered_for(exc)
+
+        assert "TestPersonCreate" in output, "the path tells the user which operation failed"
+
+    def test_the_governing_message_is_not_printed_twice(self) -> None:
+        output = rendered_for(
+            graphql_error_from_response(errors=load_envelope("graphql_uniqueness_violation.json")["errors"])
+        )
+
+        assert output.count("already has name") == 1
+
     def test_a_catalogued_authentication_failure_is_named_rather_than_labelled(self) -> None:
         """Labelling every 401 an authentication failure mislabels PERMISSION_DENIED, so the code wins."""
         request = httpx.Request("POST", "http://mock/graphql/main")
@@ -166,7 +182,9 @@ class TestHandleExceptionLadder:
         output = rendered_for(exc)
 
         assert "TOKEN_EXPIRED" in output
+        assert "Expired Signature" in output
         assert "Authentication failure" not in output
+        assert "extensions" not in output, "an envelope with no path must not render as a raw dict"
 
     def test_an_uncatalogued_authentication_failure_keeps_todays_rendering(self) -> None:
         """Only errors carrying a code take the new branch; everything else is unchanged."""
@@ -198,7 +216,8 @@ class TestHandleExceptionLadder:
 
         output = rendered_for(exc)
 
-        assert "SCHEMA_NOT_FOUND: first failure" in output
+        assert "SCHEMA_NOT_FOUND" in output
+        assert "first failure" in output
         assert "second failure" in output
         assert "third failure" in output
 
