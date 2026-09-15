@@ -43,6 +43,11 @@ def _fields_named(result: SchemaValidationResult) -> set[str]:
     return {error.field for error in result.errors}
 
 
+def _dotted_path(loc: tuple[int | str, ...]) -> str:
+    """Expected rendering of a location: keys joined by dots, indexes in brackets."""
+    return "".join(f"[{part}]" if isinstance(part, int) else f".{part}" for part in loc).lstrip(".")
+
+
 def _extension_node_schema(node: dict) -> dict:
     return {"version": "1.0", "extensions": {"nodes": [node]}}
 
@@ -519,6 +524,7 @@ def test_error_detail_carries_the_location_reason_and_value_of_an_out_of_enum_va
     assert error.loc == ("nodes", 0, "relationships", 0, "cardinality")
     assert error.input == "both"
     assert error.reason == "Input should be 'one' or 'many'"
+    assert error.field == "nodes[0].relationships[0].cardinality"
     assert error.message == f"{error.field}: {error.reason} (received: 'both')"
 
 
@@ -544,20 +550,8 @@ def test_field_and_message_render_the_structured_parts(schema: dict) -> None:
 
     assert result.errors, "the case is expected to be rejected"
     for error in result.errors:
+        assert error.field == _dotted_path(error.loc)
         assert error.message.startswith(f"{error.field}: {error.reason}"), error.message
-
-
-def test_field_is_the_dotted_rendering_of_loc_with_indexes_in_brackets() -> None:
-    schema = _extension_node_schema(
-        {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}
-    )
-
-    result = validate_schema(schema=schema)
-
-    assert len(result.errors) == 1, result.messages
-    error = result.errors[0]
-    assert error.loc == ("extensions", "nodes", 0, "attributes", 0, "not_a_field")
-    assert error.field == "extensions.nodes[0].attributes[0].not_a_field"
 
 
 def test_raise_on_error_raises_value_error_naming_field() -> None:
