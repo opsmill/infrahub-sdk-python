@@ -59,8 +59,8 @@ So `except AuthenticationError` is not the clause that spans both arrival paths 
 codes — `except ApiError` is. That is not a coverage loss: such a response raises `GraphQLError` today
 too, so no existing clause stops catching anything it catches now.
 
-Every clause that worked before the change still catches what it caught before (FR-018). Two
-broadenings are deliberate:
+Every clause that worked before the change still catches what it caught before (FR-018). The
+broadenings below are deliberate. They are not numbered, because adopting a further code adds one.
 
 - `except GraphQLError` now also catches node, branch, and schema lookup misses that involved no
   GraphQL request at all — both the client-side ones and the REST 404 the file handler turns into a
@@ -68,10 +68,11 @@ broadenings are deliberate:
 - Code that catches a generic error to inspect its message will now sometimes receive a subclass whose
   message names the code, or the same class carrying a described failure's message instead of the query
   text.
-- A failure the server reports under an adopted code now raises that class rather than `GraphQLError`.
-  A server-reported `NODE_NOT_FOUND` reaches an `except NodeNotFoundError` clause that only saw
-  client-side lookup misses before. Both classes are caught by `except GraphQLError`, so no clause
-  stops catching what it catches now; a ladder that handles the specific class differently sees the
+- A failure the server reports under an adopted code, with a payload carrying the fields that code's
+  class needs, now raises that class rather than `GraphQLError`. A server-reported `NODE_NOT_FOUND`
+  reaches an `except NodeNotFoundError` clause that only saw client-side lookup misses before. The
+  specific class and `GraphQLError` are both caught by `except GraphQLError`, so no clause stops
+  catching what it catches now; a ladder that handles the specific class differently sees the
   server-reported ones arrive there too, which is the point of adopting the code.
 
 ## Reading a caught error

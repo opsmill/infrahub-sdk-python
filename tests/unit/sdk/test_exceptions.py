@@ -381,6 +381,54 @@ class TestMessages:
         assert exc.message == f"An error occurred while executing the GraphQL Query {query}, {errors}"
         assert exc.code == "UNDEFINED_ERROR", "the code is still readable, it is just not the headline"
 
+    def test_a_silent_governing_error_does_not_reduce_the_message_to_a_bare_code(self) -> None:
+        """A code with nothing beside it is a worse headline than what the call site would produce.
+
+        The governing error carries the code but no words, so the reasons live in the later errors;
+        naming the code alone would drop them from the message entirely.
+        """
+        errors = [
+            {"extensions": {"code": "UNIQUENESS_VIOLATION", "http_status": 422}},
+            {"message": "the reason the caller actually needs"},
+        ]
+        query = "mutation { TestPersonCreate }"
+
+        exc = graphql_error_from_response(errors=errors, query=query)
+
+        assert exc.message == f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        assert exc.code == "UNIQUENESS_VIOLATION"
+
+    def test_a_silent_governing_error_leaves_an_adopted_class_its_own_sentence(self) -> None:
+        errors = [
+            {
+                "extensions": {
+                    "code": "NODE_NOT_FOUND",
+                    "data": {"node_kind": "TestPerson", "identifier": "john"},
+                }
+            }
+        ]
+
+        exc = graphql_error_from_response(errors=errors)
+
+        assert isinstance(exc, NodeNotFoundError)
+        assert exc.message == "Unable to find the node in the database."
+        assert exc.code == "NODE_NOT_FOUND"
+
+    def test_a_silent_governing_error_keeps_the_joined_authentication_reasons(self) -> None:
+        response = auth_response(
+            envelope={
+                "errors": [
+                    {"extensions": {"code": "AUTHENTICATION_REQUIRED"}},
+                    {"message": "the reason the caller actually needs"},
+                ]
+            }
+        )
+
+        exc = authentication_error_from_response(response=response)
+
+        assert exc.message == "the reason the caller actually needs"
+        assert exc.code == "AUTHENTICATION_REQUIRED"
+
     def test_a_described_authentication_failure_names_its_code(self) -> None:
         response = auth_response(envelope=load_envelope("auth_two_messages.json"))
 

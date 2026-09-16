@@ -4,13 +4,28 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import NodeNotFoundError
+from .exceptions import GraphQLError, NodeNotFoundError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
     from .client import InfrahubClient, InfrahubClientSync
     from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
     from .schema import MainSchemaTypesAPI
+
+# The message a server older than the error catalogue reports a missing node with. Servers that
+# carry the catalogue raise NodeNotFoundError instead, so this is only reached talking to an older
+# one, and the branch that uses it goes when those stop being supported.
+_LEGACY_NODE_NOT_FOUND = "Unable to find the node"
+
+
+def _node_already_deleted(exc: GraphQLError) -> bool:
+    """Whether a failed delete is reporting a node that another node's cascade already removed.
+
+    A server that codes its errors has already been handled by the caller's `NodeNotFoundError`
+    clause, so a coded failure reaching here is a different failure and must not be swallowed on the
+    strength of its wording.
+    """
+    return exc.code is None and exc.message is not None and _LEGACY_NODE_NOT_FOUND in exc.message
 
 
 class InfrahubGroupContextBase:
@@ -119,6 +134,9 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                         # the server's NODE_NOT_FOUND now raises rather than on words in a message,
                         # which only matched while the whole error list was embedded in it.
                         continue
+                    except GraphQLError as exc:
+                        if not _node_already_deleted(exc):
+                            raise
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.
@@ -215,6 +233,9 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
                     except NodeNotFoundError:
                         # Already gone, cascade-deleted along with another node.
                         continue
+                    except GraphQLError as exc:
+                        if not _node_already_deleted(exc):
+                            raise
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.

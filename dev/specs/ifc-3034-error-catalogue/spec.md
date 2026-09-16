@@ -483,12 +483,14 @@ These are specific hazards found while surveying the current code, not hypotheti
   not an import path for consumers. This is a stronger promise than the constitution's tiering
   strictly requires, and it is made deliberately, because `infrahubctl`, the Ansible collection, and
   external consumers already import from it directly.
-- **Two broadenings are accepted deliberately**: `except GraphQLError` will additionally catch node,
+- **The broadenings are accepted deliberately**: `except GraphQLError` will additionally catch node,
   branch, and schema lookup misses that never involved a GraphQL request at all — both the client-side
-  ones and the REST 404 the file handler turns into a `NodeNotFoundError`; and code that catches the
+  ones and the REST 404 the file handler turns into a `NodeNotFoundError`; code that catches the
   generic error to inspect its message will now sometimes receive a subclass with a different message,
-  or the same class carrying a catalogued message. Both follow from answered decisions rather than
-  oversight.
+  or the same class carrying a catalogued message; and a failure the server reports under an adopted
+  code now raises that code's class rather than the generic one, so an `except NodeNotFoundError`
+  clause sees server-reported misses as well as client-side ones. They are left uncounted here because
+  adopting a further code adds another. Each follows from an answered decision rather than oversight.
 
   Nothing changes about which class a 401 or 403 produces: it remains `AuthenticationError`, and a
   permission failure inside an HTTP 200 response remains a `GraphQLError`. That is what FR-008's

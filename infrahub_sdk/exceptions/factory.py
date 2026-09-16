@@ -97,8 +97,12 @@ def _named_by_code(code: str, message: str) -> str:
 
     A described failure is one the server's catalogue has an entry for, so its own words are what the
     reader needs; the query stays on the exception as an attribute.
+
+    Callers apply this only when the governing error carried a message. A code with nothing beside it
+    is a worse headline than whatever that transport would otherwise have produced, and it is no loss
+    of information: the code is on `exc.code` either way.
     """
-    return f"{code}: {message}" if message else code
+    return f"{code}: {message}"
 
 
 def _replace_message(exc: Error, message: str) -> None:
@@ -194,7 +198,7 @@ def token_expired_in(errors: Any) -> bool:
     Lives here so the client's silent-refresh decision reads the envelope through the same parser as
     everything else. Every error is scanned rather than only the first: a stale token is a fact about
     the request, not about which error happens to lead. The legacy message check is the fallback for
-    servers that predate the catalogue, and is the only place in the SDK that string still appears.
+    servers that predate the catalogue; `query_groups` keeps the only other one, for the same reason.
     """
     if not isinstance(errors, list):
         return False
@@ -218,15 +222,16 @@ def graphql_error_from_response(
     extensions = _first_extensions(errors)
     code = _catalogue_code(extensions)
     governing = _governing_message(errors)
-    message = _named_by_code(code, governing) if code_names_the_failure(code) else None
+    message = _named_by_code(code, governing) if code_names_the_failure(code) and governing else None
 
     adopted = _adopted_exception(code=code, extensions=extensions)
     if adopted is not None:
         exc: GraphQLError = adopted
         # The class built itself from its payload alone, so it carries its own default text and the
         # envelope it was read out of has to be put on it here. The server's own words replace that
-        # text only where it sent any.
-        if message is not None and governing:
+        # text only where it sent any; a silent governing error leaves the class's own sentence,
+        # which reads better than a bare code.
+        if message is not None:
             _replace_message(exc, message)
         exc.query = query
         exc.variables = variables
@@ -276,8 +281,9 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
 
     extensions = _first_extensions(errors)
     code = _catalogue_code(extensions)
-    if code_names_the_failure(code):
-        message = _named_by_code(code, _governing_message(errors)) or message
+    governing = _governing_message(errors)
+    if code_names_the_failure(code) and governing:
+        message = _named_by_code(code, governing)
 
     exc = AuthenticationError(message)
     exc.code = code

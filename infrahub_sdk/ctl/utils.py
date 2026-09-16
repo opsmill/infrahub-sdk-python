@@ -106,7 +106,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
         raise typer.Exit(code=exit_code)
 
     console.print(f"[red]Error: {escape(str(exc))}")
-    console.print(traceback.format_exc())
+    console.print(escape(traceback.format_exc()))
     raise typer.Exit(code=exit_code)
 
 

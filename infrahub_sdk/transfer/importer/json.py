@@ -186,7 +186,10 @@ class LineDelimitedJSONImporter(ImporterInterface):
             progress_task = progress.add_task(f"{progress_bar_message}...", total=task_count)
         exceptions, results = [], []
         for batch in batches:
-            async for result in batch.execute():
+            # `execute` yields `(node, result)`, so the result has to be unpacked before it can be
+            # tested. Binding the pair to one name made every isinstance check below look at a tuple,
+            # which no task can ever produce, so a failed task was reported as a success instead.
+            async for _, result in batch.execute():
                 if self.console:
                     progress.update(progress_task, advance=1)
                 if isinstance(result, Exception):
@@ -206,7 +209,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
                         error_str = str(result)
                     exceptions.append(error_str)
                 else:
-                    results.append(result[1])
+                    results.append(result)
         if self.console:
             progress.stop()
 
