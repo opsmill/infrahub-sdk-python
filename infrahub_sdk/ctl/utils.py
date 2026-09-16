@@ -64,7 +64,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
             # The server's errors carry the path naming the operation that failed, which the coded
             # line has nowhere to put, so they render the detail and the code just names the failure.
             console.print(f"[red]{escape(exc.code)}")
-            print_graphql_errors(console=console, errors=exc.errors)
+            print_catalogued_errors(console=console, errors=exc.errors)
         else:
             console.print(f"[red]{escape(str(exc))}")
         raise typer.Exit(code=exit_code)
@@ -173,12 +173,22 @@ def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]], fal
         return
 
     for error in errors:
-        if not isinstance(error, dict) or "message" not in error:
+        if isinstance(error, dict) and "message" in error and "path" in error:
+            console.print(f"[red]{escape(str(error['path']))} {escape(str(error['message']))}")
+        else:
             console.print(f"[red]{escape(str(error))}")
-            continue
-        message = escape(str(error["message"]))
-        # The path names the operation that failed. An envelope without one still has its message,
-        # which beats rendering the whole entry as a dict.
+
+
+def print_catalogued_errors(console: Console, errors: Sequence[dict[str, Any]]) -> None:
+    """Render the errors behind a failure the server gave a catalogue code, one line each.
+
+    Deliberately not `print_graphql_errors`: an uncatalogued failure keeps today's rendering
+    exactly, raw entry and all, because a validation error carries `locations` and no `path` and
+    those coordinates are the useful part. Here the code has already named the failure, so an entry
+    with no path reads better as the server's sentence than as a decoded dict.
+    """
+    for error in errors:
+        message = escape(str(error.get("message", error)))
         if "path" in error:
             console.print(f"[red]{escape(str(error['path']))} {message}")
         else:

@@ -221,6 +221,21 @@ class TestHandleExceptionLadder:
         assert "second failure" in output
         assert "third failure" in output
 
+    def test_an_uncatalogued_error_without_a_path_keeps_its_raw_entry(self) -> None:
+        """A validation error carries `locations` and no `path`, and those coordinates are the point.
+
+        Uncatalogued rendering is unchanged by this feature, so the whole entry still prints.
+        """
+        exc = graphql_error_from_response(
+            errors=[{"message": "Cannot query field 'nope'.", "locations": [{"line": 1, "column": 9}]}],
+            query="query { nope }",
+        )
+
+        output = rendered_for(exc)
+
+        assert "'line': 1" in output
+        assert "'column': 9" in output
+
     def test_an_uncatalogued_graphql_failure_still_renders_the_server_errors(self) -> None:
         exc = graphql_error_from_response(errors=[{"message": "boom", "path": ["TestPerson"]}])
 
