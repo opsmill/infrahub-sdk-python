@@ -186,10 +186,7 @@ class LineDelimitedJSONImporter(ImporterInterface):
             progress_task = progress.add_task(f"{progress_bar_message}...", total=task_count)
         exceptions, results = [], []
         for batch in batches:
-            # `execute` yields `(node, result)`, so the result has to be unpacked before it can be
-            # tested. Binding the pair to one name made every isinstance check below look at a tuple,
-            # which no task can ever produce, so a failed task was reported as a success instead.
-            async for _, result in batch.execute():
+            async for result in batch.execute():
                 if self.console:
                     progress.update(progress_task, advance=1)
                 if isinstance(result, Exception):
@@ -201,15 +198,15 @@ class LineDelimitedJSONImporter(ImporterInterface):
                     # lookup miss is a GraphQLError too, and carries its reason in its message.
                     if isinstance(result, GraphQLError) and result.errors:
                         error_name = type(result).__name__
-                        # `.get` rather than indexing: this runs inside the branch whose whole job is
-                        # to keep going, so an entry with no message must not raise out of it.
+                        # `.get` rather than indexing, so an entry with no message cannot raise out
+                        # of the branch whose whole job is to keep going.
                         error_msgs = [err.get("message", err) for err in result.errors]
                         error_str = f"{error_name}: {error_msgs}"
                     else:
                         error_str = str(result)
                     exceptions.append(error_str)
                 else:
-                    results.append(result)
+                    results.append(result[1])
         if self.console:
             progress.stop()
 
