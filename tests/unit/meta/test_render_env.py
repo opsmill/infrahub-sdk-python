@@ -17,10 +17,10 @@ from rich.console import Console
 
 from tests.conftest import RENDER_ENV, RENDER_ENV_TO_CLEAN
 
-# (major, minor) of the installed Rich. Rich started honouring ``FORCE_COLOR`` in 12.6, and changed
-# what an empty value means in 14.0; ``pyproject.toml`` allows ``rich>=12`` with no upper bound.
+# (major, minor) of the installed Rich. ``pyproject.toml`` floors it at 12.6 -- the first release
+# that honours ``FORCE_COLOR`` -- and sets no upper bound, so only the change 14.0 made to the
+# meaning of an empty value is still in range.
 RICH_VERSION = tuple(int(part) for part in version("rich").split(".")[:2])
-RICH_HONOURS_FORCE_COLOR = RICH_VERSION >= (12, 6)
 
 
 def test_render_env_is_pinned() -> None:
@@ -57,17 +57,16 @@ def test_force_color_is_what_would_clamp_the_width(force_color: str, monkeypatch
 
     With ``FORCE_COLOR`` set, Rich treats the captured output as a terminal; combined with
     ``TERM=dumb`` that drops it to width 80, which truncates the wide tables the CLI-output
-    fixtures record. This is the state a developer's shell puts the suite in. Rich before 12.6
-    does not read the variable at all, so there the width stays pinned whatever the shell exports.
+    fixtures record. This is the state a developer's shell puts the suite in.
     """
     monkeypatch.setenv("FORCE_COLOR", force_color)
     monkeypatch.setenv("TERM", "dumb")
 
     console = Console(file=StringIO())
 
-    assert console.is_terminal is RICH_HONOURS_FORCE_COLOR
-    assert console.is_dumb_terminal is RICH_HONOURS_FORCE_COLOR
-    assert console.width == (80 if RICH_HONOURS_FORCE_COLOR else int(RENDER_ENV["COLUMNS"]))
+    assert console.is_terminal is True
+    assert console.is_dumb_terminal is True
+    assert console.width == 80
 
 
 def test_empty_force_color_is_why_the_hook_removes_rather_than_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,7 +84,7 @@ def test_empty_force_color_is_why_the_hook_removes_rather_than_overrides(monkeyp
 
     console = Console(file=StringIO())
 
-    forces_terminal = RICH_HONOURS_FORCE_COLOR and RICH_VERSION < (14, 0)
+    forces_terminal = RICH_VERSION < (14, 0)
     assert console.is_terminal is forces_terminal
     assert console.is_dumb_terminal is forces_terminal
     assert console.width == (80 if forces_terminal else int(RENDER_ENV["COLUMNS"]))
