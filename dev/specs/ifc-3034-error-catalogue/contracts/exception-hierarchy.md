@@ -97,8 +97,7 @@ that never shapes the message, because it describes nothing; see [Messages](#mes
 
 A current server codes **every** error it reports, falling back to `UNDEFINED_ERROR` where its
 catalogue has no entry, so `exc.code is not None` is not the test for "the server described this".
-`code_names_the_failure(exc.code)` is, and it is importable from `infrahub_sdk.exceptions` alongside
-`UNDEFINED_ERROR_CODE`.
+`code_names_the_failure(exc.code)` is, and it is importable from `infrahub_sdk.exceptions`.
 
 ## Cross-version behaviour
 

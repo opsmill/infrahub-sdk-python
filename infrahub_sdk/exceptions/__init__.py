@@ -7,11 +7,17 @@ in `base` is left out of either.
 
 `__all__` is what `import *` hands a caller: the exception classes and nothing else. Without it the
 wildcard also carries the `base` and `factory` submodule names, which are an artefact of the layout.
-The raise-time factories, the payload protocols, and the catalogue helpers stay importable by name,
-since what an end user catches is the classes.
+The raise-time factories and `code_names_the_failure` stay importable by name, since what an end user
+catches is the classes. Nothing else is re-exported: a name here is a stability promise, so it earns
+its place by having a caller rather than by being plausibly useful one day.
+
+Those three are imported below as `X as X`, which is not a typo. The alias is what marks a name as
+re-exported rather than merely imported, and is the spelling ruff's F401 accepts for an import
+nothing in this file uses; a plain `from .base import X` for a name outside `__all__` fails the lint.
+One statement each is isort's doing, which splits aliased imports apart unless `combine-as-imports`
+is set.
 """
 
-from .base import UNDEFINED_ERROR_CODE as UNDEFINED_ERROR_CODE
 from .base import (
     ApiError,
     AuthenticationError,
@@ -47,9 +53,6 @@ from .base import (
     ValidationError,
     VersionNotSupportedError,
 )
-from .base import BranchNotFoundPayload as BranchNotFoundPayload
-from .base import NodeNotFoundPayload as NodeNotFoundPayload
-from .base import SchemaNotFoundPayload as SchemaNotFoundPayload
 from .base import code_names_the_failure as code_names_the_failure
 from .factory import authentication_error_from_response as authentication_error_from_response
 from .factory import graphql_error_from_response as graphql_error_from_response
