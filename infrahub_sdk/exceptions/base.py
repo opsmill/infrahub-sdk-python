@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Protocol
+from typing import Any, ClassVar, Protocol, TypeGuard
 
 from typing_extensions import Self
+
+# The code the server reports where its own catalogue has no entry for the failure.
+UNDEFINED_ERROR_CODE = "UNDEFINED_ERROR"
 
 __all__ = [
     "ApiError",
@@ -40,6 +43,17 @@ __all__ = [
     "ValidationError",
     "VersionNotSupportedError",
 ]
+
+
+def code_names_the_failure(code: str | None) -> TypeGuard[str]:
+    """Whether a catalogue code tells the reader something the server's message does not.
+
+    The server codes every error it reports, falling back to `UNDEFINED_ERROR` wherever its own
+    catalogue has no entry, so "carries a code" is not the same question as "was described". That
+    fallback names nothing, and letting it displace the query text and the later errors the way a
+    described code does would lose detail and gain none. It stays readable on `exc.code` either way.
+    """
+    return code is not None and code != UNDEFINED_ERROR_CODE
 
 
 class Error(Exception):
@@ -115,6 +129,10 @@ class ApiError(Error):
     The defaults guarantee the attributes exist even on an instance no factory ever touched.
     """
 
+    # The catalogue code this class represents, for the classes that adopted one. Optional so that a
+    # subclass of an adopted class can clear it rather than inherit a code it does not represent.
+    CODE: ClassVar[str | None] = None
+
     code: str | None = None
     http_status: int | None = None
     extensions: dict[str, Any] | None = None
@@ -135,8 +153,11 @@ class GraphQLError(ApiError):
         self.query = query
         self.variables = variables
         # The default keeps the payload verbatim so a shape we cannot read still reaches the reader.
-        # A catalogued failure supplies a message naming the code instead, and carries no query text.
-        self.message = message or f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        # A described failure supplies a message naming the code instead, and carries no query text.
+        # Only `None` asks for the default: a subclass raised with a deliberately empty message keeps
+        # it, rather than having the GraphQL placeholder put words in its mouth.
+        default = f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        self.message = message if message is not None else default
         self.errors = as_error_list(errors)
         super().__init__(self.message)
 
@@ -158,7 +179,7 @@ class BranchNotFoundPayload(Protocol):
 
 
 class BranchNotFoundError(GraphQLError):
-    CODE = "BRANCH_NOT_FOUND"
+    CODE: ClassVar[str | None] = "BRANCH_NOT_FOUND"
 
     def __init__(self, identifier: str, message: str | None = None) -> None:
         self.identifier = identifier
@@ -186,7 +207,7 @@ class SchemaNotFoundPayload(Protocol):
 
 
 class SchemaNotFoundError(GraphQLError):
-    CODE = "SCHEMA_NOT_FOUND"
+    CODE: ClassVar[str | None] = "SCHEMA_NOT_FOUND"
 
     def __init__(self, identifier: str, message: str | None = None) -> None:
         self.identifier = identifier
@@ -216,7 +237,7 @@ class NodeNotFoundPayload(Protocol):
 
 
 class NodeNotFoundError(GraphQLError):
-    CODE = "NODE_NOT_FOUND"
+    CODE: ClassVar[str | None] = "NODE_NOT_FOUND"
 
     def __init__(
         self,
@@ -246,7 +267,14 @@ class NodeNotFoundError(GraphQLError):
 
 
 class NodeInvalidError(NodeNotFoundError):
-    pass
+    """Raised when a node was found but is not of the kind that was asked for.
+
+    That is not a lookup miss, so it claims no catalogue code and clears the one it would otherwise
+    inherit. `from_payload` is inherited and unused: nothing dispatches a payload to a class that
+    represents no code.
+    """
+
+    CODE: ClassVar[str | None] = None
 
 
 class NodeNotSavedError(Error):

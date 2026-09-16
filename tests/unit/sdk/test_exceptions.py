@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -55,6 +56,44 @@ class SchemaNotFoundData:
     kind: str
 
 
+@dataclass
+class UnifiedClassCase:
+    """One of the three classes re-rooted under `GraphQLError`."""
+
+    name: str
+    exception_class: type[GraphQLError]
+    code: str
+    build: Callable[[], GraphQLError]
+    expected_message: str
+
+
+UNIFIED_CLASS_CASES = [
+    UnifiedClassCase(
+        name="node",
+        exception_class=NodeNotFoundError,
+        code="NODE_NOT_FOUND",
+        build=lambda: NodeNotFoundError(identifier={"name": ["john"]}),
+        expected_message="Unable to find the node in the database.",
+    ),
+    UnifiedClassCase(
+        name="branch",
+        exception_class=BranchNotFoundError,
+        code="BRANCH_NOT_FOUND",
+        build=lambda: BranchNotFoundError(identifier="dev"),
+        expected_message="Unable to find the branch 'dev' in the Database.",
+    ),
+    UnifiedClassCase(
+        name="schema",
+        exception_class=SchemaNotFoundError,
+        code="SCHEMA_NOT_FOUND",
+        build=lambda: SchemaNotFoundError(identifier="TestPerson"),
+        expected_message="Unable to find the schema 'TestPerson'.",
+    ),
+]
+
+UNIFIED_CLASS_PARAMS = [pytest.param(case, id=case.name) for case in UNIFIED_CLASS_CASES]
+
+
 def exported_classes() -> list[type[BaseException]]:
     return [
         value
@@ -86,9 +125,9 @@ class TestHierarchyIsATree:
         assert isinstance(exc, GraphQLError)
         assert isinstance(exc, NodeNotFoundError)
 
-    @pytest.mark.parametrize("exception_class", [NodeNotFoundError, BranchNotFoundError, SchemaNotFoundError])
-    def test_the_unified_classes_sit_under_graphql_error(self, exception_class: type[GraphQLError]) -> None:
-        assert exception_class.__bases__ == (GraphQLError,)
+    @pytest.mark.parametrize("case", UNIFIED_CLASS_PARAMS)
+    def test_the_unified_classes_sit_under_graphql_error(self, case: UnifiedClassCase) -> None:
+        assert case.exception_class.__bases__ == (GraphQLError,)
 
     def test_one_clause_catches_both_transports(self) -> None:
         """`except ApiError` is the clause that spans a failure however the server reported it."""
@@ -142,16 +181,10 @@ class TestTheEnvelopeIsReadableOnAClientSideRaise:
 
         assert isinstance(exc.errors, list)
 
-    @pytest.mark.parametrize(
-        "exc",
-        [
-            NodeNotFoundError(identifier={"name": ["john"]}),
-            BranchNotFoundError(identifier="does-not-exist"),
-            SchemaNotFoundError(identifier="TestPerson"),
-        ],
-        ids=["node", "branch", "schema"],
-    )
-    def test_every_unified_class_sets_its_envelope_through_the_constructor(self, exc: GraphQLError) -> None:
+    @pytest.mark.parametrize("case", UNIFIED_CLASS_PARAMS)
+    def test_every_unified_class_sets_its_envelope_through_the_constructor(self, case: UnifiedClassCase) -> None:
+        exc = case.build()
+
         assert exc.errors == []
         assert isinstance(exc.errors, list)
 
@@ -179,21 +212,22 @@ class TestAdoptionMarkers:
     this repository and have no reader inside it. Only a test keeps them honest.
     """
 
-    @pytest.mark.parametrize(
-        ("exception_class", "code"),
-        [
-            (NodeNotFoundError, "NODE_NOT_FOUND"),
-            (BranchNotFoundError, "BRANCH_NOT_FOUND"),
-            (SchemaNotFoundError, "SCHEMA_NOT_FOUND"),
-        ],
-        ids=["node", "branch", "schema"],
-    )
-    def test_the_adopted_code_is_declared(self, exception_class: type[GraphQLError], code: str) -> None:
-        assert code == exception_class.CODE  # type: ignore[attr-defined]
+    @pytest.mark.parametrize("case", UNIFIED_CLASS_PARAMS)
+    def test_the_adopted_code_is_declared(self, case: UnifiedClassCase) -> None:
+        assert case.code == case.exception_class.CODE
 
     def test_declaring_a_code_does_not_make_it_a_raised_code(self) -> None:
         """`CODE` says which code the class represents; `code` says which one the server reported."""
         assert NodeNotFoundError(identifier="anything").code is None
+
+    def test_a_subclass_of_an_adopted_class_claims_no_code(self) -> None:
+        """A wrong-kind result is not a lookup miss, and must not be labelled as one.
+
+        `NodeInvalidError` would otherwise inherit `NODE_NOT_FOUND`, so anything reading the marker
+        would file it under a code that describes a different failure.
+        """
+        assert NodeInvalidError.CODE is None
+        assert NodeNotFoundError.CODE == "NODE_NOT_FOUND", "clearing it on the subclass leaves the parent alone"
 
 
 class TestPromotingAServerPayload:
@@ -212,6 +246,93 @@ class TestPromotingAServerPayload:
         exc = SchemaNotFoundError.from_payload(payload=SchemaNotFoundData(kind="TestPerson"))
 
         assert exc.identifier == "TestPerson"
+
+
+class TestAnAdoptedCodeRaisesItsOwnClass:
+    """A server-reported failure under an adopted code reaches the class that adopted it.
+
+    Without this the codes are adopted in name only: `from_payload` has no caller, and a consumer has
+    to read words out of a message to tell a lookup miss from any other GraphQL failure.
+    """
+
+    def test_a_server_reported_node_not_found_raises_node_not_found_error(self) -> None:
+        errors = [
+            {
+                "message": "Unable to find the node TestPerson/john in the database",
+                "extensions": {
+                    "code": "NODE_NOT_FOUND",
+                    "http_status": 404,
+                    "data": {"node_kind": "TestPerson", "identifier": "john"},
+                },
+            }
+        ]
+
+        exc = graphql_error_from_response(errors=errors, query="mutation { TestPersonDelete }")
+
+        assert isinstance(exc, NodeNotFoundError)
+        assert exc.node_type == "TestPerson"
+        assert exc.identifier == "john"
+        assert exc.code == "NODE_NOT_FOUND"
+
+    def test_the_dispatched_class_still_carries_the_whole_envelope(self) -> None:
+        """The class builds itself from its payload alone, so the envelope has to be put on it."""
+        errors = [
+            {
+                "message": "Unable to find the branch 'dev'",
+                "extensions": {
+                    "code": "BRANCH_NOT_FOUND",
+                    "http_status": 404,
+                    "data": {"branch_name": "dev"},
+                },
+            },
+            {"message": "and a second problem"},
+        ]
+
+        exc = graphql_error_from_response(errors=errors, query="query { x }", variables={"a": 1})
+
+        assert isinstance(exc, BranchNotFoundError)
+        assert exc.identifier == "dev"
+        assert exc.query == "query { x }"
+        assert exc.variables == {"a": 1}
+        assert [error["message"] for error in exc.errors] == ["Unable to find the branch 'dev'", "and a second problem"]
+
+    def test_the_dispatched_class_names_its_code_and_the_server_message(self) -> None:
+        errors = [
+            {
+                "message": "No schema TestWidget on branch main",
+                "extensions": {"code": "SCHEMA_NOT_FOUND", "http_status": 422, "data": {"kind": "TestWidget"}},
+            }
+        ]
+
+        exc = graphql_error_from_response(errors=errors)
+
+        assert exc.message == "SCHEMA_NOT_FOUND: No schema TestWidget on branch main"
+        assert str(exc) == "SCHEMA_NOT_FOUND: No schema TestWidget on branch main", (
+            "reassigning the message must reassign `args`, which is what `str()` reads"
+        )
+
+    @pytest.mark.malformed
+    def test_a_payload_missing_the_fields_its_class_needs_falls_back(self) -> None:
+        """The generic class still reaches the caller, rather than a TypeError raised inside the SDK."""
+        errors = [
+            {
+                "message": "Unable to find the node",
+                "extensions": {"code": "NODE_NOT_FOUND", "data": {"node_kind": "TestPerson"}},
+            }
+        ]
+
+        exc = graphql_error_from_response(errors=errors)
+
+        assert not isinstance(exc, NodeNotFoundError)
+        assert exc.code == "NODE_NOT_FOUND", "the code stays readable even where its payload did not"
+
+    @pytest.mark.crossversion
+    def test_a_pre_catalogue_node_not_found_still_raises_the_generic_class(self) -> None:
+        """A server that sends no `extensions` has no payload to build the class from."""
+        exc = graphql_error_from_response(errors=[{"message": "Unable to find the node in the database."}])
+
+        assert not isinstance(exc, NodeNotFoundError)
+        assert exc.code is None
 
 
 @pytest.mark.message
@@ -240,12 +361,32 @@ class TestMessages:
 
         assert exc.message == f"An error occurred while executing the GraphQL Query {query}, {errors}"
 
-    def test_a_catalogued_authentication_failure_names_its_code(self) -> None:
+    def test_a_failure_the_server_could_not_describe_keeps_todays_message_byte_for_byte(self) -> None:
+        """A current server codes every error, so `UNDEFINED_ERROR` is what most failures arrive as.
+
+        Letting it name the failure would apply the short message universally, dropping the query
+        text and every error after the first from what reaches a log or a traceback.
+        """
+        errors = [
+            {
+                "message": "Cannot query field 'nope' on type 'Query'.",
+                "extensions": {"code": "UNDEFINED_ERROR", "http_status": 500, "data": {}},
+            },
+            {"message": "Cannot query field 'alsonope' on type 'Query'."},
+        ]
+        query = "query { nope alsonope }"
+
+        exc = graphql_error_from_response(errors=errors, query=query)
+
+        assert exc.message == f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        assert exc.code == "UNDEFINED_ERROR", "the code is still readable, it is just not the headline"
+
+    def test_a_described_authentication_failure_names_its_code(self) -> None:
         response = auth_response(envelope=load_envelope("auth_two_messages.json"))
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "AUTHENTICATION_REQUIRED: first problem | second problem"
+        assert exc.message == "AUTHENTICATION_REQUIRED: first problem"
 
     def test_an_uncatalogued_authentication_failure_keeps_the_joined_messages(self) -> None:
         response = auth_response(envelope={"errors": [{"message": "first problem"}, {"message": "second problem"}]})
@@ -254,20 +395,17 @@ class TestMessages:
 
         assert exc.message == "first problem | second problem"
 
-    @pytest.mark.parametrize(
-        ("exc", "expected"),
-        [
-            (NodeNotFoundError(identifier={"name": ["john"]}), "Unable to find the node in the database."),
-            (BranchNotFoundError(identifier="dev"), "Unable to find the branch 'dev' in the Database."),
-            (SchemaNotFoundError(identifier="TestPerson"), "Unable to find the schema 'TestPerson'."),
-        ],
-        ids=["node", "branch", "schema"],
-    )
-    def test_a_unified_class_raised_with_no_code_behind_it_keeps_todays_message(
-        self, exc: GraphQLError, expected: str
-    ) -> None:
+    @pytest.mark.parametrize("case", UNIFIED_CLASS_PARAMS)
+    def test_a_unified_class_raised_with_no_code_behind_it_keeps_todays_message(self, case: UnifiedClassCase) -> None:
         """Re-rooting must not put the GraphQL default message on a client-side lookup miss."""
-        assert exc.message == expected
+        assert case.build().message == case.expected_message
+
+    def test_a_deliberately_empty_message_is_not_replaced_by_the_graphql_default(self) -> None:
+        """Re-rooting must not put the GraphQL placeholder in a caller's mouth either."""
+        exc = NodeNotFoundError(identifier="missing-file.py", message="")
+
+        assert not exc.message
+        assert "An error occurred while executing the GraphQL Query" not in str(exc)
 
     def test_only_the_governing_error_message_is_named_beside_the_code(self) -> None:
         """Joining the whole list would file every later error under a code that is not theirs."""

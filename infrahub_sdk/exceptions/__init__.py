@@ -7,9 +7,11 @@ in `base` is left out of either.
 
 `__all__` is what `import *` hands a caller: the exception classes and nothing else. Without it the
 wildcard also carries the `base` and `factory` submodule names, which are an artefact of the layout.
-The raise-time factories stay importable by name, since what an end user catches is the classes.
+The raise-time factories, the payload protocols, and the catalogue helpers stay importable by name,
+since what an end user catches is the classes.
 """
 
+from .base import UNDEFINED_ERROR_CODE as UNDEFINED_ERROR_CODE
 from .base import (
     ApiError,
     AuthenticationError,
@@ -45,6 +47,10 @@ from .base import (
     ValidationError,
     VersionNotSupportedError,
 )
+from .base import BranchNotFoundPayload as BranchNotFoundPayload
+from .base import NodeNotFoundPayload as NodeNotFoundPayload
+from .base import SchemaNotFoundPayload as SchemaNotFoundPayload
+from .base import code_names_the_failure as code_names_the_failure
 from .factory import authentication_error_from_response as authentication_error_from_response
 from .factory import graphql_error_from_response as graphql_error_from_response
 

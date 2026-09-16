@@ -98,14 +98,33 @@ class TestAuthenticationFactory:
         assert isinstance(exc.errors, list)
         assert all(isinstance(error, dict) for error in exc.errors)
 
-    def test_message_joins_the_server_messages(self) -> None:
+    def test_only_the_governing_message_is_named_beside_the_code(self) -> None:
         response = auth_response(envelope=load_envelope("auth_two_messages.json"))
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "AUTHENTICATION_REQUIRED: first problem | second problem", (
-            "every server message is joined, behind the code the envelope reported"
+        assert exc.message == "AUTHENTICATION_REQUIRED: first problem", (
+            "joining the rest would file them under a code that is not theirs, the same rule the GraphQL path follows"
         )
+        assert [error["message"] for error in exc.errors] == ["first problem", "second problem"], (
+            "naming one message must not discard the rest, which stay on the exception"
+        )
+
+    def test_an_undescribed_code_keeps_the_joined_messages(self) -> None:
+        """`UNDEFINED_ERROR` names nothing, so it must not displace the reasons the server gave."""
+        response = auth_response(
+            envelope={
+                "errors": [
+                    {"message": "first problem", "extensions": {"code": "UNDEFINED_ERROR"}},
+                    {"message": "second problem"},
+                ]
+            }
+        )
+
+        exc = authentication_error_from_response(response=response)
+
+        assert exc.message == "first problem | second problem"
+        assert exc.code == "UNDEFINED_ERROR", "the code is still readable, it is just not the headline"
 
     def test_rest_integer_code_is_never_a_catalogue_code(self) -> None:
         response = auth_response(envelope=load_envelope("rest_legacy_401.json"))
@@ -150,7 +169,7 @@ class TestAuthenticationFactory:
 
         exc = authentication_error_from_response(response=response)
 
-        assert exc.message == "AUTHENTICATION_REQUIRED: first problem | second problem"
+        assert exc.message == "AUTHENTICATION_REQUIRED: first problem"
 
     def test_a_non_auth_status_falls_back_to_that_status(self) -> None:
         """A failed token refresh reaches this factory on whatever status the server sent."""
@@ -372,7 +391,7 @@ class TestRaisedThroughTheClient:
         httpx_mock.add_response(method="POST", status_code=403, json=load_envelope("auth_two_messages.json"))
         client = getattr(clients, client_type)
 
-        with pytest.raises(AuthenticationError, match=r"first problem \| second problem") as exc_info:
+        with pytest.raises(AuthenticationError, match="AUTHENTICATION_REQUIRED: first problem") as exc_info:
             if client_type == "standard":
                 await client.execute_graphql(query="query { TestPerson { edges { node { id }}}}")
             else:

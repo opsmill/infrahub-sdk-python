@@ -198,7 +198,9 @@ class LineDelimitedJSONImporter(ImporterInterface):
                     # lookup miss is a GraphQLError too, and carries its reason in its message.
                     if isinstance(result, GraphQLError) and result.errors:
                         error_name = type(result).__name__
-                        error_msgs = [err["message"] for err in result.errors]
+                        # `.get` rather than indexing: this runs inside the branch whose whole job is
+                        # to keep going, so an entry with no message must not raise out of it.
+                        error_msgs = [err.get("message", err) for err in result.errors]
                         error_str = f"{error_name}: {error_msgs}"
                     else:
                         error_str = str(result)

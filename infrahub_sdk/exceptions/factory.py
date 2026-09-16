@@ -9,9 +9,19 @@ raises anyway, never to a decode error or a TypeError originating in the SDK.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .base import AuthenticationError, GraphQLError, as_error_list
+from .base import (
+    AuthenticationError,
+    BranchNotFoundError,
+    Error,
+    GraphQLError,
+    NodeNotFoundError,
+    SchemaNotFoundError,
+    as_error_list,
+    code_names_the_failure,
+)
 
 if TYPE_CHECKING:
     import httpx
@@ -83,12 +93,94 @@ def _governing_message(errors: Any) -> str:
 
 
 def _named_by_code(code: str, message: str) -> str:
-    """The message for a catalogued failure: the code and the server's message, and no query text.
+    """The message for a described failure: the code and the server's message, and no query text.
 
-    A catalogued failure is one the server described, so its own words are what the reader needs;
-    the query stays on the exception as an attribute.
+    A described failure is one the server's catalogue has an entry for, so its own words are what the
+    reader needs; the query stays on the exception as an attribute.
     """
     return f"{code}: {message}" if message else code
+
+
+def _replace_message(exc: Error, message: str) -> None:
+    """Swap the message of an exception that is already built.
+
+    `args` is reassigned alongside it because that, not `message`, is what `str()` reads on a class
+    that does not override `__str__`.
+    """
+    exc.message = message
+    exc.args = (message,)
+
+
+@dataclass
+class _NodeNotFoundData:
+    """Stands in for the generated payload model, which the SDK does not carry yet.
+
+    Plain rather than frozen, because the payload protocols declare settable attributes: the shape
+    the generated pydantic models will have.
+    """
+
+    node_kind: str
+    identifier: str
+
+
+@dataclass
+class _BranchNotFoundData:
+    branch_name: str
+
+
+@dataclass
+class _SchemaNotFoundData:
+    kind: str
+
+
+def _payload_strings(data: Any, names: tuple[str, ...]) -> dict[str, str] | None:
+    """The named payload fields, when every one of them is present as a string.
+
+    A payload that violates the catalogue's own contract yields `None` so the caller falls back to
+    the generic class, rather than a TypeError raised from inside the SDK while the caller is
+    already failing.
+    """
+    if not isinstance(data, dict):
+        return None
+    values = {name: data.get(name) for name in names}
+    if any(not isinstance(value, str) for value in values.values()):
+        return None
+    return {name: value for name, value in values.items() if isinstance(value, str)}
+
+
+def _adopted_exception(code: str | None, extensions: dict[str, Any] | None) -> GraphQLError | None:
+    """The class that adopted `code`, built from the payload the envelope carries.
+
+    Only the three codes the SDK already ships a class for are resolved here, and each class maps the
+    payload itself through its own `from_payload`. Every other code raises the generic class for the
+    transport with the code readable on `exc.code`; turning the rest into classes of their own is
+    what the generated bindings buy.
+
+    `None` means no class was resolved, whether because the code has none or because its payload did
+    not carry the fields the class needs.
+    """
+    if code is None:
+        return None
+    data = extensions.get("data") if extensions is not None else None
+
+    if code == NodeNotFoundError.CODE:
+        node = _payload_strings(data=data, names=("node_kind", "identifier"))
+        if node is not None:
+            payload = _NodeNotFoundData(node_kind=node["node_kind"], identifier=node["identifier"])
+            return NodeNotFoundError.from_payload(payload=payload)
+    elif code == BranchNotFoundError.CODE:
+        branch = _payload_strings(data=data, names=("branch_name",))
+        if branch is not None:
+            return BranchNotFoundError.from_payload(payload=_BranchNotFoundData(branch_name=branch["branch_name"]))
+    elif code == SchemaNotFoundError.CODE:
+        schema = _payload_strings(data=data, names=("kind",))
+        if schema is not None:
+            return SchemaNotFoundError.from_payload(payload=_SchemaNotFoundData(kind=schema["kind"]))
+    else:
+        return None
+
+    LOGGER.debug("Payload for %s does not carry the fields its class needs: %r", code, data)
+    return None
 
 
 def _log_unresolved_code(extensions: dict[str, Any] | None, source: str) -> None:
@@ -119,13 +211,29 @@ def graphql_error_from_response(
     """Build the exception for an `errors` array returned on the GraphQL path.
 
     `errors` is raw decoded JSON, so it is read defensively. The complete list is retained
-    unreordered, and an uncatalogued failure keeps the message this call site has always produced.
+    unreordered. A code the SDK has adopted a class for raises that class; every other failure raises
+    `GraphQLError`, and one the server's catalogue could not describe keeps the message this call site
+    has always produced, query text included.
     """
     extensions = _first_extensions(errors)
     code = _catalogue_code(extensions)
-    message = _named_by_code(code, _governing_message(errors)) if code else None
+    governing = _governing_message(errors)
+    message = _named_by_code(code, governing) if code_names_the_failure(code) else None
 
-    exc = GraphQLError(errors=errors, query=query, variables=variables, message=message)
+    adopted = _adopted_exception(code=code, extensions=extensions)
+    if adopted is not None:
+        exc: GraphQLError = adopted
+        # The class built itself from its payload alone, so it carries its own default text and the
+        # envelope it was read out of has to be put on it here. The server's own words replace that
+        # text only where it sent any.
+        if message is not None and governing:
+            _replace_message(exc, message)
+        exc.query = query
+        exc.variables = variables
+    else:
+        exc = GraphQLError(errors=errors, query=query, variables=variables, message=message)
+
+    exc.errors = as_error_list(errors)
     exc.code = code
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
@@ -141,7 +249,10 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     messages with `" | "`, as every call site this replaces did, falling back to the REST API's bare
     `detail` string and then to the plain status. A body the SDK cannot read as an envelope therefore
     still names the status rather than surfacing a decode error in place of the authentication failure.
-    Whichever of those reasons survives, a catalogued failure names its code ahead of it.
+
+    A described failure names its code and the governing error's message instead, on the same rule as
+    the GraphQL path: only the error the code came from may be named beside it, and the complete list
+    stays on `exc.errors`.
     """
     errors: Any = []
     message = f"HTTP {response.status_code}"
@@ -165,8 +276,8 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
 
     extensions = _first_extensions(errors)
     code = _catalogue_code(extensions)
-    if code is not None:
-        message = _named_by_code(code, message)
+    if code_names_the_failure(code):
+        message = _named_by_code(code, _governing_message(errors)) or message
 
     exc = AuthenticationError(message)
     exc.code = code

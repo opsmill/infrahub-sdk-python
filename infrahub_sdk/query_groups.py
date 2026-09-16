@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from .constants import InfrahubClientMode
-from .exceptions import GraphQLError, NodeNotFoundError
+from .exceptions import NodeNotFoundError
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -114,11 +114,11 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                 if member.id in self.unused_member_ids and member.typename:
                     try:
                         await self.client.delete(kind=member.typename, id=member.id)
-                    except GraphQLError as exc:
-                        if not exc.message or "Unable to find the node" not in exc.message:
-                            # If the node already has been deleted, skip the error as it would have been deleted
-                            # by the cascade delete of another node
-                            raise
+                    except NodeNotFoundError:
+                        # Already gone, cascade-deleted along with another node. Keyed on the class
+                        # the server's NODE_NOT_FOUND now raises rather than on words in a message,
+                        # which only matched while the whole error list was embedded in it.
+                        continue
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.
@@ -210,7 +210,11 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         if self.previous_members and self.unused_member_ids:
             for member in self.previous_members:
                 if member.id in self.unused_member_ids and member.typename:
-                    self.client.delete(kind=member.typename, id=member.id)
+                    try:
+                        self.client.delete(kind=member.typename, id=member.id)
+                    except NodeNotFoundError:
+                        # Already gone, cascade-deleted along with another node.
+                        continue
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.

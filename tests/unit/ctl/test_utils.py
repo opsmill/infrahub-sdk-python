@@ -45,12 +45,17 @@ def load_envelope(name: str) -> dict[str, Any]:
 
 
 def rendered_for(exc: Exception) -> str:
-    """Drive the ladder and return what the user would have seen."""
+    """Drive the ladder and return what the user would have seen.
+
+    The exit code is asserted rather than matched on: `typer.Exit` carries no message for `match=` to
+    read, so the code is the only thing that confirms the ladder exited the way it was asked to.
+    """
     console = recording_console()
 
-    with pytest.raises(typer.Exit):
+    with pytest.raises(typer.Exit) as exc_info:
         handle_exception(exc=exc, console=console, exit_code=1)
 
+    assert exc_info.value.exit_code == 1
     return rendered(console)
 
 
@@ -221,10 +226,10 @@ class TestHandleExceptionLadder:
         assert "second failure" in output
         assert "third failure" in output
 
-    def test_an_uncatalogued_error_without_a_path_keeps_its_raw_entry(self) -> None:
+    def test_an_undescribed_error_without_a_path_keeps_its_raw_entry(self) -> None:
         """A validation error carries `locations` and no `path`, and those coordinates are the point.
 
-        Uncatalogued rendering is unchanged by this feature, so the whole entry still prints.
+        Undescribed rendering is unchanged by this feature, so the whole entry still prints.
         """
         exc = graphql_error_from_response(
             errors=[{"message": "Cannot query field 'nope'.", "locations": [{"line": 1, "column": 9}]}],
@@ -235,6 +240,59 @@ class TestHandleExceptionLadder:
 
         assert "'line': 1" in output
         assert "'column': 9" in output
+
+    def test_a_validation_error_the_server_could_not_describe_keeps_its_coordinates(self) -> None:
+        """The shape a real server sends: coded `UNDEFINED_ERROR`, with `locations` and no `path`.
+
+        Keying the coded branch on `code is not None` sent this down it and dropped the coordinates,
+        under a headline that named nothing.
+        """
+        exc = graphql_error_from_response(
+            errors=[
+                {
+                    "message": "Cannot query field 'nope' on type 'Query'.",
+                    "locations": [{"line": 1, "column": 9}],
+                    "extensions": {"code": "UNDEFINED_ERROR", "http_status": 500, "data": {}},
+                },
+                {
+                    "message": "Cannot query field 'alsonope' on type 'Query'.",
+                    "locations": [{"line": 1, "column": 20}],
+                    "extensions": {"code": "UNDEFINED_ERROR", "http_status": 500, "data": {}},
+                },
+            ],
+            query="query { nope alsonope }",
+        )
+
+        output = rendered_for(exc)
+
+        assert "'line': 1" in output
+        assert "'column': 9" in output
+        assert "'column': 20" in output, "every error still renders, not just the governing one"
+        # The code still appears inside each raw entry; what it must not be is a headline of its own.
+        assert "UNDEFINED_ERROR" not in [line.strip() for line in output.splitlines()], (
+            "a code that describes nothing must not be the line naming the failure"
+        )
+
+    def test_a_lookup_miss_message_is_not_read_as_console_markup(self) -> None:
+        """The branch name arrives in brackets, which rich reads as a style tag and deletes."""
+        output = rendered_for(BranchNotFoundError(identifier="main", message="Not found on the server [main]"))
+
+        assert "Not found on the server [main]" in output
+
+    def test_an_authentication_message_is_not_read_as_console_markup(self) -> None:
+        output = rendered_for(AuthenticationError("rejected by [proxy-01]"))
+
+        assert "rejected by [proxy-01]" in output
+
+    def test_a_null_path_does_not_render_as_the_word_none(self) -> None:
+        exc = graphql_error_from_response(
+            errors=[{"message": "boom", "path": None, "extensions": {"code": "UNIQUENESS_VIOLATION"}}]
+        )
+
+        output = rendered_for(exc)
+
+        assert "boom" in output
+        assert "None" not in output
 
     def test_an_uncatalogued_graphql_failure_still_renders_the_server_errors(self) -> None:
         exc = graphql_error_from_response(errors=[{"message": "boom", "path": ["TestPerson"]}])
