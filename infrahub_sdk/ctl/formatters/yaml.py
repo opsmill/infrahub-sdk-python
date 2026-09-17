@@ -100,7 +100,7 @@ class YamlFormatter:
                 peers = getattr(rel, "peers", None) or []
                 refs = [r for p in peers if (r := _related_node_ref(p)) is not None]
                 if refs:
-                    entry[rel_name] = {"data": refs}
+                    entry[rel_name] = refs
 
         return entry
 
