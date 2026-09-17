@@ -1,0 +1,1 @@
+Added the location, the received value and the reason as separate fields (`loc`, `input`, `reason`) on every schema validation error, next to the unchanged `field` and `message`, so a consumer can report each problem without parsing the message text.
