@@ -152,10 +152,8 @@ class GraphQLError(ApiError):
     ) -> None:
         self.query = query
         self.variables = variables
-        # The default keeps the payload verbatim so a shape we cannot read still reaches the reader.
-        # A described failure supplies a message naming the code instead, and carries no query text.
-        # Only `None` asks for the default: a subclass raised with a deliberately empty message keeps
-        # it, rather than having the GraphQL placeholder put words in its mouth.
+        # `is not None` rather than `or`: an empty message is a deliberate one, not a request for
+        # the default.
         default = f"An error occurred while executing the GraphQL Query {query}, {errors}"
         self.message = message if message is not None else default
         self.errors = as_error_list(errors)

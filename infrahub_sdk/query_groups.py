@@ -12,9 +12,7 @@ if TYPE_CHECKING:
     from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
     from .schema import MainSchemaTypesAPI
 
-# The message a server older than the error catalogue reports a missing node with. Servers that
-# carry the catalogue raise NodeNotFoundError instead, so this is only reached talking to an older
-# one, and the branch that uses it goes when those stop being supported.
+# What a server older than the error catalogue reports a missing node with. Goes when those do.
 _LEGACY_NODE_NOT_FOUND = "Unable to find the node"
 
 
@@ -130,9 +128,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                     try:
                         await self.client.delete(kind=member.typename, id=member.id)
                     except NodeNotFoundError:
-                        # Already gone, cascade-deleted along with another node. Keyed on the class
-                        # the server's NODE_NOT_FOUND now raises rather than on words in a message,
-                        # which only matched while the whole error list was embedded in it.
+                        # Already gone, cascade-deleted along with another node.
                         continue
                     except GraphQLError as exc:
                         if not _node_already_deleted(exc):

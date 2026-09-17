@@ -10,12 +10,6 @@ wildcard also carries the `base` and `factory` submodule names, which are an art
 The raise-time factories and `code_names_the_failure` stay importable by name, since what an end user
 catches is the classes. Nothing else is re-exported: a name here is a stability promise, so it earns
 its place by having a caller rather than by being plausibly useful one day.
-
-Those three are imported below as `X as X`, which is not a typo. The alias is what marks a name as
-re-exported rather than merely imported, and is the spelling ruff's F401 accepts for an import
-nothing in this file uses; a plain `from .base import X` for a name outside `__all__` fails the lint.
-One statement each is isort's doing, which splits aliased imports apart unless `combine-as-imports`
-is set.
 """
 
 from .base import (

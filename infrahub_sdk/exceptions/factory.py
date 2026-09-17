@@ -227,10 +227,8 @@ def graphql_error_from_response(
     adopted = _adopted_exception(code=code, extensions=extensions)
     if adopted is not None:
         exc: GraphQLError = adopted
-        # The class built itself from its payload alone, so it carries its own default text and the
-        # envelope it was read out of has to be put on it here. The server's own words replace that
-        # text only where it sent any; a silent governing error leaves the class's own sentence,
-        # which reads better than a bare code.
+        # An adopted class builds itself from its payload alone, so the envelope it came out of is
+        # attached here. A silent governing error leaves `message` None, and the class its own text.
         if message is not None:
             _replace_message(exc, message)
         exc.query = query
