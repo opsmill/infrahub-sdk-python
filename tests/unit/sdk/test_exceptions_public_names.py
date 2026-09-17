@@ -72,6 +72,17 @@ def test_snapshot_matches_the_exported_exceptions() -> None:
     assert current_names() == load_snapshot()
 
 
+def test_every_snapshot_name_still_descends_from_the_root() -> None:
+    """Re-rooting moves classes around inside the tree; none may leave it.
+
+    `except Error` is the clause a consumer reaches for to catch anything the SDK raises, so a class
+    that ends up outside that root is as invisible to them as one that stopped being importable.
+    """
+    strays = sorted(name for name in load_snapshot() if not issubclass(getattr(exceptions, name), exceptions.Error))
+
+    assert strays == [], f"importable but no longer under Error: {strays}"
+
+
 def test_star_import_gives_the_exception_classes_and_nothing_else() -> None:
     """What `import *` hands an end user is the classes they catch.
 

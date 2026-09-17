@@ -58,10 +58,12 @@ entry:
 ## Adoption
 
 Some catalogue codes are represented by a class the SDK already ships. Those classes declare the code
-they represent with a `CODE` class attribute. The generator parses
-`infrahub_sdk/exceptions/base.py` with `ast`, collects every class whose body assigns a `CODE`
-string, and for those codes emits an import and a map entry instead of a class definition. The payload
-model is still generated.
+they represent with a `CODE` class attribute, typed `ClassVar[str | None]` so a subclass of an adopted
+class can clear it. The generator parses `infrahub_sdk/exceptions/base.py` with `ast`, collects every
+class whose body assigns a `CODE` string - **both `ast.Assign` and `ast.AnnAssign`, since the
+declarations are annotated** - and for those codes emits an import and a map entry instead of a class
+definition. A `CODE` assigned anything but a string constant, which is how a subclass disclaims an
+inherited code, is not an adoption. The payload model is still generated.
 
 An adopted class supplies its own `from_payload`, since its attribute names are its existing ones
 rather than the catalogue's.
@@ -70,8 +72,9 @@ Adopting a further code later is a one-line change in the SDK's hand-written mod
 edit. Discovery is by parsing rather than importing, so the generator stays a pure text transform and
 generation never depends on the SDK checkout being importable. The same walk collects every class name
 defined in `base.py`, which is what the collision check below needs. Parsing also sidesteps a trap an
-attribute walk would hit: `NodeInvalidError` inherits `CODE` from `NodeNotFoundError`, so two classes
-would appear to claim the same code.
+attribute walk would hit: a subclass of an adopted class would otherwise appear to claim the same code.
+`NodeInvalidError` additionally clears `CODE` in its own body, so the two mechanisms agree and nothing
+reading `exc.CODE` at runtime sees a wrong-kind result labelled as a lookup miss.
 
 ## Failing loudly
 

@@ -1,0 +1,19 @@
+{
+  "errors": [
+    {
+      "message": "You do not have the permission to update TestPerson",
+      "path": [
+        "TestPersonUpdate"
+      ],
+      "extensions": {
+        "code": "PERMISSION_DENIED",
+        "http_status": 403,
+        "data": {
+          "action": "update",
+          "kind": "TestPerson"
+        }
+      }
+    }
+  ],
+  "data": null
+}

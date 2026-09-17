@@ -211,30 +211,30 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Add hierarchy tests to `tests/unit/sdk/test_exceptions.py`: no class in
+- [X] T029 [P] [US3] Add hierarchy tests to `tests/unit/sdk/test_exceptions.py`: no class in
       `infrahub_sdk.exceptions` has more than one parent; `GraphQLError` and `AuthenticationError` are
       siblings under `ApiError`; `NodeInvalidError` is an instance of `GraphQLError`.
-- [ ] T030 [P] [US3] Add transport tests to `tests/unit/sdk/test_exceptions.py`: a real 401 carrying
+- [X] T030 [P] [US3] Add transport tests to `tests/unit/sdk/test_exceptions.py`: a real 401 carrying
       `TOKEN_EXPIRED` is caught by `except AuthenticationError` with `exc.code == "TOKEN_EXPIRED"`, and a
       `PERMISSION_DENIED` inside an HTTP 200 body is caught by `except GraphQLError` with
       `exc.code == "PERMISSION_DENIED"`. Add the matching envelope fixtures under
       `tests/fixtures/error_catalogue/`.
-- [ ] T031 [P] [US3] Add the attribute-access test to `tests/unit/sdk/test_exceptions.py`: reading
+- [X] T031 [P] [US3] Add the attribute-access test to `tests/unit/sdk/test_exceptions.py`: reading
       `exc.errors`, `exc.query`, and `exc.variables` off a purely client-side `NodeNotFoundError` returns
       empty/`None` rather than raising `AttributeError`, and `exc.errors` is a `list`, not the base's tuple.
-- [ ] T032 [P] [US3] Add the broadening test to `tests/unit/sdk/test_exceptions.py`: `except GraphQLError`
+- [X] T032 [P] [US3] Add the broadening test to `tests/unit/sdk/test_exceptions.py`: `except GraphQLError`
       catches a client-side `NodeNotFoundError`, asserting the accepted behaviour change rather than
       working around it.
-- [ ] T033 [P] [US3] Add ladder tests to `tests/unit/ctl/test_utils.py` driving `handle_exception` with
+- [X] T033 [P] [US3] Add ladder tests to `tests/unit/ctl/test_utils.py` driving `handle_exception` with
       `NodeNotFoundError`, `SchemaNotFoundError`, a catalogued `GraphQLError`, and a catalogued
       `AuthenticationError`, asserting rendered output rather than reading the source.
 
 ### Implementation for User Story 3
 
-- [ ] T034 [US3] Declare `CODE = "NODE_NOT_FOUND"` on `NodeNotFoundError`, `CODE = "BRANCH_NOT_FOUND"` on
+- [X] T034 [US3] Declare `CODE = "NODE_NOT_FOUND"` on `NodeNotFoundError`, `CODE = "BRANCH_NOT_FOUND"` on
       `BranchNotFoundError`, and `CODE = "SCHEMA_NOT_FOUND"` on `SchemaNotFoundError` in
       `infrahub_sdk/exceptions/base.py`.
-- [ ] T035 [US3] Re-root the three classes under `GraphQLError` in `infrahub_sdk/exceptions/base.py`, each
+- [X] T035 [US3] Re-root the three classes under `GraphQLError` in `infrahub_sdk/exceptions/base.py`, each
       calling `super().__init__(errors=[], query=None, variables=None, message=...)` explicitly so their
       envelope attributes are set by the constructor that owns them. This is the first caller of
       `GraphQLError`'s optional `message` parameter, which T009 deferred, so add the parameter here.
@@ -243,16 +243,28 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
       already passes. **Landed in issue 1.** Hardening the 404 branch against a body carrying no
       `detail` narrowed the argument from `Any` to `str`, which made the type checker report the
       violation that had been there all along. Widening is the fix; a suppression would not be.
-- [ ] T037 [US3] Add a hand-written `from_payload` classmethod to each of the three classes in
+- [X] T037 [US3] Add a hand-written `from_payload` classmethod to each of the three classes in
       `infrahub_sdk/exceptions/base.py`, mapping `node_kind`→`node_type` and `identifier`→`identifier`,
       `branch_name`→`identifier`, and `kind`→`identifier`. Every promoted attribute on these three stays
       **optional**, since neither provenance can populate the full set.
-- [ ] T038 [US3] Add the catalogued branch to `handle_exception` in `infrahub_sdk/ctl/utils.py`, placed
+      **Landed taking the payload alone, with no envelope parameters.** The envelope has no caller until
+      T072 routes the factory through `from_payload`, and T009's precedent is to add a parameter with the
+      edit that first passes it. The payload argument is typed by a small `Protocol` per class rather than
+      by the generated model, which `base.py` may not import: it sits at the bottom of the package.
+- [X] T038 [US3] Add the catalogued branch to `handle_exception` in `infrahub_sdk/ctl/utils.py`, placed
       **above** the class ladder and keyed on `exc.code is not None`, rendering the code and the server's
       message. An error with no code falls through to today's ladder unchanged.
-- [ ] T039 [US3] Move the `(SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError,
+      **The branch escapes the message and still renders the remaining server errors**, both found by
+      review. Rich reads `[main]` in a server message as markup and deletes it, which is why the two
+      renderers beside this one already escape; and since the code names only the governing error, a
+      multi-error response needs the rest listed under it or errors two onward never reach the user.
+- [X] T039 [US3] Move the `(SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError,
       GraphQLQueryError)` branch **above** the `GraphQLError` branch in
       `infrahub_sdk/ctl/utils.py::handle_exception`, which re-rooting would otherwise make unreachable.
+      **`BranchNotFoundError` was added to that tuple**, which predates this design and so did not list
+      it. It is one of the three classes being re-rooted, so leaving it out is the exact silent CLI
+      change the reordering exists to prevent: it would fall to the `GraphQLError` branch and render an
+      empty server error list where it used to print its message.
 - [X] T040 [US3] Fix `print_graphql_errors` in `infrahub_sdk/ctl/utils.py`: degrade to the exception's
       message when there are no server errors to render. The `isinstance(errors, list)` guard this task
       also meant to fix is already gone: issue 1 made `exc.errors` a list of dicts by construction, so the
@@ -269,8 +281,12 @@ the SDK and CLI still catches what it caught before (quickstart scenario 3).
       reporting `0 error(s)` for a payload the SDK could not read. Both now share
       `print_graphql_query_errors`, which keys the hint on the server's message and degrades to the
       exception's message. No further sequential tests of these classes exist outside `handle_exception`.
-- [ ] T042 [US3] Update `tests/unit/sdk/test_exceptions_public_names.py` so the snapshot check runs against
+- [X] T042 [US3] Update `tests/unit/sdk/test_exceptions_public_names.py` so the snapshot check runs against
       the re-rooted hierarchy, confirming the restructure is still invisible from outside the package.
+      **The snapshot itself is unchanged, so the existing check needed an addition rather than an edit.**
+      It collects exception classes by name, which re-rooting cannot disturb; what re-rooting can disturb
+      is where each class sits, so a new case asserts every snapshot name still descends from `Error` —
+      a class that leaves that root is as invisible to `except Error` as one that stopped being importable.
 
 **Checkpoint**: The hierarchy is a tree, every existing clause still catches what it caught, and the
 generator's adoption prerequisite is satisfied.
@@ -323,21 +339,35 @@ carries no query text; an uncatalogued failure's message is byte-identical to to
 
 ### Tests for User Story 6
 
-- [ ] T048 [P] [US6] Add `message`-marked cases to `tests/unit/sdk/test_exceptions.py`: a server-reported
+- [X] T048 [P] [US6] Add `message`-marked cases to `tests/unit/sdk/test_exceptions.py`: a server-reported
       catalogued failure's message names the code and the server's message and contains no query text; an
       uncatalogued failure's message is byte-identical to today's string; and a unified class raised with
       no catalogue code behind it keeps today's message exactly.
-- [ ] T049 [P] [US6] Add a case to `tests/unit/sdk/test_exceptions.py` asserting `exc.query` and
+- [X] T049 [P] [US6] Add a case to `tests/unit/sdk/test_exceptions.py` asserting `exc.query` and
       `exc.variables` remain populated on a catalogued failure.
 
 ### Implementation for User Story 6
 
-- [ ] T050 [US6] Have the factories in `infrahub_sdk/exceptions/factory.py` pass a message naming the code
+- [X] T050 [US6] Have the factories in `infrahub_sdk/exceptions/factory.py` pass a message naming the code
       and the server's message for a catalogued failure, and pass nothing for an uncatalogued one so
       `GraphQLError` reproduces today's string.
-- [ ] T051 [US6] Re-check the message assertion at `tests/unit/sdk/test_graph_traversal.py:383`
+      **The authentication factory names the code too, which changed two assertions issue 1 landed.**
+      FR-022 is about a server-reported catalogued failure, not about a transport, and both factories
+      produce one; the auth message keeps its whole existing fallback chain — joined server messages,
+      then the REST `detail`, then the plain status — with the code named ahead of whichever survived.
+      `test_message_joins_the_server_messages` and `test_a_403_is_parsed_the_same_way_as_a_401` now
+      assert the new string rather than working around it.
+      **On the GraphQL path only the governing error's message is named**, corrected after review. An
+      earlier form joined every message behind the first error's code, filing later errors under a code
+      that was not theirs; the complete list was always retained on `exc.errors` either way.
+      **A second changelog fragment covers this**, since T077's is issue 3's and T079's is the
+      re-rooting: the message change ships here and is visible to anyone matching on the old strings.
+- [X] T051 [US6] Re-check the message assertion at `tests/unit/sdk/test_graph_traversal.py:383`
       (`match="Source node not found"`) deliberately: that path stays uncatalogued, so confirm the
       assertion still holds rather than assuming it.
+      **Confirmed by running it: the assertion holds untouched.** The response it mocks carries no
+      `extensions` at all, so no code resolves, and the message is today's string with the server's
+      error list embedded in it verbatim.
 
 **Checkpoint**: Message behaviour is pinned in both directions.
 
@@ -469,7 +499,7 @@ the raised type and the typed attributes, reading no message (quickstart scenari
 - [ ] T077 [P] Add a towncrier fragment for the typed errors in `changelog/`.
 - [X] T078 [P] Add a towncrier fragment for the `NodeNotFoundError.identifier` widening in `changelog/`.
       **Landed in issue 1**, alongside the widening itself (T036).
-- [ ] T079 [P] Add a towncrier fragment for the `except GraphQLError` broadening in `changelog/`.
+- [X] T079 [P] Add a towncrier fragment for the `except GraphQLError` broadening in `changelog/`.
 - [ ] T080 Run `uv run invoke format lint-code` and confirm both `mypy` and `ty` pass with **zero**
       suppressions. A needed `# type: ignore` is a signal the shape is wrong, not a licence to add one.
 - [ ] T081 Run `uv run invoke docs-generate && uv run invoke docs-validate` and confirm `sdk_ref` output is

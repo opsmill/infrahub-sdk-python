@@ -7,7 +7,9 @@ in `base` is left out of either.
 
 `__all__` is what `import *` hands a caller: the exception classes and nothing else. Without it the
 wildcard also carries the `base` and `factory` submodule names, which are an artefact of the layout.
-The raise-time factories stay importable by name, since what an end user catches is the classes.
+The raise-time factories and `code_names_the_failure` stay importable by name, since what an end user
+catches is the classes. Nothing else is re-exported: a name here is a stability promise, so it earns
+its place by having a caller rather than by being plausibly useful one day.
 """
 
 from .base import (
@@ -45,6 +47,7 @@ from .base import (
     ValidationError,
     VersionNotSupportedError,
 )
+from .base import code_names_the_failure as code_names_the_failure
 from .factory import authentication_error_from_response as authentication_error_from_response
 from .factory import graphql_error_from_response as graphql_error_from_response
 

@@ -15,7 +15,9 @@ from rich.logging import RichHandler
 from rich.markup import escape
 
 from ..exceptions import (
+    ApiError,
     AuthenticationError,
+    BranchNotFoundError,
     Error,
     FileNotValidError,
     GraphQLError,
@@ -26,6 +28,7 @@ from ..exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
     ValidationError,
+    code_names_the_failure,
 )
 from ..graphql.query_renderer import render_query
 from ..yaml import YamlFile
@@ -52,27 +55,58 @@ def init_logging(debug: bool = False) -> None:
 
 
 def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoReturn:
-    """Handle exception in a different fashion based on its type."""
+    """Handle exception in a different fashion based on its type.
+
+    Two orderings are load-bearing, and both are here rather than in the branches that depend on
+    them. The described-code branch comes first because it is the only one that can name the failure
+    the way the server did, and every class-keyed branch below would either mislabel it or drop the
+    code. The lookup misses come ahead of `GraphQLError`, which they now descend from and which would
+    otherwise claim them and render an empty server error list in place of their message.
+
+    Every message reaching the console is escaped: a server's own words routinely contain
+    brackets (a branch name, an identifier) and rich would read those as a style tag and delete them.
+    """
     if isinstance(exc, typer.Exit):
         raise exc
+    if isinstance(exc, ApiError) and code_names_the_failure(exc.code):
+        if exc.errors:
+            # The server's errors carry the path naming the operation that failed, which the coded
+            # line has nowhere to put, so they render the detail and the code just names the failure.
+            console.print(f"[red]{escape(exc.code)}")
+            print_graphql_errors(console=console, errors=exc.errors, raw_entry_without_path=False)
+        else:
+            console.print(f"[red]{escape(str(exc))}")
+        raise typer.Exit(code=exit_code)
     if isinstance(exc, AuthenticationError):
-        console.print(f"[red]Authentication failure: {exc!s}")
+        console.print(f"[red]Authentication failure: {escape(str(exc))}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, (ServerNotReachableError, ServerNotResponsiveError)):
-        console.print(f"[red]{exc!s}")
+        console.print(f"[red]{escape(str(exc))}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, HTTPError):
-        console.print(f"[red]HTTP communication failure: {exc!s} on {exc.request.method} to {exc.request.url}")
+        console.print(
+            f"[red]HTTP communication failure: {escape(str(exc))} "
+            f"on {escape(str(exc.request.method))} to {escape(str(exc.request.url))}"
+        )
+        raise typer.Exit(code=exit_code)
+    if isinstance(
+        exc,
+        (
+            SchemaNotFoundError,
+            NodeNotFoundError,
+            BranchNotFoundError,
+            ResourceNotDefinedError,
+            GraphQLQueryError,
+        ),
+    ):
+        console.print(f"[red]Error: {escape(str(exc))}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors, fallback=str(exc))
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (SchemaNotFoundError, NodeNotFoundError, ResourceNotDefinedError, GraphQLQueryError)):
-        console.print(f"[red]Error: {exc!s}")
-        raise typer.Exit(code=exit_code)
 
-    console.print(f"[red]Error: {exc!s}")
-    console.print(traceback.format_exc())
+    console.print(f"[red]Error: {escape(str(exc))}")
+    console.print(escape(traceback.format_exc()))
     raise typer.Exit(code=exit_code)
 
 
@@ -137,11 +171,21 @@ def execute_graphql_query(
     return response
 
 
-def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]], fallback: str | None = None) -> None:
+def print_graphql_errors(
+    console: Console,
+    errors: Sequence[dict[str, Any]],
+    fallback: str | None = None,
+    raw_entry_without_path: bool = True,
+) -> None:
     """Render the server's errors, degrading to `fallback` when there is nothing to render.
 
     An envelope whose entries did not match the declared shape leaves `errors` empty, and exiting
     non-zero with no output at all would tell the user nothing.
+
+    `raw_entry_without_path` decides what an entry carrying no path renders as. By default the whole
+    decoded entry prints, because a validation error carries `locations` instead of a path and those
+    coordinates are the useful part. A caller that has already printed a line naming the failure
+    passes `False`, so the rest read as the server's sentences rather than as decoded dicts.
     """
     if not errors:
         if fallback:
@@ -149,10 +193,15 @@ def print_graphql_errors(console: Console, errors: Sequence[dict[str, Any]], fal
         return
 
     for error in errors:
-        if isinstance(error, dict) and "message" in error and "path" in error:
-            console.print(f"[red]{escape(str(error['path']))} {escape(str(error['message']))}")
-        else:
+        # An explicit null path is as good as an absent one; keying on the key alone renders "None"
+        # in front of the message.
+        path = error.get("path") if isinstance(error, dict) else None
+        if isinstance(error, dict) and "message" in error and path is not None:
+            console.print(f"[red]{escape(str(path))} {escape(str(error['message']))}")
+        elif raw_entry_without_path or not isinstance(error, dict):
             console.print(f"[red]{escape(str(error))}")
+        else:
+            console.print(f"[red]{escape(str(error.get('message', error)))}")
 
 
 def print_graphql_query_errors(console: Console, exc: GraphQLError) -> None:

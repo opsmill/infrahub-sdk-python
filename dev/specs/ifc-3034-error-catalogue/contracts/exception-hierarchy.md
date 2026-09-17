@@ -59,14 +59,21 @@ So `except AuthenticationError` is not the clause that spans both arrival paths 
 codes — `except ApiError` is. That is not a coverage loss: such a response raises `GraphQLError` today
 too, so no existing clause stops catching anything it catches now.
 
-Every clause that worked before the change still catches what it caught before (FR-018). Two
-broadenings are deliberate:
+Every clause that worked before the change still catches what it caught before (FR-018). The
+broadenings below are deliberate. They are not numbered, because adopting a further code adds one.
 
 - `except GraphQLError` now also catches node, branch, and schema lookup misses that involved no
   GraphQL request at all — both the client-side ones and the REST 404 the file handler turns into a
   `NodeNotFoundError` — because those classes are re-rooted under it.
 - Code that catches a generic error to inspect its message will now sometimes receive a subclass whose
-  message names the code, or the same class carrying a catalogued message instead of the query text.
+  message names the code, or the same class carrying a described failure's message instead of the query
+  text.
+- A failure the server reports under an adopted code, with a payload carrying the fields that code's
+  class needs, now raises that class rather than `GraphQLError`. A server-reported `NODE_NOT_FOUND`
+  reaches an `except NodeNotFoundError` clause that only saw client-side lookup misses before. The
+  specific class and `GraphQLError` are both caught by `except GraphQLError`, so no clause stops
+  catching what it catches now; a ladder that handles the specific class differently sees the
+  server-reported ones arrive there too, which is the point of adopting the code.
 
 ## Reading a caught error
 
@@ -85,8 +92,13 @@ Available on every `ApiError`:
 server response. A purely client-side `NodeNotFoundError` has an empty `errors` and `None` for the rest,
 so code that catches `GraphQLError` and inspects them never has to guard for a missing attribute.
 
-`UNDEFINED_ERROR` is a code like any other: it means the server explicitly reported a gap in its own
-catalogue, and it is not the same as an error carrying no `extensions`.
+`UNDEFINED_ERROR` is readable on `code` like any other: it means the server explicitly reported a gap
+in its own catalogue, and it is not the same as an error carrying no `extensions`. It is the one code
+that never shapes the message, because it describes nothing; see [Messages](#messages).
+
+A current server codes **every** error it reports, falling back to `UNDEFINED_ERROR` where its
+catalogue has no entry, so `exc.code is not None` is not the test for "the server described this".
+`code_names_the_failure(exc.code)` is, and it is importable from `infrahub_sdk.exceptions`.
 
 ## Cross-version behaviour
 
@@ -94,6 +106,7 @@ Any SDK version talks to any server version. Parsing never raises.
 
 | Situation | Behaviour |
 |-----------|-----------|
+| A code the SDK has a class for | That class is raised, built from the envelope's payload through its own `from_payload`. Until the generated bindings land, that is the three adopted codes (`NODE_NOT_FOUND`, `BRANCH_NOT_FOUND`, `SCHEMA_NOT_FOUND`) and every other code raises the generic class for the branch. |
 | A code the SDK has never heard of | The generic class for the branch is raised — `GraphQLError` for data failures, `AuthenticationError` for 401/403 — with `code` set to the string the server sent. |
 | A known code whose payload gained a field | The unknown field is ignored; behaviour is unchanged. |
 | A server predating the catalogue, or an error with no `extensions` | Today's behaviour exactly; `code` is `None`. |
@@ -115,9 +128,19 @@ does, the generic class for the branch is raised.
 
 ## Messages
 
-A **server-reported** catalogued failure's message names the code and the server's message, and contains
-no query text. An uncatalogued failure's message is byte-identical to today's, query text included. The
-query is available as an attribute in both cases.
+A **server-reported** failure the catalogue describes has a message naming the code and the governing
+error's message, and contains no query text. A failure the catalogue does not describe - one with no
+`extensions`, an integer `code`, or the code `UNDEFINED_ERROR` - keeps a message byte-identical to
+today's, query text and full error list included. The query is available as an attribute in both cases.
+
+`UNDEFINED_ERROR` sits on the second side of that line deliberately. Since the server codes every
+error it reports, treating it as described would apply the short message to every failure the
+catalogue has no entry for, replacing the query text and the later errors with a code that says only
+that the server had nothing to say. It stays readable on `exc.code`.
+
+Both transports follow the same rule about **which** message may be named beside a code: the governing
+error's, which is the first one. Joining the rest would file them under a code that is not theirs; the
+complete list stays on `exc.errors`.
 
 The qualifier matters because three catalogued classes can also be raised with **no catalogue code
 behind them**: `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`. That covers a
