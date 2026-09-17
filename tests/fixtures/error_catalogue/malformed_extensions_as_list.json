@@ -1,0 +1,12 @@
+{
+  "errors": [
+    {
+      "message": "Something went wrong",
+      "extensions": [
+        "not",
+        "a",
+        "mapping"
+      ]
+    }
+  ]
+}

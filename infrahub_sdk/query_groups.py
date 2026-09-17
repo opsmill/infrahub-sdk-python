@@ -12,6 +12,19 @@ if TYPE_CHECKING:
     from .node import InfrahubNode, InfrahubNodeSync, RelatedNodeBase
     from .schema import MainSchemaTypesAPI
 
+# What a server older than the error catalogue reports a missing node with. Goes when those do.
+_LEGACY_NODE_NOT_FOUND = "Unable to find the node"
+
+
+def _node_already_deleted(exc: GraphQLError) -> bool:
+    """Whether a failed delete is reporting a node that another node's cascade already removed.
+
+    A server that codes its errors has already been handled by the caller's `NodeNotFoundError`
+    clause, so a coded failure reaching here is a different failure and must not be swallowed on the
+    strength of its wording.
+    """
+    return exc.code is None and exc.message is not None and _LEGACY_NODE_NOT_FOUND in exc.message
+
 
 class InfrahubGroupContextBase:
     """Base class for InfrahubGroupContext and InfrahubGroupContextSync."""
@@ -114,10 +127,11 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                 if member.id in self.unused_member_ids and member.typename:
                     try:
                         await self.client.delete(kind=member.typename, id=member.id)
+                    except NodeNotFoundError:
+                        # Already gone, cascade-deleted along with another node.
+                        continue
                     except GraphQLError as exc:
-                        if not exc.message or "Unable to find the node" not in exc.message:
-                            # If the node already has been deleted, skip the error as it would have been deleted
-                            # by the cascade delete of another node
+                        if not _node_already_deleted(exc):
                             raise
 
     async def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
@@ -212,7 +226,14 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         if self.previous_members and self.unused_member_ids:
             for member in self.previous_members:
                 if member.id in self.unused_member_ids and member.typename:
-                    self.client.delete(kind=member.typename, id=member.id)
+                    try:
+                        self.client.delete(kind=member.typename, id=member.id)
+                    except NodeNotFoundError:
+                        # Already gone, cascade-deleted along with another node.
+                        continue
+                    except GraphQLError as exc:
+                        if not _node_already_deleted(exc):
+                            raise
 
     def add_related_nodes(self, ids: list[str], update_group_context: bool | None = None) -> None:
         """Add related Nodes IDs to the context.
