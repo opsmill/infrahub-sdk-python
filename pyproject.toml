@@ -254,6 +254,12 @@ include = ["tests/unit/sdk/conftest.py"]
 invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
 
 [[tool.ty.overrides]]
+include = ["tests/unit/ctl/test_utils.py", "tests/unit/sdk/test_exceptions_public_names.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 2 violations - a narrowed Console file and a module object
+
+[[tool.ty.overrides]]
 include = [
     "tests/unit/sdk/test_node.py",
     "tests/unit/sdk/test_hierarchical_nodes.py",
