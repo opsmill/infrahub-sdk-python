@@ -4,6 +4,7 @@ import ipaddress
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
+from ..exceptions import ReadOnlyAttributeError
 from ..uuidt import UUIDT
 from .constants import (
     ATTRIBUTE_METADATA_OBJECT,
@@ -99,8 +100,6 @@ class Attribute:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self._read_only = ["updated_at", "is_inherited"]
-
         self.id: str | None = data.get("id")
 
         self._value: Any | None = data.get("value")
@@ -140,6 +139,14 @@ class Attribute:
 
     @value.setter
     def value(self, value: Any) -> None:
+        # Read-only attributes are populated from the API (via the constructor and
+        # _set_value), but users must not change them; loading and re-querying keep working.
+        if self._schema.read_only:
+            raise ReadOnlyAttributeError(name=self.name)
+        self._set_value(value)
+
+    def _set_value(self, value: Any) -> None:
+        """Set the value bypassing the read-only guard, for internal population."""
         self._value = value
         self.value_has_been_mutated = True
 
