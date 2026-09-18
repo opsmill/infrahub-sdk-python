@@ -1,0 +1,184 @@
+---
+title: Understanding error handling in the Python SDK
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Understanding error handling in the Python SDK
+
+## Introduction
+
+Every exception the SDK raises is importable from `infrahub_sdk.exceptions`. That is the supported
+import path, and the only one: the modules beneath it are internal and their layout may change.
+
+```python
+from infrahub_sdk.exceptions import ApiError, GraphQLError, UniquenessViolationError
+```
+
+When Infrahub rejects a request, it describes the failure with a stable code from its
+[error catalogue](https://docs.infrahub.app/reference/error-catalogue), an HTTP status, and a typed
+payload. The SDK turns that description into an exception class of its own, with the payload's fields
+as directly typed attributes, so branching on a specific failure never means matching words in a
+message.
+
+## The hierarchy
+
+```text
+Error                            every exception the SDK raises
+└── ApiError                     the server rejected the request
+    ├── AuthenticationError      the SDK observed HTTP 401 or 403
+    └── GraphQLError             a failure read from an `errors` array
+        ├── NodeNotFoundError
+        ├── BranchNotFoundError
+        ├── SchemaNotFoundError
+        ├── UniquenessViolationError
+        └── ...                  one class per catalogued code
+```
+
+The tree is plain: no class has more than one parent, and `AuthenticationError` and `GraphQLError`
+are siblings. Anything the SDK raises without a server behind it - a timeout, an unreadable file, a
+malformed query - stays under `Error` and outside `ApiError`.
+
+## Catching by branch, or by code
+
+| Intent | Clause |
+|--------|--------|
+| Anything the server rejected, on either transport | `except ApiError` |
+| Any GraphQL-path failure | `except GraphQLError` |
+| Any failure the SDK observed as HTTP 401 or 403 | `except AuthenticationError` |
+| One specific catalogued failure | `except UniquenessViolationError`, and so on per code |
+| Anything the SDK raises | `except Error` |
+
+Catching the specific class is the shortest route to the payload, because its attributes are typed
+exactly as the catalogue declares them and a required field needs no guard:
+
+<Tabs>
+  <TabItem value="async" label="Async" default>
+
+```python
+from infrahub_sdk.exceptions import ApiError, UniquenessViolationError
+
+try:
+    await node.save()
+except UniquenessViolationError as exc:
+    print(exc.node_kind, exc.fields)
+except ApiError as exc:
+    print("some other failure:", exc.code)
+```
+
+  </TabItem>
+  <TabItem value="sync" label="Sync">
+
+```python
+from infrahub_sdk.exceptions import ApiError, UniquenessViolationError
+
+try:
+    node.save()
+except UniquenessViolationError as exc:
+    print(exc.node_kind, exc.fields)
+except ApiError as exc:
+    print("some other failure:", exc.code)
+```
+
+  </TabItem>
+</Tabs>
+
+Both clients raise the same class with the same attributes for the same failure.
+
+### The three authentication codes
+
+`AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, and `PERMISSION_DENIED` have no class of their own. They
+are the only codes that reach the SDK on two different transports, and each transport already has a
+class that existing code depends on:
+
+| Arrival | Class raised | `exc.code` |
+|---------|--------------|------------|
+| A real 401 or 403, when the failure escapes before the query runs | `AuthenticationError` | the catalogue code |
+| Inside an HTTP 200 `errors` array, when a resolver raised it | `GraphQLError` | the catalogue code |
+
+Any of the three can arrive either way, so the arrival path is a property of how the server happened
+to fail rather than of the code. To handle one of them whichever way it arrived, catch `ApiError` and
+test the code:
+
+```python
+except ApiError as exc:
+    if exc.code == "TOKEN_EXPIRED":
+        ...
+```
+
+`AuthenticationError` descends from `ApiError`, so an `except ApiError` clause placed first makes any
+later `except AuthenticationError` unreachable.
+
+## Reading a caught error
+
+These are readable on every `ApiError`, including one raised with no server response behind it, so
+inspecting them never needs a guard for a missing attribute:
+
+| Attribute | Contract |
+|-----------|----------|
+| `code` | The catalogue code string, or `None`. Never an integer. `None` means no code was resolved: a server predating the catalogue, a REST failure, or an error carrying no `extensions`. |
+| `http_status` | The status the failure declares, or `None`. This is metadata about the failure, not the status the transport observed: a catalogued data error arrives as HTTP 200. |
+| `extensions` | The raw `extensions` mapping of the governing error, or `None`. |
+| `errors` | The complete server error list, in the order the server sent it. Empty for a raise the SDK decided on its own. |
+| `query`, `variables` | The GraphQL query and variables where there was one, otherwise `None`. |
+
+The payload's fields are not on the base class. Each catalogued class carries its own, typed as the
+catalogue declares them. `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError` are the
+exception: the SDK also raises those three on its own, for a lookup that returned nothing and for the
+REST 404 behind a missing file, so their attributes may be unpopulated. Test `exc.code is not None` to
+tell a server-reported raise from an SDK one.
+
+The raw payload stays in `exc.extensions["data"]` for anything that forwards a failure verbatim.
+
+## Messages
+
+A failure the catalogue describes carries a message naming the code and the server's own words, with
+no query text:
+
+```text
+UNIQUENESS_VIOLATION: Node of kind TestPerson already has name 'John'
+```
+
+Where the catalogue provides them, those words name the failing action and the resource kind, so that
+detail now appears in logs and CLI output in place of the query text that used to be there. The query
+itself stays readable on `exc.query`.
+
+A failure the catalogue does **not** describe keeps the message it has always had, query text and full
+error list included. Since a current server codes every error it reports, falling back to
+`UNDEFINED_ERROR` where its catalogue has no entry, `exc.code is not None` is not the test for whether
+the server described a failure. `code_names_the_failure(exc.code)` is, and it is importable from
+`infrahub_sdk.exceptions`.
+
+Where a response carries several errors, the first one determines the class raised and is the only one
+named beside the code. The complete list stays on `exc.errors`, in the order the server sent it.
+
+## Talking to any server version
+
+Any SDK version talks to any server version, and parsing a response never raises.
+
+| Situation | Behaviour |
+|-----------|-----------|
+| A code this SDK has a class for | That class, built from the payload the response carried |
+| A code this SDK has never heard of | `GraphQLError`, or `AuthenticationError` on a 401 or 403, with `exc.code` set to the string the server sent |
+| A known code whose payload gained a field | The unknown field is ignored |
+| A server predating the catalogue, or an error with no `extensions` | `exc.code` is `None`, and the message is the one that version of the SDK has always produced |
+| A payload that does not match what the catalogue declares | The generic class for the transport, with the code still readable |
+
+Every fallback is logged at debug level on the `infrahub_sdk` logger with the code involved, so an SDK
+meeting a newer server is diagnosable without a debugger.
+
+Which generic class a fallback lands on follows the transport the SDK observed, never the status the
+code declares. A code read from an `errors` array raises `GraphQLError` even when it declares 401.
+
+## Two clauses that now catch more
+
+Existing `except` clauses keep catching everything they caught before. Two of them now catch more.
+
+`except GraphQLError` also catches node, branch, and schema lookup misses that involved no GraphQL
+request at all, because those three classes are re-rooted under it. Code that relied on them escaping
+such a clause should catch the specific class ahead of it, as an ordered `except` ladder already must.
+
+A ladder that handles one of those three specifically now sees server-reported failures arrive there
+as well as the ones the SDK decides on its own. That is the point of binding a code to a class, and `exc.code is not
+None` separates the two.

@@ -139,6 +139,16 @@ class ApiError(Error):
     errors: Sequence[dict[str, Any]] = ()
 
 
+def graphql_default_message(query: str | None, errors: Any) -> str:
+    """The message the GraphQL path produces where the server described nothing better.
+
+    Lives beside the class rather than inside it because a class built from a payload alone carries
+    this text with neither the query nor the errors in it, and the factory has to recognise that and
+    fill in the envelope the class never saw.
+    """
+    return f"An error occurred while executing the GraphQL Query {query}, {errors}"
+
+
 class GraphQLError(ApiError):
     query: str | None = None
     variables: dict | None = None
@@ -154,7 +164,7 @@ class GraphQLError(ApiError):
         self.variables = variables
         # `is not None` rather than `or`: an empty message is a deliberate one, not a request for
         # the default.
-        default = f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        default = graphql_default_message(query=query, errors=errors)
         self.message = message if message is not None else default
         self.errors = as_error_list(errors)
         super().__init__(self.message)

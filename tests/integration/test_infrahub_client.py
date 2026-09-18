@@ -9,7 +9,13 @@ import pytest
 from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.branch import BranchData
 from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
+from infrahub_sdk.exceptions import (
+    BranchNotFoundError,
+    GraphQLError,
+    NodeNotFoundError,
+    UniquenessViolationError,
+    URLNotFoundError,
+)
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.playback import JSONPlayback
 from infrahub_sdk.recorder import JSONRecorder
@@ -199,6 +205,41 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_query_unexisting_branch(self, client: InfrahubClient) -> None:
         with pytest.raises(URLNotFoundError, match=r"/graphql/unexisting` not found."):
             await client.execute_graphql(query="unused", branch_name="unexisting")
+
+    @pytest.mark.catalogue
+    async def test_a_unique_attribute_collision_raises_its_own_class(
+        self, client: InfrahubClient, base_dataset: None
+    ) -> None:
+        """Against a real server, so the payload is the one Infrahub sends rather than a fixture."""
+        duplicate = await client.create(kind=TESTING_PERSON, name="Liam Walker", height=180)
+
+        # Either message shape: a described failure names its code, an undescribed one keeps the
+        # text the GraphQL call site has always produced.
+        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|An error occurred while") as exc_info:
+            await duplicate.save()
+
+        if exc_info.value.code != "UNIQUENESS_VIOLATION":
+            pytest.skip(f"this server reports a uniqueness violation as {exc_info.value.code}")
+
+        assert isinstance(exc_info.value, UniquenessViolationError)
+        assert exc_info.value.node_kind == TESTING_PERSON
+        assert exc_info.value.fields == ["name"]
+
+    @pytest.mark.catalogue
+    async def test_deleting_a_missing_node_raises_its_own_class(
+        self, client: InfrahubClient, base_dataset: None
+    ) -> None:
+        obj = await client.create(kind=TESTING_PERSON, name="Gone Walker", height=170)
+        await obj.save()
+        node_id = obj.id
+        await obj.delete()
+
+        with pytest.raises(NodeNotFoundError, match="NODE_NOT_FOUND") as exc_info:
+            await obj.delete()
+
+        assert exc_info.value.code == "NODE_NOT_FOUND"
+        assert exc_info.value.node_type == TESTING_PERSON
+        assert exc_info.value.identifier == node_id
 
     async def test_create_generic_rel_with_hfid(
         self,

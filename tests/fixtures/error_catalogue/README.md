@@ -21,6 +21,13 @@ The `malformed_*` files are the exception: they are constructed, because a corre
 produce them. They stand in for a proxy, a gateway, or a future server that answers in a shape the
 SDK does not expect, and they exist to pin that such a shape degrades rather than raising.
 
+`codes/` holds one envelope per catalogue code, named after the code in lower case, each carrying the
+payload that code declares. They are the exhaustive set: a code without a file here is a code nothing
+proves the SDK can resolve, which is why the test that reads them iterates the catalogue's own code
+list rather than the directory. All of them are shaped as a GraphQL response, including the three
+authentication codes, which reach that transport whenever a resolver rather than the request pipeline
+raised them.
+
 `public_names.json` is not an envelope. It is the committed snapshot of every exception class
 importable from `infrahub_sdk.exceptions`, which pins that restructuring the module into a package
 stays invisible from outside. It lists exception classes only; incidental typing imports that the

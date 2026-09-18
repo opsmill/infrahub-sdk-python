@@ -1,0 +1,27 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Value for TestPerson.height must be of type Integer, received String",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "ATTRIBUTE_INVALID_TYPE",
+        "http_status": 422,
+        "data": {
+          "node_kind": "TestPerson",
+          "field_name": "height",
+          "expected_type": "Integer",
+          "received_type": "String"
+        }
+      }
+    }
+  ]
+}
