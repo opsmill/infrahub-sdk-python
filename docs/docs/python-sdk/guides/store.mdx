@@ -16,9 +16,9 @@ The store stores objects that we are retrieving from Infrahub using the differen
 
 The store keeps, per field, the freshest value the SDK has seen. Re-querying a node merges the new data into the stored node; it does not replace the cached node wholesale. The store is a per-field freshness cache, not a point-in-time snapshot: a single stored node can hold data collected by several queries.
 
-:::warning Behaviour change in version 1.23.0
+:::warning Behaviour change in version 1.24.0
 
-Before SDK 1.23.0, every query fully replaced the stored node, so a shallow re-fetch could silently drop attributes or relationships that an earlier, deeper query had loaded. Since 1.23.0 the store merges instead. See [forcing a clean replace](#forcing-a-clean-replace) to restore the previous behaviour.
+Before SDK 1.24.0, every query fully replaced the stored node, so a shallow re-fetch could silently drop attributes or relationships that an earlier, deeper query had loaded. Since 1.24.0 the store merges instead. See [forcing a clean replace](#forcing-a-clean-replace) to restore the previous behaviour.
 
 :::
 
@@ -242,7 +242,7 @@ The replace behaviour is available at three levels:
 
 - Per query, with the `merge` argument on `get`, `filters` and `all`.
 - Per store write, with the `merge` argument on `store.set()`.
-- Globally, with the `store_merge` configuration option (or the `INFRAHUB_STORE_MERGE` environment variable), which restores the pre-1.23.0 replace-everything behaviour for the whole client.
+- Globally, with the `store_merge` configuration option (or the `INFRAHUB_STORE_MERGE` environment variable), which restores the pre-1.24.0 replace-everything behaviour for the whole client.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -281,9 +281,9 @@ The store holds one timestamp context per branch: live data, or one `at` point i
 
 A query whose timestamp does not match the branch context (a historical query against a live cache, a live query against a historical cache, or two different `at` values) does not populate the store: the query still returns its results, but the SDK emits a warning and leaves the store untouched, because blending data from different points in time into one cache would silently produce inconsistent nodes. If you need both contexts, use a dedicated client per timestamp (`client.clone()`), or pass `populate_store=False` on the mismatching queries to silence the warning.
 
-:::warning Behaviour change in version 1.23.0
+:::warning Behaviour change in version 1.24.0
 
-Before SDK 1.23.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.23.0 the store is timestamp-coherent: mismatching queries skip the store with a warning instead. Note that on a node whose query skipped the store, relationship peers cannot be resolved through `.peer` (the peers were never stored) - read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
+Before SDK 1.24.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.24.0 the store is timestamp-coherent: mismatching queries skip the store with a warning instead. Note that on a node whose query skipped the store, relationship peers cannot be resolved through `.peer` (the peers were never stored) - read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
 
 One caveat: compute the `at` timestamp once and reuse it. A script that rebuilds a relative timestamp for every call creates a slightly different instant each time and will trip the mismatch warning on every query after the first.
 

@@ -128,7 +128,7 @@ class ConfigBase(BaseSettings):
             "When True, re-querying a node already in the client store updates only the "
             "fields that were fetched and preserves previously fetched attributes and "
             "relationships. When False, the latest query fully replaces the stored node, "
-            "which can drop data fetched by earlier queries (the pre-1.23.0 behaviour)."
+            "which can drop data fetched by earlier queries (the pre-1.24.0 behaviour)."
         ),
     )
     timeout: int = Field(
