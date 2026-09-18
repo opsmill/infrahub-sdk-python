@@ -1,0 +1,24 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Branch: feature-a has already been merged and is read-only.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "BRANCH_ALREADY_MERGED",
+        "http_status": 400,
+        "data": {
+          "branch_name": "feature-a"
+        }
+      }
+    }
+  ]
+}

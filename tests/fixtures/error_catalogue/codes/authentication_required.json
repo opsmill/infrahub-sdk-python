@@ -1,0 +1,22 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Authentication is required to perform this operation",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "AUTHENTICATION_REQUIRED",
+        "http_status": 401,
+        "data": {}
+      }
+    }
+  ]
+}

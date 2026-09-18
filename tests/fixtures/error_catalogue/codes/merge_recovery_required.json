@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Branch main is protected after a failed merge of feature-a. Run `infrahub recover merge`.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "MERGE_RECOVERY_REQUIRED",
+        "http_status": 423,
+        "data": {
+          "branch_name": "main",
+          "merging_branch": "feature-a"
+        }
+      }
+    }
+  ]
+}

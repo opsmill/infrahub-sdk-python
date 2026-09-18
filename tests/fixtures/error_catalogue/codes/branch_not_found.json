@@ -1,0 +1,21 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Branch: does-not-exist not found.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "extensions": {
+        "code": "BRANCH_NOT_FOUND",
+        "http_status": 400,
+        "data": {
+          "branch_name": "does-not-exist"
+        }
+      }
+    }
+  ]
+}

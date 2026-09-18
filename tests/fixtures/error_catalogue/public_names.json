@@ -1,6 +1,11 @@
 [
   "ApiError",
+  "AttributeConstraintViolationError",
+  "AttributeInvalidTypeError",
+  "AttributeRequiredError",
   "AuthenticationError",
+  "BranchAlreadyMergedError",
+  "BranchNeedsRebaseError",
   "BranchNotFoundError",
   "CircularFragmentError",
   "DuplicateFragmentError",
@@ -15,6 +20,8 @@
   "InfrahubTransformNotFoundError",
   "InvalidResponseError",
   "JsonDecodeError",
+  "MergeInProgressError",
+  "MergeRecoveryRequiredError",
   "ModuleImportError",
   "NodeInvalidError",
   "NodeNotFoundError",
@@ -29,7 +36,9 @@
   "ServerNotResponsiveError",
   "TimestampFormatError",
   "URLNotFoundError",
+  "UndefinedError",
   "UninitializedError",
+  "UniquenessViolationError",
   "ValidationError",
   "VersionNotSupportedError"
 ]

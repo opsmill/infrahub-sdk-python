@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "A value is required for TestPerson.name",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "ATTRIBUTE_REQUIRED",
+        "http_status": 422,
+        "data": {
+          "node_kind": "TestPerson",
+          "field_name": "name"
+        }
+      }
+    }
+  ]
+}
