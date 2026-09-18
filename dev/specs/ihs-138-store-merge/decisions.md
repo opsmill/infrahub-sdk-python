@@ -1,6 +1,6 @@
 # IHS-138 - Decision sign-off sheet
 
-One row per open decision from [`plan.md`](./plan.md) section 11. Each has a
+One row per open decision from [`plan.md`](./plan.md) section 10. Each has a
 recommendation and the reasoning; mark **Accept** / **Override** and note any
 change. Nothing in Stage 1 (presence flags) depends on these - they gate Stage 2
 onward.
@@ -286,14 +286,14 @@ of everything it has seen. Replace happens only when explicitly requested
 (`merge=False` / `store_merge=False`).
 
 All decisions are settled and implemented (D1-D6 as planned; D7/D8/D9 added during
-the 2026-07-04 code-review hardening - see plan section 13 for the full list of
+the 2026-07-04 code-review hardening - see plan section 12 for the full list of
 implementation outcomes, including the performance constraints on `store.set()`).
 The remaining external gate is the 1.23.0 pre-release run of the Ansible collection
 and `infrahubctl` integration suites.
 
 ## Grill refinements (2026-07-02)
 
-Stress-testing the plan (see plan section 12) added these, all accepted:
+Stress-testing the plan (see plan section 11) added these, all accepted:
 
 - **Merge scope** also covers node-level scalars (`display_label`, `typename`) and
   merges attributes/properties field-by-field (not object-swap).

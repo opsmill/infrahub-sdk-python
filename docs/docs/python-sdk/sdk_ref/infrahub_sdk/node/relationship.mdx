@@ -86,6 +86,9 @@ has_update(self) -> bool
 
 Return whether the peer set has been modified since initialization.
 
+Drives the mutation payload and stays set for the life of the object, so a later
+save still re-asserts the peer set.
+
 **Returns:**
 
 - ``True`` after a successful :meth:`add`, :meth:`extend`, or :meth:`remove`.

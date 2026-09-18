@@ -41,9 +41,9 @@ def intern_frozenset(value: Iterable[str]) -> frozenset[str]:
 
     Field-presence sets are attached to every attribute and relationship the SDK
     builds, and all objects produced by the same query carry identical sets. Sharing
-    one instance per distinct set keeps the per-object overhead at pointer size
-    instead of a full frozenset (~700 bytes) each. The cache is unbounded but only
-    grows with the number of distinct query shapes, which is small in practice.
+    one instance per distinct set keeps the per-object overhead at pointer size instead
+    of a full frozenset each. The cache is unbounded but only grows with the number of
+    distinct query shapes, which is small in practice.
     """
     candidate = frozenset(value)
     return _INTERNED_FROZENSETS.setdefault(candidate, candidate)

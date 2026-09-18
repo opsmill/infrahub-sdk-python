@@ -60,10 +60,15 @@ class Attribute:
         name (str): The name of the attribute.
         id (str | None): The unique identifier of the attribute, when known.
         value (Any): The current attribute value. Setting this marks the attribute as mutated.
-        value_has_been_mutated (bool): True when ``value`` has been assigned after construction.
+        value_has_been_mutated (bool): True when ``value`` has been assigned after
+            construction. Drives the mutation payload and stays set for the life of the
+            object, so a later save still re-asserts an explicit clear.
         is_fetched (bool): True when this attribute was present in the response the node
             was built from. Used by the client store to decide whether a re-fetch carried
-            fresh data for this attribute.
+            fresh data for this attribute. It is not a provenance signal: it defaults to
+            True when an ``Attribute`` is constructed directly, and only
+            ``InfrahubNodeBase._init_attributes`` sets it False for attributes the
+            response omitted.
         is_default (bool | None): True when the value comes from the schema default.
         is_from_profile (bool | None): True when the value is inherited from a profile.
         is_inherited (bool | None): True when the attribute is inherited from a generic.
@@ -120,6 +125,9 @@ class Attribute:
 
         self._value: Any | None = data.get("value")
         self.value_has_been_mutated = False
+        # Narrower than value_has_been_mutated: cleared once the value is persisted, so
+        # the store merge stops treating a long-saved edit as a pending local change.
+        self._has_unsaved_change = False
         self.is_default: bool | None = data.get("is_default")
         self.is_from_profile: bool | None = data.get("is_from_profile")
 
@@ -157,6 +165,7 @@ class Attribute:
     def value(self, value: Any) -> None:
         self._value = value
         self.value_has_been_mutated = True
+        self._has_unsaved_change = True
 
     def _merge(self, incoming: Attribute) -> None:
         """Merge a fresher copy of this attribute into this one, sub-field by sub-field.
@@ -166,7 +175,7 @@ class Attribute:
         unsaved edit is taken along with its pending-mutation marker, so it is still
         sent on the next save of the merged object. Callers are responsible for the
         higher-level gates (``is_fetched`` on the incoming attribute,
-        ``value_has_been_mutated`` on this one).
+        ``_has_unsaved_change`` on this one).
         """
         fetched = incoming._fetched_fields
         if "value" in fetched or incoming.value_has_been_mutated:
@@ -177,6 +186,8 @@ class Attribute:
             self._from_pool = incoming._from_pool
             if incoming.value_has_been_mutated:
                 self.value_has_been_mutated = True
+            if incoming._has_unsaved_change:
+                self._has_unsaved_change = True
         for field_name in (
             "id",
             "is_default",

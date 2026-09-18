@@ -4,7 +4,7 @@
 - **Priority:** High
 - **Affected versions:** observed on SDK 1.12.1
 - **Target version:** SDK 1.23.0 (ships alongside Infrahub 1.11.0)
-- **Status:** implemented (2026-07-02); hardened after code review (2026-07-04, section 13)
+- **Status:** implemented (2026-07-02); hardened after code review (2026-07-04, section 12)
 
 > The SDK is versioned independently of Infrahub core. 1.23.0 is a semver *minor*
 > bump even though it rides the Infrahub 1.11.0 release. Because it changes
@@ -421,7 +421,7 @@ relationship/attribute seam.
 Do not split along the flag/merge seam (flag PR then merge PR): the flag PR would
 be unexplainable dead code.
 
-## 10. Failure scenarios, lurking bugs, and gaps
+## 9. Failure scenarios, lurking bugs, and gaps
 
 These were found while reviewing the plan against the code. Items C1-C3 need a
 decision before coding starts.
@@ -516,7 +516,7 @@ is the single most likely "looks correct, ships a bug" mistake in this work.
 - Threaded sync usage widens the read-modify-write window in `set()` (asyncio is
   unaffected). Pre-existing; note, do not fix here.
 
-## 11. Open questions
+## 10. Open questions
 
 Decided (see `decisions.md`, all settled 2026-07-01):
 
@@ -535,7 +535,7 @@ Decided (see `decisions.md`, all settled 2026-07-01):
   types.
 - **D6 - `merge=False` scope:** node entry only; peers handled independently.
 
-Decided during implementation (see section 13 and `decisions.md`):
+Decided during implementation (see section 12 and `decisions.md`):
 
 - **Public API sign-off:** granted with the go-ahead to implement the full plan.
   Shipped surfaces: `merge: bool | None` on `get`/`all`/`filters` and `store.set`,
@@ -547,7 +547,7 @@ Decided during implementation (see section 13 and `decisions.md`):
   mechanism; the store holds one `at` context per branch and refuses (warn + skip)
   mismatching populations.
 
-## 12. Grill review outcomes (2026-07-02)
+## 11. Grill review outcomes (2026-07-02)
 
 Stress-tested the plan against overall impact and the other in-flight specs
 (`infp-496-graphql-fragment-inlining` is Implemented; `infp-504-artifact-composition`
@@ -564,7 +564,7 @@ in flight). Findings, all accepted:
    `populate_store=True`, honour it but force `merge=False` (replace, never blend).
    This is itself a behaviour change from today (where `at` reads populate the store)
    and must be in the migration note. *Superseded during implementation by D9
-   (section 13): the shipped mechanism is a timestamp-coherent store instead.*
+   (section 12): the shipped mechanism is a timestamp-coherent store instead.*
 4. **Attribute property/metadata fidelity.** Merge field-by-field into the existing
    `Attribute`, not a blind object-swap, so value-only re-fetches don't null cached
    `source`/`owner`/`is_protected` etc. (section 3). Folded in.
@@ -600,7 +600,7 @@ Lower-priority (noted, not blockers):
 - SDK prefetch/hierarchical queries still map to schema names after `_strip_alias`
   (guards the fragment/alias concern).
 
-## 13. Implementation outcomes (2026-07-02 .. 2026-07-04)
+## 12. Implementation outcomes (2026-07-02 .. 2026-07-04)
 
 The feature was implemented as planned (stages 1-6, single PR, all D1-D6 decisions
 honoured), then hardened after a full code review. What shipped differs from the
@@ -672,5 +672,5 @@ compute `at` once and reuse it, or use one `client.clone()` per timestamp.
 - Follow-up filed separately: generated typed protocols for test schemas
   (GitHub #1132), prompted by the test suite written for this feature.
 
-Still pending from section 12: the 1.23.0 pre-release gate (Ansible collection +
+Still pending from section 11: the 1.23.0 pre-release gate (Ansible collection +
 `infrahubctl` integration suites).

@@ -100,8 +100,13 @@ class RelatedNodeBase:
         self._relationship_metadata: RelationshipMetadata | None = None
         # True once the user has assigned to this relationship via Node.__setattr__.
         # Distinguishes "never loaded" (partial GraphQL payload) from "explicitly cleared"
-        # so we don't silently null-clear unfetched relationships on save.
+        # so we don't silently null-clear unfetched relationships on save. Drives the
+        # mutation payload and stays set for the life of the object, so a later save
+        # still re-asserts an explicit clear.
         self._peer_has_been_mutated: bool = False
+        # Narrower than _peer_has_been_mutated: cleared once the peer is persisted, so
+        # the store merge stops treating a long-saved edit as a pending local change.
+        self._has_unsaved_change: bool = False
 
         # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
         # circular import (node.py imports this module at load time).
@@ -288,6 +293,32 @@ class RelatedNodeBase:
         """
         return self._relationship_metadata
 
+    def _names_peer(self) -> bool:
+        """Return whether this edge identifies a peer at all."""
+        return self.id is not None or self.hfid is not None or self._peer is not None
+
+    def _peer_changed(self, incoming: RelatedNodeBase) -> bool:
+        """Return whether ``incoming`` points at a different peer than this edge.
+
+        Identity is read through the public accessors, not the raw fields: an edge
+        hydrated from a peer object carries its id on the peer and leaves ``_id`` None,
+        so comparing ``_id`` alone would read a clear as "no change".
+
+        Two identifiers only settle the question when both sides carry the same kind. A
+        payload naming the peer by id against a stored edge holding only an hfid (or the
+        reverse) is not comparable; that reads as the same peer so the merge fills in the
+        missing identifier rather than wiping previously fetched edge data. Real
+        responses carry both, so this case comes from hand-built edges.
+        """
+        if not incoming._names_peer():
+            # A fetched-but-empty edge: the peer was removed, or was never set.
+            return self._names_peer()
+        if incoming.id is not None and self.id is not None:
+            return incoming.id != self.id
+        if incoming.hfid is not None and self.hfid is not None:
+            return incoming.hfid != self.hfid
+        return False
+
     def _merge(self, incoming: RelatedNodeBase) -> None:
         """Merge a fresher copy of this relationship into this one.
 
@@ -299,11 +330,10 @@ class RelatedNodeBase:
         overwritten when the incoming fetch actually carried them, so a narrow payload
         does not null out previously fetched data. An incoming unsaved edit keeps its
         pending-mutation marker. Callers are responsible for the higher-level gates
-        (``is_fetched`` on the incoming relationship, ``_peer_has_been_mutated`` on
+        (``is_fetched`` on the incoming relationship, ``_has_unsaved_change`` on
         this one).
         """
-        # An hfid-only relationship (no id on either side) changes peer when the hfid does.
-        peer_changed = incoming._id != self._id or (incoming._id is None and incoming._hfid != self._hfid)
+        peer_changed = self._peer_changed(incoming)
         if peer_changed:
             self._peer = incoming._peer
             self._id = incoming._id
@@ -321,6 +351,10 @@ class RelatedNodeBase:
         else:
             if incoming._peer is not None:
                 self._peer = incoming._peer
+            # Fills in the identifier the stored edge was missing when the two sides
+            # named the same peer differently.
+            if incoming._id is not None:
+                self._id = incoming._id
             if incoming._hfid is not None:
                 self._hfid = incoming._hfid
             if incoming._display_label is not None:
@@ -339,6 +373,7 @@ class RelatedNodeBase:
             self._fetched_properties = intern_frozenset(self._fetched_properties | incoming._fetched_properties)
         self.is_fetched = True
         self._peer_has_been_mutated = incoming._peer_has_been_mutated
+        self._has_unsaved_change = incoming._has_unsaved_change
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}

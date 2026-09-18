@@ -66,13 +66,20 @@ Consider a deep fetch followed by a shallow one:
 
 ### Returned objects compared to stored objects
 
-Queries hand you what you asked for; the store remembers the union of everything it has seen. The object returned by `get`, `filters` or `all` reflects only that query, while `store.get()` returns the merged view, so the two can differ. They compare equal (`==`, equality is based on the node id) but they are not the same Python object (`is`).
+Queries hand you what you asked for; the store remembers the merged view of every field it has fetched. The object returned by `get`, `filters` or `all` reflects only that query, while `store.get()` returns the merged view, so the two can differ once the same node has been fetched more than once. They compare equal (`==`, equality is based on the node id) but they are not the same Python object (`is`).
+
+The first query to store a node is the exception: with nothing to merge into, the store keeps that very object, so the returned object and `store.get()` are the same object until the next fetch of that node.
+
+Merged does not mean cumulative. A field the newer query fetched overwrites the stored value, even to `None`, and a cardinality-many relationship takes the fetched member list wholesale, so a peer removed on the server disappears from the store. Only fields the newer query did not ask for keep their previous value.
 
 ### The store hands out living objects
 
 The store keeps one object per node and mutates it in place when new data arrives. Every `store.get()` call for the same node returns the same object, and a later query that re-fetches the node refreshes the object that earlier references already point at. If you need a snapshot that does not change under you, keep the object returned by the query instead of the store copy.
 
-One exception: a relationship peer resolved with `fetch()` or assigned directly is cached on the relationship itself and does not pick up later store merges.
+Two exceptions:
+
+- A relationship peer resolved with `fetch()` or assigned directly is cached on the relationship itself. When the store already held that node, the cached peer is a detached copy and does not pick up later store merges. When `fetch()` was the first thing to store the node, the cached peer *is* the store object and keeps updating.
+- When the same UUID arrives under a different node kind, the store replaces the entry wholesale instead of merging. References handed out before the kind change keep pointing at the old object and stop receiving updates.
 
 ### Staleness caveat
 
@@ -277,13 +284,15 @@ The replace behaviour is available at three levels:
 
 ## Historical queries and the store
 
-The store holds one timestamp context per branch: live data, or one `at` point in time. The first query that populates a branch stamps its context, and every later query at the same timestamp uses the store normally - a script that runs all of its queries at one `at` gets the full store behaviour, including merging and relationship peer resolution.
+The store holds one timestamp context per branch: live data, or one `at` point in time. The first write to a branch stamps its context, and every later write at the same timestamp uses the store normally - a script that runs all of its queries at one `at` gets the full store behaviour, including merging and relationship peer resolution.
 
-A query whose timestamp does not match the branch context (a historical query against a live cache, a live query against a historical cache, or two different `at` values) does not populate the store: the query still returns its results, but the SDK emits a warning and leaves the store untouched, because blending data from different points in time into one cache would silently produce inconsistent nodes. If you need both contexts, use a dedicated client per timestamp (`client.clone()`), or pass `populate_store=False` on the mismatching queries to silence the warning.
+A write whose timestamp does not match the branch context (a historical query against a live cache, a live query against a historical cache, or two different `at` values) does not populate the store: the query still returns its results, but the SDK emits a warning and leaves the store untouched, because blending data from different points in time into one cache would silently produce inconsistent nodes. If you need both contexts, use a dedicated client per timestamp (`client.clone()`), or pass `populate_store=False` on the mismatching queries to silence the warning.
+
+This applies to every write, not only query population. `node.save()` carries live data, so it stamps a branch that nothing has claimed yet, and is refused with the same warning against a branch holding point-in-time data. The node is still saved on the server; only the store is left untouched.
 
 :::warning Behaviour change in version 1.24.0
 
-Before SDK 1.24.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.24.0 the store is timestamp-coherent: mismatching queries skip the store with a warning instead. Note that on a node whose query skipped the store, relationship peers cannot be resolved through `.peer` (the peers were never stored) - read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
+Before SDK 1.24.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.24.0 the store is timestamp-coherent: mismatching writes skip the store with a warning instead. Note that on a node whose query skipped the store, relationship peers cannot be resolved through `.peer` (the peers were never stored) - read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
 
 One caveat: compute the `at` timestamp once and reuse it. A script that rebuilds a relative timestamp for every call creates a slightly different instant each time and will trip the mismatch warning on every query after the first.
 

@@ -41,9 +41,9 @@ class NodeStoreBranch:
         self._keys: dict[str, str] = {}
         self._uuids: dict[str, str] = {}
         # The timestamp context this branch cache holds data for: None means live data,
-        # a timestamp string means every entry was fetched at that point in time. Set on
-        # first population; queries at a different timestamp must not blend in (see
-        # NodeStoreBase._reserve_at_context).
+        # a timestamp string means every entry was fetched at that point in time. Claimed
+        # by the first write through reserve_at_context(); writes from another timestamp
+        # must not blend in.
         self._at_context: str | None = None
         self._has_at_context: bool = False
         # Reverse indexes so set()/_evict() never scan the forward indexes. Both are
@@ -55,6 +55,22 @@ class NodeStoreBranch:
 
     def count(self) -> int:
         return len(self._objs)
+
+    def reserve_at_context(self, at: str | None) -> bool:
+        """Claim this branch cache for one timestamp context.
+
+        Returns True when ``at`` matches the context already claimed, or claims the
+        context when this is the first write. Returns False when the cache is already
+        claimed for a different point in time, in which case the caller must not write.
+        """
+        if not self._has_at_context:
+            self._at_context = at
+            self._has_at_context = True
+            return True
+        return self._at_context == at
+
+    def describe_at_context(self) -> str:
+        return "live data" if self._at_context is None else f"data fetched at {self._at_context}"
 
     def set(
         self,
@@ -286,38 +302,39 @@ class NodeStoreBase:
     def _get_branch(self, branch: str | None = None) -> str:
         return branch or self._default_branch
 
-    def _reserve_at_context(self, at: str | None, branch: str | None = None) -> bool:
-        """Return whether a query at the given timestamp may populate this branch cache.
+    def _get_or_create_branch(self, branch: str) -> NodeStoreBranch:
+        if branch not in self._branches:
+            self._branches[branch] = NodeStoreBranch(name=branch)
+        return self._branches[branch]
+
+    def _reserve_at_context(self, at: str | None, branch: str | None = None, stacklevel: int = 4) -> bool:
+        """Return whether data from the given timestamp may be written to this branch cache.
 
         The store is a per-field freshness cache and holds exactly one timestamp
         context per branch: live data (``at is None``) or one point in time. The first
-        population stamps the context; later populations at the same timestamp merge as
-        usual, so a script that runs all its queries at one ``at`` gets full store
-        functionality. A mismatching timestamp must not blend in: the query is refused
-        (the caller skips population) and a warning is emitted, since the resulting
-        cache would silently mix data from different points in time.
+        write claims the context; later writes at the same timestamp merge as usual, so
+        a script that runs all its queries at one ``at`` gets full store functionality.
+        A mismatching timestamp must not blend in: the write is refused (the caller
+        skips it) and a warning is emitted, since the resulting cache would silently
+        mix data from different points in time.
+
+        Every write path goes through here, ``node.save()`` included - a save carries
+        live data, so it both claims an unclaimed branch and is refused against a branch
+        claimed for a point in time.
         """
         branch = self._get_branch(branch)
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
-        store_branch = self._branches[branch]
+        store_branch = self._get_or_create_branch(branch)
 
-        if not store_branch._has_at_context:
-            store_branch._at_context = at
-            store_branch._has_at_context = True
-            return True
-        if store_branch._at_context == at:
+        if store_branch.reserve_at_context(at):
             return True
 
-        def describe(context: str | None) -> str:
-            return "live data" if context is None else f"data fetched at {context}"
-
+        incoming = "live data" if at is None else f"data fetched at {at}"
         warnings.warn(
-            f"Not populating the store for this query: the store for branch {branch!r} holds "
-            f"{describe(store_branch._at_context)} and this query uses {describe(at)}. Mixing "
+            f"Not populating the store: the store for branch {branch!r} holds "
+            f"{store_branch.describe_at_context()} and this operation carries {incoming}. Mixing "
             "timestamps in the store would blend inconsistent data. Use a separate client "
             "(client.clone()) for a different timestamp, or pass populate_store=False.",
-            stacklevel=4,
+            stacklevel=stacklevel,
         )
         return False
 
@@ -327,11 +344,12 @@ class NodeStoreBase:
         key: str | None = None,
         branch: str | None = None,
         merge: bool | None = None,
+        at: str | None = None,
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
 
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
+        if not self._reserve_at_context(at=at, branch=branch):
+            return
 
         self._branches[branch].set(node=node, key=key, merge=self._default_merge if merge is None else merge)
 
@@ -344,10 +362,7 @@ class NodeStoreBase:
     ):
         branch = self._get_branch(branch)
 
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
-
-        return self._branches[branch].get(key=key, kind=kind, raise_when_missing=raise_when_missing)
+        return self._get_or_create_branch(branch).get(key=key, kind=kind, raise_when_missing=raise_when_missing)
 
     def count(self, branch: str | None = None) -> int:
         branch = self._get_branch(branch)
@@ -448,6 +463,7 @@ class NodeStore(NodeStoreBase):
         key: str | None = None,
         branch: str | None = None,
         merge: bool | None = None,
+        at: str | None = None,
     ) -> None:
         """Add a node to the store, merging it into any node already stored under the same UUID.
 
@@ -466,9 +482,12 @@ class NodeStore(NodeStoreBase):
             merge (bool, optional): Whether to merge into an existing entry for the same
                 UUID (``True``) or replace it wholesale (``False``). Defaults to the
                 client's ``store_merge`` configuration (merge).
+            at (str, optional): The timestamp this node was fetched at. Defaults to
+                ``None``, meaning live data. A branch cache holds one timestamp context;
+                storing a node from a different one is refused with a warning.
 
         """
-        return self._set(node=node, key=key, branch=branch, merge=merge)
+        return self._set(node=node, key=key, branch=branch, merge=merge, at=at)
 
 
 class NodeStoreSync(NodeStoreBase):
@@ -561,6 +580,7 @@ class NodeStoreSync(NodeStoreBase):
         key: str | None = None,
         branch: str | None = None,
         merge: bool | None = None,
+        at: str | None = None,
     ) -> None:
         """Add a node to the store, merging it into any node already stored under the same UUID.
 
@@ -579,6 +599,9 @@ class NodeStoreSync(NodeStoreBase):
             merge (bool, optional): Whether to merge into an existing entry for the same
                 UUID (``True``) or replace it wholesale (``False``). Defaults to the
                 client's ``store_merge`` configuration (merge).
+            at (str, optional): The timestamp this node was fetched at. Defaults to
+                ``None``, meaning live data. A branch cache holds one timestamp context;
+                storing a node from a different one is refused with a warning.
 
         """
-        return self._set(node=node, key=key, branch=branch, merge=merge)
+        return self._set(node=node, key=key, branch=branch, merge=merge, at=at)

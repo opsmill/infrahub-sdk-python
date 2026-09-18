@@ -611,13 +611,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -634,13 +634,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -657,13 +657,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -680,13 +680,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -703,13 +703,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -726,13 +726,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -748,13 +748,13 @@ class InfrahubClient(BaseClient):
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
@@ -1087,7 +1087,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1100,6 +1099,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -1110,7 +1110,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1123,6 +1122,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -1132,7 +1132,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -1145,6 +1144,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind.
 
@@ -1206,7 +1206,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1220,6 +1219,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -1231,7 +1231,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -1245,6 +1244,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -1255,7 +1255,6 @@ class InfrahubClient(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -1269,6 +1268,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1399,18 +1399,15 @@ class InfrahubClient(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
-        if (
-            populate_store
-            and (nodes or related_nodes)
-            and self.store._reserve_at_context(at=at.to_string() if at else None, branch=branch)
-        ):
+        at_context = at.to_string() if at else None
+        if populate_store and (nodes or related_nodes) and self.store._reserve_at_context(at=at_context, branch=branch):
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node, merge=merge)
+                    self.store.set(node=node, merge=merge, at=at_context)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node, merge=merge)
+                    self.store.set(node=node, merge=merge, at=at_context)
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -2946,7 +2943,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2959,6 +2955,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2969,7 +2966,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -2982,6 +2978,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2991,7 +2988,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -3004,6 +3000,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind.
 
@@ -3106,7 +3103,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -3120,6 +3116,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -3131,7 +3128,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = ...,
         timeout: int | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         offset: int | None = ...,
         limit: int | None = ...,
         include: list[str] | None = ...,
@@ -3145,6 +3141,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -3155,7 +3152,6 @@ class InfrahubClientSync(BaseClient):
         branch: str | None = None,
         timeout: int | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         offset: int | None = None,
         limit: int | None = None,
         include: list[str] | None = None,
@@ -3169,6 +3165,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -3301,18 +3298,15 @@ class InfrahubClientSync(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = process_batch() if parallel else process_non_batch()
 
-        if (
-            populate_store
-            and (nodes or related_nodes)
-            and self.store._reserve_at_context(at=at.to_string() if at else None, branch=branch)
-        ):
+        at_context = at.to_string() if at else None
+        if populate_store and (nodes or related_nodes) and self.store._reserve_at_context(at=at_context, branch=branch):
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node, merge=merge)
+                    self.store.set(node=node, merge=merge, at=at_context)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node, merge=merge)
+                    self.store.set(node=node, merge=merge, at=at_context)
         return nodes
 
     @overload
@@ -3328,13 +3322,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -3351,13 +3345,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3374,13 +3368,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3397,13 +3391,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -3420,13 +3414,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3443,13 +3437,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = ...,
         exclude: list[str] | None = ...,
         populate_store: bool = ...,
-        merge: bool | None = ...,
         fragment: bool = ...,
         prefetch_relationships: bool = ...,
         property: bool = ...,
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3465,13 +3459,13 @@ class InfrahubClientSync(BaseClient):
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         populate_store: bool = True,
-        merge: bool | None = None,
         fragment: bool = False,
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
