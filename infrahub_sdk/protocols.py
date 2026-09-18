@@ -776,13 +776,23 @@ class CoreNodeTriggerRule(CoreTriggerRule):
 
 class CoreNumberPool(CoreResourcePool, LineageSource):
     description: StringOptional
-    end_range: Integer
+    end_range: IntegerOptional
     name: String
     node: String
     node_attribute: String
     pool_type: String
-    start_range: Integer
+    start_range: IntegerOptional
     member_of_groups: RelationshipManager[CoreGroup]
+    ranges: RelationshipManager[CoreNumberPoolRange]
+    subscriber_of_groups: RelationshipManager[CoreGroup]
+
+
+class CoreNumberPoolRange(CoreWeightedPoolResource):
+    allocation_weight: IntegerOptional
+    end: Integer
+    start: Integer
+    member_of_groups: RelationshipManager[CoreGroup]
+    pool: RelationshipAttribute[CoreNumberPool]
     subscriber_of_groups: RelationshipManager[CoreGroup]
 
 
@@ -1887,13 +1897,23 @@ class CoreNodeTriggerRuleSync(CoreTriggerRuleSync):
 
 class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
     description: StringOptional
-    end_range: Integer
+    end_range: IntegerOptional
     name: String
     node: String
     node_attribute: String
     pool_type: String
-    start_range: Integer
+    start_range: IntegerOptional
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    ranges: RelationshipManagerSync[CoreNumberPoolRangeSync]
+    subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
+
+
+class CoreNumberPoolRangeSync(CoreWeightedPoolResourceSync):
+    allocation_weight: IntegerOptional
+    end: Integer
+    start: Integer
+    member_of_groups: RelationshipManagerSync[CoreGroupSync]
+    pool: RelationshipAttributeSync[CoreNumberPoolSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]
 
 
