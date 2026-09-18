@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from infrahub_sdk import exceptions
-from infrahub_sdk.exceptions import authentication_error_from_response, base, graphql_error_from_response
+from infrahub_sdk.exceptions import authentication_error_from_response, base, catalogue, graphql_error_from_response
 from tests.helpers.fixtures import read_fixture
 
 
@@ -36,13 +36,34 @@ def classes_defined_in(module: object) -> set[str]:
     }
 
 
-def test_the_facade_lists_every_class_base_declares() -> None:
-    """The façade writes its exports out by hand, so nothing may drift out of step with `base`.
+def catalogue_exception_names() -> set[str]:
+    """The exception classes the generated module declares, without its payload models or maps."""
+    return {
+        name
+        for name in catalogue.__all__
+        if isinstance(getattr(catalogue, name), type) and issubclass(getattr(catalogue, name), BaseException)
+    }
 
-    A class added to `base.__all__` has to be added to both lists in
-    `infrahub_sdk/exceptions/__init__.py`: the import block and `__all__`.
+
+def test_the_facade_lists_every_class_base_and_catalogue_declare() -> None:
+    """The façade writes its exports out by hand, so nothing may drift out of step with its sources.
+
+    A class added to `base.__all__`, or a new code added to the catalogue, has to be added to both
+    lists in `infrahub_sdk/exceptions/__init__.py`: the import block and `__all__`.
     """
-    assert set(exceptions.__all__) == set(base.__all__)
+    assert set(exceptions.__all__) == set(base.__all__) | catalogue_exception_names()
+
+
+def test_the_facade_re_exports_no_catalogue_payload_model_or_lookup() -> None:
+    """Only the classes a caller catches are promoted to the package surface.
+
+    The payload models, the two lookup maps and the dispatch helper are the factory's business, so
+    they stay importable from `catalogue` rather than becoming a stability promise of the package.
+    """
+    non_classes = set(catalogue.__all__) - catalogue_exception_names()
+    leaked = sorted(non_classes & set(exceptions.__all__))
+
+    assert leaked == [], f"re-exported from catalogue but not an exception class: {leaked}"
 
 
 def test_every_name_the_facade_declares_is_bound() -> None:
