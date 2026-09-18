@@ -122,6 +122,15 @@ class ConfigBase(BaseSettings):
     schema_converge_timeout: int = Field(
         default=60, description="Number of seconds to wait for schema to have converged"
     )
+    store_merge: bool = Field(
+        default=True,
+        description=(
+            "When True, re-querying a node already in the client store updates only the "
+            "fields that were fetched and preserves previously fetched attributes and "
+            "relationships. When False, the latest query fully replaces the stored node, "
+            "which can drop data fetched by earlier queries (the pre-1.24.0 behaviour)."
+        ),
+    )
     timeout: int = Field(
         default=60,
         description="Default request timeout in seconds, applied to the read, write and pool phases of a request.",
