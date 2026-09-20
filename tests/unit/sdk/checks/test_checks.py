@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk import InfrahubClient
+from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.checks import InfrahubCheck
 
 if TYPE_CHECKING:
@@ -72,3 +72,48 @@ async def test_validate_sync_async(mock_gql_query_my_query: HTTPXMock) -> None:
     await check.run()
 
     assert check.passed is False
+
+
+async def test_branch_name_falls_back_to_configured_default_branch() -> None:
+    """Without an explicit branch, the configured default branch wins over the local Git branch."""
+
+    class IFCheck(InfrahubCheck):
+        query = "my_query"
+
+        def validate(self, data: dict) -> None: ...
+
+    client = InfrahubClient(config=Config(address="http://mock", default_branch="test"))
+
+    assert IFCheck(client=client).branch_name == "test"
+    assert IFCheck(client=client, branch="explicit").branch_name == "explicit"
+
+
+async def test_branch_name_falls_back_to_git_branch_without_a_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    class IFCheck(InfrahubCheck):
+        query = "my_query"
+
+        def validate(self, data: dict) -> None: ...
+
+    monkeypatch.setattr("infrahub_sdk.checks.get_branch", lambda **_: "my-git-branch")
+    assert IFCheck().branch_name == "my-git-branch"
+
+
+async def test_git_branch_is_read_from_the_root_directory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `default_branch_from_git`, the Git branch comes from the check's own repository."""
+
+    class IFCheck(InfrahubCheck):
+        query = "my_query"
+
+        def validate(self, data: dict) -> None: ...
+
+    # The stub encodes the directory it was asked about, so the assertion pins which repository
+    # the branch was resolved from.
+    monkeypatch.setattr(
+        "infrahub_sdk.config.get_branch",
+        lambda branch=None, directory=".": branch or f"git:{directory}",
+    )
+    client = InfrahubClient(config=Config(address="http://mock", default_branch="test", default_branch_from_git=True))
+
+    check = IFCheck(client=client, root_directory="/some/repository")
+
+    assert check.branch_name == "git:/some/repository"
