@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
+from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError, UninitializedError
 from infrahub_sdk.node import (
     InfrahubNode,
     InfrahubNodeBase,
@@ -373,6 +373,48 @@ async def test_cardinality_many_accepts_list(
     else:
         node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
     assert len(node.tags.peers) == 2
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_fetch_relationship_without_node_id_raises_clear_error(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """fetch() on a node with no ID explains it isn't saved instead of raising the generic get() filter error."""
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+        with pytest.raises(UninitializedError, match=r"has no ID"):
+            await node.tags.fetch()
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+        with pytest.raises(UninitializedError, match=r"has no ID"):
+            node.tags.fetch()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_edit_relationship_without_node_id_raises_clear_error(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """add() on a node with no ID points the user at .save() instead of at fetch(), avoiding the circular guidance."""
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data={"name": {"value": "JFK1"}})
+    with pytest.raises(UninitializedError, match=r"has no ID"):
+        node.tags.add("11111111-1111-1111-1111-111111111111")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_edit_relationship_with_node_id_still_requires_fetch(
+    client: InfrahubClient, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """When the node has an ID but the relationship isn't loaded, the original "call fetch()" guidance is preserved."""
+    data = {"id": "22222222-2222-2222-2222-222222222222", "name": {"value": "JFK1"}}
+    if client_type == "standard":
+        node = InfrahubNode(client=client, schema=location_schema, data=data)
+    else:
+        node = InfrahubNodeSync(client=client, schema=location_schema, data=data)
+    with pytest.raises(UninitializedError, match=r"Must call fetch"):
+        node.tags.add("11111111-1111-1111-1111-111111111111")
 
 
 @pytest.mark.parametrize("client_type", client_types)
