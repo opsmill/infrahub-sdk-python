@@ -23,8 +23,9 @@ SDK does not expect, and they exist to pin that such a shape degrades rather tha
 
 `codes/` holds one envelope per catalogue code, named after the code in lower case, each carrying the
 payload that code declares. They are the exhaustive set: a code without a file here is a code nothing
-proves the SDK can resolve, which is why the test that reads them iterates the catalogue's own code
-list rather than the directory. All of them are shaped as a GraphQL response, including the three
+proves the SDK can resolve, which is why the test that reads them addresses each file by code rather
+than listing the directory, and separately pins its case list equal to the bindings' own code map.
+All of them are shaped as a GraphQL response, including the three
 authentication codes, which reach that transport whenever a resolver rather than the request pipeline
 raised them.
 

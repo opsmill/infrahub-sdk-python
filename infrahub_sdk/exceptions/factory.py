@@ -145,17 +145,25 @@ def _catalogued_exception(code: str | None, extensions: dict[str, Any] | None) -
     if code is None:
         return None
     try:
-        return exception_from_payload(code=code, data=_payload_of(extensions))
+        exception = exception_from_payload(code=code, data=_payload_of(extensions))
     except PayloadValidationError:
         # The caller is already failing, so a validation error from inside the SDK would replace the
         # server's reason with one of the SDK's own.
-        LOGGER.debug("Payload for %s does not match what the catalogue declares: %r", code, extensions)
+        LOGGER.debug("Payload for %s does not match what the catalogue declares: %r", code, extensions, exc_info=True)
         return None
+    if exception is None:
+        LOGGER.debug("These bindings have no class for the catalogue code %s: %r", code, extensions)
+    return exception
 
 
-def _log_unresolved_code(extensions: dict[str, Any] | None, source: str) -> None:
-    if extensions is not None and _catalogue_code(extensions) is None:
-        LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions.get("code"))
+def _log_unresolved_code(code: str | None, extensions: dict[str, Any] | None, source: str) -> None:
+    """Record a response the SDK read no catalogue code from, whatever the reason.
+
+    The whole `extensions` mapping is logged rather than its `code` alone, since the commonest shapes
+    here carry no `code` at all and the rest of the mapping is what identifies the server.
+    """
+    if code is None:
+        LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions)
 
 
 def token_expired_in(errors: Any) -> bool:
@@ -217,7 +225,7 @@ def graphql_error_from_response(
         # catalogue gave it rather than losing it to an envelope that omitted it.
         exc.http_status = declared_status
     exc.extensions = extensions
-    _log_unresolved_code(extensions=extensions, source="GraphQL")
+    _log_unresolved_code(code=code, extensions=extensions, source="GraphQL")
     return exc
 
 
@@ -272,5 +280,5 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
     exc.errors = as_error_list(errors)
-    _log_unresolved_code(extensions=extensions, source="authentication")
+    _log_unresolved_code(code=code, extensions=extensions, source="authentication")
     return exc

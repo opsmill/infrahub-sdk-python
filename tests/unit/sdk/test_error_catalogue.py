@@ -345,6 +345,49 @@ class TestTheFirstErrorGoverns:
         ]
 
 
+class TestTheDeclaredStatus:
+    """Where `http_status` comes from when the envelope and the class disagree, or one is silent.
+
+    Every captured envelope declares the status its code's class already carries, so these drive the
+    shapes that tell the two sources apart.
+    """
+
+    def test_a_generated_class_keeps_its_catalogue_status_when_the_envelope_omits_one(self) -> None:
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        del envelope["errors"][0]["extensions"]["http_status"]
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, UniquenessViolationError)
+        assert exc.http_status == 422, "the class declares the catalogue's status, so there is one to keep"
+
+    def test_the_envelope_status_wins_over_the_one_the_class_declares(self) -> None:
+        """The server substitutes its own where its catalogue could not resolve a specific status."""
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        envelope["errors"][0]["extensions"]["http_status"] = 409
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, UniquenessViolationError)
+        assert exc.http_status == 409
+
+    def test_an_adopted_class_has_no_status_of_its_own_to_fall_back_on(self) -> None:
+        """The three pre-catalogue classes declare none, because they are also raised without one."""
+        envelope = load_code_envelope("NODE_NOT_FOUND")
+        del envelope["errors"][0]["extensions"]["http_status"]
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, NodeNotFoundError)
+        assert exc.http_status is None
+
+    def test_the_generic_class_reports_no_status_where_the_envelope_declared_none(self) -> None:
+        exc = graphql_error_from_response(errors=[{"message": "boom", "extensions": {"code": "NOT_A_KNOWN_CODE"}}])
+
+        assert type(exc) is GraphQLError
+        assert exc.http_status is None
+
+
 class TestTheFallbackFollowsTheObservedTransport:
     """Which generic class a code falls back to is decided by how the SDK saw it arrive.
 
@@ -774,6 +817,52 @@ def test_cross_version_fallback_is_logged_at_debug_level(caplog: pytest.LogCaptu
         graphql_error_from_response(errors=envelope["errors"])
 
     assert any("No catalogue code resolved" in record.getMessage() for record in caplog.records)
+
+
+@dataclass
+class FallbackLogCase:
+    name: str
+    errors: list[dict[str, Any]]
+    expected_fragment: str
+
+
+FALLBACK_LOG_CASES = [
+    FallbackLogCase(
+        name="a-code-these-bindings-have-no-class-for",
+        errors=[{"message": "boom", "extensions": {"code": "SOMETHING_WE_HAVE_NEVER_HEARD_OF", "http_status": 418}}],
+        expected_fragment="have no class for the catalogue code SOMETHING_WE_HAVE_NEVER_HEARD_OF",
+    ),
+    FallbackLogCase(
+        name="an-error-carrying-no-extensions",
+        errors=[{"message": "boom"}],
+        expected_fragment="No catalogue code resolved",
+    ),
+    FallbackLogCase(
+        name="a-payload-the-catalogue-does-not-declare",
+        errors=[{"message": "boom", "extensions": {"code": "UNIQUENESS_VIOLATION", "data": {"fields": "not-a-list"}}}],
+        expected_fragment="does not match what the catalogue declares",
+    ),
+]
+
+
+@pytest.mark.crossversion
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in FALLBACK_LOG_CASES])
+def test_every_fallback_is_logged_at_debug_level(case: FallbackLogCase, caplog: pytest.LogCaptureFixture) -> None:
+    """An SDK meeting a newer server has to be diagnosable from a log, not only from a debugger."""
+    with caplog.at_level("DEBUG", logger="infrahub_sdk"):
+        graphql_error_from_response(errors=case.errors)
+
+    assert any(case.expected_fragment in record.getMessage() for record in caplog.records)
+
+
+def test_a_resolved_code_logs_nothing(caplog: pytest.LogCaptureFixture) -> None:
+    """The log marks the paths that degraded, so the ordinary one must stay quiet."""
+    envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+
+    with caplog.at_level("DEBUG", logger="infrahub_sdk"):
+        graphql_error_from_response(errors=envelope["errors"])
+
+    assert caplog.records == []
 
 
 @pytest.mark.malformed

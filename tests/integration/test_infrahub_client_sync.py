@@ -14,6 +14,7 @@ from infrahub_sdk.exceptions import (
     NodeNotFoundError,
     UniquenessViolationError,
     URLNotFoundError,
+    code_names_the_failure,
 )
 from infrahub_sdk.node import InfrahubNodeSync
 from infrahub_sdk.playback import JSONPlayback
@@ -214,15 +215,17 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
         """Against a real server, so the payload is the one Infrahub sends rather than a fixture."""
         duplicate = client_sync.create(kind=TESTING_PERSON, name="Liam Walker", height=180)
 
-        # Either message shape: a described failure names its code, an undescribed one keeps the
-        # text the GraphQL call site has always produced.
-        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|An error occurred while") as exc_info:
+        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|UNDEFINED_ERROR") as exc_info:
             duplicate.save()
 
-        if exc_info.value.code != "UNIQUENESS_VIOLATION":
-            pytest.skip(f"this server reports a uniqueness violation as {exc_info.value.code}")
+        # A server that did not describe the failure is one whose catalogue has no entry for it yet,
+        # which is the only tolerable reason to stop here. Any code it *did* describe, including a
+        # wrong one, falls through to the assertions and fails.
+        if not code_names_the_failure(exc_info.value.code):
+            pytest.skip("this server's catalogue has no entry for a uniqueness violation")
 
         assert isinstance(exc_info.value, UniquenessViolationError)
+        assert exc_info.value.code == "UNIQUENESS_VIOLATION"
         assert exc_info.value.node_kind == TESTING_PERSON
         assert exc_info.value.fields == ["name"]
 

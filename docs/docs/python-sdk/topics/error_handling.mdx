@@ -27,18 +27,23 @@ message.
 ```text
 Error                            every exception the SDK raises
 └── ApiError                     the server rejected the request
-    ├── AuthenticationError      the SDK observed HTTP 401 or 403
+    ├── AuthenticationError      the request was rejected before it ran
     └── GraphQLError             a failure read from an `errors` array
         ├── NodeNotFoundError
         ├── BranchNotFoundError
         ├── SchemaNotFoundError
         ├── UniquenessViolationError
-        └── ...                  one class per catalogued code
+        ├── UndefinedError
+        └── ...                  a class for most catalogued codes
 ```
 
 The tree is plain: no class has more than one parent, and `AuthenticationError` and `GraphQLError`
 are siblings. Anything the SDK raises without a server behind it - a timeout, an unreadable file, a
 malformed query - stays under `Error` and outside `ApiError`.
+
+Most catalogued codes have a class; the three authentication codes deliberately do not, for the
+reason below. `AuthenticationError` covers the responses the SDK rejected before the query ran,
+which is usually an HTTP 401 or 403 but also a token refresh that failed on any other status.
 
 ## Catching by branch, or by code
 
@@ -46,7 +51,7 @@ malformed query - stays under `Error` and outside `ApiError`.
 |--------|--------|
 | Anything the server rejected, on either transport | `except ApiError` |
 | Any GraphQL-path failure | `except GraphQLError` |
-| Any failure the SDK observed as HTTP 401 or 403 | `except AuthenticationError` |
+| Any request the SDK saw rejected before it ran | `except AuthenticationError` |
 | One specific catalogued failure | `except UniquenessViolationError`, and so on per code |
 | Anything the SDK raises | `except Error` |
 
@@ -117,8 +122,8 @@ inspecting them never needs a guard for a missing attribute:
 
 | Attribute | Contract |
 |-----------|----------|
-| `code` | The catalogue code string, or `None`. Never an integer. `None` means no code was resolved: a server predating the catalogue, a REST failure, or an error carrying no `extensions`. |
-| `http_status` | The status the failure declares, or `None`. This is metadata about the failure, not the status the transport observed: a catalogued data error arrives as HTTP 200. |
+| `code` | The catalogue code string, or `None`. Never an integer. `None` means no code was resolved: a server predating the catalogue, a REST failure, an error carrying no `extensions`, or an integer `code` on the wire, which is what a pre-catalogue server puts there. |
+| `http_status` | The status the failure declares, or `None`. This is metadata about the failure, not the status the transport observed: a catalogued data error arrives as HTTP 200. Where the envelope declares none, a class that declares its own supplies it - which the generated classes do and the three lookup-miss classes below do not, since they are also raised with no server behind them. |
 | `extensions` | The raw `extensions` mapping of the governing error, or `None`. |
 | `errors` | The complete server error list, in the order the server sent it. Empty for a raise the SDK decided on its own. |
 | `query`, `variables` | The GraphQL query and variables where there was one, otherwise `None`. |
@@ -150,6 +155,10 @@ error list included. Since a current server codes every error it reports, fallin
 the server described a failure. `code_names_the_failure(exc.code)` is, and it is importable from
 `infrahub_sdk.exceptions`.
 
+`UNDEFINED_ERROR` has a class like any other code, `UndefinedError`, so a failure the server could not
+describe still raises a subclass of `GraphQLError` rather than `GraphQLError` itself. Match on
+`except GraphQLError` or on `exc.code`, never on `type(exc) is GraphQLError`.
+
 Where a response carries several errors, the first one determines the class raised and is the only one
 named beside the code. The complete list stays on `exc.errors`, in the order the server sent it.
 
@@ -159,14 +168,15 @@ Any SDK version talks to any server version, and parsing a response never raises
 
 | Situation | Behaviour |
 |-----------|-----------|
-| A code this SDK has a class for | That class, built from the payload the response carried |
-| A code this SDK has never heard of | `GraphQLError`, or `AuthenticationError` on a 401 or 403, with `exc.code` set to the string the server sent |
+| A code this SDK has a class for, read from an `errors` array | That class, built from the payload the response carried |
+| Any code at all, on a request the SDK saw rejected before it ran | `AuthenticationError`, with `exc.code` set |
+| A code this SDK has never heard of | The generic class for the transport, with `exc.code` set to the string the server sent |
 | A known code whose payload gained a field | The unknown field is ignored |
 | A server predating the catalogue, or an error with no `extensions` | `exc.code` is `None`, and the message is the one that version of the SDK has always produced |
 | A payload that does not match what the catalogue declares | The generic class for the transport, with the code still readable |
 
-Every fallback is logged at debug level on the `infrahub_sdk` logger with the code involved, so an SDK
-meeting a newer server is diagnosable without a debugger.
+Every fallback is logged at debug level on the `infrahub_sdk` logger, naming the code where the
+response carried one, so an SDK meeting a newer server is diagnosable without a debugger.
 
 Which generic class a fallback lands on follows the transport the SDK observed, never the status the
 code declares. A code read from an `errors` array raises `GraphQLError` even when it declares 401.
