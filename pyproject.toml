@@ -249,6 +249,15 @@ include = ["tests/unit/sdk/conftest.py"]
 invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
 
 [[tool.ty.overrides]]
+# Same dual-flavour pattern as test_store.py: the client, the store and the node class are
+# correlated unions the type system cannot tie together, so each node construction and store
+# write reads as a union passed where a concrete flavour is expected.
+include = ["tests/unit/sdk/test_store_merge.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 284 violations
+
+[[tool.ty.overrides]]
 include = [
     "tests/unit/sdk/test_node.py",
     "tests/unit/sdk/test_hierarchical_nodes.py",

@@ -47,6 +47,9 @@ class RelationshipManagerBase(Generic[PeerT]):
         """
         self.initialized: bool = False
         self._has_update: bool = False
+        # Narrower than _has_update: cleared once the peer set is persisted, so the
+        # store merge stops treating a long-saved edit as a pending local change.
+        self._has_unsaved_change: bool = False
         self.name = name
         self.schema = schema
         self.branch = branch
@@ -56,6 +59,20 @@ class RelationshipManagerBase(Generic[PeerT]):
         self._properties = self._properties_flag + self._properties_object
 
         self.peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
+
+    @property
+    def is_fetched(self) -> bool:
+        """Return whether this relationship was present in the response the node was built from.
+
+        Alias of ``initialized`` (which already means "was fetched" for cardinality-many
+        relationships), exposed under the same name as on ``Attribute`` and
+        ``RelatedNode`` so merge logic can branch uniformly on ``is_fetched``.
+
+        Returns:
+            bool: ``True`` when the peer set was populated from a response.
+
+        """
+        return self.initialized
 
     @property
     def peer_ids(self) -> list[str]:
@@ -91,11 +108,19 @@ class RelationshipManagerBase(Generic[PeerT]):
     def has_update(self) -> bool:
         """Return whether the peer set has been modified since initialization.
 
+        Drives the mutation payload and stays set for the life of the object, so a later
+        save still re-asserts the peer set.
+
         Returns:
             bool: ``True`` after a successful :meth:`add`, :meth:`extend`, or :meth:`remove`.
 
         """
         return self._has_update
+
+    def _mark_updated(self) -> None:
+        """Record a local edit to the peer set."""
+        self._has_update = True
+        self._has_unsaved_change = True
 
     @property
     def is_from_profile(self) -> bool:
@@ -112,6 +137,36 @@ class RelationshipManagerBase(Generic[PeerT]):
             return False
         all_profiles = [p.is_from_profile for p in self.peers]
         return bool(all_profiles) and all(all_profiles)
+
+    def _merge(self, incoming: RelationshipManagerBase[PeerT]) -> None:
+        """Merge a fresher copy of this relationship into this one.
+
+        Membership comes from the fetched list and never unions with the stored one, so a
+        peer removed on the server is correctly dropped. A peer present on both sides is
+        merged rather than replaced, so a re-fetch that did not request edge properties
+        keeps the ones already loaded for that peer. An incoming unsaved add()/remove()
+        keeps its pending-update marker. Callers are responsible for the higher-level
+        gates (``is_fetched`` on the incoming manager, ``_has_unsaved_change`` on this one).
+        """
+        # Indexed rather than scanned: member lists can run to thousands of peers.
+        stored_by_id = {peer.id: peer for peer in self.peers if peer.id is not None}
+        stored_by_hfid = {tuple(peer.hfid): peer for peer in self.peers if peer.hfid is not None}
+
+        merged: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
+        for incoming_peer in incoming.peers:
+            stored_peer = stored_by_id.get(incoming_peer.id) if incoming_peer.id is not None else None
+            if stored_peer is None and incoming_peer.hfid is not None:
+                stored_peer = stored_by_hfid.get(tuple(incoming_peer.hfid))
+            if stored_peer is None:
+                merged.append(incoming_peer)
+                continue
+            stored_peer._merge(incoming_peer)
+            merged.append(stored_peer)
+
+        self.peers = merged
+        self.initialized = True
+        self._has_update = incoming._has_update
+        self._has_unsaved_change = incoming._has_unsaved_change
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
@@ -301,7 +356,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             new_node.hfid and new_node.hfid not in self.peer_hfids
         ):
             self.peers.append(new_node)
-            self._has_update = True
+            self._mark_updated()
 
     def extend(self, data: Iterable[str | RelatedNode | dict]) -> None:
         """Add new peers to this relationship.
@@ -345,7 +400,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
 
             self.peers.pop(idx)
-            self._has_update = True
+            self._mark_updated()
 
         elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
             idx = self.peer_hfids.index(node_to_remove.hfid)
@@ -353,7 +408,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
             self.peers.pop(idx)
-            self._has_update = True
+            self._mark_updated()
 
 
 class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
@@ -499,7 +554,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             new_node.hfid and new_node.hfid not in self.peer_hfids
         ):
             self.peers.append(new_node)
-            self._has_update = True
+            self._mark_updated()
 
     def extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None:
         """Add new peers to this relationship.
@@ -542,7 +597,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             if self.peers[idx].id != node_to_remove.id:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
             self.peers.pop(idx)
-            self._has_update = True
+            self._mark_updated()
 
         elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
             idx = self.peer_hfids.index(node_to_remove.hfid)
@@ -550,4 +605,4 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
             self.peers.pop(idx)
-            self._has_update = True
+            self._mark_updated()
