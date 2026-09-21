@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.constants import Priority
+from infrahub_sdk.exceptions import AuthenticationError
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -69,6 +71,132 @@ async def test_relogin_retry_uses_refreshed_auth_header(client_type: str, httpx_
     assert graphql_requests[1].headers["Authorization"] == "Bearer NEW"
     # The per-request priority override rides both the initial attempt and the retry.
     assert all(r.headers["x-priority"] == "high" for r in graphql_requests)
+
+
+@dataclass
+class RefreshCase:
+    name: str
+    body: dict | str
+    expected_attempts: int
+    expected_message: str
+
+
+REFRESH_CASES = [
+    RefreshCase(
+        name="catalogued-token-expired-refreshes",
+        body={"errors": [{"message": "Token has expired", "extensions": {"code": "TOKEN_EXPIRED"}}]},
+        expected_attempts=2,
+        expected_message="Token has expired",
+    ),
+    RefreshCase(
+        name="legacy-expired-signature-refreshes",
+        body={"errors": [{"message": "Expired Signature"}]},
+        expected_attempts=2,
+        expected_message="Expired Signature",
+    ),
+    RefreshCase(
+        name="unrelated-401-does-not-refresh",
+        body={"errors": [{"message": "Invalid credentials", "extensions": {"code": "AUTHENTICATION_REQUIRED"}}]},
+        expected_attempts=1,
+        expected_message="Invalid credentials",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in REFRESH_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_refresh_decision_reads_the_code_then_falls_back_to_the_message(
+    client_type: str, case: RefreshCase, httpx_mock: HTTPXMock
+) -> None:
+    """The silent refresh is decided by the catalogue code, with the legacy string as the fallback."""
+    httpx_mock.add_response(
+        method="POST", url="http://mock/graphql/main", status_code=401, json=case.body, is_reusable=True
+    )
+    if case.expected_attempts > 1:
+        httpx_mock.add_response(method="POST", url="http://mock/api/auth/refresh", json={"access_token": "NEW"})
+
+    client = _build_password_client(client_type)
+    query = "query { InfrahubInfo { version }}"
+
+    with pytest.raises(AuthenticationError, match=case.expected_message):
+        if isinstance(client, InfrahubClient):
+            await client.execute_graphql(query=query, branch_name="main")
+        else:
+            client.execute_graphql(query=query, branch_name="main")
+
+    graphql_requests = [r for r in httpx_mock.get_requests() if str(r.url) == "http://mock/graphql/main"]
+    assert len(graphql_requests) == case.expected_attempts
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_an_api_token_client_does_not_retry_a_stale_token_401(client_type: str, httpx_mock: HTTPXMock) -> None:
+    """`login(refresh=True)` cannot mint a token for an API-token client, so the retry is skipped.
+
+    Retrying would replay the same token the server just rejected and earn a second 401 for nothing.
+    """
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        status_code=401,
+        json={"errors": [{"message": "Token has expired", "extensions": {"code": "TOKEN_EXPIRED"}}]},
+        is_reusable=True,
+    )
+    config = Config(address="http://mock", api_token="static-token", insert_tracker=True)
+    client: InfrahubClient | InfrahubClientSync = (
+        InfrahubClient(config=config) if client_type == "standard" else InfrahubClientSync(config=config)
+    )
+    query = "query { InfrahubInfo { version }}"
+
+    with pytest.raises(AuthenticationError, match="Token has expired"):
+        if isinstance(client, InfrahubClient):
+            await client.execute_graphql(query=query, branch_name="main")
+        else:
+            client.execute_graphql(query=query, branch_name="main")
+
+    graphql_requests = [r for r in httpx_mock.get_requests() if str(r.url) == "http://mock/graphql/main"]
+    assert len(graphql_requests) == 1
+    assert not [r for r in httpx_mock.get_requests() if "auth/refresh" in str(r.url)]
+
+
+@dataclass
+class UnreadableBodyCase:
+    name: str
+    text: str
+
+
+UNREADABLE_BODY_CASES = [
+    UnreadableBodyCase(name="html-proxy-error-page", text="<html><body><h1>502 Bad Gateway</h1></body></html>"),
+    UnreadableBodyCase(name="empty-body", text=""),
+    # Valid JSON, but not the object the envelope is supposed to be. A gateway that answers in its
+    # own format reaches the same code path, and reading `errors` off it must not throw.
+    UnreadableBodyCase(name="json-array", text='[{"message": "denied"}]'),
+    UnreadableBodyCase(name="json-null", text="null"),
+    UnreadableBodyCase(name="json-string", text='"denied"'),
+    UnreadableBodyCase(name="json-number", text="401"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in UNREADABLE_BODY_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_refresh_decision_tolerates_a_body_it_cannot_read(
+    client_type: str, case: UnreadableBodyCase, httpx_mock: HTTPXMock
+) -> None:
+    """A 401 body the SDK cannot read must surface as an AuthenticationError, never as an SDK error."""
+    httpx_mock.add_response(
+        method="POST", url="http://mock/graphql/main", status_code=401, text=case.text, is_reusable=True
+    )
+
+    client = _build_password_client(client_type)
+    query = "query { InfrahubInfo { version }}"
+
+    with pytest.raises(AuthenticationError, match="HTTP 401"):
+        if isinstance(client, InfrahubClient):
+            await client.execute_graphql(query=query, branch_name="main")
+        else:
+            client.execute_graphql(query=query, branch_name="main")
+
+    graphql_requests = [r for r in httpx_mock.get_requests() if str(r.url) == "http://mock/graphql/main"]
+    assert len(graphql_requests) == 1, "a body carrying no refresh signal means no retry"
 
 
 @pytest.mark.parametrize("client_type", client_types)

@@ -136,6 +136,11 @@ filterwarnings = [
     "ignore:Module already imported so cannot be rewritten",
     "ignore:Deprecated call to",
 ]
+markers = [
+    "crossversion: Parses an envelope from a server whose version differs from the SDK's",
+    "malformed: Parses an envelope that violates the shape the SDK expects",
+    "message: Pins an exception's message text, in either the catalogued or the uncatalogued direction",
+]
 addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dist loadscope"
 
 [tool.ty]
@@ -247,6 +252,12 @@ include = ["tests/unit/sdk/conftest.py"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
+
+[[tool.ty.overrides]]
+include = ["tests/unit/ctl/test_utils.py", "tests/unit/sdk/test_exceptions_public_names.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 2 violations - a narrowed Console file and a module object
 
 [[tool.ty.overrides]]
 include = [

@@ -1,0 +1,19 @@
+{
+  "errors": [
+    {
+      "message": "Node of kind TestPerson already has name 'John'",
+      "extensions": {
+        "code": "UNIQUENESS_VIOLATION",
+        "http_status": 422,
+        "data": {
+          "node_kind": "TestPerson",
+          "fields": [
+            "name"
+          ],
+          "introduced_in_a_later_version": "ignored"
+        }
+      }
+    }
+  ],
+  "data": null
+}
