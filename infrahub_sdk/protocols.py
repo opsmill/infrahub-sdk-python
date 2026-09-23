@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         IPNetwork,
         JSONAttribute,
         JSONAttributeOptional,
+        ListAttribute,
         ListAttributeOptional,
         String,
         StringOptional,
@@ -568,6 +569,30 @@ class CoreSchemaCheck(CoreCheck):
 
 class CoreSchemaValidator(CoreValidator):
     pass
+
+
+class CoreServiceCatalogEntry(CoreNode):
+    name: String
+    description: StringOptional
+    icon: StringOptional
+    target_kind: String
+    generators: ListAttributeOptional
+    mode: Enum
+    fields: ListAttribute
+    tags: RelationshipManager
+    template: RelatedNode
+
+
+class CoreServiceRequest(CoreNode):
+    status: Enum
+    message: StringOptional
+    inputs: JSONAttributeOptional
+    branch: StringOptional
+    task_id: StringOptional
+    entry: RelatedNode
+    requester: RelatedNode
+    service: RelatedNode
+    proposed_change: RelatedNode
 
 
 class CoreStandardCheck(CoreCheck):
@@ -1174,6 +1199,30 @@ class CoreSchemaCheckSync(CoreCheckSync):
 
 class CoreSchemaValidatorSync(CoreValidatorSync):
     pass
+
+
+class CoreServiceCatalogEntrySync(CoreNodeSync):
+    name: String
+    description: StringOptional
+    icon: StringOptional
+    target_kind: String
+    generators: ListAttributeOptional
+    mode: Enum
+    fields: ListAttribute
+    tags: RelationshipManagerSync
+    template: RelatedNodeSync
+
+
+class CoreServiceRequestSync(CoreNodeSync):
+    status: Enum
+    message: StringOptional
+    inputs: JSONAttributeOptional
+    branch: StringOptional
+    task_id: StringOptional
+    entry: RelatedNodeSync
+    requester: RelatedNodeSync
+    service: RelatedNodeSync
+    proposed_change: RelatedNodeSync
 
 
 class CoreStandardCheckSync(CoreCheckSync):
