@@ -74,8 +74,9 @@ and pin that invisibility before touching anything.
 - [X] T006 [P] ~~Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
       `pyproject.toml` silencing `F403`/`F405`, with a comment giving the reason, mirroring the existing
       `infrahub_sdk/schema/generated/*.py` entry.~~ **Superseded by T004 and T064**: the façade
-      re-exports by explicit name, so no `F403`/`F405` arises and no entry was added. `pyproject.toml`
-      carries only the `catalogue` marker this feature registers.
+      re-exports by explicit name, so no `F403`/`F405` arises and no entry was added. What this
+      feature does add to `pyproject.toml` is its four pytest markers: `catalogue`, `crossversion`,
+      `malformed` and `message`.
 - [X] T007 Run `uv run pytest tests/unit/ -q` and `uv run invoke format lint-code docs-generate docs-validate`
       to confirm the restructure is invisible from outside the package.
 

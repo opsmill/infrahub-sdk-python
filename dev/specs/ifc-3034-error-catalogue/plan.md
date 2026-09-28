@@ -160,7 +160,7 @@ docs/docs/python-sdk/topics/
 └── error_handling.mdx              # New topic page (sidebar globs this directory)
 
 changelog/                          # towncrier fragments: typed errors, identifier widening, broadening
-pyproject.toml                      # `catalogue` pytest marker for the live-server envelope tests
+pyproject.toml                      # pytest markers: catalogue, crossversion, malformed, message
 tasks.py                            # Add `exceptions` to packages_to_ignore for API-doc generation
 ```
 
