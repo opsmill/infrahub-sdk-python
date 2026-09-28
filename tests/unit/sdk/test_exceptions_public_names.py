@@ -84,6 +84,17 @@ def test_base_declares_every_exception_it_defines() -> None:
     assert undeclared == [], f"defined in base.py but missing from base.__all__: {undeclared}"
 
 
+def test_the_catalogue_declares_every_exception_it_defines() -> None:
+    """Every other check here trusts `catalogue.__all__`, so nothing else would catch an omission.
+
+    A generated class left out of it is simply absent from the façade, and the two checks that would
+    otherwise notice both derive from the same list, so they agree with each other and stay green.
+    """
+    undeclared = sorted(classes_defined_in(catalogue) - set(catalogue.__all__))
+
+    assert undeclared == [], f"defined in catalogue.py but missing from catalogue.__all__: {undeclared}"
+
+
 def test_snapshot_matches_the_exported_exceptions() -> None:
     """infrahub_sdk.exceptions is the supported import path.
 
