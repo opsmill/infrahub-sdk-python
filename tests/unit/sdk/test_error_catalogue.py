@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import pickle  # noqa: S403
 from dataclasses import dataclass
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -33,6 +35,8 @@ from infrahub_sdk.exceptions.catalogue import CODE_TO_DATA_MODEL
 from tests.helpers.fixtures import read_fixture
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpx import HTTPXMock
 
     from tests.unit.sdk.conftest import BothClients
@@ -259,6 +263,52 @@ class TestEveryCatalogueCode:
 
         assert exc.extensions is not None
         assert exc.extensions["data"] == envelope["errors"][0]["extensions"]["data"]
+
+
+ROUND_TRIPS = {
+    "pickle": lambda exc: pickle.loads(pickle.dumps(exc)),  # noqa: S301
+    "deepcopy": copy.deepcopy,
+}
+
+
+class TestARaisedExceptionSurvivesSerialisation:
+    """A raised exception crosses process boundaries: a task queue, a parallel test runner.
+
+    The catalogued classes take their payload fields as required keyword arguments, which is the
+    shape that lets a caller read one without a guard - and the shape the default reconstruction
+    cannot replay, since it calls the class with the message as a lone positional argument.
+    """
+
+    @pytest.mark.parametrize("round_trip", [pytest.param(fn, id=name) for name, fn in ROUND_TRIPS.items()])
+    @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
+    def test_the_whole_exception_comes_back(self, case: CodeCase, round_trip: Callable[[Any], Any]) -> None:
+        envelope = load_code_envelope(case.name)
+        exc = graphql_error_from_response(errors=envelope["errors"], query="query { x }", variables={"a": 1})
+
+        restored = round_trip(exc)
+
+        assert type(restored) is case.expected_class
+        assert str(restored) == str(exc)
+        assert restored.code == exc.code
+        assert restored.http_status == exc.http_status
+        assert restored.errors == exc.errors
+        assert restored.extensions == exc.extensions
+        assert restored.query == exc.query
+        assert restored.variables == exc.variables
+        for attribute, value in case.expected_attributes.items():
+            assert getattr(restored, attribute) == value
+
+    def test_a_restored_exception_is_still_caught_by_its_own_clause(self) -> None:
+        """Reconstructing the type is only worth anything if the `except` ladder still sees it."""
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        exc = graphql_error_from_response(errors=envelope["errors"])
+        restored = pickle.loads(pickle.dumps(exc))  # noqa: S301
+
+        with pytest.raises(UniquenessViolationError, match="UNIQUENESS_VIOLATION") as exc_info:
+            raise restored
+
+        assert exc_info.value.node_kind == "TestPerson"
+        assert exc_info.value.fields == ["name"]
 
 
 class TestTheAdoptedClasses:

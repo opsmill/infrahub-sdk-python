@@ -139,6 +139,21 @@ class ApiError(Error):
     errors: Sequence[dict[str, Any]] = ()
 
 
+def _rebuild_graphql_error(cls: type[GraphQLError], args: tuple[Any, ...], state: dict[str, Any]) -> GraphQLError:
+    """Reconstruct a GraphQL-path exception without replaying its constructor.
+
+    `BaseException.__reduce__` rebuilds by calling `cls(*args)`, where `args` is the message alone.
+    This class takes the server's error list first, so that call files the message under `errors` and
+    the message a caller reads comes back as the placeholder built from it. `args` is carried
+    separately from the rest of the state because it lives on the exception itself rather than in
+    `__dict__`, and `str()` reads it.
+    """
+    exc = cls.__new__(cls)
+    exc.args = args
+    exc.__dict__.update(state)
+    return exc
+
+
 def graphql_default_message(query: str | None, errors: Any) -> str:
     """The message the GraphQL path produces where the server described nothing better.
 
@@ -168,6 +183,9 @@ class GraphQLError(ApiError):
         self.message = message if message is not None else default
         self.errors = as_error_list(errors)
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_graphql_error, (type(self), self.args, self.__dict__))
 
 
 class VersionNotSupportedError(Error):
