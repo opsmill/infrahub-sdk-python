@@ -34,13 +34,14 @@ is_fetched(self) -> bool
 
 Return whether this relationship was present in the response the node was built from.
 
-Alias of ``initialized`` (which already means "was fetched" for cardinality-many
-relationships), exposed under the same name as on ``Attribute`` and
-``RelatedNode`` so merge logic can branch uniformly on ``is_fetched``.
+Exposed under the same name as on ``Attribute`` and ``RelatedNode`` so merge
+logic can branch uniformly on ``is_fetched``. Unlike ``initialized`` this is also
+True for a relationship the response carried as ``null``, so the client store can
+tell "emptied on the server" from "not queried".
 
 **Returns:**
 
-- ``True`` when the peer set was populated from a response.
+- ``True`` when the response carried this relationship.
 
 #### `peer_ids`
 

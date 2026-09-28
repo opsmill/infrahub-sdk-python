@@ -1099,6 +1099,7 @@ class InfrahubNode(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
         for rel_schema in self._schema.hierarchical_relationship_schemas:
@@ -1120,6 +1121,7 @@ class InfrahubNode(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
@@ -2346,6 +2348,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
 
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
@@ -2368,6 +2371,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
+                    is_fetched=self._field_was_fetched(data, rel_schema.name),
                 )
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:

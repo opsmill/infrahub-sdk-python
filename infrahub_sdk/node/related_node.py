@@ -372,8 +372,11 @@ class RelatedNodeBase:
                 self._relationship_metadata = incoming._relationship_metadata
             self._fetched_properties = intern_frozenset(self._fetched_properties | incoming._fetched_properties)
         self.is_fetched = True
-        self._peer_has_been_mutated = incoming._peer_has_been_mutated
-        self._has_unsaved_change = incoming._has_unsaved_change
+        # The payload marker is sticky for the life of the object, so a refetch may add
+        # to it but never clear it: the stored edit still has to be re-asserted on the
+        # next save even after the server has confirmed it.
+        self._peer_has_been_mutated = self._peer_has_been_mutated or incoming._peer_has_been_mutated
+        self._has_unsaved_change = self._has_unsaved_change or incoming._has_unsaved_change
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}

@@ -46,6 +46,10 @@ class RelationshipManagerBase(Generic[PeerT]):
 
         """
         self.initialized: bool = False
+        # Whether the response carried this relationship at all. Distinct from
+        # ``initialized``: a response can carry the field as ``null``, which means the
+        # peer set is known to be empty rather than never loaded.
+        self._is_fetched: bool = False
         self._has_update: bool = False
         # Narrower than _has_update: cleared once the peer set is persisted, so the
         # store merge stops treating a long-saved edit as a pending local change.
@@ -64,15 +68,16 @@ class RelationshipManagerBase(Generic[PeerT]):
     def is_fetched(self) -> bool:
         """Return whether this relationship was present in the response the node was built from.
 
-        Alias of ``initialized`` (which already means "was fetched" for cardinality-many
-        relationships), exposed under the same name as on ``Attribute`` and
-        ``RelatedNode`` so merge logic can branch uniformly on ``is_fetched``.
+        Exposed under the same name as on ``Attribute`` and ``RelatedNode`` so merge
+        logic can branch uniformly on ``is_fetched``. Unlike ``initialized`` this is also
+        True for a relationship the response carried as ``null``, so the client store can
+        tell "emptied on the server" from "not queried".
 
         Returns:
-            bool: ``True`` when the peer set was populated from a response.
+            bool: ``True`` when the response carried this relationship.
 
         """
-        return self.initialized
+        return self._is_fetched or self.initialized
 
     @property
     def peer_ids(self) -> list[str]:
@@ -165,8 +170,12 @@ class RelationshipManagerBase(Generic[PeerT]):
 
         self.peers = merged
         self.initialized = True
-        self._has_update = incoming._has_update
-        self._has_unsaved_change = incoming._has_unsaved_change
+        self._is_fetched = True
+        # The payload marker is sticky for the life of the object, so a refetch may add
+        # to it but never clear it: the stored edit still has to be re-asserted on the
+        # next save even after the server has confirmed it.
+        self._has_update = self._has_update or incoming._has_update
+        self._has_unsaved_change = self._has_unsaved_change or incoming._has_unsaved_change
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
@@ -233,6 +242,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         branch: str,
         schema: RelationshipSchemaAPI,
         data: Any | dict,
+        is_fetched: bool | None = None,
     ) -> None:
         """Initialize the async relationship manager.
 
@@ -243,6 +253,10 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+            is_fetched (bool, optional): Whether the response carried this relationship.
+                ``InfrahubNodeBase._init_relationships`` passes the real key-presence
+                signal so a relationship fetched as ``null`` still reads as fetched; when
+                omitted it is inferred from ``data``.
 
         Raises:
             ValueError: If ``data`` is in an unexpected format.
@@ -254,6 +268,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         super().__init__(name=name, schema=schema, branch=branch)
 
         self.initialized = data is not None
+        self._is_fetched = self.initialized if is_fetched is None else is_fetched
         self._has_update = False
 
         if data is None:
@@ -430,6 +445,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         branch: str,
         schema: RelationshipSchemaAPI,
         data: Any | dict,
+        is_fetched: bool | None = None,
     ) -> None:
         """Initialize the sync relationship manager.
 
@@ -440,6 +456,10 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             branch (str): The branch where the relationship resides.
             schema (RelationshipSchema): The schema of the relationship.
             data (Union[Any, dict]): Initial data for the relationships.
+            is_fetched (bool, optional): Whether the response carried this relationship.
+                ``InfrahubNodeBase._init_relationships`` passes the real key-presence
+                signal so a relationship fetched as ``null`` still reads as fetched; when
+                omitted it is inferred from ``data``.
 
         Raises:
             ValueError: If ``data`` is in an unexpected format.
@@ -451,6 +471,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         super().__init__(name=name, schema=schema, branch=branch)
 
         self.initialized = data is not None
+        self._is_fetched = self.initialized if is_fetched is None else is_fetched
         self._has_update = False
 
         if data is None:

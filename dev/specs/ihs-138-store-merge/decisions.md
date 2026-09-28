@@ -108,10 +108,10 @@ is intentional and should be stated in the `set()` docstring.
 was not taken. Agreed model: *anything that lands in the store gets merged*, with no
 special-casing by entry point - `store.set()` merges just like the query path. This
 is the simpler, single-rule mental model. Consequence: **replace is opt-in only** -
-the sole way to store a node verbatim / drop previously cached data is
-`store.set(node, merge=False)` or the `store_merge=False` config opt-out. The public
-`store.set()` docstring must state that it merges by default and how to force
-replace.
+storing a node verbatim / dropping previously cached data requires asking for it, via
+`store.set(node, merge=False)`, a per-call `merge=False` on `get`/`all`/`filters`, or
+the `store_merge=False` config opt-out. The public `store.set()` docstring must state
+that it merges by default and how to force replace.
 
 ---
 

@@ -956,6 +956,45 @@ async def test_clearing_cardinality_one_reaches_the_store(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+def test_refetch_does_not_clear_persisted_payload_markers(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A refetch may add to the sticky payload markers but never clear them.
+
+    Otherwise the reset that deliberately preserves them is undone by the next fetch of
+    the same node, and the save after that silently omits the edit.
+    """
+    client, store, node_class = setup_store(client_type, clients)
+
+    node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    node._relationship_cardinality_many_data["tags"].add(TAG_RED_ID)
+    node.primary_tag = None
+    node._reset_mutation_tracking()
+    store.set(node=node)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    assert node._relationship_cardinality_many_data["tags"].has_update is True
+    assert node._relationship_cardinality_one_data["primary_tag"]._peer_has_been_mutated is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_merge_reflects_null_cardinality_many_response(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A relationship the response carried as `null` is fetched-but-empty, not unfetched."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+
+    refetch = shallow_location_data()
+    refetch["node"]["tags"] = None
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
+    assert get_location(store).tags.peer_ids == []
+
+
+@pytest.mark.parametrize("client_type", client_types)
 def test_persisted_edits_are_reasserted_on_a_later_save(
     client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
 ) -> None:
