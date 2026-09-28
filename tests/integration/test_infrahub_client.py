@@ -214,12 +214,14 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         """Against a real server, so the payload is the one Infrahub sends rather than a fixture."""
         duplicate = await client.create(kind=TESTING_PERSON, name="Liam Walker", height=180)
 
-        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|UNDEFINED_ERROR") as exc_info:
+        # The two message shapes a supported server can produce here: the code named, or the text
+        # the call site falls back to when the server described nothing. A server that described the
+        # failure as some other code matches neither and fails, which is the point.
+        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|An error occurred while") as exc_info:
             await duplicate.save()
 
         # A server that did not describe the failure is one whose catalogue has no entry for it yet,
-        # which is the only tolerable reason to stop here. Any code it *did* describe, including a
-        # wrong one, falls through to the assertions and fails.
+        # which is the only tolerable reason to stop here.
         if not code_names_the_failure(exc_info.value.code):
             pytest.skip("this server's catalogue has no entry for a uniqueness violation")
 
