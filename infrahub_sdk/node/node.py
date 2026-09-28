@@ -387,9 +387,9 @@ class InfrahubNodeBase:
                 merged[key] = InfrahubNodeBase._merge_raw_value(merged.get(key), value)
             return merged
         if isinstance(incoming_value, dict):
-            return dict(incoming_value)
+            return {key: InfrahubNodeBase._merge_raw_value(None, value) for key, value in incoming_value.items()}
         if isinstance(incoming_value, list):
-            return list(incoming_value)
+            return [InfrahubNodeBase._merge_raw_value(None, item) for item in incoming_value]
         return incoming_value
 
     def _merge_attribute(self, name: str, incoming_attr: Attribute) -> bool:

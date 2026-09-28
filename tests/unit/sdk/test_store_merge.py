@@ -544,18 +544,33 @@ def test_merge_keeps_edge_properties_of_unchanged_cardinality_many_peers(
 def test_merge_does_not_alias_the_raw_baseline(
     client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
 ) -> None:
-    """The store's `_data` must not share containers with the snapshot it merged."""
+    """The store's `_data` must not share containers with the snapshot it merged.
+
+    Mutating the snapshot after the merge is the only assertion that discriminates:
+    two payloads always start with distinct dicts, so comparing identity proves nothing.
+    """
     client, store, node_class = setup_store(client_type, clients)
 
-    stored_node = node_class(client=client, schema=location_schema, data=deep_location_data())
-    store.set(node=stored_node)
+    store.set(node=node_class(client=client, schema=location_schema, data=shallow_location_data()))
 
-    incoming = node_class(client=client, schema=location_schema, data=shallow_location_data())
+    incoming_data = deep_location_data()
+    incoming_data["node"]["primary_tag"] = {
+        "node": {"id": TAG_RED_ID, "__typename": "BuiltinTag"},
+        "properties": {"is_protected": True},
+    }
+    incoming = node_class(client=client, schema=location_schema, data=incoming_data)
     store.set(node=incoming)
 
-    assert isinstance(stored_node._data, dict)
+    stored = store.get(key=LOCATION_ID)
+    assert isinstance(stored._data, dict)
     assert isinstance(incoming._data, dict)
-    assert stored_node._data["name"] is not incoming._data["name"]
+
+    # Nested containers: reachable through the merged branch and the copied branch
+    incoming._data["primary_tag"]["properties"]["is_protected"] = "mutated"
+    incoming._data["tags"]["edges"].append({"node": {"id": "intruder"}})
+
+    assert stored._data["primary_tag"]["properties"]["is_protected"] is True
+    assert len(stored._data["tags"]["edges"]) == 2
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -976,6 +991,57 @@ def test_save_claims_the_live_timestamp_context(
 
     store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
 
+    with pytest.warns(UserWarning, match="Not populating the store"):
+        assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is False
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_save_is_refused_against_a_historical_store(
+    httpx_mock: HTTPXMock, client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """The mutation path claims the context too, not just direct store writes."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
+    )
+    client, _, node_class = setup_store(client_type, clients)
+    store = client.store
+
+    assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is True
+
+    node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    node._attribute_data["description"].value = "edited"
+    if isinstance(node, InfrahubNode):
+        with pytest.warns(UserWarning, match="Not populating the store"):
+            await node.save()
+    else:
+        with pytest.warns(UserWarning, match="Not populating the store"):
+            node.save()
+
+    # The mutation still reached the server; only the store was left alone
+    assert store.count() == 0
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_save_claims_the_live_context_for_later_historical_queries(
+    httpx_mock: HTTPXMock, client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A save on an unclaimed branch marks it live, so a later `at=` query is refused."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
+    )
+    client, _, node_class = setup_store(client_type, clients)
+    store = client.store
+
+    node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    node._attribute_data["description"].value = "edited"
+    if isinstance(node, InfrahubNode):
+        await node.save()
+    else:
+        node.save()
+
+    assert store.count() == 1
     with pytest.warns(UserWarning, match="Not populating the store"):
         assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is False
 
