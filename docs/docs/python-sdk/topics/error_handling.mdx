@@ -9,8 +9,10 @@ import TabItem from '@theme/TabItem';
 
 ## Introduction
 
-Every exception the SDK raises is importable from `infrahub_sdk.exceptions`. That is the supported
-import path, and the only one: the modules beneath it are internal and their layout may change.
+Every exception the SDK defines is importable from `infrahub_sdk.exceptions`. That is the supported
+import path, and the only one: the modules beneath it are internal and their layout may change. A
+call can still raise a built-in such as `ValueError` for an argument the SDK rejects before it builds
+a request; what follows covers the exceptions the SDK defines.
 
 ```python
 from infrahub_sdk.exceptions import ApiError, GraphQLError, UniquenessViolationError
@@ -94,8 +96,9 @@ Both clients raise the same class with the same attributes for the same failure.
 ### The three authentication codes
 
 `AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, and `PERMISSION_DENIED` have no class of their own. They
-are the only codes that reach the SDK on two different transports, and each transport already has a
-class that existing code depends on:
+are the codes a server reports for the failures it rejects a request on, so they are the ones that
+routinely arrive on either transport, and each transport already has a class that existing code
+depends on:
 
 | Arrival | Class raised | `exc.code` |
 |---------|--------------|------------|
@@ -164,7 +167,11 @@ named beside the code. The complete list stays on `exc.errors`, in the order the
 
 ## Talking to any server version
 
-Any SDK version talks to any server version, and parsing a response never raises.
+Any SDK version talks to any server version. Once the SDK has a decoded response in hand, reading the
+catalogue out of it never raises: an unknown code, a payload that does not match what the catalogue
+declares, and an envelope from a server that predates it all degrade to a class the caller can catch.
+A body the SDK cannot decode as JSON at all is a separate failure and still raises `JsonDecodeError`,
+before any of this runs.
 
 | Situation | Behaviour |
 |-----------|-----------|

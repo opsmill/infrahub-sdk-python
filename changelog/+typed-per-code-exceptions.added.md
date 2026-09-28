@@ -1,4 +1,4 @@
-Every code in Infrahub's error catalogue now has an exception class of its own, importable from `infrahub_sdk.exceptions`, carrying the failure's payload as directly typed attributes. Identifying a specific failure no longer means matching words in a message:
+Codes in Infrahub's error catalogue now raise an exception class of their own, importable from `infrahub_sdk.exceptions`, carrying the failure's payload as directly typed attributes. Identifying a specific failure no longer means matching words in a message:
 
 ```python
 from infrahub_sdk.exceptions import ApiError, UniquenessViolationError

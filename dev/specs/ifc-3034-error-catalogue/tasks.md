@@ -65,8 +65,9 @@ and pin that invisibility before touching anything.
       so. The captured/not-parser-shaped rule stands for every fixture representing a real response.
 - [X] T003 Convert `infrahub_sdk/exceptions.py` into `infrahub_sdk/exceptions/base.py` by verbatim move
       (no behaviour edits in this task), and add `__all__` to it listing every class it defines.
-- [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting with `from .base import *`
-      and nothing else yet.
+- [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting every class `base`
+      defines, by explicit name rather than the `from .base import *` this task first said, and nothing
+      else yet.
 - [X] T005 [P] Add `"exceptions"` to `packages_to_ignore` in `tasks.py::get_modules_to_document`, so
       `docs-generate` does not fail with `Uncategorized packages under infrahub_sdk/` and `sdk_ref`
       output stays byte-identical.
@@ -427,11 +428,14 @@ and confirm it passes (quickstart scenario 7).
 - [ ] T062 [US5] Add `error_catalogue == 'true'` to the `backend-validate-generated` job trigger in
       `[infrahub] .github/workflows/ci.yml`, so a hand-edit of the catalogue JSON alone cannot slip past.
       This is the only CI edit; no new path filter can match a file inside a submodule.
-- [ ] T063 [US5] Run `uv run invoke backend.generate` from the Infrahub checkout and hand-verify the
+- [X] T063 [US5] Run `uv run invoke backend.generate` from the Infrahub checkout and hand-verify the
       resulting `infrahub_sdk/exceptions/catalogue.py` in the SDK: nine generated classes, three adopted
       imports, fifteen payload models, and no class for the three 401/403 codes.
-- [ ] T064 [US5] Commit the generated `infrahub_sdk/exceptions/catalogue.py` in the SDK repository and
-      extend the façade `infrahub_sdk/exceptions/__init__.py` with `from .catalogue import *`.
+- [X] T064 [US5] Commit the generated `infrahub_sdk/exceptions/catalogue.py` in the SDK repository and
+      re-export its nine exception classes from the façade `infrahub_sdk/exceptions/__init__.py` **by
+      explicit name**. Not `from .catalogue import *`, as this task first said: a wildcard also promotes
+      the payload models, the lookup maps and the dispatch helper onto the package surface, where each
+      name becomes a stability promise the package never chose to make.
 - [ ] T065 [US5] Prove the negative from the Infrahub checkout: add a code to the backend catalogue, run
       `uv run invoke backend.export-error-catalogue` alone, confirm `backend.validate-generated` exits
       non-zero naming the stale artefact, then revert.
@@ -480,8 +484,10 @@ the raised type and the typed attributes, reading no message (quickstart scenari
       a raise path.
 - [X] T074 [US1] Confirm in `infrahub_sdk/exceptions/factory.py` that the fallback follows **the transport
       the SDK observed** and never the code's declared status: the GraphQL branch for anything read from
-      an `errors` array, the authentication branch only for a response the SDK saw as HTTP 401 or 403.
-      This is the only rule under which the three authentication codes reach the right class at all.
+      an `errors` array, the authentication branch for a response the SDK rejected before the query ran.
+      That is usually a 401 or 403, and also a token refresh that failed on any other status, which is
+      why the branch reads the status off the response rather than assuming one. This is the only rule
+      under which the three authentication codes reach the right class at all.
 - [X] T075 [US1] Add a test to `tests/unit/sdk/test_error_catalogue.py` asserting the first error governs
       even when it carries no code and a later one does, and that the complete list is retained unreordered.
 
