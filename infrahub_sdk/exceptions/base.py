@@ -137,6 +137,10 @@ class ApiError(Error):
     http_status: int | None = None
     extensions: dict[str, Any] | None = None
     errors: Sequence[dict[str, Any]] = ()
+    # `None` means the request that failed was not recorded on the exception, not that there was no
+    # query: an authentication failure is observed at the transport, where the class has neither.
+    query: str | None = None
+    variables: dict | None = None
 
 
 def _rebuild_graphql_error(cls: type[GraphQLError], args: tuple[Any, ...], state: dict[str, Any]) -> GraphQLError:
@@ -160,9 +164,6 @@ def graphql_default_message(query: str | None, errors: Any) -> str:
 
 
 class GraphQLError(ApiError):
-    query: str | None = None
-    variables: dict | None = None
-
     def __init__(
         self,
         errors: list[dict[str, Any]],

@@ -126,7 +126,7 @@ inspecting them never needs a guard for a missing attribute:
 | `http_status` | The status the failure declares, or `None`. This is metadata about the failure, not the status the transport observed: a catalogued data error arrives as HTTP 200. Where the envelope declares none, a class that declares its own supplies it - which the generated classes do and the three lookup-miss classes below do not, since they are also raised with no server behind them. |
 | `extensions` | The raw `extensions` mapping of the governing error, or `None`. |
 | `errors` | The complete server error list, in the order the server sent it. Empty for a raise the SDK decided on its own. |
-| `query`, `variables` | The GraphQL query and variables where there was one, otherwise `None`. |
+| `query`, `variables` | The GraphQL query and variables the failed request carried, where the exception recorded them. `None` means the request was not recorded rather than that there was none - an authentication failure is observed at the transport, which has neither to hand. |
 
 The payload's fields are not on the base class. Each catalogued class carries its own, typed as the
 catalogue declares them. `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError` are the

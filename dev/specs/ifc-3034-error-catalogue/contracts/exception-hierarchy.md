@@ -86,11 +86,13 @@ Available on every `ApiError`:
 | the payload's fields | Not on the base. Each catalogued class carries its payload's fields as directly typed attributes — `UniquenessViolationError.node_kind` is a `str`, `.fields` a `list[str]` — typed exactly as the catalogue declares them, so a required field is never optional and needs no guard. The three exceptions are `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError`, whose attributes are optional because those classes are also raised with no catalogue code behind them — a client-side lookup miss, or the REST 404 that has a response but no code; guard on `exc.code is not None` there. The raw payload dict remains in `extensions["data"]` for anything forwarding it verbatim. |
 | `extensions` | The raw `extensions` mapping of the governing error, or `None`. |
 | `errors` | The complete server error list, unreordered — empty for a client-side raise. |
-| `query`, `variables` | The GraphQL query and variables where there was one, otherwise `None`. |
+| `query`, `variables` | The GraphQL query and variables the failed request carried, where the exception recorded them. `None` means the request was not recorded, not that there was none: an authentication failure is observed at the transport, which has neither to hand. |
 
-`errors`, `query`, and `variables` are readable on every `ApiError`, not only on those built from a
-server response. A purely client-side `NodeNotFoundError` has an empty `errors` and `None` for the rest,
-so code that catches `GraphQLError` and inspects them never has to guard for a missing attribute.
+`errors`, `query`, and `variables` are declared on `ApiError` itself, so they are readable on every
+server-reported failure and on a purely client-side raise alike. A client-side `NodeNotFoundError` has
+an empty `errors` and `None` for the rest, and so does an `AuthenticationError`, so neither
+`except GraphQLError` nor the `except ApiError` clause that spans both transports has to guard for a
+missing attribute.
 
 `UNDEFINED_ERROR` is readable on `code` like any other: it means the server explicitly reported a gap
 in its own catalogue, and it is not the same as an error carrying no `extensions`. It is the one code
