@@ -6,7 +6,7 @@ classes `catalogue` generates; the tests in `tests/unit/sdk/test_exceptions_publ
 they drift apart, or if a class defined in `base` is left out of either.
 
 Only `catalogue`'s exception classes are re-exported. Its payload models, its lookup maps and its
-dispatch helper are the factory's business and stay importable from the module itself.
+dispatch helper are internal to the package and stay importable from the module itself.
 
 `__all__` is what `import *` hands a caller: the exception classes and nothing else. Without it the
 wildcard also carries the `base` and `factory` submodule names, which are an artefact of the layout.

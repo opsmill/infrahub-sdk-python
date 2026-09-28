@@ -155,12 +155,7 @@ def _rebuild_graphql_error(cls: type[GraphQLError], args: tuple[Any, ...], state
 
 
 def graphql_default_message(query: str | None, errors: Any) -> str:
-    """The message the GraphQL path produces where the server described nothing better.
-
-    Lives beside the class rather than inside it because a class built from a payload alone carries
-    this text with neither the query nor the errors in it, and the factory has to recognise that and
-    fill in the envelope the class never saw.
-    """
+    """The message the GraphQL path produces where the server described nothing better."""
     return f"An error occurred while executing the GraphQL Query {query}, {errors}"
 
 

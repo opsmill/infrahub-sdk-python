@@ -33,11 +33,6 @@ LOGGER = logging.getLogger("infrahub_sdk")
 # the SDK, which imports it from this module, but it is not part of the published exception surface.
 __all__ = ["authentication_error_from_response", "graphql_error_from_response"]
 
-# What a catalogued class carries when it has built itself from its payload alone: the GraphQL
-# default, naming neither a query nor any errors because `from_payload` is given neither. A class
-# still holding it is one with no sentence of its own, and the factory fills in the real envelope.
-_MESSAGE_OF_AN_UNBUILT_ENVELOPE = graphql_default_message(query=None, errors=[])
-
 
 def _extensions_of(error: Any) -> dict[str, Any] | None:
     if not isinstance(error, dict):
@@ -99,14 +94,10 @@ def _governing_message(errors: Any) -> str:
 
 
 def _named_by_code(code: str, message: str) -> str:
-    """The message for a described failure: the code and the server's message, and no query text.
+    """The message for a described failure: the code and the server's own words, and no query text.
 
-    A described failure is one the server's catalogue has an entry for, so its own words are what the
-    reader needs; the query stays on the exception as an attribute.
-
-    Callers apply this only when the governing error carried a message. A code with nothing beside it
-    is a worse headline than whatever that transport would otherwise have produced, and it is no loss
-    of information: the code is on `exc.code` either way.
+    Callers apply this only where the governing error carried a message, since a bare code is a
+    worse headline than what the transport would otherwise produce. The query stays on `exc.query`.
     """
     return f"{code}: {message}"
 
@@ -154,6 +145,17 @@ def _catalogued_exception(code: str | None, extensions: dict[str, Any] | None) -
     if exception is None:
         LOGGER.debug("These bindings have no class for the catalogue code %s: %r", code, extensions)
     return exception
+
+
+def _has_no_sentence_of_its_own(exc: GraphQLError) -> bool:
+    """Whether the class supplied no message of its own when it built itself from its payload.
+
+    A class that predates the catalogue writes its own sentence; one bound to a code takes the
+    GraphQL default, which names the query and errors it was given - and `from_payload` gives it
+    neither. Asking the instance rather than a fixed string keeps that true if a class ever starts
+    passing them.
+    """
+    return exc.message == graphql_default_message(query=exc.query, errors=exc.errors)
 
 
 def _log_unresolved_code(code: str | None, extensions: dict[str, Any] | None, source: str) -> None:
@@ -205,10 +207,9 @@ def graphql_error_from_response(
     catalogued = _catalogued_exception(code=code, extensions=extensions)
     if catalogued is not None:
         exc: GraphQLError = catalogued
-        # A catalogued class builds itself from its payload alone, so the envelope it came out of is
-        # attached here. Where the failure was not described, a class with a sentence of its own
-        # keeps it and a generated one takes the message this call site has always produced.
-        if message is None and exc.message == _MESSAGE_OF_AN_UNBUILT_ENVELOPE:
+        # An undescribed failure leaves a class with its own sentence holding it, and one without
+        # holding a placeholder that names neither the query nor the errors it was never given.
+        if message is None and _has_no_sentence_of_its_own(exc):
             message = graphql_default_message(query=query, errors=errors)
         if message is not None:
             _replace_message(exc, message)
@@ -221,8 +222,8 @@ def graphql_error_from_response(
     exc.code = code
     declared_status = _declared_http_status(extensions)
     if declared_status is not None:
-        # Assigned only when the envelope declared one, so a generated class keeps the status the
-        # catalogue gave it rather than losing it to an envelope that omitted it.
+        # Conditional so a class that declares the catalogue's status keeps it where the envelope
+        # omitted one.
         exc.http_status = declared_status
     exc.extensions = extensions
     _log_unresolved_code(code=code, extensions=extensions, source="GraphQL")
@@ -242,12 +243,9 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     the GraphQL path: only the error the code came from may be named beside it, and the complete list
     stays on `exc.errors`.
 
-    No code is resolved to a class here. This branch is reached because the SDK observed the response
-    as an authentication failure, and every catalogued class descends from `GraphQLError`, so raising
-    one would put a failure that arrived on this transport out of reach of `except
-    AuthenticationError`. The three authentication codes have no class of their own for the same
-    reason - each of them can arrive either way - and they reach the right class only because both
-    branches follow the transport rather than the status the code declares.
+    No code is resolved to a class here. Every catalogued class descends from `GraphQLError`, so
+    raising one for a response the SDK observed as an authentication failure would put it out of
+    reach of `except AuthenticationError`.
     """
     errors: Any = []
     message = f"HTTP {response.status_code}"

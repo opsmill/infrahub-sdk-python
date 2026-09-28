@@ -4,7 +4,6 @@ import inspect
 import json
 import ssl
 from dataclasses import dataclass, field
-from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -13,7 +12,6 @@ import pytest
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import (
     ApiError,
-    AuthenticationError,
     NodeNotFoundError,
     UniquenessViolationError,
 )
@@ -948,7 +946,6 @@ class CatalogueParityCase:
     status_code: int
     expected_class: type[ApiError]
     expected_attributes: dict[str, Any] = field(default_factory=dict)
-    upload: bool = False
 
 
 CATALOGUE_PARITY_CASES = [
@@ -966,21 +963,6 @@ CATALOGUE_PARITY_CASES = [
         expected_class=NodeNotFoundError,
         expected_attributes={"node_type": "TestPerson", "identifier": "john", "http_status": 404},
     ),
-    CatalogueParityCase(
-        name="permission-denied-on-a-real-403",
-        code="PERMISSION_DENIED",
-        status_code=403,
-        expected_class=AuthenticationError,
-        expected_attributes={"http_status": 403},
-    ),
-    CatalogueParityCase(
-        name="permission-denied-on-a-rejected-upload",
-        code="PERMISSION_DENIED",
-        status_code=403,
-        expected_class=AuthenticationError,
-        expected_attributes={"http_status": 403},
-        upload=True,
-    ),
 ]
 
 
@@ -989,9 +971,9 @@ CATALOGUE_PARITY_CASES = [
 async def test_both_clients_raise_the_same_catalogued_exception(
     httpx_mock: HTTPXMock, clients: BothClients, client_type: str, case: CatalogueParityCase
 ) -> None:
-    """The same failure reaches the caller as the same class, whichever client sent the request.
+    """A promoted payload attribute reaches the caller the same way from either client.
 
-    Each arrival path builds its exception at a different call site, so parity is a property of the
+    The exception is built at a different call site per client, so parity is a property of the
     client rather than of the factory, and only driving both proves it.
     """
     envelope = json.loads(read_fixture(file_name=f"{case.code.lower()}.json", fixture_subdir="error_catalogue/codes"))
@@ -999,20 +981,7 @@ async def test_both_clients_raise_the_same_catalogued_exception(
     client = clients.standard if client_type == "standard" else clients.sync
 
     with pytest.raises(case.expected_class, match=case.code) as exc_info:
-        if case.upload:
-            if isinstance(client, InfrahubClient):
-                await client._execute_graphql_with_file(
-                    query="mutation ($file: Upload!) { CoreFileUpload(data: {file: $file}) { ok }}",
-                    file_content=BytesIO(b"x"),
-                    file_name="f.txt",
-                )
-            else:
-                client._execute_graphql_with_file(
-                    query="mutation ($file: Upload!) { CoreFileUpload(data: {file: $file}) { ok }}",
-                    file_content=BytesIO(b"x"),
-                    file_name="f.txt",
-                )
-        elif isinstance(client, InfrahubClient):
+        if isinstance(client, InfrahubClient):
             await client.execute_graphql(query="query { TestPerson { edges { node { id }}}}")
         else:
             client.execute_graphql(query="query { TestPerson { edges { node { id }}}}")

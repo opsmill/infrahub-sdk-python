@@ -246,16 +246,6 @@ class TestEveryCatalogueCode:
             assert getattr(exc, attribute) == value
 
     @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
-    def test_the_code_is_identifiable_without_reading_a_message(self, case: CodeCase) -> None:
-        """A class of its own, or a code on the generic class: either way, no words are parsed."""
-        envelope = load_code_envelope(case.name)
-
-        exc = graphql_error_from_response(errors=envelope["errors"])
-
-        assert isinstance(exc, GraphQLError)
-        assert exc.code == case.name
-
-    @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
     def test_the_raw_payload_stays_available_for_forwarding(self, case: CodeCase) -> None:
         envelope = load_code_envelope(case.name)
 
@@ -314,37 +304,10 @@ class TestARaisedExceptionSurvivesSerialisation:
 class TestTheAdoptedClasses:
     """The three classes that predate the catalogue, now reachable from a server-reported failure.
 
-    They are the only catalogued classes that are also raised with no code behind them, so `code` is
-    what tells the two apart - and their attributes keep the names they have always had.
+    That a server-reported one reaches the class with its payload promoted is covered per code by
+    the table above. What is only true of these three is the other direction: they are also raised
+    with no code behind them, and `code` is what tells a caller which they are holding.
     """
-
-    def test_a_server_reported_node_not_found_populates_the_node_attributes(self) -> None:
-        envelope = load_code_envelope("NODE_NOT_FOUND")
-
-        exc = graphql_error_from_response(errors=envelope["errors"])
-
-        assert isinstance(exc, NodeNotFoundError)
-        assert exc.node_type == "TestPerson"
-        assert exc.identifier == "john"
-        assert exc.code == "NODE_NOT_FOUND"
-
-    def test_a_server_reported_branch_not_found_populates_the_identifier(self) -> None:
-        envelope = load_code_envelope("BRANCH_NOT_FOUND")
-
-        exc = graphql_error_from_response(errors=envelope["errors"])
-
-        assert isinstance(exc, BranchNotFoundError)
-        assert exc.identifier == "does-not-exist"
-        assert exc.code == "BRANCH_NOT_FOUND"
-
-    def test_a_server_reported_schema_not_found_populates_the_identifier(self) -> None:
-        envelope = load_code_envelope("SCHEMA_NOT_FOUND")
-
-        exc = graphql_error_from_response(errors=envelope["errors"])
-
-        assert isinstance(exc, SchemaNotFoundError)
-        assert exc.identifier == "TestWidget"
-        assert exc.code == "SCHEMA_NOT_FOUND"
 
     def test_a_client_side_raise_of_the_same_class_carries_no_code(self) -> None:
         """`exc.code is not None` is the test for which of the two a caller is holding."""

@@ -57,7 +57,7 @@ def test_the_facade_lists_every_class_base_and_catalogue_declare() -> None:
 def test_the_facade_re_exports_no_catalogue_payload_model_or_lookup() -> None:
     """Only the classes a caller catches are promoted to the package surface.
 
-    The payload models, the two lookup maps and the dispatch helper are the factory's business, so
+    The payload models, the two lookup maps and the dispatch helper are internal to the package, so
     they stay importable from `catalogue` rather than becoming a stability promise of the package.
     """
     non_classes = set(catalogue.__all__) - catalogue_exception_names()
