@@ -71,9 +71,11 @@ and pin that invisibility before touching anything.
 - [X] T005 [P] Add `"exceptions"` to `packages_to_ignore` in `tasks.py::get_modules_to_document`, so
       `docs-generate` does not fail with `Uncategorized packages under infrahub_sdk/` and `sdk_ref`
       output stays byte-identical.
-- [X] T006 [P] Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
+- [X] T006 [P] ~~Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
       `pyproject.toml` silencing `F403`/`F405`, with a comment giving the reason, mirroring the existing
-      `infrahub_sdk/schema/generated/*.py` entry.
+      `infrahub_sdk/schema/generated/*.py` entry.~~ **Superseded by T004 and T064**: the façade
+      re-exports by explicit name, so no `F403`/`F405` arises and no entry was added. `pyproject.toml`
+      carries only the `catalogue` marker this feature registers.
 - [X] T007 Run `uv run pytest tests/unit/ -q` and `uv run invoke format lint-code docs-generate docs-validate`
       to confirm the restructure is invisible from outside the package.
 
