@@ -9,19 +9,20 @@ raises anyway, never to a decode error or a TypeError originating in the SDK.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
+
+from pydantic import ValidationError as PayloadValidationError
 
 from .base import (
     AuthenticationError,
-    BranchNotFoundError,
     Error,
     GraphQLError,
-    NodeNotFoundError,
-    SchemaNotFoundError,
     as_error_list,
     code_names_the_failure,
+    graphql_default_message,
 )
+from .catalogue import exception_from_payload
 
 if TYPE_CHECKING:
     import httpx
@@ -93,14 +94,10 @@ def _governing_message(errors: Any) -> str:
 
 
 def _named_by_code(code: str, message: str) -> str:
-    """The message for a described failure: the code and the server's message, and no query text.
+    """The message for a described failure: the code and the server's own words, and no query text.
 
-    A described failure is one the server's catalogue has an entry for, so its own words are what the
-    reader needs; the query stays on the exception as an attribute.
-
-    Callers apply this only when the governing error carried a message. A code with nothing beside it
-    is a worse headline than whatever that transport would otherwise have produced, and it is no loss
-    of information: the code is on `exc.code` either way.
+    Callers apply this only where the governing error carried a message, since a bare code is a
+    worse headline than what the transport would otherwise produce. The query stays on `exc.query`.
     """
     return f"{code}: {message}"
 
@@ -115,81 +112,60 @@ def _replace_message(exc: Error, message: str) -> None:
     exc.args = (message,)
 
 
-@dataclass
-class _NodeNotFoundData:
-    """Stands in for the generated payload model, which the SDK does not carry yet.
+def _payload_of(extensions: dict[str, Any] | None) -> Mapping[str, Any]:
+    """The governing error's payload, or an empty one where the envelope carried none.
 
-    Plain rather than frozen, because the payload protocols declare settable attributes: the shape
-    the generated pydantic models will have.
+    An absent payload is not the same as a malformed one: a code whose fields are all optional still
+    resolves to its class, while one with required fields fails the validation below and falls back.
     """
-
-    node_kind: str
-    identifier: str
-
-
-@dataclass
-class _BranchNotFoundData:
-    branch_name: str
+    data = extensions.get("data") if extensions is not None else None
+    return data if isinstance(data, Mapping) else {}
 
 
-@dataclass
-class _SchemaNotFoundData:
-    kind: str
+def _catalogued_exception(code: str | None, extensions: dict[str, Any] | None) -> GraphQLError | None:
+    """The class the catalogue binds `code` to, built from the payload the envelope carries.
 
+    Resolution and validation both belong to the generated bindings: each code's payload is validated
+    against its own model and handed to that class's `from_payload`, so the factory never assembles
+    an attribute itself and never has to widen a payload type to reach a constructor.
 
-def _payload_strings(data: Any, names: tuple[str, ...]) -> dict[str, str] | None:
-    """The named payload fields, when every one of them is present as a string.
-
-    A payload that violates the catalogue's own contract yields `None` so the caller falls back to
-    the generic class, rather than a TypeError raised from inside the SDK while the caller is
-    already failing.
-    """
-    if not isinstance(data, dict):
-        return None
-    values = {name: data.get(name) for name in names}
-    if any(not isinstance(value, str) for value in values.values()):
-        return None
-    return {name: value for name, value in values.items() if isinstance(value, str)}
-
-
-def _adopted_exception(code: str | None, extensions: dict[str, Any] | None) -> GraphQLError | None:
-    """The class that adopted `code`, built from the payload the envelope carries.
-
-    Only the three codes the SDK already ships a class for are resolved here, and each class maps the
-    payload itself through its own `from_payload`. Every other code raises the generic class for the
-    transport with the code readable on `exc.code`; turning the rest into classes of their own is
-    what the generated bindings buy.
-
-    `None` means no class was resolved, whether because the code has none or because its payload did
-    not carry the fields the class needs.
+    `None` means no class was resolved - the code has none, or its payload violates what the
+    catalogue declares for it - and the caller then raises the generic class for the transport it
+    observed, with the code still readable.
     """
     if code is None:
         return None
-    data = extensions.get("data") if extensions is not None else None
-
-    if code == NodeNotFoundError.CODE:
-        node = _payload_strings(data=data, names=("node_kind", "identifier"))
-        if node is not None:
-            payload = _NodeNotFoundData(node_kind=node["node_kind"], identifier=node["identifier"])
-            return NodeNotFoundError.from_payload(payload=payload)
-    elif code == BranchNotFoundError.CODE:
-        branch = _payload_strings(data=data, names=("branch_name",))
-        if branch is not None:
-            return BranchNotFoundError.from_payload(payload=_BranchNotFoundData(branch_name=branch["branch_name"]))
-    elif code == SchemaNotFoundError.CODE:
-        schema = _payload_strings(data=data, names=("kind",))
-        if schema is not None:
-            return SchemaNotFoundError.from_payload(payload=_SchemaNotFoundData(kind=schema["kind"]))
-    else:
+    try:
+        exception = exception_from_payload(code=code, data=_payload_of(extensions))
+    except PayloadValidationError:
+        # The caller is already failing, so a validation error from inside the SDK would replace the
+        # server's reason with one of the SDK's own.
+        LOGGER.debug("Payload for %s does not match what the catalogue declares: %r", code, extensions, exc_info=True)
         return None
+    if exception is None:
+        LOGGER.debug("These bindings have no class for the catalogue code %s: %r", code, extensions)
+    return exception
 
-    LOGGER.debug("Payload for %s does not carry the fields its class needs: %r", code, data)
-    return None
+
+def _has_no_sentence_of_its_own(exc: GraphQLError) -> bool:
+    """Whether the class supplied no message of its own when it built itself from its payload.
+
+    A class that predates the catalogue writes its own sentence; one bound to a code takes the
+    GraphQL default, which names the query and errors it was given - and `from_payload` gives it
+    neither. Asking the instance rather than a fixed string keeps that true if a class ever starts
+    passing them.
+    """
+    return exc.message == graphql_default_message(query=exc.query, errors=exc.errors)
 
 
-def _log_unresolved_code(extensions: dict[str, Any] | None, source: str) -> None:
-    if extensions is not None and _catalogue_code(extensions) is None:
-        LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions.get("code"))
+def _log_unresolved_code(code: str | None, extensions: dict[str, Any] | None, source: str) -> None:
+    """Record a response the SDK read no catalogue code from, whatever the reason.
+
+    The whole `extensions` mapping is logged rather than its `code` alone, since the commonest shapes
+    here carry no `code` at all and the rest of the mapping is what identifies the server.
+    """
+    if code is None:
+        LOGGER.debug("No catalogue code resolved from %s error extensions: %r", source, extensions)
 
 
 def token_expired_in(errors: Any) -> bool:
@@ -215,20 +191,26 @@ def graphql_error_from_response(
     """Build the exception for an `errors` array returned on the GraphQL path.
 
     `errors` is raw decoded JSON, so it is read defensively. The complete list is retained
-    unreordered. A code the SDK has adopted a class for raises that class; every other failure raises
+    unreordered. A code the catalogue binds to a class raises that class; every other failure raises
     `GraphQLError`, and one the server's catalogue could not describe keeps the message this call site
     has always produced, query text included.
+
+    This is the GraphQL branch, so its fallback is `GraphQLError` whatever status the code declares.
+    A code that reaches an `errors` array was read off this transport, and a declared 401 does not
+    make it an authentication failure the SDK observed.
     """
     extensions = _first_extensions(errors)
     code = _catalogue_code(extensions)
     governing = _governing_message(errors)
     message = _named_by_code(code, governing) if code_names_the_failure(code) and governing else None
 
-    adopted = _adopted_exception(code=code, extensions=extensions)
-    if adopted is not None:
-        exc: GraphQLError = adopted
-        # An adopted class builds itself from its payload alone, so the envelope it came out of is
-        # attached here. A silent governing error leaves `message` None, and the class its own text.
+    catalogued = _catalogued_exception(code=code, extensions=extensions)
+    if catalogued is not None:
+        exc: GraphQLError = catalogued
+        # An undescribed failure leaves a class with its own sentence holding it, and one without
+        # holding a placeholder that names neither the query nor the errors it was never given.
+        if message is None and _has_no_sentence_of_its_own(exc):
+            message = graphql_default_message(query=query, errors=errors)
         if message is not None:
             _replace_message(exc, message)
         exc.query = query
@@ -238,9 +220,13 @@ def graphql_error_from_response(
 
     exc.errors = as_error_list(errors)
     exc.code = code
-    exc.http_status = _declared_http_status(extensions)
+    declared_status = _declared_http_status(extensions)
+    if declared_status is not None:
+        # Conditional so a class that declares the catalogue's status keeps it where the envelope
+        # omitted one.
+        exc.http_status = declared_status
     exc.extensions = extensions
-    _log_unresolved_code(extensions=extensions, source="GraphQL")
+    _log_unresolved_code(code=code, extensions=extensions, source="GraphQL")
     return exc
 
 
@@ -256,6 +242,10 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     A described failure names its code and the governing error's message instead, on the same rule as
     the GraphQL path: only the error the code came from may be named beside it, and the complete list
     stays on `exc.errors`.
+
+    No code is resolved to a class here. Every catalogued class descends from `GraphQLError`, so
+    raising one for a response the SDK observed as an authentication failure would put it out of
+    reach of `except AuthenticationError`.
     """
     errors: Any = []
     message = f"HTTP {response.status_code}"
@@ -288,5 +278,5 @@ def authentication_error_from_response(response: httpx.Response) -> Authenticati
     exc.http_status = _declared_http_status(extensions)
     exc.extensions = extensions
     exc.errors = as_error_list(errors)
-    _log_unresolved_code(extensions=extensions, source="authentication")
+    _log_unresolved_code(code=code, extensions=extensions, source="authentication")
     return exc

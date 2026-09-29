@@ -1,0 +1,24 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Branch: feature-a must be rebased before it accepts new changes.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "BRANCH_NEEDS_REBASE",
+        "http_status": 400,
+        "data": {
+          "branch_name": "feature-a"
+        }
+      }
+    }
+  ]
+}

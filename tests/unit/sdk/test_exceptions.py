@@ -188,6 +188,23 @@ class TestTheEnvelopeIsReadableOnAClientSideRaise:
         assert exc.errors == []
         assert isinstance(exc.errors, list)
 
+    def test_the_request_attributes_are_readable_on_an_authentication_failure(self) -> None:
+        """`except ApiError` is the clause that spans both transports, so it may read all of these.
+
+        An authentication failure is observed at the transport, which has no query to record, so the
+        attributes are empty rather than absent.
+        """
+        exc = AuthenticationError("boom")
+
+        assert exc.query is None
+        assert exc.variables is None
+        assert exc.errors == ()
+
+    @pytest.mark.parametrize("attribute", ["code", "http_status", "extensions", "errors", "query", "variables"])
+    def test_every_envelope_attribute_is_declared_on_the_shared_base(self, attribute: str) -> None:
+        """Declared on `ApiError` itself, so neither transport's class can drift out of step."""
+        assert hasattr(ApiError, attribute)
+
 
 class TestTheBroadening:
     def test_except_graphql_error_now_catches_a_client_side_lookup_miss(self) -> None:

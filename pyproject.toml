@@ -137,6 +137,7 @@ filterwarnings = [
     "ignore:Deprecated call to",
 ]
 markers = [
+    "catalogue: Drives a catalogued failure through a real server, proving the envelope shape",
     "crossversion: Parses an envelope from a server whose version differs from the SDK's",
     "malformed: Parses an envelope that violates the shape the SDK expects",
     "message: Pins an exception's message text, in either the catalogued or the uncatalogued direction",

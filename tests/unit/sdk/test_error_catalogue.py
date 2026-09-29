@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import pickle  # noqa: S403
 from dataclasses import dataclass
 from io import BytesIO
 from typing import TYPE_CHECKING, Any
@@ -12,23 +14,51 @@ import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.exceptions import (
+    AttributeConstraintViolationError,
+    AttributeInvalidTypeError,
+    AttributeRequiredError,
     AuthenticationError,
+    BranchAlreadyMergedError,
+    BranchNeedsRebaseError,
+    BranchNotFoundError,
     GraphQLError,
+    MergeInProgressError,
+    MergeRecoveryRequiredError,
+    NodeNotFoundError,
+    SchemaNotFoundError,
+    UndefinedError,
+    UniquenessViolationError,
     authentication_error_from_response,
     graphql_error_from_response,
 )
+from infrahub_sdk.exceptions.catalogue import CODE_TO_DATA_MODEL
 from tests.helpers.fixtures import read_fixture
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpx import HTTPXMock
 
     from tests.unit.sdk.conftest import BothClients
 
 FIXTURE_SUBDIR = "error_catalogue"
+CODES_FIXTURE_SUBDIR = f"{FIXTURE_SUBDIR}/codes"
+
+# The three codes that reach the SDK on either transport, so neither transport's class can be theirs.
+CODES_WITHOUT_A_CLASS = {"AUTHENTICATION_REQUIRED", "PERMISSION_DENIED", "TOKEN_EXPIRED"}
 
 
 def load_envelope(name: str) -> dict[str, Any]:
     return json.loads(read_fixture(file_name=name, fixture_subdir=FIXTURE_SUBDIR))
+
+
+def load_code_envelope(code: str) -> dict[str, Any]:
+    """The captured response for one catalogue code.
+
+    Addressed by code rather than by listing the directory, so a code whose fixture is missing fails
+    here instead of quietly dropping out of the parametrisation that is supposed to be exhaustive.
+    """
+    return json.loads(read_fixture(file_name=f"{code.lower()}.json", fixture_subdir=CODES_FIXTURE_SUBDIR))
 
 
 def auth_response(envelope: dict[str, Any] | str, status_code: int = 401) -> httpx.Response:
@@ -78,6 +108,326 @@ class TestGraphQLFactory:
 
         assert exc.query == "query { x }"
         assert exc.variables == {"a": 1}
+
+
+@dataclass
+class CodeCase:
+    name: str
+    expected_class: type[GraphQLError]
+    expected_http_status: int
+    expected_attributes: dict[str, Any]
+
+
+CODE_CASES = [
+    CodeCase(
+        name="ATTRIBUTE_CONSTRAINT_VIOLATION",
+        expected_class=AttributeConstraintViolationError,
+        expected_http_status=422,
+        expected_attributes={
+            "node_kind": "TestPerson",
+            "field_name": "name",
+            "constraint": "regex",
+            "detail": "^[A-Z]",
+        },
+    ),
+    CodeCase(
+        name="ATTRIBUTE_INVALID_TYPE",
+        expected_class=AttributeInvalidTypeError,
+        expected_http_status=422,
+        expected_attributes={
+            "node_kind": "TestPerson",
+            "field_name": "height",
+            "expected_type": "Integer",
+            "received_type": "String",
+        },
+    ),
+    CodeCase(
+        name="ATTRIBUTE_REQUIRED",
+        expected_class=AttributeRequiredError,
+        expected_http_status=422,
+        expected_attributes={"node_kind": "TestPerson", "field_name": "name"},
+    ),
+    CodeCase(
+        name="AUTHENTICATION_REQUIRED",
+        expected_class=GraphQLError,
+        expected_http_status=401,
+        expected_attributes={},
+    ),
+    CodeCase(
+        name="BRANCH_ALREADY_MERGED",
+        expected_class=BranchAlreadyMergedError,
+        expected_http_status=400,
+        expected_attributes={"branch_name": "feature-a"},
+    ),
+    CodeCase(
+        name="BRANCH_NEEDS_REBASE",
+        expected_class=BranchNeedsRebaseError,
+        expected_http_status=400,
+        expected_attributes={"branch_name": "feature-a"},
+    ),
+    CodeCase(
+        name="BRANCH_NOT_FOUND",
+        expected_class=BranchNotFoundError,
+        expected_http_status=400,
+        expected_attributes={"identifier": "does-not-exist"},
+    ),
+    CodeCase(
+        name="MERGE_IN_PROGRESS",
+        expected_class=MergeInProgressError,
+        expected_http_status=423,
+        expected_attributes={"branch_name": "main", "merging_branch": "feature-a"},
+    ),
+    CodeCase(
+        name="MERGE_RECOVERY_REQUIRED",
+        expected_class=MergeRecoveryRequiredError,
+        expected_http_status=423,
+        expected_attributes={"branch_name": "main", "merging_branch": "feature-a"},
+    ),
+    CodeCase(
+        name="NODE_NOT_FOUND",
+        expected_class=NodeNotFoundError,
+        expected_http_status=404,
+        expected_attributes={"node_type": "TestPerson", "identifier": "john"},
+    ),
+    CodeCase(
+        name="PERMISSION_DENIED",
+        expected_class=GraphQLError,
+        expected_http_status=403,
+        expected_attributes={},
+    ),
+    CodeCase(
+        name="SCHEMA_NOT_FOUND",
+        expected_class=SchemaNotFoundError,
+        expected_http_status=422,
+        expected_attributes={"identifier": "TestWidget"},
+    ),
+    CodeCase(
+        name="TOKEN_EXPIRED",
+        expected_class=GraphQLError,
+        expected_http_status=401,
+        expected_attributes={},
+    ),
+    CodeCase(
+        name="UNDEFINED_ERROR",
+        expected_class=UndefinedError,
+        expected_http_status=500,
+        expected_attributes={},
+    ),
+    CodeCase(
+        name="UNIQUENESS_VIOLATION",
+        expected_class=UniquenessViolationError,
+        expected_http_status=422,
+        expected_attributes={"node_kind": "TestPerson", "fields": ["name"]},
+    ),
+]
+
+
+class TestEveryCatalogueCode:
+    """One case per code, reading the raised class and its attributes and never a message."""
+
+    def test_the_cases_cover_every_code_the_bindings_carry(self) -> None:
+        """Exhaustive only if it is checked against the bindings rather than maintained by hand."""
+        assert {case.name for case in CODE_CASES} == set(CODE_TO_DATA_MODEL)
+
+    def test_the_codes_with_no_class_of_their_own_are_the_authentication_ones(self) -> None:
+        """The one asymmetry in the hierarchy, and the reason the fallback follows the transport."""
+        assert {case.name for case in CODE_CASES if case.expected_class is GraphQLError} == CODES_WITHOUT_A_CLASS
+
+    @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
+    def test_the_code_raises_its_class_with_its_payload_promoted(self, case: CodeCase) -> None:
+        envelope = load_code_envelope(case.name)
+
+        exc = graphql_error_from_response(errors=envelope["errors"], query="query { x }")
+
+        assert type(exc) is case.expected_class
+        assert exc.code == case.name
+        assert exc.http_status == case.expected_http_status
+        for attribute, value in case.expected_attributes.items():
+            assert getattr(exc, attribute) == value
+
+    @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
+    def test_the_raw_payload_stays_available_for_forwarding(self, case: CodeCase) -> None:
+        envelope = load_code_envelope(case.name)
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert exc.extensions is not None
+        assert exc.extensions["data"] == envelope["errors"][0]["extensions"]["data"]
+
+
+ROUND_TRIPS = {
+    "pickle": lambda exc: pickle.loads(pickle.dumps(exc)),  # noqa: S301
+    "deepcopy": copy.deepcopy,
+}
+
+
+class TestARaisedExceptionSurvivesSerialisation:
+    """A raised exception crosses process boundaries: a task queue, a parallel test runner.
+
+    The catalogued classes take their payload fields as required keyword arguments, which is the
+    shape that lets a caller read one without a guard - and the shape the default reconstruction
+    cannot replay, since it calls the class with the message as a lone positional argument.
+    """
+
+    @pytest.mark.parametrize("round_trip", [pytest.param(fn, id=name) for name, fn in ROUND_TRIPS.items()])
+    @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CODE_CASES])
+    def test_the_whole_exception_comes_back(self, case: CodeCase, round_trip: Callable[[Any], Any]) -> None:
+        envelope = load_code_envelope(case.name)
+        exc = graphql_error_from_response(errors=envelope["errors"], query="query { x }", variables={"a": 1})
+
+        restored = round_trip(exc)
+
+        assert type(restored) is case.expected_class
+        assert str(restored) == str(exc)
+        assert restored.code == exc.code
+        assert restored.http_status == exc.http_status
+        assert restored.errors == exc.errors
+        assert restored.extensions == exc.extensions
+        assert restored.query == exc.query
+        assert restored.variables == exc.variables
+        for attribute, value in case.expected_attributes.items():
+            assert getattr(restored, attribute) == value
+
+    def test_a_restored_exception_is_still_caught_by_its_own_clause(self) -> None:
+        """Reconstructing the type is only worth anything if the `except` ladder still sees it."""
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        exc = graphql_error_from_response(errors=envelope["errors"])
+        restored = pickle.loads(pickle.dumps(exc))  # noqa: S301
+
+        with pytest.raises(UniquenessViolationError, match="UNIQUENESS_VIOLATION") as exc_info:
+            raise restored
+
+        assert exc_info.value.node_kind == "TestPerson"
+        assert exc_info.value.fields == ["name"]
+
+
+class TestTheAdoptedClasses:
+    """The three classes that predate the catalogue, now reachable from a server-reported failure.
+
+    That a server-reported one reaches the class with its payload promoted is covered per code by
+    the table above. What is only true of these three is the other direction: they are also raised
+    with no code behind them, and `code` is what tells a caller which they are holding.
+    """
+
+    def test_a_client_side_raise_of_the_same_class_carries_no_code(self) -> None:
+        """`exc.code is not None` is the test for which of the two a caller is holding."""
+        assert NodeNotFoundError(identifier="john", node_type="TestPerson").code is None
+        assert BranchNotFoundError(identifier="does-not-exist").code is None
+        assert SchemaNotFoundError(identifier="TestWidget").code is None
+
+
+class TestTheFirstErrorGoverns:
+    def test_a_silent_first_error_governs_over_a_later_coded_one(self) -> None:
+        """Otherwise a response's class would depend on which error the SDK happens to recognise."""
+        errors = [
+            {"message": "the failure that came first"},
+            {
+                "message": "and one the catalogue describes",
+                "extensions": {
+                    "code": "UNIQUENESS_VIOLATION",
+                    "http_status": 422,
+                    "data": {"node_kind": "TestPerson", "fields": ["name"]},
+                },
+            },
+        ]
+
+        exc = graphql_error_from_response(errors=errors, query="mutation { TestPersonCreate }")
+
+        assert type(exc) is GraphQLError
+        assert exc.code is None
+        assert exc.http_status is None
+
+    def test_the_complete_list_is_retained_unreordered(self) -> None:
+        errors = [
+            {"message": "the failure that came first"},
+            {
+                "message": "and one the catalogue describes",
+                "extensions": {
+                    "code": "UNIQUENESS_VIOLATION",
+                    "http_status": 422,
+                    "data": {"node_kind": "TestPerson", "fields": ["name"]},
+                },
+            },
+        ]
+
+        exc = graphql_error_from_response(errors=errors)
+
+        assert [error["message"] for error in exc.errors] == [
+            "the failure that came first",
+            "and one the catalogue describes",
+        ]
+
+
+class TestTheDeclaredStatus:
+    """Where `http_status` comes from when the envelope and the class disagree, or one is silent.
+
+    Every captured envelope declares the status its code's class already carries, so these drive the
+    shapes that tell the two sources apart.
+    """
+
+    def test_a_generated_class_keeps_its_catalogue_status_when_the_envelope_omits_one(self) -> None:
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        del envelope["errors"][0]["extensions"]["http_status"]
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, UniquenessViolationError)
+        assert exc.http_status == 422, "the class declares the catalogue's status, so there is one to keep"
+
+    def test_the_envelope_status_wins_over_the_one_the_class_declares(self) -> None:
+        """The server substitutes its own where its catalogue could not resolve a specific status."""
+        envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+        envelope["errors"][0]["extensions"]["http_status"] = 409
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, UniquenessViolationError)
+        assert exc.http_status == 409
+
+    def test_an_adopted_class_has_no_status_of_its_own_to_fall_back_on(self) -> None:
+        """The three pre-catalogue classes declare none, because they are also raised without one."""
+        envelope = load_code_envelope("NODE_NOT_FOUND")
+        del envelope["errors"][0]["extensions"]["http_status"]
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert isinstance(exc, NodeNotFoundError)
+        assert exc.http_status is None
+
+    def test_the_generic_class_reports_no_status_where_the_envelope_declared_none(self) -> None:
+        exc = graphql_error_from_response(errors=[{"message": "boom", "extensions": {"code": "NOT_A_KNOWN_CODE"}}])
+
+        assert type(exc) is GraphQLError
+        assert exc.http_status is None
+
+
+class TestTheFallbackFollowsTheObservedTransport:
+    """Which generic class a code falls back to is decided by how the SDK saw it arrive.
+
+    Following the status the catalogue declares instead would send the three authentication codes to
+    `AuthenticationError` whenever a resolver raised them inside an HTTP 200, out of reach of the
+    `except GraphQLError` clause that catches them today - and send a 401 carrying a data code to a
+    class no caller of that path expects.
+    """
+
+    @pytest.mark.parametrize("code", sorted(CODES_WITHOUT_A_CLASS))
+    def test_an_authentication_code_inside_a_graphql_response_raises_the_graphql_class(self, code: str) -> None:
+        envelope = load_code_envelope(code)
+
+        exc = graphql_error_from_response(errors=envelope["errors"])
+
+        assert type(exc) is GraphQLError, "the declared 401 or 403 is metadata, not the transport"
+        assert not isinstance(exc, AuthenticationError)
+        assert exc.code == code
+
+    def test_a_data_code_on_a_real_401_raises_the_authentication_class(self) -> None:
+        response = auth_response(envelope=load_code_envelope("NODE_NOT_FOUND"))
+
+        exc = authentication_error_from_response(response=response)
+
+        assert type(exc) is AuthenticationError, "a class the caller of this path cannot expect is worse than none"
+        assert exc.code == "NODE_NOT_FOUND"
+        assert exc.http_status == 404, "the declared status is still readable, it just governs nothing"
 
 
 class TestAuthenticationFactory:
@@ -250,6 +600,7 @@ class CrossVersionCase:
     fixture: str
     expected_code: str | None
     expected_http_status: int | None = None
+    expected_class: type[GraphQLError] = GraphQLError
 
 
 CROSS_VERSION_CASES = [
@@ -264,6 +615,7 @@ CROSS_VERSION_CASES = [
         fixture="graphql_extra_payload_field.json",
         expected_code="UNIQUENESS_VIOLATION",
         expected_http_status=422,
+        expected_class=UniquenessViolationError,
     ),
     CrossVersionCase(
         name="error-carrying-no-extensions",
@@ -280,13 +632,17 @@ CROSS_VERSION_CASES = [
 
 @pytest.mark.crossversion
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CROSS_VERSION_CASES])
-def test_cross_version_envelope_parses_onto_the_generic_class(case: CrossVersionCase) -> None:
-    """Any SDK version talks to any server version, and parsing never raises."""
+def test_a_cross_version_envelope_parses_without_raising(case: CrossVersionCase) -> None:
+    """Any SDK version talks to any server version, and parsing never raises.
+
+    A code these bindings have a class for still reaches it here: gaining a field it has never heard
+    of changes nothing, which is the forward compatibility the payload models are for.
+    """
     envelope = load_envelope(case.fixture)
 
     exc = graphql_error_from_response(errors=envelope["errors"], query="query { x }")
 
-    assert type(exc) is GraphQLError
+    assert type(exc) is case.expected_class
     assert exc.code == case.expected_code
     assert exc.http_status == case.expected_http_status
 
@@ -474,6 +830,52 @@ def test_cross_version_fallback_is_logged_at_debug_level(caplog: pytest.LogCaptu
         graphql_error_from_response(errors=envelope["errors"])
 
     assert any("No catalogue code resolved" in record.getMessage() for record in caplog.records)
+
+
+@dataclass
+class FallbackLogCase:
+    name: str
+    errors: list[dict[str, Any]]
+    expected_fragment: str
+
+
+FALLBACK_LOG_CASES = [
+    FallbackLogCase(
+        name="a-code-these-bindings-have-no-class-for",
+        errors=[{"message": "boom", "extensions": {"code": "SOMETHING_WE_HAVE_NEVER_HEARD_OF", "http_status": 418}}],
+        expected_fragment="have no class for the catalogue code SOMETHING_WE_HAVE_NEVER_HEARD_OF",
+    ),
+    FallbackLogCase(
+        name="an-error-carrying-no-extensions",
+        errors=[{"message": "boom"}],
+        expected_fragment="No catalogue code resolved",
+    ),
+    FallbackLogCase(
+        name="a-payload-the-catalogue-does-not-declare",
+        errors=[{"message": "boom", "extensions": {"code": "UNIQUENESS_VIOLATION", "data": {"fields": "not-a-list"}}}],
+        expected_fragment="does not match what the catalogue declares",
+    ),
+]
+
+
+@pytest.mark.crossversion
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in FALLBACK_LOG_CASES])
+def test_every_fallback_is_logged_at_debug_level(case: FallbackLogCase, caplog: pytest.LogCaptureFixture) -> None:
+    """An SDK meeting a newer server has to be diagnosable from a log, not only from a debugger."""
+    with caplog.at_level("DEBUG", logger="infrahub_sdk"):
+        graphql_error_from_response(errors=case.errors)
+
+    assert any(case.expected_fragment in record.getMessage() for record in caplog.records)
+
+
+def test_a_resolved_code_logs_nothing(caplog: pytest.LogCaptureFixture) -> None:
+    """The log marks the paths that degraded, so the ordinary one must stay quiet."""
+    envelope = load_code_envelope("UNIQUENESS_VIOLATION")
+
+    with caplog.at_level("DEBUG", logger="infrahub_sdk"):
+        graphql_error_from_response(errors=envelope["errors"])
+
+    assert caplog.records == []
 
 
 @pytest.mark.malformed

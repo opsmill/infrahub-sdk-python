@@ -1,7 +1,14 @@
 {
+  "data": null,
   "errors": [
     {
-      "message": "You do not have the permission to update TestPerson",
+      "message": "The requested operation was not authorized",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
       "path": [
         "TestPersonUpdate"
       ],
@@ -14,6 +21,5 @@
         }
       }
     }
-  ],
-  "data": null
+  ]
 }

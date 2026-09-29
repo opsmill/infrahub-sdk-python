@@ -18,11 +18,13 @@ PACKAGE = f"{ROOT}.exceptions"
 PACKAGE_DIR = Path(exceptions_package.__file__).parent
 
 # base.py sits at the bottom, which is what keeps the hand-written hierarchy independent of anything
-# built on top of it. Each layer above may import only from below it.
+# built on top of it. Each layer above may import only from below it. The generated catalogue sits
+# above base and below factory, so the factory can resolve a code to one of its classes.
 LAYERS = {
     "base": 0,
-    "factory": 1,
-    "__init__": 2,
+    "catalogue": 1,
+    "factory": 2,
+    "__init__": 3,
 }
 
 

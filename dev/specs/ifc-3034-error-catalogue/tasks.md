@@ -65,14 +65,18 @@ and pin that invisibility before touching anything.
       so. The captured/not-parser-shaped rule stands for every fixture representing a real response.
 - [X] T003 Convert `infrahub_sdk/exceptions.py` into `infrahub_sdk/exceptions/base.py` by verbatim move
       (no behaviour edits in this task), and add `__all__` to it listing every class it defines.
-- [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting with `from .base import *`
-      and nothing else yet.
+- [X] T004 Create the façade `infrahub_sdk/exceptions/__init__.py` re-exporting every class `base`
+      defines, by explicit name rather than the `from .base import *` this task first said, and nothing
+      else yet.
 - [X] T005 [P] Add `"exceptions"` to `packages_to_ignore` in `tasks.py::get_modules_to_document`, so
       `docs-generate` does not fail with `Uncategorized packages under infrahub_sdk/` and `sdk_ref`
       output stays byte-identical.
-- [X] T006 [P] Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
+- [X] T006 [P] ~~Add the `per-file-ignores` entry for `infrahub_sdk/exceptions/__init__.py` in
       `pyproject.toml` silencing `F403`/`F405`, with a comment giving the reason, mirroring the existing
-      `infrahub_sdk/schema/generated/*.py` entry.
+      `infrahub_sdk/schema/generated/*.py` entry.~~ **Superseded by T004 and T064**: the façade
+      re-exports by explicit name, so no `F403`/`F405` arises and no entry was added. What this
+      feature does add to `pyproject.toml` is its four pytest markers: `catalogue`, `crossversion`,
+      `malformed` and `message`.
 - [X] T007 Run `uv run pytest tests/unit/ -q` and `uv run invoke format lint-code docs-generate docs-validate`
       to confirm the restructure is invisible from outside the package.
 
@@ -427,11 +431,14 @@ and confirm it passes (quickstart scenario 7).
 - [ ] T062 [US5] Add `error_catalogue == 'true'` to the `backend-validate-generated` job trigger in
       `[infrahub] .github/workflows/ci.yml`, so a hand-edit of the catalogue JSON alone cannot slip past.
       This is the only CI edit; no new path filter can match a file inside a submodule.
-- [ ] T063 [US5] Run `uv run invoke backend.generate` from the Infrahub checkout and hand-verify the
+- [X] T063 [US5] Run `uv run invoke backend.generate` from the Infrahub checkout and hand-verify the
       resulting `infrahub_sdk/exceptions/catalogue.py` in the SDK: nine generated classes, three adopted
       imports, fifteen payload models, and no class for the three 401/403 codes.
-- [ ] T064 [US5] Commit the generated `infrahub_sdk/exceptions/catalogue.py` in the SDK repository and
-      extend the façade `infrahub_sdk/exceptions/__init__.py` with `from .catalogue import *`.
+- [X] T064 [US5] Commit the generated `infrahub_sdk/exceptions/catalogue.py` in the SDK repository and
+      re-export its nine exception classes from the façade `infrahub_sdk/exceptions/__init__.py` **by
+      explicit name**. Not `from .catalogue import *`, as this task first said: a wildcard also promotes
+      the payload models, the lookup maps and the dispatch helper onto the package surface, where each
+      name becomes a stability promise the package never chose to make.
 - [ ] T065 [US5] Prove the negative from the Infrahub checkout: add a code to the backend catalogue, run
       `uv run invoke backend.export-error-catalogue` alone, confirm `backend.validate-generated` exits
       non-zero naming the stale artefact, then revert.
@@ -450,39 +457,41 @@ the raised type and the typed attributes, reading no message (quickstart scenari
 
 ### Tests for User Story 1
 
-- [ ] T066 [P] [US1] Add one response-envelope fixture per catalogue code under
+- [X] T066 [P] [US1] Add one response-envelope fixture per catalogue code under
       `tests/fixtures/error_catalogue/`, each a verbatim server response rather than a hand-shaped dict.
-- [ ] T067 [US1] Add the exhaustive factory cases to `tests/unit/sdk/test_error_catalogue.py`: one per
+- [X] T067 [US1] Add the exhaustive factory cases to `tests/unit/sdk/test_error_catalogue.py`: one per
       code, asserting the raised class, every promoted attribute's concrete value, and that `exc.code` and
       `exc.http_status` match the catalogue entry. No case reads a payload object, because there is none.
-- [ ] T068 [P] [US1] Add the adopted-class cases to `tests/unit/sdk/test_error_catalogue.py`: a
+- [X] T068 [P] [US1] Add the adopted-class cases to `tests/unit/sdk/test_error_catalogue.py`: a
       server-reported `NODE_NOT_FOUND` populates `node_type` and `identifier`, `BRANCH_NOT_FOUND` and
       `SCHEMA_NOT_FOUND` populate `identifier`, and `exc.code is not None` distinguishes a server-reported
       raise from a client-side one.
-- [ ] T069 [P] [US1] Add the representative parity set to `tests/unit/sdk/test_client.py`, parametrized
+- [X] T069 [P] [US1] Add the representative parity set to `tests/unit/sdk/test_client.py`, parametrized
       over `["standard", "sync"]` via the `BothClients` fixture, covering both branches, both transports,
       and the file-upload variant, asserting the same class and the same attributes on each.
-- [ ] T070 [P] [US1] Add a `catalogue`-marked case to `tests/integration/test_infrahub_client.py`: saving a
+- [X] T070 [P] [US1] Add a `catalogue`-marked case to `tests/integration/test_infrahub_client.py`: saving a
       node that collides on a unique attribute raises `UniquenessViolationError` with the node kind and
       colliding fields from the real payload, and deleting a missing node raises `NodeNotFoundError` with
       its kind and identifier.
-- [ ] T071 [P] [US1] Add the same two `catalogue`-marked cases to
+- [X] T071 [P] [US1] Add the same two `catalogue`-marked cases to
       `tests/integration/test_infrahub_client_sync.py`.
 
 ### Implementation for User Story 1
 
-- [ ] T072 [US1] Extend `graphql_error_from_response` in `infrahub_sdk/exceptions/factory.py` to look the
+- [X] T072 [US1] Extend `graphql_error_from_response` in `infrahub_sdk/exceptions/factory.py` to look the
       first error's code up in `CODE_TO_EXCEPTION`, validate `extensions.data` with the class's
       `DATA_MODEL`, and raise via `cls.from_payload(...)`. The factory never assembles attributes itself.
-- [ ] T073 [US1] Implement the validation-failure fallback in `infrahub_sdk/exceptions/factory.py`: an
+- [X] T073 [US1] Implement the validation-failure fallback in `infrahub_sdk/exceptions/factory.py`: an
       invalid payload falls back to the generic class for the observed transport with `exc.code` still
       readable, the raw `extensions` retained, and a debug log. A pydantic `ValidationError` never escapes
       a raise path.
-- [ ] T074 [US1] Confirm in `infrahub_sdk/exceptions/factory.py` that the fallback follows **the transport
+- [X] T074 [US1] Confirm in `infrahub_sdk/exceptions/factory.py` that the fallback follows **the transport
       the SDK observed** and never the code's declared status: the GraphQL branch for anything read from
-      an `errors` array, the authentication branch only for a response the SDK saw as HTTP 401 or 403.
-      This is the only rule under which the three authentication codes reach the right class at all.
-- [ ] T075 [US1] Add a test to `tests/unit/sdk/test_error_catalogue.py` asserting the first error governs
+      an `errors` array, the authentication branch for a response the SDK rejected before the query ran.
+      That is usually a 401 or 403, and also a token refresh that failed on any other status, which is
+      why the branch reads the status off the response rather than assuming one. This is the only rule
+      under which the three authentication codes reach the right class at all.
+- [X] T075 [US1] Add a test to `tests/unit/sdk/test_error_catalogue.py` asserting the first error governs
       even when it carries no code and a later one does, and that the complete list is retained unreordered.
 
 **Checkpoint**: Every catalogue code is identifiable without reading a message, on both clients.
@@ -491,12 +500,12 @@ the raised type and the typed attributes, reading no message (quickstart scenari
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T076 [P] Write `docs/docs/python-sdk/topics/error_handling.mdx` covering the hierarchy, catching by
+- [X] T076 [P] Write `docs/docs/python-sdk/topics/error_handling.mdx` covering the hierarchy, catching by
       branch versus by code, the cross-version guarantees, the two accepted broadenings, and the note that
       `infrahub_sdk.exceptions` is the supported import path. Link to Infrahub's published catalogue for
       the code list rather than restating it, and note that a catalogued message now names the failing
       action and resource kind where the catalogue provides them.
-- [ ] T077 [P] Add a towncrier fragment for the typed errors in `changelog/`.
+- [X] T077 [P] Add a towncrier fragment for the typed errors in `changelog/`.
 - [X] T078 [P] Add a towncrier fragment for the `NodeNotFoundError.identifier` widening in `changelog/`.
       **Landed in issue 1**, alongside the widening itself (T036).
 - [X] T079 [P] Add a towncrier fragment for the `except GraphQLError` broadening in `changelog/`.

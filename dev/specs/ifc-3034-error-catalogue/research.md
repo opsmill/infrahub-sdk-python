@@ -84,13 +84,14 @@ decay into the cycle it was designed out of. No new dependency.
   not documented in `sdk_ref` today, so ignoring the package preserves current behaviour exactly and
   creates no coupling. FR-028 is satisfied by the hand-written topic page, which is the better artefact
   for a hierarchy anyway.
-- The façade re-exports with `from .base import *` and `from .catalogue import *`, each source module
-  declaring its own `__all__` (generated for `catalogue.py`). That keeps the export
-  surface automatic as codes are added and stays visible to mypy and `ty`, at the cost of an `F403`
-  `per-file-ignores` entry with a comment — the same treatment
-  `infrahub_sdk/schema/generated/*.py` already gets. `infrahub_sdk.exceptions` is the supported import
-  path for consumers; the submodules beneath it are internal, and the façade is what makes that true
-  rather than aspirational.
+- The façade re-exports by explicit name from both `base` and `catalogue`, rather than the wildcards
+  this section first proposed. A wildcard would have kept the export surface automatic as codes are
+  added, at the cost of an `F403` `per-file-ignores` entry; it would also have promoted `catalogue`'s
+  payload models, lookup maps and dispatch helper onto the package surface, where each name becomes a
+  stability promise the package never chose to make. Written out by hand, the file says what it
+  exports, and a test holds it against what the source modules define so the two cannot drift.
+  `infrahub_sdk.exceptions` is the supported import path for consumers; the submodules beneath it are
+  internal, and the façade is what makes that true rather than aspirational.
 - First generation is a bootstrap: the SDK pull request lands `catalogue.py` produced by running the
   Infrahub generator from the paired branch, verified by hand once, which is what US5 anticipates.
 

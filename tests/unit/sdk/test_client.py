@@ -3,15 +3,20 @@ from __future__ import annotations
 import inspect
 import json
 import ssl
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import (
+    ApiError,
+    NodeNotFoundError,
+    UniquenessViolationError,
+)
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from tests.helpers.fixtures import read_fixture
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -932,3 +937,56 @@ GRAPHQL_URL_CASES = [
 async def test_graphql_url_encodes_branch_name(clients: BothClients, client_type: str, case: GraphQLURLCase) -> None:
     client = clients.standard if client_type == "standard" else clients.sync
     assert client._graphql_url(branch_name=case.branch_name) == case.expected_url
+
+
+@dataclass
+class CatalogueParityCase:
+    name: str
+    code: str
+    status_code: int
+    expected_class: type[ApiError]
+    expected_attributes: dict[str, Any] = field(default_factory=dict)
+
+
+CATALOGUE_PARITY_CASES = [
+    CatalogueParityCase(
+        name="uniqueness-violation-inside-a-200",
+        code="UNIQUENESS_VIOLATION",
+        status_code=200,
+        expected_class=UniquenessViolationError,
+        expected_attributes={"node_kind": "TestPerson", "fields": ["name"], "http_status": 422},
+    ),
+    CatalogueParityCase(
+        name="node-not-found-inside-a-200",
+        code="NODE_NOT_FOUND",
+        status_code=200,
+        expected_class=NodeNotFoundError,
+        expected_attributes={"node_type": "TestPerson", "identifier": "john", "http_status": 404},
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CATALOGUE_PARITY_CASES])
+async def test_both_clients_raise_the_same_catalogued_exception(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str, case: CatalogueParityCase
+) -> None:
+    """A promoted payload attribute reaches the caller the same way from either client.
+
+    The exception is built at a different call site per client, so parity is a property of the
+    client rather than of the factory, and only driving both proves it.
+    """
+    envelope = json.loads(read_fixture(file_name=f"{case.code.lower()}.json", fixture_subdir="error_catalogue/codes"))
+    httpx_mock.add_response(method="POST", status_code=case.status_code, json=envelope)
+    client = clients.standard if client_type == "standard" else clients.sync
+
+    with pytest.raises(case.expected_class, match=case.code) as exc_info:
+        if isinstance(client, InfrahubClient):
+            await client.execute_graphql(query="query { TestPerson { edges { node { id }}}}")
+        else:
+            client.execute_graphql(query="query { TestPerson { edges { node { id }}}}")
+
+    assert type(exc_info.value) is case.expected_class
+    assert exc_info.value.code == case.code
+    for attribute, value in case.expected_attributes.items():
+        assert getattr(exc_info.value, attribute) == value

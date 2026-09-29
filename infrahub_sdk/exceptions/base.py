@@ -137,12 +137,33 @@ class ApiError(Error):
     http_status: int | None = None
     extensions: dict[str, Any] | None = None
     errors: Sequence[dict[str, Any]] = ()
-
-
-class GraphQLError(ApiError):
+    # `None` means the request that failed was not recorded on the exception, not that there was no
+    # query: an authentication failure is observed at the transport, where the class has neither.
     query: str | None = None
     variables: dict | None = None
 
+
+def _rebuild_graphql_error(cls: type[GraphQLError], args: tuple[Any, ...], state: dict[str, Any]) -> GraphQLError:
+    """Reconstruct a GraphQL-path exception without replaying its constructor.
+
+    `BaseException.__reduce__` rebuilds by calling `cls(*args)`, where `args` is the message alone.
+    This class takes the server's error list first, so that call files the message under `errors` and
+    the message a caller reads comes back as the placeholder built from it. `args` is carried
+    separately from the rest of the state because it lives on the exception itself rather than in
+    `__dict__`, and `str()` reads it.
+    """
+    exc = cls.__new__(cls)
+    exc.args = args
+    exc.__dict__.update(state)
+    return exc
+
+
+def graphql_default_message(query: str | None, errors: Any) -> str:
+    """The message the GraphQL path produces where the server described nothing better."""
+    return f"An error occurred while executing the GraphQL Query {query}, {errors}"
+
+
+class GraphQLError(ApiError):
     def __init__(
         self,
         errors: list[dict[str, Any]],
@@ -154,10 +175,13 @@ class GraphQLError(ApiError):
         self.variables = variables
         # `is not None` rather than `or`: an empty message is a deliberate one, not a request for
         # the default.
-        default = f"An error occurred while executing the GraphQL Query {query}, {errors}"
+        default = graphql_default_message(query=query, errors=errors)
         self.message = message if message is not None else default
         self.errors = as_error_list(errors)
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_graphql_error, (type(self), self.args, self.__dict__))
 
 
 class VersionNotSupportedError(Error):

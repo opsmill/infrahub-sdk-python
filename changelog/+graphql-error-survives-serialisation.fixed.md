@@ -1,0 +1,7 @@
+`GraphQLError` and every exception under it now survive `pickle` and `copy.deepcopy` intact. An exception that crosses a process boundary - a task queue, a parallel test runner, a process pool - previously came back wrong in one of two ways, because Python rebuilds an exception by calling its class with the message as a lone positional argument.
+
+`GraphQLError` takes the server's error list first, so that call filed the message under `errors` and the message a caller read came back as the placeholder built from it: `An error occurred while executing the GraphQL Query None, UNIQUENESS_VIOLATION: ...` in place of the real one. The per-code classes take their payload fields as required keyword arguments, so the same call raised `TypeError: __init__() takes 1 positional argument but 2 were given` and the original failure was lost entirely.
+
+Both are fixed at the root of the GraphQL branch, so the type, the message, the payload attributes, `code`, `http_status`, `extensions`, `errors`, `query` and `variables` all come back as they went in, and an `except` clause still catches a restored exception by its own class.
+
+`NodeNotFoundError`, `BranchNotFoundError` and `SchemaNotFoundError` were affected more quietly: their attributes and `str()` came back correct, but `exc.args` was rebuilt as the class's own default sentence rather than the message the exception was raised with. `AuthenticationError`, whose constructor takes the message first, was the only one unaffected.
