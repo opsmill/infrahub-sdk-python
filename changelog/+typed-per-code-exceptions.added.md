@@ -11,7 +11,9 @@ except ApiError as exc:
     print("some other failure:", exc.code)
 ```
 
-The new classes are `AttributeConstraintViolationError`, `AttributeInvalidTypeError`, `AttributeRequiredError`, `BranchAlreadyMergedError`, `BranchNeedsRebaseError`, `MergeInProgressError`, `MergeRecoveryRequiredError`, `UndefinedError`, and `UniquenessViolationError`. Each is typed exactly as the catalogue declares the payload, so a required field is never optional and needs no guard. They all descend from `GraphQLError`, so no `except` clause stops catching what it catches today.
+The new classes are `AttributeConstraintViolationError`, `AttributeInvalidTypeError`, `AttributeRequiredError`, `BranchAlreadyMergedError`, `BranchNeedsRebaseError`, `MergeInProgressError`, `MergeRecoveryRequiredError`, `UndefinedError`, and `UniquenessViolationError`. Each is typed exactly as the catalogue declares the payload, so a required field is never optional and needs no guard. They all descend from `GraphQLError`, so no `except` clause stops catching what it catches today. `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND` and `SCHEMA_NOT_FOUND` reach the classes the SDK already had for them, listed under Changed.
+
+`exc.http_status` reads the status the envelope declares, and falls back to the one the catalogue gives the code where the envelope omits it, so it is readable either way.
 
 `AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, and `PERMISSION_DENIED` deliberately have no class of their own: each of them reaches the SDK on two transports, and which generic class it raises follows the transport the SDK observed rather than the status the code declares. Catch `ApiError` and test `exc.code` to handle one of the three whichever way it arrived.
 
