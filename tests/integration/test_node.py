@@ -11,6 +11,7 @@ from infrahub_sdk.protocols import IpamNamespace
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
+from infrahub_sdk.timestamp import Timestamp
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
@@ -292,6 +293,37 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         car_with_new_tag = await client.get(kind=TESTING_CAR, id=car.id)
         await car_with_new_tag.tags.fetch()
         assert [t.id for t in car_with_new_tag.tags.peers] == [tag_red.id]
+
+    async def test_store_merge_against_real_responses(
+        self,
+        client: InfrahubClient,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+    ) -> None:
+        """The store merge relies on the keys real responses carry, so exercise it end to end."""
+        created = await client.create(
+            kind=TESTING_CAR, name="StoreMergeCar", color="Teal", manufacturer=manufacturer_mercedes, owner=person_joe
+        )
+        await created.save()
+        fresh = client.clone()
+
+        car = await fresh.get(kind=TESTING_CAR, id=created.id, prefetch_relationships=True)
+        # The manufacturer's prefetch returns the car again as a narrow peer
+        await fresh.get(kind=TESTING_MANUFACTURER, id=manufacturer_mercedes.id, prefetch_relationships=True)
+
+        stored_car = fresh.store.get(key=created.id)
+        assert stored_car is car
+        assert stored_car.owner.id == person_joe.id
+        assert stored_car.manufacturer.id == manufacturer_mercedes.id
+        assert stored_car.color.value == "Teal"
+
+        await stored_car.manufacturer.fetch()
+        assert stored_car.manufacturer.peer is fresh.store.get(key=manufacturer_mercedes.id)
+
+        historical = await fresh.get(kind=TESTING_CAR, id=created.id, at=Timestamp(), prefetch_relationships=True)
+        assert fresh.store.get(key=created.id) is historical
+        assert historical.owner.peer.id == person_joe.id
 
     async def test_node_update_idempotency(self, client: InfrahubClient, initial_schema: None) -> None:
         original_query = "query { CoreRepository { edges { node { name { value }}}}}"
