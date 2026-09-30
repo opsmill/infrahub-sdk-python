@@ -298,7 +298,7 @@ class TestAnAdoptedCodeRaisesItsOwnClass:
                 "message": "Unable to find the branch 'dev'",
                 "extensions": {
                     "code": "BRANCH_NOT_FOUND",
-                    "http_status": 404,
+                    "http_status": 400,
                     "data": {"branch_name": "dev"},
                 },
             },

@@ -19,8 +19,11 @@ generated region inside a hand-written one.
 
 It opens with a header marking it generated and not to be edited, naming the source artefact, recording
 the catalogue's `infrahub_catalogue_version`, and giving the regeneration command (FR-009) — the same
-marking style as the repository's other generated files. It declares `__all__`, which is what lets the
-package façade re-export it without a hand-maintained list.
+marking style as the repository's other generated files. It declares `__all__`, which is what the
+package façade's own tests hold its hand-written re-export list against. The façade names each class
+explicitly rather than star-importing, so a newly generated class needs an entry there too; a wildcard
+would also promote the payload models, the lookup maps and the dispatch helper onto the package
+surface.
 
 The body holds three things:
 

@@ -320,3 +320,25 @@ def test_catch_exception_sync_passes_through_typer_exit() -> None:
     assert "human-readable failure message" in stdout
     assert "Traceback" not in stdout
     assert "Error: 1" not in stdout
+
+
+def test_catch_exception_renders_typer_abort_as_an_unhandled_error() -> None:
+    """Why a command that has already printed its failure must exit rather than abort.
+
+    `Abort` is an ordinary exception, and this handler has no branch for it, so it reaches the tail
+    that dumps a traceback - after the command has already rendered the real message.
+    """
+    console = Console()
+    app = typer.Typer()
+
+    @app.command()
+    @catch_exception(console=console)
+    def fail() -> None:
+        console.print("human-readable failure message")
+        raise typer.Abort from None
+
+    result = runner.invoke(app, [])
+    stdout = remove_ansi_color(result.stdout)
+
+    assert "human-readable failure message" in stdout
+    assert "Traceback" in stdout, "the tail branch dumps one, which is what `typer.Exit` avoids"

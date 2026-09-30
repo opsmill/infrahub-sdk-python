@@ -46,7 +46,13 @@ from ..ctl.utils import (
     print_graphql_query_errors,
 )
 from ..ctl.validate import app as validate_app
-from ..exceptions import GraphQLError, ModuleImportError
+from ..exceptions import (
+    BranchNotFoundError,
+    GraphQLError,
+    ModuleImportError,
+    NodeNotFoundError,
+    SchemaNotFoundError,
+)
 from ..graphql.query_renderer import render_query
 from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
@@ -235,9 +241,13 @@ async def _run_transform(
     except QueryNotFoundError as exc:
         console.print(f"[red]Unable to find query : {exc}")
         raise typer.Exit(1) from exc
+    except (NodeNotFoundError, BranchNotFoundError, SchemaNotFoundError):
+        # A lookup miss descends from GraphQLError but carries no server error list, so the clause
+        # below would render an empty one in place of its message. The shared handler renders these.
+        raise
     except GraphQLError as exc:
         print_graphql_query_errors(console=console, exc=exc)
-        raise typer.Abort from None
+        raise typer.Exit(1) from None
 
     if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)

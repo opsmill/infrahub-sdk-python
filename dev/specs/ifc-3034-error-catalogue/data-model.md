@@ -121,7 +121,9 @@ Generated into `catalogue.py`, one per catalogue code that is not adopted. Each 
 | docstring | The catalogue's `description`, plus its stability level. |
 
 The declared status decides whether a code gets a class at all, not which parent it takes: a 401/403
-code gets none, and everything else descends from `GraphQLError` (FR-008). Twelve generated classes
+code gets none, and everything else descends from `GraphQLError` (FR-008). Twelve codes reach a class:
+nine generated here, and the three the SDK already had, which the generated module imports rather than
+redeclares. Nine generated classes
 today, each with exactly one parent.
 
 ## Generated payload models
