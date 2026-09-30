@@ -255,7 +255,7 @@ invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic t
 include = ["tests/unit/sdk/test_store_merge.py"]
 
 [tool.ty.overrides.rules]
-invalid-argument-type = "ignore" # 284 violations
+invalid-argument-type = "ignore" # 400 violations
 
 [[tool.ty.overrides]]
 include = [

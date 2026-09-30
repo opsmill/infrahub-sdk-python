@@ -495,9 +495,12 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
-        self._peer = await self._client.get(
+        peer = await self._client.get(
             kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
         )
+        # The store may have merged the fetched copy into an object it already held;
+        # cache that one so this edge and every other store lookup share one peer.
+        self._peer = self._client.store.get(key=peer.id, branch=self._branch, raise_when_missing=False) or peer
 
     @property
     def peer(self) -> PeerT:
@@ -595,9 +598,12 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
-        self._peer = self._client.get(
+        peer = self._client.get(
             kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
         )
+        # The store may have merged the fetched copy into an object it already held;
+        # cache that one so this edge and every other store lookup share one peer.
+        self._peer = self._client.store.get(key=peer.id, branch=self._branch, raise_when_missing=False) or peer
 
     @property
     def peer(self) -> PeerTSync:

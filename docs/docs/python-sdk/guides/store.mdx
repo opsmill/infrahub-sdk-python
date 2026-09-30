@@ -27,8 +27,6 @@ The merge works field by field, for attributes and relationships alike:
 - A field that was part of the query overwrites the stored value, even when the new value is empty or `None`. A relationship cleared on the server, or an attribute set back to `None`, is reflected after a re-fetch that includes it.
 - A field that was not part of the query keeps its stored value. Fetching a node with a subset of its attributes never erases what an earlier query loaded.
 - A re-fetched relationship of cardinality many replaces its full member list, so a peer removed on the server is dropped from the store.
-- Local unsaved edits win: if you modified an attribute or assigned a relationship in memory and did not save yet, a re-fetch of the same node does not discard your changes.
-
 This makes re-collecting the same information safe and idempotent: it refreshes what you fetched and never drops what you did not.
 
 Consider a deep fetch followed by a shallow one:
@@ -64,6 +62,18 @@ Consider a deep fetch followed by a shallow one:
   </TabItem>
 </Tabs>
 
+### When the store replaces instead of merging
+
+In the following cases, the store drops the stored entry and keeps the new copy instead, which is what every write did before 1.24.0:
+
+- The two copies were fetched at different timestamps. See [historical queries and the store](#historical-queries-and-the-store).
+- The stored node has unsaved local edits (an attribute you changed, a relationship you assigned, or peers you added or removed) and the new copy carries one of those fields. The new copy reflects the server, and your edited object stays in your hands but leaves the store. Save the object, or drop its reference, before fetching it again if you want the store to keep a single object for it.
+- The new copy was built locally with `client.create()` rather than returned by a query, for example when `save(allow_upsert=True)` lands on a node that is already stored. The saved object becomes the stored entry.
+- The same UUID arrives under a different node kind.
+- You asked for a replace with `merge=False`. See [forcing a clean replace](#forcing-a-clean-replace).
+
+References handed out before a replace keep pointing at the old object and stop receiving updates.
+
 ### Returned objects compared to stored objects
 
 Queries hand you what you asked for; the store remembers the merged view of every field it has fetched. The object returned by `get`, `filters` or `all` reflects only that query, while `store.get()` returns the merged view, so the two can differ once the same node has been fetched more than once. They compare equal (`==`, equality is based on the node id) but they are not the same Python object (`is`).
@@ -76,14 +86,11 @@ Merged does not mean cumulative. A field the newer query fetched overwrites the 
 
 The store keeps one object per node and mutates it in place when new data arrives. Every `store.get()` call for the same node returns the same object, and a later query that re-fetches the node refreshes the object that earlier references already point at. If you need a snapshot that does not change under you, keep the object returned by the query instead of the store copy.
 
-Two exceptions:
-
-- A relationship peer is cached on the relationship itself, and whether that cached peer keeps updating depends on where it came from. `fetch()` caches whatever its query returned: a detached copy when the store already held that node, or the store object itself when the fetch was the first thing to store it. Assigning a peer directly caches exactly the object you assigned, so assigning the result of `store.get()` keeps the live store object while assigning a per-query result does not.
-- When the same UUID arrives under a different node kind, the store replaces the entry wholesale instead of merging. References handed out before the kind change keep pointing at the old object and stop receiving updates.
+A relationship peer resolved with `fetch()` is the store object, so `.peer` and `store.get()` return the same object afterwards. Assigning a peer directly caches exactly the object you assigned: assigning the result of `store.get()` keeps the live store object, while assigning a per-query result does not.
 
 ### Staleness caveat
 
-A merged value is only as fresh as the last query that fetched it. The store does not track when each individual field was fetched: within its timestamp context (see below), it always represents the latest data seen per branch.
+A merged value is only as fresh as the last query that fetched it. The store does not track when each individual field was fetched: it always represents the latest data seen per branch.
 
 Objects are stored in the following scenario:
 
@@ -284,19 +291,13 @@ The replace behaviour is available at three levels:
 
 ## Historical queries and the store
 
-The store holds one timestamp context per branch: live data, or one `at` point in time. The first write to a branch stamps its context, and every later write at the same timestamp uses the store normally - a script that runs all of its queries at one `at` gets the full store behaviour, including merging and relationship peer resolution.
+The store records the timestamp each node was fetched at: live data, or the `at` passed to the query. Only copies fetched at the same timestamp merge. When a node arrives from a different timestamp than the stored copy (a historical query after a live one, a live query after a historical one, or two different `at` values), it replaces the stored entry, so a single stored node never blends data from two points in time. `node.save()` carries live data, so a saved node replaces a copy that was fetched at a point in time.
 
-A write whose timestamp does not match the branch context (a historical query against a live cache, a live query against a historical cache, or two different `at` values) does not populate the store: the query still returns its results, but the SDK emits a warning and leaves the store untouched, because blending data from different points in time into one cache would silently produce inconsistent nodes. If you need both contexts, use a dedicated client per timestamp (`client.clone()`), or pass `populate_store=False` on the mismatching queries to silence the warning.
+Every query still populates the store, whatever its `at`, so relationship peers resolve through `.peer` as they did before 1.24.0. The store holds one copy per node, though: whichever timestamp wrote a node last is the one the store returns. If a script needs live and historical views of the same nodes side by side, use a dedicated client for each timestamp (`client.clone()`), or pass `populate_store=False` on the queries that should not touch the store.
 
-This applies to every write, not only query population. `node.save()` carries live data, so it stamps a branch that nothing has claimed yet, and is refused with the same warning against a branch holding point-in-time data. The node is still saved on the server; only the store is left untouched.
+Compute the `at` timestamp once and reuse it. A relative timestamp rebuilt for every call is a slightly different instant each time, so each query replaces what the previous one stored instead of merging with it.
 
-:::warning Behaviour change in version 1.24.0
-
-Before SDK 1.24.0, queries using `at` overwrote store entries regardless of what the store held, so historical data could silently replace live data. Since 1.24.0 the store is timestamp-coherent: mismatching writes skip the store with a warning instead. Note that on a node whose query skipped the store, any peer that query was the first to see cannot be resolved through `.peer`, because it was never stored. Peers already cached on the relationship, or already present in the store from an earlier matching query, still resolve. For the ones that do not, read the peer identity directly from the relationship (`.id`, `.display_label`, `.typename`) or use a dedicated client for that timestamp.
-
-One caveat: compute the `at` timestamp once and reuse it. A script that rebuilds a relative timestamp for every call creates a slightly different instant each time and will trip the mismatch warning on every query after the first.
-
-:::
+Fetching the peers of a historical node with `fetch()` runs a live query: it does not reuse the `at` of the node the relationship belongs to.
 
 ## Disable storing objects in the store using the different query methods
 

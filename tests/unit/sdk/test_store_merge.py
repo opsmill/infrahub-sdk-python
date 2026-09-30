@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -205,25 +206,51 @@ def test_merge_fetched_none_attribute_overwrites(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_merge_local_edits_win(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+def test_refetch_of_a_locally_edited_field_replaces(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A re-fetch carrying a field with an unsaved local edit replaces the stored entry.
+
+    The edited object stays with the caller, untouched; the store moves on to server state
+    rather than keeping an abandoned edit indefinitely.
+    """
     client, store, node_class = setup_store(client_type, clients)
 
     node = node_class(client=client, schema=location_schema, data=deep_location_data())
     store.set(node=node)
-    stored = get_location(store)
-    assert stored is node
-    stored.description.value = "local edit"
+    node._attribute_data["description"].value = "local edit"
     node.primary_tag = TAG_BLUE_ID
 
     refetch = deep_location_data()
     refetch["node"]["description"] = {"value": "server edit"}
+    incoming = node_class(client=client, schema=location_schema, data=refetch)
+    store.set(node=incoming)
+
+    assert get_location(store) is incoming
+    assert get_location(store).description.value == "server edit"
+    assert node._attribute_data["description"].value == "local edit"
+    assert node._relationship_cardinality_one_data["primary_tag"].id == TAG_BLUE_ID
+    assert store.count() == 1
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_refetch_not_carrying_an_edited_field_still_merges(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    client, store, node_class = setup_store(client_type, clients)
+
+    node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=node)
+    node._attribute_data["description"].value = "local edit"
+
+    refetch = shallow_location_data()
+    refetch["node"]["name"] = {"value": "JFK2"}
     store.set(node=node_class(client=client, schema=location_schema, data=refetch))
 
-    assert get_location(store) is node
+    stored = get_location(store)
+    assert stored is node
     assert stored.description.value == "local edit"
-    assert stored.primary_tag.id == TAG_BLUE_ID
-    # Untouched fields still refresh
-    assert stored.name.value == "JFK1"
+    assert stored.name.value == "JFK2"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -456,6 +483,10 @@ def test_merge_peer_change_drops_old_edge_properties(
     assert stored.primary_tag.id == TAG_GREEN_ID
     assert stored.primary_tag.is_protected is None
     assert stored.primary_tag.source is None
+    # The raw baseline update() diffs against drops the old edge too
+    raw = stored.get_raw_graphql_data()
+    assert isinstance(raw, dict)
+    assert raw["primary_tag"] == {"node": {"id": TAG_GREEN_ID, "display_label": "green", "__typename": "BuiltinTag"}}
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -602,8 +633,10 @@ def test_merge_raw_baseline_keeps_uncarried_edge_properties(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_merge_local_manager_edits_win(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
-    """An unsaved add()/remove() on the stored member list is not clobbered by a re-fetch."""
+def test_refetch_of_a_locally_edited_member_list_replaces(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """An unsaved add()/remove() is kept on the caller's object, not merged against a re-fetch."""
     client, store, node_class = setup_store(client_type, clients)
 
     stored_node = node_class(client=client, schema=location_schema, data=deep_location_data())
@@ -614,9 +647,29 @@ def test_merge_local_manager_edits_win(client_type: str, clients: BothClients, l
     refetch["node"]["tags"] = {"count": 0, "edges": []}
     store.set(node=node_class(client=client, schema=location_schema, data=refetch))
 
+    assert get_location(store) is not stored_node
+    assert get_location(store).tags.peer_ids == []
+    assert TAG_RED_ID in stored_node._relationship_cardinality_many_data["tags"].peer_ids
+    assert stored_node._relationship_cardinality_many_data["tags"].has_update is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_saved_edit_merges_again(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    """Once an edit is persisted, a re-fetch of that field merges instead of replacing."""
+    client, store, node_class = setup_store(client_type, clients)
+
+    node = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=node)
+    node._attribute_data["description"].value = "saved edit"
+    node._reset_mutation_tracking()
+
+    refetch = shallow_location_data()
+    refetch["node"]["description"] = {"value": "server edit"}
+    store.set(node=node_class(client=client, schema=location_schema, data=refetch))
+
     stored = get_location(store)
-    assert TAG_RED_ID in stored.tags.peer_ids
-    assert stored.tags.has_update is True
+    assert stored is node
+    assert stored.description.value == "server edit"
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -757,22 +810,22 @@ def test_merge_updates_node_metadata(client_type: str, clients: BothClients, loc
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_merge_from_locally_created_copy_keeps_existing_flag(
-    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
-) -> None:
-    """Merging a locally created (never persisted) copy does not unmark the stored node."""
+def test_locally_created_copy_replaces(client_type: str, clients: BothClients, location_schema: NodeSchemaAPI) -> None:
+    """A node built locally carries user-supplied data, not a GraphQL payload, so it is not merged.
+
+    Covers an upsert landing on a UUID the store already holds.
+    """
     client, store, node_class = setup_store(client_type, clients)
 
     store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
 
-    created = node_class(client=client, schema=location_schema, data=None)
+    created = node_class(client=client, schema=location_schema, data={"name": "JFK1", "primary_tag": TAG_BLUE_ID})
     created.id = LOCATION_ID
-    created._attribute_data["description"].value = "draft"
+    created._existing = True
     store.set(node=created)
 
-    stored = get_location(store)
-    assert store.get(key=LOCATION_ID)._existing is True
-    assert stored.description.value == "draft"
+    assert store.get(key=LOCATION_ID) is created
+    assert store.count() == 1
 
 
 def test_merge_helpers_insert_into_empty_containers(clients: BothClients, location_schema: NodeSchemaAPI) -> None:
@@ -1017,55 +1070,94 @@ def test_persisted_edits_are_reasserted_on_a_later_save(
     assert "tags" in payload
 
 
-@pytest.mark.parametrize("client_type", client_types)
-def test_save_claims_the_live_timestamp_context(
-    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
-) -> None:
-    """Every write claims the branch context, not just query population.
+@dataclass
+class TimestampCase:
+    name: str
+    stored_at: str | None
+    incoming_at: str | None
 
-    Otherwise a save leaves the branch unclaimed and a later historical query merges
-    point-in-time data on top of live data.
-    """
+
+TIMESTAMP_MISMATCH_CASES = [
+    TimestampCase(name="historical-after-live", stored_at=None, incoming_at="2020-01-01T00:00:00Z"),
+    TimestampCase(name="live-after-historical", stored_at="2020-01-01T00:00:00Z", incoming_at=None),
+    TimestampCase(name="two-historical", stored_at="2020-01-01T00:00:00Z", incoming_at="2021-01-01T00:00:00Z"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in TIMESTAMP_MISMATCH_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+def test_different_timestamp_replaces(
+    client_type: str, case: TimestampCase, clients: BothClients, location_schema: NodeSchemaAPI
+) -> None:
+    """A copy from another point in time replaces the entry instead of blending into it."""
     client, store, node_class = setup_store(client_type, clients)
 
-    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
+    store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()), at=case.stored_at)
+    incoming = node_class(client=client, schema=location_schema, data=shallow_location_data())
+    store.set(node=incoming, at=case.incoming_at)
 
-    with pytest.warns(UserWarning, match="Not populating the store"):
-        assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is False
+    assert get_location(store) is incoming
+    assert store.count() == 1
+    assert get_location(store).primary_tag.initialized is False
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_save_is_refused_against_a_historical_store(
-    httpx_mock: HTTPXMock, client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
+def test_live_writes_are_stored_next_to_historical_ones(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, tag_schema: NodeSchemaAPI
 ) -> None:
-    """The mutation path claims the context too, not just direct store writes."""
-    httpx_mock.add_response(
-        method="POST",
-        json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
-    )
+    """A live write on a branch holding historical entries is stored, so its peers still resolve."""
     client, _, node_class = setup_store(client_type, clients)
     store = client.store
 
-    assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is True
+    location = node_class(client=client, schema=location_schema, data=deep_location_data())
+    store.set(node=location, at="2020-01-01T00:00:00Z")
+    tag = node_class(client=client, schema=tag_schema, data={"id": TAG_RED_ID, "name": {"value": "red"}})
+    store.set(node=tag)
 
-    node = node_class(client=client, schema=location_schema, data=deep_location_data())
-    node._attribute_data["description"].value = "edited"
-    if isinstance(node, InfrahubNode):
-        with pytest.warns(UserWarning, match="Not populating the store"):
-            await node.save()
+    assert store.count() == 2
+    assert location._relationship_cardinality_one_data["primary_tag"].peer is tag
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_related_node_fetch_caches_the_store_object(
+    httpx_mock: HTTPXMock,
+    mock_schema_query_01: HTTPXMock,
+    client_type: str,
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    tag_schema: NodeSchemaAPI,
+    tag_red_data: dict[str, Any],
+) -> None:
+    """When the store already holds the peer, fetch() caches that object rather than its query copy."""
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinTag": {"count": 1, "edges": [tag_red_data]}}},
+        match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
+    )
+    client, _, node_class = setup_store(client_type, clients)
+    already_stored = node_class(client=client, schema=tag_schema, data={"id": TAG_RED_ID, "name": {"value": "red"}})
+    client.store.set(node=already_stored)
+
+    if client_type == "standard":
+        edge = InfrahubNode(
+            client=clients.standard, schema=location_schema, data=deep_location_data()
+        )._relationship_cardinality_one_data["primary_tag"]
+        await edge.fetch()
     else:
-        with pytest.warns(UserWarning, match="Not populating the store"):
-            node.save()
+        edge = InfrahubNodeSync(
+            client=clients.sync, schema=location_schema, data=deep_location_data()
+        )._relationship_cardinality_one_data["primary_tag"]
+        edge.fetch()
 
-    # The mutation still reached the server; only the store was left alone
-    assert store.count() == 0
+    assert edge.peer is already_stored
+    assert client.store.get(key=TAG_RED_ID) is already_stored
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_save_claims_the_live_context_for_later_historical_queries(
+async def test_save_replaces_a_historical_copy(
     httpx_mock: HTTPXMock, client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
 ) -> None:
-    """A save on an unclaimed branch marks it live, so a later `at=` query is refused."""
+    """A save carries live data, so it takes over an entry fetched at a point in time."""
     httpx_mock.add_response(
         method="POST",
         json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
@@ -1073,6 +1165,9 @@ async def test_save_claims_the_live_context_for_later_historical_queries(
     client, _, node_class = setup_store(client_type, clients)
     store = client.store
 
+    store.set(
+        node=node_class(client=client, schema=location_schema, data=deep_location_data()), at="2020-01-01T00:00:00Z"
+    )
     node = node_class(client=client, schema=location_schema, data=deep_location_data())
     node._attribute_data["description"].value = "edited"
     if isinstance(node, InfrahubNode):
@@ -1081,21 +1176,7 @@ async def test_save_claims_the_live_context_for_later_historical_queries(
         node.save()
 
     assert store.count() == 1
-    with pytest.warns(UserWarning, match="Not populating the store"):
-        assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is False
-
-
-@pytest.mark.parametrize("client_type", client_types)
-def test_live_write_refused_against_a_historical_store(
-    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
-) -> None:
-    client, store, node_class = setup_store(client_type, clients)
-
-    assert store._reserve_at_context(at="2020-01-01T00:00:00Z", branch="main") is True
-    with pytest.warns(UserWarning, match="Not populating the store"):
-        store.set(node=node_class(client=client, schema=location_schema, data=deep_location_data()))
-
-    assert store.count() == 0
+    assert store.get(key=LOCATION_ID) is node
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -1451,10 +1532,10 @@ async def test_consistent_at_queries_populate_and_merge(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_at_query_after_live_context_skips_store_with_warning(
+async def test_at_query_after_live_query_replaces(
     httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
 ) -> None:
-    """A historical read must not blend into a live cache: it warns and skips the store."""
+    """A historical read must not blend into a live entry: it replaces it."""
     httpx_mock.add_response(
         method="POST",
         json=repository_response(include_location=True),
@@ -1470,22 +1551,19 @@ async def test_at_query_after_live_context_skips_store_with_warning(
     stored: CoreRepository | CoreRepositorySync
     if client_type == "standard":
         await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID)
-        with pytest.warns(UserWarning, match="Mixing timestamps"):
-            node = await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID, at=at)
+        node = await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID, at=at)
         stored = clients.standard.store.get(key=REPOSITORY_ID, kind=CoreRepository)
     else:
         clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID)
-        with pytest.warns(UserWarning, match="Mixing timestamps"):
-            node = clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID, at=at)
+        node = clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID, at=at)
         stored = clients.sync.store.get(key=REPOSITORY_ID, kind=CoreRepositorySync)
 
-    # The historical query still returned its result, but the live cache is untouched
-    assert node.id == REPOSITORY_ID
-    assert stored.location.value == REPOSITORY_LOCATION
+    assert stored is node
+    assert stored.location.value is None
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_live_query_after_at_context_skips_store_with_warning(
+async def test_live_query_after_at_query_replaces(
     httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
 ) -> None:
     httpx_mock.add_response(
@@ -1503,14 +1581,12 @@ async def test_live_query_after_at_context_skips_store_with_warning(
     stored: CoreRepository | CoreRepositorySync
     if client_type == "standard":
         await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID, at=at)
-        with pytest.warns(UserWarning, match="Mixing timestamps"):
-            await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID)
+        node = await clients.standard.get(kind=CoreRepository, id=REPOSITORY_ID)
         stored = clients.standard.store.get(key=REPOSITORY_ID, kind=CoreRepository)
     else:
         clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID, at=at)
-        with pytest.warns(UserWarning, match="Mixing timestamps"):
-            clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID)
+        node = clients.sync.get(kind=CoreRepositorySync, id=REPOSITORY_ID)
         stored = clients.sync.store.get(key=REPOSITORY_ID, kind=CoreRepositorySync)
 
-    # The store keeps the historical context it was stamped with
-    assert stored.location.value == REPOSITORY_LOCATION
+    assert stored is node
+    assert stored.location.value is None

@@ -138,6 +138,9 @@ class InfrahubNodeBase:
 
         if not self.id:
             self._existing = False
+        # A query response always carries an id, so a node built without one holds
+        # user-supplied data rather than a GraphQL payload, even once it has been saved.
+        self._created_locally: bool = not self._existing
 
         self._init_attributes(data)
         self._init_relationships(data)
@@ -326,11 +329,10 @@ class InfrahubNodeBase:
         Used by the client store when a node with this UUID is fetched again: fields the
         new fetch carried (attributes, relationships, node-level scalars) overwrite the
         stored ones - even to empty or ``None`` - while fields the new fetch did not
-        request keep their stored value. Local *unsaved* edits on this node
-        (``_has_unsaved_change``) always win over the incoming copy; once saved, the
-        field refreshes from later fetches like any other. Both nodes must be of the same
-        kind; the store replaces the entry wholesale on a kind change instead of calling
-        this.
+        request keep their stored value. The store only calls this when the two copies
+        can be merged (see ``NodeStoreBranch._can_merge``) and replaces the entry
+        wholesale otherwise, so an unsaved local edit is never merged against a copy
+        that carries the same field.
         """
         incoming_data = node._data if isinstance(node._data, dict) else {}
         if not isinstance(self._data, dict):
@@ -378,10 +380,18 @@ class InfrahubNodeBase:
         carries only some edge properties must not drop the others from the baseline,
         since ``RelatedNodeBase._merge`` keeps them on the live object.
 
+        An edge whose ``node`` points at a different peer is a different edge, so it is
+        taken whole: the old edge's properties, hfid and display label must not survive
+        onto it, matching what ``RelatedNodeBase._merge`` does on the live object.
+
         Containers are copied rather than adopted, so the store's baseline never aliases
         the per-query snapshot it was merged from.
         """
-        if isinstance(stored_value, dict) and isinstance(incoming_value, dict):
+        if (
+            isinstance(stored_value, dict)
+            and isinstance(incoming_value, dict)
+            and not InfrahubNodeBase._raw_edge_peer_changed(stored_value, incoming_value)
+        ):
             merged = dict(stored_value)
             for key, value in incoming_value.items():
                 merged[key] = InfrahubNodeBase._merge_raw_value(merged.get(key), value)
@@ -391,6 +401,25 @@ class InfrahubNodeBase:
         if isinstance(incoming_value, list):
             return [InfrahubNodeBase._merge_raw_value(None, item) for item in incoming_value]
         return incoming_value
+
+    @staticmethod
+    def _raw_edge_peer_changed(stored_value: dict, incoming_value: dict) -> bool:
+        """Return whether two raw relationship edges point at different peers."""
+        if "node" not in stored_value or "node" not in incoming_value:
+            return False
+        stored_peer = stored_value["node"]
+        incoming_peer = incoming_value["node"]
+        if not isinstance(incoming_peer, dict) or not isinstance(stored_peer, dict):
+            return stored_peer != incoming_peer
+        stored_id = stored_peer.get("id")
+        incoming_id = incoming_peer.get("id")
+        if stored_id is not None and incoming_id is not None:
+            return stored_id != incoming_id
+        stored_hfid = stored_peer.get("hfid")
+        incoming_hfid = incoming_peer.get("hfid")
+        if stored_hfid is not None and incoming_hfid is not None:
+            return stored_hfid != incoming_hfid
+        return False
 
     def _merge_attribute(self, name: str, incoming_attr: Attribute) -> bool:
         """Merge one attribute into ``_attribute_data``; return whether it was taken."""
@@ -435,6 +464,33 @@ class InfrahubNodeBase:
         else:
             stored_rel._merge(incoming_rel)
         return True
+
+    def _has_unsaved_changes_overlapping(self, node: InfrahubNodeBase | CoreNodeBase) -> bool:
+        """Return whether this node has an unsaved edit on a field ``node`` carries.
+
+        The store replaces rather than merges in that case: merging would either discard
+        the local edit or keep it against fresher server data indefinitely.
+        """
+        for name, incoming_attr in node._attribute_data.items():
+            stored_attr = self._attribute_data.get(name)
+            if (
+                stored_attr is not None
+                and stored_attr._has_unsaved_change
+                and (incoming_attr.is_fetched or incoming_attr._has_unsaved_change)
+            ):
+                return True
+        for container_field in RELATIONSHIP_CONTAINER_FIELDS:
+            incoming_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(node, container_field, {})
+            stored_bucket: dict[str, RelatedNodeBase | RelationshipManagerBase] = getattr(self, container_field, {})
+            for name, incoming_rel in incoming_bucket.items():
+                stored_rel = stored_bucket.get(name)
+                if (
+                    stored_rel is not None
+                    and stored_rel._has_unsaved_change
+                    and (incoming_rel.is_fetched or incoming_rel._has_unsaved_change)
+                ):
+                    return True
+        return False
 
     def _reset_mutation_tracking(self) -> None:
         """Mark the current in-memory state as persisted.

@@ -187,6 +187,7 @@ class CoreNodeBase:
     _internal_id: str
     _data: dict | None
     _existing: bool
+    _created_locally: bool
     _metadata: NodeMetadata | None
     _attribute_data: dict[str, NodeAttribute]
     id: str  # NOTE this is incorrect, should be str | None
@@ -226,6 +227,9 @@ class CoreNodeBase:
     def get_node_metadata(self) -> NodeMetadata | None: ...
 
     def _merge(self, node: CoreNodeBase | InfrahubNodeBase) -> None:
+        raise NotImplementedError
+
+    def _has_unsaved_changes_overlapping(self, node: CoreNodeBase | InfrahubNodeBase) -> bool:
         raise NotImplementedError
 
 

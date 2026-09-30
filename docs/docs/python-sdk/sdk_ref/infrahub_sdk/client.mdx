@@ -257,8 +257,8 @@ Retrieve all nodes of a given kind.
 - `at`: Time of the query. Defaults to Now.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
-The store holds one timestamp context per branch (live, or the first `at` used)\: a query whose `at`
-does not match that context skips the store with a warning instead of blending inconsistent data.
+Only nodes fetched at the same `at` merge\: a node already stored from another timestamp (or from
+live data) is replaced by the copy from this query.
 - `merge`: Whether nodes added to the store merge into an existing entry for the same UUID
 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
 - `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
@@ -311,8 +311,8 @@ Retrieve nodes of a given kind based on provided filters.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
-The store holds one timestamp context per branch (live, or the first `at` used)\: a query whose `at`
-does not match that context skips the store with a warning instead of blending inconsistent data.
+Only nodes fetched at the same `at` merge\: a node already stored from another timestamp (or from
+live data) is replaced by the copy from this query.
 - `merge`: Whether nodes added to the store merge into an existing entry for the same UUID
 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
 - `offset`: The offset for pagination.
@@ -838,8 +838,8 @@ Retrieve all nodes of a given kind.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
-The store holds one timestamp context per branch (live, or the first `at` used)\: a query whose `at`
-does not match that context skips the store with a warning instead of blending inconsistent data.
+Only nodes fetched at the same `at` merge\: a node already stored from another timestamp (or from
+live data) is replaced by the copy from this query.
 - `merge`: Whether nodes added to the store merge into an existing entry for the same UUID
 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
 - `offset`: The offset for pagination.
@@ -891,8 +891,8 @@ Retrieve nodes of a given kind based on provided filters.
 - `branch`: Name of the branch to query from. Defaults to default_branch.
 - `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved nodes.
-The store holds one timestamp context per branch (live, or the first `at` used)\: a query whose `at`
-does not match that context skips the store with a warning instead of blending inconsistent data.
+Only nodes fetched at the same `at` merge\: a node already stored from another timestamp (or from
+live data) is replaced by the copy from this query.
 - `merge`: Whether nodes added to the store merge into an existing entry for the same UUID
 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
 - `offset`: The offset for pagination.

@@ -40,12 +40,9 @@ class NodeStoreBranch:
         self._hfids: dict[str, dict[tuple, str]] = {}
         self._keys: dict[str, str] = {}
         self._uuids: dict[str, str] = {}
-        # The timestamp context this branch cache holds data for: None means live data,
-        # a timestamp string means every entry was fetched at that point in time. Claimed
-        # by the first write through reserve_at_context(); writes from another timestamp
-        # must not blend in.
-        self._at_context: str | None = None
-        self._has_at_context: bool = False
+        # The timestamp each stored object was fetched at, keyed by internal id: None means
+        # live data. Only copies from the same timestamp merge; any other one replaces.
+        self._at_by_internal_id: dict[str, str | None] = {}
         # Reverse indexes so set()/_evict() never scan the forward indexes. Both are
         # keyed by internal id: which (kind, hfid) entries and which custom keys point
         # at that object. set() is the hottest path in the SDK (every fetched node and
@@ -56,40 +53,46 @@ class NodeStoreBranch:
     def count(self) -> int:
         return len(self._objs)
 
-    def reserve_at_context(self, at: str | None) -> bool:
-        """Claim this branch cache for one timestamp context.
+    def _can_merge(
+        self,
+        existing: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        at: str | None,
+    ) -> bool:
+        """Return whether ``node`` may be merged into ``existing`` rather than replace it.
 
-        Returns True when ``at`` matches the context already claimed, or claims the
-        context when this is the first write. Returns False when the cache is already
-        claimed for a different point in time, in which case the caller must not write.
+        Every exception falls back to a wholesale replace, which is what the store did
+        before it merged at all: a kind change (two schemas cannot be merged), a
+        different timestamp (the result would blend two points in time), a node built
+        locally rather than from a query (its raw data is not a GraphQL payload), and a
+        stored node whose unsaved edits the incoming copy would contradict.
         """
-        if not self._has_at_context:
-            self._at_context = at
-            self._has_at_context = True
-            return True
-        return self._at_context == at
-
-    def describe_at_context(self) -> str:
-        return "live data" if self._at_context is None else f"data fetched at {self._at_context}"
+        return (
+            existing.get_kind() == node.get_kind()
+            and self._at_by_internal_id.get(existing._internal_id) == at
+            and not node._created_locally
+            and not existing._has_unsaved_changes_overlapping(node)
+        )
 
     def set(
         self,
         node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
         key: str | None = None,
         merge: bool = True,
+        at: str | None = None,
     ) -> None:
         if node.id and node.id in self._uuids:
             existing = self._objs.get(self._uuids[node.id])
             if existing is not None and existing is not node:
-                if merge and existing.get_kind() == node.get_kind():
+                if merge and self._can_merge(existing=existing, node=node, at=at):
                     # Merge into the existing object and keep its internal id so every
                     # reference already handed out by the store stays current.
                     existing._merge(node)
                     node = existing
                 else:
-                    # Replace wholesale: explicit merge=False, or the node was converted
-                    # to another kind (merging across two schemas is incoherent).
                     self._evict(existing, replacement_internal_id=node._internal_id)
+
+        self._at_by_internal_id[node._internal_id] = at
 
         # The hfid may have changed if one of its component attributes was refreshed;
         # drop the entries registered for this object before re-registering below.
@@ -127,6 +130,7 @@ class NodeStoreBranch:
     ) -> None:
         """Remove a stored node and repoint its custom keys at the node replacing it."""
         self._objs.pop(node._internal_id, None)
+        self._at_by_internal_id.pop(node._internal_id, None)
         self._discard_hfid_entries(internal_id=node._internal_id)
         for custom_key in self._keys_by_internal_id.pop(node._internal_id, set()):
             self._set_key(key=custom_key, internal_id=replacement_internal_id)
@@ -307,37 +311,6 @@ class NodeStoreBase:
             self._branches[branch] = NodeStoreBranch(name=branch)
         return self._branches[branch]
 
-    def _reserve_at_context(self, at: str | None, branch: str | None = None, stacklevel: int = 4) -> bool:
-        """Return whether data from the given timestamp may be written to this branch cache.
-
-        The store is a per-field freshness cache and holds exactly one timestamp
-        context per branch: live data (``at is None``) or one point in time. The first
-        write claims the context; later writes at the same timestamp merge as usual, so
-        a script that runs all its queries at one ``at`` gets full store functionality.
-        A mismatching timestamp must not blend in: the write is refused (the caller
-        skips it) and a warning is emitted, since the resulting cache would silently
-        mix data from different points in time.
-
-        Every write path goes through here, ``node.save()`` included - a save carries
-        live data, so it both claims an unclaimed branch and is refused against a branch
-        claimed for a point in time.
-        """
-        branch = self._get_branch(branch)
-        store_branch = self._get_or_create_branch(branch)
-
-        if store_branch.reserve_at_context(at):
-            return True
-
-        incoming = "live data" if at is None else f"data fetched at {at}"
-        warnings.warn(
-            f"Not populating the store: the store for branch {branch!r} holds "
-            f"{store_branch.describe_at_context()} and this operation carries {incoming}. Mixing "
-            "timestamps in the store would blend inconsistent data. Use a separate client "
-            "(client.clone()) for a different timestamp, or pass populate_store=False.",
-            stacklevel=stacklevel,
-        )
-        return False
-
     def _set(
         self,
         node: InfrahubNode | InfrahubNodeSync | SchemaType | SchemaTypeSync,
@@ -348,10 +321,9 @@ class NodeStoreBase:
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
 
-        if not self._reserve_at_context(at=at, branch=branch):
-            return
-
-        self._branches[branch].set(node=node, key=key, merge=self._default_merge if merge is None else merge)
+        self._get_or_create_branch(branch).set(
+            node=node, key=key, merge=self._default_merge if merge is None else merge, at=at
+        )
 
     def _get(  # type: ignore[no-untyped-def]
         self,
@@ -469,10 +441,12 @@ class NodeStore(NodeStoreBase):
 
         By default (``merge=None`` with the client's ``store_merge`` config left at
         ``True``), a node whose UUID is already present is merged into the existing
-        object field by field: fields carried by ``node`` overwrite the stored ones,
-        fields it does not carry keep their stored value, and unsaved local edits on the
-        stored object win. Pass ``merge=False`` to drop all prior knowledge of the node
-        and store exactly this object instead.
+        object field by field: fields carried by ``node`` overwrite the stored ones and
+        fields it does not carry keep their stored value. The existing entry is replaced
+        wholesale instead when the two were fetched at different timestamps, when
+        ``node`` was built locally rather than from a query, or when the stored object
+        has unsaved edits on a field ``node`` carries. Pass ``merge=False`` to always
+        replace.
 
         Args:
             node (InfrahubNode): The node to store.
@@ -483,8 +457,8 @@ class NodeStore(NodeStoreBase):
                 UUID (``True``) or replace it wholesale (``False``). Defaults to the
                 client's ``store_merge`` configuration (merge).
             at (str, optional): The timestamp this node was fetched at. Defaults to
-                ``None``, meaning live data. A branch cache holds one timestamp context;
-                storing a node from a different one is refused with a warning.
+                ``None``, meaning live data. Only nodes fetched at the same timestamp
+                merge.
 
         """
         return self._set(node=node, key=key, branch=branch, merge=merge, at=at)

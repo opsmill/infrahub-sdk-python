@@ -1153,8 +1153,8 @@ class InfrahubClient(BaseClient):
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
-                does not match that context skips the store with a warning instead of blending inconsistent data.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
             merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
                 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
@@ -1279,8 +1279,8 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
-                does not match that context skips the store with a warning instead of blending inconsistent data.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
             merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
                 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
@@ -1399,12 +1399,13 @@ class InfrahubClient(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
-        at_context = at.to_string() if at else None
-        if populate_store and (nodes or related_nodes) and self.store._reserve_at_context(at=at_context, branch=branch):
+        if populate_store:
+            at_context = at.to_string() if at else None
             for node in nodes:
                 if node.id:
                     self.store.set(node=node, merge=merge, at=at_context)
-            related_nodes = list(set(related_nodes))
+            # Every copy goes through the store rather than a deduplicated subset, so
+            # copies of one peer carrying different fields all merge into the entry.
             for node in related_nodes:
                 if node.id:
                     self.store.set(node=node, merge=merge, at=at_context)
@@ -3010,8 +3011,8 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
-                does not match that context skips the store with a warning instead of blending inconsistent data.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
             merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
                 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
@@ -3176,8 +3177,8 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
-                The store holds one timestamp context per branch (live, or the first `at` used): a query whose `at`
-                does not match that context skips the store with a warning instead of blending inconsistent data.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
             merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
                 (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
@@ -3298,12 +3299,13 @@ class InfrahubClientSync(BaseClient):
         # Select parallel or non-parallel processing
         nodes, related_nodes = process_batch() if parallel else process_non_batch()
 
-        at_context = at.to_string() if at else None
-        if populate_store and (nodes or related_nodes) and self.store._reserve_at_context(at=at_context, branch=branch):
+        if populate_store:
+            at_context = at.to_string() if at else None
             for node in nodes:
                 if node.id:
                     self.store.set(node=node, merge=merge, at=at_context)
-            related_nodes = list(set(related_nodes))
+            # Every copy goes through the store rather than a deduplicated subset, so
+            # copies of one peer carrying different fields all merge into the entry.
             for node in related_nodes:
                 if node.id:
                     self.store.set(node=node, merge=merge, at=at_context)
