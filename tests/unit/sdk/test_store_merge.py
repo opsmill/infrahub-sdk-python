@@ -489,6 +489,16 @@ def test_merge_peer_change_drops_old_edge_properties(
     assert raw["primary_tag"] == {"node": {"id": TAG_GREEN_ID, "display_label": "green", "__typename": "BuiltinTag"}}
 
 
+def test_raw_merge_takes_a_changed_property_object_whole() -> None:
+    """A property object pointing at another id replaces the old one instead of blending with it."""
+    stored = {"value": "JFK1", "source": {"id": "s1", "display_label": "crm", "__typename": "CoreAccount"}}
+    incoming = {"value": "JFK1", "source": {"id": "s2"}}
+
+    merged = InfrahubNode._merge_raw_value(stored, incoming)
+
+    assert merged == {"value": "JFK1", "source": {"id": "s2"}}
+
+
 @pytest.mark.parametrize("client_type", client_types)
 def test_merge_clears_hfid_only_relationship(
     client_type: str, clients: BothClients, location_schema: NodeSchemaAPI
@@ -826,6 +836,29 @@ def test_locally_created_copy_replaces(client_type: str, clients: BothClients, l
 
     assert store.get(key=LOCATION_ID) is created
     assert store.count() == 1
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_client_create_with_explicit_id_replaces(
+    client_type: str, clients: BothClients, mock_schema_query_01: HTTPXMock
+) -> None:
+    """client.create() marks its node as locally built even when given the id of a stored node."""
+    if client_type == "standard":
+        store = clients.standard.store
+        fetched = await clients.standard.create(kind="BuiltinTag", data={"id": TAG_RED_ID, "name": {"value": "red"}})
+        fetched._created_locally = False
+        store.set(node=fetched)
+        created = await clients.standard.create(kind="BuiltinTag", id=TAG_RED_ID, name="red")
+    else:
+        store = clients.sync.store
+        fetched = clients.sync.create(kind="BuiltinTag", data={"id": TAG_RED_ID, "name": {"value": "red"}})
+        fetched._created_locally = False
+        store.set(node=fetched)
+        created = clients.sync.create(kind="BuiltinTag", id=TAG_RED_ID, name="red")
+
+    assert created._created_locally is True
+    store.set(node=created)
+    assert store.get(key=TAG_RED_ID) is created
 
 
 def test_merge_helpers_insert_into_empty_containers(clients: BothClients, location_schema: NodeSchemaAPI) -> None:

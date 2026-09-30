@@ -444,9 +444,9 @@ class NodeStore(NodeStoreBase):
         object field by field: fields carried by ``node`` overwrite the stored ones and
         fields it does not carry keep their stored value. The existing entry is replaced
         wholesale instead when the two were fetched at different timestamps, when
-        ``node`` was built locally rather than from a query, or when the stored object
-        has unsaved edits on a field ``node`` carries. Pass ``merge=False`` to always
-        replace.
+        ``node`` was built locally rather than from a query, when the stored object has
+        unsaved edits on a field ``node`` carries, or when ``node`` has a different kind.
+        Pass ``merge=False`` to always replace.
 
         Args:
             node (InfrahubNode): The node to store.
@@ -560,10 +560,12 @@ class NodeStoreSync(NodeStoreBase):
 
         By default (``merge=None`` with the client's ``store_merge`` config left at
         ``True``), a node whose UUID is already present is merged into the existing
-        object field by field: fields carried by ``node`` overwrite the stored ones,
-        fields it does not carry keep their stored value, and unsaved local edits on the
-        stored object win. Pass ``merge=False`` to drop all prior knowledge of the node
-        and store exactly this object instead.
+        object field by field: fields carried by ``node`` overwrite the stored ones and
+        fields it does not carry keep their stored value. The existing entry is replaced
+        wholesale instead when the two were fetched at different timestamps, when
+        ``node`` was built locally rather than from a query, when the stored object has
+        unsaved edits on a field ``node`` carries, or when ``node`` has a different kind.
+        Pass ``merge=False`` to always replace.
 
         Args:
             node (InfrahubNodeSync): The node to store.
@@ -574,8 +576,8 @@ class NodeStoreSync(NodeStoreBase):
                 UUID (``True``) or replace it wholesale (``False``). Defaults to the
                 client's ``store_merge`` configuration (merge).
             at (str, optional): The timestamp this node was fetched at. Defaults to
-                ``None``, meaning live data. A branch cache holds one timestamp context;
-                storing a node from a different one is refused with a warning.
+                ``None``, meaning live data. Only nodes fetched at the same timestamp
+                merge.
 
         """
         return self._set(node=node, key=key, branch=branch, merge=merge, at=at)

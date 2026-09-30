@@ -589,7 +589,10 @@ class InfrahubClient(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
+        node = InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
+        # Even with an explicit id, the data is user-supplied rather than a GraphQL payload
+        node._created_locally = True
+        return node
 
     async def delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
@@ -2443,7 +2446,10 @@ class InfrahubClientSync(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
+        # Even with an explicit id, the data is user-supplied rather than a GraphQL payload
+        node._created_locally = True
+        return node
 
     def delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch

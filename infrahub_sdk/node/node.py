@@ -140,6 +140,7 @@ class InfrahubNodeBase:
             self._existing = False
         # A query response always carries an id, so a node built without one holds
         # user-supplied data rather than a GraphQL payload, even once it has been saved.
+        # client.create() also sets this for nodes given an explicit id.
         self._created_locally: bool = not self._existing
 
         self._init_attributes(data)
@@ -380,9 +381,10 @@ class InfrahubNodeBase:
         carries only some edge properties must not drop the others from the baseline,
         since ``RelatedNodeBase._merge`` keeps them on the live object.
 
-        An edge whose ``node`` points at a different peer is a different edge, so it is
-        taken whole: the old edge's properties, hfid and display label must not survive
-        onto it, matching what ``RelatedNodeBase._merge`` does on the live object.
+        An edge whose ``node`` points at a different peer is a different edge, and a
+        property object (``source``, ``owner``) with a different ``id`` is a different
+        object, so both are taken whole: the old one's hfid, display label and typename
+        must not survive onto the new one, matching the live object.
 
         Containers are copied rather than adopted, so the store's baseline never aliases
         the per-query snapshot it was merged from.
@@ -391,6 +393,7 @@ class InfrahubNodeBase:
             isinstance(stored_value, dict)
             and isinstance(incoming_value, dict)
             and not InfrahubNodeBase._raw_edge_peer_changed(stored_value, incoming_value)
+            and not InfrahubNodeBase._raw_object_id_changed(stored_value, incoming_value)
         ):
             merged = dict(stored_value)
             for key, value in incoming_value.items():
@@ -420,6 +423,13 @@ class InfrahubNodeBase:
         if stored_hfid is not None and incoming_hfid is not None:
             return stored_hfid != incoming_hfid
         return False
+
+    @staticmethod
+    def _raw_object_id_changed(stored_value: dict, incoming_value: dict) -> bool:
+        """Return whether two raw objects both carry an id and the ids differ."""
+        stored_id = stored_value.get("id")
+        incoming_id = incoming_value.get("id")
+        return stored_id is not None and incoming_id is not None and stored_id != incoming_id
 
     def _merge_attribute(self, name: str, incoming_attr: Attribute) -> bool:
         """Merge one attribute into ``_attribute_data``; return whether it was taken."""

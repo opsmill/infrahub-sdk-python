@@ -27,6 +27,7 @@ The merge works field by field, for attributes and relationships alike:
 - A field that was part of the query overwrites the stored value, even when the new value is empty or `None`. A relationship cleared on the server, or an attribute set back to `None`, is reflected after a re-fetch that includes it.
 - A field that was not part of the query keeps its stored value. Fetching a node with a subset of its attributes never erases what an earlier query loaded.
 - A re-fetched relationship of cardinality many replaces its full member list, so a peer removed on the server is dropped from the store.
+
 This makes re-collecting the same information safe and idempotent: it refreshes what you fetched and never drops what you did not.
 
 Consider a deep fetch followed by a shallow one:
