@@ -29,9 +29,19 @@ _ELEMENT_CONTAINERS = frozenset({"attributes", "relationships"})
 
 
 class SchemaValidationErrorDetail(BaseModel):
-    """A single field-level validation problem in a schema payload."""
+    """A single field-level validation problem in a schema payload.
+
+    The location, the reason and the received value are carried separately so a consumer can
+    report the problem in a structured form; ``field`` and ``message`` are their rendering.
+    """
 
     field: str = Field(..., description="Dotted path to the offending field, e.g. 'nodes[0].attributes[1].kind'")
+    loc: tuple[int | str, ...] = Field(
+        ...,
+        description="Location of the offending field as keys and indexes, e.g. ('nodes', 0, 'attributes', 1, 'kind')",
+    )
+    reason: str = Field(..., description="What is wrong at the location, without the location or the received value")
+    input: Any = Field(..., description="The value received at the location; the enclosing object for a missing field")
     message: str = Field(..., description="Human-readable, field-level error message")
 
 
@@ -80,14 +90,13 @@ class SchemaValidationResult(BaseModel):
             raise ValueError("; ".join(self.messages))
 
 
-def _format_error_location(loc: tuple[Any, ...], prefix: str = "") -> str:
-    """Render a dotted field path from a pydantic error location, optionally under a base prefix.
+def _format_error_location(loc: tuple[int | str, ...]) -> str:
+    """Render a dotted field path from a pydantic-style location.
 
     Integer elements index into the preceding segment (``attributes`` + ``1`` becomes
-    ``attributes[1]``); everything else is appended as a new dotted segment. A ``prefix`` is used
-    when the location is relative to an item validated on its own (e.g. an extension attribute).
+    ``attributes[1]``); everything else is appended as a new dotted segment.
     """
-    parts = [prefix] if prefix else []
+    parts: list[str] = []
     for element in loc:
         if isinstance(element, int):
             if parts:
@@ -99,16 +108,31 @@ def _format_error_location(loc: tuple[Any, ...], prefix: str = "") -> str:
     return ".".join(parts)
 
 
-def _collect_validation_errors(
-    exc: PydanticValidationError, errors: list[SchemaValidationErrorDetail], prefix: str = ""
-) -> None:
+def _error_detail(
+    loc: tuple[int | str, ...], reason: str, value: Any, *, received: bool = True
+) -> SchemaValidationErrorDetail:
+    """Build an error detail, rendering ``field`` and ``message`` from the structured parts.
+
+    ``received`` controls whether the message names the value; a missing field has none to show.
+    """
+    location = _format_error_location(loc=loc)
+    message = f"{location}: {reason}"
+    if received:
+        message += f" (received: {value!r})"
+    return SchemaValidationErrorDetail(field=location, loc=loc, reason=reason, input=value, message=message)
+
+
+def _collect_validation_errors(exc: PydanticValidationError, errors: list[SchemaValidationErrorDetail]) -> None:
     """Append a field-level detail for every problem in a pydantic validation error."""
-    for error in exc.errors():
-        location = _format_error_location(loc=error["loc"], prefix=prefix)
-        message = f"{location}: {error['msg']}"
-        if error["type"] != "missing" and "input" in error:
-            message += f" (received: {error['input']!r})"
-        errors.append(SchemaValidationErrorDetail(field=location, message=message))
+    errors.extend(
+        _error_detail(
+            loc=error["loc"],
+            reason=error["msg"],
+            value=error.get("input"),
+            received=error["type"] != "missing",
+        )
+        for error in exc.errors()
+    )
 
 
 def _descend_context(
@@ -136,7 +160,7 @@ def _collect_extra_fields(
     instance: BaseModel,
     errors: list[SchemaValidationErrorDetail],
     warnings: list[SchemaValidationWarningDetail],
-    path: str = "",
+    loc: tuple[int | str, ...] = (),
     field: str | None = None,
     kind: str | None = None,
     element: str | None = None,
@@ -168,8 +192,9 @@ def _collect_extra_fields(
     read_only = READ_ONLY_FIELDS.get(type(instance).__name__, frozenset())
 
     for key in sorted(set(payload) - set(fields)):
-        location = f"{path}.{key}" if path else key
+        key_loc = (*loc, key)
         if key in read_only:
+            location = _format_error_location(loc=key_loc)
             warnings.append(
                 SchemaValidationWarningDetail(
                     field=location,
@@ -181,17 +206,13 @@ def _collect_extra_fields(
             )
         else:
             errors.append(
-                SchemaValidationErrorDetail(
-                    field=location,
-                    message=f"{location}: Unknown field, it is not part of the schema (received: {payload[key]!r})",
-                )
+                _error_detail(loc=key_loc, reason="Unknown field, it is not part of the schema", value=payload[key])
             )
 
     for name in fields:
         if name not in payload:
             continue
         raw, value = payload[name], getattr(instance, name)
-        child_path = f"{path}.{name}" if path else name
         # Validation succeeded, so a list field is index-aligned with the list it was built from.
         # A list of plain values carries no nested model and is skipped.
         if isinstance(value, list):
@@ -202,7 +223,7 @@ def _collect_extra_fields(
                         instance=item,
                         errors=errors,
                         warnings=warnings,
-                        path=f"{child_path}[{index}]",
+                        loc=(*loc, name, index),
                         field=name,
                         kind=kind,
                         element=element,
@@ -214,7 +235,7 @@ def _collect_extra_fields(
                 instance=value,
                 errors=errors,
                 warnings=warnings,
-                path=child_path,
+                loc=(*loc, name),
                 field=name,
                 kind=kind,
                 element=element,

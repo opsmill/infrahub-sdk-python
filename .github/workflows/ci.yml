@@ -346,11 +346,11 @@ jobs:
       - name: "Re-resolve at the declared lower bounds"
         run: uv lock --resolution lowest-direct
       - name: Install dependencies
-        run: uv sync --all-groups --all-extras
+        run: uv sync --frozen --all-groups --all-extras
       - name: "Report the resolved versions"
         run: uv pip list
       - name: Unit Tests
-        run: uv run pytest --cov infrahub_sdk tests/unit/
+        run: uv run --frozen pytest --cov infrahub_sdk tests/unit/
 
   # Proves a plain install works on every supported interpreter, which the uv.lock-based jobs cannot.
   install-matrix:
@@ -631,3 +631,34 @@ jobs:
   #         codecov --flags integration-tests
   #       env:
   #         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # ------------------------------------------ Gate  ------------------------------------------
+  # Single rollup check, so branch protection can require CI without naming every
+  # job (several are conditional, and unit-tests fans out over a moving matrix).
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs:
+      - prepare-environment
+      - files-changed
+      - yaml-lint
+      - python-lint
+      - markdown-lint
+      - action-lint
+      - uv-lock-check
+      - documentation
+      - validate-generated-documentation
+      - validate-documentation-style
+      - unit-tests
+      - integration-tests-latest-infrahub
+      - dependency-lower-bounds
+      - dependency-lower-bounds-no-harness
+      - install-matrix
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 5
+    steps:
+      - name: "Fail if any job did not succeed or skip"
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more CI jobs failed or were cancelled."
+          exit 1
