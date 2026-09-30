@@ -1496,6 +1496,92 @@ async def test_prefetched_related_nodes_merge_into_store(
     assert tag.display_label == "red"
 
 
+def tag_response(include_description: bool) -> dict[str, Any]:
+    node: dict[str, Any] = {
+        "__typename": "BuiltinTag",
+        "id": TAG_RED_ID,
+        "display_label": "red",
+        "name": {"value": "red"},
+    }
+    if include_description:
+        node["description"] = {"value": "the red tag"}
+    return {"data": {"BuiltinTag": {"count": 1, "edges": [{"node": node}]}}}
+
+
+def repository_with_tag_response() -> dict[str, Any]:
+    response = repository_response(include_location=True)
+    response["data"]["CoreRepository"]["edges"][0]["node"]["tags"] = {
+        "count": 1,
+        "edges": [{"node": tag_response(include_description=False)["data"]["BuiltinTag"]["edges"][0]["node"]}],
+    }
+    return response
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_deep_fetch_survives_a_narrow_prefetched_copy(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
+) -> None:
+    """A node later returned as a narrow prefetched peer keeps what the deep fetch loaded."""
+    httpx_mock.add_response(
+        method="POST",
+        json=tag_response(include_description=True),
+        match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json=repository_with_tag_response(),
+        match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+    )
+
+    if client_type == "standard":
+        tag = await clients.standard.get(kind="BuiltinTag", id=TAG_RED_ID)
+        repo = await clients.standard.get(kind="CoreRepository", id=REPOSITORY_ID, prefetch_relationships=True)
+        store = clients.standard.store
+    else:
+        tag = clients.sync.get(kind="BuiltinTag", id=TAG_RED_ID)
+        repo = clients.sync.get(kind="CoreRepository", id=REPOSITORY_ID, prefetch_relationships=True)
+        store = clients.sync.store
+
+    stored_tag = store.get(key=TAG_RED_ID)
+    assert stored_tag is tag
+    assert stored_tag._attribute_data["description"].value == "the red tag"
+    assert repo._relationship_cardinality_many_data["tags"].peers[0].peer is stored_tag
+    assert store.count() == 2
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_historical_prefetch_after_live_fetch_resolves_peers(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
+) -> None:
+    """Mixing live and historical queries on one client keeps every peer resolvable."""
+    httpx_mock.add_response(
+        method="POST",
+        json=tag_response(include_description=True),
+        match_headers={"X-Infrahub-Tracker": "query-builtintag-page1"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json=repository_with_tag_response(),
+        match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+    )
+
+    at = Timestamp("2023-01-01T00:00:00Z")
+    if client_type == "standard":
+        await clients.standard.get(kind="BuiltinTag", id=TAG_RED_ID)
+        repo = await clients.standard.get(kind="CoreRepository", id=REPOSITORY_ID, at=at, prefetch_relationships=True)
+        store = clients.standard.store
+    else:
+        clients.sync.get(kind="BuiltinTag", id=TAG_RED_ID)
+        repo = clients.sync.get(kind="CoreRepository", id=REPOSITORY_ID, at=at, prefetch_relationships=True)
+        store = clients.sync.store
+
+    peer = repo._relationship_cardinality_many_data["tags"].peers[0].peer
+    assert peer is store.get(key=TAG_RED_ID)
+    # The historical copy replaced the live one rather than blending with it
+    assert peer._attribute_data["description"].value is None
+    assert store.get(key=REPOSITORY_ID) is repo
+
+
 @pytest.mark.parametrize("client_type", client_types)
 async def test_consistent_at_queries_populate_and_merge(
     httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
