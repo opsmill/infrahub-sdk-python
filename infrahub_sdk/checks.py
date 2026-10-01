@@ -10,9 +10,8 @@ from typing import TYPE_CHECKING, Any
 import ujson
 from pydantic import BaseModel, Field
 
-from infrahub_sdk.repository import GitRepoManager
-
 from .exceptions import UninitializedError
+from .utils import get_branch
 
 if TYPE_CHECKING:
     from . import InfrahubClient
@@ -44,7 +43,6 @@ class InfrahubCheck:
         params: dict | None = None,
         client: InfrahubClient | None = None,
     ) -> None:
-        self.git: GitRepoManager | None = None
         self.initializer = initializer or InfrahubCheckInitializer()
 
         self.logs: list[dict[str, Any]] = []
@@ -132,14 +130,16 @@ class InfrahubCheck:
 
     @property
     def branch_name(self) -> str:
-        """Return the name of the current git branch."""
+        """Return the name of the Infrahub branch this check targets."""
         if self.branch:
             return self.branch
 
-        if not self.git:
-            self.git = GitRepoManager(self.root_directory)
+        if self._client:
+            # The config resolver honours the `default_branch_from_git` flag.
+            self.branch = self._client.config.get_default_infrahub_branch(directory=self.root_directory)
+        else:
+            self.branch = get_branch(directory=self.root_directory)
 
-        self.branch = str(self.git.active_branch)
         return self.branch
 
     @abstractmethod
