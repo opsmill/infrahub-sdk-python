@@ -1,0 +1,1 @@
+`GraphQLError` now parses the error catalogue extensions returned by the Infrahub server: each entry in `errors` is exposed as a structured `GraphQLErrorDetail` (message, catalogue `code`, `http_status`, `data`, `path`) via the new `details` attribute, and `codes` lists the catalogue error codes present in the response.
