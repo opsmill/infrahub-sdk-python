@@ -99,7 +99,7 @@ class Attribute:
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self._read_only = ["updated_at", "is_inherited"]
+        self._read_only = ["updated_at"]
 
         self.id: str | None = data.get("id")
 
@@ -117,7 +117,6 @@ class Attribute:
             mapper = value_mapper.get(schema.kind, lambda value: value)
             self._value = mapper(data.get("value"))
 
-        self.is_inherited: bool | None = data.get("is_inherited")
         self.updated_at: str | None = data.get("updated_at")
 
         self.is_protected: bool | None = data.get("is_protected")

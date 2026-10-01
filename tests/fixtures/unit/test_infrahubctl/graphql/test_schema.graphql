@@ -1,7 +1,6 @@
 """Attribute of type Text"""
 type TextAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -11,7 +10,6 @@ type TextAttribute implements AttributeInterface {
 
 interface AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
