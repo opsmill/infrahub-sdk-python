@@ -264,6 +264,12 @@ unresolved-attribute = "ignore"
 possibly-missing-attribute = "ignore"
 
 [[tool.ty.overrides]]
+include = ["tests/unit/sdk/test_node_field_access.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 6 violations - `node.<field>` resolves to a union of attribute and relationship types
+
+[[tool.ty.overrides]]
 include = [
     "tests/integration/**",
     "tests/unit/sdk/test_store_branch.py",
