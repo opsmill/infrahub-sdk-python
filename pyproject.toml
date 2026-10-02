@@ -135,6 +135,7 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore:Module already imported so cannot be rewritten",
     "ignore:Deprecated call to",
+    "error::infrahub_sdk.exceptions.FieldNotLoadedWarning",
 ]
 addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dist loadscope"
 

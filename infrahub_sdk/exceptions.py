@@ -199,6 +199,62 @@ class InvalidResponseError(Error):
     """Raised when an object requires an initialization step before use."""
 
 
+class FieldNotLoadedError(Error):
+    """Raised when reading a node field whose value the SDK never fetched.
+
+    ``selection`` is the label of the selection that produced the node, or ``None`` when the origin is unknown.
+    """
+
+    def __init__(self, kind: str, field: str, selection: str | None = None, message: str | None = None) -> None:
+        self.kind = kind
+        self.field = field
+        self.selection = selection
+        self.message = message or f"{kind}.{field} was not fetched."
+        super().__init__(self.message)
+
+
+class SelectionFieldNotFoundError(Error):
+    """Raised when a name passed to ``only`` does not resolve to a field of the queried kind.
+
+    ``implementing_kinds`` lists the kinds that define the name when it only exists on the kinds
+    implementing a generic, in which case the query needs ``fragment=True``.
+    """
+
+    def __init__(
+        self, kind: str, field: str, implementing_kinds: list[str] | None = None, message: str | None = None
+    ) -> None:
+        self.kind = kind
+        self.field = field
+        self.implementing_kinds = implementing_kinds or []
+        if message:
+            self.message = message
+        elif self.implementing_kinds:
+            self.message = (
+                f"'{field}' is not defined on {kind}, only on the kinds implementing it "
+                f"({', '.join(self.implementing_kinds)}). Pass fragment=True to select it."
+            )
+        else:
+            self.message = f"'{field}' is not an attribute or relationship of {kind}."
+        super().__init__(self.message)
+
+
+class SelectionConflictError(Error):
+    """Raised when ``only`` is combined with ``include`` or ``exclude``."""
+
+    def __init__(self, parameters: list[str], message: str | None = None) -> None:
+        self.parameters = parameters
+        if message is None:
+            first, *others = parameters
+            combined = " or ".join(f"'{name}'" for name in others)
+            message = f"'{first}' cannot be combined with {combined}; pass '{first}' on its own."
+        self.message = message
+        super().__init__(self.message)
+
+
+class FieldNotLoadedWarning(FutureWarning):
+    """Emitted when reading a node field whose value the SDK never fetched."""
+
+
 class RepositoryFileNotFoundError(Error):
     def __init__(self, file_path: str, message: str | None = None) -> None:
         self.file_path = file_path
