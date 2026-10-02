@@ -393,12 +393,12 @@ class TestMatchesLocalChecksum:
         self, client_type: str, clients: BothClients, file_object_schema: NodeSchemaAPI
     ) -> None:
         client = getattr(clients, client_type)
+        # The server returned the node with a null checksum.
+        data = {"id": "node-1", "checksum": {"value": None}}
         if client_type == "standard":
-            node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+            node = InfrahubNode(client=client, schema=file_object_schema, branch="main", data=data)
         else:
-            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
-        node.id = "node-1"
-        # Do NOT set node.checksum.value — default is None.
+            node = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main", data=data)
 
         if isinstance(node, InfrahubNode):
             with pytest.raises(ValueError, match=r"has no server-side checksum"):

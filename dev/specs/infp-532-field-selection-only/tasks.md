@@ -147,7 +147,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 - [X] T021 [P] [US1] In `infrahub_sdk/ctl/formatters/base.py` (`_extract_relationship_value`, `extract_node_data`, the detail builder) and `infrahub_sdk/ctl/formatters/yaml.py`: skip any attribute or relationship whose `is_loaded` is `False` before reading its value. Make the T015 formatter tests pass.
 - [X] T022 [P] [US1] In `infrahub_sdk/ctl/object/update.py`, run `_relationship_changed` and `_apply_relationship` under `internal_field_access()` from `infrahub_sdk.node.field_access`, so that comparing and rewriting an unfetched relationship emits nothing.
 - [X] T023 [P] [US1] In `infrahub_sdk/transfer/importer/json.py` (`remove_and_store_optional_relationships`), skip relationships whose `is_loaded` is `False` before reading `peer_ids` or `id`. Make the T015 importer test pass.
-- [ ] T024 [US1] Run `uv run pytest tests/unit -q`. For every existing test that now fails with `FieldNotLoadedWarning`, either widen the fixture payload so the field is present, or wrap the read in `pytest.warns(FieldNotLoadedWarning)` when the test is about that read. Don't change any assertion on a fetched value. List the files touched in the commit message.
+- [X] T024 [US1] Run `uv run pytest tests/unit -q`. For every existing test that now fails with `FieldNotLoadedWarning`, either widen the fixture payload so the field is present, or wrap the read in `pytest.warns(FieldNotLoadedWarning)` when the test is about that read. Don't change any assertion on a fetched value. List the files touched in the commit message.
 
 **Checkpoint**: User Story 1 is complete and shippable on its own as the 1.x deprecation step.
 
