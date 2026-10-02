@@ -273,6 +273,12 @@ invalid-argument-type = "ignore" # 2 violations - async and sync peer lists are 
 invalid-assignment = "ignore" # 1 violation - same async/sync peer list union
 
 [[tool.ty.overrides]]
+include = ["tests/unit/sdk/test_node_selection.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 12 violations - `node.<field>` resolves to a union of attribute and relationship types
+
+[[tool.ty.overrides]]
 include = [
     "tests/integration/**",
     "tests/unit/sdk/test_store_branch.py",

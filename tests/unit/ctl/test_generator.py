@@ -10,7 +10,14 @@ from infrahub_sdk.client import InfrahubClient
 from infrahub_sdk.config import Config
 from infrahub_sdk.ctl import generator as generator_module
 from infrahub_sdk.node import InfrahubNode
-from infrahub_sdk.schema import AttributeSchemaAPI, NodeSchemaAPI
+from infrahub_sdk.schema import (
+    AttributeSchemaAPI,
+    GenericSchemaAPI,
+    NodeSchemaAPI,
+    RelationshipCardinality,
+    RelationshipKind,
+    RelationshipSchemaAPI,
+)
 from infrahub_sdk.schema.main import AttributeKind
 from infrahub_sdk.schema.repository import InfrahubGeneratorDefinitionConfig, InfrahubRepositoryConfig
 
@@ -44,6 +51,7 @@ class CliHarness:
 
     definition: InfrahubGeneratorDefinitionConfig
     members: list[InfrahubNode] = field(default_factory=list)
+    group_lookups: list[dict[str, object]] = field(default_factory=list)
     queries: list[ExecutedQuery] = field(default_factory=list)
     runs: list[GeneratorRun] = field(default_factory=list)
 
@@ -146,6 +154,7 @@ class StubClient:
         self.harness = harness
 
     async def get(self, **kwargs: object) -> StubGroup:
+        self.harness.group_lookups.append(kwargs)
         return StubGroup(members=self.harness.members)
 
 
@@ -166,6 +175,29 @@ async def rule_schema() -> NodeSchemaAPI:
             AttributeSchemaAPI(name="rule_id", kind=AttributeKind.NUMBER, unique=True),
             AttributeSchemaAPI(name="status", kind=AttributeKind.TEXT),
         ],
+    )
+
+
+@pytest.fixture
+async def core_group_schema() -> GenericSchemaAPI:
+    return GenericSchemaAPI(
+        name="Group",
+        namespace="Core",
+        attributes=[
+            AttributeSchemaAPI(name="name", kind=AttributeKind.TEXT, unique=True),
+            AttributeSchemaAPI(name="description", kind=AttributeKind.TEXT, optional=True),
+        ],
+        relationships=[
+            RelationshipSchemaAPI(
+                name="members",
+                peer="CoreNode",
+                kind=RelationshipKind.GENERIC,
+                cardinality=RelationshipCardinality.MANY,
+                optional=True,
+                identifier="group_member",
+            ),
+        ],
+        used_by=["CoreStandardGroup"],
     )
 
 
@@ -262,3 +294,20 @@ async def test_variables_given_on_the_command_line_bypass_the_group(cli: CliHarn
         GeneratorRun(identifier="process_pending_rules", params={"rule_id": "12345"}, data=QUERY_RESULT)
     ]
     assert cli.queries == [ExecutedQuery(name="pending_rules_context", variables={"rule_id": "12345"})]
+
+
+async def test_looks_up_the_target_group_with_member_references_only(
+    cli: CliHarness, node_client: InfrahubClient, core_group_schema: GenericSchemaAPI
+) -> None:
+    await run_cli()
+
+    assert cli.group_lookups == [
+        {"kind": "CoreGroup", "branch": None, "only": ["members"], "name__value": "pending-firewall-rules"}
+    ]
+    query = await InfrahubNode(client=node_client, schema=core_group_schema).generate_query_data(only=["members"])
+    assert query["CoreGroup"]["edges"]["node"] == {
+        "id": None,
+        "display_label": None,
+        "__typename": None,
+        "members": {"edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}}},
+    }

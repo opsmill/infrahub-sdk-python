@@ -248,6 +248,8 @@ and ``.id`` diverge.
 **Raises:**
 
 - `ValueError`: If neither an ID nor an HFID is available to look up the peer.
+- `NodeNotFoundError`: If the peer is not in the client store; its message says how to fetch it.
+- `NodeInvalidError`: If the client store holds a node of another kind under the peer's identifier.
 
 ### `RelatedNodeSync`
 
@@ -321,6 +323,8 @@ and ``.id`` diverge.
 **Raises:**
 
 - `ValueError`: If neither an ID nor an HFID is available to look up the peer.
+- `NodeNotFoundError`: If the peer is not in the client store; its message says how to fetch it.
+- `NodeInvalidError`: If the client store holds a node of another kind under the peer's identifier.
 
 ### `RelationshipAttribute`
 

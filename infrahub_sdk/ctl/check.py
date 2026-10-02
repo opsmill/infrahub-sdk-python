@@ -156,7 +156,7 @@ async def run_targeted_check(
         )
         check_summary.append(result)
     else:
-        targets = await client.get(kind="CoreGroup", include=["members"], **filters)
+        targets = await client.get(kind="CoreGroup", only=["members"], **filters)
         await targets.members.fetch()
         for member in targets.members.peers:
             check_parameter = {}

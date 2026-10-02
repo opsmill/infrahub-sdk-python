@@ -2,15 +2,26 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from infrahub_sdk.exceptions import (
+    FieldNotLoadedError,
+    FieldNotLoadedWarning,
+    NodeInvalidError,
+    NodeNotFoundError,
+    SelectionConflictError,
+    SelectionFieldNotFoundError,
+)
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema import GenericSchemaAPI, NodeSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.schema import MainSchemaTypesAPI
     from tests.unit.sdk.conftest import BothClients
 
@@ -567,3 +578,251 @@ async def test_only_query_is_unchanged_when_schema_grows(
 
     assert after == before
     assert {"color", "priority", "primary_location"} <= extended_default["BuiltinTag"]["edges"]["node"].keys()
+
+
+LOCATION_ID = "5d2c0f96-3b7e-4f0a-9a63-1f1d2a6b7c01"
+TAG_ID = "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+QUERY_METHODS = ["filters", "all", "get"]
+
+
+async def _query_nodes(
+    clients: BothClients, client_type: str, method: str, kind: str, **kwargs: object
+) -> list[InfrahubNode] | list[InfrahubNodeSync]:
+    """Call ``filters``, ``all`` or ``get`` on one client and return the nodes as a list."""
+    if method == "get":
+        kwargs.setdefault("id", LOCATION_ID)
+    client = clients.standard if client_type == "standard" else clients.sync
+    result = getattr(client, method)(kind=kind, **kwargs)
+    if client_type == "standard":
+        result = await result
+    return result if isinstance(result, list) else [result]
+
+
+@dataclass
+class ConflictCase:
+    name: str
+    kwargs: dict[str, Any]
+    parameters: list[str]
+
+
+CONFLICT_CASES = [
+    ConflictCase(name="include", kwargs={"include": ["tags"]}, parameters=["only", "include"]),
+    ConflictCase(name="empty-include", kwargs={"include": []}, parameters=["only", "include"]),
+    ConflictCase(name="exclude", kwargs={"exclude": ["description"]}, parameters=["only", "exclude"]),
+    ConflictCase(name="empty-exclude", kwargs={"exclude": []}, parameters=["only", "exclude"]),
+    ConflictCase(
+        name="include-and-exclude",
+        kwargs={"include": ["tags"], "exclude": []},
+        parameters=["only", "include", "exclude"],
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in CONFLICT_CASES])
+@pytest.mark.parametrize("method", QUERY_METHODS)
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_with_include_or_exclude_is_rejected_before_any_request(
+    httpx_mock: HTTPXMock, clients: BothClients, client_type: str, method: str, case: ConflictCase
+) -> None:
+    # No schema is cached, so even resolving the kind would send a request.
+    with pytest.raises(SelectionConflictError, match="'only' cannot be combined with") as exc:
+        await _query_nodes(clients, client_type, method, "BuiltinLocation", only=["name"], **case.kwargs)
+
+    assert exc.value.parameters == case.parameters
+    assert httpx_mock.get_requests() == []
+
+
+@pytest.mark.parametrize("method", QUERY_METHODS)
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_with_unknown_name_is_rejected_before_the_data_query(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str, method: str
+) -> None:
+    with pytest.raises(
+        SelectionFieldNotFoundError, match=re.escape("'serial' is not an attribute or relationship of BuiltinLocation.")
+    ) as exc:
+        await _query_nodes(generic_family_clients, client_type, method, "BuiltinLocation", only=["name", "serial"])
+
+    assert (exc.value.kind, exc.value.field, exc.value.implementing_kinds) == ("BuiltinLocation", "serial", [])
+    assert httpx_mock.get_requests() == []
+
+
+@pytest.mark.parametrize("method", QUERY_METHODS)
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_with_implementing_kind_name_needs_fragment(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str, method: str
+) -> None:
+    with pytest.raises(SelectionFieldNotFoundError, match=re.escape("(TestRouter). Pass fragment=True")) as exc:
+        await _query_nodes(generic_family_clients, client_type, method, "TestGenericDevice", only=["name", "role"])
+
+    assert (exc.value.kind, exc.value.field, exc.value.implementing_kinds) == (
+        "TestGenericDevice",
+        "role",
+        ["TestRouter"],
+    )
+    assert httpx_mock.get_requests() == []
+
+
+def _location_response(node: dict[str, Any]) -> dict[str, Any]:
+    return {"data": {"BuiltinLocation": {"count": 1, "edges": [{"node": node}]}}}
+
+
+LOCATION_FLOOR_DATA: dict[str, Any] = {"id": LOCATION_ID, "display_label": "dfw1", "__typename": "BuiltinLocation"}
+TAG_FLOOR_DATA: dict[str, Any] = {"id": TAG_ID, "hfid": ["red"], "display_label": "red", "__typename": "BuiltinTag"}
+
+
+@pytest.mark.parametrize("method", QUERY_METHODS)
+@pytest.mark.parametrize("client_type", client_types)
+async def test_nodes_from_only_raise_on_unfetched_reads(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str, method: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_location_response({**LOCATION_FLOOR_DATA, "name": {"value": "dfw1"}}),
+    )
+
+    nodes = await _query_nodes(generic_family_clients, client_type, method, "BuiltinLocation", only=["name"])
+
+    assert [node.name.value for node in nodes] == ["dfw1"]
+    node = nodes[0]
+    for field_name, read in (("description", lambda: node.description.value), ("tags", lambda: node.tags.peers)):
+        message = (
+            f"BuiltinLocation.{field_name} was not fetched (selection: only=['name']). "
+            "Add it to the selection, or call fetch(), before reading it."
+        )
+        with pytest.raises(FieldNotLoadedError, match=f"^{re.escape(message)}$") as exc:
+            read()
+        assert (exc.value.kind, exc.value.field, exc.value.selection) == (
+            "BuiltinLocation",
+            field_name,
+            "only=['name']",
+        )
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_reference_peer_is_not_stored_and_points_at_hydration(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_location_response({**LOCATION_FLOOR_DATA, "primary_tag": {"node": TAG_FLOOR_DATA}}),
+    )
+    client = generic_family_clients.standard if client_type == "standard" else generic_family_clients.sync
+
+    nodes = await _query_nodes(generic_family_clients, client_type, "filters", "BuiltinLocation", only=["primary_tag"])
+
+    node = nodes[0]
+    assert (node.primary_tag.id, node.primary_tag.typename) == (TAG_ID, "BuiltinTag")
+    assert client.store.get(key=LOCATION_ID, raise_when_missing=False) is node
+    assert client.store.get(key=TAG_ID, raise_when_missing=False) is None
+    hint = (
+        f"Unable to find the node '{TAG_ID}' in the store (main): the peer of relationship 'primary_tag' "
+        "was not fetched. Call fetch() on the relationship, or query with prefetch_relationships=True."
+    )
+    with pytest.raises(NodeNotFoundError, match=re.escape(hint)) as exc:
+        _ = node.primary_tag.peer
+    assert exc.value.identifier == {"key": [TAG_ID]}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_reference_peer_of_another_kind_in_the_store_keeps_its_error(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_location_response({**LOCATION_FLOOR_DATA, "primary_tag": {"node": TAG_FLOOR_DATA}}),
+    )
+    nodes = await _query_nodes(generic_family_clients, client_type, "filters", "BuiltinLocation", only=["primary_tag"])
+    other_data = {"id": TAG_ID, "name": {"value": "not-a-tag"}, "type": {"value": "site"}}
+    if client_type == "standard":
+        generic_family_clients.standard.store.set(
+            node=InfrahubNode(client=generic_family_clients.standard, schema=location_schema, data=other_data)
+        )
+    else:
+        generic_family_clients.sync.store.set(
+            node=InfrahubNodeSync(client=generic_family_clients.sync, schema=location_schema, data=other_data)
+        )
+
+    with pytest.raises(NodeInvalidError, match="Found a node of a different kind instead of BuiltinTag") as exc:
+        _ = nodes[0].primary_tag.peer
+    assert "prefetch_relationships" not in str(exc.value)
+
+
+@pytest.fixture
+async def tag_with_locations_schema(tag_schema: NodeSchemaAPI) -> NodeSchemaAPI:
+    data = tag_schema.model_dump()
+    data["relationships"] = [
+        {"name": "locations", "peer": "BuiltinLocation", "cardinality": "many", "optional": True},
+    ]
+    return NodeSchemaAPI.model_validate(data)
+
+
+@pytest.fixture
+async def prefetch_clients(
+    clients: BothClients, location_schema: NodeSchemaAPI, tag_with_locations_schema: NodeSchemaAPI
+) -> BothClients:
+    cache_data = {"version": "1.0", "nodes": [location_schema.model_dump(), tag_with_locations_schema.model_dump()]}
+    clients.standard.schema.set_cache(cache_data)
+    clients.sync.schema.set_cache(cache_data)
+    return clients
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_with_prefetch_stores_the_peer_with_a_strict_peer_selection(
+    httpx_mock: HTTPXMock, prefetch_clients: BothClients, client_type: str
+) -> None:
+    tag_data = {**TAG_FLOOR_DATA, "name": {"value": "red"}, "description": {"value": "Red tag"}}
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_location_response({**LOCATION_FLOOR_DATA, "primary_tag": {"node": tag_data}}),
+    )
+    client = prefetch_clients.standard if client_type == "standard" else prefetch_clients.sync
+
+    nodes = await _query_nodes(
+        prefetch_clients, client_type, "filters", "BuiltinLocation", only=["primary_tag"], prefetch_relationships=True
+    )
+
+    stored_tag = client.store.get(key=TAG_ID)
+    assert (stored_tag.name.value, stored_tag.description.value) == ("red", "Red tag")
+    assert nodes[0].primary_tag.peer is stored_tag
+    selection = "peer of BuiltinLocation.primary_tag, fetched with only=['primary_tag']"
+    with pytest.raises(
+        FieldNotLoadedError, match=re.escape(f"BuiltinTag.locations was not fetched (selection: {selection})")
+    ) as exc:
+        _ = stored_tag.locations.peers
+    assert (exc.value.kind, exc.value.field, exc.value.selection) == ("BuiltinTag", "locations", selection)
+
+
+@dataclass
+class NonStrictSelectionCase:
+    name: str
+    kwargs: dict[str, Any]
+    label: str
+
+
+NON_STRICT_SELECTION_CASES = [
+    NonStrictSelectionCase(name="default", kwargs={}, label="default selection"),
+    NonStrictSelectionCase(name="exclude", kwargs={"exclude": ["description"]}, label="exclude=['description']"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in NON_STRICT_SELECTION_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_nodes_without_only_warn_naming_their_selection(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str, case: NonStrictSelectionCase
+) -> None:
+    location_data = {**LOCATION_FLOOR_DATA, "hfid": ["dfw1"], "name": {"value": "dfw1"}, "type": {"value": "site"}}
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_location_response(location_data))
+
+    nodes = await _query_nodes(generic_family_clients, client_type, "filters", "BuiltinLocation", **case.kwargs)
+
+    message = (
+        f"BuiltinLocation.tags was not fetched (selection: {case.label}). "
+        "Add it to the selection, or call fetch(), before reading it. "
+        "This will raise FieldNotLoadedError in infrahub-sdk 2.0."
+    )
+    with pytest.warns(FieldNotLoadedWarning, match=f"^{re.escape(message)}$"):
+        assert nodes[0].tags.peers == []

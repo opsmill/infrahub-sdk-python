@@ -39,6 +39,7 @@ from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
 from .selection import (
     HIERARCHICAL_FIELD_NAMES,
+    Selection,
     check_selection_conflict,
     implementing_kind_only,
     is_attribute_selected,
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
-    from .selection import Selection
 
 
 @dataclass(frozen=True)
@@ -293,6 +293,11 @@ class InfrahubNodeBase:
         report_unloaded_read(
             self._schema.kind, field, self._selection, strict=bool(self._selection and self._selection.strict)
         )
+
+    def _bind_peer_selection(self, peer: InfrahubNodeBase, rel_name: str) -> None:
+        """Record on ``peer``, built from this node's ``rel_name`` data, the selection that fetched it."""
+        if self._selection is not None:
+            peer._selection = Selection.for_peer(self._selection, self._schema.kind, rel_name, peer_floor=False)
 
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
@@ -1879,6 +1884,7 @@ class InfrahubNode(InfrahubNodeBase):
                         data=relation,
                         timeout=timeout,
                     )
+                    self._bind_peer_selection(related_node, rel_name)
                     related_nodes.append(related_node)
                     if recursive:
                         await related_node._process_relationships(
@@ -1897,6 +1903,7 @@ class InfrahubNode(InfrahubNodeBase):
                             data=peer,
                             timeout=timeout,
                         )
+                        self._bind_peer_selection(related_node, rel_name)
                         related_nodes.append(related_node)
                         if recursive:
                             await related_node._process_relationships(
@@ -3140,6 +3147,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         data=relation,
                         timeout=timeout,
                     )
+                    self._bind_peer_selection(related_node, rel_name)
                     related_nodes.append(related_node)
                     if recursive:
                         related_node._process_relationships(
@@ -3158,6 +3166,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                             data=peer,
                             timeout=timeout,
                         )
+                        self._bind_peer_selection(related_node, rel_name)
                         related_nodes.append(related_node)
                         if recursive:
                             related_node._process_relationships(

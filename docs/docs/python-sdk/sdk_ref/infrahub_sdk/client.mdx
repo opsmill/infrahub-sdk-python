@@ -16,7 +16,7 @@ GraphQL Client to interact with Infrahub.
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaType | None
+get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaType | None
 ```
 
 <details>
@@ -25,38 +25,78 @@ get(self, kind: type[SchemaType], raise_when_missing: Literal[False], at: Timest
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaType
+get(self, kind: type[SchemaType], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaType
 ```
 
 #### `get`
 
 ```python
-get(self, kind: type[SchemaType], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaType
+get(self, kind: type[SchemaType], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaType
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNode | None
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNode | None
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNode
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNode
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNode
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNode
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> InfrahubNode | SchemaType | None
+get(self, kind: str | type[SchemaType], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None, **kwargs: Any) -> InfrahubNode | SchemaType | None
 ```
+
+Retrieve the single node of a given kind that matches the provided filters.
+
+**Args:**
+
+- `kind`: kind of the node to query
+- `raise_when_missing`: Raise `NodeNotFoundError` when no node matches. Defaults to True.
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+- `id`: ID of the node, or a value of the kind's default filter.
+- `hfid`: Human-friendly ID of the node.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved node.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
+- `property`: Flag to include the properties of attributes and relationships in the query.
+- `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else Get_&lt;kind&gt; is used.
+- `priority`: Per-request priority emitted as the X-Priority header, overriding the
+client default for these requests only. When None, the client default (if any) is used.
+- `**kwargs`: Additional filter criteria for the query.
+
+**Returns:**
+
+- InfrahubNode | None: The matching node, or None when no node matches and `raise_when_missing` is False.
+
+**Raises:**
+
+- `ValueError`: If no filter is provided, or `hfid` is given for a kind without a human-friendly ID.
+- `NodeNotFoundError`: If no node matches and `raise_when_missing` is True.
+- `IndexError`: If more than one node matches.
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
 
 </details>
 
@@ -231,7 +271,7 @@ Requires Infrahub 1.10 or later.
 #### `all`
 
 ```python
-all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ...) -> list[SchemaType]
+all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ...) -> list[SchemaType]
 ```
 
 <details>
@@ -240,13 +280,13 @@ all(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None
 #### `all`
 
 ```python
-all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ...) -> list[InfrahubNode]
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ...) -> list[InfrahubNode]
 ```
 
 #### `all`
 
 ```python
-all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None) -> list[InfrahubNode] | list[SchemaType]
+all(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None) -> list[InfrahubNode] | list[SchemaType]
 ```
 
 Retrieve all nodes of a given kind.
@@ -262,6 +302,10 @@ Retrieve all nodes of a given kind.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -275,12 +319,18 @@ client default for these requests only. When None, the client default (if any) i
 
 - list\[InfrahubNode]: List of Nodes
 
+**Raises:**
+
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
+
 </details>
 
 #### `filters`
 
 ```python
-filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> list[SchemaType]
+filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> list[SchemaType]
 ```
 
 <details>
@@ -289,13 +339,13 @@ filters(self, kind: type[SchemaType], at: Timestamp | None = ..., branch: str | 
 #### `filters`
 
 ```python
-filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> list[InfrahubNode]
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> list[InfrahubNode]
 ```
 
 #### `filters`
 
 ```python
-filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> list[InfrahubNode] | list[SchemaType]
+filters(self, kind: str | type[SchemaType], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None, **kwargs: Any) -> list[InfrahubNode] | list[SchemaType]
 ```
 
 Retrieve nodes of a given kind based on provided filters.
@@ -311,6 +361,10 @@ Retrieve nodes of a given kind based on provided filters.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.
@@ -325,6 +379,12 @@ client default for these requests only. When None, the client default (if any) i
 **Returns:**
 
 - list\[InfrahubNode]: List of Nodes that match the given filters.
+
+**Raises:**
+
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
 
 </details>
 
@@ -543,7 +603,7 @@ mapping. See https://docs.infrahub.app/guides/object-conversion for more informa
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaTypeSync | None
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaTypeSync | None
 ```
 
 <details>
@@ -552,38 +612,78 @@ get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[False], at: Ti
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaTypeSync
+get(self, kind: type[SchemaTypeSync], raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaTypeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> SchemaTypeSync
+get(self, kind: type[SchemaTypeSync], raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> SchemaTypeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNodeSync | None
+get(self, kind: str, raise_when_missing: Literal[False], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNodeSync | None
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNodeSync
+get(self, kind: str, raise_when_missing: Literal[True], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNodeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> InfrahubNodeSync
+get(self, kind: str, raise_when_missing: bool = ..., at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., id: str | None = ..., hfid: list[str] | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., populate_store: bool = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> InfrahubNodeSync
 ```
 
 #### `get`
 
 ```python
-get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
+get(self, kind: str | type[SchemaTypeSync], raise_when_missing: bool = True, at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, id: str | None = None, hfid: list[str] | None = None, include: list[str] | None = None, exclude: list[str] | None = None, populate_store: bool = True, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None, **kwargs: Any) -> InfrahubNodeSync | SchemaTypeSync | None
 ```
+
+Retrieve the single node of a given kind that matches the provided filters.
+
+**Args:**
+
+- `kind`: kind of the node to query
+- `raise_when_missing`: Raise `NodeNotFoundError` when no node matches. Defaults to True.
+- `at`: Time of the query. Defaults to Now.
+- `branch`: Name of the branch to query from. Defaults to default_branch.
+- `timeout`: Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+- `id`: ID of the node, or a value of the kind's default filter.
+- `hfid`: Human-friendly ID of the node.
+- `include`: List of attributes or relationships to include in the query.
+- `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+- `populate_store`: Flag to indicate whether to populate the store with the retrieved node.
+- `fragment`: Flag to use GraphQL fragments for generic schemas.
+- `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
+- `property`: Flag to include the properties of attributes and relationships in the query.
+- `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `query_name`: If provided is used as the GraphQL operation name else Get_&lt;kind&gt; is used.
+- `priority`: Per-request priority emitted as the X-Priority header, overriding the
+client default for these requests only. When None, the client default (if any) is used.
+- `**kwargs`: Additional filter criteria for the query.
+
+**Returns:**
+
+- InfrahubNodeSync | None: The matching node, or None when no node matches and `raise_when_missing` is False.
+
+**Raises:**
+
+- `ValueError`: If no filter is provided, or `hfid` is given for a kind without a human-friendly ID.
+- `NodeNotFoundError`: If no node matches and `raise_when_missing` is True.
+- `IndexError`: If more than one node matches.
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
 
 </details>
 
@@ -803,7 +903,7 @@ Requires Infrahub 1.10 or later.
 #### `all`
 
 ```python
-all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ...) -> list[SchemaTypeSync]
+all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ...) -> list[SchemaTypeSync]
 ```
 
 <details>
@@ -812,13 +912,13 @@ all(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | 
 #### `all`
 
 ```python
-all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ...) -> list[InfrahubNodeSync]
+all(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ...) -> list[InfrahubNodeSync]
 ```
 
 #### `all`
 
 ```python
-all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+all(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
 ```
 
 Retrieve all nodes of a given kind.
@@ -834,6 +934,10 @@ Retrieve all nodes of a given kind.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -847,12 +951,18 @@ client default for these requests only. When None, the client default (if any) i
 
 - list\[InfrahubNodeSync]: List of Nodes
 
+**Raises:**
+
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
+
 </details>
 
 #### `filters`
 
 ```python
-filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> list[SchemaTypeSync]
+filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> list[SchemaTypeSync]
 ```
 
 <details>
@@ -861,13 +971,13 @@ filters(self, kind: type[SchemaTypeSync], at: Timestamp | None = ..., branch: st
 #### `filters`
 
 ```python
-filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., **kwargs: Any) -> list[InfrahubNodeSync]
+filters(self, kind: str, at: Timestamp | None = ..., branch: str | None = ..., timeout: int | None = ..., populate_store: bool = ..., offset: int | None = ..., limit: int | None = ..., include: list[str] | None = ..., exclude: list[str] | None = ..., fragment: bool = ..., prefetch_relationships: bool = ..., partial_match: bool = ..., property: bool = ..., parallel: bool = ..., order: Order | None = ..., include_metadata: bool = ..., query_name: str | None = ..., priority: Priority | None = ..., only: list[str] | None = ..., **kwargs: Any) -> list[InfrahubNodeSync]
 ```
 
 #### `filters`
 
 ```python
-filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, **kwargs: Any) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
+filters(self, kind: str | type[SchemaTypeSync], at: Timestamp | None = None, branch: str | None = None, timeout: int | None = None, populate_store: bool = True, offset: int | None = None, limit: int | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, parallel: bool = False, order: Order | None = None, include_metadata: bool = False, query_name: str | None = None, priority: Priority | None = None, only: list[str] | None = None, **kwargs: Any) -> list[InfrahubNodeSync] | list[SchemaTypeSync]
 ```
 
 Retrieve nodes of a given kind based on provided filters.
@@ -883,6 +993,10 @@ Retrieve nodes of a given kind based on provided filters.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
+- `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
+and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.
@@ -897,6 +1011,12 @@ client default for these requests only. When None, the client default (if any) i
 **Returns:**
 
 - list\[InfrahubNodeSync]: List of Nodes that match the given filters.
+
+**Raises:**
+
+- `SelectionConflictError`: If `only` is combined with `include` or `exclude`.
+- `SelectionFieldNotFoundError`: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+implementing it and `fragment` is not set.
 
 </details>
 

@@ -172,17 +172,17 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - Hierarchical fields (`hierarchical_schema`): absent unless named; named → floor; named plus prefetch → expanded.
   - Generic `TestGenericDevice` with `fragment=True` and `only=["name", "role"]`: the generic part has `name`, the `...on TestRouter` fragment has `role`, and `...on TestSwitch` is empty or absent.
 - [X] T026 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write regression tests asserting that default queries are unchanged (SC-004). For `location_schema` and `tag_schema` with no selection arguments, with `include=["tags"]`, with `exclude=["description"]` and with both, the generated dict equals a literal expected dict that includes the envelope `hfid`. Also write the SC-008 test: generate `only=["name"]` for `tag_schema`, add two attributes and a relationship to a copy of the schema, regenerate, and assert equality.
-- [ ] T027 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write rejection tests on both clients using `client.filters`, `client.all` and `client.get`:
+- [X] T027 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write rejection tests on both clients using `client.filters`, `client.all` and `client.get`:
   - `only` with `include` or `exclude` (including empty lists) raises `SelectionConflictError`.
   - An unknown name raises `SelectionFieldNotFoundError` naming it.
   - A generic name only on an implementing kind with `fragment=False` raises with `implementing_kinds == ["TestRouter"]`.
 
   In every case, assert that `httpx_mock.get_requests()` contains no request to `/graphql`.
-- [ ] T028 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write behaviour tests on both clients, with mocked GraphQL responses:
+- [X] T028 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write behaviour tests on both clients, with mocked GraphQL responses:
   - Nodes from `filters(only=["name"])` raise `FieldNotLoadedError` (not a warning) when reading `description.value` and `tags.peers`. The error has `.selection == "only=['name']"`.
   - With `only=["primary_tag"]` and no prefetch, the peer is not in `client.store`, and `node.primary_tag.peer` raises `NodeNotFoundError` whose message contains `fetch()` and `prefetch_relationships`.
   - With `only=["primary_tag"], prefetch_relationships=True`, the peer node is stored. Reading one of its cardinality-many relationships raises `FieldNotLoadedError` whose selection label starts with `peer of BuiltinLocation.primary_tag`.
-- [ ] T029 [P] [US2] Write first-party call-site tests:
+- [X] T029 [P] [US2] Write first-party call-site tests:
   - `tests/unit/sdk/test_group_context.py`: `get_group()` (async and sync) sends a query whose `members` carries only the peer floor and no member attributes. Check the request body with `httpx_mock.get_requests()`.
   - `tests/unit/ctl/test_generator.py`: the group lookup query uses `only=["members"]`, so the members edge has the floor only.
   - `tests/unit/sdk/test_client.py`: `get_list_repositories` requests only `name`, `location`, `commit`, `ref` and `internal_status` (plus the floor) with fragments.
@@ -193,17 +193,17 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 - [X] T031 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data_node` and `_process_hierarchical_fields`: append `only`, and replace the inline selection conditions with the `selection.py` helpers. Under `only`, a named relationship gets `peer_data = {}` (the floor) unless `prefetch_relationships`, in which case the peer's default `generate_query_data_node(property=..., include_metadata=...)` is used. Hierarchical fields follow `is_hierarchical_selected`. Keep today's behaviour exactly when `only is None`.
 - [X] T032 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data`: append `only` and pass it to `generate_query_data_init` and `generate_query_data_node`. For generics with `fragment=True` under `only`, the generic part receives the names defined on the generic. Each child receives `child_only = [n for n in only if n not in generic field names and n is defined on the child]`, called with `inherited=True`, and the fragment is omitted when empty (research R9). Leave the `exclude_child` path untouched when `only is None`.
 - [X] T033 [US2] Mirror T031 and T032 in `InfrahubNodeSync.generate_query_data_node`, `_process_hierarchical_fields` and `generate_query_data` in `infrahub_sdk/node/node.py`, using the same helpers.
-- [ ] T034 [US2] In `infrahub_sdk/client.py` (`InfrahubClient`), make these changes to `get`, `all` and `filters`, including every `@overload`:
+- [X] T034 [US2] In `infrahub_sdk/client.py` (`InfrahubClient`), make these changes to `get`, `all` and `filters`, including every `@overload`:
   - Append `only: list[str] | None = None` as the last explicit parameter (before `**kwargs`), and forward it from `get` and `all` to `filters`.
   - In `filters`, call `check_selection_conflict` before `self.schema.get`. After resolving the schema, validate `only` with `validate_only`, fetching implementing-kind schemas through `self.schema.get(kind=k, branch=branch)` for each `schema.used_by` when the schema is a generic.
   - Build `selection = Selection.from_args(include, exclude, only)` and pass it, with `only`, into `generate_query_data` and `_process_nodes_and_relationships`.
   - In `_process_nodes_and_relationships`, set `node._selection = selection` immediately after `from_graphql`, before `_process_relationships`.
   - Process relationships when `prefetch_relationships`, or when `only is None and include and any(...)`.
   - Document `only` in all three docstrings next to `include` and `exclude`.
-- [ ] T035 [US2] Mirror T034 in `InfrahubClientSync.get`, `all`, `filters` and `_process_nodes_and_relationships` in `infrahub_sdk/client.py`. Run `uv run pytest tests/unit/sdk/test_client.py -q -k "signature or method_count"`.
-- [ ] T036 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode._process_relationships` and `InfrahubNodeSync._process_relationships`: after each `from_graphql` for a peer, set `related_node._selection = Selection.for_peer(self._selection, self._schema.kind, rel_name, peer_floor=False)` when `self._selection` is set.
-- [ ] T037 [P] [US2] In `infrahub_sdk/node/related_node.py`, `RelatedNode.get` and `RelatedNodeSync.get`: when the store lookup raises `NodeNotFoundError` and `self._peer` is `None`, re-raise `NodeNotFoundError` with the same `identifier`, `branch_name` and `node_type`, and with a message that names the relationship and says to call `fetch()` on it or query with `prefetch_relationships=True`. Use `raise ... from exc`.
-- [ ] T038 [US2] Migrate the first-party call sites to `only` (FR-032):
+- [X] T035 [US2] Mirror T034 in `InfrahubClientSync.get`, `all`, `filters` and `_process_nodes_and_relationships` in `infrahub_sdk/client.py`. Run `uv run pytest tests/unit/sdk/test_client.py -q -k "signature or method_count"`.
+- [X] T036 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode._process_relationships` and `InfrahubNodeSync._process_relationships`: after each `from_graphql` for a peer, set `related_node._selection = Selection.for_peer(self._selection, self._schema.kind, rel_name, peer_floor=False)` when `self._selection` is set.
+- [X] T037 [P] [US2] In `infrahub_sdk/node/related_node.py`, `RelatedNode.get` and `RelatedNodeSync.get`: when the store lookup raises `NodeNotFoundError` and `self._peer` is `None`, re-raise `NodeNotFoundError` with the same `identifier`, `branch_name` and `node_type`, and with a message that names the relationship and says to call `fetch()` on it or query with `prefetch_relationships=True`. Use `raise ... from exc`.
+- [X] T038 [US2] Migrate the first-party call sites to `only` (FR-032):
   - `infrahub_sdk/query_groups.py`: `get_group` (async and sync) uses `only=["members"]`.
   - `infrahub_sdk/ctl/generator.py:70` and `infrahub_sdk/ctl/check.py:159` use `only=["members"]`.
   - `infrahub_sdk/client.py`: `get_list_repositories` (async and sync) uses `only=["name", "location", "commit", "ref", "internal_status"]` with the existing `fragment=True`.

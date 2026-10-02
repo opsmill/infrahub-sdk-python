@@ -45,13 +45,14 @@ from .graph_traversal.query import (
 )
 from .graphql import MultipartBuilder, Mutation, Query
 from .node import InfrahubNode, InfrahubNodeSync
+from .node.selection import Selection, check_selection_conflict, validate_only
 from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .rate_limit import RateLimitRetryHandler
 from .retry import CONNECTION_LOST_EXCEPTIONS, RetryState, TransientRetryHandler
-from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
+from .schema import GenericSchemaAPI, InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
@@ -65,6 +66,7 @@ if TYPE_CHECKING:
     from httpx._types import ProxyTypes
 
     from .context import RequestContext
+    from .schema import MainSchemaTypesAPI
 
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
@@ -617,6 +619,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -639,6 +642,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -661,6 +665,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -683,6 +688,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -705,6 +711,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -727,6 +734,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -748,8 +756,48 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
+        """Retrieve the single node of a given kind that matches the provided filters.
+
+        Args:
+            kind (str): kind of the node to query
+            raise_when_missing (bool, optional): Raise `NodeNotFoundError` when no node matches. Defaults to True.
+            at (Timestamp, optional): Time of the query. Defaults to Now.
+            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            id (str, optional): ID of the node, or a value of the kind's default filter.
+            hfid (list[str], optional): Human-friendly ID of the node.
+            include (list[str], optional): List of attributes or relationships to include in the query.
+            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
+            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
+            property (bool, optional): Flag to include the properties of attributes and relationships in the query.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
+            **kwargs (Any): Additional filter criteria for the query.
+
+        Returns:
+            InfrahubNode | None: The matching node, or None when no node matches and `raise_when_missing` is False.
+
+        Raises:
+            ValueError: If no filter is provided, or `hfid` is given for a kind without a human-friendly ID.
+            NodeNotFoundError: If no node matches and `raise_when_missing` is True.
+            IndexError: If more than one node matches.
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
+        """
+        check_selection_conflict(include, exclude, only)
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -786,6 +834,7 @@ class InfrahubClient(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
             **filters,
         )
 
@@ -798,6 +847,36 @@ class InfrahubClient(BaseClient):
 
         return results[0]
 
+    async def _get_schema_for_selection(
+        self,
+        kind: str | type[SchemaType],
+        branch: str,
+        include: list[str] | None,
+        exclude: list[str] | None,
+        only: list[str] | None,
+        fragment: bool,
+    ) -> MainSchemaTypesAPI:
+        """Return the schema of `kind` once the selection is known to be valid for it.
+
+        The conflict check runs before the schema lookup, so a conflicting selection sends no request.
+
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
+        """
+        check_selection_conflict(include, exclude, only)
+        schema = await self.schema.get(kind=kind, branch=branch)
+        if only is not None:
+            implementing_schemas = (
+                [await self.schema.get(kind=implementing_kind, branch=branch) for implementing_kind in schema.used_by]
+                if isinstance(schema, GenericSchemaAPI)
+                else []
+            )
+            validate_only(only, schema, implementing_schemas, fragment=fragment, kind=schema.kind)
+        return schema
+
     async def _process_nodes_and_relationships(
         self,
         response: dict[str, Any],
@@ -806,6 +885,8 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
+        only: list[str] | None = None,
+        selection: Selection | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
 
@@ -814,7 +895,10 @@ class InfrahubClient(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
+            include (list[str], optional): The relationships the query included.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            only (list[str], optional): The exclusive selection of the query.
+            selection (Selection, optional): The selection bound to every node built from the response.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -827,9 +911,13 @@ class InfrahubClient(BaseClient):
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
+            node._selection = selection
             nodes.append(node)
 
-            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
+            # Under `only`, floor-only peers stay references so they never replace broader nodes in the store.
+            if prefetch_relationships or (
+                only is None and include and any(rel in include for rel in node._relationships)
+            ):
                 await node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -1091,6 +1179,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -1113,6 +1202,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -1134,6 +1224,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind.
 
@@ -1147,6 +1238,10 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -1158,6 +1253,11 @@ class InfrahubClient(BaseClient):
 
         Returns:
             list[InfrahubNode]: List of Nodes
+
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
 
         """
         if query_name is None:
@@ -1180,6 +1280,7 @@ class InfrahubClient(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
         )
 
     @overload
@@ -1203,6 +1304,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -1227,6 +1329,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -1250,6 +1353,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1264,6 +1368,10 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -1278,9 +1386,17 @@ class InfrahubClient(BaseClient):
         Returns:
             list[InfrahubNode]: List of Nodes that match the given filters.
 
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
         """
         branch = branch or self.default_branch
-        schema = await self.schema.get(kind=kind, branch=branch)
+        schema = await self._get_schema_for_selection(
+            kind=kind, branch=branch, include=include, exclude=exclude, only=only, fragment=fragment
+        )
+        selection = Selection.from_args(include=include, exclude=exclude, only=only)
         if query_name is None:
             query_name = f"Filters_{schema.kind}"
         if at:
@@ -1303,6 +1419,7 @@ class InfrahubClient(BaseClient):
             property=property,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
         query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
         query_str = query.render()
@@ -1330,6 +1447,8 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
+                only=only,
+                selection=selection,
             )
             return response, process_result
 
@@ -2258,7 +2377,7 @@ class InfrahubClient(BaseClient):
                 kind=kind,
                 branch=branch_name,
                 fragment=True,
-                include=["id", "name", "location", "commit", "ref", "internal_status"],
+                only=["name", "location", "commit", "ref", "internal_status"],
             )
 
         responses: dict[str, Any] = {}
@@ -2931,6 +3050,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2953,6 +3073,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2974,6 +3095,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind.
 
@@ -2987,6 +3109,10 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -2998,6 +3124,11 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
+
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
 
         """
         if query_name is None:
@@ -3020,7 +3151,38 @@ class InfrahubClientSync(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
         )
+
+    def _get_schema_for_selection(
+        self,
+        kind: str | type[SchemaTypeSync],
+        branch: str,
+        include: list[str] | None,
+        exclude: list[str] | None,
+        only: list[str] | None,
+        fragment: bool,
+    ) -> MainSchemaTypesAPI:
+        """Return the schema of `kind` once the selection is known to be valid for it.
+
+        The conflict check runs before the schema lookup, so a conflicting selection sends no request.
+
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
+        """
+        check_selection_conflict(include, exclude, only)
+        schema = self.schema.get(kind=kind, branch=branch)
+        if only is not None:
+            implementing_schemas = (
+                [self.schema.get(kind=implementing_kind, branch=branch) for implementing_kind in schema.used_by]
+                if isinstance(schema, GenericSchemaAPI)
+                else []
+            )
+            validate_only(only, schema, implementing_schemas, fragment=fragment, kind=schema.kind)
+        return schema
 
     def _process_nodes_and_relationships(
         self,
@@ -3030,6 +3192,8 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
+        only: list[str] | None = None,
+        selection: Selection | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
 
@@ -3038,7 +3202,10 @@ class InfrahubClientSync(BaseClient):
             schema_kind (str): The kind of schema being queried.
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
+            include (list[str], optional): The relationships the query included.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            only (list[str], optional): The exclusive selection of the query.
+            selection (Selection, optional): The selection bound to every node built from the response.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -3051,9 +3218,13 @@ class InfrahubClientSync(BaseClient):
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
+            node._selection = selection
             nodes.append(node)
 
-            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
+            # Under `only`, floor-only peers stay references so they never replace broader nodes in the store.
+            if prefetch_relationships or (
+                only is None and include and any(rel in include for rel in node._relationships)
+            ):
                 node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -3084,6 +3255,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -3108,6 +3280,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -3131,6 +3304,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -3145,6 +3319,10 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3159,9 +3337,17 @@ class InfrahubClientSync(BaseClient):
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
 
+        Raises:
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
         """
         branch = branch or self.default_branch
-        schema = self.schema.get(kind=kind, branch=branch)
+        schema = self._get_schema_for_selection(
+            kind=kind, branch=branch, include=include, exclude=exclude, only=only, fragment=fragment
+        )
+        selection = Selection.from_args(include=include, exclude=exclude, only=only)
         if query_name is None:
             query_name = f"Filters_{schema.kind}"
         if at:
@@ -3184,6 +3370,7 @@ class InfrahubClientSync(BaseClient):
             property=property,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
         query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
         query_str = query.render()
@@ -3211,6 +3398,8 @@ class InfrahubClientSync(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
+                only=only,
+                selection=selection,
             )
             return response, process_result
 
@@ -3288,6 +3477,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -3310,6 +3500,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3332,6 +3523,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3354,6 +3546,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -3376,6 +3569,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3398,6 +3592,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3419,8 +3614,48 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
+        """Retrieve the single node of a given kind that matches the provided filters.
+
+        Args:
+            kind (str): kind of the node to query
+            raise_when_missing (bool, optional): Raise `NodeNotFoundError` when no node matches. Defaults to True.
+            at (Timestamp, optional): Time of the query. Defaults to Now.
+            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            id (str, optional): ID of the node, or a value of the kind's default filter.
+            hfid (list[str], optional): Human-friendly ID of the node.
+            include (list[str], optional): List of attributes or relationships to include in the query.
+            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
+                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
+                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
+                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
+            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
+            property (bool, optional): Flag to include the properties of attributes and relationships in the query.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
+            **kwargs (Any): Additional filter criteria for the query.
+
+        Returns:
+            InfrahubNodeSync | None: The matching node, or None when no node matches and `raise_when_missing` is False.
+
+        Raises:
+            ValueError: If no filter is provided, or `hfid` is given for a kind without a human-friendly ID.
+            NodeNotFoundError: If no node matches and `raise_when_missing` is True.
+            IndexError: If more than one node matches.
+            SelectionConflictError: If `only` is combined with `include` or `exclude`.
+            SelectionFieldNotFoundError: If a name in `only` is not a field of `kind`, or is only defined on the kinds
+                implementing it and `fragment` is not set.
+
+        """
+        check_selection_conflict(include, exclude, only)
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -3457,6 +3692,7 @@ class InfrahubClientSync(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
             **filters,
         )
 

@@ -97,7 +97,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         group_name = self._generate_group_name()
         try:
             group = await self.client.get(
-                kind=self.group_type, name__value=group_name, include=["members"], branch=self.branch
+                kind=self.group_type, name__value=group_name, only=["members"], branch=self.branch
             )
         except NodeNotFoundError:
             return None
@@ -198,7 +198,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
     def get_group(self, store_peers: bool = False) -> InfrahubNodeSync | None:
         group_name = self._generate_group_name()
         try:
-            group = self.client.get(kind=self.group_type, name__value=group_name, include=["members"])
+            group = self.client.get(kind=self.group_type, name__value=group_name, only=["members"])
         except NodeNotFoundError:
             return None
 

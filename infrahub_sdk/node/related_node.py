@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Generic, cast, overload
 
 from typing_extensions import TypeVar
 
-from ..exceptions import Error
+from ..exceptions import Error, NodeInvalidError, NodeNotFoundError
 from ..protocols_base import CoreNodeBase
 from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
@@ -301,6 +301,18 @@ class RelatedNodeBase:
         """
         return self._relationship_metadata
 
+    def _peer_not_fetched_error(self, exc: NodeNotFoundError) -> NodeNotFoundError:
+        """Return a copy of ``exc`` whose message says how to fetch the peer of this relationship."""
+        return NodeNotFoundError(
+            identifier=exc.identifier,
+            message=(
+                f"{exc.message}: the peer of relationship {self.schema.name!r} was not fetched. "
+                "Call fetch() on the relationship, or query with prefetch_relationships=True."
+            ),
+            branch_name=exc.branch_name,
+            node_type=exc.node_type,
+        )
+
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
 
@@ -451,6 +463,8 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
         Raises:
             ValueError: If neither an ID nor an HFID is available to look up the peer.
+            NodeNotFoundError: If the peer is not in the client store; its message says how to fetch it.
+            NodeInvalidError: If the client store holds a node of another kind under the peer's identifier.
 
         """
         self._check_loaded()
@@ -459,11 +473,16 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
         peer_id = self._current_id
         peer_typename = self._current_typename
-        if peer_id and peer_typename:
-            return cast("PeerT", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
+        try:
+            if peer_id and peer_typename:
+                return cast("PeerT", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
 
-        if peer_hfid_str := self._current_hfid_str:
-            return cast("PeerT", self._client.store.get(key=peer_hfid_str, branch=self._branch))
+            if peer_hfid_str := self._current_hfid_str:
+                return cast("PeerT", self._client.store.get(key=peer_hfid_str, branch=self._branch))
+        except NodeInvalidError:
+            raise
+        except NodeNotFoundError as exc:
+            raise self._peer_not_fetched_error(exc) from exc
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -551,6 +570,8 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
         Raises:
             ValueError: If neither an ID nor an HFID is available to look up the peer.
+            NodeNotFoundError: If the peer is not in the client store; its message says how to fetch it.
+            NodeInvalidError: If the client store holds a node of another kind under the peer's identifier.
 
         """
         self._check_loaded()
@@ -559,11 +580,16 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
         peer_id = self._current_id
         peer_typename = self._current_typename
-        if peer_id and peer_typename:
-            return cast("PeerTSync", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
+        try:
+            if peer_id and peer_typename:
+                return cast("PeerTSync", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
 
-        if peer_hfid_str := self._current_hfid_str:
-            return cast("PeerTSync", self._client.store.get(key=peer_hfid_str, branch=self._branch))
+            if peer_hfid_str := self._current_hfid_str:
+                return cast("PeerTSync", self._client.store.get(key=peer_hfid_str, branch=self._branch))
+        except NodeInvalidError:
+            raise
+        except NodeNotFoundError as exc:
+            raise self._peer_not_fetched_error(exc) from exc
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 

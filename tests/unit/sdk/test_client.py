@@ -160,13 +160,58 @@ def test_init_with_invalid_address() -> None:
     assert "The configured address is not a valid url" in str(exc.value)
 
 
+REPOSITORY_QUERY = """
+query All_CoreGenericRepository ($offset: Int!, $limit: Int!) {
+    CoreGenericRepository(offset: $offset, limit: $limit) {
+        count
+        edges {
+            node {
+                id
+                display_label
+                __typename
+                internal_status {
+                    value
+                }
+                name {
+                    value
+                }
+                location {
+                    value
+                }
+                ...on CoreReadOnlyRepository {
+                    __alias__CoreReadOnlyRepository__ref: ref {
+                        value
+                    }
+                    __alias__CoreReadOnlyRepository__commit: commit {
+                        value
+                    }
+                }
+                ...on CoreRepository {
+                    __alias__CoreRepository__commit: commit {
+                        value
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+@pytest.fixture
+async def repository_schema_client(client: InfrahubClient, schema_query_05_data: dict) -> InfrahubClient:
+    """Client whose schema cache holds the server's repository kinds on both mocked branches."""
+    for branch in ("main", "cr1234"):
+        client.schema.set_cache(schema_query_05_data, branch=branch)
+    return client
+
+
 async def test_get_repositories(
-    client: InfrahubClient,
+    repository_schema_client: InfrahubClient,
     mock_branches_list_query: HTTPXMock,
-    mock_schema_query_02: HTTPXMock,
     mock_repositories_query: HTTPXMock,
 ) -> None:
-    repos = await client.get_list_repositories()
+    repos = await repository_schema_client.get_list_repositories()
 
     assert len(repos) == 2
     assert repos["infrahub-demo-edge"].repository.get_kind() == "CoreRepository"
@@ -178,6 +223,25 @@ async def test_get_repositories(
         "cr1234": "dddddddddddddddddddd",
         "main": "cccccccccccccccccccc",
     }
+
+
+async def test_get_repositories_requests_only_the_repository_fields(
+    repository_schema_client: InfrahubClient,
+    mock_branches_list_query: HTTPXMock,
+    mock_repositories_query: HTTPXMock,
+) -> None:
+    await repository_schema_client.get_list_repositories()
+
+    repository_requests = [
+        request
+        for request in mock_repositories_query.get_requests()
+        if request.headers.get("X-Infrahub-Tracker", "").startswith("query-coregenericrepository-")
+    ]
+    assert sorted(request.url.path for request in repository_requests) == ["/graphql/cr1234", "/graphql/main"]
+    assert [json.loads(request.content)["query"] for request in repository_requests] == [
+        REPOSITORY_QUERY,
+        REPOSITORY_QUERY,
+    ]
 
 
 @pytest.mark.parametrize("client_type", client_types)

@@ -68,7 +68,7 @@ async def run(
 
     else:
         targets = await client.get(
-            kind="CoreGroup", branch=branch, include=["members"], name__value=generator_config.targets
+            kind="CoreGroup", branch=branch, only=["members"], name__value=generator_config.targets
         )
         await targets._get_relationship_many(name="members").fetch()
 
