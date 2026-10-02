@@ -12,7 +12,7 @@ from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
-from .selection import check_selection_conflict, peer_kind_only
+from .selection import check_selection_conflict, peer_kind_only, requests_identity_only
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -79,7 +79,7 @@ class RelationshipManagerBase(Generic[PeerT]):
     def _check_loaded(self) -> None:
         owner = self._owner
         if owner is not None and not self.is_loaded:
-            owner._report_unloaded_read(self.name)
+            owner._report_unloaded_read(self.name, hint_fetch=True)
 
     @property
     def peers(self) -> list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]:
@@ -296,8 +296,10 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             only (list[str], optional): Exactly the peer attributes and relationships to query,
                 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
                 the relationship's peer kind or of a kind implementing it, and each peer kind is
-                asked for the names it defines. Reading any other field of a fetched peer raises
-                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+                asked for the names it defines. A peer kind left with identity fields only, which
+                its references already hold, is not queried, and its peers stay references. Reading
+                any other field of a fetched peer raises ``FieldNotLoadedError``. Cannot be combined
+                with ``exclude``.
             exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
@@ -339,6 +341,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 if only is None
                 else peer_kind_only(only, await self.client.schema.get(kind=kind, branch=self.branch))
             )
+            if kind_only is not None and requests_identity_only(kind_only):
+                continue
             batch.add(
                 task=self.client.filters,
                 kind=kind,
@@ -521,8 +525,10 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             only (list[str], optional): Exactly the peer attributes and relationships to query,
                 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
                 the relationship's peer kind or of a kind implementing it, and each peer kind is
-                asked for the names it defines. Reading any other field of a fetched peer raises
-                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+                asked for the names it defines. A peer kind left with identity fields only, which
+                its references already hold, is not queried, and its peers stay references. Reading
+                any other field of a fetched peer raises ``FieldNotLoadedError``. Cannot be combined
+                with ``exclude``.
             exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
@@ -562,6 +568,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             kind_only = (
                 None if only is None else peer_kind_only(only, self.client.schema.get(kind=kind, branch=self.branch))
             )
+            if kind_only is not None and requests_identity_only(kind_only):
+                continue
             batch.add(
                 task=self.client.filters,
                 kind=kind,

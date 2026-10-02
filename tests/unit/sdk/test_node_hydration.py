@@ -11,7 +11,12 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from graphql import FieldNode, OperationDefinitionNode, parse
 
-from infrahub_sdk.exceptions import FieldNotLoadedError, SelectionConflictError, SelectionFieldNotFoundError
+from infrahub_sdk.exceptions import (
+    FieldNotLoadedError,
+    FieldNotLoadedWarning,
+    SelectionConflictError,
+    SelectionFieldNotFoundError,
+)
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema import (
     GenericSchemaAPI,
@@ -211,102 +216,114 @@ async def _fetch(
         await result
 
 
-@dataclass
-class PeerFetchCase:
-    name: str
-    member_index: int
-    kind: str
-    response_node: dict[str, Any]
-    expected_fields: list[str]
-    fetched_values: dict[str, Any]
-    unfetched_field: str
-    selection: str
+def _store_node(clients: BothClients, client_type: str, schema: NodeSchemaAPI, data: dict[str, Any]) -> None:
+    if client_type == "standard":
+        clients.standard.store.set(node=InfrahubNode(client=clients.standard, schema=schema, data=data))
+    else:
+        clients.sync.store.set(node=InfrahubNodeSync(client=clients.sync, schema=schema, data=data))
 
 
-PEER_FETCH_CASES = [
-    PeerFetchCase(
-        name="kind-defining-the-name",
-        member_index=0,
-        kind="TestDevice",
-        response_node={**DEVICE_FLOOR, "name": {"value": "edge01"}},
-        expected_fields=[*ONLY_FLOOR_FIELDS, "name"],
-        fetched_values={"name": "edge01"},
-        unfetched_field="description",
-        selection="only=['name']",
-    ),
-    PeerFetchCase(
-        name="kind-lacking-the-name",
-        member_index=1,
-        kind="TestCable",
-        response_node=CABLE_FLOOR,
-        expected_fields=ONLY_FLOOR_FIELDS,
-        fetched_values={},
-        unfetched_field="serial",
-        selection="only=[]",
-    ),
-]
-
-
-@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in PEER_FETCH_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_related_node_fetch_with_only_queries_the_named_fields_of_the_peer_kind(
-    httpx_mock: HTTPXMock,
-    hydration_clients: BothClients,
-    group_with_members_schema: NodeSchemaAPI,
-    client_type: str,
-    case: PeerFetchCase,
+    httpx_mock: HTTPXMock, hydration_clients: BothClients, group_with_members_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    _add_data_response(httpx_mock, case.kind, case.response_node)
+    _add_data_response(httpx_mock, "TestDevice", {**DEVICE_FLOOR, "name": {"value": "edge01"}})
     client = hydration_clients.standard if client_type == "standard" else hydration_clients.sync
     group = _group(hydration_clients, client_type, group_with_members_schema, GROUP_WITH_MEMBERS_DATA)
-    related = group._get_relationship_many(name="members")[case.member_index]
+    related = group._get_relationship_many(name="members")[0]
 
     await _fetch(related, only=["name"])
 
     assert len(httpx_mock.get_requests()) == 1
-    assert _data_queries(httpx_mock) == [(case.kind, case.expected_fields)]
+    assert _data_queries(httpx_mock) == [("TestDevice", [*ONLY_FLOOR_FIELDS, "name"])]
     peer = related.peer
-    assert client.store.get(key=case.response_node["id"]) is peer
-    assert (peer.id, peer.display_label) == (case.response_node["id"], case.response_node["display_label"])
-    assert {name: getattr(peer, name).value for name in case.fetched_values} == case.fetched_values
+    assert client.store.get(key=DEVICE_ID) is peer
+    assert (peer.id, peer.display_label, peer.name.value) == (DEVICE_ID, "edge01", "edge01")
     message = (
-        f"{case.kind}.{case.unfetched_field} was not fetched (selection: {case.selection}). "
-        "Add it to the selection, or call fetch(), before reading it."
+        "TestDevice.description was not fetched (selection: only=['name']). Add it to the selection before reading it."
     )
     with pytest.raises(FieldNotLoadedError, match=f"^{re.escape(message)}$") as exc:
-        _ = getattr(peer, case.unfetched_field).value
-    assert (exc.value.kind, exc.value.field, exc.value.selection) == (case.kind, case.unfetched_field, case.selection)
+        _ = peer.description.value
+    assert (exc.value.kind, exc.value.field, exc.value.selection) == ("TestDevice", "description", "only=['name']")
+
+
+@pytest.mark.parametrize("only", [pytest.param(["name"], id="name"), pytest.param(["name", "id", "hfid"], id="floor")])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_related_node_fetch_with_only_leaves_a_peer_of_a_kind_lacking_the_names_as_a_reference(
+    httpx_mock: HTTPXMock,
+    hydration_clients: BothClients,
+    group_with_members_schema: NodeSchemaAPI,
+    nameless_member_schema: NodeSchemaAPI,
+    client_type: str,
+    only: list[str],
+) -> None:
+    client = hydration_clients.standard if client_type == "standard" else hydration_clients.sync
+    _store_node(hydration_clients, client_type, nameless_member_schema, {**CABLE_FLOOR, "serial": {"value": "SN-1"}})
+    stored_cable = client.store.get(key=CABLE_ID)
+    group = _group(hydration_clients, client_type, group_with_members_schema, GROUP_WITH_MEMBERS_DATA)
+    related = group._get_relationship_many(name="members")[1]
+
+    await _fetch(related, only=only)
+
+    assert httpx_mock.get_requests() == []
+    assert client.store.get(key=CABLE_ID) is stored_cable
+    assert related.peer is stored_cable
+    assert stored_cable.serial.value == "SN-1"
 
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_manager_fetch_with_only_sends_one_query_per_peer_kind(
-    httpx_mock: HTTPXMock, hydration_clients: BothClients, group_with_members_schema: NodeSchemaAPI, client_type: str
+    httpx_mock: HTTPXMock,
+    hydration_clients: BothClients,
+    group_with_members_schema: NodeSchemaAPI,
+    nameless_member_schema: NodeSchemaAPI,
+    client_type: str,
 ) -> None:
     _add_data_response(httpx_mock, "TestDevice", {**DEVICE_FLOOR, "name": {"value": "edge01"}})
-    _add_data_response(httpx_mock, "TestCable", CABLE_FLOOR)
     _add_peer_count_response(httpx_mock)
     client = hydration_clients.standard if client_type == "standard" else hydration_clients.sync
+    _store_node(hydration_clients, client_type, nameless_member_schema, {**CABLE_FLOOR, "serial": {"value": "SN-1"}})
+    stored_cable = client.store.get(key=CABLE_ID)
     group = _group(hydration_clients, client_type, group_with_members_schema, GROUP_WITH_MEMBERS_DATA)
     members = group._get_relationship_many(name="members")
 
     await _fetch(members, only=["name"])
 
-    assert _data_queries(httpx_mock) == [
-        ("TestCable", ONLY_FLOOR_FIELDS),
-        ("TestDevice", [*ONLY_FLOOR_FIELDS, "name"]),
-    ]
+    # TestCable defines none of the names, so its peers stay references and its stored node is left alone.
+    assert _data_queries(httpx_mock) == [("TestDevice", [*ONLY_FLOOR_FIELDS, "name"])]
     device = client.store.get(key=DEVICE_ID)
-    cable = client.store.get(key=CABLE_ID)
-    assert [members[0].peer, members[1].peer] == [device, cable]
-    assert device.name.value == "edge01"
-    for peer, kind, unfetched_field, selection in (
-        (device, "TestDevice", "description", "only=['name']"),
-        (cable, "TestCable", "serial", "only=[]"),
+    assert client.store.get(key=CABLE_ID) is stored_cable
+    assert [members[0].peer, members[1].peer] == [device, stored_cable]
+    assert (device.name.value, stored_cable.serial.value) == ("edge01", "SN-1")
+    with pytest.raises(
+        FieldNotLoadedError, match=re.escape("TestDevice.description was not fetched (selection: only=['name'])")
     ):
-        with pytest.raises(
-            FieldNotLoadedError, match=re.escape(f"{kind}.{unfetched_field} was not fetched (selection: {selection})")
-        ):
-            _ = getattr(peer, unfetched_field).value
+        _ = device.description.value
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_related_node_fetch_with_exclude_queries_the_default_fields_minus_the_excluded_ones(
+    httpx_mock: HTTPXMock, hydration_clients: BothClients, group_with_members_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    _add_data_response(httpx_mock, "TestDevice", {**DEVICE_FLOOR, "hfid": None, "name": {"value": "edge01"}})
+    client = hydration_clients.standard if client_type == "standard" else hydration_clients.sync
+    group = _group(hydration_clients, client_type, group_with_members_schema, GROUP_WITH_MEMBERS_DATA)
+    related = group._get_relationship_many(name="members")[0]
+
+    await _fetch(related, exclude=["description"])
+
+    assert _data_queries(httpx_mock) == [("TestDevice", [*DEFAULT_FLOOR_FIELDS, "name"])]
+    peer = related.peer
+    assert client.store.get(key=DEVICE_ID) is peer
+    assert peer.name.value == "edge01"
+    # A peer hydrated without only keeps the 1.x behaviour: an unknown read warns.
+    message = (
+        "TestDevice.description was not fetched (selection: exclude=['description']). "
+        "Add it to the selection before reading it. This will raise FieldNotLoadedError in infrahub-sdk 2.0."
+    )
+    with pytest.warns(FieldNotLoadedWarning, match=f"^{re.escape(message)}$") as record:
+        assert peer.description.value is None
+    assert [str(item.message) for item in record] == [message]
 
 
 @dataclass
@@ -394,7 +411,6 @@ async def test_uninitialized_manager_fetch_requeries_only_the_relationship(
     group_floor = {name: GROUP_DATA[name] for name in ONLY_FLOOR_FIELDS}
     _add_data_response(httpx_mock, "CoreStandardGroup", {**group_floor, "members": MEMBERS_DATA})
     _add_data_response(httpx_mock, "TestDevice", {**DEVICE_FLOOR, "name": {"value": "edge01"}})
-    _add_data_response(httpx_mock, "TestCable", CABLE_FLOOR)
     _add_peer_count_response(httpx_mock)
     client = hydration_clients.standard if client_type == "standard" else hydration_clients.sync
     group = _group(hydration_clients, client_type, group_with_members_schema, GROUP_DATA)
@@ -407,6 +423,10 @@ async def test_uninitialized_manager_fetch_requeries_only_the_relationship(
     await _fetch(members, only=["name"])
 
     assert _selected_fields(httpx_mock.get_requests()[0]) == ("CoreStandardGroup", [*ONLY_FLOOR_FIELDS, "members"])
+    assert _data_queries(httpx_mock) == [
+        ("CoreStandardGroup", [*ONLY_FLOOR_FIELDS, "members"]),
+        ("TestDevice", [*ONLY_FLOOR_FIELDS, "name"]),
+    ]
     assert members.peer_ids == [DEVICE_ID, CABLE_ID]
     assert client.store.get(key=GROUP_ID) is group
 

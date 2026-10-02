@@ -9,7 +9,7 @@ from ..exceptions import Error, NodeInvalidError, NodeNotFoundError
 from ..protocols_base import CoreNodeBase
 from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
-from .selection import check_selection_conflict, peer_kind_only
+from .selection import check_selection_conflict, peer_kind_only, requests_identity_only
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -307,12 +307,31 @@ class RelatedNodeBase:
         return NodeNotFoundError(
             identifier=exc.identifier,
             message=(
-                f"{exc.message}: the peer of relationship {self.schema.name!r} was not fetched. "
+                f"{exc.message}: the peer of relationship {self.schema.name!r} is not in the client store "
+                "(it was not fetched, or the store was not populated). "
                 "Call fetch() on the relationship, or query with prefetch_relationships=True."
             ),
             branch_name=exc.branch_name,
-            node_type=exc.node_type,
+            node_type=self._current_typename or exc.node_type,
         )
+
+    def _fetch_target(self) -> tuple[str, str]:
+        """Return the id and typename of the peer to fetch.
+
+        Raises:
+            Error: If the relationship was not fetched with its node, or its id or typename is not defined.
+
+        """
+        if not self.is_loaded:
+            raise Error(
+                f"Relationship {self.schema.name!r} was not fetched with its node, so its peer is unknown. "
+                f"Query the node with {self.schema.name!r} in its selection first."
+            )
+        peer_id = self._current_id
+        peer_typename = self._current_typename
+        if not peer_id or not peer_typename:
+            raise Error("Unable to fetch the peer, id and/or typename are not defined")
+        return peer_id, peer_typename
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
@@ -430,30 +449,34 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             only (list[str], optional): Exactly the peer attributes and relationships to query,
                 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
                 the relationship's peer kind or of a kind implementing it, and the peer is asked
-                for the names its own kind defines. Reading any other field of the peer raises
-                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+                for the names its own kind defines. When that leaves only identity fields, which
+                the reference already holds, no query is sent and the peer stays a reference.
+                Reading any other field of the peer raises ``FieldNotLoadedError``. Cannot be
+                combined with ``exclude``.
             exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
             SelectionConflictError: If ``only`` is combined with ``exclude``.
             SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
                 nor of any kind implementing it.
-            Error: If neither ``id`` nor ``typename`` is set on this related node.
+            Error: If the relationship was not fetched with its node, or neither ``id`` nor
+                ``typename`` is set on this related node.
 
         """
         check_selection_conflict(None, exclude, only)
-        if not self.id or not self.typename:
-            raise Error("Unable to fetch the peer, id and/or typename are not defined")
+        peer_id, peer_typename = self._fetch_target()
 
         if only is not None:
             await self._client._get_schema_for_selection(
                 kind=self.schema.peer, branch=self._branch, include=None, exclude=None, only=only, fragment=True
             )
-            only = peer_kind_only(only, await self._client.schema.get(kind=self.typename, branch=self._branch))
+            only = peer_kind_only(only, await self._client.schema.get(kind=peer_typename, branch=self._branch))
+            if requests_identity_only(only):
+                return
 
         self._peer = await self._client.get(
-            kind=self.typename,
-            id=self.id,
+            kind=peer_typename,
+            id=peer_id,
             populate_store=True,
             branch=self._branch,
             timeout=timeout,
@@ -566,30 +589,34 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             only (list[str], optional): Exactly the peer attributes and relationships to query,
                 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
                 the relationship's peer kind or of a kind implementing it, and the peer is asked
-                for the names its own kind defines. Reading any other field of the peer raises
-                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+                for the names its own kind defines. When that leaves only identity fields, which
+                the reference already holds, no query is sent and the peer stays a reference.
+                Reading any other field of the peer raises ``FieldNotLoadedError``. Cannot be
+                combined with ``exclude``.
             exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
             SelectionConflictError: If ``only`` is combined with ``exclude``.
             SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
                 nor of any kind implementing it.
-            Error: If neither ``id`` nor ``typename`` is set on this related node.
+            Error: If the relationship was not fetched with its node, or neither ``id`` nor
+                ``typename`` is set on this related node.
 
         """
         check_selection_conflict(None, exclude, only)
-        if not self.id or not self.typename:
-            raise Error("Unable to fetch the peer, id and/or typename are not defined")
+        peer_id, peer_typename = self._fetch_target()
 
         if only is not None:
             self._client._get_schema_for_selection(
                 kind=self.schema.peer, branch=self._branch, include=None, exclude=None, only=only, fragment=True
             )
-            only = peer_kind_only(only, self._client.schema.get(kind=self.typename, branch=self._branch))
+            only = peer_kind_only(only, self._client.schema.get(kind=peer_typename, branch=self._branch))
+            if requests_identity_only(only):
+                return
 
         self._peer = self._client.get(
-            kind=self.typename,
-            id=self.id,
+            kind=peer_typename,
+            id=peer_id,
             populate_store=True,
             branch=self._branch,
             timeout=timeout,

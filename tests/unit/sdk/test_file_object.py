@@ -10,6 +10,7 @@ from infrahub_sdk.exceptions import FeatureNotSupportedError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, UploadResult
 from infrahub_sdk.schema import NodeSchemaAPI
 from tests.unit.sdk.conftest import BothClients
+from tests.unit.sdk.test_node_field_access import no_field_warning
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
 
@@ -754,3 +755,103 @@ class TestDownloadSkipIfUnchanged:
                 await node.download_file(dest=dest, skip_if_unchanged=True)
             else:
                 node.download_file(dest=dest, skip_if_unchanged=True)
+
+
+def _create_and_update_responses(httpx_mock: HTTPXMock) -> None:
+    for operation in ("Create", "Update"):
+        httpx_mock.add_response(
+            method="POST",
+            json={"data": {f"NetworkCircuitContract{operation}": {"ok": True, "object": {"id": "new-file-node-123"}}}},
+            match_headers={"X-Infrahub-Tracker": f"mutation-networkcircuitcontract-{operation.lower()}"},
+        )
+
+
+@pytest.mark.parametrize("strict", [pytest.param(False, id="warn"), pytest.param(True, id="strict")])
+@pytest.mark.parametrize("client_type", client_types)
+class TestUnknownServerChecksum:
+    """A checksum the SDK never fetched counts as no server checksum, and reading it reports nothing."""
+
+    async def test_second_upload_on_node_created_by_the_first_uploads_again(
+        self,
+        client_type: str,
+        strict: bool,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        httpx_mock: HTTPXMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", strict)
+        _create_and_update_responses(httpx_mock)
+        payload = b"initial content"
+        digest = hashlib.sha1(payload, usedforsecurity=False).hexdigest()
+        client = getattr(clients, client_type)
+
+        with no_field_warning():
+            if client_type == "standard":
+                node = InfrahubNode(client=client, schema=file_object_schema, branch="main")
+                first = await node.upload_if_changed(source=payload, name=FILE_NAME)
+                second = await node.upload_if_changed(source=payload, name=FILE_NAME)
+            else:
+                node_sync = InfrahubNodeSync(client=client, schema=file_object_schema, branch="main")
+                first = node_sync.upload_if_changed(source=payload, name=FILE_NAME)
+                second = node_sync.upload_if_changed(source=payload, name=FILE_NAME)
+
+        assert first == UploadResult(was_uploaded=True, checksum=digest)
+        assert second == UploadResult(was_uploaded=True, checksum=digest)
+        assert [request.headers["X-Infrahub-Tracker"] for request in httpx_mock.get_requests()] == [
+            "mutation-networkcircuitcontract-create",
+            "mutation-networkcircuitcontract-update",
+        ]
+
+    async def test_matches_local_checksum_reports_no_server_checksum(
+        self,
+        client_type: str,
+        strict: bool,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", strict)
+        data = {"id": "node-1", "file_name": {"value": FILE_NAME}}
+        client = getattr(clients, client_type)
+
+        with no_field_warning(), pytest.raises(ValueError, match=r"has no server-side checksum"):
+            if client_type == "standard":
+                await InfrahubNode(
+                    client=client, schema=file_object_schema, branch="main", data=data
+                ).matches_local_checksum(FILE_CONTENT)
+            else:
+                InfrahubNodeSync(
+                    client=client, schema=file_object_schema, branch="main", data=data
+                ).matches_local_checksum(FILE_CONTENT)
+
+    async def test_download_skip_if_unchanged_downloads(
+        self,
+        client_type: str,
+        strict: bool,
+        clients: BothClients,
+        file_object_schema: NodeSchemaAPI,
+        tmp_path: Path,
+        mock_download_file_to_disk: HTTPXMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", strict)
+        dest = tmp_path / "local.bin"
+        dest.write_bytes(FILE_CONTENT)
+        data = {"id": "file-node-stream", "file_name": {"value": FILE_NAME}}
+        client = getattr(clients, client_type)
+
+        with no_field_warning():
+            if client_type == "standard":
+                bytes_written = await InfrahubNode(
+                    client=client, schema=file_object_schema, branch="main", data=data
+                ).download_file(dest=dest, skip_if_unchanged=True)
+            else:
+                bytes_written = InfrahubNodeSync(
+                    client=client, schema=file_object_schema, branch="main", data=data
+                ).download_file(dest=dest, skip_if_unchanged=True)
+
+        assert bytes_written == len(FILE_CONTENT)
+        assert [request.url.path for request in mock_download_file_to_disk.get_requests()] == [
+            "/api/storage/files/file-node-stream"
+        ]

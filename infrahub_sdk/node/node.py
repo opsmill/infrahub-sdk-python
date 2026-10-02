@@ -40,6 +40,7 @@ from .relationship import RelationshipManager, RelationshipManagerBase, Relation
 from .selection import (
     HIERARCHICAL_FIELD_NAMES,
     Selection,
+    carries_identity_only,
     check_selection_conflict,
     implementing_kind_only,
     is_attribute_selected,
@@ -283,21 +284,29 @@ class InfrahubNodeBase:
         """
         return self._metadata
 
-    def _report_unloaded_read(self, field: str) -> None:
+    def _report_unloaded_read(self, field: str, hint_fetch: bool = False) -> None:
         """Report a read of ``field`` while the SDK does not know its value.
+
+        ``hint_fetch`` is set for a field that can be fetched on its own, so the message suggests ``fetch()``.
 
         Raises:
             FieldNotLoadedError: If strict field access is on, or the node came from a strict selection.
 
         """
         report_unloaded_read(
-            self._schema.kind, field, self._selection, strict=bool(self._selection and self._selection.strict)
+            self._schema.kind,
+            field,
+            self._selection,
+            strict=bool(self._selection and self._selection.strict),
+            hint_fetch=hint_fetch,
         )
 
-    def _bind_peer_selection(self, peer: InfrahubNodeBase, rel_name: str) -> None:
-        """Record on ``peer``, built from this node's ``rel_name`` data, the selection that fetched it."""
+    def _bind_peer_selection(self, peer: InfrahubNodeBase, rel_name: str, peer_data: dict[str, Any]) -> None:
+        """Record on ``peer``, built from ``peer_data`` in this node's ``rel_name`` data, the selection that fetched it."""
         if self._selection is not None:
-            peer._selection = Selection.for_peer(self._selection, self._schema.kind, rel_name, peer_floor=False)
+            peer._selection = Selection.for_peer(
+                self._selection, self._schema.kind, rel_name, peer_floor=carries_identity_only(peer_data)
+            )
 
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
@@ -683,6 +692,11 @@ class InfrahubNodeBase:
     def _validate_file_object_support(self, message: str) -> None:
         if not self._file_object_support:
             raise FeatureNotSupportedError(message)
+
+    def _server_checksum(self) -> str | None:
+        """Return the server checksum of this file object, or ``None`` when the SDK holds none or does not know it."""
+        checksum = self._get_attribute(name="checksum")
+        return checksum._value if checksum.is_loaded else None
 
     def generate_query_data_init(
         self,
@@ -1154,8 +1168,8 @@ class InfrahubNode(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum  # type: ignore[attr-defined]
-                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                server_checksum = self._server_checksum()
+                if server_checksum is not None and sha1_of_source(dest) == server_checksum:
                     return 0
 
         return await self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
@@ -1184,20 +1198,20 @@ class InfrahubNode(InfrahubNodeBase):
 
         Raises:
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
-            ValueError: Node has no server-side checksum yet (unsaved or
-                file never attached).
+            ValueError: Node has no server-side checksum yet (unsaved,
+                file never attached, or checksum not fetched).
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum  # type: ignore[attr-defined]
-        if server_checksum.value is None:  # type: ignore[union-attr]
+        server_checksum = self._server_checksum()
+        if server_checksum is None:
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
                 "ensure the node has been saved with file content attached before comparing."
             )
 
-        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+        return sha1_of_source(source) == server_checksum
 
     async def upload_if_changed(
         self,
@@ -1245,14 +1259,14 @@ class InfrahubNode(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum  # type: ignore[attr-defined]
-        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+        server_checksum = self._server_checksum()
+        have_server_state = bool(self.id) and server_checksum is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
 
-        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+        if have_server_state and local_digest == server_checksum:
+            return UploadResult(was_uploaded=False, checksum=server_checksum)
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -1884,7 +1898,7 @@ class InfrahubNode(InfrahubNodeBase):
                         data=relation,
                         timeout=timeout,
                     )
-                    self._bind_peer_selection(related_node, rel_name)
+                    self._bind_peer_selection(related_node, rel_name, relation)
                     related_nodes.append(related_node)
                     if recursive:
                         await related_node._process_relationships(
@@ -1903,7 +1917,7 @@ class InfrahubNode(InfrahubNodeBase):
                             data=peer,
                             timeout=timeout,
                         )
-                        self._bind_peer_selection(related_node, rel_name)
+                        self._bind_peer_selection(related_node, rel_name, peer)
                         related_nodes.append(related_node)
                         if recursive:
                             await related_node._process_relationships(
@@ -2420,8 +2434,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             if dest is None:
                 raise ValueError("skip_if_unchanged requires dest to be provided")
             if dest.exists() and dest.is_file():
-                server_checksum = self.checksum  # type: ignore[attr-defined]
-                if server_checksum.value is not None and sha1_of_source(dest) == server_checksum.value:  # type: ignore[union-attr]
+                server_checksum = self._server_checksum()
+                if server_checksum is not None and sha1_of_source(dest) == server_checksum:
                     return 0
 
         return self._file_handler.download(node_id=self.id, branch=self._branch, dest=dest)
@@ -2450,20 +2464,20 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         Raises:
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
-            ValueError: Node has no server-side checksum yet (unsaved or
-                file never attached).
+            ValueError: Node has no server-side checksum yet (unsaved,
+                file never attached, or checksum not fetched).
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
 
-        server_checksum = self.checksum  # type: ignore[attr-defined]
-        if server_checksum.value is None:  # type: ignore[union-attr]
+        server_checksum = self._server_checksum()
+        if server_checksum is None:
             raise ValueError(
                 f"{self._schema.kind} node has no server-side checksum; "
                 "ensure the node has been saved with file content attached before comparing."
             )
 
-        return sha1_of_source(source) == server_checksum.value  # type: ignore[union-attr]
+        return sha1_of_source(source) == server_checksum
 
     def upload_if_changed(
         self,
@@ -2511,14 +2525,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
             raise ValueError("name is required when source is bytes or BinaryIO")
 
         # Short-circuit only if we have a server checksum to compare against.
-        server_checksum = self.checksum  # type: ignore[attr-defined]
-        have_server_state = bool(self.id) and server_checksum.value is not None  # type: ignore[union-attr]
+        server_checksum = self._server_checksum()
+        have_server_state = bool(self.id) and server_checksum is not None
 
         # Compute digest before staging — source may only be readable once.
         local_digest = sha1_of_source(source)
 
-        if have_server_state and local_digest == server_checksum.value:  # type: ignore[union-attr]
-            return UploadResult(was_uploaded=False, checksum=server_checksum.value)  # type: ignore[union-attr]
+        if have_server_state and local_digest == server_checksum:
+            return UploadResult(was_uploaded=False, checksum=server_checksum)
 
         # Either no server state, or checksum mismatched — stage + save.
         if isinstance(source, Path):
@@ -3147,7 +3161,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         data=relation,
                         timeout=timeout,
                     )
-                    self._bind_peer_selection(related_node, rel_name)
+                    self._bind_peer_selection(related_node, rel_name, relation)
                     related_nodes.append(related_node)
                     if recursive:
                         related_node._process_relationships(
@@ -3166,7 +3180,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                             data=peer,
                             timeout=timeout,
                         )
-                        self._bind_peer_selection(related_node, rel_name)
+                        self._bind_peer_selection(related_node, rel_name, peer)
                         related_nodes.append(related_node)
                         if recursive:
                             related_node._process_relationships(

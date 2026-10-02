@@ -9,6 +9,14 @@ Field selection of SDK-generated node queries: the recorded selection, ``only`` 
 
 ## Functions
 
+### `carries_identity_only`
+
+```python
+carries_identity_only(peer_data: Mapping[str, Any]) -> bool
+```
+
+Return whether a peer edge, or the ``node`` inside it, carries no field beyond the peer's identity.
+
 ### `check_selection_conflict`
 
 ```python
@@ -34,6 +42,14 @@ For a generic schema, a name that only the implementing kinds define is accepted
 **Raises:**
 
 - `SelectionFieldNotFoundError`: If a name resolves nowhere, or only on implementing kinds without ``fragment``.
+
+### `requests_identity_only`
+
+```python
+requests_identity_only(names: Iterable[str]) -> bool
+```
+
+Return whether ``names``, as a peer query's ``only``, requests nothing beyond the identity a reference holds.
 
 ### `peer_kind_only`
 

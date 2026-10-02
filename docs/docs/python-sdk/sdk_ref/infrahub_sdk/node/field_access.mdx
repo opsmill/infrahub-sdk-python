@@ -30,18 +30,23 @@ Run ``func``, a plain function or a coroutine function, under :func:`internal_fi
 ### `build_unloaded_message`
 
 ```python
-build_unloaded_message(kind: str, field: str, selection: Selection | None) -> str
+build_unloaded_message(kind: str, field: str, selection: Selection | None, hint_fetch: bool = False) -> str
 ```
 
 Return the message for an unknown read of ``<kind>.<field>``, without the node id.
 
+``hint_fetch`` adds ``fetch()`` to the advice, for a field that can be fetched on its own: a cardinality-many
+relationship.
+
 ### `report_unloaded_read`
 
 ```python
-report_unloaded_read(kind: str, field: str, selection: Selection | None, strict: bool) -> None
+report_unloaded_read(kind: str, field: str, selection: Selection | None, strict: bool, hint_fetch: bool = False) -> None
 ```
 
 Report a read of a field the SDK does not know: silent for internal reads, else raise or warn.
+
+``hint_fetch`` is passed on to :func:`build_unloaded_message`.
 
 **Raises:**
 

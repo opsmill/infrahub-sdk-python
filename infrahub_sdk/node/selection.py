@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ..exceptions import SelectionConflictError, SelectionFieldNotFoundError
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind
@@ -16,6 +16,11 @@ IDENTITY_FLOOR_NAMES = frozenset({"id", "hfid", "display_label"})
 HIERARCHICAL_FIELD_NAMES = ("parent", "children", "ancestors", "descendants")
 
 _ALWAYS_SELECTED_MANY_KINDS = frozenset({RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT})
+
+# Keys of a peer edge or its node that carry no field value: the peer's identity and the edge's own data.
+_PEER_ENVELOPE_KEYS = frozenset(
+    {"id", "hfid", "display_label", "__typename", "kind", "node_metadata", "properties", "relationship_metadata"}
+)
 
 
 def _as_tuple(names: Iterable[str] | None) -> tuple[str, ...] | None:
@@ -73,6 +78,15 @@ class Selection:
         return label
 
 
+def carries_identity_only(peer_data: Mapping[str, Any]) -> bool:
+    """Return whether a peer edge, or the ``node`` inside it, carries no field beyond the peer's identity."""
+    keys = set(peer_data) - {"node"}
+    node_data = peer_data.get("node")
+    if isinstance(node_data, Mapping):
+        keys.update(node_data)
+    return keys <= _PEER_ENVELOPE_KEYS
+
+
 def check_selection_conflict(
     include: Collection[str] | None, exclude: Collection[str] | None, only: Collection[str] | None
 ) -> None:
@@ -126,6 +140,11 @@ def validate_only(
             raise SelectionFieldNotFoundError(kind=kind, field=name)
         if not fragment:
             raise SelectionFieldNotFoundError(kind=kind, field=name, implementing_kinds=implementing_kinds)
+
+
+def requests_identity_only(names: Iterable[str]) -> bool:
+    """Return whether ``names``, as a peer query's ``only``, requests nothing beyond the identity a reference holds."""
+    return set(names) <= IDENTITY_FLOOR_NAMES
 
 
 def peer_kind_only(only: Iterable[str], peer_schema: MainSchemaTypesAPI) -> list[str]:

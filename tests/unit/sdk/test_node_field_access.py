@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import warnings
@@ -14,7 +15,13 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from graphql import FieldNode, OperationDefinitionNode, parse, value_from_ast_untyped
 
-from infrahub_sdk.exceptions import FieldNotLoadedError, FieldNotLoadedWarning, NodeNotFoundError, UninitializedError
+from infrahub_sdk.exceptions import (
+    Error,
+    FieldNotLoadedError,
+    FieldNotLoadedWarning,
+    NodeNotFoundError,
+    UninitializedError,
+)
 from infrahub_sdk.node import (
     Attribute,
     InfrahubNode,
@@ -389,6 +396,29 @@ async def test_never_set_attribute_becomes_unknown_once_new_node_is_saved(
         assert node.description.value is None
 
 
+@pytest.mark.parametrize("client_type", client_types)
+async def test_never_set_relationship_becomes_unknown_once_new_node_is_saved(
+    httpx_mock: HTTPXMock, clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, strict_switch: bool
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationCreate": {"ok": True, "object": {"id": "abc"}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-builtinlocation-create"},
+    )
+    node = make_node(client_type, clients, location_schema, new_location_data())
+
+    with no_field_warning():
+        assert node.primary_tag.is_loaded is True
+        assert node.primary_tag.id is None
+        await save_node(node)
+
+        assert node.id == "abc"
+        assert node.primary_tag.is_loaded is False
+
+    with reports_unloaded_read("BuiltinLocation", "primary_tag", strict_switch):
+        assert node.primary_tag.id is None
+
+
 # Cardinality-one relationships
 
 
@@ -532,6 +562,65 @@ async def test_related_node_peer_lookup_without_identifier(
         pytest.raises(ValueError, match="Node must have at least one identifier"),
     ):
         read()
+
+
+@dataclass
+class RelatedNodeFetchCase:
+    name: str
+    data: dict[str, Any]
+    selection: Selection | None
+    message: str
+
+
+UNKNOWN_PRIMARY_TAG_FETCH_MESSAGE = (
+    "Relationship 'primary_tag' was not fetched with its node, so its peer is unknown. "
+    "Query the node with 'primary_tag' in its selection first."
+)
+EMPTY_PRIMARY_TAG_FETCH_MESSAGE = "Unable to fetch the peer, id and/or typename are not defined"
+
+RELATED_NODE_FETCH_CASES = [
+    RelatedNodeFetchCase(
+        name="unknown-relationship",
+        data=location_payload(omit={"primary_tag"}),
+        selection=None,
+        message=UNKNOWN_PRIMARY_TAG_FETCH_MESSAGE,
+    ),
+    RelatedNodeFetchCase(
+        name="unknown-relationship-of-only-node",
+        data=location_payload(omit={"primary_tag"}),
+        selection=Selection.from_args(only=["name"]),
+        message=UNKNOWN_PRIMARY_TAG_FETCH_MESSAGE,
+    ),
+    RelatedNodeFetchCase(
+        name="known-empty-relationship",
+        data=location_payload(overrides={"primary_tag": {"node": None}}),
+        selection=None,
+        message=EMPTY_PRIMARY_TAG_FETCH_MESSAGE,
+    ),
+]
+
+
+@pytest.mark.usefixtures("strict_switch")
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RELATED_NODE_FETCH_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_related_node_fetch_without_a_peer_raises_before_any_read_or_request(
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    client_type: str,
+    case: RelatedNodeFetchCase,
+) -> None:
+    node = make_node(client_type, clients, location_schema, deepcopy(case.data))
+    node._selection = case.selection
+    relationship = node.primary_tag
+
+    with no_field_warning(), pytest.raises(Error, match=exactly(case.message)) as exc_info:
+        result = relationship.fetch()
+        if inspect.isawaitable(result):
+            await result
+
+    assert type(exc_info.value) is Error
+    assert httpx_mock.get_requests() == []
 
 
 @pytest.mark.usefixtures("strict_switch")
@@ -930,17 +1019,28 @@ async def test_path_value_through_unknown_fields_is_silent(
 # Strictness
 
 
+SELECTION_ADVICE = "Add it to the selection before reading it."
+SELECTION_OR_FETCH_ADVICE = "Add it to the selection, or call fetch() on it, before reading it."
+
+
 @dataclass
 class StrictReadCase:
     name: str
     field: str
     read: Callable[[Any], Any]
+    advice: str
 
 
 STRICT_READ_CASES = [
-    StrictReadCase(name="attribute", field="description", read=attrgetter("description.value")),
-    StrictReadCase(name="cardinality-one", field="primary_tag", read=attrgetter("primary_tag.id")),
-    StrictReadCase(name="cardinality-many", field="tags", read=attrgetter("tags.peers")),
+    StrictReadCase(
+        name="attribute", field="description", read=attrgetter("description.value"), advice=SELECTION_ADVICE
+    ),
+    StrictReadCase(
+        name="cardinality-one", field="primary_tag", read=attrgetter("primary_tag.id"), advice=SELECTION_ADVICE
+    ),
+    StrictReadCase(
+        name="cardinality-many", field="tags", read=attrgetter("tags.peers"), advice=SELECTION_OR_FETCH_ADVICE
+    ),
 ]
 
 
@@ -952,10 +1052,7 @@ async def test_unknown_read_raises_on_node_with_strict_selection(
     node = make_node(client_type, clients, location_schema, location_payload(omit={case.field}))
     node._selection = Selection.from_args(only=["name"])
 
-    message = (
-        f"BuiltinLocation.{case.field} was not fetched (selection: only=['name']). "
-        "Add it to the selection, or call fetch(), before reading it."
-    )
+    message = f"BuiltinLocation.{case.field} was not fetched (selection: only=['name']). {case.advice}"
     with pytest.raises(FieldNotLoadedError, match=exactly(message)) as exc_info:
         case.read(node)
 
@@ -975,7 +1072,7 @@ async def test_unknown_read_warning_names_non_strict_selection(
 
     message = (
         "BuiltinLocation.description was not fetched (selection: exclude=['description']). "
-        "Add it to the selection, or call fetch(), before reading it." + WARNING_SUFFIX
+        "Add it to the selection before reading it." + WARNING_SUFFIX
     )
     with pytest.warns(FieldNotLoadedWarning, match=exactly(message)):
         assert node.description.value is None
@@ -1003,7 +1100,7 @@ async def test_strict_switch_alone_turns_the_warning_of_a_fetched_node_into_the_
     node = nodes[0]
     message = (
         "BuiltinLocation.description was not fetched (selection: exclude=['description']). "
-        "Add it to the selection, or call fetch(), before reading it."
+        "Add it to the selection before reading it."
     )
 
     with pytest.warns(FieldNotLoadedWarning, match=exactly(message + WARNING_SUFFIX)) as record:

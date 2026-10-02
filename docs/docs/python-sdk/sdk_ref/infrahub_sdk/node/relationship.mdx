@@ -153,8 +153,10 @@ a parallel batch, one query per peer kind, and stored in the client store.
 - `only`: Exactly the peer attributes and relationships to query,
 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
 the relationship's peer kind or of a kind implementing it, and each peer kind is
-asked for the names it defines. Reading any other field of a fetched peer raises
-``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+asked for the names it defines. A peer kind left with identity fields only, which
+its references already hold, is not queried, and its peers stay references. Reading
+any other field of a fetched peer raises ``FieldNotLoadedError``. Cannot be combined
+with ``exclude``.
 - `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
@@ -256,8 +258,10 @@ a parallel batch, one query per peer kind, and stored in the client store.
 - `only`: Exactly the peer attributes and relationships to query,
 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
 the relationship's peer kind or of a kind implementing it, and each peer kind is
-asked for the names it defines. Reading any other field of a fetched peer raises
-``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+asked for the names it defines. A peer kind left with identity fields only, which
+its references already hold, is not queried, and its peers stay references. Reading
+any other field of a fetched peer raises ``FieldNotLoadedError``. Cannot be combined
+with ``exclude``.
 - `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**

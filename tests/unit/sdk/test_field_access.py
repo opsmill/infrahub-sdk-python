@@ -32,22 +32,26 @@ WARNING_SUFFIX = " This will raise FieldNotLoadedError in infrahub-sdk 2.0."
 EXCLUDE_SELECTION = Selection.from_args(include=None, exclude=["description"], only=None)
 EXCLUDE_MESSAGE = (
     "InfraDevice.description was not fetched (selection: exclude=['description']). "
-    "Add it to the selection, or call fetch(), before reading it."
+    "Add it to the selection before reading it."
 )
 ONLY_SELECTION = Selection.from_args(include=None, exclude=None, only=["name"])
 ONLY_MESSAGE = (
+    "InfraDevice.description was not fetched (selection: only=['name']). Add it to the selection before reading it."
+)
+ONLY_FETCH_HINT_MESSAGE = (
     "InfraDevice.description was not fetched (selection: only=['name']). "
-    "Add it to the selection, or call fetch(), before reading it."
+    "Add it to the selection, or call fetch() on it, before reading it."
 )
 PEER_FLOOR_SELECTION = Selection.for_peer(
-    parent=Selection.from_args(include=None, exclude=None, only=["site"]),
+    parent=Selection.from_args(include=["tags"], exclude=None, only=None),
     parent_kind="InfraDevice",
     rel_name="site",
     peer_floor=True,
 )
 PEER_FLOOR_MESSAGE = (
-    "InfraSite.description was not fetched: this node only carries the identity floor "
-    "(peer of InfraDevice.site). Hydrate it with fetch(only=[...]) before reading it."
+    "InfraSite.description was not fetched: this node only carries its identity fields "
+    "(peer of InfraDevice.site). Call fetch() on InfraDevice.site, or query with prefetch_relationships=True, "
+    "before reading it."
 )
 UNKNOWN_ORIGIN_MESSAGE = (
     "InfraDevice.description is not known to the SDK (origin unknown). "
@@ -81,20 +85,58 @@ class MessageCase:
     name: str
     kind: str
     selection: Selection | None
+    hint_fetch: bool
     expected: str
 
 
 MESSAGE_CASES = [
-    MessageCase(name="sdk-selection", kind="InfraDevice", selection=EXCLUDE_SELECTION, expected=EXCLUDE_MESSAGE),
-    MessageCase(name="only-selection", kind="InfraDevice", selection=ONLY_SELECTION, expected=ONLY_MESSAGE),
-    MessageCase(name="peer-floor", kind="InfraSite", selection=PEER_FLOOR_SELECTION, expected=PEER_FLOOR_MESSAGE),
-    MessageCase(name="origin-unknown", kind="InfraDevice", selection=None, expected=UNKNOWN_ORIGIN_MESSAGE),
+    MessageCase(
+        name="sdk-selection",
+        kind="InfraDevice",
+        selection=EXCLUDE_SELECTION,
+        hint_fetch=False,
+        expected=EXCLUDE_MESSAGE,
+    ),
+    MessageCase(
+        name="only-selection", kind="InfraDevice", selection=ONLY_SELECTION, hint_fetch=False, expected=ONLY_MESSAGE
+    ),
+    MessageCase(
+        name="only-selection-fetch-hint",
+        kind="InfraDevice",
+        selection=ONLY_SELECTION,
+        hint_fetch=True,
+        expected=ONLY_FETCH_HINT_MESSAGE,
+    ),
+    MessageCase(
+        name="peer-floor",
+        kind="InfraSite",
+        selection=PEER_FLOOR_SELECTION,
+        hint_fetch=False,
+        expected=PEER_FLOOR_MESSAGE,
+    ),
+    MessageCase(
+        name="peer-floor-fetch-hint",
+        kind="InfraSite",
+        selection=PEER_FLOOR_SELECTION,
+        hint_fetch=True,
+        expected=PEER_FLOOR_MESSAGE,
+    ),
+    MessageCase(
+        name="origin-unknown", kind="InfraDevice", selection=None, hint_fetch=False, expected=UNKNOWN_ORIGIN_MESSAGE
+    ),
+    MessageCase(
+        name="origin-unknown-fetch-hint",
+        kind="InfraDevice",
+        selection=None,
+        hint_fetch=True,
+        expected=UNKNOWN_ORIGIN_MESSAGE,
+    ),
 ]
 
 
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in MESSAGE_CASES])
 def test_build_unloaded_message(case: MessageCase) -> None:
-    assert build_unloaded_message(case.kind, "description", case.selection) == case.expected
+    assert build_unloaded_message(case.kind, "description", case.selection, hint_fetch=case.hint_fetch) == case.expected
 
 
 def test_report_unloaded_read_warns_with_suffix_at_caller() -> None:
@@ -105,6 +147,13 @@ def test_report_unloaded_read_warns_with_suffix_at_caller() -> None:
     assert type(record[0].message) is FieldNotLoadedWarning
     assert str(record[0].message) == EXCLUDE_MESSAGE + WARNING_SUFFIX
     assert record[0].filename == __file__
+
+
+def test_report_unloaded_read_warning_carries_the_fetch_hint() -> None:
+    with pytest.warns(FieldNotLoadedWarning) as record:
+        report_unloaded_read("InfraDevice", "description", ONLY_SELECTION, strict=False, hint_fetch=True)
+
+    assert [str(item.message) for item in record] == [ONLY_FETCH_HINT_MESSAGE + WARNING_SUFFIX]
 
 
 def test_report_unloaded_read_warning_skips_every_sdk_frame() -> None:
@@ -121,6 +170,7 @@ class StrictCase:
     name: str
     kind: str
     selection: Selection | None
+    hint_fetch: bool
     expected_message: str
     expected_label: str | None
 
@@ -130,6 +180,7 @@ STRICT_CASES = [
         name="sdk-selection",
         kind="InfraDevice",
         selection=EXCLUDE_SELECTION,
+        hint_fetch=False,
         expected_message=EXCLUDE_MESSAGE,
         expected_label="exclude=['description']",
     ),
@@ -137,20 +188,31 @@ STRICT_CASES = [
         name="only-selection",
         kind="InfraDevice",
         selection=ONLY_SELECTION,
+        hint_fetch=False,
         expected_message=ONLY_MESSAGE,
+        expected_label="only=['name']",
+    ),
+    StrictCase(
+        name="only-selection-fetch-hint",
+        kind="InfraDevice",
+        selection=ONLY_SELECTION,
+        hint_fetch=True,
+        expected_message=ONLY_FETCH_HINT_MESSAGE,
         expected_label="only=['name']",
     ),
     StrictCase(
         name="peer-floor",
         kind="InfraSite",
         selection=PEER_FLOOR_SELECTION,
+        hint_fetch=False,
         expected_message=PEER_FLOOR_MESSAGE,
-        expected_label="peer of InfraDevice.site, fetched with only=['site']",
+        expected_label="peer of InfraDevice.site, fetched with include=['tags']",
     ),
     StrictCase(
         name="origin-unknown",
         kind="InfraDevice",
         selection=None,
+        hint_fetch=False,
         expected_message=UNKNOWN_ORIGIN_MESSAGE,
         expected_label=None,
     ),
@@ -162,7 +224,7 @@ def test_report_unloaded_read_raises_when_switch_is_on(monkeypatch: pytest.Monke
     monkeypatch.setattr(field_access, "_STRICT_FIELD_ACCESS", True)
 
     with pytest.raises(FieldNotLoadedError, match=f"^{re.escape(case.expected_message)}$") as excinfo:
-        report_unloaded_read(case.kind, "description", case.selection, strict=False)
+        report_unloaded_read(case.kind, "description", case.selection, strict=False, hint_fetch=case.hint_fetch)
 
     assert excinfo.value.kind == case.kind
     assert excinfo.value.field == "description"
@@ -173,7 +235,7 @@ def test_report_unloaded_read_raises_when_switch_is_on(monkeypatch: pytest.Monke
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in STRICT_CASES])
 def test_report_unloaded_read_raises_for_strict_node(case: StrictCase) -> None:
     with pytest.raises(FieldNotLoadedError, match=f"^{re.escape(case.expected_message)}$") as excinfo:
-        report_unloaded_read(case.kind, "description", case.selection, strict=True)
+        report_unloaded_read(case.kind, "description", case.selection, strict=True, hint_fetch=case.hint_fetch)
 
     assert excinfo.value.kind == case.kind
     assert excinfo.value.field == "description"

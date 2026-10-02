@@ -206,8 +206,10 @@ GraphQL API. Specified in seconds.
 - `only`: Exactly the peer attributes and relationships to query,
 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
 the relationship's peer kind or of a kind implementing it, and the peer is asked
-for the names its own kind defines. Reading any other field of the peer raises
-``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+for the names its own kind defines. When that leaves only identity fields, which
+the reference already holds, no query is sent and the peer stays a reference.
+Reading any other field of the peer raises ``FieldNotLoadedError``. Cannot be
+combined with ``exclude``.
 - `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
@@ -215,7 +217,8 @@ for the names its own kind defines. Reading any other field of the peer raises
 - `SelectionConflictError`: If ``only`` is combined with ``exclude``.
 - `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
 nor of any kind implementing it.
-- `Error`: If neither ``id`` nor ``typename`` is set on this related node.
+- `Error`: If the relationship was not fetched with its node, or neither ``id`` nor
+``typename`` is set on this related node.
 
 #### `peer`
 
@@ -290,8 +293,10 @@ GraphQL API. Specified in seconds.
 - `only`: Exactly the peer attributes and relationships to query,
 plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
 the relationship's peer kind or of a kind implementing it, and the peer is asked
-for the names its own kind defines. Reading any other field of the peer raises
-``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+for the names its own kind defines. When that leaves only identity fields, which
+the reference already holds, no query is sent and the peer stays a reference.
+Reading any other field of the peer raises ``FieldNotLoadedError``. Cannot be
+combined with ``exclude``.
 - `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
@@ -299,7 +304,8 @@ for the names its own kind defines. Reading any other field of the peer raises
 - `SelectionConflictError`: If ``only`` is combined with ``exclude``.
 - `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
 nor of any kind implementing it.
-- `Error`: If neither ``id`` nor ``typename`` is set on this related node.
+- `Error`: If the relationship was not fetched with its node, or neither ``id`` nor
+``typename`` is set on this related node.
 
 #### `peer`
 

@@ -211,8 +211,8 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 **Raises:**
 
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
-- `ValueError`: Node has no server-side checksum yet (unsaved or
-file never attached).
+- `ValueError`: Node has no server-side checksum yet (unsaved,
+file never attached, or checksum not fetched).
 
 #### `upload_if_changed`
 
@@ -756,8 +756,8 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 **Raises:**
 
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
-- `ValueError`: Node has no server-side checksum yet (unsaved or
-file never attached).
+- `ValueError`: Node has no server-side checksum yet (unsaved,
+file never attached, or checksum not fetched).
 
 #### `upload_if_changed`
 

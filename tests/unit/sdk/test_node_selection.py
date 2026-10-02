@@ -18,6 +18,7 @@ from infrahub_sdk.exceptions import (
 )
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema import GenericSchemaAPI, NodeSchema, NodeSchemaAPI
+from tests.unit.sdk.test_node_field_access import attribute_of, mutation_input, no_field_warning
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -685,11 +686,12 @@ async def test_nodes_from_only_raise_on_unfetched_reads(
 
     assert [node.name.value for node in nodes] == ["dfw1"]
     node = nodes[0]
-    for field_name, read in (("description", lambda: node.description.value), ("tags", lambda: node.tags.peers)):
-        message = (
-            f"BuiltinLocation.{field_name} was not fetched (selection: only=['name']). "
-            "Add it to the selection, or call fetch(), before reading it."
-        )
+    for field_name, read, advice in (
+        ("description", lambda: node.description.value, "Add it to the selection before reading it."),
+        ("primary_tag", lambda: node.primary_tag.id, "Add it to the selection before reading it."),
+        ("tags", lambda: node.tags.peers, "Add it to the selection, or call fetch() on it, before reading it."),
+    ):
+        message = f"BuiltinLocation.{field_name} was not fetched (selection: only=['name']). {advice}"
         with pytest.raises(FieldNotLoadedError, match=f"^{re.escape(message)}$") as exc:
             read()
         assert (exc.value.kind, exc.value.field, exc.value.selection) == (
@@ -718,11 +720,13 @@ async def test_only_reference_peer_is_not_stored_and_points_at_hydration(
     assert client.store.get(key=TAG_ID, raise_when_missing=False) is None
     hint = (
         f"Unable to find the node '{TAG_ID}' in the store (main): the peer of relationship 'primary_tag' "
-        "was not fetched. Call fetch() on the relationship, or query with prefetch_relationships=True."
+        "is not in the client store (it was not fetched, or the store was not populated). "
+        "Call fetch() on the relationship, or query with prefetch_relationships=True."
     )
     with pytest.raises(NodeNotFoundError, match=re.escape(hint)) as exc:
         _ = node.primary_tag.peer
-    assert exc.value.identifier == {"key": [TAG_ID]}
+    assert exc.value.message == hint
+    assert (exc.value.identifier, exc.value.node_type) == ({"key": [TAG_ID]}, "BuiltinTag")
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -821,8 +825,138 @@ async def test_nodes_without_only_warn_naming_their_selection(
 
     message = (
         f"BuiltinLocation.tags was not fetched (selection: {case.label}). "
-        "Add it to the selection, or call fetch(), before reading it. "
+        "Add it to the selection, or call fetch() on it, before reading it. "
         "This will raise FieldNotLoadedError in infrahub-sdk 2.0."
     )
     with pytest.warns(FieldNotLoadedWarning, match=f"^{re.escape(message)}$"):
         assert nodes[0].tags.peers == []
+
+
+BLUE_TAG_ID = "9b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e"
+BLUE_TAG_DATA: dict[str, Any] = {
+    "id": BLUE_TAG_ID,
+    "hfid": ["blue"],
+    "display_label": "blue",
+    "__typename": "BuiltinTag",
+    "name": {"value": "blue"},
+    "description": {"value": None},
+}
+LOCATION_ATTRIBUTES: dict[str, Any] = {
+    "hfid": ["dfw1"],
+    "name": {"value": "dfw1"},
+    "description": {"value": None},
+    "type": {"value": "site"},
+}
+
+
+@dataclass
+class ExpandedPeerCase:
+    name: str
+    kwargs: dict[str, Any]
+    location_data: dict[str, Any]
+    peer_id: str
+    label: str
+
+
+EXPANDED_PEER_CASES = [
+    ExpandedPeerCase(
+        name="include",
+        kwargs={"include": ["tags"]},
+        location_data={
+            **LOCATION_FLOOR_DATA,
+            **LOCATION_ATTRIBUTES,
+            "primary_tag": {"node": TAG_FLOOR_DATA},
+            "tags": {"count": 1, "edges": [{"node": BLUE_TAG_DATA}]},
+        },
+        peer_id=BLUE_TAG_ID,
+        label="peer of BuiltinLocation.tags, fetched with include=['tags']",
+    ),
+    ExpandedPeerCase(
+        name="prefetch-relationships",
+        kwargs={"prefetch_relationships": True},
+        location_data={**LOCATION_FLOOR_DATA, **LOCATION_ATTRIBUTES, "primary_tag": {"node": BLUE_TAG_DATA}},
+        peer_id=BLUE_TAG_ID,
+        label="peer of BuiltinLocation.primary_tag, fetched with default selection",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in EXPANDED_PEER_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_peer_expanded_without_only_warns_on_unknown_reads(
+    httpx_mock: HTTPXMock, prefetch_clients: BothClients, client_type: str, case: ExpandedPeerCase
+) -> None:
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_location_response(case.location_data))
+    client = prefetch_clients.standard if client_type == "standard" else prefetch_clients.sync
+
+    await _query_nodes(prefetch_clients, client_type, "filters", "BuiltinLocation", **case.kwargs)
+
+    peer = client.store.get(key=case.peer_id)
+    assert peer.name.value == "blue"
+    message = (
+        f"BuiltinTag.locations was not fetched (selection: {case.label}). "
+        "Add it to the selection, or call fetch() on it, before reading it. "
+        "This will raise FieldNotLoadedError in infrahub-sdk 2.0."
+    )
+    with pytest.warns(FieldNotLoadedWarning, match=f"^{re.escape(message)}$") as record:
+        assert peer.locations.peers == []
+    assert [str(item.message) for item in record] == [message]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_identity_only_peer_points_at_the_relationship_it_came_from(
+    httpx_mock: HTTPXMock, prefetch_clients: BothClients, client_type: str
+) -> None:
+    location_data = EXPANDED_PEER_CASES[0].location_data
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_location_response(location_data))
+    client = prefetch_clients.standard if client_type == "standard" else prefetch_clients.sync
+
+    nodes = await _query_nodes(prefetch_clients, client_type, "filters", "BuiltinLocation", include=["tags"])
+
+    # include expands tags only, so the primary_tag peer is built from its identity fields alone.
+    primary_tag = client.store.get(key=TAG_ID)
+    assert nodes[0].primary_tag.peer is primary_tag
+    assert (primary_tag.id, primary_tag.display_label) == (TAG_ID, "red")
+    message = (
+        "BuiltinTag.name was not fetched: this node only carries its identity fields "
+        "(peer of BuiltinLocation.primary_tag). Call fetch() on BuiltinLocation.primary_tag, "
+        "or query with prefetch_relationships=True, before reading it. "
+        "This will raise FieldNotLoadedError in infrahub-sdk 2.0."
+    )
+    with pytest.warns(FieldNotLoadedWarning, match=f"^{re.escape(message)}$") as record:
+        assert primary_tag.name.value is None
+    assert [str(item.message) for item in record] == [message]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_saving_a_node_from_only_sends_only_its_id_and_the_modified_attribute(
+    httpx_mock: HTTPXMock, generic_family_clients: BothClients, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_location_response({**LOCATION_FLOOR_DATA, "name": {"value": "dfw1"}}),
+        match_headers={"X-Infrahub-Tracker": "query-builtinlocation-page1"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-builtinlocation-update"},
+    )
+    nodes = await _query_nodes(generic_family_clients, client_type, "filters", "BuiltinLocation", only=["name"])
+    node = nodes[0]
+
+    with no_field_warning():
+        attribute_of(node, "name").value = "dfw2"
+        if isinstance(node, InfrahubNode):
+            await node.save()
+        else:
+            node.save()
+
+    requests = httpx_mock.get_requests()
+    assert [request.headers["X-Infrahub-Tracker"] for request in requests] == [
+        "query-builtinlocation-page1",
+        "mutation-builtinlocation-update",
+    ]
+    assert mutation_input(requests[1]) == {"name": {"value": "dfw2"}, "id": LOCATION_ID}

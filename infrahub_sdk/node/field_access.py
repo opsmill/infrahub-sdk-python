@@ -66,8 +66,12 @@ def with_internal_field_access(func: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-def build_unloaded_message(kind: str, field: str, selection: Selection | None) -> str:
-    """Return the message for an unknown read of ``<kind>.<field>``, without the node id."""
+def build_unloaded_message(kind: str, field: str, selection: Selection | None, hint_fetch: bool = False) -> str:
+    """Return the message for an unknown read of ``<kind>.<field>``, without the node id.
+
+    ``hint_fetch`` adds ``fetch()`` to the advice, for a field that can be fetched on its own: a cardinality-many
+    relationship.
+    """
     if selection is None:
         return (
             f"{kind}.{field} is not known to the SDK (origin unknown). "
@@ -75,17 +79,24 @@ def build_unloaded_message(kind: str, field: str, selection: Selection | None) -
         )
     if selection.peer_floor:
         return (
-            f"{kind}.{field} was not fetched: this node only carries the identity floor "
-            f"(peer of {selection.peer_of}). Hydrate it with fetch(only=[...]) before reading it."
+            f"{kind}.{field} was not fetched: this node only carries its identity fields "
+            f"(peer of {selection.peer_of}). Call fetch() on {selection.peer_of}, "
+            "or query with prefetch_relationships=True, before reading it."
         )
-    return (
-        f"{kind}.{field} was not fetched (selection: {selection.describe()}). "
-        "Add it to the selection, or call fetch(), before reading it."
+    advice = (
+        "Add it to the selection, or call fetch() on it, before reading it."
+        if hint_fetch
+        else "Add it to the selection before reading it."
     )
+    return f"{kind}.{field} was not fetched (selection: {selection.describe()}). {advice}"
 
 
-def report_unloaded_read(kind: str, field: str, selection: Selection | None, strict: bool) -> None:
+def report_unloaded_read(
+    kind: str, field: str, selection: Selection | None, strict: bool, hint_fetch: bool = False
+) -> None:
     """Report a read of a field the SDK does not know: silent for internal reads, else raise or warn.
+
+    ``hint_fetch`` is passed on to :func:`build_unloaded_message`.
 
     Raises:
         FieldNotLoadedError: If strict field access is switched on, or ``strict`` is set for the node.
@@ -94,7 +105,7 @@ def report_unloaded_read(kind: str, field: str, selection: Selection | None, str
     if _INTERNAL_ACCESS.get():
         return
 
-    message = build_unloaded_message(kind, field, selection)
+    message = build_unloaded_message(kind, field, selection, hint_fetch=hint_fetch)
     if _STRICT_FIELD_ACCESS or strict:
         raise FieldNotLoadedError(
             kind=kind,
