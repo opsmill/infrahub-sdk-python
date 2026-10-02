@@ -1,0 +1,36 @@
+infrahub_sdk/ctl/commands/create.py
+  9c94bd191e611701 57-58,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.3",
+  "base_commit_sha": "9af2752cff5ed25ac11b7b9025231a5e766810f1",
+  "prompts": {
+    "9c94bd191e611701": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9d854061-4063-453d-8af0-56018885782b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Benoit Kohler",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 0,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "f5e6e00403fe8d5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e817d7d-5245-4908-961f-c4949c1c40cd",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Benoit Kohler",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
