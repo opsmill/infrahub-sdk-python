@@ -55,7 +55,8 @@ class Attribute:
     current value, the metadata properties (``source``, ``owner``, ``is_protected``, ...),
     and whether the value has been mutated since the node was loaded. Mutation tracking is
     used by ``InfrahubNode.update()`` to send only the changed fields to the API. Reading
-    ``value`` while ``is_loaded`` is ``False`` warns with ``FieldNotLoadedWarning``.
+    ``value`` while ``is_loaded`` is ``False`` warns with ``FieldNotLoadedWarning``, or
+    raises ``FieldNotLoadedError`` on nodes produced by ``only`` and on their peers.
 
     Attributes:
         name (str): The name of the attribute.

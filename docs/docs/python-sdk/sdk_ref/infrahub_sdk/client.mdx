@@ -72,9 +72,10 @@ Retrieve the single node of a given kind that matches the provided filters.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved node.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
@@ -303,9 +304,10 @@ Retrieve all nodes of a given kind.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -362,9 +364,10 @@ Retrieve nodes of a given kind based on provided filters.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.
@@ -659,9 +662,10 @@ Retrieve the single node of a given kind that matches the provided filters.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `populate_store`: Flag to indicate whether to populate the store with the retrieved node.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
@@ -935,9 +939,10 @@ Retrieve all nodes of a given kind.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -994,9 +999,10 @@ Retrieve nodes of a given kind based on provided filters.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
 - `only`: Exactly the attributes and relationships to query, plus `id`, `display_label`
-and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+`node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.

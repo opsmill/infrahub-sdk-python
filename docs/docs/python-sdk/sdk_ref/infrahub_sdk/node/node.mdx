@@ -333,11 +333,13 @@ properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``
 ``relationship_metadata`` in the result. Defaults to ``False``.
 - `only`: Request exactly these attributes, relationships and
 hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
-``hfid`` also requests the node's HFID. A named relationship requests only the
-peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
-with ``fragment``, each ``...on Kind`` fragment requests the names that kind
-defines and the generic does not, and is left out when there are none. Cannot
-be combined with ``include`` or ``exclude``.
+``hfid`` adds the server's ``hfid`` to the query, but a node built from the
+result still computes \:attr\:`hfid` from the fields that make up the
+human-friendly ID of the kind. A named relationship requests only the peer's
+identity fields, unless ``prefetch_relationships`` is set. For a generic with
+``fragment``, each ``...on Kind`` fragment requests the names that kind defines
+and the generic does not, and is left out when there are none. Cannot be
+combined with ``include`` or ``exclude``.
 
 **Returns:**
 
@@ -878,11 +880,13 @@ properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``
 ``relationship_metadata`` in the result. Defaults to ``False``.
 - `only`: Request exactly these attributes, relationships and
 hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
-``hfid`` also requests the node's HFID. A named relationship requests only the
-peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
-with ``fragment``, each ``...on Kind`` fragment requests the names that kind
-defines and the generic does not, and is left out when there are none. Cannot
-be combined with ``include`` or ``exclude``.
+``hfid`` adds the server's ``hfid`` to the query, but a node built from the
+result still computes \:attr\:`hfid` from the fields that make up the
+human-friendly ID of the kind. A named relationship requests only the peer's
+identity fields, unless ``prefetch_relationships`` is set. For a generic with
+``fragment``, each ``...on Kind`` fragment requests the names that kind defines
+and the generic does not, and is left out when there are none. Cannot be
+combined with ``include`` or ``exclude``.
 
 **Returns:**
 
@@ -1413,8 +1417,8 @@ criteria. Defaults to ``False``.
 the result. Defaults to ``False``.
 - `only`: The exclusive selection the query is built for. The
 ``edges.node`` placeholder then carries ``id``, ``display_label`` and ``__typename``,
-plus ``hfid`` when it is named. Without ``only``, ``hfid`` is always requested.
-Cannot be combined with ``include`` or ``exclude``.
+plus the server's ``hfid`` when it is named. Without ``only``, ``hfid`` is always
+requested. Cannot be combined with ``include`` or ``exclude``.
 
 **Returns:**
 

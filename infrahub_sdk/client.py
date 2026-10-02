@@ -772,9 +772,10 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
@@ -914,7 +915,7 @@ class InfrahubClient(BaseClient):
             node._selection = selection
             nodes.append(node)
 
-            # Under `only`, floor-only peers stay references so they never replace broader nodes in the store.
+            # Under `only` without prefetch, peers stay references so they never replace fuller copies in the store.
             if prefetch_relationships or (
                 only is None and include and any(rel in include for rel in node._relationships)
             ):
@@ -1239,9 +1240,10 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -1369,9 +1371,10 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3110,9 +3113,10 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -3221,7 +3225,7 @@ class InfrahubClientSync(BaseClient):
             node._selection = selection
             nodes.append(node)
 
-            # Under `only`, floor-only peers stay references so they never replace broader nodes in the store.
+            # Under `only` without prefetch, peers stay references so they never replace fuller copies in the store.
             if prefetch_relationships or (
                 only is None and include and any(rel in include for rel in node._relationships)
             ):
@@ -3320,9 +3324,10 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3630,9 +3635,10 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Exactly the attributes and relationships to query, plus `id`, `display_label`
-                and `__typename`. Name `hfid` to also query the human-friendly ID. A named relationship returns only
-                its peers' identity unless `prefetch_relationships` is set. Reading any other field of a returned
-                node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
+                and `__typename`. Naming `hfid` adds the server's `hfid` to the query and to the raw payload;
+                `node.hfid` is still computed from the fields that make up the human-friendly ID of the kind. A named
+                relationship returns only its peers' identity unless `prefetch_relationships` is set. Reading any other
+                field of a returned node raises `FieldNotLoadedError`. Cannot be combined with `include` or `exclude`.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.

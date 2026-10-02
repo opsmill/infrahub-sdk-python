@@ -731,8 +731,8 @@ class InfrahubNodeBase:
                 the result. Defaults to ``False``.
             only (list[str], optional): The exclusive selection the query is built for. The
                 ``edges.node`` placeholder then carries ``id``, ``display_label`` and ``__typename``,
-                plus ``hfid`` when it is named. Without ``only``, ``hfid`` is always requested.
-                Cannot be combined with ``include`` or ``exclude``.
+                plus the server's ``hfid`` when it is named. Without ``only``, ``hfid`` is always
+                requested. Cannot be combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: The query skeleton ready to be combined with node-level
@@ -1458,11 +1458,13 @@ class InfrahubNode(InfrahubNodeBase):
                 ``relationship_metadata`` in the result. Defaults to ``False``.
             only (list[str], optional): Request exactly these attributes, relationships and
                 hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
-                ``hfid`` also requests the node's HFID. A named relationship requests only the
-                peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
-                with ``fragment``, each ``...on Kind`` fragment requests the names that kind
-                defines and the generic does not, and is left out when there are none. Cannot
-                be combined with ``include`` or ``exclude``.
+                ``hfid`` adds the server's ``hfid`` to the query, but a node built from the
+                result still computes :attr:`hfid` from the fields that make up the
+                human-friendly ID of the kind. A named relationship requests only the peer's
+                identity fields, unless ``prefetch_relationships`` is set. For a generic with
+                ``fragment``, each ``...on Kind`` fragment requests the names that kind defines
+                and the generic does not, and is left out when there are none. Cannot be
+                combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
@@ -1551,14 +1553,14 @@ class InfrahubNode(InfrahubNodeBase):
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
         Args:
-            include (Optional[list[str]], optional): List of attributes or relationships to include. Defaults to None.
-            exclude (Optional[list[str]], optional): List of attributes or relationships to exclude. Defaults to None.
+            include (list[str], optional): List of attributes or relationships to include. Defaults to None.
+            exclude (list[str], optional): List of attributes or relationships to exclude. Defaults to None.
             inherited (bool, optional): Indicated of the attributes and the relationships inherited from generics should be included as well.
                                         Defaults to True.
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
-            only (Optional[list[str]], optional): Exactly the attributes, relationships and hierarchical fields to
+            only (list[str], optional): Exactly the attributes, relationships and hierarchical fields to
                 include; names this kind does not define are ignored. A named relationship requests only the peer's
                 ``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
                 Defaults to None.
@@ -2718,11 +2720,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 ``relationship_metadata`` in the result. Defaults to ``False``.
             only (list[str], optional): Request exactly these attributes, relationships and
                 hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
-                ``hfid`` also requests the node's HFID. A named relationship requests only the
-                peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
-                with ``fragment``, each ``...on Kind`` fragment requests the names that kind
-                defines and the generic does not, and is left out when there are none. Cannot
-                be combined with ``include`` or ``exclude``.
+                ``hfid`` adds the server's ``hfid`` to the query, but a node built from the
+                result still computes :attr:`hfid` from the fields that make up the
+                human-friendly ID of the kind. A named relationship requests only the peer's
+                identity fields, unless ``prefetch_relationships`` is set. For a generic with
+                ``fragment``, each ``...on Kind`` fragment requests the names that kind defines
+                and the generic does not, and is left out when there are none. Cannot be
+                combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
@@ -2810,14 +2814,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
         Args:
-            include (Optional[list[str]], optional): List of attributes or relationships to include. Defaults to None.
-            exclude (Optional[list[str]], optional): List of attributes or relationships to exclude. Defaults to None.
+            include (list[str], optional): List of attributes or relationships to include. Defaults to None.
+            exclude (list[str], optional): List of attributes or relationships to exclude. Defaults to None.
             inherited (bool, optional): Indicated of the attributes and the relationships inherited from generics should be included as well.
                                         Defaults to True.
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
-            only (Optional[list[str]], optional): Exactly the attributes, relationships and hierarchical fields to
+            only (list[str], optional): Exactly the attributes, relationships and hierarchical fields to
                 include; names this kind does not define are ignored. A named relationship requests only the peer's
                 ``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
                 Defaults to None.

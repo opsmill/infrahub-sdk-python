@@ -27,7 +27,8 @@ class RelationshipManagerBase(Generic[PeerT]):
     peers along with helpers to add, remove, or extend the set. Relationship managers are
     initialized lazily: until :meth:`fetch` (on the async/sync subclasses) is called, the
     members are not loaded and editing is not allowed. Reading the peers while ``is_loaded``
-    is ``False`` warns with ``FieldNotLoadedWarning``.
+    is ``False`` warns with ``FieldNotLoadedWarning``, or raises ``FieldNotLoadedError`` on
+    nodes produced by ``only`` and on their peers.
 
     Attributes:
         name (str): The name of the relationship slot on the parent node.
@@ -214,7 +215,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
     """Asynchronous manager for a cardinality-many relationship.
 
     Extends :class:`RelationshipManagerBase` with the ability to populate and edit the
-    peer set against an :class:`InfrahubClient`: :meth:`fetch` resolves every peer in a
+    peer set against an :class:`InfrahubClient`: :meth:`fetch` fetches the peers in a
     parallel batch and :meth:`add`, :meth:`extend`, and :meth:`remove` mutate the peer
     list in memory. Peers are exposed as :class:`RelatedNode` instances and can be
     accessed by index via ``manager[i]``.
@@ -286,11 +287,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         return cast("RelatedNode[PeerT]", self._peers[item])
 
     async def fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None:
-        """Populate the peer set and resolve every peer to a full node.
+        """Populate the peer set and fetch the peer nodes into the client store.
 
         When the manager is not yet initialized, the parent node is re-queried for this
         relationship alone so the peer list can be populated. The peers are then fetched in
-        a parallel batch, one query per peer kind, and stored in the client store.
+        a parallel batch, one query per peer kind, with their default set of fields or the
+        fields named in ``only``, and stored in the client store.
 
         Args:
             only (list[str], optional): Exactly the peer attributes and relationships to query,
@@ -443,7 +445,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
     Synchronous counterpart of :class:`RelationshipManager`. Extends
     :class:`RelationshipManagerBase` with the ability to populate and edit the peer set
-    against an :class:`InfrahubClientSync`: :meth:`fetch` resolves every peer in a
+    against an :class:`InfrahubClientSync`: :meth:`fetch` fetches the peers in a
     parallel batch and :meth:`add`, :meth:`extend`, and :meth:`remove` mutate the peer
     list in memory. Peers are exposed as :class:`RelatedNodeSync` instances and can be
     accessed by index via ``manager[i]``.
@@ -515,11 +517,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
     def fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None:
-        """Populate the peer set and resolve every peer to a full node.
+        """Populate the peer set and fetch the peer nodes into the client store.
 
         When the manager is not yet initialized, the parent node is re-queried for this
         relationship alone so the peer list can be populated. The peers are then fetched in
-        a parallel batch, one query per peer kind, and stored in the client store.
+        a parallel batch, one query per peer kind, with their default set of fields or the
+        fields named in ``only``, and stored in the client store.
 
         Args:
             only (list[str], optional): Exactly the peer attributes and relationships to query,

@@ -50,6 +50,10 @@ class Selection:
         exclude: Iterable[str] | None = None,
         only: Iterable[str] | None = None,
     ) -> Selection:
+        """Return the selection of a query built from these ``include``, ``exclude`` and ``only`` arguments.
+
+        The selection is strict when ``only`` is given, even as an empty list.
+        """
         return cls(
             only=_as_tuple(only),
             include=_as_tuple(include),
@@ -59,6 +63,11 @@ class Selection:
 
     @staticmethod
     def for_peer(parent: Selection, parent_kind: str, rel_name: str, peer_floor: bool = False) -> Selection:
+        """Return the selection of a peer built from the ``rel_name`` relationship of a ``parent_kind`` node.
+
+        The peer keeps the arguments and strictness of ``parent``. Set ``peer_floor`` when the peer data carries
+        only the identity floor.
+        """
         return replace(parent, peer_of=f"{parent_kind}.{rel_name}", peer_floor=peer_floor)
 
     def describe(self) -> str:
@@ -171,6 +180,11 @@ def is_attribute_selected(
     exclude: Collection[str] | None,
     only: Collection[str] | None,
 ) -> bool:
+    """Return whether the query selects the attribute ``name``.
+
+    With ``only``, the attribute must be named in it. Otherwise every attribute is selected unless ``exclude`` names
+    it.
+    """
     if only is not None:
         return name in only
     return not (exclude and name in exclude)
@@ -182,6 +196,11 @@ def is_relationship_selected(
     exclude: Collection[str] | None,
     only: Collection[str] | None,
 ) -> bool:
+    """Return whether the query selects the relationship described by ``rel_schema``.
+
+    With ``only``, the relationship must be named in it. Otherwise it is selected unless ``exclude`` names it, and a
+    relationship of cardinality many that isn't of kind Attribute or Parent must also be named in ``include``.
+    """
     name = rel_schema.name
     if only is not None:
         return name in only
@@ -195,6 +214,10 @@ def is_relationship_selected(
 def should_expand_peer(
     rel_name: str, include: Collection[str] | None, only: Collection[str] | None, prefetch_relationships: bool
 ) -> bool:
+    """Return whether the query requests the fields of the peers of ``rel_name``, not just their identity.
+
+    It does with ``prefetch_relationships``, or without ``only`` when ``include`` names the relationship.
+    """
     if prefetch_relationships:
         return True
     return only is None and include is not None and rel_name in include
@@ -207,6 +230,11 @@ def is_hierarchical_selected(
     only: Collection[str] | None,
     prefetch_relationships: bool,
 ) -> bool:
+    """Return whether the query selects the hierarchical field ``name`` (``parent``, ``children``, ...).
+
+    With ``only``, the field must be named in it. Otherwise it is selected when ``prefetch_relationships`` is set or
+    ``include`` names it, unless ``exclude`` names it.
+    """
     if only is not None:
         return name in only
     if exclude and name in exclude:

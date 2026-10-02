@@ -33,7 +33,8 @@ class RelatedNodeBase:
     with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
     The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
     :meth:`RelatedNodeSync.fetch`. Reading the peer identifiers while ``is_loaded`` is
-    ``False`` warns with ``FieldNotLoadedWarning``.
+    ``False`` warns with ``FieldNotLoadedWarning``, or raises ``FieldNotLoadedError`` on
+    nodes produced by ``only`` and on their peers.
 
     Attributes:
         schema (RelationshipSchemaAPI): The schema describing the relationship.
@@ -437,10 +438,10 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         only: list[str] | None = None,
         exclude: list[str] | None = None,
     ) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+        """Fetch the peer node from the backend and cache it on this object.
 
-        After ``fetch()`` completes, attribute and relationship access on the peer is
-        available via :attr:`peer` or :meth:`get`.
+        Without ``only``, the peer is fetched with its default set of fields. After ``fetch()``
+        completes, the peer is available via :attr:`peer` or :meth:`get`.
 
         Args:
             timeout (int, optional): Overrides the default timeout used when querying the
@@ -459,8 +460,10 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             SelectionConflictError: If ``only`` is combined with ``exclude``.
             SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
                 nor of any kind implementing it.
-            Error: If the relationship was not fetched with its node, or neither ``id`` nor
-                ``typename`` is set on this related node.
+            Error: If the relationship was not fetched with its node, so its peer is unknown,
+                or if the ``id`` or the ``typename`` of the peer is not set on this related node.
+            NodeNotFoundError: If no node of the peer's kind with the peer's ``id`` exists on the
+                branch.
 
         """
         check_selection_conflict(None, exclude, only)
@@ -577,10 +580,10 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         only: list[str] | None = None,
         exclude: list[str] | None = None,
     ) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+        """Fetch the peer node from the backend and cache it on this object.
 
-        After ``fetch()`` completes, attribute and relationship access on the peer is
-        available via :attr:`peer` or :meth:`get`.
+        Without ``only``, the peer is fetched with its default set of fields. After ``fetch()``
+        completes, the peer is available via :attr:`peer` or :meth:`get`.
 
         Args:
             timeout (int, optional): Overrides the default timeout used when querying the
@@ -599,8 +602,10 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             SelectionConflictError: If ``only`` is combined with ``exclude``.
             SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
                 nor of any kind implementing it.
-            Error: If the relationship was not fetched with its node, or neither ``id`` nor
-                ``typename`` is set on this related node.
+            Error: If the relationship was not fetched with its node, so its peer is unknown,
+                or if the ``id`` or the ``typename`` of the peer is not set on this related node.
+            NodeNotFoundError: If no node of the peer's kind with the peer's ``id`` exists on the
+                branch.
 
         """
         check_selection_conflict(None, exclude, only)
