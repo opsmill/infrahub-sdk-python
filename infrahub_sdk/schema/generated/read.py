@@ -85,11 +85,11 @@ class NumberPoolParametersRead(AttributeParametersRead):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     end_range: int | None = Field(
         default=None,
-        description="Deprecated, use ranges instead. End of the single range of the associated NumberPool",
+        description="Deprecated, use ranges instead. End of the single range, defaults to the largest supported number when only start_range is set",
     )
     start_range: int | None = Field(
         default=None,
-        description="Deprecated, use ranges instead. Start of the single range of the associated NumberPool",
+        description="Deprecated, use ranges instead. Start of the single range, defaults to 1 when only end_range is set",
     )
     ranges: list[NumberPoolRangeRead] = Field(
         default_factory=list,
