@@ -250,7 +250,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 **Independent Test**: `uv run pytest tests/unit/sdk/test_node_field_access.py -q -k strict`, both clients.
 
-- [ ] T042 [US4] In `tests/unit/sdk/test_node_field_access.py`, add a `strict_access` fixture (`monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", True)`) and a strict-mode variant of the T011–T014 matrices. Every row that warned now raises `FieldNotLoadedError`, with `str(err)` equal to the warning text minus the 1.x suffix. Every silent row stays silent: new-node reads, present fields, `is_loaded`, `RelationshipManager.initialized`, save, store and HFID. If any row fails, fix `infrahub_sdk/node/field_access.py` or the reporting call site, not the test.
+- [X] T042 [US4] In `tests/unit/sdk/test_node_field_access.py`, add a `strict_access` fixture (`monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", True)`) and a strict-mode variant of the T011–T014 matrices. Every row that warned now raises `FieldNotLoadedError`, with `str(err)` equal to the warning text minus the 1.x suffix. Every silent row stays silent: new-node reads, present fields, `is_loaded`, `RelationshipManager.initialized`, save, store and HFID. If any row fails, fix `infrahub_sdk/node/field_access.py` or the reporting call site, not the test.
 
 **Checkpoint**: The 2.0 change is a one-line edit.
 

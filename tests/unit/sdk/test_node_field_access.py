@@ -21,13 +21,13 @@ from infrahub_sdk.node import (
     InfrahubNodeSync,
     RelationshipManager,
     RelationshipManagerSync,
-    field_access,
 )
 from infrahub_sdk.node.selection import Selection
 from infrahub_sdk.schema import NodeSchema
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
+    from contextlib import AbstractContextManager
 
     import httpx
     from pytest_httpx import HTTPXMock
@@ -147,6 +147,45 @@ def no_field_warning() -> Iterator[None]:
         warnings.simplefilter("always")
         yield
     assert [str(item.message) for item in record if issubclass(item.category, FieldNotLoadedWarning)] == []
+
+
+@pytest.fixture
+def strict_access(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make every read of a field the SDK does not know raise FieldNotLoadedError, as infrahub-sdk 2.0 will."""
+    monkeypatch.setattr("infrahub_sdk.node.field_access._STRICT_FIELD_ACCESS", True)
+
+
+@pytest.fixture(params=[pytest.param(False, id="warn"), pytest.param(True, id="strict")])
+def strict_switch(request: pytest.FixtureRequest) -> bool:
+    """Run the test with the strict switch off, then on, and return whether it is on."""
+    strict: bool = request.param
+    if strict:
+        request.getfixturevalue("strict_access")
+    return strict
+
+
+@contextmanager
+def reports_unloaded_read(kind: str, field: str, strict: bool) -> Iterator[None]:
+    """Expect the block to report one read of ``<kind>.<field>`` on a node whose origin is unknown.
+
+    The report is the 1.x warning or, when ``strict``, FieldNotLoadedError with the same text minus the 1.x
+    suffix. The error ends the block at the read, so the rest of the block only runs without ``strict``.
+    """
+    warning = unknown_origin_warning(kind, field)
+    if strict:
+        message = warning.removesuffix(WARNING_SUFFIX)
+        with pytest.raises(FieldNotLoadedError, match=exactly(message)) as exc_info:
+            yield
+        assert (exc_info.value.kind, exc_info.value.field, exc_info.value.selection) == (kind, field, None)
+    else:
+        with pytest.warns(FieldNotLoadedWarning, match=exactly(warning)) as record:
+            yield
+        assert [str(item.message) for item in record] == [warning]
+
+
+def expect_read_report(reported: bool, kind: str, field: str, strict: bool) -> AbstractContextManager[None]:
+    """Return :func:`reports_unloaded_read` for a row that reports the read, else :func:`no_field_warning`."""
+    return reports_unloaded_read(kind, field, strict) if reported else no_field_warning()
 
 
 def mutation_input(request: httpx.Request) -> dict[str, Any]:
@@ -296,25 +335,18 @@ ATTRIBUTE_READ_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in ATTRIBUTE_READ_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_attribute_value_read(
-    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: AttributeReadCase
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: AttributeReadCase, strict_switch: bool
 ) -> None:
     node = make_node(client_type, clients, location_schema, deepcopy(case.data))
 
     with no_field_warning():
         assert node.description.is_loaded is case.expected_loaded
 
-    if case.warns:
-        expected = unknown_origin_warning("BuiltinLocation", "description")
-        with pytest.warns(FieldNotLoadedWarning, match=exactly(expected)) as record:
-            value = node.description.value
-        assert [str(item.message) for item in record] == [expected]
-    else:
-        with no_field_warning():
-            value = node.description.value
-
-    assert value == case.expected_value
+    with expect_read_report(case.warns, "BuiltinLocation", "description", strict_switch):
+        assert node.description.value == case.expected_value
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("assign_via", ["attribute-value", "node-attribute"])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_assigning_absent_attribute_makes_it_known(
@@ -335,7 +367,7 @@ async def test_assigning_absent_attribute_makes_it_known(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_never_set_attribute_becomes_unknown_once_new_node_is_saved(
-    httpx_mock: HTTPXMock, clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+    httpx_mock: HTTPXMock, clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, strict_switch: bool
 ) -> None:
     httpx_mock.add_response(
         method="POST",
@@ -353,7 +385,7 @@ async def test_never_set_attribute_becomes_unknown_once_new_node_is_saved(
         assert node.name.value == "DFW"
         assert node.description.is_loaded is False
 
-    with pytest.warns(FieldNotLoadedWarning, match=exactly(unknown_origin_warning("BuiltinLocation", "description"))):
+    with reports_unloaded_read("BuiltinLocation", "description", strict_switch):
         assert node.description.value is None
 
 
@@ -424,26 +456,24 @@ RELATED_NODE_READ_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RELATED_NODE_READ_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_related_node_accessor_reads(
-    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelatedNodeReadCase
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    client_type: str,
+    case: RelatedNodeReadCase,
+    strict_switch: bool,
 ) -> None:
     relationship = make_node(client_type, clients, location_schema, deepcopy(case.data)).primary_tag
 
     with no_field_warning():
         assert relationship.is_loaded is case.expected_loaded
 
-    if case.warns:
-        expected = unknown_origin_warning("BuiltinLocation", "primary_tag")
-        with pytest.warns(FieldNotLoadedWarning, match=exactly(expected)) as record:
-            values = {accessor: getattr(relationship, accessor) for accessor in RELATED_NODE_ACCESSORS}
-        # One report per accessor read.
-        assert [str(item.message) for item in record] == [expected] * len(RELATED_NODE_ACCESSORS)
-    else:
-        with no_field_warning():
-            values = {accessor: getattr(relationship, accessor) for accessor in RELATED_NODE_ACCESSORS}
-
-    assert values == case.expected_values
+    assert sorted(case.expected_values) == sorted(RELATED_NODE_ACCESSORS)
+    for accessor in RELATED_NODE_ACCESSORS:
+        with expect_read_report(case.warns, "BuiltinLocation", "primary_tag", strict_switch):
+            assert getattr(relationship, accessor) == case.expected_values[accessor]
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("lookup", ["get", "peer"])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_related_node_peer_lookup_on_present_relationship(
@@ -484,27 +514,27 @@ PEER_LOOKUP_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in PEER_LOOKUP_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_related_node_peer_lookup_without_identifier(
-    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: PeerLookupCase, lookup: str
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    client_type: str,
+    case: PeerLookupCase,
+    lookup: str,
+    strict_switch: bool,
 ) -> None:
     relationship = make_node(client_type, clients, location_schema, deepcopy(case.data)).primary_tag
 
     def read() -> object:
         return relationship.get() if lookup == "get" else relationship.peer
 
-    no_identifier = "Node must have at least one identifier"
-    if case.warns:
-        expected = unknown_origin_warning("BuiltinLocation", "primary_tag")
-        with (
-            pytest.warns(FieldNotLoadedWarning, match=exactly(expected)) as record,
-            pytest.raises(ValueError, match=no_identifier),
-        ):
-            read()
-        assert [str(item.message) for item in record] == [expected]
-    else:
-        with no_field_warning(), pytest.raises(ValueError, match=no_identifier):
-            read()
+    # When strict, FieldNotLoadedError leaves the ValueError check unmet and propagates to the report check.
+    with (
+        expect_read_report(case.warns, "BuiltinLocation", "primary_tag", strict_switch),
+        pytest.raises(ValueError, match="Node must have at least one identifier"),
+    ):
+        read()
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_assigning_absent_related_node_makes_it_known(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -539,7 +569,11 @@ PARENT_READ_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in PARENT_READ_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_hierarchical_parent_read(
-    clients: BothClients, hierarchical_schema: NodeSchemaAPI, client_type: str, case: ParentReadCase
+    clients: BothClients,
+    hierarchical_schema: NodeSchemaAPI,
+    client_type: str,
+    case: ParentReadCase,
+    strict_switch: bool,
 ) -> None:
     node = make_node(client_type, clients, hierarchical_schema, room_payload(omit=case.omit))
     # The schema declares ``parent``, and the node also tracks it among its hierarchical fields.
@@ -549,28 +583,22 @@ async def test_hierarchical_parent_read(
         with no_field_warning():
             assert parent.is_loaded is case.expected_loaded
 
-        if case.warns:
-            with pytest.warns(FieldNotLoadedWarning, match=exactly(unknown_origin_warning("InfraLocation", "parent"))):
-                parent_id = parent.id
-        else:
-            with no_field_warning():
-                parent_id = parent.id
-
-        assert parent_id == case.expected_id
+        with expect_read_report(case.warns, "InfraLocation", "parent", strict_switch):
+            assert parent.id == case.expected_id
 
 
 # Cardinality-many relationships
 
 
-def read_relationship_manager(manager: RelationshipManager | RelationshipManagerSync) -> dict[str, Any]:
-    return {
-        "peers": [peer.id for peer in manager.peers],
-        "peer_ids": manager.peer_ids,
-        "peer_hfids": manager.peer_hfids,
-        "peer_hfids_str": manager.peer_hfids_str,
-        "is_from_profile": manager.is_from_profile,
-        "iteration": [peer.id for peer in manager],
-    }
+RELATIONSHIP_MANAGER_READS: dict[str, Callable[[Any], Any]] = {
+    "peers": lambda manager: [peer.id for peer in manager.peers],
+    "peer_ids": attrgetter("peer_ids"),
+    "peer_hfids": attrgetter("peer_hfids"),
+    "peer_hfids_str": attrgetter("peer_hfids_str"),
+    "is_from_profile": attrgetter("is_from_profile"),
+    # Iterating reads ``[0]`` once before it stops.
+    "iteration": lambda manager: [peer.id for peer in manager],
+}
 
 
 EMPTY_RELATIONSHIP_MANAGER_VALUES: dict[str, Any] = {
@@ -639,7 +667,11 @@ RELATIONSHIP_MANAGER_READ_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RELATIONSHIP_MANAGER_READ_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relationship_manager_reads(
-    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelationshipManagerReadCase
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    client_type: str,
+    case: RelationshipManagerReadCase,
+    strict_switch: bool,
 ) -> None:
     manager = tags_of(make_node(client_type, clients, location_schema, deepcopy(case.data)))
 
@@ -647,19 +679,13 @@ async def test_relationship_manager_reads(
         assert manager.is_loaded is case.expected_loaded
         assert manager.initialized is case.expected_initialized
 
-    if case.warns:
-        expected = unknown_origin_warning("BuiltinLocation", "tags")
-        with pytest.warns(FieldNotLoadedWarning, match=exactly(expected)) as record:
-            values = read_relationship_manager(manager)
-        # One report per accessor read; iterating reads ``[0]`` once before it stops.
-        assert [str(item.message) for item in record] == [expected] * len(EMPTY_RELATIONSHIP_MANAGER_VALUES)
-    else:
-        with no_field_warning():
-            values = read_relationship_manager(manager)
-
-    assert values == case.expected_values
+    assert sorted(case.expected_values) == sorted(RELATIONSHIP_MANAGER_READS)
+    for accessor, read in RELATIONSHIP_MANAGER_READS.items():
+        with expect_read_report(case.warns, "BuiltinLocation", "tags", strict_switch):
+            assert read(manager) == case.expected_values[accessor]
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relationship_manager_index_on_present_relationship(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -672,17 +698,18 @@ async def test_relationship_manager_index_on_present_relationship(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relationship_manager_index_on_unknown_relationship(
-    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, strict_switch: bool
 ) -> None:
     manager = tags_of(make_node(client_type, clients, location_schema, location_payload(omit={"tags"})))
 
     with (
-        pytest.warns(FieldNotLoadedWarning, match=exactly(unknown_origin_warning("BuiltinLocation", "tags"))),
+        reports_unloaded_read("BuiltinLocation", "tags", strict_switch),
         pytest.raises(IndexError, match="list index out of range"),
     ):
         manager[0]
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relationship_manager_is_known_after_fetch(
     httpx_mock: HTTPXMock,
@@ -759,6 +786,7 @@ MANAGER_EDIT_CASES = [
 ]
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in MANAGER_EDIT_CASES])
 @pytest.mark.parametrize("client_type", client_types)
 async def test_editing_unknown_relationship_manager_still_requires_fetch(
@@ -773,6 +801,7 @@ async def test_editing_unknown_relationship_manager_still_requires_fetch(
         case.edit(manager)
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_relationship_manager_peers_can_be_replaced_and_appended(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -796,6 +825,7 @@ async def test_relationship_manager_peers_can_be_replaced_and_appended(
 # SDK-internal reads
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_storing_partial_node_is_silent(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -808,6 +838,7 @@ async def test_storing_partial_node_is_silent(
         assert client.store.get(key=LOCATION_ID) is node
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_hfid_through_unknown_relationship_is_none_and_node_is_stored_by_id(
     clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI], client_type: str
@@ -839,6 +870,7 @@ async def test_hfid_through_unknown_relationship_is_none_and_node_is_stored_by_i
         client.store.get(key="BuiltinRack__RACK1__DFW")
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_update_of_partial_node_sends_only_id_and_modified_attribute(
     httpx_mock: HTTPXMock, clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -859,6 +891,7 @@ async def test_update_of_partial_node_sends_only_id_and_modified_attribute(
     assert mutation_input(requests[0]) == {"name": {"value": "DFW2"}, "id": LOCATION_ID}
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_upsert_of_new_node_is_silent(
     httpx_mock: HTTPXMock, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI], client_type: str
@@ -882,6 +915,7 @@ async def test_upsert_of_new_node_is_silent(
         assert client.store.get(key=RACK_ID) is rack
 
 
+@pytest.mark.usefixtures("strict_switch")
 @pytest.mark.parametrize("client_type", client_types)
 async def test_path_value_through_unknown_fields_is_silent(
     clients: BothClients, location_schema: NodeSchemaAPI, client_type: str
@@ -908,29 +942,6 @@ STRICT_READ_CASES = [
     StrictReadCase(name="cardinality-one", field="primary_tag", read=attrgetter("primary_tag.id")),
     StrictReadCase(name="cardinality-many", field="tags", read=attrgetter("tags.peers")),
 ]
-
-
-@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in STRICT_READ_CASES])
-@pytest.mark.parametrize("client_type", client_types)
-async def test_unknown_read_raises_when_strict_switch_is_on(
-    monkeypatch: pytest.MonkeyPatch,
-    clients: BothClients,
-    location_schema: NodeSchemaAPI,
-    client_type: str,
-    case: StrictReadCase,
-) -> None:
-    monkeypatch.setattr(field_access, "_STRICT_FIELD_ACCESS", True)
-    node = make_node(client_type, clients, location_schema, location_payload(omit={case.field}))
-
-    message = UNKNOWN_ORIGIN_MESSAGE.format(kind="BuiltinLocation", field=case.field)
-    with pytest.raises(FieldNotLoadedError, match=exactly(message)) as exc_info:
-        case.read(node)
-
-    assert (exc_info.value.kind, exc_info.value.field, exc_info.value.selection) == (
-        "BuiltinLocation",
-        case.field,
-        None,
-    )
 
 
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in STRICT_READ_CASES])
@@ -968,3 +979,43 @@ async def test_unknown_read_warning_names_non_strict_selection(
     )
     with pytest.warns(FieldNotLoadedWarning, match=exactly(message)):
         assert node.description.value is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_strict_switch_alone_turns_the_warning_of_a_fetched_node_into_the_error(
+    request: pytest.FixtureRequest,
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    location_schema: NodeSchemaAPI,
+    client_type: str,
+) -> None:
+    client_for(client_type, clients).schema.set_cache({"version": "1.0", "nodes": [location_schema.model_dump()]})
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocation": {"count": 1, "edges": [location_payload(omit={"description"})]}}},
+        match_headers={"X-Infrahub-Tracker": "query-builtinlocation-page1"},
+    )
+    nodes: list[InfrahubNode] | list[InfrahubNodeSync]
+    if client_type == "standard":
+        nodes = await clients.standard.filters(kind="BuiltinLocation", exclude=["description"])
+    else:
+        nodes = clients.sync.filters(kind="BuiltinLocation", exclude=["description"])
+    node = nodes[0]
+    message = (
+        "BuiltinLocation.description was not fetched (selection: exclude=['description']). "
+        "Add it to the selection, or call fetch(), before reading it."
+    )
+
+    with pytest.warns(FieldNotLoadedWarning, match=exactly(message + WARNING_SUFFIX)) as record:
+        assert node.description.value is None
+
+    request.getfixturevalue("strict_access")
+    with pytest.raises(FieldNotLoadedError, match=exactly(message)) as exc_info:
+        _ = node.description.value
+
+    assert [str(item.message) for item in record] == [str(exc_info.value) + WARNING_SUFFIX]
+    assert (exc_info.value.kind, exc_info.value.field, exc_info.value.selection) == (
+        "BuiltinLocation",
+        "description",
+        "exclude=['description']",
+    )
