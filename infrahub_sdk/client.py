@@ -528,7 +528,7 @@ class InfrahubClient(BaseClient):
         self.schema = InfrahubSchema(self)
         self.branch = InfrahubBranchManager(self)
         self.object_store = ObjectStore(self)
-        self.store = NodeStore(default_branch=self.default_branch)
+        self.store = NodeStore(default_branch=self.default_branch, default_merge=self.config.store_merge)
         self.task = InfrahubTaskManager(self)
         self._request_method: AsyncRequester = self.config.requester or self._default_request_method
         self.group_context = InfrahubGroupContext(self)
@@ -589,7 +589,10 @@ class InfrahubClient(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
+        node = InfrahubNode(client=self, schema=schema, branch=branch, data=data or kwargs)
+        # Even with an explicit id, the data is user-supplied rather than a GraphQL payload
+        node._created_locally = True
+        return node
 
     async def delete(self, kind: str | type[SchemaType], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
@@ -617,6 +620,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -639,6 +643,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -661,6 +666,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -683,6 +689,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -705,6 +712,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -727,6 +735,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -748,6 +757,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
         branch = branch or self.default_branch
@@ -778,6 +788,7 @@ class InfrahubClient(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             include=include,
             exclude=exclude,
             fragment=fragment,
@@ -1091,6 +1102,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -1113,6 +1125,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -1134,6 +1147,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind.
 
@@ -1142,6 +1156,10 @@ class InfrahubClient(BaseClient):
             at (Timestamp, optional): Time of the query. Defaults to Now.
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
@@ -1168,6 +1186,7 @@ class InfrahubClient(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             offset=offset,
             limit=limit,
             include=include,
@@ -1203,6 +1222,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -1227,6 +1247,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -1250,6 +1271,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1260,6 +1282,10 @@ class InfrahubClient(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -1377,13 +1403,15 @@ class InfrahubClient(BaseClient):
         nodes, related_nodes = await (process_batch() if parallel else process_non_batch())
 
         if populate_store:
+            at_context = at.to_string() if at else None
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node)
-            related_nodes = list(set(related_nodes))
+                    self.store.set(node=node, merge=merge, at=at_context)
+            # Every copy goes through the store rather than a deduplicated subset, so
+            # copies of one peer carrying different fields all merge into the entry.
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge, at=at_context)
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -2358,7 +2386,7 @@ class InfrahubClientSync(BaseClient):
         self.schema = InfrahubSchemaSync(self)
         self.branch = InfrahubBranchManagerSync(self)
         self.object_store = ObjectStoreSync(self)
-        self.store = NodeStoreSync(default_branch=self.default_branch)
+        self.store = NodeStoreSync(default_branch=self.default_branch, default_merge=self.config.store_merge)
         self.task = InfrahubTaskManagerSync(self)
         self._request_method: SyncRequester = self.config.sync_requester or self._default_request_method
         self.group_context = InfrahubGroupContextSync(self)
@@ -2418,7 +2446,10 @@ class InfrahubClientSync(BaseClient):
         if not data and not kwargs:
             raise ValueError("Either data or a list of keywords but be provided")
 
-        return InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch, data=data or kwargs)
+        # Even with an explicit id, the data is user-supplied rather than a GraphQL payload
+        node._created_locally = True
+        return node
 
     def delete(self, kind: str | type[SchemaTypeSync], id: str, branch: str | None = None) -> None:
         branch = branch or self.default_branch
@@ -2931,6 +2962,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2953,6 +2985,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2974,6 +3007,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind.
 
@@ -2983,6 +3017,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -3008,6 +3046,7 @@ class InfrahubClientSync(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             offset=offset,
             limit=limit,
             include=include,
@@ -3084,6 +3123,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -3108,6 +3148,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -3131,6 +3172,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -3141,6 +3183,10 @@ class InfrahubClientSync(BaseClient):
             branch (str, optional): Name of the branch to query from. Defaults to default_branch.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved nodes.
+                Only nodes fetched at the same `at` merge: a node already stored from another timestamp (or from
+                live data) is replaced by the copy from this query.
+            merge (bool, optional): Whether nodes added to the store merge into an existing entry for the same UUID
+                (True) or replace it wholesale (False). Defaults to the client's `store_merge` configuration (merge).
             offset (int, optional): The offset for pagination.
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
@@ -3260,13 +3306,15 @@ class InfrahubClientSync(BaseClient):
         nodes, related_nodes = process_batch() if parallel else process_non_batch()
 
         if populate_store:
+            at_context = at.to_string() if at else None
             for node in nodes:
                 if node.id:
-                    self.store.set(node=node)
-            related_nodes = list(set(related_nodes))
+                    self.store.set(node=node, merge=merge, at=at_context)
+            # Every copy goes through the store rather than a deduplicated subset, so
+            # copies of one peer carrying different fields all merge into the entry.
             for node in related_nodes:
                 if node.id:
-                    self.store.set(node=node)
+                    self.store.set(node=node, merge=merge, at=at_context)
         return nodes
 
     @overload
@@ -3288,6 +3336,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -3310,6 +3359,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3332,6 +3382,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3354,6 +3405,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -3376,6 +3428,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3398,6 +3451,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        merge: bool | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3419,6 +3473,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        merge: bool | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
         branch = branch or self.default_branch
@@ -3449,6 +3504,7 @@ class InfrahubClientSync(BaseClient):
             branch=branch,
             timeout=timeout,
             populate_store=populate_store,
+            merge=merge,
             include=include,
             exclude=exclude,
             fragment=fragment,

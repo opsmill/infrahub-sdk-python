@@ -4,6 +4,7 @@ import ipaddress
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, NamedTuple, get_args
 
+from ..utils import intern_frozenset
 from ..uuidt import UUIDT
 from .constants import (
     ATTRIBUTE_METADATA_OBJECT,
@@ -59,7 +60,15 @@ class Attribute:
         name (str): The name of the attribute.
         id (str | None): The unique identifier of the attribute, when known.
         value (Any): The current attribute value. Setting this marks the attribute as mutated.
-        value_has_been_mutated (bool): True when ``value`` has been assigned after construction.
+        value_has_been_mutated (bool): True when ``value`` has been assigned after
+            construction. Drives the mutation payload and stays set for the life of the
+            object, so a later save still re-asserts an explicit clear.
+        is_fetched (bool): True when this attribute was present in the response the node
+            was built from. Used by the client store to decide whether a re-fetch carried
+            fresh data for this attribute. It is not a provenance signal: it defaults to
+            True when an ``Attribute`` is constructed directly, and only
+            ``InfrahubNodeBase._init_attributes`` sets it False for attributes the
+            response omitted.
         is_default (bool | None): True when the value comes from the schema default.
         is_from_profile (bool | None): True when the value is inherited from a profile.
         is_inherited (bool | None): True when the attribute is inherited from a generic.
@@ -71,7 +80,7 @@ class Attribute:
 
     """
 
-    def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict) -> None:
+    def __init__(self, name: str, schema: AttributeSchemaAPI, data: Any | dict, is_fetched: bool = True) -> None:
         """Build an ``Attribute`` from raw GraphQL data.
 
         IP-typed attributes (``IPHost``, ``IPNetwork``, ``IPAddress``) are parsed via the standard
@@ -83,11 +92,16 @@ class Attribute:
             data (Any | dict): The data for the attribute. Either a scalar value, a dict
                 with a ``value`` key (and optional metadata properties), or a dict with a
                 ``from_pool`` key to allocate the value from a resource pool when saving.
+            is_fetched (bool, optional): Whether this attribute was present in the response
+                the node was built from. Defaults to ``True`` so manual construction keeps
+                its current behaviour; ``InfrahubNodeBase._init_attributes`` passes the real
+                key-presence signal.
 
         """
         self.name = name
         self._schema = schema
         self._from_pool: dict[str, Any] | None = None
+        self.is_fetched = is_fetched
 
         if isinstance(data, dict) and "from_pool" in data:
             self._from_pool = data.pop("from_pool")
@@ -101,10 +115,19 @@ class Attribute:
 
         self._read_only = ["updated_at", "is_inherited"]
 
+        # Sub-fields carried by the response this attribute was built from. Consumed by
+        # _merge() so a value-only re-fetch does not null out previously fetched
+        # properties (source, owner, is_protected, ...). Interned: every attribute
+        # built from the same query shape shares one instance.
+        self._fetched_fields: frozenset[str] = intern_frozenset(data.keys()) if is_fetched else frozenset()
+
         self.id: str | None = data.get("id")
 
         self._value: Any | None = data.get("value")
         self.value_has_been_mutated = False
+        # Narrower than value_has_been_mutated: cleared once the value is persisted, so
+        # the store merge stops treating a long-saved edit as a pending local change.
+        self._has_unsaved_change = False
         self.is_default: bool | None = data.get("is_default")
         self.is_from_profile: bool | None = data.get("is_from_profile")
 
@@ -142,6 +165,41 @@ class Attribute:
     def value(self, value: Any) -> None:
         self._value = value
         self.value_has_been_mutated = True
+        self._has_unsaved_change = True
+
+    def _merge(self, incoming: Attribute) -> None:
+        """Merge a fresher copy of this attribute into this one, sub-field by sub-field.
+
+        Only the sub-fields the incoming fetch actually carried are overwritten (even to
+        ``None``); sub-fields it did not carry keep their stored value. An incoming
+        unsaved edit is taken along with its pending-mutation marker, so it is still
+        sent on the next save of the merged object. Callers are responsible for the
+        higher-level gates (``is_fetched`` on the incoming attribute,
+        ``_has_unsaved_change`` on this one).
+        """
+        fetched = incoming._fetched_fields
+        if "value" in fetched or incoming.value_has_been_mutated:
+            self._value = incoming._value
+            # The pool-allocation intent travels with the value: a fetched copy carries
+            # None, clearing any stale allocation request that would otherwise take
+            # precedence over the value in the next mutation payload.
+            self._from_pool = incoming._from_pool
+            if incoming.value_has_been_mutated:
+                self.value_has_been_mutated = True
+            if incoming._has_unsaved_change:
+                self._has_unsaved_change = True
+        for field_name in (
+            "id",
+            "is_default",
+            "is_from_profile",
+            "is_inherited",
+            *self._properties,
+            *ATTRIBUTE_METADATA_OBJECT,
+        ):
+            if field_name in fetched:
+                setattr(self, field_name, getattr(incoming, field_name))
+        self._fetched_fields = intern_frozenset(self._fetched_fields | fetched)
+        self.is_fetched = True
 
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
         """Resolve the attribute value into a GraphQL mutation payload object."""

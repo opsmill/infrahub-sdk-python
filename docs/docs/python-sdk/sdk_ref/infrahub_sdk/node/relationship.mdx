@@ -26,6 +26,23 @@ members are not loaded and editing is not allowed.
 
 **Methods:**
 
+#### `is_fetched`
+
+```python
+is_fetched(self) -> bool
+```
+
+Return whether this relationship was present in the response the node was built from.
+
+Exposed under the same name as on ``Attribute`` and ``RelatedNode`` so merge
+logic can branch uniformly on ``is_fetched``. Unlike ``initialized`` this is also
+True for a relationship the response carried as ``null``, so the client store can
+tell "emptied on the server" from "not queried".
+
+**Returns:**
+
+- ``True`` when the response carried this relationship.
+
 #### `peer_ids`
 
 ```python
@@ -69,6 +86,9 @@ has_update(self) -> bool
 ```
 
 Return whether the peer set has been modified since initialization.
+
+Drives the mutation payload and stays set for the life of the object, so a later
+save still re-asserts the peer set.
 
 **Returns:**
 
