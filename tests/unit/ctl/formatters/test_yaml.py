@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import yaml  # pyright: ignore[reportMissingModuleSource]
 
 from infrahub_sdk.ctl.formatters.yaml import YamlFormatter
+from tests.unit.sdk.test_node_field_access import no_field_warning
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection
+
+    from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.schema import NodeSchemaAPI
 
 
 def _make_mock_schema(
@@ -342,3 +350,39 @@ class TestYamlFormatterEdgeCases:
         result = formatter.format_detail(node, schema)
         parsed = yaml.safe_load(result)
         assert parsed["spec"]["data"][0]["platform"] == ["Cisco", "NX-OS"]
+
+
+class TestYamlFormatterUnknownFields:
+    """Fields the SDK never fetched are left out of the object document, without being read."""
+
+    def test_format_list_omits_unknown_fields(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = YamlFormatter().format_list([node], location_schema)
+
+        assert yaml.safe_load(result)["spec"]["data"] == [{"name": "DFW", "type": "SITE", "primary_tag": "red"}]
+
+    def test_format_detail_omits_unknown_fields(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = YamlFormatter().format_detail(node, location_schema)
+
+        assert yaml.safe_load(result)["spec"]["data"] == [{"name": "DFW", "type": "SITE", "primary_tag": "red"}]
+
+    def test_format_detail_omits_unknown_cardinality_one_relationship(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"primary_tag"})
+
+        with no_field_warning():
+            result = YamlFormatter().format_detail(node, location_schema)
+
+        assert yaml.safe_load(result)["spec"]["data"] == [
+            {"name": "DFW", "description": "Dallas data center", "type": "SITE", "tags": {"data": ["blue"]}}
+        ]

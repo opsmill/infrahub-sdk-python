@@ -17,6 +17,7 @@ from infrahub_sdk.ctl.object.utils import prepare_relationship_data, resolve_nod
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
 from infrahub_sdk.ctl.utils import catch_exception
+from infrahub_sdk.node.field_access import with_internal_field_access
 from infrahub_sdk.node.relationship import RelatedNode
 from infrahub_sdk.schema.main import RelationshipCardinality
 from infrahub_sdk.spec.object import ObjectFile
@@ -165,6 +166,7 @@ async def _update_with_file(
     console.print(f"[green]Processed update from file '{file}' successfully.")
 
 
+@with_internal_field_access
 def _relationship_changed(
     node: InfrahubNode,
     key: str,
@@ -188,6 +190,8 @@ def _relationship_changed(
     return True
 
 
+# Edits the peer list in place, including that of a relationship that was never fetched.
+@with_internal_field_access
 def _apply_relationship(
     node: InfrahubNode,
     key: str,

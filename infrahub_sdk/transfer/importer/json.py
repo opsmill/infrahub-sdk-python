@@ -122,11 +122,16 @@ class LineDelimitedJSONImporter(ImporterInterface):
 
             for relationship_name in self.optional_relationships_schemas_by_node_kind[node_kind]:
                 relationship_value = getattr(node, relationship_name)
+                # Exports use the default selection, which leaves most cardinality-many relationships out.
                 if isinstance(relationship_value, RelationshipManager):
-                    if relationship_value.peer_ids:
+                    if relationship_value.is_loaded and relationship_value.peer_ids:
                         self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
                         setattr(node, relationship_name, None)
-                elif isinstance(relationship_value, RelatedNode) and relationship_value.id:
+                elif (
+                    isinstance(relationship_value, RelatedNode)
+                    and relationship_value.is_loaded
+                    and relationship_value.id
+                ):
                     self.optional_relationships_by_node[node.id][relationship_name] = relationship_value
                     setattr(node, relationship_name, None)
 

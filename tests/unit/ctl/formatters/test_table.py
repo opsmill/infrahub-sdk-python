@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 from infrahub_sdk.ctl.formatters.table import TableFormatter
+from tests.unit.sdk.test_node_field_access import LOCATION_ID, no_field_warning
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection
+
+    from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.schema import NodeSchemaAPI
 
 
 def _make_mock_schema(
@@ -210,3 +218,57 @@ class TestTableFormatterFormatDetail:
 
         assert "site" in result
         assert "DC1" in result
+
+
+def _table_cells(rendered: str) -> list[list[str]]:
+    """Return the cells of a rendered Rich table, header row first."""
+    lines = [line.strip() for line in rendered.splitlines()]
+    return [[cell.strip() for cell in line[1:-1].split(line[0])] for line in lines if line.startswith(("┃", "│"))]
+
+
+class TestTableFormatterUnknownFields:
+    """Fields the SDK never fetched render as the same blank cell as an empty field, without reading them."""
+
+    def test_format_list_shows_unknown_fields_as_blank_cells(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = TableFormatter().format_list([node], location_schema, show_all_columns=True)
+
+        assert _table_cells(result) == [
+            ["name", "description", "type", "tags", "primary_tag", "member_of_groups"],
+            ["DFW", "", "SITE", "", "red", ""],
+        ]
+
+    def test_format_list_hides_unknown_field_columns_by_default(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = TableFormatter().format_list([node], location_schema)
+
+        assert _table_cells(result) == [["name", "type", "primary_tag"], ["DFW", "SITE", "red"]]
+
+    def test_format_detail_shows_unknown_fields_as_blank_values(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = TableFormatter().format_detail(node, location_schema)
+
+        assert _table_cells(result) == [
+            ["Field", "Value"],
+            ["id", LOCATION_ID],
+            ["display_label", "dfw1"],
+            ["kind", "BuiltinLocation"],
+            ["name", "DFW"],
+            ["description", ""],
+            ["type", "SITE"],
+            ["tags", ""],
+            ["primary_tag", "red"],
+            ["member_of_groups", ""],
+        ]

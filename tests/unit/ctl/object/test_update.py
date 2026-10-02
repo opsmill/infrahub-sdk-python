@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
+from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.ctl.cli_commands import app
+from tests.unit.sdk.test_node_field_access import LOCATION_ID, location_payload, no_field_warning
+
+if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+    from infrahub_sdk.schema import NodeSchemaAPI
 
 runner = CliRunner()
 
@@ -297,3 +305,37 @@ def test_update_malformed_set_arg(bad_arg: str) -> None:
         result = runner.invoke(app, ["object", "update", "InfraDevice", "abc-123", "--set", bad_arg])
 
     assert result.exit_code != 0
+
+
+def test_update_cardinality_many_relationship_of_default_selection_node_is_silent(
+    httpx_mock: HTTPXMock,
+    monkeypatch: pytest.MonkeyPatch,
+    location_schema: NodeSchemaAPI,
+    tag_schema: NodeSchemaAPI,
+) -> None:
+    """Updating a relationship the default selection did not fetch reads no unknown field."""
+    client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
+    client.schema.set_cache({"version": "1.0", "nodes": [location_schema.model_dump(), tag_schema.model_dump()]})
+    monkeypatch.setattr("infrahub_sdk.ctl.object.update.initialize_client", lambda **_: client)
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {"BuiltinLocation": {"count": 1, "edges": [location_payload(omit={"tags", "member_of_groups"})]}}
+        },
+        match_headers={"X-Infrahub-Tracker": "query-builtinlocation-page1"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"BuiltinLocationUpdate": {"ok": True, "object": {"id": LOCATION_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-builtinlocation-update"},
+    )
+
+    with no_field_warning():
+        result = runner.invoke(app, ["object", "update", "BuiltinLocation", "DFW", "--set", "tags=blue"])
+
+    assert result.exit_code == 0, result.stdout
+    assert result.stdout.splitlines() == ["Updated BuiltinLocation 'DFW' successfully.", "  tags: -> blue"]
+    assert [request.headers["X-Infrahub-Tracker"] for request in httpx_mock.get_requests()] == [
+        "query-builtinlocation-page1",
+        "mutation-builtinlocation-update",
+    ]

@@ -7,9 +7,13 @@ from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock
 
 from infrahub_sdk.ctl.formatters.json import JsonFormatter
+from tests.unit.sdk.test_node_field_access import LOCATION_ID, PRIMARY_TAG_ID, no_field_warning
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection
+
     from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.schema import NodeSchemaAPI
 
 
 def _make_mock_schema(
@@ -201,3 +205,63 @@ class TestJsonFormatterFormatDetail:
         parsed = json.loads(result)
         assert "site" in parsed
         assert parsed["site"]["display_label"] == "DC1"
+
+
+class TestJsonFormatterUnknownFields:
+    """Fields the SDK never fetched are left out of the JSON output, without being read."""
+
+    def test_format_list_omits_unknown_fields(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = JsonFormatter().format_list([node], location_schema)
+
+        assert json.loads(result) == [{"name": "DFW", "type": "SITE", "primary_tag": "red", "member_of_groups": ""}]
+
+    def test_format_list_omits_unknown_cardinality_one_relationship(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"primary_tag"})
+
+        with no_field_warning():
+            result = JsonFormatter().format_list([node], location_schema)
+
+        assert json.loads(result) == [
+            {
+                "name": "DFW",
+                "description": "Dallas data center",
+                "type": "SITE",
+                "tags": "blue",
+                "member_of_groups": "",
+            }
+        ]
+
+    def test_format_detail_omits_unknown_fields(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"description", "tags"})
+
+        with no_field_warning():
+            result = JsonFormatter().format_detail(node, location_schema)
+
+        assert json.loads(result) == {
+            "id": LOCATION_ID,
+            "display_label": "dfw1",
+            "kind": "BuiltinLocation",
+            "name": {"value": "DFW"},
+            "type": {"value": "SITE"},
+            "primary_tag": {"display_label": "red", "id": PRIMARY_TAG_ID, "cardinality": "one"},
+            "member_of_groups": {"peers": [], "cardinality": "many"},
+        }
+
+    def test_format_detail_omits_unknown_cardinality_one_relationship(
+        self, fetched_location: Callable[[Collection[str]], InfrahubNode], location_schema: NodeSchemaAPI
+    ) -> None:
+        node = fetched_location({"primary_tag"})
+
+        with no_field_warning():
+            result = JsonFormatter().format_detail(node, location_schema)
+
+        assert "primary_tag" not in json.loads(result)

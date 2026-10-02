@@ -49,11 +49,24 @@ class BaseFormatter(Protocol):
         ...
 
 
+def is_not_loaded(field: Any) -> bool:
+    """Return whether ``field`` is an attribute or relationship whose value the SDK never fetched.
+
+    Args:
+        field: An attribute or relationship of a node, or ``None`` when the node has no such field.
+
+    Returns:
+        ``True`` when the field exists and its ``is_loaded`` is ``False``.
+
+    """
+    return field is not None and not field.is_loaded
+
+
 def _extract_relationship_value(
     node: InfrahubNode,
     rel_name: str,
     cardinality: str,
-) -> str:
+) -> str | None:
     """Extract a display value from a relationship on a node.
 
     Args:
@@ -62,12 +75,14 @@ def _extract_relationship_value(
         cardinality: Either "one" or "many".
 
     Returns:
-        Display string for the relationship value.
+        Display string for the relationship value, or ``None`` when the SDK never fetched the relationship.
 
     """
     rel = getattr(node, rel_name, None)
     if rel is None:
         return ""
+    if is_not_loaded(rel):
+        return None
 
     if cardinality == "one":
         return rel.display_label or rel.id or ""
@@ -86,7 +101,7 @@ def extract_node_data(
 
     Handles both attributes and relationships. Attribute values of None
     are converted to empty strings. Relationship values are rendered as
-    display labels.
+    display labels. Fields the SDK never fetched are left out.
 
     Args:
         node: The InfrahubNode to extract data from.
@@ -100,12 +115,16 @@ def extract_node_data(
 
     for attr_name in schema.attribute_names:
         attr = getattr(node, attr_name, None)
+        if is_not_loaded(attr):
+            continue
         value = attr.value if attr is not None else None
         data[attr_name] = value if value is not None else ""
 
     for rel_name in schema.relationship_names:
         rel_schema = schema.get_relationship(rel_name)
-        data[rel_name] = _extract_relationship_value(node, rel_name, rel_schema.cardinality)
+        rel_value = _extract_relationship_value(node, rel_name, rel_schema.cardinality)
+        if rel_value is not None:
+            data[rel_name] = rel_value
 
     return data
 
@@ -131,7 +150,8 @@ def extract_node_detail(
     """Extract a rich detail dict from a node including metadata.
 
     Similar to extract_node_data but includes the node ID, display label,
-    and schema kind as additional metadata fields.
+    and schema kind as additional metadata fields. Fields the SDK never
+    fetched are left out.
 
     Args:
         node: The InfrahubNode to extract data from.
@@ -150,6 +170,8 @@ def extract_node_detail(
 
     for attr_name in schema.attribute_names:
         attr = getattr(node, attr_name, None)
+        if is_not_loaded(attr):
+            continue
         if attr is not None:
             detail[attr_name] = {
                 "value": attr.value if attr.value is not None else "",
@@ -160,6 +182,8 @@ def extract_node_detail(
     for rel_name in schema.relationship_names:
         rel_schema = schema.get_relationship(rel_name)
         rel = getattr(node, rel_name, None)
+        if is_not_loaded(rel):
+            continue
 
         if rel_schema.cardinality == "one":
             if rel is not None:

@@ -1,8 +1,8 @@
 """YAML formatter for InfrahubNode query results in Infrahub object format.
 
 Produces YAML that is round-trippable with ``infrahubctl object load``.
-Empty/null attribute values and unset relationships are omitted so the
-output can be loaded back without validation errors.
+Empty/null attribute values, unset relationships and fields the SDK never
+fetched are omitted so the output can be loaded back without validation errors.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ import ipaddress
 from typing import TYPE_CHECKING, Any
 
 import yaml
+
+from .base import is_not_loaded
 
 if TYPE_CHECKING:
     from ...node import InfrahubNode
@@ -57,16 +59,16 @@ class YamlFormatter:
     ) -> dict[str, Any]:
         """Convert a node into a dict compatible with ObjectFile spec format.
 
-        Omits empty/null attribute values and unset relationships so the
-        output can be loaded back via ``infrahubctl object load`` without
-        validation errors.
+        Omits empty/null attribute values, unset relationships and fields
+        the SDK never fetched so the output can be loaded back via
+        ``infrahubctl object load`` without validation errors.
         """
         entry: dict[str, Any] = {}
 
         # Attributes: only include non-empty values
         for attr_name in schema.attribute_names:
             attr = getattr(node, attr_name, None)
-            if attr is None:
+            if attr is None or is_not_loaded(attr):
                 continue
             value = attr.value
             if not value and value != 0 and value is not False:
@@ -89,7 +91,7 @@ class YamlFormatter:
         for rel_name in schema.relationship_names:
             rel_schema = schema.get_relationship(rel_name)
             rel = getattr(node, rel_name, None)
-            if rel is None:
+            if rel is None or is_not_loaded(rel):
                 continue
 
             if rel_schema.cardinality == "one":

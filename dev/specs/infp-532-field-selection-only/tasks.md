@@ -115,7 +115,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - (c) Modify one attribute and `save()` through a mocked `…Update` mutation. Capture the request with `httpx_mock.get_requests()` and assert that the mutation input contains only `id` and the modified attribute.
   - (d) `save(allow_upsert=True)` on a new node: no warning.
   - (e) `node.get_path_value("primary_tag__name__value")` on an unknown relationship: `None`, silently.
-- [ ] T015 [P] [US1] Add tests to `tests/unit/ctl/formatters/test_table.py`, `test_json.py`, `test_yaml.py` and `test_csv.py`: a node built with `description` and `tags` absent renders without those fields (or with them blank, per the formatter's existing convention for missing values) and raises no warning. Also create `tests/unit/sdk/test_transfer_importer.py`: `LineDelimitedJSONImporter.remove_and_store_optional_relationships()` on nodes built from default-selection payloads (cardinality-many keys absent) skips those relationships and raises no warning.
+- [X] T015 [P] [US1] Add tests to `tests/unit/ctl/formatters/test_table.py`, `test_json.py`, `test_yaml.py` and `test_csv.py`: a node built with `description` and `tags` absent renders without those fields (or with them blank, per the formatter's existing convention for missing values) and raises no warning. Also create `tests/unit/sdk/test_transfer_importer.py`: `LineDelimitedJSONImporter.remove_and_store_optional_relationships()` on nodes built from default-selection payloads (cardinality-many keys absent) skips those relationships and raises no warning.
 
 ### Implementation for User Story 1
 
@@ -144,9 +144,9 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - Decorate `_process_mutation_result` (async and sync) with `with_internal_field_access`.
 
   Make T011–T014 pass on both clients.
-- [ ] T021 [P] [US1] In `infrahub_sdk/ctl/formatters/base.py` (`_extract_relationship_value`, `extract_node_data`, the detail builder) and `infrahub_sdk/ctl/formatters/yaml.py`: skip any attribute or relationship whose `is_loaded` is `False` before reading its value. Make the T015 formatter tests pass.
-- [ ] T022 [P] [US1] In `infrahub_sdk/ctl/object/update.py`, run `_relationship_changed` and `_apply_relationship` under `internal_field_access()` from `infrahub_sdk.node.field_access`, so that comparing and rewriting an unfetched relationship emits nothing.
-- [ ] T023 [P] [US1] In `infrahub_sdk/transfer/importer/json.py` (`remove_and_store_optional_relationships`), skip relationships whose `is_loaded` is `False` before reading `peer_ids` or `id`. Make the T015 importer test pass.
+- [X] T021 [P] [US1] In `infrahub_sdk/ctl/formatters/base.py` (`_extract_relationship_value`, `extract_node_data`, the detail builder) and `infrahub_sdk/ctl/formatters/yaml.py`: skip any attribute or relationship whose `is_loaded` is `False` before reading its value. Make the T015 formatter tests pass.
+- [X] T022 [P] [US1] In `infrahub_sdk/ctl/object/update.py`, run `_relationship_changed` and `_apply_relationship` under `internal_field_access()` from `infrahub_sdk.node.field_access`, so that comparing and rewriting an unfetched relationship emits nothing.
+- [X] T023 [P] [US1] In `infrahub_sdk/transfer/importer/json.py` (`remove_and_store_optional_relationships`), skip relationships whose `is_loaded` is `False` before reading `peer_ids` or `id`. Make the T015 importer test pass.
 - [ ] T024 [US1] Run `uv run pytest tests/unit -q`. For every existing test that now fails with `FieldNotLoadedWarning`, either widen the fixture payload so the field is present, or wrap the read in `pytest.warns(FieldNotLoadedWarning)` when the test is about that read. Don't change any assertion on a fetched value. List the files touched in the commit message.
 
 **Checkpoint**: User Story 1 is complete and shippable on its own as the 1.x deprecation step.

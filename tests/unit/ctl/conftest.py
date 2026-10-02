@@ -5,7 +5,12 @@ import ujson
 from pytest_httpx import HTTPXMock
 
 from infrahub_sdk.utils import get_fixtures_dir
-from tests.unit.sdk.conftest import mock_query_infrahub_server_info, mock_query_infrahub_user  # noqa: F401
+from tests.unit.sdk.conftest import (  # noqa: F401
+    location_schema,
+    mock_query_infrahub_server_info,
+    mock_query_infrahub_user,
+    tag_schema,
+)
 
 
 @pytest.fixture
