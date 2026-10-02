@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "message": "Something went wrong",
+      "path": [
+        "TestPersonCreate"
+      ]
+    }
+  ],
+  "data": null
+}

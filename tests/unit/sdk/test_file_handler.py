@@ -4,7 +4,7 @@ import hashlib
 import tempfile
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import httpx
@@ -198,6 +198,24 @@ def test_handle_error_response_404() -> None:
         FileHandlerBase.handle_error_response(exc=exc)
 
     assert "File not found with ID abc123" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param({"text": "<html><body>404 Not Found</body></html>"}, id="html-page"),
+        pytest.param({"text": ""}, id="empty-body"),
+        pytest.param({"json": ["not an object"]}, id="json-array"),
+        pytest.param({"json": {"detail": None}}, id="detail-that-is-not-a-string"),
+    ],
+)
+def test_handle_error_response_404_with_a_body_carrying_no_detail(body: dict[str, Any]) -> None:
+    """A 404 body the SDK cannot read must still surface as NodeNotFoundError, never as a decode error."""
+    response = httpx.Response(status_code=404, **body)
+    exc = httpx.HTTPStatusError(message="Not Found", request=httpx.Request("GET", "http://test"), response=response)
+
+    with pytest.raises(NodeNotFoundError, match="File not found"):
+        FileHandlerBase.handle_error_response(exc=exc)
 
 
 def test_handle_error_response_500() -> None:

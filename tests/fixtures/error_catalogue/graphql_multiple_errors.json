@@ -1,0 +1,36 @@
+{
+  "errors": [
+    {
+      "message": "first failure",
+      "extensions": {
+        "code": "SCHEMA_NOT_FOUND",
+        "http_status": 422,
+        "data": {
+          "kind": "TestWidget"
+        }
+      }
+    },
+    {
+      "message": "second failure",
+      "extensions": {
+        "code": "UNIQUENESS_VIOLATION",
+        "http_status": 422,
+        "data": {
+          "node_kind": "TestPerson",
+          "fields": [
+            "name"
+          ]
+        }
+      }
+    },
+    {
+      "message": "third failure",
+      "extensions": {
+        "code": "UNDEFINED_ERROR",
+        "http_status": 500,
+        "data": {}
+      }
+    }
+  ],
+  "data": null
+}

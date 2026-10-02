@@ -1,0 +1,1 @@
+`NodeNotFoundError.identifier` is now annotated `Mapping[str, list[str]] | str`. The SDK already raised it with a plain string to name a missing file, so this documents behaviour that was always there; no runtime behaviour changes and no existing caller needs updating.

@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Branch main is locked while feature-a is being merged into it.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "MERGE_IN_PROGRESS",
+        "http_status": 423,
+        "data": {
+          "branch_name": "main",
+          "merging_branch": "feature-a"
+        }
+      }
+    }
+  ]
+}

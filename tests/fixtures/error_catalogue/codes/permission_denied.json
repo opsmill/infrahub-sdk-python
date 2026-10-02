@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "The requested operation was not authorized",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonUpdate"
+      ],
+      "extensions": {
+        "code": "PERMISSION_DENIED",
+        "http_status": 403,
+        "data": {
+          "action": "update",
+          "resource_kind": "TestPerson"
+        }
+      }
+    }
+  ]
+}
