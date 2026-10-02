@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 import ssl
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from graphql import FieldNode, OperationDefinitionNode, parse
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import FieldNotLoadedWarning, NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from inspect import Parameter
 
+    import httpx
     from pytest_httpx import HTTPXMock
 
     from tests.unit.sdk.conftest import BothClients
@@ -160,58 +163,13 @@ def test_init_with_invalid_address() -> None:
     assert "The configured address is not a valid url" in str(exc.value)
 
 
-REPOSITORY_QUERY = """
-query All_CoreGenericRepository ($offset: Int!, $limit: Int!) {
-    CoreGenericRepository(offset: $offset, limit: $limit) {
-        count
-        edges {
-            node {
-                id
-                display_label
-                __typename
-                internal_status {
-                    value
-                }
-                name {
-                    value
-                }
-                location {
-                    value
-                }
-                ...on CoreReadOnlyRepository {
-                    __alias__CoreReadOnlyRepository__ref: ref {
-                        value
-                    }
-                    __alias__CoreReadOnlyRepository__commit: commit {
-                        value
-                    }
-                }
-                ...on CoreRepository {
-                    __alias__CoreRepository__commit: commit {
-                        value
-                    }
-                }
-            }
-        }
-    }
-}
-"""
-
-
-@pytest.fixture
-async def repository_schema_client(client: InfrahubClient, schema_query_05_data: dict) -> InfrahubClient:
-    """Client whose schema cache holds the server's repository kinds on both mocked branches."""
-    for branch in ("main", "cr1234"):
-        client.schema.set_cache(schema_query_05_data, branch=branch)
-    return client
-
-
 async def test_get_repositories(
-    repository_schema_client: InfrahubClient,
+    client: InfrahubClient,
     mock_branches_list_query: HTTPXMock,
+    mock_schema_query_02: HTTPXMock,
     mock_repositories_query: HTTPXMock,
 ) -> None:
-    repos = await repository_schema_client.get_list_repositories()
+    repos = await client.get_list_repositories()
 
     assert len(repos) == 2
     assert repos["infrahub-demo-edge"].repository.get_kind() == "CoreRepository"
@@ -225,23 +183,78 @@ async def test_get_repositories(
     }
 
 
-async def test_get_repositories_requests_only_the_repository_fields(
-    repository_schema_client: InfrahubClient,
-    mock_branches_list_query: HTTPXMock,
-    mock_repositories_query: HTTPXMock,
-) -> None:
-    await repository_schema_client.get_list_repositories()
+def _queried_node_fields(request: httpx.Request) -> list[str]:
+    """Return the names a node query selects on each returned node."""
+    operation = parse(json.loads(request.content)["query"]).definitions[0]
+    assert isinstance(operation, OperationDefinitionNode)
+    selections = operation.selection_set.selections
+    for name in (None, "edges", "node"):
+        field = next(
+            child for child in selections if isinstance(child, FieldNode) and (name is None or child.name.value == name)
+        )
+        assert field.selection_set is not None
+        selections = field.selection_set.selections
+    return [child.name.value for child in selections if isinstance(child, FieldNode)]
 
+
+async def test_get_repositories_of_a_kind_without_ref_queries_its_default_fields(
+    client: InfrahubClient, schema_query_05_data: dict, mock_branches_list_query: HTTPXMock
+) -> None:
+    """``ref`` is only defined on read-only repositories, so the repository lookup must not validate it as a field."""
+    for branch in ("main", "cr1234"):
+        client.schema.set_cache(schema_query_05_data, branch=branch)
+    for branch, commit in (("main", "aaaaaaaaaaaaaaaaaaaa"), ("cr1234", "bbbbbbbbbbbbbbbbbbbb")):
+        repository = {
+            "__typename": "CoreRepository",
+            "id": "9486cfce-87db-479d-ad73-07d80ba96a0f",
+            "hfid": ["infrahub-demo-edge"],
+            "display_label": "infrahub-demo-edge",
+            "name": {"value": "infrahub-demo-edge"},
+            "location": {"value": "git@github.com:dgarros/infrahub-demo-edge.git"},
+            "commit": {"value": commit},
+            "internal_status": {"value": "active"},
+        }
+        mock_branches_list_query.add_response(
+            method="POST",
+            url=f"http://mock/graphql/{branch}",
+            json={"data": {"CoreRepository": {"count": 1, "edges": [{"node": repository}]}}},
+            match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        )
+
+    repos = await client.get_list_repositories(kind="CoreRepository")
+
+    assert list(repos) == ["infrahub-demo-edge"]
+    assert repos["infrahub-demo-edge"].repository.get_kind() == "CoreRepository"
+    assert repos["infrahub-demo-edge"].branches == {"main": "aaaaaaaaaaaaaaaaaaaa", "cr1234": "bbbbbbbbbbbbbbbbbbbb"}
     repository_requests = [
         request
-        for request in mock_repositories_query.get_requests()
-        if request.headers.get("X-Infrahub-Tracker", "").startswith("query-coregenericrepository-")
+        for request in mock_branches_list_query.get_requests()
+        if request.headers.get("X-Infrahub-Tracker") == "query-corerepository-page1"
     ]
     assert sorted(request.url.path for request in repository_requests) == ["/graphql/cr1234", "/graphql/main"]
-    assert [json.loads(request.content)["query"] for request in repository_requests] == [
-        REPOSITORY_QUERY,
-        REPOSITORY_QUERY,
+    # The default selection: the full envelope, hfid included, and every attribute rather than the named ones only.
+    expected_fields = [
+        "id",
+        "hfid",
+        "display_label",
+        "__typename",
+        "commit",
+        "default_branch",
+        "description",
+        "operational_status",
+        "internal_status",
+        "name",
+        "location",
+        "sync_status",
+        "credential",
+        "tags",
     ]
+    assert [_queried_node_fields(request) for request in repository_requests] == [expected_fields, expected_fields]
+    label = "include=['id', 'name', 'location', 'commit', 'ref', 'internal_status']"
+    with pytest.warns(
+        FieldNotLoadedWarning, match=re.escape(f"CoreRepository.member_of_groups was not fetched (selection: {label})")
+    ):
+        assert repos["infrahub-demo-edge"].repository.member_of_groups.peers == []
 
 
 @pytest.mark.parametrize("client_type", client_types)

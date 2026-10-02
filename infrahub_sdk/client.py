@@ -2377,7 +2377,7 @@ class InfrahubClient(BaseClient):
                 kind=kind,
                 branch=branch_name,
                 fragment=True,
-                only=["name", "location", "commit", "ref", "internal_status"],
+                include=["id", "name", "location", "commit", "ref", "internal_status"],
             )
 
         responses: dict[str, Any] = {}
