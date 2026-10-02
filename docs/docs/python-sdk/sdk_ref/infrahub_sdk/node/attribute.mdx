@@ -14,7 +14,8 @@ Represents an attribute of a Node, including its schema, value, and properties.
 An ``Attribute`` wraps a single attribute on an :class:`InfrahubNode`. It tracks the
 current value, the metadata properties (``source``, ``owner``, ``is_protected``, ...),
 and whether the value has been mutated since the node was loaded. Mutation tracking is
-used by ``InfrahubNode.update()`` to send only the changed fields to the API.
+used by ``InfrahubNode.update()`` to send only the changed fields to the API. Reading
+``value`` while ``is_loaded`` is ``False`` warns with ``FieldNotLoadedWarning``.
 
 **Attributes:**
 
@@ -32,6 +33,21 @@ used by ``InfrahubNode.update()`` to send only the changed fields to the API.
 - `updated_by`: The account that performed the most recent update.
 
 **Methods:**
+
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether the SDK knows this attribute's value. Reading this never warns.
+
+The value is known when the data the node was built from carried the attribute, when it was
+assigned since, or when the owning node has no ``id`` yet.
+
+**Returns:**
+
+- ``True`` when reading ``value`` returns what the SDK holds without a warning.
 
 #### `value`
 

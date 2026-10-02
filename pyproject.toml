@@ -268,7 +268,9 @@ possibly-missing-attribute = "ignore"
 include = ["tests/unit/sdk/test_node_field_access.py"]
 
 [tool.ty.overrides.rules]
-unresolved-attribute = "ignore" # 6 violations - `node.<field>` resolves to a union of attribute and relationship types
+unresolved-attribute = "ignore" # 21 violations - `node.<field>` resolves to a union of attribute and relationship types
+invalid-argument-type = "ignore" # 2 violations - async and sync peer lists are not correlated across statements
+invalid-assignment = "ignore" # 1 violation - same async/sync peer list union
 
 [[tool.ty.overrides]]
 include = [

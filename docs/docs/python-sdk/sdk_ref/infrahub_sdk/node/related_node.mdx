@@ -15,7 +15,8 @@ A ``RelatedNodeBase`` is the peer end of a cardinality-one relationship. It carr
 the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
 with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
 The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
-:meth:`RelatedNodeSync.fetch`.
+:meth:`RelatedNodeSync.fetch`. Reading the peer identifiers while ``is_loaded`` is
+``False`` warns with ``FieldNotLoadedWarning``.
 
 **Attributes:**
 
@@ -24,6 +25,22 @@ The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
 - `updated_at`: ISO-8601 timestamp of the most recent edge update.
 
 **Methods:**
+
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether the SDK knows this relationship's peer. Reading this never warns.
+
+The peer is known when the data the owning node was built from carried the relationship, when
+it was assigned since, or when the owning node has no ``id`` yet. A peer inside a
+cardinality-many relationship is always known.
+
+**Returns:**
+
+- ``True`` when reading the peer identifiers returns what the SDK holds without a warning.
 
 #### `id`
 

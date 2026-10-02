@@ -14,7 +14,8 @@ Base class for :class:`RelationshipManager` and :class:`RelationshipManagerSync`
 A ``RelationshipManagerBase`` exposes a cardinality-many relationship as a list of
 peers along with helpers to add, remove, or extend the set. Relationship managers are
 initialized lazily: until :meth:`fetch` (on the async/sync subclasses) is called, the
-members are not loaded and editing is not allowed.
+members are not loaded and editing is not allowed. Reading the peers while ``is_loaded``
+is ``False`` warns with ``FieldNotLoadedWarning``.
 
 **Attributes:**
 
@@ -25,6 +26,40 @@ members are not loaded and editing is not allowed.
 - `initialized`: ``True`` once the manager has been populated with data.
 
 **Methods:**
+
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether the SDK knows this relationship's peers. Reading this never warns.
+
+The peers are known once the manager is ``initialized``, or while the owning node has no ``id`` yet.
+
+**Returns:**
+
+- ``True`` when reading the peers returns what the SDK holds without a warning.
+
+#### `peers`
+
+```python
+peers(self) -> list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]
+```
+
+Return the current peer set, as a list that can be modified in place.
+
+**Returns:**
+
+- list\[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
+
+#### `peers`
+
+```python
+peers(self, value: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]) -> None
+```
+
+Replace the current peer set.
 
 #### `peer_ids`
 

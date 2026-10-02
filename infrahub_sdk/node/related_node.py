@@ -31,7 +31,8 @@ class RelatedNodeBase:
     the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
     with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
     The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
-    :meth:`RelatedNodeSync.fetch`.
+    :meth:`RelatedNodeSync.fetch`. Reading the peer identifiers while ``is_loaded`` is
+    ``False`` warns with ``FieldNotLoadedWarning``.
 
     Attributes:
         schema (RelationshipSchemaAPI): The schema describing the relationship.
@@ -73,6 +74,8 @@ class RelatedNodeBase:
         # Distinguishes "never loaded" (partial GraphQL payload) from "explicitly cleared"
         # so we don't silently null-clear unfetched relationships on save.
         self._peer_has_been_mutated: bool = False
+        self._present: bool = True
+        self._owner: InfrahubNodeBase | None = None
 
         # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
         # circular import (node.py imports this module at load time).
@@ -123,6 +126,53 @@ class RelatedNodeBase:
             if data.get("relationship_metadata"):
                 self._relationship_metadata = RelationshipMetadata(data["relationship_metadata"])
 
+    def _bind(self, owner: InfrahubNodeBase, present: bool) -> None:
+        """Attach the owning node and record whether the data it was built from carried this relationship."""
+        self._owner = owner
+        self._present = present
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether the SDK knows this relationship's peer. Reading this never warns.
+
+        The peer is known when the data the owning node was built from carried the relationship, when
+        it was assigned since, or when the owning node has no ``id`` yet. A peer inside a
+        cardinality-many relationship is always known.
+
+        Returns:
+            bool: ``True`` when reading the peer identifiers returns what the SDK holds without a warning.
+
+        """
+        return self._present or self._owner is None or not self._owner.id
+
+    def _check_loaded(self) -> None:
+        if self._owner is not None and self.name and not self.is_loaded:
+            self._owner._report_unloaded_read(self.name)
+
+    @property
+    def _current_id(self) -> str | None:
+        if self._peer:
+            return self._peer.id
+        return self._id
+
+    @property
+    def _current_hfid(self) -> list[Any] | None:
+        if self._peer:
+            return self._peer.hfid
+        return self._hfid
+
+    @property
+    def _current_typename(self) -> str | None:
+        if self._peer:
+            return self._peer.typename
+        return self._typename
+
+    @property
+    def _current_hfid_str(self) -> str | None:
+        if self._peer and self._current_hfid:
+            return self._peer.get_human_friendly_id_as_string(include_kind=True)
+        return None
+
     @property
     def id(self) -> str | None:
         """Return the parsed peer id without triggering a store lookup.
@@ -135,9 +185,8 @@ class RelatedNodeBase:
             str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
 
         """
-        if self._peer:
-            return self._peer.id
-        return self._id
+        self._check_loaded()
+        return self._current_id
 
     @property
     def hfid(self) -> list[Any] | None:
@@ -147,9 +196,8 @@ class RelatedNodeBase:
             list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
 
         """
-        if self._peer:
-            return self._peer.hfid
-        return self._hfid
+        self._check_loaded()
+        return self._current_hfid
 
     @property
     def hfid_str(self) -> str | None:
@@ -163,9 +211,8 @@ class RelatedNodeBase:
             unavailable (no resolved peer or missing HFID).
 
         """
-        if self._peer and self.hfid:
-            return self._peer.get_human_friendly_id_as_string(include_kind=True)
-        return None
+        self._check_loaded()
+        return self._current_hfid_str
 
     @property
     def is_resource_pool(self) -> bool:
@@ -187,7 +234,8 @@ class RelatedNodeBase:
             bool: ``True`` when an ID or HFID is known and the relationship can be referenced.
 
         """
-        return bool(self.id) or bool(self.hfid)
+        self._check_loaded()
+        return bool(self._current_id) or bool(self._current_hfid)
 
     @property
     def display_label(self) -> str | None:
@@ -197,6 +245,7 @@ class RelatedNodeBase:
             str | None: The peer display label, or ``None`` when not provided.
 
         """
+        self._check_loaded()
         if self._peer:
             return self._peer.display_label
         return self._display_label
@@ -209,9 +258,8 @@ class RelatedNodeBase:
             str | None: The peer typename, or ``None`` when not provided.
 
         """
-        if self._peer:
-            return self._peer.typename
-        return self._typename
+        self._check_loaded()
+        return self._current_typename
 
     @property
     def kind(self) -> str | None:
@@ -221,6 +269,7 @@ class RelatedNodeBase:
             str | None: The peer schema kind, or ``None`` when not provided.
 
         """
+        self._check_loaded()
         if self._peer:
             return self._peer.get_kind()
         return self._kind
@@ -255,13 +304,14 @@ class RelatedNodeBase:
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {}
 
+        peer_id = self._current_id
         if self.is_resource_pool and allocate_from_pool:
-            return {"from_pool": {"id": self.id}}
+            return {"from_pool": {"id": peer_id}}
 
-        if self.id is not None:
-            data["id"] = self.id
-        elif self.hfid is not None:
-            data["hfid"] = self.hfid
+        if peer_id is not None:
+            data["id"] = peer_id
+        elif (peer_hfid := self._current_hfid) is not None:
+            data["hfid"] = peer_hfid
             if self._kind is not None:
                 data["kind"] = self._kind
 
@@ -403,14 +453,17 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._check_loaded()
         if self._peer:
             return cast("PeerT", self._peer)
 
-        if self.id and self.typename:
-            return cast("PeerT", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
+        peer_id = self._current_id
+        peer_typename = self._current_typename
+        if peer_id and peer_typename:
+            return cast("PeerT", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
 
-        if self.hfid_str:
-            return cast("PeerT", self._client.store.get(key=self.hfid_str, branch=self._branch))
+        if peer_hfid_str := self._current_hfid_str:
+            return cast("PeerT", self._client.store.get(key=peer_hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 
@@ -500,14 +553,17 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._check_loaded()
         if self._peer:
             return cast("PeerTSync", self._peer)
 
-        if self.id and self.typename:
-            return cast("PeerTSync", self._client.store.get(key=self.id, kind=self.typename, branch=self._branch))
+        peer_id = self._current_id
+        peer_typename = self._current_typename
+        if peer_id and peer_typename:
+            return cast("PeerTSync", self._client.store.get(key=peer_id, kind=peer_typename, branch=self._branch))
 
-        if self.hfid_str:
-            return cast("PeerTSync", self._client.store.get(key=self.hfid_str, branch=self._branch))
+        if peer_hfid_str := self._current_hfid_str:
+            return cast("PeerTSync", self._client.store.get(key=peer_hfid_str, branch=self._branch))
 
         raise ValueError("Node must have at least one identifier (ID or HFID) to query it.")
 

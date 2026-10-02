@@ -33,6 +33,7 @@ from .constants import (
     PROPERTIES_OBJECT,
     UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
+from .field_access import report_unloaded_read, with_internal_field_access
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
+    from .selection import Selection
 
 
 @dataclass(frozen=True)
@@ -126,6 +128,8 @@ class InfrahubNodeBase:
         self._file_content: bytes | Path | BinaryIO | None = None
         self._file_name: str | None = None
 
+        self._selection: Selection | None = None
+
         if not self.id:
             self._existing = False
 
@@ -141,6 +145,7 @@ class InfrahubNodeBase:
         """
         return self._branch
 
+    @with_internal_field_access
     def get_path_value(self, path: str) -> Any:
         """Resolve a value addressed by a dunder-separated path on this node.
 
@@ -193,6 +198,7 @@ class InfrahubNodeBase:
 
         return return_value
 
+    @with_internal_field_access
     def get_human_friendly_id(self) -> list[str] | None:
         """Compute the human-friendly ID for this node from its schema.
 
@@ -268,12 +274,23 @@ class InfrahubNodeBase:
         """
         return self._metadata
 
+    def _report_unloaded_read(self, field: str) -> None:
+        """Report a read of ``field`` while the SDK does not know its value.
+
+        Raises:
+            FieldNotLoadedError: If strict field access is on, or the node came from a strict selection.
+
+        """
+        report_unloaded_read(
+            self._schema.kind, field, self._selection, strict=bool(self._selection and self._selection.strict)
+        )
+
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
             attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
-            self._attribute_data[attr_schema.name] = Attribute(
-                name=attr_schema.name, schema=attr_schema, data=attr_data
-            )
+            attr = Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data)
+            attr._bind(self, present=isinstance(data, dict) and attr_schema.name in data)
+            self._attribute_data[attr_schema.name] = attr
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Set values for attributes that exist or revert to normal behaviour."""
@@ -438,6 +455,7 @@ class InfrahubNodeBase:
         """
         return self._data
 
+    @with_internal_field_access
     def _generate_input_data(  # noqa: C901
         self,
         exclude_unmodified: bool = False,
@@ -573,6 +591,7 @@ class InfrahubNodeBase:
         if item in data and (data_item in ({}, []) or (data_item is None and original_data_item_is_none)):
             data.pop(item)
 
+    @with_internal_field_access
     def _strip_unmodified(self, data: dict, variables: dict) -> tuple[dict, dict]:
         original_data = self._data or {}
         for relationship in self._relationships:
@@ -749,6 +768,7 @@ class InfrahubNodeBase:
 
         raise ResourceNotDefinedError(message=f"The node doesn't have an attribute for {name}")
 
+    @with_internal_field_access
     def _validate_upsert(self, allow_upsert: bool) -> None:
         """Block an upsert that would silently duplicate because an HFID attribute is pool-sourced.
 
@@ -916,9 +936,11 @@ class InfrahubNode(InfrahubNodeBase):
                         if value is not None
                     }
                     rel_data = peer_id_data or None
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                related_node = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
@@ -932,13 +954,15 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNode(
+                parent = RelatedNode(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                parent._bind(self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = parent
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
@@ -980,6 +1004,7 @@ class InfrahubNode(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
@@ -1575,6 +1600,7 @@ class InfrahubNode(InfrahubNodeBase):
         tracker = f"mutation-{str(self._schema.kind).lower()}-relationshipremove-{relation_to_update}"
         await self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
+    @with_internal_field_access
     def _generate_mutation_query(self) -> dict[str, Any]:
         query_result: dict[str, Any] = {"ok": None, "object": {"id": None}}
 
@@ -1591,6 +1617,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         return query_result
 
+    @with_internal_field_access
     async def _process_mutation_result(
         self,
         mutation_name: str,
@@ -2152,9 +2179,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         if value is not None
                     }
                     rel_data = peer_id_data or None
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                related_node = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
@@ -2169,13 +2198,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNodeSync(
+                parent = RelatedNodeSync(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                parent._bind(self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = parent
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
@@ -2217,6 +2248,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
@@ -2806,6 +2838,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         tracker = f"mutation-{str(self._schema.kind).lower()}-relationshipremove-{relation_to_update}"
         self._client.execute_graphql(query=query, branch_name=self._branch, tracker=tracker)
 
+    @with_internal_field_access
     def _generate_mutation_query(self) -> dict[str, Any]:
         query_result: dict[str, Any] = {"ok": None, "object": {"id": None}}
 
@@ -2822,6 +2855,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return query_result
 
+    @with_internal_field_access
     def _process_mutation_result(
         self,
         mutation_name: str,

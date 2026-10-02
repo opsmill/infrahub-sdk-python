@@ -17,6 +17,7 @@ from .property import NodeProperty
 
 if TYPE_CHECKING:
     from ..schema import AttributeSchemaAPI
+    from .node import InfrahubNodeBase
 
 
 class _GraphQLPayloadAttribute(NamedTuple):
@@ -53,7 +54,8 @@ class Attribute:
     An ``Attribute`` wraps a single attribute on an :class:`InfrahubNode`. It tracks the
     current value, the metadata properties (``source``, ``owner``, ``is_protected``, ...),
     and whether the value has been mutated since the node was loaded. Mutation tracking is
-    used by ``InfrahubNode.update()`` to send only the changed fields to the API.
+    used by ``InfrahubNode.update()`` to send only the changed fields to the API. Reading
+    ``value`` while ``is_loaded`` is ``False`` warns with ``FieldNotLoadedWarning``.
 
     Attributes:
         name (str): The name of the attribute.
@@ -88,6 +90,8 @@ class Attribute:
         self.name = name
         self._schema = schema
         self._from_pool: dict[str, Any] | None = None
+        self._present: bool = True
+        self._owner: InfrahubNodeBase | None = None
 
         if isinstance(data, dict) and "from_pool" in data:
             self._from_pool = data.pop("from_pool")
@@ -103,7 +107,7 @@ class Attribute:
 
         self.id: str | None = data.get("id")
 
-        self._value: Any | None = data.get("value")
+        self._value: Any = data.get("value")
         self.value_has_been_mutated = False
         self.is_default: bool | None = data.get("is_default")
         self.is_from_profile: bool | None = data.get("is_from_profile")
@@ -134,13 +138,34 @@ class Attribute:
             if data.get(prop_name):
                 setattr(self, prop_name, NodeProperty(data=data.get(prop_name)))  # type: ignore[arg-type]
 
+    def _bind(self, owner: InfrahubNodeBase, present: bool) -> None:
+        """Attach the owning node and record whether the data it was built from carried this attribute."""
+        self._owner = owner
+        self._present = present
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether the SDK knows this attribute's value. Reading this never warns.
+
+        The value is known when the data the node was built from carried the attribute, when it was
+        assigned since, or when the owning node has no ``id`` yet.
+
+        Returns:
+            bool: ``True`` when reading ``value`` returns what the SDK holds without a warning.
+
+        """
+        return self._present or self._owner is None or not self._owner.id
+
     @property
     def value(self) -> Any:
+        if self._owner is not None and not self.is_loaded:
+            self._owner._report_unloaded_read(self.name)
         return self._value
 
     @value.setter
     def value(self, value: Any) -> None:
         self._value = value
+        self._present = True
         self.value_has_been_mutated = True
 
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
@@ -148,33 +173,33 @@ class Attribute:
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
             return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
-        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
+        if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return _GraphQLPayloadAttribute(
-                payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
+                payload={"from_pool": {"id": self._value.id}}, variables={}, needs_metadata=True
             )
 
         # Null value
-        if self.value is None:
+        if self._value is None:
             data = {"value": None} if (self._schema.optional and self.value_has_been_mutated) else {}
             return _GraphQLPayloadAttribute(payload=data, variables={}, needs_metadata=False)
 
         # Unsafe strings need a variable binding to avoid injection
-        if isinstance(self.value, str) and not SAFE_VALUE.match(self.value):
+        if isinstance(self._value, str) and not SAFE_VALUE.match(self._value):
             var_name = f"value_{UUIDT.new().hex}"
             return _GraphQLPayloadAttribute(
                 payload={"value": f"${var_name}"},
-                variables={var_name: self.value},
+                variables={var_name: self._value},
                 needs_metadata=True,
             )
 
         # Safe strings, IP types, and everything else
-        if isinstance(self.value, get_args(IP_TYPES)):
-            value = self.value.with_prefixlen
-        elif isinstance(self.value, get_args(IP_ADDRESS_TYPES)):
+        if isinstance(self._value, get_args(IP_TYPES)):
+            value = self._value.with_prefixlen
+        elif isinstance(self._value, get_args(IP_ADDRESS_TYPES)):
             # bare addresses have no prefix; serialize their canonical string form
-            value = str(self.value)
+            value = str(self._value)
         else:
-            value = self.value
+            value = self._value
         return _GraphQLPayloadAttribute(payload={"value": value}, variables={}, needs_metadata=True)
 
     def _generate_input_data(self) -> _GraphQLPayloadAttribute:
@@ -230,7 +255,7 @@ class Attribute:
 
         """
         return (
-            hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
+            hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool()
         ) or self._from_pool is not None
 
     def is_unresolved_pool_attribute(self) -> bool:
@@ -243,6 +268,6 @@ class Attribute:
         An attribute whose _from_pool dict is set but whose value has already been populated
         with the allocated scalar (e.g. after a prior save) is considered resolved.
         """
-        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
+        if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return True
-        return self._from_pool is not None and self.value is None
+        return self._from_pool is not None and self._value is None

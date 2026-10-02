@@ -91,7 +91,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Tests for User Story 1 (write first; they must fail before T016)
 
-- [ ] T011 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the access matrix for `Attribute.value` and `Attribute.is_loaded` on both clients. Cover every row of the FR-018 table in `data-model.md`:
+- [X] T011 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the access matrix for `Attribute.value` and `Attribute.is_loaded` on both clients. Cover every row of the FR-018 table in `data-model.md`:
   - Key present with a value: no warning, `is_loaded` `True`.
   - Key present with `{"value": None}`: no warning.
   - Key absent on a node with `id`: `pytest.warns(FieldNotLoadedWarning, match=...)` with the exact message for origin unknown, value `None`, `is_loaded` `False`.
@@ -100,8 +100,8 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - A new node saved through a mocked `…Create` mutation (`httpx_mock` returning `{"ok": true, "object": {"id": "abc"}}`): a never-set attribute then warns and a set one does not.
 
   Also assert that `node.<attr>.is_loaded` itself never warns.
-- [ ] T012 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the same matrix for cardinality-one relationships (`location_schema.primary_tag`), covering `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `initialized`, `peer`, `get()` and `is_loaded`. Assert that `initialized` keeps today's value (`False` for a present relationship with `{"node": null}`) with no warning when present. Assert that assigning `node.primary_tag = "<id>"` makes it known. Cover a hierarchical `parent` using the `hierarchical_schema` fixture from `tests/unit/sdk/test_hierarchical_nodes.py` (copy it or import it).
-- [ ] T013 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the matrix for cardinality-many relationships (`location_schema.tags`), covering `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile`, `[0]`, iteration and `is_loaded`:
+- [X] T012 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the same matrix for cardinality-one relationships (`location_schema.primary_tag`), covering `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `initialized`, `peer`, `get()` and `is_loaded`. Assert that `initialized` keeps today's value (`False` for a present relationship with `{"node": null}`) with no warning when present. Assert that assigning `node.primary_tag = "<id>"` makes it known. Cover a hierarchical `parent` using the `hierarchical_schema` fixture from `tests/unit/sdk/test_hierarchical_nodes.py` (copy it or import it).
+- [X] T013 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the matrix for cardinality-many relationships (`location_schema.tags`), covering `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile`, `[0]`, iteration and `is_loaded`:
   - Unknown on a fetched node: warns and returns `[]`.
   - New node: `[]` with no warning.
   - Present with `{"edges": []}`: no warning.
@@ -109,7 +109,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - `initialized` never warns and keeps its meaning.
   - `add()` on an unknown manager still raises `UninitializedError`.
   - Setting `manager.peers = [...]` and `manager.peers.append(...)` still work.
-- [ ] T014 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the internal-read regression tests on both clients:
+- [X] T014 [P] [US1] In `tests/unit/sdk/test_node_field_access.py`, write the internal-read regression tests on both clients:
   - (a) A node built from a payload missing `description` and `tags`, stored with `client.store.set(node=node)`: no warning (the filter makes any warning fail the test).
   - (b) Using the `schema_with_hfid` fixture, a node whose HFID traverses a relationship and is built with that relationship absent: `node.hfid` is `None` with no warning. The node is retrievable with `client.store.get(key=node.id)` and not by HFID.
   - (c) Modify one attribute and `save()` through a mocked `…Update` mutation. Capture the request with `httpx_mock.get_requests()` and assert that the mutation input contains only `id` and the modified attribute.
@@ -119,26 +119,26 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] In `infrahub_sdk/node/attribute.py`:
+- [X] T016 [US1] In `infrahub_sdk/node/attribute.py`:
   - Add `_present: bool = True`, `_owner: InfrahubNodeBase | None = None` (behind `TYPE_CHECKING`), and `_bind(owner, present)`.
   - Add the `is_loaded` property (`self._present or self._owner is None or not self._owner.id`).
   - Make the `value` getter call `self._owner._report_unloaded_read(self.name)` when not loaded, then return `self._value`. Make the setter also set `_present = True`.
   - Switch internal methods (`_initialize_graphql_payload`, `is_from_pool_attribute`, `is_unresolved_pool_attribute`, `_generate_mutation_query`) to read `self._value` instead of `self.value`.
-- [ ] T017 [P] [US1] In `infrahub_sdk/node/related_node.py`:
+- [X] T017 [P] [US1] In `infrahub_sdk/node/related_node.py`:
   - On `RelatedNodeBase`, add `_present`, `_owner`, `_bind(owner, present)` and `is_loaded`, with the same rule as T016.
   - Add a private `_check_loaded()` that calls `self._owner._report_unloaded_read(self.name)` when not loaded, and call it at the top of the detected accessors (`id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `initialized`) and of `RelatedNode.get()` / `RelatedNodeSync.get()`.
   - Inside `get()`, `hfid_str`, `initialized` and `_generate_input_data`, read the private fields (`_peer`, `_id`, `_hfid`, `_typename`) so one read produces one report.
-- [ ] T018 [P] [US1] In `infrahub_sdk/node/relationship.py`:
+- [X] T018 [P] [US1] In `infrahub_sdk/node/relationship.py`:
   - Replace the `self.peers` instance attribute with `self._peers` and a `peers` property plus setter on `RelationshipManagerBase`.
   - Add `is_loaded` on `RelationshipManager` and `RelationshipManagerSync` (`self.initialized or not self.node.id`) and a `_check_loaded()` reporting through `self.node._report_unloaded_read(self.name)`.
   - Call it in the `peers` getter, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile` and `__getitem__`.
   - Switch `add`, `extend`, `remove`, `_generate_input_data` and `fetch` to `self._peers`.
-- [ ] T019 [US1] In `infrahub_sdk/node/node.py` (`InfrahubNodeBase`):
+- [X] T019 [US1] In `infrahub_sdk/node/node.py` (`InfrahubNodeBase`):
   - Add `self._selection: Selection | None = None` in `__init__` before `_init_attributes`.
   - Add `_report_unloaded_read(self, field: str) -> None`, which calls `field_access.report_unloaded_read(self._schema.kind, field, self._selection, strict=bool(self._selection and self._selection.strict))`.
   - In `_init_attributes`, call `attr._bind(self, present=isinstance(data, dict) and attr_schema.name in data)`.
   - Decorate `_generate_input_data`, `_strip_unmodified`, `_generate_mutation_query`, `_validate_upsert`, `get_path_value` and `get_human_friendly_id` with `with_internal_field_access`.
-- [ ] T020 [US1] In `infrahub_sdk/node/node.py` (`InfrahubNode` and `InfrahubNodeSync`):
+- [X] T020 [US1] In `infrahub_sdk/node/node.py` (`InfrahubNode` and `InfrahubNodeSync`):
   - In `_init_relationships`, bind every cardinality-one `RelatedNode` and hierarchical `parent` with `present = isinstance(data, dict) and rel_schema.name in data`.
   - In `__setattr__`, bind the newly built `RelatedNode` with `present=True`.
   - Decorate `_process_mutation_result` (async and sync) with `with_internal_field_access`.

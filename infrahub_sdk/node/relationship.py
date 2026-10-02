@@ -16,7 +16,7 @@ from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
-    from .node import InfrahubNode, InfrahubNodeSync
+    from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
 
 class RelationshipManagerBase(Generic[PeerT]):
@@ -25,7 +25,8 @@ class RelationshipManagerBase(Generic[PeerT]):
     A ``RelationshipManagerBase`` exposes a cardinality-many relationship as a list of
     peers along with helpers to add, remove, or extend the set. Relationship managers are
     initialized lazily: until :meth:`fetch` (on the async/sync subclasses) is called, the
-    members are not loaded and editing is not allowed.
+    members are not loaded and editing is not allowed. Reading the peers while ``is_loaded``
+    is ``False`` warns with ``FieldNotLoadedWarning``.
 
     Attributes:
         name (str): The name of the relationship slot on the parent node.
@@ -55,7 +56,45 @@ class RelationshipManagerBase(Generic[PeerT]):
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
 
-        self.peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
+        self._peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
+
+    @property
+    def _owner(self) -> InfrahubNodeBase | None:
+        return None
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether the SDK knows this relationship's peers. Reading this never warns.
+
+        The peers are known once the manager is ``initialized``, or while the owning node has no ``id`` yet.
+
+        Returns:
+            bool: ``True`` when reading the peers returns what the SDK holds without a warning.
+
+        """
+        owner = self._owner
+        return self.initialized or owner is None or not owner.id
+
+    def _check_loaded(self) -> None:
+        owner = self._owner
+        if owner is not None and not self.is_loaded:
+            owner._report_unloaded_read(self.name)
+
+    @property
+    def peers(self) -> list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]:
+        """Return the current peer set, as a list that can be modified in place.
+
+        Returns:
+            list[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
+
+        """
+        self._check_loaded()
+        return self._peers
+
+    @peers.setter
+    def peers(self, value: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]) -> None:
+        """Replace the current peer set."""
+        self._peers = value
 
     @property
     def peer_ids(self) -> list[str]:
@@ -65,7 +104,8 @@ class RelationshipManagerBase(Generic[PeerT]):
             list[str]: The IDs of the peers, in insertion order.
 
         """
-        return [peer.id for peer in self.peers if peer.id]
+        self._check_loaded()
+        return self._peer_ids()
 
     @property
     def peer_hfids(self) -> list[list[Any]]:
@@ -75,7 +115,8 @@ class RelationshipManagerBase(Generic[PeerT]):
             list[list[Any]]: The HFIDs of the peers as lists of components, in insertion order.
 
         """
-        return [peer.hfid for peer in self.peers if peer.hfid]
+        self._check_loaded()
+        return self._peer_hfids()
 
     @property
     def peer_hfids_str(self) -> list[str]:
@@ -85,7 +126,14 @@ class RelationshipManagerBase(Generic[PeerT]):
             list[str]: The HFIDs of the peers as ``Kind__part1__part2`` strings.
 
         """
-        return [peer.hfid_str for peer in self.peers if peer.hfid_str]
+        self._check_loaded()
+        return [peer.hfid_str for peer in self._peers if peer.hfid_str]
+
+    def _peer_ids(self) -> list[str]:
+        return [peer.id for peer in self._peers if peer.id]
+
+    def _peer_hfids(self) -> list[list[Any]]:
+        return [peer.hfid for peer in self._peers if peer.hfid]
 
     @property
     def has_update(self) -> bool:
@@ -108,13 +156,14 @@ class RelationshipManagerBase(Generic[PeerT]):
             bool: ``True`` when at least one peer exists and all peers are from a profile.
 
         """
-        if not self.peers:
+        self._check_loaded()
+        if not self._peers:
             return False
-        all_profiles = [p.is_from_profile for p in self.peers]
+        all_profiles = [p.is_from_profile for p in self._peers]
         return bool(all_profiles) and all(all_profiles)
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
-        return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
+        return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self._peers]
 
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
@@ -206,7 +255,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         if isinstance(data, list):
             for item in data:
-                self.peers.append(
+                self._peers.append(
                     cast(
                         "RelatedNode[PeerT]",
                         RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
@@ -214,7 +263,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
-                self.peers.append(
+                self._peers.append(
                     cast(
                         "RelatedNode[PeerT]",
                         RelatedNode(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
@@ -227,8 +276,13 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 f"Wrap the value in a list, e.g. {name}=[value]."
             )
 
+    @property
+    def _owner(self) -> InfrahubNode:
+        return self.node
+
     def __getitem__(self, item: int) -> RelatedNode[PeerT]:
-        return cast("RelatedNode[PeerT]", self.peers[item])
+        self._check_loaded()
+        return cast("RelatedNode[PeerT]", self._peers[item])
 
     async def fetch(self) -> None:
         """Populate the peer set and resolve every peer to a full node.
@@ -252,11 +306,11 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 exclude=exclude,
             )
             rm = getattr(node, self.schema.name)
-            self.peers = rm.peers
+            self._peers = rm.peers
             self.initialized = True
 
         ids_per_kind_map = defaultdict(list)
-        for peer in self.peers:
+        for peer in self._peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
             ids_per_kind_map[peer.typename].append(peer.id)
@@ -297,10 +351,10 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             "RelatedNode[PeerT]", RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
         )
 
-        if (new_node.id and new_node.id not in self.peer_ids) or (
-            new_node.hfid and new_node.hfid not in self.peer_hfids
+        if (new_node.id and new_node.id not in self._peer_ids()) or (
+            new_node.hfid and new_node.hfid not in self._peer_hfids()
         ):
-            self.peers.append(new_node)
+            self._peers.append(new_node)
             self._has_update = True
 
     def extend(self, data: Iterable[str | RelatedNode | dict]) -> None:
@@ -339,20 +393,20 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
-        if node_to_remove.id and node_to_remove.id in self.peer_ids:
-            idx = self.peer_ids.index(node_to_remove.id)
-            if self.peers[idx].id != node_to_remove.id:
+        if node_to_remove.id and node_to_remove.id in (peer_ids := self._peer_ids()):
+            idx = peer_ids.index(node_to_remove.id)
+            if self._peers[idx].id != node_to_remove.id:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
 
-            self.peers.pop(idx)
+            self._peers.pop(idx)
             self._has_update = True
 
-        elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
-            idx = self.peer_hfids.index(node_to_remove.hfid)
-            if self.peers[idx].hfid != node_to_remove.hfid:
+        elif node_to_remove.hfid and node_to_remove.hfid in (peer_hfids := self._peer_hfids()):
+            idx = peer_hfids.index(node_to_remove.hfid)
+            if self._peers[idx].hfid != node_to_remove.hfid:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
-            self.peers.pop(idx)
+            self._peers.pop(idx)
             self._has_update = True
 
 
@@ -403,7 +457,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         if isinstance(data, list):
             for item in data:
-                self.peers.append(
+                self._peers.append(
                     cast(
                         "RelatedNodeSync[PeerTSync]",
                         RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
@@ -411,7 +465,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 )
         elif isinstance(data, dict) and "edges" in data:
             for item in data["edges"]:
-                self.peers.append(
+                self._peers.append(
                     cast(
                         "RelatedNodeSync[PeerTSync]",
                         RelatedNodeSync(name=name, client=self.client, branch=self.branch, schema=schema, data=item),
@@ -424,8 +478,13 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 f"Wrap the value in a list, e.g. {name}=[value]."
             )
 
+    @property
+    def _owner(self) -> InfrahubNodeSync:
+        return self.node
+
     def __getitem__(self, item: int) -> RelatedNodeSync[PeerTSync]:
-        return cast("RelatedNodeSync[PeerTSync]", self.peers[item])
+        self._check_loaded()
+        return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
     def fetch(self) -> None:
         """Populate the peer set and resolve every peer to a full node.
@@ -449,11 +508,11 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 exclude=exclude,
             )
             rm = getattr(node, self.schema.name)
-            self.peers = rm.peers
+            self._peers = rm.peers
             self.initialized = True
 
         ids_per_kind_map = defaultdict(list)
-        for peer in self.peers:
+        for peer in self._peers:
             if not peer.id or not peer.typename:
                 raise Error("Unable to fetch the peer, id and/or typename are not defined")
             ids_per_kind_map[peer.typename].append(peer.id)
@@ -495,10 +554,10 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data),
         )
 
-        if (new_node.id and new_node.id not in self.peer_ids) or (
-            new_node.hfid and new_node.hfid not in self.peer_hfids
+        if (new_node.id and new_node.id not in self._peer_ids()) or (
+            new_node.hfid and new_node.hfid not in self._peer_hfids()
         ):
-            self.peers.append(new_node)
+            self._peers.append(new_node)
             self._has_update = True
 
     def extend(self, data: Iterable[str | RelatedNodeSync | dict]) -> None:
@@ -537,17 +596,17 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
-        if node_to_remove.id and node_to_remove.id in self.peer_ids:
-            idx = self.peer_ids.index(node_to_remove.id)
-            if self.peers[idx].id != node_to_remove.id:
+        if node_to_remove.id and node_to_remove.id in (peer_ids := self._peer_ids()):
+            idx = peer_ids.index(node_to_remove.id)
+            if self._peers[idx].id != node_to_remove.id:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.id}")
-            self.peers.pop(idx)
+            self._peers.pop(idx)
             self._has_update = True
 
-        elif node_to_remove.hfid and node_to_remove.hfid in self.peer_hfids:
-            idx = self.peer_hfids.index(node_to_remove.hfid)
-            if self.peers[idx].hfid != node_to_remove.hfid:
+        elif node_to_remove.hfid and node_to_remove.hfid in (peer_hfids := self._peer_hfids()):
+            idx = peer_hfids.index(node_to_remove.hfid)
+            if self._peers[idx].hfid != node_to_remove.hfid:
                 raise IndexError(f"Unexpected situation, the node with the index {idx} should be {node_to_remove.hfid}")
 
-            self.peers.pop(idx)
+            self._peers.pop(idx)
             self._has_update = True
