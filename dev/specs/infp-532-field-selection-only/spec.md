@@ -61,7 +61,8 @@ A developer passes `only` to a node query and gets exactly the named fields plus
 3. **Given** `only=[]`, **When** the query is generated, **Then** it requests the identity floor only, which differs from omitting `only`.
 4. **Given** `only` combined with `include` or with `exclude`, **When** the call is made, **Then** a typed error is raised before any request is sent.
 5. **Given** `only` containing a name that exists on no attribute or relationship of the kind, **When** the call is made, **Then** a typed error naming that field is raised before any request is sent.
-6. **Given** no `only`, **When** any existing query runs, **Then** the generated query is unchanged except that `hfid` is no longer requested for the queried node.
+6. **Given** no `only`, **When** any existing query runs, **Then** the generated query is unchanged.
+7. **Given** `only=["name", "hfid"]`, **When** the query is generated, **Then** the queried node also requests its `hfid`.
 
 ---
 
@@ -102,7 +103,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - A name in `only` that exists on the kind only as an inherited field while inherited fields are excluded from the query.
 - A generic kind where a named field exists on some implementing kinds and not others, with fragments enabled and disabled.
 - A node fetched broadly and then re-fetched narrowly with store population enabled: the store holds the narrower node. Unrelated code reading it then raises if `only` produced it, and warns otherwise.
-- A peer that carries only the identity floor, when the caller reads a peer attribute: the message points at hydration.
+- A relationship fetched as a reference (named in `only`, no hydration), when the caller resolves its peer: the not-found error points at hydration. A node fetched with `only=[]`, when the caller reads an attribute: the unknown-field message points at hydration.
 - A node whose HFID depends on fields that were not fetched: it has no HFID and is stored by `id` only.
 - A partially fetched node that is modified and saved: only modified fields are sent, and unfetched fields are neither read nor cleared.
 - A node created or upserted without setting an optional field, then read: the field is unknown afterwards.
@@ -110,7 +111,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - Nodes built from GraphQL the SDK did not generate (`convert_query_response` in generators and transforms, the JSON importer, direct construction from a response): only the fields that GraphQL selected are known, and messages report an unknown origin.
 - Hydrating peers of several kinds with `only`.
 - Rendering a partially fetched node in the CLI.
-- An identity floor name (`id`, `hfid`, `display_label`) given in `only`: accepted as a no-op.
+- An identity floor name given in `only`: `id` and `display_label` are no-ops; `hfid` adds the queried node's HFID to the request.
 
 ## Requirements *(mandatory)*
 
@@ -125,7 +126,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **FR-005**: `only` combined with `include`, or with `exclude`, MUST raise the mutually-exclusive-selection error before any request is sent.
 - **FR-006**: `only` MUST accept attribute and relationship names in one flat list.
 - **FR-007**: `only=[]` MUST be valid and MUST produce a query for the identity floor only. It MUST be distinguishable from `only` being absent.
-- **FR-008**: Identity floor names (`id`, `hfid`, `display_label`) MUST be accepted in `only` without error, as no-ops.
+- **FR-008**: The names `id`, `hfid` and `display_label` MUST be accepted in `only` without error. `id` and `display_label` are always in the floor, so naming them is a no-op. Naming `hfid` requests the queried node's server-computed HFID, which the `only` floor otherwise leaves out.
 - **FR-009**: A name in `only` that resolves to no attribute or relationship MUST raise the unknown-field-name error naming the offending field, before any request is sent.
 - **FR-010**: For a generic kind, a name in `only` MUST be valid if it resolves on the generic or on any implementing kind.
 - **FR-011**: For a generic kind, a name that resolves only on implementing kinds while fragments are disabled MUST raise an error that names fragments as the resolution.
@@ -137,13 +138,13 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **FR-014**: Hierarchical fields (`parent`, `children`, `ancestors`, `descendants`) MUST be fetched under `only` solely when named, and MUST then carry the same peer identity floor as other relationships.
 - **FR-015**: The peer-hydration methods on cardinality-one and cardinality-many relationships, on both clients, MUST accept `only` and `exclude` under the same mutual-exclusion rule. They accept flat names only.
 - **FR-016**: Hydration with `only` MUST validate names once, before any request, against the relationship's declared peer kind under the FR-010 rule, and MUST request from each concrete peer kind only the named fields that kind defines.
-- **FR-017**: `hfid` MUST be removed from the queried node's envelope. Peers MUST keep requesting it.
+- **FR-017**: Under `only`, the queried node's envelope MUST request `id`, `display_label` and `__typename`, plus `hfid` only when named (FR-008). Without `only`, the envelope MUST stay as it is today (`id`, `hfid`, `display_label`, `__typename`), because the raw payload is observable through `get_raw_graphql_data()`, export files and the Ansible collection's module output. Peers MUST always request `hfid`.
 
 #### Known state
 
 - **FR-018**: The SDK MUST know a field if and only if (1) the field was present in the data the node was built from, (2) the caller has assigned it since, or (3) the node has no `id`. A field known only through rule 3 MUST read as its empty value: `None` for attributes and cardinality-one relationships, `[]` for cardinality-many relationships. This rule replaces the PRD's separate "unsaved" (FR-020) and "after save" (FR-021) rules.
 - **FR-019**: Attributes, cardinality-one relationships and cardinality-many relationships MUST each expose the same known-state check, with one meaning: the SDK knows this field's value. Reading MUST warn or raise if and only if the check is false. The existing `initialized` flags on relationships MUST keep their current meaning.
-- **FR-020**: Assigning a value to a field the SDK does not know MUST always succeed and make the field known.
+- **FR-020**: Assigning a value to an attribute or a cardinality-one relationship the SDK does not know MUST always succeed and make the field known. Cardinality-many relationships keep their existing write contract: `add`, `extend` and `remove` raise `UninitializedError` until the relationship has been fetched or given data, because the SDK can't merge into a peer list it has never seen.
 
 #### Unknown-field reads
 
@@ -152,8 +153,8 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **FR-023**: In 1.x, a detected read on a node produced by a query with `only`, on a peer of such a node, or on a peer hydrated with `only`, MUST raise the unknown-field error instead of warning.
 - **FR-024**: A single switch point MUST turn every FR-022 warning into the unknown-field error with the same message. The switch stays on "warn" in 1.x.
 - **FR-025**: The warning MUST use a category Python shows by default (`FutureWarning`), so that it reaches developers running generators inside the Infrahub pipeline.
-- **FR-026**: The message MUST name the node's kind, the field and, when an SDK-generated query produced the node, the selection used. When no SDK-generated selection produced the node, the message MUST say the origin is unknown. When the node is a peer carrying only the identity floor, the message MUST point at peer hydration.
-- **FR-027**: The SDK's own reads (HFID computation, mutation payload generation, store indexing, path-value resolution, CLI rendering) MUST NOT trigger the warning or the error.
+- **FR-026**: The message MUST name the node's kind, the field and, when an SDK-generated query produced the node, the selection used. When no SDK-generated selection produced the node, the message MUST say the origin is unknown. When the node carries only the identity floor, the message MUST point at peer hydration. Separately, when resolving a relationship's peer fails because the peer was never fetched (the reference exists but no peer node is held), the existing not-found error MUST keep its type and its message MUST point at hydrating the relationship or using `prefetch_relationships`.
+- **FR-027**: The SDK's own reads MUST NOT trigger the warning or the error. This covers HFID computation, mutation payload generation, store indexing, path-value resolution, CLI rendering, the CLI object update command, and the JSON importer.
 
 #### Errors
 
@@ -173,7 +174,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 ### Key Entities
 
 - **Selection** *(new)*: the resolved set of attributes, relationships and hierarchical fields for an SDK-generated query, derived from the caller's arguments and the node schema. It is recorded on the resulting node and its peers only when an SDK-generated query produced them, so that messages can report it. It also records whether `only` produced it.
-- **Identity floor** *(new)*: the fields always present regardless of selection. For the queried node: `id`, `display_label`, `__typename`. For peers: the same plus `hfid`.
+- **Identity floor** *(new)*: the fields always present regardless of selection. For the queried node under `only`: `id`, `display_label`, `__typename`, plus `hfid` when named. For the queried node without `only`: today's envelope, `hfid` included. For peers: `id`, `hfid`, `display_label`, `__typename`.
 - **Known state** *(new)*: a per-field fact on every attribute and relationship, governed by the FR-018 rule and exposed by the FR-019 check. It sits alongside the existing `initialized` flags and does not replace them.
 - **Read policy** *(new)*: the single switch point (FR-024) that decides whether an unknown-field read warns or raises outside `only`.
 - **Exception hierarchy**: gains the three error types in FR-028.
@@ -186,10 +187,10 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **SC-001**: For every selection test case, a query restricted with `only` requests exactly the named fields plus the identity floor, verified by comparing the generated query with the expected one.
 - **SC-002** *(post-release outcome measure, owned by `infrahub-sync`; not a release gate)*: On the measured `infrahub-sync` workload, a main load migrated to `only` transfers at least 45% fewer bytes, and a migrated deletion sweep at least 75% fewer, against the pre-change baseline.
 - **SC-003** *(post-release outcome measure, owned by `infrahub-sync`; not a release gate)*: The measured interface sweep completes in under half its baseline wall-clock time after migration.
-- **SC-004**: Upgrading without changing any application code requests the same fields as the previous release for 100% of existing selection test cases, the only difference being `hfid` in the queried node's envelope.
+- **SC-004**: Upgrading without changing any application code requests exactly the same fields as the previous release, for 100% of existing selection test cases.
 - **SC-005**: Every read that previously returned `None` or an empty list for a field that was not fetched now warns in 1.x and raises with the strict switch set, identifying the field, in 100% of the access-matrix cases.
 - **SC-006**: A misspelt name in `only` is reported before any request is sent, in 100% of cases.
-- **SC-007**: Building, saving and updating nodes needs no changes to existing application code, except code that reads, after a save, a field it neither set nor fetched. Verified by the existing node test suite passing without modification apart from tests that assert the old `None`/`[]` results.
+- **SC-007**: Building, saving and updating nodes needs no changes to existing application code, except code that reads, after a save, a field it neither set nor fetched. Verified by the existing test suite: tests change only where they read a field they never fetched or set, and each such change either asserts the new warning or widens the fixture.
 - **SC-008** *(release gate)*: Adding attributes or relationships to a kind's schema leaves both the generated query and the response for an existing `only` call unchanged.
 
 ## Assumptions
@@ -197,7 +198,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - Code that reads cardinality-many relationships after a default `get`, without `include` or hydration, will warn in 1.x and raise in 2.0. Such code already receives `[]` whatever the server holds.
 - Leaving a field out of a selection changes only what the server returns, not what it resolves or stores, including values that come from profiles. Fields that were not fetched are never sent on save.
 - A read of an unknown field is a programming error. The fix is to widen the query or hydrate, not to catch the exception. Defensive checks are expected only where a node's provenance is genuinely unknown, such as reads from the client store.
-- The savings baseline for SC-002 and SC-003 is the `infrahub-sync` validation recorded in `opsmill/infrahub-sync-lab` under `.planning/evidence/validation/val-29-results.md`. It was simulated with `exclude` while `hfid` was still requested, so it does not depend on the `hfid` change.
+- The savings baseline for SC-002 and SC-003 is the `infrahub-sync` validation recorded in `opsmill/infrahub-sync-lab` under `.planning/evidence/validation/val-29-results.md`. It was simulated with `exclude` while `hfid` was still requested, so the measured savings come from narrowing alone.
 - `__typename` is resolved from the GraphQL schema and carries no database cost.
 
 ## Out of Scope
@@ -210,6 +211,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - Correcting `include`'s full peer expansion. Its owner and impact assessment across Infrahub are still to be decided.
 - Reading never-set fields back in the mutation response after a save. This is a non-breaking follow-up that needs its own cost measurement.
 - Removing `hfid` from peers.
+- Removing `hfid` from the default (no `only`) query envelope. It is observable through raw GraphQL data, export files and the Ansible collection's module output, so it needs its own change with consumer notice.
 - Allowing `add()` on a new node's cardinality-many relationship without a prior `fetch()`. Unchanged existing behaviour.
 - Reworking the client store into an identity map, a static-analysis migration tool, and non-Python SDKs.
 - The 2.0 release itself, beyond providing and testing the switch point.
@@ -219,6 +221,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - `include` expands peers in full, so `include=["tags"]` and `only=["tags"]` return different peer payloads in the same release. The documentation describes current behaviour.
 - Attribute properties still read as `None` when they were not fetched.
 - Peers still request `hfid`, because peer HFIDs, HFID-based peer removal and HFID de-duplication depend on it.
+- Default queries still request `hfid` for the queried node. The brief proposed dropping it, but the critique found it's exposed through raw GraphQL data (see the critique report), so only `only` queries leave it out.
 - In 1.x, nodes produced by `only` raise on unknown reads while every other node warns. This ends at 2.0.
 
 ## Dependencies and Governance

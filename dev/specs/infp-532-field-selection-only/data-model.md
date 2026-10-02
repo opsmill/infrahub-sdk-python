@@ -31,10 +31,11 @@ Fields always requested, whatever the selection.
 
 | Context | Fields |
 |---|---|
-| Queried node (envelope) | `id`, `display_label`, `__typename` |
+| Queried node, `only` given | `id`, `display_label`, `__typename`; plus `hfid` when named in `only` |
+| Queried node, no `only` | `id`, `hfid`, `display_label`, `__typename` (unchanged) |
 | Peer (cardinality-one or many, hierarchical) | `id`, `hfid`, `display_label`, `__typename` |
 
-Floor names accepted in `only` as no-ops: `id`, `hfid`, `display_label`.
+Names accepted in `only` without error: `id` and `display_label` (no-ops), and `hfid` (adds the queried node's HFID).
 
 ## Known state (per field)
 
@@ -108,7 +109,8 @@ None derives from `AttributeError`, `UninitializedError` or `ValueError` (FR-028
 |---|---|
 | `only=None` | Default selection path (FR-002) |
 | `only=[]` | Identity floor only (FR-007) |
-| Name is a floor name | Accepted, no-op (FR-008) |
+| Name is `id` or `display_label` | Accepted, no-op (FR-008) |
+| Name is `hfid` | Accepted; the queried node's envelope requests `hfid` (FR-008, FR-017) |
 | Name is an attribute, relationship or (hierarchical kinds) hierarchical field of the kind | Selected |
 | Generic kind, name on an implementing kind only, `fragment=True` | Selected in that kind's fragment (FR-010) |
 | Generic kind, name on an implementing kind only, `fragment=False` | `SelectionFieldNotFoundError` naming fragments (FR-011) |

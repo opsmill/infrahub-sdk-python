@@ -31,7 +31,7 @@ node = InfrahubNode(client=client, schema=tag_schema, branch="main")
 data = await node.generate_query_data(only=["name"])
 ```
 
-**Expected**: `data["BuiltinTag"]["edges"]["node"]` has exactly `id`, `display_label`, `__typename` and `name`. Without `only`, the envelope no longer contains `hfid`, and everything else matches the previous release. After adding attributes to `tag_schema`, the `only=["name"]` output is unchanged.
+**Expected**: `data["BuiltinTag"]["edges"]["node"]` has exactly `id`, `display_label`, `__typename` and `name`. Without `only`, the generated query is identical to the previous release, envelope `hfid` included. With `only=["name", "hfid"]`, the envelope also contains `hfid`. After adding attributes to `tag_schema`, the `only=["name"]` output is unchanged.
 
 ## 3. Rejections before any request (SC-006, FR-005)
 

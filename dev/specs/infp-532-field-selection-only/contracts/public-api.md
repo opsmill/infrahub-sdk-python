@@ -12,12 +12,13 @@ filters(kind, ..., priority=None, only: list[str] | None = None, **kwargs)
 ```
 
 - `only` is the last explicit parameter, so existing positional calls keep working.
-- `only=None`: today's behaviour, except that the queried node's envelope no longer requests `hfid` (FR-002, FR-017).
-- `only=[...]`: exactly the named attributes and relationships, plus the identity floor (FR-001, FR-006, FR-007).
+- `only=None`: today's behaviour, envelope included (FR-002, FR-017).
+- `only=[...]`: exactly the named attributes and relationships, plus the identity floor `id`, `display_label`, `__typename`. Naming `hfid` adds the queried node's HFID (FR-001, FR-006, FR-007, FR-008).
 - Raises `SelectionConflictError` if `include is not None` or `exclude is not None`, before any schema lookup or query (FR-005).
 - Raises `SelectionFieldNotFoundError` for an unknown name, or a name that needs `fragment=True`, before the data query (FR-009, FR-011).
 - Nodes returned from an `only` call, and the peer nodes built for them, raise `FieldNotLoadedError` on unknown reads in 1.x (FR-023).
 - Under `only`, peer nodes are built and stored only when `prefetch_relationships=True`.
+- `RelatedNode.peer` / `get()` on a reference whose peer was never fetched still raises `NodeNotFoundError`, and its message now says to call `fetch()` on the relationship or to query with `prefetch_relationships=True` (FR-026).
 
 ## Query generation helpers (public methods on node classes)
 
@@ -105,6 +106,6 @@ The warning's `stacklevel` points at the first frame outside the `infrahub_sdk` 
 ## Unchanged
 
 - `include` and `exclude` semantics, and the existing `ValueError` when a name appears in both (FR-003, FR-004, FR-028).
-- Peer envelopes still request `hfid`.
+- Peer envelopes still request `hfid`, and so does the default (no `only`) query envelope.
 - Client store semantics.
 - CLI commands and options. Rendering skips unknown fields (FR-030), and options don't change.

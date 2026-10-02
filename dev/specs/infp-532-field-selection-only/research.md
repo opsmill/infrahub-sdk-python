@@ -51,6 +51,8 @@ Phase 0 output for [plan.md](plan.md). Each entry records a decision, the reason
 2. Node-level internal operations run under a context-local "internal access" flag (a `contextvars.ContextVar`, entered with a context manager and a decorator), which turns detection off for the duration. Covered operations: `_generate_input_data`, `_strip_unmodified`, `_generate_mutation_query`, `_validate_upsert`, `_process_mutation_result`, `get_path_value`, `get_human_friendly_id` (and so `hfid`, `hfid_str`, store indexing), plus CLI paths that are not plain rendering (`ctl/object/update.py` relationship application).
 3. CLI rendering (`ctl/formatters/*`) and the JSON importer check `is_loaded` and skip unknown fields (FR-030), rather than reading under suppression.
 
+**Constraint**: An internal-access region must not create asyncio tasks or call user code. A task created inside the region copies the context and would keep suppression for its whole life. The covered methods satisfy this today, and new ones must too.
+
 **Rationale**: The node-level internals read dozens of public accessors (`rel.initialized`, `rel.id`, `attr.value`, `rel.peer`) across two client implementations. Rewriting each to private storage is a large, error-prone diff that would also duplicate logic held in the public properties (for example `RelatedNode.id` preferring `_peer.id`). A `ContextVar` is safe with asyncio, because each task has its own context, and internal operations never call back into user code. Using `is_loaded` in the CLI and importer is better than suppression there: those paths decide what to show or transfer, and should skip unknown data rather than render a blank as if it were real.
 
 **Alternatives considered**:
@@ -134,15 +136,22 @@ The async and sync generators keep their own loops, because peer schemas are fet
 
 **Rationale**: Storing floor-only peer nodes would overwrite broader nodes of the same id already in the store. In generator runs that store is shared with `convert_query_response` results, so unrelated code would start failing on reads. The reference already carries everything the floor fetched. Today's `include=[...]` path, which embeds full peers, keeps storing them.
 
+**Store-miss hint (FR-026)**: When `RelatedNode.get()` (and so `.peer`) misses the store for a reference whose peer was never fetched, it keeps raising `NodeNotFoundError` (same type, for compatibility) with a message that names the relationship and says to call `fetch()` on it or query with `prefetch_relationships=True`. This is where users meet the reference-only result of `only=["site"]`, so this is where the hydration hint belongs.
+
 **Consequence**: After migrating the group lookups to `only=["members"]` (FR-032), group members are no longer pushed into the store by the lookup itself. Every migrated caller either needs only `id`/`typename` (query groups) or hydrates with `members.fetch()` straight away (CLI generator and check), which populates the store with default-selection nodes as before.
 
-## R11. Removing `hfid` from the envelope (FR-017)
+## R11. `hfid` in the queried node's envelope (FR-008, FR-017)
 
-**Decision**: Drop `hfid` from `generate_query_data_init`'s `edges.node`. Leave both peer envelopes unchanged.
+**Decision**: Without `only`, `generate_query_data_init` keeps today's envelope (`id`, `hfid`, `display_label`, `__typename`). Under `only`, the envelope is `id`, `display_label`, `__typename`, and `hfid` is added only when named in `only`. Both peer envelopes are unchanged.
 
-**Rationale**: `InfrahubNodeBase.hfid` is computed from attributes and never reads the envelope value, and `__init__` ignores it. Peer `hfid` is read by `RelatedNode.hfid`, `peer_hfids`, removal by HFID and HFID de-duplication.
+**Rationale**: `InfrahubNodeBase.hfid` is computed from attributes and never reads the envelope value, so the SDK's object model doesn't need it. But the raw payload is observable. `get_raw_graphql_data()` returns it, `infrahubctl export` writes it to `nodes.json`, and the Ansible collection's `node` module returns it to playbooks as the module result (`plugins/module_utils/node.py:37`). Dropping `hfid` from the default envelope would silently change that output for code that never opted in (critique X1). Under `only` the caller lists the fields they want, so leaving `hfid` out unless named is the opt-in behaviour. The brief's original plan (drop it everywhere) is recorded under Out of Scope as a separate change that needs consumer notice.
 
-**Test impact**: Unit tests that compare whole generated query dictionaries drop `"hfid": None` from the top-level `edges.node` only (around 25 occurrences in `tests/unit/sdk/test_node.py`, some of which are peer envelopes that stay). HTTP mocks don't match on query bodies, so no fixture changes are needed.
+**Alternatives considered**:
+
+- *Drop it from every query envelope (the brief).* Rejected for the reasons above.
+- *Compute it client-side into the raw payload.* Rejected: it can't be computed when HFID components weren't fetched, and the raw payload would no longer be raw.
+
+**Test impact**: None for default queries (SC-004: byte-identical). New selection-matrix cases cover `only` with and without `hfid`.
 
 ## R12. Peer hydration with `only` and `exclude` (FR-015, FR-016)
 
@@ -210,9 +219,9 @@ The async and sync generators keep their own loops, because peer schemas are fet
 
 **Decision**:
 
-- `docs/docs/python-sdk/guides/query_data.mdx`: add a "Selecting exactly the fields you need with `only`" section, and a "Fields that were not fetched" section covering `is_loaded`, the warning and the 2.0 plan. Correct the `include` description (peers are expanded in full, not just initialized), the `exclude` example (`device.site` is a reference whose value is unknown, not `None`), and the cardinality-many example at lines 336-359 (`peers` warns rather than silently returning `[]`). All examples use async/sync tabs.
+- `docs/docs/python-sdk/guides/query_data.mdx`: add a "Selecting exactly the fields you need with `only`" section, and a "Fields that were not fetched" section covering `is_loaded`, the warning and the 2.0 plan. The second section gives the fix path (widen the selection, call `fetch()`, check `is_loaded` only where provenance is unknown). It shows how to opt into strictness early with `-W error::infrahub_sdk.exceptions.FieldNotLoadedWarning`, and notes that `getattr(..., default)` and `hasattr` no longer hide an unknown read in strict mode. Correct the `include` description (peers are expanded in full, not just initialized), the `exclude` example (`device.site` is a reference whose value is unknown, not `None`), and the cardinality-many example at lines 336-359 (`peers` warns rather than silently returning `[]`). All examples use async/sync tabs.
 - Regenerate `docs/docs/python-sdk/sdk_ref/**` with `uv run invoke docs-generate`, since docstrings change.
-- Changelog fragments: `+infp-532-only.added.md` (`only`, `is_loaded`, hydration selection), `+infp-532-field-access.deprecated.md` (reading unfetched fields: warns now, raises in 2.0) and `+infp-532-envelope-hfid.changed.md` (`hfid` no longer requested for the queried node; first-party call sites now use `only`).
+- Changelog fragments: `+infp-532-only.added.md` (`only`, `is_loaded`, hydration selection), `+infp-532-field-access.deprecated.md` (reading unfetched fields: warns now, raises in 2.0) and `+infp-532-call-sites.changed.md` (first-party call sites now use `only`, so group lookups no longer push every member into the store; the CLI skips fields that weren't fetched).
 
 ## R19. Naming the known-state check
 
