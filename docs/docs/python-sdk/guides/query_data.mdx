@@ -194,7 +194,7 @@ The downside of using this method, is that it will not construct Python objects 
 
 ## Attributes and relationships
 
-By default, the result of a query will include attributes, relationships of cardinality one and relationships of kind Attribute or Parent. Relationships that are included in a query will be automatically initialized which means the ID, type and display name of the peers will be included in the query. But the related node itself will not be included.
+By default, the result of a query will include attributes, relationships of cardinality one and relationships of cardinality many of kind Attribute or Parent. These relationships are initialized: the query requests the ID, HFID, display label and type of each peer, but not the related node itself. Relationships you add with `include` behave differently, see [Including attributes and relationships](#including-attributes-and-relationships).
 
 To explore this in a bit more details, we are going to assume the following schema has been loaded into Infrahub
 
@@ -287,7 +287,7 @@ Relationships of cardinality one are included by default and will be initialized
   device = await client.get(kind="TestDevice", name__value="atl1-edge1")
   print(device.site.initialized) # True
   print(device.site.id, device.site.display_label, device.site.typename)
-  print(device.site.peer) # the related node is not included
+  print(device.site.peer) # raises NodeNotFoundError unless the client store already holds the site
   ```
 
   </TabItem>
@@ -297,7 +297,7 @@ Relationships of cardinality one are included by default and will be initialized
   device = client.get(kind="TestDevice", name__value="atl1-edge1")
   print(device.site.initialized) # True
   print(device.site.id, device.site.display_label, device.site.typename)
-  print(device.site.peer) # the related node is not included
+  print(device.site.peer) # raises NodeNotFoundError unless the client store already holds the site
   ```
 
   </TabItem>
@@ -335,7 +335,7 @@ Relationships of kind `Attribute`, `Parent` are included by default and will be 
 
 ### Relationships of cardinality many are not included by default
 
-Relationships of cardinality many are not included by default.
+Relationships of cardinality many are not included by default, unless they are of kind Attribute or Parent. The SDK doesn't know the peers of such a relationship, so reading `peers` emits a `FieldNotLoadedWarning` and returns an empty list, whatever the server holds. See [Fields that were not fetched](#fields-that-were-not-fetched).
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -343,7 +343,8 @@ Relationships of cardinality many are not included by default.
   ```python
   device = await client.get(kind="TestDevice", name__value="atl1-edge1")
   print(device.interfaces.initialized) # False
-  print(device.interfaces.peers) # empty list []
+  print(device.interfaces.is_loaded) # False
+  print(device.interfaces.peers) # [] and a FieldNotLoadedWarning
   ```
 
   </TabItem>
@@ -352,7 +353,8 @@ Relationships of cardinality many are not included by default.
    ```python
    device = client.get(kind="TestDevice", name__value="atl1-edge1")
    print(device.interfaces.initialized) # False
-   print(device.interfaces.peers) # empty list []
+   print(device.interfaces.is_loaded) # False
+   print(device.interfaces.peers) # [] and a FieldNotLoadedWarning
    ```
 
   </TabItem>
@@ -361,7 +363,7 @@ Relationships of cardinality many are not included by default.
 ### Including attributes and relationships
 
 You can include attributes and relationships that are not retrieved as part of a query by default.
-The included relationships will be initialized and the related nodes (peers) will be initialized.
+A relationship added with `include` is initialized and its peers are expanded in full: the query requests the default set of fields of every peer, and the SDK builds the peer nodes and adds them to the client store (unless you pass `populate_store=False`), so `peer` resolves without another query.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -372,7 +374,7 @@ The included relationships will be initialized and the related nodes (peers) wil
   print(device.interfaces.peers)
 
   for interface in device.interfaces.peers:
-      print(interface.id, interface.display_label, interface.typename)
+      print(interface.id, interface.display_label, interface.typename, interface.peer.name.value)
 
   ```
 
@@ -385,30 +387,36 @@ The included relationships will be initialized and the related nodes (peers) wil
    print(device.interfaces.peers)
 
    for interface in device.interfaces.peers:
-       print(interface.id, interface.display_label, interface.typename)
+       print(interface.id, interface.display_label, interface.typename, interface.peer.name.value)
    ```
 
   </TabItem>
 </Tabs>
 
+To get references to the peers without their fields, name the relationship in `only` instead. See [Selecting exactly the fields you need with `only`](#selecting-exactly-the-fields-you-need-with-only).
+
 ### Excluding attribute and relationships
 
 You can exclude attributes and relationships that are retrieved with a query by default. This can be useful if you need to optimize or speed up a particular query.
+
+An excluded field is still present on the node, but its value is unknown: `is_loaded` is `False`, and reading the value emits a `FieldNotLoadedWarning` and returns `None` (`[]` for a relationship of cardinality many). See [Fields that were not fetched](#fields-that-were-not-fetched).
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
 
    ```python
-   device = await client.get(kind="TestDevice", exclude=["site"])
-   print(device.site) # None
+   device = await client.get(kind="TestDevice", name__value="atl1-edge1", exclude=["site"])
+   print(device.site.is_loaded) # False
+   print(device.site.id) # None and a FieldNotLoadedWarning
    ```
 
   </TabItem>
   <TabItem value="Sync" default>
 
    ```python
-   device = client.get(kind="TestDevice", exclude=["site"])
-   print(device.site) # None
+   device = client.get(kind="TestDevice", name__value="atl1-edge1", exclude=["site"])
+   print(device.site.is_loaded) # False
+   print(device.site.id) # None and a FieldNotLoadedWarning
    ```
 
   </TabItem>
@@ -418,6 +426,7 @@ You can exclude attributes and relationships that are retrieved with a query by 
 
 The `fetch` method can be used to retrieve relationships, initialize them; and retrieving the related nodes manually.
 The `fetch` method can also be used on relationship that were previously initialized.
+By default, `fetch` requests the default set of fields of every peer. To choose the peer fields, pass `only` or `exclude`, see [Fetching peers with a selection](#fetching-peers-with-a-selection).
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -479,6 +488,358 @@ The `fetch` method can also be used on relationship that were previously initial
 
 Related nodes of a relationship can be retrieved, using the `prefetch_relationships` argument for the different `query` methods. But this requires the usage of the internal client store
 . More information can be found in the [Using the client store](../../python-sdk/guides/store) guide.
+
+## Selecting exactly the fields you need with `only`
+
+`include` and `exclude` adjust the default set of fields. `only` replaces it: the query requests exactly the attributes and relationships you name, plus a fixed identity floor. Adding attributes or relationships to the schema later doesn't change the query.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  print(device.id, device.display_label, device.typename)
+  print(device.name.value)
+  print(device.site.is_loaded) # False
+  print(device.site.id) # raises FieldNotLoadedError
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  print(device.id, device.display_label, device.typename)
+  print(device.name.value)
+  print(device.site.is_loaded) # False
+  print(device.site.id) # raises FieldNotLoadedError
+  ```
+
+  </TabItem>
+</Tabs>
+
+`only` is accepted by `get`, `filters` and `all`. On a node returned by an `only` query, reading a field you didn't name raises `FieldNotLoadedError`, while other nodes only warn until infrahub-sdk 2.0. See [Fields that were not fetched](#fields-that-were-not-fetched).
+
+### The identity floor
+
+Every node returned by an `only` query carries its `id`, `display_label` and `__typename` (exposed as `typename`), whatever you name:
+
+- `only=[]` requests the identity floor alone. This differs from leaving `only` out, which requests the default set.
+- Naming `id` or `display_label` is accepted and changes nothing.
+- The HFID of the queried node isn't part of the floor. Name `hfid` to add it to the query.
+
+`node.hfid` is computed from the fields that make up the human-friendly ID of the kind, and is `None` when one of them wasn't fetched.
+
+### Relationships are returned as references
+
+A relationship named in `only` comes back as a reference: each peer carries its `id`, `hfid`, `display_label` and `__typename`, and nothing else. The SDK doesn't build or store the peer nodes. Relationships of cardinality many and hierarchical fields (`parent`, `children`, `ancestors`, `descendants`) are handled the same way.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["name", "site", "interfaces"])
+  print(device.site.id, device.site.display_label, device.site.typename)
+  for interface in device.interfaces.peers:
+      print(interface.id, interface.display_label)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["name", "site", "interfaces"])
+  print(device.site.id, device.site.display_label, device.site.typename)
+  for interface in device.interfaces.peers:
+      print(interface.id, interface.display_label)
+  ```
+
+  </TabItem>
+</Tabs>
+
+Resolving `device.site.peer` on a reference raises `NodeNotFoundError` unless the client store already holds that peer. The message tells you to call `fetch()` on the relationship, or to query with `prefetch_relationships=True`.
+
+With `prefetch_relationships=True`, the peers of each named relationship carry their default set of fields, and the SDK builds the peer nodes and stores them. Relationships you didn't name stay out of the query. The peer nodes follow the same rule as the node itself: reading one of their fields that wasn't fetched raises `FieldNotLoadedError`.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(
+      kind="TestDevice", name__value="atl1-edge1", only=["name", "site"], prefetch_relationships=True
+  )
+  print(device.site.peer.name.value)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(
+      kind="TestDevice", name__value="atl1-edge1", only=["name", "site"], prefetch_relationships=True
+  )
+  print(device.site.peer.name.value)
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Fetching peers with a selection
+
+`fetch()` on a relationship of cardinality one or many accepts `only` or `exclude`, to choose which fields of the peers to query:
+
+- `only` requests exactly the named peer fields plus the identity floor. Reading any other field of a peer fetched this way raises `FieldNotLoadedError`.
+- `exclude` removes fields from the default set of the peers.
+
+The names are checked once against the peer kind of the relationship, before any peer is queried. When the peers are of several kinds, for example the members of a group, each kind is asked for the named fields it defines, and a kind that defines none of them returns the identity floor.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["site", "interfaces"])
+
+  await device.site.fetch(only=["name"])
+  print(device.site.peer.name.value)
+
+  await device.interfaces.fetch(only=["name"])
+  for interface in device.interfaces.peers:
+      print(interface.peer.name.value)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["site", "interfaces"])
+
+  device.site.fetch(only=["name"])
+  print(device.site.peer.name.value)
+
+  device.interfaces.fetch(only=["name"])
+  for interface in device.interfaces.peers:
+      print(interface.peer.name.value)
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Invalid selections
+
+The SDK checks the selection before it sends the query:
+
+- `only` can't be combined with `include` or `exclude`, even when they are empty lists. The call raises `SelectionConflictError` before any request. The same applies to `only` and `exclude` on `fetch()`.
+- A name that isn't an attribute or relationship of the kind raises `SelectionFieldNotFoundError`, which names the field.
+- For a generic kind, a name defined only on the kinds that implement it requires `fragment=True`. Without it, `SelectionFieldNotFoundError` lists the kinds that define the name.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  # Raises SelectionConflictError
+  await client.all(kind="TestDevice", only=["name"], include=["interfaces"])
+
+  # Raises SelectionFieldNotFoundError: 'nmae' is not an attribute or relationship of TestDevice.
+  await client.all(kind="TestDevice", only=["nmae"])
+
+  # `ref` is only defined on CoreReadOnlyRepository, so the query needs fragment=True
+  repositories = await client.all(kind="CoreGenericRepository", only=["name", "ref"], fragment=True)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  # Raises SelectionConflictError
+  client.all(kind="TestDevice", only=["name"], include=["interfaces"])
+
+  # Raises SelectionFieldNotFoundError: 'nmae' is not an attribute or relationship of TestDevice.
+  client.all(kind="TestDevice", only=["nmae"])
+
+  # `ref` is only defined on CoreReadOnlyRepository, so the query needs fragment=True
+  repositories = client.all(kind="CoreGenericRepository", only=["name", "ref"], fragment=True)
+  ```
+
+  </TabItem>
+</Tabs>
+
+Both exceptions, like `FieldNotLoadedError`, are in `infrahub_sdk.exceptions`.
+
+## Fields that were not fetched
+
+A node only holds the fields its query returned. A field the SDK didn't fetch reads as `None` (attributes and relationships of cardinality one) or `[]` (relationships of cardinality many), which looks the same as an empty value. To tell the two apart, the SDK tracks which fields it knows, and reports reads of the fields it doesn't know.
+
+### Checking whether a field is known
+
+Every attribute and every relationship has an `is_loaded` property. It's `True` when the SDK knows the value:
+
+- the data the node was built from contained the field,
+- you assigned a value to the field since, or
+- the node has no `id` yet, because it's new and hasn't been saved.
+
+Reading `is_loaded` never warns or raises. The `initialized` property of relationships keeps its meaning.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1")
+  print(device.name.is_loaded) # True
+  print(device.site.is_loaded) # True
+  print(device.interfaces.is_loaded) # False, interfaces is not in the default set
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1")
+  print(device.name.is_loaded) # True
+  print(device.site.is_loaded) # True
+  print(device.interfaces.is_loaded) # False, interfaces is not in the default set
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Warnings now, errors in infrahub-sdk 2.0
+
+The SDK reports these reads of a field that isn't known:
+
+- `value` on an attribute
+- `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `initialized`, `peer` and `get()` on a relationship of cardinality one
+- `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile`, indexing and iteration on a relationship of cardinality many
+
+In the 1.x releases, such a read emits `infrahub_sdk.exceptions.FieldNotLoadedWarning` and returns the same value as before, `None` or `[]`. The warning is a `FutureWarning`, which Python shows by default, and it points at the line in your code that made the read. From infrahub-sdk 2.0, the same read raises `FieldNotLoadedError`.
+
+Nodes returned by an `only` query, the peer nodes built for them, and peers fetched with `fetch(only=...)` already raise `FieldNotLoadedError` in 1.x.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1")
+  print(device.interfaces.peers) # [] and a FieldNotLoadedWarning
+
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  print(device.interfaces.peers) # raises FieldNotLoadedError
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1")
+  print(device.interfaces.peers) # [] and a FieldNotLoadedWarning
+
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  print(device.interfaces.peers) # raises FieldNotLoadedError
+  ```
+
+  </TabItem>
+</Tabs>
+
+The message names the kind, the field and the selection the node was fetched with:
+
+```text
+TestDevice.interfaces was not fetched (selection: default selection). Add it to the selection, or call fetch(), before reading it. This will raise FieldNotLoadedError in infrahub-sdk 2.0.
+```
+
+When the SDK didn't build the node from a query it generated, for example from the result of a custom GraphQL query, the message says the origin of the node is unknown.
+
+Some cases don't warn:
+
+- On a new node that hasn't been saved, a field you didn't set reads as empty. Once the node is saved it has an `id`, and the fields you never set become unknown, because the server may have applied a default value that the SDK didn't read back.
+- Assigning a value to an attribute or to a relationship of cardinality one never warns, and makes the field known. Adding peers to or removing peers from a relationship of cardinality many still requires calling `fetch()` first.
+- Saving a node only sends the fields you changed, so saving a partially fetched node neither reads nor clears the fields that weren't fetched.
+- Properties of attributes, such as `is_protected` or `source`, aren't tracked.
+
+### Fixing a read of a field that wasn't fetched
+
+The warning marks a read that returns `None` or `[]` whatever the server holds. Fix it where the node is fetched:
+
+- add the field to the query, with `include` or by naming it in `only`,
+- call `fetch()` on the relationship before reading its peers, or
+- query with `prefetch_relationships=True` when you need the peer nodes.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", include=["interfaces"])
+  print(device.interfaces.peers)
+
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1")
+  await device.interfaces.fetch()
+  print(device.interfaces.peers)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", include=["interfaces"])
+  print(device.interfaces.peers)
+
+  device = client.get(kind="TestDevice", name__value="atl1-edge1")
+  device.interfaces.fetch()
+  print(device.interfaces.peers)
+  ```
+
+  </TabItem>
+</Tabs>
+
+Check `is_loaded` only where you can't know how a node was fetched, for example a node read back from the client store.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = client.store.get(key=device_id, kind="TestDevice")
+  if not device.interfaces.is_loaded:
+      await device.interfaces.fetch()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.store.get(key=device_id, kind="TestDevice")
+  if not device.interfaces.is_loaded:
+      device.interfaces.fetch()
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Raising errors before infrahub-sdk 2.0
+
+To find these reads before upgrading, turn the warning into an error. In a pytest suite, pass the filter on the command line or add it to the pytest configuration:
+
+```bash
+pytest -W error::infrahub_sdk.exceptions.FieldNotLoadedWarning
+```
+
+```toml
+[tool.pytest.ini_options]
+filterwarnings = ["error::infrahub_sdk.exceptions.FieldNotLoadedWarning"]
+```
+
+In a script, add the filter in code. Python's own `-W` option and the `PYTHONWARNINGS` variable can't refer to this warning, because Python reads them before the SDK is imported.
+
+```python
+import warnings
+
+from infrahub_sdk.exceptions import FieldNotLoadedWarning
+
+warnings.simplefilter("error", FieldNotLoadedWarning)
+```
+
+With the filter in place, the read raises `FieldNotLoadedWarning` as an exception at the line that made it.
+
+### `getattr` and `hasattr` defaults
+
+`FieldNotLoadedError` and `FieldNotLoadedWarning` aren't subclasses of `AttributeError`. Wherever a read raises, which is on nodes returned by an `only` query, with the error filter above, and in infrahub-sdk 2.0, `getattr(device.site, "id", None)` and `hasattr(device.site, "id")` raise as well, instead of returning the default or `False`. Use `is_loaded` to test whether a field is known.
 
 ## Query a node(s) in the past
 
