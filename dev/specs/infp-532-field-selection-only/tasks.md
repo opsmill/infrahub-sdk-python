@@ -258,22 +258,22 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T043 [P] In `docs/docs/python-sdk/guides/query_data.mdx`:
+- [X] T043 [P] In `docs/docs/python-sdk/guides/query_data.mdx`:
   - Add a section "Selecting exactly the fields you need with `only`" (the identity floor, `hfid` when named, references versus `prefetch_relationships`, conflicts, hydration with `fetch(only=...)`).
   - Add a section "Fields that were not fetched" (`is_loaded`, the warning and its 2.0 plan, the fix path, early opt-in with `-W error::infrahub_sdk.exceptions.FieldNotLoadedWarning`, and `getattr`/`hasattr` defaults no longer masking reads in strict mode).
   - Correct line 197 and line 364 (`include` expands peers in full), the `exclude` example at lines 401-412 (`device.site` is a reference whose value is unknown, not `None`), and the cardinality-many example at lines 336-359 (reading `peers` warns).
 
   Every example uses async/sync `Tabs` per `docs/AGENTS.md`.
-- [ ] T044 [P] Add changelog fragments:
+- [X] T044 [P] Add changelog fragments:
   - `changelog/+infp-532-only.added.md` (`only` on `get`/`all`/`filters`, `fetch(only=..., exclude=...)`, `is_loaded`)
   - `changelog/+infp-532-field-access.deprecated.md` (reading a field that wasn't fetched now emits `FieldNotLoadedWarning` and will raise `FieldNotLoadedError` in 2.0; how to fix; how to opt in early)
   - `changelog/+infp-532-call-sites.changed.md` (group lookups and repository listing use `only`; group lookups no longer push members into the store; CLI output skips fields that weren't fetched)
 
   Follow the style of `changelog/+ipaddress-attribute-kind.added.md`.
-- [ ] T045 [P] Add integration tests to `tests/integration/test_node.py`, for both clients. Against a live server: `only=["name"]` returns nodes exposing `name` and the floor, reading `description.value` raises `FieldNotLoadedError`, and `fetch(only=["name"])` on a relationship makes exactly that peer field readable. They need Docker (testcontainers). If Docker is unavailable, record "not run" in the implementation report.
-- [ ] T046 Run `uv run invoke docs-generate`, then `uv run invoke docs-validate`, and commit the regenerated `docs/docs/python-sdk/sdk_ref/**` and `docs/docs/infrahubctl/**` files.
-- [ ] T047 Run `uv run invoke format lint-code` (ruff, ty, mypy) and `uv run invoke lint-docs`, and fix every finding without new suppressions, or with a justified `# type: ignore[<code>]` where unavoidable.
-- [ ] T048 Run `uv run pytest tests/unit -q` and walk through `quickstart.md` scenarios 1–5 and 7. Confirm SC-001, SC-004, SC-005, SC-006, SC-007 and SC-008 against their tests, and note each in the implementation report.
+- [X] T045 [P] Add integration tests to `tests/integration/test_node.py`, for both clients. Against a live server: `only=["name"]` returns nodes exposing `name` and the floor, reading `description.value` raises `FieldNotLoadedError`, and `fetch(only=["name"])` on a relationship makes exactly that peer field readable. They need Docker (testcontainers). If Docker is unavailable, record "not run" in the implementation report.
+- [X] T046 Run `uv run invoke docs-generate`, then `uv run invoke docs-validate`, and commit the regenerated `docs/docs/python-sdk/sdk_ref/**` and `docs/docs/infrahubctl/**` files.
+- [X] T047 Run `uv run invoke format lint-code` (ruff, ty, mypy) and `uv run invoke lint-docs`, and fix every finding without new suppressions, or with a justified `# type: ignore[<code>]` where unavoidable.
+- [X] T048 Run `uv run pytest tests/unit -q` and walk through `quickstart.md` scenarios 1–5 and 7. Confirm SC-001, SC-004, SC-005, SC-006, SC-007 and SC-008 against their tests, and note each in the implementation report.
 
 ---
 
