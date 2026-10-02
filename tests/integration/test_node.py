@@ -5,15 +5,16 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.exceptions import NodeNotFoundError, UninitializedError
+from infrahub_sdk.exceptions import FieldNotLoadedError, FieldNotLoadedWarning, NodeNotFoundError, UninitializedError
 from infrahub_sdk.node import InfrahubNode
 from infrahub_sdk.protocols import IpamNamespace
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRoot
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.car_person import TESTING_CAR, TESTING_MANUFACTURER, SchemaCarPerson
+from tests.constants import CLIENT_TYPE_ASYNC, CLIENT_TYPES
 
 if TYPE_CHECKING:
-    from infrahub_sdk import InfrahubClient
+    from infrahub_sdk import InfrahubClient, InfrahubClientSync
 
 
 class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
@@ -116,12 +117,102 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaCarPerson):
         with pytest.raises(NodeNotFoundError, match=f"Unable to find the node '{person_joe.id}' in the store"):
             _ = node_after.owner.peer
 
-        assert len(node_after.tags.peers) == 0
+        with pytest.warns(
+            FieldNotLoadedWarning, match=r"^TestingCar\.tags was not fetched \(selection: default selection\)"
+        ):
+            assert len(node_after.tags.peers) == 0
 
         # Test both one and many relationships
         node_after = await client.get(kind=TESTING_CAR, id=car.id, include=["tags", "owner"])
         assert [tag.id for tag in node_after.tags.peers] == [tag_red.id]
         assert node_after.owner.peer.id == person_joe.id, f"{person_joe.id=}"
+
+    @pytest.mark.parametrize("client_type", CLIENT_TYPES)
+    async def test_node_filters_only(
+        self,
+        client: InfrahubClient,
+        client_sync: InfrahubClientSync,
+        client_type: str,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR,
+            name=f"OnlyCar-{client_type}",
+            description="Fetched narrowly",
+            color="Grey",
+            manufacturer=manufacturer_mercedes,
+            owner=person_joe,
+        )
+        await car.save()
+        full = await client.get(kind=TESTING_CAR, id=car.id, populate_store=False)
+
+        if client_type == CLIENT_TYPE_ASYNC:
+            nodes = await client.filters(kind=TESTING_CAR, ids=[car.id], only=["name"])
+        else:
+            nodes = client_sync.filters(kind=TESTING_CAR, ids=[car.id], only=["name"])
+
+        assert len(nodes) == 1
+        node = nodes[0]
+        assert node.id == car.id
+        assert node.typename == TESTING_CAR
+        assert node.display_label
+        assert node.display_label == full.display_label
+        assert node.name.value == f"OnlyCar-{client_type}"
+        assert node.description.is_loaded is False
+        assert node.owner.is_loaded is False
+        with pytest.raises(
+            FieldNotLoadedError, match=r"^TestingCar\.description was not fetched \(selection: only=\['name'\]\)"
+        ):
+            _ = node.description.value
+
+    @pytest.mark.parametrize("client_type", CLIENT_TYPES)
+    async def test_node_fetch_relationship_only(
+        self,
+        client: InfrahubClient,
+        client_sync: InfrahubClientSync,
+        client_type: str,
+        initial_schema: None,
+        manufacturer_mercedes: InfrahubNode,
+        person_joe: InfrahubNode,
+        tag_blue: InfrahubNode,
+    ) -> None:
+        car = await client.create(
+            kind=TESTING_CAR,
+            name=f"HydratedCar-{client_type}",
+            color="Grey",
+            manufacturer=manufacturer_mercedes,
+            owner=person_joe,
+            tags=[tag_blue],
+        )
+        await car.save()
+
+        if client_type == CLIENT_TYPE_ASYNC:
+            node = await client.get(kind=TESTING_CAR, id=car.id, only=["owner", "tags"])
+            await node.owner.fetch(only=["name"])
+            await node.tags.fetch(only=["name"])
+        else:
+            node = client_sync.get(kind=TESTING_CAR, id=car.id, only=["owner", "tags"])
+            node.owner.fetch(only=["name"])
+            node.tags.fetch(only=["name"])
+
+        owner = node.owner.peer
+        assert owner.id == person_joe.id
+        assert owner.name.value == "Joe Doe"
+        assert owner.description.is_loaded is False
+        with pytest.raises(
+            FieldNotLoadedError, match=r"^TestingPerson\.description was not fetched \(selection: only=\['name'\]\)"
+        ):
+            _ = owner.description.value
+
+        tags = [related.peer for related in node.tags.peers]
+        assert [tag.id for tag in tags] == [tag_blue.id]
+        assert tags[0].name.value == "Blue"
+        with pytest.raises(
+            FieldNotLoadedError, match=r"^BuiltinTag\.description was not fetched \(selection: only=\['name'\]\)"
+        ):
+            _ = tags[0].description.value
 
     async def test_node_update_with_original_data(
         self, default_branch: str, client: InfrahubClient, initial_schema: None
