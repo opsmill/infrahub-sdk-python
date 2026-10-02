@@ -15,6 +15,7 @@ from infrahub_sdk.node.selection import (
     IDENTITY_FLOOR_NAMES,
     Selection,
     check_selection_conflict,
+    implementing_kind_only,
     is_attribute_selected,
     is_hierarchical_selected,
     is_relationship_selected,
@@ -324,6 +325,26 @@ def test_validate_only_ignores_implementing_schemas_for_a_node_kind(
 
     assert excinfo.value.field == "role"
     assert excinfo.value.implementing_kinds == []
+
+
+def test_implementing_kind_only_keeps_names_only_the_implementing_kind_defines(
+    generic_device_schema: GenericSchemaAPI, implementing_device_schemas: list[NodeSchemaAPI]
+) -> None:
+    router, switch = implementing_device_schemas
+    only = ["name", "role", "tags", "ports", "id", "hfid", "colour"]
+
+    assert implementing_kind_only(only, generic_device_schema, router) == ["role"]
+    assert implementing_kind_only(only, generic_device_schema, switch) == ["ports"]
+
+
+def test_implementing_kind_only_keeps_fields_inherited_from_another_generic(
+    generic_device_schema: GenericSchemaAPI,
+) -> None:
+    router = _implementing_device_schema(
+        "Router", {"name": "serial", "kind": "Text", "optional": True, "inherited": True}
+    )
+
+    assert implementing_kind_only(["name", "serial"], generic_device_schema, router) == ["serial"]
 
 
 # ---------------------------------------------------------------------------

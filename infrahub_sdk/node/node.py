@@ -37,6 +37,15 @@ from .field_access import report_unloaded_read, with_internal_field_access
 from .metadata import NodeMetadata
 from .related_node import RelatedNode, RelatedNodeBase, RelatedNodeSync
 from .relationship import RelationshipManager, RelationshipManagerBase, RelationshipManagerSync
+from .selection import (
+    HIERARCHICAL_FIELD_NAMES,
+    check_selection_conflict,
+    implementing_kind_only,
+    is_attribute_selected,
+    is_hierarchical_selected,
+    is_relationship_selected,
+    should_expand_peer,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -680,6 +689,7 @@ class InfrahubNodeBase:
         partial_match: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        only: list[str] | None = None,
     ) -> dict[str, Any | dict]:
         """Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
 
@@ -700,19 +710,27 @@ class InfrahubNodeBase:
             order (Order, optional): Ordering options to apply to the query.
             include_metadata (bool, optional): When ``True``, include ``node_metadata`` in
                 the result. Defaults to ``False``.
+            only (list[str], optional): The exclusive selection the query is built for. The
+                ``edges.node`` placeholder then carries ``id``, ``display_label`` and ``__typename``,
+                plus ``hfid`` when it is named. Without ``only``, ``hfid`` is always requested.
+                Cannot be combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: The query skeleton ready to be combined with node-level
             attributes and relationships.
 
         Raises:
+            SelectionConflictError: If ``only`` is given together with ``include`` or ``exclude``.
             ValueError: If the same name appears in both ``include`` and ``exclude``.
 
         """
-        data: dict[str, Any] = {
-            "count": None,
-            "edges": {"node": {"id": None, "hfid": None, "display_label": None, "__typename": None}},
-        }
+        check_selection_conflict(include, exclude, only)
+
+        envelope: dict[str, Any] = {"id": None}
+        if only is None or "hfid" in only:
+            envelope["hfid"] = None
+        envelope.update({"display_label": None, "__typename": None})
+        data: dict[str, Any] = {"count": None, "edges": {"node": envelope}}
 
         if include_metadata:
             data["edges"]["node_metadata"] = NodeMetadata._generate_query_data()
@@ -1337,29 +1355,27 @@ class InfrahubNode(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         insert_alias: bool = False,
         property: bool = False,
+        only: list[str] | None = None,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
         if not self._hierarchy_support:
             return
 
-        for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
-            if exclude and hierarchical_name in exclude:
+        for hierarchical_name in HIERARCHICAL_FIELD_NAMES:
+            if not is_hierarchical_selected(hierarchical_name, include, exclude, only, prefetch_relationships):
                 continue
 
-            # Only include if explicitly requested or if prefetch_relationships is True
-            should_fetch = prefetch_relationships or (include is not None and hierarchical_name in include)
-            if not should_fetch:
-                continue
-
-            peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
-            peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
-            # Exclude hierarchical fields from peer data to prevent infinite recursion
-            peer_exclude = list(exclude) if exclude else []
-            peer_exclude.extend(["parent", "children", "ancestors", "descendants"])
-            peer_data = await peer_node.generate_query_data_node(
-                exclude=peer_exclude,
-                property=property,
-            )
+            peer_data: dict[str, Any] = {}
+            if should_expand_peer(hierarchical_name, include, only, prefetch_relationships):
+                peer_schema = await self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
+                peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
+                # Exclude hierarchical fields from peer data to prevent infinite recursion
+                peer_exclude = list(exclude) if exclude else []
+                peer_exclude.extend(HIERARCHICAL_FIELD_NAMES)
+                peer_data = await peer_node.generate_query_data_node(
+                    exclude=peer_exclude,
+                    property=property,
+                )
 
             # Parent is cardinality one, others are cardinality many
             if hierarchical_name == "parent":
@@ -1393,6 +1409,7 @@ class InfrahubNode(InfrahubNodeBase):
         property: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        only: list[str] | None = None,
     ) -> dict[str, Any | dict]:
         """Generate the full GraphQL query payload for this node kind.
 
@@ -1420,10 +1437,21 @@ class InfrahubNode(InfrahubNodeBase):
             order (Order, optional): Ordering options to apply to the query.
             include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
                 ``relationship_metadata`` in the result. Defaults to ``False``.
+            only (list[str], optional): Request exactly these attributes, relationships and
+                hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
+                ``hfid`` also requests the node's HFID. A named relationship requests only the
+                peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
+                with ``fragment``, each ``...on Kind`` fragment requests the names that kind
+                defines and the generic does not, and is left out when there are none. Cannot
+                be combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
             rendered as GraphQL.
+
+        Raises:
+            SelectionConflictError: If ``only`` is given together with ``include`` or ``exclude``.
+            ValueError: If the same name appears in both ``include`` and ``exclude``.
 
         """
         data = self.generate_query_data_init(
@@ -1435,6 +1463,7 @@ class InfrahubNode(InfrahubNodeBase):
             partial_match=partial_match,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
         data["edges"]["node"].update(
             await self.generate_query_data_node(
@@ -1444,6 +1473,7 @@ class InfrahubNode(InfrahubNodeBase):
                 inherited=True,
                 property=property,
                 include_metadata=include_metadata,
+                only=only,
             )
         )
 
@@ -1451,6 +1481,19 @@ class InfrahubNode(InfrahubNodeBase):
             for child in self._schema.used_by:
                 child_schema = await self._client.schema.get(kind=child)
                 child_node = InfrahubNode(client=self._client, schema=child_schema)
+
+                if only is not None:
+                    child_only = implementing_kind_only(only, self._schema, child_schema)
+                    if child_only:
+                        data["edges"]["node"][f"...on {child}"] = await child_node.generate_query_data_node(
+                            prefetch_relationships=prefetch_relationships,
+                            inherited=True,
+                            insert_alias=True,
+                            property=property,
+                            include_metadata=include_metadata,
+                            only=child_only,
+                        )
+                    continue
 
                 # Add the attribute and the relationship already part of the parent to the exclude list for the children
                 exclude_parent = self._attributes + self._relationships
@@ -1484,6 +1527,7 @@ class InfrahubNode(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        only: list[str] | None = None,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -1495,6 +1539,10 @@ class InfrahubNode(InfrahubNodeBase):
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            only (Optional[list[str]], optional): Exactly the attributes, relationships and hierarchical fields to
+                include; names this kind does not define are ignored. A named relationship requests only the peer's
+                ``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
+                Defaults to None.
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
@@ -1503,7 +1551,7 @@ class InfrahubNode(InfrahubNodeBase):
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
-            if exclude and attr_name in exclude:
+            if not is_attribute_selected(attr_name, include, exclude, only):
                 continue
 
             attr: Attribute = getattr(self, attr_name)
@@ -1520,24 +1568,16 @@ class InfrahubNode(InfrahubNodeBase):
                 data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
-            if exclude and rel_name in exclude:
-                continue
-
             rel_schema = self._schema.get_relationship(name=rel_name)
 
             if not rel_schema or (not inherited and rel_schema.inherited):
                 continue
 
-            if (
-                rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
-                and not (include and rel_name in include)
-            ):
+            if not is_relationship_selected(rel_schema, include, exclude, only):
                 continue
 
             peer_data: dict[str, Any] = {}
-            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
-            if rel_schema and should_fetch_relationship:
+            if should_expand_peer(rel_name, include, only, prefetch_relationships):
                 peer_schema = await self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = await peer_node.generate_query_data_node(
@@ -1562,6 +1602,7 @@ class InfrahubNode(InfrahubNodeBase):
             prefetch_relationships=prefetch_relationships,
             insert_alias=insert_alias,
             property=property,
+            only=only,
         )
 
         return data
@@ -2572,29 +2613,27 @@ class InfrahubNodeSync(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         insert_alias: bool = False,
         property: bool = False,
+        only: list[str] | None = None,
     ) -> None:
         """Process hierarchical fields (parent, children, ancestors, descendants) for hierarchical nodes."""
         if not self._hierarchy_support:
             return
 
-        for hierarchical_name in ["parent", "children", "ancestors", "descendants"]:
-            if exclude and hierarchical_name in exclude:
+        for hierarchical_name in HIERARCHICAL_FIELD_NAMES:
+            if not is_hierarchical_selected(hierarchical_name, include, exclude, only, prefetch_relationships):
                 continue
 
-            # Only include if explicitly requested or if prefetch_relationships is True
-            should_fetch = prefetch_relationships or (include is not None and hierarchical_name in include)
-            if not should_fetch:
-                continue
-
-            peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
-            peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
-            # Exclude hierarchical fields from peer data to prevent infinite recursion
-            peer_exclude = list(exclude) if exclude else []
-            peer_exclude.extend(["parent", "children", "ancestors", "descendants"])
-            peer_data = peer_node.generate_query_data_node(
-                exclude=peer_exclude,
-                property=property,
-            )
+            peer_data: dict[str, Any] = {}
+            if should_expand_peer(hierarchical_name, include, only, prefetch_relationships):
+                peer_schema = self._client.schema.get(kind=self._schema.hierarchy, branch=self._branch)  # type: ignore[union-attr, arg-type]
+                peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
+                # Exclude hierarchical fields from peer data to prevent infinite recursion
+                peer_exclude = list(exclude) if exclude else []
+                peer_exclude.extend(HIERARCHICAL_FIELD_NAMES)
+                peer_data = peer_node.generate_query_data_node(
+                    exclude=peer_exclude,
+                    property=property,
+                )
 
             # Parent is cardinality one, others are cardinality many
             if hierarchical_name == "parent":
@@ -2628,6 +2667,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         property: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
+        only: list[str] | None = None,
     ) -> dict[str, Any | dict]:
         """Generate the full GraphQL query payload for this node kind.
 
@@ -2655,10 +2695,21 @@ class InfrahubNodeSync(InfrahubNodeBase):
             order (Order, optional): Ordering options to apply to the query.
             include_metadata (bool, optional): When ``True``, include ``node_metadata`` and
                 ``relationship_metadata`` in the result. Defaults to ``False``.
+            only (list[str], optional): Request exactly these attributes, relationships and
+                hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
+                ``hfid`` also requests the node's HFID. A named relationship requests only the
+                peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
+                with ``fragment``, each ``...on Kind`` fragment requests the names that kind
+                defines and the generic does not, and is left out when there are none. Cannot
+                be combined with ``include`` or ``exclude``.
 
         Returns:
             dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
             rendered as GraphQL.
+
+        Raises:
+            SelectionConflictError: If ``only`` is given together with ``include`` or ``exclude``.
+            ValueError: If the same name appears in both ``include`` and ``exclude``.
 
         """
         data = self.generate_query_data_init(
@@ -2670,6 +2721,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             partial_match=partial_match,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
         data["edges"]["node"].update(
             self.generate_query_data_node(
@@ -2679,6 +2731,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 inherited=True,
                 property=property,
                 include_metadata=include_metadata,
+                only=only,
             )
         )
 
@@ -2686,6 +2739,19 @@ class InfrahubNodeSync(InfrahubNodeBase):
             for child in self._schema.used_by:
                 child_schema = self._client.schema.get(kind=child)
                 child_node = InfrahubNodeSync(client=self._client, schema=child_schema)
+
+                if only is not None:
+                    child_only = implementing_kind_only(only, self._schema, child_schema)
+                    if child_only:
+                        data["edges"]["node"][f"...on {child}"] = child_node.generate_query_data_node(
+                            prefetch_relationships=prefetch_relationships,
+                            inherited=True,
+                            insert_alias=True,
+                            property=property,
+                            include_metadata=include_metadata,
+                            only=child_only,
+                        )
+                    continue
 
                 exclude_parent = self._attributes + self._relationships
                 _, _, only_in_list2 = compare_lists(list1=include or [], list2=exclude_parent)
@@ -2718,6 +2784,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         prefetch_relationships: bool = False,
         property: bool = False,
         include_metadata: bool = False,
+        only: list[str] | None = None,
     ) -> dict[str, Any | dict]:
         """Generate the node part of a GraphQL Query with attributes and nodes.
 
@@ -2729,6 +2796,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
             insert_alias (bool, optional): If True, inserts aliases in the query for each attribute or relationship.
             prefetch_relationships (bool, optional): If True, pre-fetches relationship data as part of the query.
             include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            only (Optional[list[str]], optional): Exactly the attributes, relationships and hierarchical fields to
+                include; names this kind does not define are ignored. A named relationship requests only the peer's
+                ``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
+                Defaults to None.
 
         Returns:
             dict[str, Union[Any, Dict]]: GraphQL query in dictionary format
@@ -2737,7 +2808,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         data: dict[str, Any] = {}
 
         for attr_name in self._attributes:
-            if exclude and attr_name in exclude:
+            if not is_attribute_selected(attr_name, include, exclude, only):
                 continue
 
             attr: Attribute = getattr(self, attr_name)
@@ -2754,24 +2825,16 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 data[attr_name] = {"@alias": f"__alias__{self._schema.kind}__{attr_name}"}
 
         for rel_name in self._relationships:
-            if exclude and rel_name in exclude:
-                continue
-
             rel_schema = self._schema.get_relationship(name=rel_name)
 
             if not rel_schema or (not inherited and rel_schema.inherited):
                 continue
 
-            if (
-                rel_schema.cardinality == RelationshipCardinality.MANY  # type: ignore[union-attr]
-                and rel_schema.kind not in {RelationshipKind.ATTRIBUTE, RelationshipKind.PARENT}  # type: ignore[union-attr]
-                and not (include and rel_name in include)
-            ):
+            if not is_relationship_selected(rel_schema, include, exclude, only):
                 continue
 
             peer_data: dict[str, Any] = {}
-            should_fetch_relationship = prefetch_relationships or (include is not None and rel_name in include)
-            if rel_schema and should_fetch_relationship:
+            if should_expand_peer(rel_name, include, only, prefetch_relationships):
                 peer_schema = self._client.schema.get(kind=rel_schema.peer, branch=self._branch)
                 peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
                 peer_data = peer_node.generate_query_data_node(
@@ -2796,6 +2859,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             prefetch_relationships=prefetch_relationships,
             insert_alias=insert_alias,
             property=property,
+            only=only,
         )
 
         return data

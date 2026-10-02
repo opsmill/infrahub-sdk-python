@@ -161,7 +161,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Tests for User Story 2 (write first; they must fail before T030)
 
-- [ ] T025 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write query-shape tests on both clients, using `generate_query_data(...)` and asserting the full expected dict:
+- [X] T025 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write query-shape tests on both clients, using `generate_query_data(...)` and asserting the full expected dict:
   - `only=["name"]` on `tag_schema`: the envelope is exactly `id`, `display_label`, `__typename`, plus `name`.
   - `only=[]`: the floor only.
   - `only=["name", "hfid"]`: also `hfid`.
@@ -171,7 +171,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - `only` with `prefetch_relationships=True`: named relationships carry the peer's default set, and unnamed ones stay absent.
   - Hierarchical fields (`hierarchical_schema`): absent unless named; named → floor; named plus prefetch → expanded.
   - Generic `TestGenericDevice` with `fragment=True` and `only=["name", "role"]`: the generic part has `name`, the `...on TestRouter` fragment has `role`, and `...on TestSwitch` is empty or absent.
-- [ ] T026 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write regression tests asserting that default queries are unchanged (SC-004). For `location_schema` and `tag_schema` with no selection arguments, with `include=["tags"]`, with `exclude=["description"]` and with both, the generated dict equals a literal expected dict that includes the envelope `hfid`. Also write the SC-008 test: generate `only=["name"]` for `tag_schema`, add two attributes and a relationship to a copy of the schema, regenerate, and assert equality.
+- [X] T026 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write regression tests asserting that default queries are unchanged (SC-004). For `location_schema` and `tag_schema` with no selection arguments, with `include=["tags"]`, with `exclude=["description"]` and with both, the generated dict equals a literal expected dict that includes the envelope `hfid`. Also write the SC-008 test: generate `only=["name"]` for `tag_schema`, add two attributes and a relationship to a copy of the schema, regenerate, and assert equality.
 - [ ] T027 [P] [US2] In `tests/unit/sdk/test_node_selection.py`, write rejection tests on both clients using `client.filters`, `client.all` and `client.get`:
   - `only` with `include` or `exclude` (including empty lists) raises `SelectionConflictError`.
   - An unknown name raises `SelectionFieldNotFoundError` naming it.
@@ -189,10 +189,10 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNodeBase.generate_query_data_init`: append `only: list[str] | None = None`, call `check_selection_conflict(include, exclude, only)`, and build `edges.node` as `{"id", "display_label", "__typename"}` plus `"hfid"` when `only is None or "hfid" in only`. Update the docstring.
-- [ ] T031 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data_node` and `_process_hierarchical_fields`: append `only`, and replace the inline selection conditions with the `selection.py` helpers. Under `only`, a named relationship gets `peer_data = {}` (the floor) unless `prefetch_relationships`, in which case the peer's default `generate_query_data_node(property=..., include_metadata=...)` is used. Hierarchical fields follow `is_hierarchical_selected`. Keep today's behaviour exactly when `only is None`.
-- [ ] T032 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data`: append `only` and pass it to `generate_query_data_init` and `generate_query_data_node`. For generics with `fragment=True` under `only`, the generic part receives the names defined on the generic. Each child receives `child_only = [n for n in only if n not in generic field names and n is defined on the child]`, called with `inherited=True`, and the fragment is omitted when empty (research R9). Leave the `exclude_child` path untouched when `only is None`.
-- [ ] T033 [US2] Mirror T031 and T032 in `InfrahubNodeSync.generate_query_data_node`, `_process_hierarchical_fields` and `generate_query_data` in `infrahub_sdk/node/node.py`, using the same helpers.
+- [X] T030 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNodeBase.generate_query_data_init`: append `only: list[str] | None = None`, call `check_selection_conflict(include, exclude, only)`, and build `edges.node` as `{"id", "display_label", "__typename"}` plus `"hfid"` when `only is None or "hfid" in only`. Update the docstring.
+- [X] T031 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data_node` and `_process_hierarchical_fields`: append `only`, and replace the inline selection conditions with the `selection.py` helpers. Under `only`, a named relationship gets `peer_data = {}` (the floor) unless `prefetch_relationships`, in which case the peer's default `generate_query_data_node(property=..., include_metadata=...)` is used. Hierarchical fields follow `is_hierarchical_selected`. Keep today's behaviour exactly when `only is None`.
+- [X] T032 [US2] In `infrahub_sdk/node/node.py`, `InfrahubNode.generate_query_data`: append `only` and pass it to `generate_query_data_init` and `generate_query_data_node`. For generics with `fragment=True` under `only`, the generic part receives the names defined on the generic. Each child receives `child_only = [n for n in only if n not in generic field names and n is defined on the child]`, called with `inherited=True`, and the fragment is omitted when empty (research R9). Leave the `exclude_child` path untouched when `only is None`.
+- [X] T033 [US2] Mirror T031 and T032 in `InfrahubNodeSync.generate_query_data_node`, `_process_hierarchical_fields` and `generate_query_data` in `infrahub_sdk/node/node.py`, using the same helpers.
 - [ ] T034 [US2] In `infrahub_sdk/client.py` (`InfrahubClient`), make these changes to `get`, `all` and `filters`, including every `@overload`:
   - Append `only: list[str] | None = None` as the last explicit parameter (before `**kwargs`), and forward it from `get` and `all` to `filters`.
   - In `filters`, call `check_selection_conflict` before `self.schema.get`. After resolving the schema, validate `only` with `validate_only`, fetching implementing-kind schemas through `self.schema.get(kind=k, branch=branch)` for each `schema.used_by` when the schema is a generic.

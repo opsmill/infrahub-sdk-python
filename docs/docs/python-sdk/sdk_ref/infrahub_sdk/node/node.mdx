@@ -301,7 +301,7 @@ overriding the client default for this request only.
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False, only: list[str] | None = None) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -331,16 +331,28 @@ properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``
 - `order`: Ordering options to apply to the query.
 - `include_metadata`: When ``True``, include ``node_metadata`` and
 ``relationship_metadata`` in the result. Defaults to ``False``.
+- `only`: Request exactly these attributes, relationships and
+hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
+``hfid`` also requests the node's HFID. A named relationship requests only the
+peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
+with ``fragment``, each ``...on Kind`` fragment requests the names that kind
+defines and the generic does not, and is left out when there are none. Cannot
+be combined with ``include`` or ``exclude``.
 
 **Returns:**
 
-- dict\[str, Any | dict]: A query payload keyed by the node kind, ready to be
+- dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
 - rendered as GraphQL.
+
+**Raises:**
+
+- `SelectionConflictError`: If ``only`` is given together with ``include`` or ``exclude``.
+- `ValueError`: If the same name appears in both ``include`` and ``exclude``.
 
 #### `generate_query_data_node`
 
 ```python
-generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, only: list[str] | None = None) -> dict[str, Any | dict]
 ```
 
 Generate the node part of a GraphQL Query with attributes and nodes.
@@ -354,6 +366,10 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
 - `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `only`: Exactly the attributes, relationships and hierarchical fields to
+include; names this kind does not define are ignored. A named relationship requests only the peer's
+``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
+Defaults to None.
 
 **Returns:**
 
@@ -830,7 +846,7 @@ overriding the client default for this request only.
 #### `generate_query_data`
 
 ```python
-generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, fragment: bool = False, prefetch_relationships: bool = False, partial_match: bool = False, property: bool = False, order: Order | None = None, include_metadata: bool = False, only: list[str] | None = None) -> dict[str, Any | dict]
 ```
 
 Generate the full GraphQL query payload for this node kind.
@@ -860,16 +876,28 @@ properties (``source``, ``owner``, ``is_protected``, ...). Defaults to ``False``
 - `order`: Ordering options to apply to the query.
 - `include_metadata`: When ``True``, include ``node_metadata`` and
 ``relationship_metadata`` in the result. Defaults to ``False``.
+- `only`: Request exactly these attributes, relationships and
+hierarchical fields, plus ``id``, ``display_label`` and ``__typename``. Naming
+``hfid`` also requests the node's HFID. A named relationship requests only the
+peer's identity fields, unless ``prefetch_relationships`` is set. For a generic
+with ``fragment``, each ``...on Kind`` fragment requests the names that kind
+defines and the generic does not, and is left out when there are none. Cannot
+be combined with ``include`` or ``exclude``.
 
 **Returns:**
 
-- dict\[str, Any | dict]: A query payload keyed by the node kind, ready to be
+- dict[str, Any | dict]: A query payload keyed by the node kind, ready to be
 - rendered as GraphQL.
+
+**Raises:**
+
+- `SelectionConflictError`: If ``only`` is given together with ``include`` or ``exclude``.
+- `ValueError`: If the same name appears in both ``include`` and ``exclude``.
 
 #### `generate_query_data_node`
 
 ```python
-generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data_node(self, include: list[str] | None = None, exclude: list[str] | None = None, inherited: bool = True, insert_alias: bool = False, prefetch_relationships: bool = False, property: bool = False, include_metadata: bool = False, only: list[str] | None = None) -> dict[str, Any | dict]
 ```
 
 Generate the node part of a GraphQL Query with attributes and nodes.
@@ -883,6 +911,10 @@ Generate the node part of a GraphQL Query with attributes and nodes.
 - `insert_alias`: If True, inserts aliases in the query for each attribute or relationship.
 - `prefetch_relationships`: If True, pre-fetches relationship data as part of the query.
 - `include_metadata`: If True, includes node_metadata and relationship_metadata in the query.
+- `only`: Exactly the attributes, relationships and hierarchical fields to
+include; names this kind does not define are ignored. A named relationship requests only the peer's
+``id``, ``hfid``, ``display_label`` and ``__typename``, unless ``prefetch_relationships`` is set.
+Defaults to None.
 
 **Returns:**
 
@@ -1356,7 +1388,7 @@ Return the raw GraphQL payload used to build this node.
 #### `generate_query_data_init`
 
 ```python
-generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False) -> dict[str, Any | dict]
+generate_query_data_init(self, filters: dict[str, Any] | None = None, offset: int | str | None = None, limit: int | str | None = None, include: list[str] | None = None, exclude: list[str] | None = None, partial_match: bool = False, order: Order | None = None, include_metadata: bool = False, only: list[str] | None = None) -> dict[str, Any | dict]
 ```
 
 Build the top-level ``count``/``edges`` skeleton of a GraphQL query for this kind.
@@ -1379,6 +1411,10 @@ criteria. Defaults to ``False``.
 - `order`: Ordering options to apply to the query.
 - `include_metadata`: When ``True``, include ``node_metadata`` in
 the result. Defaults to ``False``.
+- `only`: The exclusive selection the query is built for. The
+``edges.node`` placeholder then carries ``id``, ``display_label`` and ``__typename``,
+plus ``hfid`` when it is named. Without ``only``, ``hfid`` is always requested.
+Cannot be combined with ``include`` or ``exclude``.
 
 **Returns:**
 
@@ -1387,4 +1423,5 @@ the result. Defaults to ``False``.
 
 **Raises:**
 
+- `SelectionConflictError`: If ``only`` is given together with ``include`` or ``exclude``.
 - `ValueError`: If the same name appears in both ``include`` and ``exclude``.

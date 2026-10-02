@@ -128,6 +128,18 @@ def validate_only(
             raise SelectionFieldNotFoundError(kind=kind, field=name, implementing_kinds=implementing_kinds)
 
 
+def implementing_kind_only(
+    only: Iterable[str], generic_schema: MainSchemaTypesAPI, implementing_schema: MainSchemaTypesAPI
+) -> list[str]:
+    """Return the names in ``only`` to request in an implementing kind's fragment of a generic query.
+
+    These are the names ``implementing_schema`` defines, inherited fields included, that ``generic_schema`` does not.
+    """
+    generic_names = _field_names(generic_schema)
+    implementing_names = _field_names(implementing_schema)
+    return [name for name in only if name not in generic_names and name in implementing_names]
+
+
 def is_attribute_selected(
     name: str,
     include: Collection[str] | None,  # noqa: ARG001  # kept so every selection helper takes the same arguments
