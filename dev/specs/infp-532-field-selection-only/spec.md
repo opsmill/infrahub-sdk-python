@@ -77,7 +77,7 @@ Having fetched references to peers, a developer hydrates a relationship with a c
 **Acceptance Scenarios**:
 
 1. **Given** a relationship whose peers carry only the identity floor, **When** the developer calls `fetch(only=["name"])`, **Then** the peers carry `name` plus the floor, and reading any other peer field raises.
-2. **Given** a relationship whose peers are of several kinds (for example group members), **When** the developer calls `fetch(only=["name"])`, **Then** the names are validated once against the relationship's declared peer kind before any request, each concrete kind is asked only for the named fields it defines, and kinds without `name` receive the identity floor.
+2. **Given** a relationship whose peers are of several kinds (for example group members), **When** the developer calls `fetch(only=["name"])`, **Then** the names are validated once against the relationship's declared peer kind before any request, each concrete kind is asked only for the named fields it defines, and kinds without `name` are not queried, so their peers stay references.
 3. **Given** `fetch(only=[...], exclude=[...])`, **When** the call is made, **Then** the mutual-exclusion error is raised before any request.
 
 ---
@@ -137,7 +137,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **FR-013**: `prefetch_relationships` MUST govern how much peer data is returned and MUST NOT affect which fields are members of the selection.
 - **FR-014**: Hierarchical fields (`parent`, `children`, `ancestors`, `descendants`) MUST be fetched under `only` solely when named, and MUST then carry the same peer identity floor as other relationships.
 - **FR-015**: The peer-hydration methods on cardinality-one and cardinality-many relationships, on both clients, MUST accept `only` and `exclude` under the same mutual-exclusion rule. They accept flat names only.
-- **FR-016**: Hydration with `only` MUST validate names once, before any request, against the relationship's declared peer kind under the FR-010 rule, and MUST request from each concrete peer kind only the named fields that kind defines.
+- **FR-016**: Hydration with `only` MUST validate names once, before any request, against the relationship's declared peer kind under the FR-010 rule, and MUST request from each concrete peer kind only the named fields that kind defines. A concrete peer kind that defines none of the named fields beyond the identity floor names MUST NOT be queried, and its peers MUST stay references.
 - **FR-017**: Under `only`, the queried node's envelope MUST request `id`, `display_label` and `__typename`, plus `hfid` only when named (FR-008). Without `only`, the envelope MUST stay as it is today (`id`, `hfid`, `display_label`, `__typename`), because the raw payload is observable through `get_raw_graphql_data()`, export files and the Ansible collection's module output. Peers MUST always request `hfid`.
 
 #### Known state
@@ -153,7 +153,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 - **FR-023**: In 1.x, a detected read on a node produced by a query with `only`, on a peer of such a node, or on a peer hydrated with `only`, MUST raise the unknown-field error instead of warning.
 - **FR-024**: A single switch point MUST turn every FR-022 warning into the unknown-field error with the same message. The switch stays on "warn" in 1.x.
 - **FR-025**: The warning MUST use a category Python shows by default (`FutureWarning`), so that it reaches developers running generators inside the Infrahub pipeline.
-- **FR-026**: The message MUST name the node's kind, the field and, when an SDK-generated query produced the node, the selection used. When no SDK-generated selection produced the node, the message MUST say the origin is unknown. When the node carries only the identity floor, the message MUST point at peer hydration. Separately, when resolving a relationship's peer fails because the peer was never fetched (the reference exists but no peer node is held), the existing not-found error MUST keep its type and its message MUST point at hydrating the relationship or using `prefetch_relationships`.
+- **FR-026**: The message MUST name the node's kind, the field and, when an SDK-generated query produced the node, the selection used, and MUST say to add the field to the selection. For a cardinality-many relationship it MUST also suggest calling `fetch()` on it. When no SDK-generated selection produced the node, the message MUST say the origin is unknown and say to fetch the node with a selection that includes the field. When the node is a peer carrying only the identity floor, the message MUST name the relationship the peer came from and point at calling `fetch()` on that relationship or querying with `prefetch_relationships=True`. Calling `fetch()` on a cardinality-one relationship that was not fetched with its node MUST raise the base `Error`, with a message that says to query the node with the relationship in its selection first. Separately, when resolving a relationship's peer fails because the peer was never fetched (the reference exists but no peer node is held), the existing not-found error MUST keep its type and its message MUST point at hydrating the relationship or using `prefetch_relationships`.
 - **FR-027**: The SDK's own reads MUST NOT trigger the warning or the error. This covers HFID computation, mutation payload generation, store indexing, path-value resolution, CLI rendering, the CLI object update command, and the JSON importer.
 
 #### Errors
@@ -168,7 +168,7 @@ The SDK maintainers turn every User Story 1 warning into the typed error by chan
 #### General
 
 - **FR-031**: The async and sync clients MUST produce identical queries for identical arguments, and MUST warn and raise identically.
-- **FR-032**: Every first-party call site that narrows a query MUST use `only`: relationship peer hydration (two sites, which today pass `include=[name]` plus an exhaustive `exclude`), the CLI generator group lookup, the CLI check group lookup, query groups (two sites), and the client repository lookup (an explicit six-field `include`).
+- **FR-032**: Every first-party call site that narrows a query MUST use `only`: relationship peer hydration (two sites, which today pass `include=[name]` plus an exhaustive `exclude`), the CLI generator group lookup, the CLI check group lookup, and query groups (two sites). The client repository lookup keeps its explicit `include`: the repository nodes it returns are public API, and under `only` reading any of their other fields would raise.
 - **FR-033**: The documentation MUST describe all three selection modes, the identity floor, known-state access and the 1.x/2.0 timeline. It MUST correct the description of `include`'s peer behaviour and the unfetched-relationship example in the query guide, which currently shows `[]` as the expected result.
 
 ### Key Entities

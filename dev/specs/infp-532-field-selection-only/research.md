@@ -65,7 +65,7 @@ Phase 0 output for [plan.md](plan.md). Each entry records a decision, the reason
 **Decision**:
 
 - `FieldNotLoadedWarning(FutureWarning)` lives in `infrahub_sdk.exceptions`, next to the errors. Subclassing `FutureWarning` keeps it visible under Python's default filters (FR-025). A dedicated class lets consumers opt into strictness early with `-W error::infrahub_sdk.exceptions.FieldNotLoadedWarning`.
-- The message names the kind, the field and the selection, and **not** the node id, e.g. `InfraDevice.description was not fetched (selection: exclude=['description']). Add it to the selection, or call fetch(), before reading it.` In 1.x the warning appends `This will raise FieldNotLoadedError in infrahub-sdk 2.0.`
+- The message names the kind, the field and the selection, and **not** the node id, for example `InfraDevice.description was not fetched (selection: exclude=['description']). Add it to the selection before reading it.` In 1.x the warning appends `This will raise FieldNotLoadedError in infrahub-sdk 2.0.`
 - `stacklevel` is computed by walking the stack to the first frame outside the `infrahub_sdk` package, so the warning points at the caller's line.
 
 **Rationale**: Python de-duplicates warnings by `(text, category, lineno)` per module. Leaving the id out of the text means a loop over 1,000 nodes reports once per call site rather than 1,000 times. Python 3.12's `skip_file_prefixes` would do the stack walk for us, but the SDK supports 3.10.
@@ -160,6 +160,7 @@ The async and sync generators keep their own loops, because peer schemas are fet
 - `RelatedNode.fetch(timeout=None, priority=None, only=None, exclude=None)` and `RelationshipManager.fetch(only=None, exclude=None)`, with identical sync counterparts. New parameters are keyword arguments appended at the end.
 - Mutual exclusion is checked first.
 - When `only` is given, it is validated once against the relationship's declared peer kind (`schema.peer`) using the FR-010 rule (on the generic or any implementing kind; fragments don't apply because concrete kinds are queried). Then each concrete peer kind receives `only` filtered to the names that kind defines.
+- A concrete peer kind that defines none of the named fields beyond the identity floor names is not queried, and its peers stay references, because they already hold everything that query would return.
 - `RelationshipManager.fetch` on an uninitialized manager re-queries the parent with `only=[name]` (FR-032), replacing `include=[name]` plus an exhaustive `exclude`.
 - Peers hydrated with `only` come from `filters(only=...)`, so their nodes carry a strict selection automatically.
 
@@ -193,10 +194,12 @@ The async and sync generators keep their own loops, because peer schemas are fet
 | `ctl/generator.py` group lookup | `only=["members"]` |
 | `ctl/check.py` group lookup | `only=["members"]` |
 | `query_groups.py` `get_group` (async, sync) | `only=["members"]`. Members only need `id`/`typename` |
-| `client.get_list_repositories` (async, sync) | `only=["name", "location", "commit", "ref", "internal_status"]` with `fragment=True`. `id` is part of the floor. The Infrahub server's only consumer (`backend/infrahub/git/base.py`) reads just the commit map |
+| `client.get_list_repositories` (async, sync) | Unchanged: keeps its explicit `include` with `fragment=True` (see the note below) |
 | `ctl/formatters/base.py`, `ctl/formatters/yaml.py` (and table/csv/json through them) | Skip fields whose `is_loaded` is false (FR-030) |
-| `ctl/object/update.py` `_apply_relationship` | Run under internal access. It edits an uninitialized manager's peer list in place |
+| `ctl/object/update.py` `_apply_relationship` | Replace the peer list and mark the manager initialized, so the mutation sends the new peers even when the relationship was never fetched |
 | `transfer/importer/json.py` `remove_and_store_optional_relationships` | Check `is_loaded` before `peer_ids`. Nodes built from exported default-selection GraphQL have unknown cardinality-many relationships, which are handled separately through `relationships.json` |
+
+`client.get_list_repositories` keeps its explicit `include`, because the repository nodes it returns are public API and, under `only`, reading any of their other fields would raise `FieldNotLoadedError`.
 
 **Rollout note (outside this repository)**: the Infrahub server, the Ansible collection and `infrahub-sync` all use this SDK. In 1.x they will log `FieldNotLoadedWarning` wherever they read fields they never fetched. Running their test suites with `-W error::infrahub_sdk.exceptions.FieldNotLoadedWarning` against this release is the cheapest way to size the 2.0 impact. This belongs in the release notes, not in this change.
 

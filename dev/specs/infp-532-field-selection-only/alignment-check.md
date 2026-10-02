@@ -29,3 +29,13 @@ No requirement, goal, acceptance criterion or non-goal from the brief or PRD was
 ## Action
 
 Proceed to implementation with no remediation pass (counter: 0 of 2). A1 is surfaced prominently in the completion summary for the maintainer to confirm.
+
+## Post-implementation changes
+
+Three deviations from the reviewed spec surfaced during implementation. `spec.md`, `contracts/public-api.md` and `research.md` now describe the final behaviour.
+
+| # | Change | Spec reference | Reason |
+|---|--------|----------------|--------|
+| P1 | The client repository lookup keeps its explicit `include` and doesn't use `only`. | FR-032, research R16 | The repository nodes it returns are public API. Under `only`, reading any field outside the five it names would raise `FieldNotLoadedError` for every caller. |
+| P2 | Hydration with `only` doesn't query a peer kind that defines none of the named fields beyond the identity floor names, and its peers stay references. | FR-016, User Story 3 scenario 2, research R12 | Such a query would only return the identity fields the references already hold, so it would cost a request and add nothing. |
+| P3 | The unknown-field messages take their final form. The advice depends on the field, a peer carrying only the identity floor names the relationship it came from, and `fetch()` on a relationship that wasn't fetched raises `Error` that says to select it first. | FR-026, contracts "Message format" | The first wording suggested `fetch()` for attributes and cardinality-one relationships, which can't be fetched on their own, and the peer message didn't say which relationship to call `fetch()` on. |
