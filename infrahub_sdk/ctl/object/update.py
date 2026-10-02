@@ -25,6 +25,7 @@ from infrahub_sdk.spec.object import ObjectFile
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.node.related_node import RelatedNodeSync
     from infrahub_sdk.node.relationship import RelationshipManager
     from infrahub_sdk.schema import MainSchemaTypesAPI
 
@@ -190,8 +191,6 @@ def _relationship_changed(
     return True
 
 
-# Edits the peer list in place, including that of a relationship that was never fetched.
-@with_internal_field_access
 def _apply_relationship(
     node: InfrahubNode,
     key: str,
@@ -201,8 +200,8 @@ def _apply_relationship(
     """Set a relationship value using the proper InfrahubNode API.
 
     For cardinality-one, ``__setattr__`` correctly creates a ``RelatedNode``.
-    For cardinality-many, directly manipulate the ``RelationshipManager``
-    to avoid overwriting it via ``object.__setattr__``.
+    For cardinality-many, replace the peers of the ``RelationshipManager`` and mark it as
+    holding the full new set, so the mutation sends it even when the relationship was never fetched.
     """
     rel_schema = schema.get_relationship(key)
     if rel_schema.cardinality == RelationshipCardinality.ONE:
@@ -212,20 +211,14 @@ def _apply_relationship(
     # Cardinality many: access the RelationshipManager from internal storage
     many_data: dict[str, RelationshipManager] = getattr(node, "_relationship_cardinality_many_data", {})
     rel_manager = many_data.get(key)
-    if rel_manager is None or not hasattr(rel_manager, "peers"):
+    if rel_manager is None:
         return
 
-    client = node._client
-    branch: str = node._branch
-
-    rel_manager.peers.clear()
     items = new_value if isinstance(new_value, list) and new_value and isinstance(new_value[0], list) else [new_value]
-    for item in items:
-        peer = RelatedNode(
-            name=rel_schema.name,
-            branch=branch,
-            client=client,
-            schema=rel_schema,
-            data=item,
-        )
-        rel_manager.peers.append(peer)
+    peers: list[RelatedNode[InfrahubNode] | RelatedNodeSync[InfrahubNode]] = [
+        RelatedNode(name=rel_schema.name, branch=node._branch, client=node._client, schema=rel_schema, data=item)
+        for item in items
+    ]
+    rel_manager.peers = peers
+    rel_manager.initialized = True
+    rel_manager._has_update = True

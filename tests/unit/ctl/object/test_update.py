@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.ctl.cli_commands import app
-from tests.unit.sdk.test_node_field_access import LOCATION_ID, location_payload, no_field_warning
+from tests.unit.sdk.test_node_field_access import LOCATION_ID, location_payload, mutation_input, no_field_warning
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -307,13 +307,13 @@ def test_update_malformed_set_arg(bad_arg: str) -> None:
     assert result.exit_code != 0
 
 
-def test_update_cardinality_many_relationship_of_default_selection_node_is_silent(
+def test_update_cardinality_many_relationship_of_default_selection_node_sends_the_new_peers(
     httpx_mock: HTTPXMock,
     monkeypatch: pytest.MonkeyPatch,
     location_schema: NodeSchemaAPI,
     tag_schema: NodeSchemaAPI,
 ) -> None:
-    """Updating a relationship the default selection did not fetch reads no unknown field."""
+    """Updating a relationship the default selection did not fetch sends the new peers and reads no unknown field."""
     client = InfrahubClient(config=Config(address="http://mock", insert_tracker=True))
     client.schema.set_cache({"version": "1.0", "nodes": [location_schema.model_dump(), tag_schema.model_dump()]})
     monkeypatch.setattr("infrahub_sdk.ctl.object.update.initialize_client", lambda **_: client)
@@ -335,7 +335,9 @@ def test_update_cardinality_many_relationship_of_default_selection_node_is_silen
 
     assert result.exit_code == 0, result.stdout
     assert result.stdout.splitlines() == ["Updated BuiltinLocation 'DFW' successfully.", "  tags: -> blue"]
-    assert [request.headers["X-Infrahub-Tracker"] for request in httpx_mock.get_requests()] == [
+    requests = httpx_mock.get_requests()
+    assert [request.headers["X-Infrahub-Tracker"] for request in requests] == [
         "query-builtinlocation-page1",
         "mutation-builtinlocation-update",
     ]
+    assert mutation_input(requests[1]) == {"tags": [{"hfid": ["blue"]}], "id": LOCATION_ID}
