@@ -1,0 +1,1 @@
+Fixed `infrahubctl object update --set` for a relationship of cardinality many that isn't part of the default set of fields. The command reported the update as successful, but the mutation left out the new peers, so the relationship didn't change on the server. The mutation now sends the new peer list.
