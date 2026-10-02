@@ -65,15 +65,35 @@ class NumberAttributeParametersRead(AttributeParametersRead):
     )
 
 
+class NumberPoolRangeRead(BaseModel):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    start: int = Field(
+        ...,
+        description="First number of the range",
+    )
+    end: int = Field(
+        ...,
+        description="Last number of the range",
+    )
+    weight: int | None = Field(
+        default=None,
+        description="Ranges with a higher weight are allocated from first",
+    )
+
+
 class NumberPoolParametersRead(AttributeParametersRead):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
-    end_range: int = Field(
-        default=9223372036854775807,
-        description="End range for numbers for the associated NumberPool",
+    end_range: int | None = Field(
+        default=None,
+        description="Deprecated, use ranges instead. End of the single range, defaults to the largest supported number when only start_range is set",
     )
-    start_range: int = Field(
-        default=1,
-        description="Start range for numbers for the associated NumberPool",
+    start_range: int | None = Field(
+        default=None,
+        description="Deprecated, use ranges instead. Start of the single range, defaults to 1 when only end_range is set",
+    )
+    ranges: list[NumberPoolRangeRead] = Field(
+        default_factory=list,
+        description="Ranges of numbers the associated NumberPool allocates from, they must not overlap",
     )
     number_pool_id: str | None = Field(
         default=None,
