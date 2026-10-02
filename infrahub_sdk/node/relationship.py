@@ -12,6 +12,7 @@ from ..types import Order
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
+from .selection import check_selection_conflict, peer_kind_only
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -284,26 +285,42 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         self._check_loaded()
         return cast("RelatedNode[PeerT]", self._peers[item])
 
-    async def fetch(self) -> None:
+    async def fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None:
         """Populate the peer set and resolve every peer to a full node.
 
-        When the manager is not yet initialized, the parent node is re-queried with this
-        relationship included so the peer list can be populated. The peers are then
-        fetched in a parallel batch grouped by kind and stored in the client store.
+        When the manager is not yet initialized, the parent node is re-queried for this
+        relationship alone so the peer list can be populated. The peers are then fetched in
+        a parallel batch, one query per peer kind, and stored in the client store.
+
+        Args:
+            only (list[str], optional): Exactly the peer attributes and relationships to query,
+                plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+                the relationship's peer kind or of a kind implementing it, and each peer kind is
+                asked for the names it defines. Reading any other field of a fetched peer raises
+                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+            exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
+            SelectionConflictError: If ``only`` is combined with ``exclude``.
+            SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
+                nor of any kind implementing it.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
+        check_selection_conflict(None, exclude, only)
+        if only is not None:
+            await self.client._get_schema_for_selection(
+                kind=self.schema.peer, branch=self.branch, include=None, exclude=None, only=only, fragment=True
+            )
+
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
+            # The narrow parent is not stored, so it never replaces a fuller copy of the node in the store.
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+                populate_store=False,
+                only=[self.schema.name],
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm.peers
@@ -317,6 +334,11 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         batch = await self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
+            kind_only = (
+                None
+                if only is None
+                else peer_kind_only(only, await self.client.schema.get(kind=kind, branch=self.branch))
+            )
             batch.add(
                 task=self.client.filters,
                 kind=kind,
@@ -325,6 +347,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
+                exclude=exclude,
+                only=kind_only,
             )
 
         async for _ in batch.execute():
@@ -486,26 +510,42 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         self._check_loaded()
         return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
-    def fetch(self) -> None:
+    def fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None:
         """Populate the peer set and resolve every peer to a full node.
 
-        When the manager is not yet initialized, the parent node is re-queried with this
-        relationship included so the peer list can be populated. The peers are then
-        fetched in a parallel batch grouped by kind and stored in the client store.
+        When the manager is not yet initialized, the parent node is re-queried for this
+        relationship alone so the peer list can be populated. The peers are then fetched in
+        a parallel batch, one query per peer kind, and stored in the client store.
+
+        Args:
+            only (list[str], optional): Exactly the peer attributes and relationships to query,
+                plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+                the relationship's peer kind or of a kind implementing it, and each peer kind is
+                asked for the names it defines. Reading any other field of a fetched peer raises
+                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+            exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
+            SelectionConflictError: If ``only`` is combined with ``exclude``.
+            SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
+                nor of any kind implementing it.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
+        check_selection_conflict(None, exclude, only)
+        if only is not None:
+            self.client._get_schema_for_selection(
+                kind=self.schema.peer, branch=self.branch, include=None, exclude=None, only=only, fragment=True
+            )
+
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
+            # The narrow parent is not stored, so it never replaces a fuller copy of the node in the store.
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+                populate_store=False,
+                only=[self.schema.name],
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm.peers
@@ -519,6 +559,9 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         batch = self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
+            kind_only = (
+                None if only is None else peer_kind_only(only, self.client.schema.get(kind=kind, branch=self.branch))
+            )
             batch.add(
                 task=self.client.filters,
                 kind=kind,
@@ -527,6 +570,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
+                exclude=exclude,
+                only=kind_only,
             )
 
         for _ in batch.execute():

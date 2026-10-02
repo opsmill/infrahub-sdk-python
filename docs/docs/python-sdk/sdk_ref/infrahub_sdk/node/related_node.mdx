@@ -190,7 +190,7 @@ around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None, exclude: list[str] | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -203,9 +203,18 @@ available via :attr:`peer` or :meth:`get`.
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
 - `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
+- `only`: Exactly the peer attributes and relationships to query,
+plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+the relationship's peer kind or of a kind implementing it, and the peer is asked
+for the names its own kind defines. Reading any other field of the peer raises
+``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+- `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
 
+- `SelectionConflictError`: If ``only`` is combined with ``exclude``.
+- `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
+nor of any kind implementing it.
 - `Error`: If neither ``id`` nor ``typename`` is set on this related node.
 
 #### `peer`
@@ -265,7 +274,7 @@ store, and :attr:`peer` is a convenience accessor around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None, exclude: list[str] | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -278,9 +287,18 @@ available via :attr:`peer` or :meth:`get`.
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
 - `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
+- `only`: Exactly the peer attributes and relationships to query,
+plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+the relationship's peer kind or of a kind implementing it, and the peer is asked
+for the names its own kind defines. Reading any other field of the peer raises
+``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+- `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
 
+- `SelectionConflictError`: If ``only`` is combined with ``exclude``.
+- `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
+nor of any kind implementing it.
 - `Error`: If neither ``id`` nor ``typename`` is set on this related node.
 
 #### `peer`

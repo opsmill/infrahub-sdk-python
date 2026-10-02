@@ -139,17 +139,29 @@ accessed by index via ``manager[i]``.
 #### `fetch`
 
 ```python
-fetch(self) -> None
+fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None
 ```
 
 Populate the peer set and resolve every peer to a full node.
 
-When the manager is not yet initialized, the parent node is re-queried with this
-relationship included so the peer list can be populated. The peers are then
-fetched in a parallel batch grouped by kind and stored in the client store.
+When the manager is not yet initialized, the parent node is re-queried for this
+relationship alone so the peer list can be populated. The peers are then fetched in
+a parallel batch, one query per peer kind, and stored in the client store.
+
+**Args:**
+
+- `only`: Exactly the peer attributes and relationships to query,
+plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+the relationship's peer kind or of a kind implementing it, and each peer kind is
+asked for the names it defines. Reading any other field of a fetched peer raises
+``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+- `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
 
+- `SelectionConflictError`: If ``only`` is combined with ``exclude``.
+- `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
+nor of any kind implementing it.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -230,17 +242,29 @@ accessed by index via ``manager[i]``.
 #### `fetch`
 
 ```python
-fetch(self) -> None
+fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None
 ```
 
 Populate the peer set and resolve every peer to a full node.
 
-When the manager is not yet initialized, the parent node is re-queried with this
-relationship included so the peer list can be populated. The peers are then
-fetched in a parallel batch grouped by kind and stored in the client store.
+When the manager is not yet initialized, the parent node is re-queried for this
+relationship alone so the peer list can be populated. The peers are then fetched in
+a parallel batch, one query per peer kind, and stored in the client store.
+
+**Args:**
+
+- `only`: Exactly the peer attributes and relationships to query,
+plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+the relationship's peer kind or of a kind implementing it, and each peer kind is
+asked for the names it defines. Reading any other field of a fetched peer raises
+``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+- `exclude`: Peer attributes or relationships to leave out of the query.
 
 **Raises:**
 
+- `SelectionConflictError`: If ``only`` is combined with ``exclude``.
+- `SelectionFieldNotFoundError`: If a name in ``only`` is neither a field of the peer kind
+nor of any kind implementing it.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`

@@ -128,6 +128,12 @@ def validate_only(
             raise SelectionFieldNotFoundError(kind=kind, field=name, implementing_kinds=implementing_kinds)
 
 
+def peer_kind_only(only: Iterable[str], peer_schema: MainSchemaTypesAPI) -> list[str]:
+    """Return the names in ``only`` that ``peer_schema`` defines, identity floor names included."""
+    valid_names = _field_names(peer_schema) | IDENTITY_FLOOR_NAMES
+    return [name for name in only if name in valid_names]
+
+
 def implementing_kind_only(
     only: Iterable[str], generic_schema: MainSchemaTypesAPI, implementing_schema: MainSchemaTypesAPI
 ) -> list[str]:

@@ -9,6 +9,7 @@ from ..exceptions import Error, NodeInvalidError, NodeNotFoundError
 from ..protocols_base import CoreNodeBase
 from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
+from .selection import check_selection_conflict, peer_kind_only
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
@@ -410,7 +411,13 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    async def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
+    async def fetch(
+        self,
+        timeout: int | None = None,
+        priority: Priority | None = None,
+        only: list[str] | None = None,
+        exclude: list[str] | None = None,
+    ) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -420,16 +427,39 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): Exactly the peer attributes and relationships to query,
+                plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+                the relationship's peer kind or of a kind implementing it, and the peer is asked
+                for the names its own kind defines. Reading any other field of the peer raises
+                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+            exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
+            SelectionConflictError: If ``only`` is combined with ``exclude``.
+            SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
+                nor of any kind implementing it.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        check_selection_conflict(None, exclude, only)
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        if only is not None:
+            await self._client._get_schema_for_selection(
+                kind=self.schema.peer, branch=self._branch, include=None, exclude=None, only=only, fragment=True
+            )
+            only = peer_kind_only(only, await self._client.schema.get(kind=self.typename, branch=self._branch))
+
         self._peer = await self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            exclude=exclude,
+            only=only,
         )
 
     @property
@@ -517,7 +547,13 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
+    def fetch(
+        self,
+        timeout: int | None = None,
+        priority: Priority | None = None,
+        only: list[str] | None = None,
+        exclude: list[str] | None = None,
+    ) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -527,16 +563,39 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): Exactly the peer attributes and relationships to query,
+                plus ``id``, ``display_label`` and ``__typename``. Each name must be a field of
+                the relationship's peer kind or of a kind implementing it, and the peer is asked
+                for the names its own kind defines. Reading any other field of the peer raises
+                ``FieldNotLoadedError``. Cannot be combined with ``exclude``.
+            exclude (list[str], optional): Peer attributes or relationships to leave out of the query.
 
         Raises:
+            SelectionConflictError: If ``only`` is combined with ``exclude``.
+            SelectionFieldNotFoundError: If a name in ``only`` is neither a field of the peer kind
+                nor of any kind implementing it.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        check_selection_conflict(None, exclude, only)
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        if only is not None:
+            self._client._get_schema_for_selection(
+                kind=self.schema.peer, branch=self._branch, include=None, exclude=None, only=only, fragment=True
+            )
+            only = peer_kind_only(only, self._client.schema.get(kind=self.typename, branch=self._branch))
+
         self._peer = self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            exclude=exclude,
+            only=only,
         )
 
     @property

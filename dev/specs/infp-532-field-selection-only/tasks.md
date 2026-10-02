@@ -222,7 +222,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Tests for User Story 3 (write first; they must fail before T040)
 
-- [ ] T039 [P] [US3] In `tests/unit/sdk/test_node_hydration.py`, write tests on both clients:
+- [X] T039 [P] [US3] In `tests/unit/sdk/test_node_hydration.py`, write tests on both clients:
   - (a) `RelatedNode.fetch(only=["name"])` sends one query for the peer's concrete typename selecting `name` plus the floor. The peer then raises `FieldNotLoadedError` on another attribute.
   - (b) `RelationshipManager.fetch(only=["name"])` on members of two kinds, one lacking `name`, sends one `filters` query per kind. The kind lacking `name` selects the floor only.
   - (c) An unknown name raises `SelectionFieldNotFoundError` with no GraphQL request sent.
@@ -232,13 +232,13 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Implementation for User Story 3
 
-- [ ] T040 [US3] In `infrahub_sdk/node/relationship.py`, give `RelationshipManager.fetch` and `RelationshipManagerSync.fetch` the signature `fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None`. Then:
+- [X] T040 [US3] In `infrahub_sdk/node/relationship.py`, give `RelationshipManager.fetch` and `RelationshipManagerSync.fetch` the signature `fetch(self, only: list[str] | None = None, exclude: list[str] | None = None) -> None`. Then:
   - Call `check_selection_conflict(None, exclude, only)`.
   - When `only is not None`, resolve the declared peer schema (`self.client.schema.get(kind=self.schema.peer, branch=self.branch)`) and its implementing schemas, then call `validate_only(..., fragment=True)` once.
   - Replace the uninitialized re-query with `only=[self.schema.name]`.
   - Per concrete kind, resolve its schema and pass `only=[n for n in only if n is a field of that kind]` (or `exclude=exclude`) to the batched `client.filters`.
   - Update the docstrings.
-- [ ] T041 [US3] In `infrahub_sdk/node/related_node.py`, give `RelatedNode.fetch` and `RelatedNodeSync.fetch` the signature `fetch(self, timeout=None, priority=None, only: list[str] | None = None, exclude: list[str] | None = None)`. Apply the same conflict check, validation against `self.schema.peer` and filtering to `self.typename`'s fields, then pass `only` or `exclude` to `client.get`. Update the docstrings. Make T039 pass.
+- [X] T041 [US3] In `infrahub_sdk/node/related_node.py`, give `RelatedNode.fetch` and `RelatedNodeSync.fetch` the signature `fetch(self, timeout=None, priority=None, only: list[str] | None = None, exclude: list[str] | None = None)`. Apply the same conflict check, validation against `self.schema.peer` and filtering to `self.typename`'s fields, then pass `only` or `exclude` to `client.get`. Update the docstrings. Make T039 pass.
 
 **Checkpoint**: User Stories 1–3 all work on their own.
 
