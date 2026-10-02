@@ -340,5 +340,6 @@ def test_catch_exception_renders_typer_abort_as_an_unhandled_error() -> None:
     result = runner.invoke(app, [])
     stdout = remove_ansi_color(result.stdout)
 
+    assert result.exit_code == 1
     assert "human-readable failure message" in stdout
     assert "Traceback" in stdout, "the tail branch dumps one, which is what `typer.Exit` avoids"

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 from infrahub_sdk import exceptions
 from infrahub_sdk.exceptions import authentication_error_from_response, base, catalogue, graphql_error_from_response
 from tests.helpers.fixtures import read_fixture
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def load_snapshot() -> set[str]:
@@ -27,12 +31,12 @@ def star_imported_names() -> dict[str, object]:
     return {name: value for name, value in namespace.items() if not name.startswith("__")}
 
 
-def classes_defined_in(module: object) -> set[str]:
+def classes_defined_in(module: ModuleType) -> set[str]:
     """The exception classes a module defines itself, ignoring any it merely imported."""
     return {
         name
         for name, value in vars(module).items()
-        if isinstance(value, type) and issubclass(value, BaseException) and value.__module__ == module.__name__  # type: ignore[attr-defined]
+        if isinstance(value, type) and issubclass(value, BaseException) and value.__module__ == module.__name__
     }
 
 

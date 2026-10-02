@@ -13,7 +13,7 @@ than asserted.
 
 | Intent | Clause |
 |--------|--------|
-| Anything the server rejected, on either transport | `except ApiError` |
+| Any failure carrying a parsed error envelope, on either transport | `except ApiError` |
 | Any GraphQL-path failure | `except GraphQLError` |
 | Any failure the SDK observed as HTTP 401 or 403 | `except AuthenticationError` |
 | One specific catalogued failure | `except UniquenessViolationError` (and so on per code) |

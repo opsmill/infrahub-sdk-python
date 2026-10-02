@@ -28,7 +28,7 @@ message.
 
 ```text
 Error                            every exception the SDK raises
-└── ApiError                     the server rejected the request
+└── ApiError                     a failure carrying a parsed error envelope
     ├── AuthenticationError      the request was rejected before it ran
     └── GraphQLError             a failure read from an `errors` array
         ├── NodeNotFoundError
@@ -51,7 +51,7 @@ which is usually an HTTP 401 or 403 but also a token refresh that failed on any 
 
 | Intent | Clause |
 |--------|--------|
-| Anything the server rejected, on either transport | `except ApiError` |
+| Any failure carrying a parsed error envelope, on either transport | `except ApiError` |
 | Any GraphQL-path failure | `except GraphQLError` |
 | Any request the SDK saw rejected before it ran | `except AuthenticationError` |
 | One specific catalogued failure | `except UniquenessViolationError`, and so on per code |
@@ -136,6 +136,17 @@ catalogue declares them. `NodeNotFoundError`, `BranchNotFoundError`, and `Schema
 exception: the SDK also raises those three on its own, for a lookup that returned nothing and for the
 REST 404 behind a missing file, so their attributes may be unpopulated. Test `exc.code is not None` to
 tell a server-reported raise from an SDK one.
+
+Those same three predate the catalogue, so they keep the attribute names they have always had rather
+than the ones the catalogue declares:
+
+| Class | Catalogue field | Read it as |
+|-------|-----------------|------------|
+| `NodeNotFoundError` | `node_kind` | `exc.node_type` |
+| `BranchNotFoundError` | `branch_name` | `exc.identifier` |
+| `SchemaNotFoundError` | `kind` | `exc.identifier` |
+
+Every generated class uses the catalogue's own field names, so only these three need the mapping.
 
 The raw payload stays in `exc.extensions["data"]` for anything that forwards a failure verbatim.
 
