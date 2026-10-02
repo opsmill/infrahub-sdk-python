@@ -36,9 +36,9 @@ _WARNING_SUFFIX = "This will raise FieldNotLoadedError in infrahub-sdk 2.0."
 
 @contextmanager
 def internal_field_access() -> Iterator[None]:
-    """Silence unknown-read reporting for the SDK's own reads within the block.
+    """Silence unknown-read reporting for reads the SDK makes itself within the block.
 
-    The block must not create asyncio tasks or call user code: both would inherit the silenced context.
+    The block must not start async tasks or call user code: both would inherit the silenced context.
     """
     token = _INTERNAL_ACCESS.set(True)
     try:

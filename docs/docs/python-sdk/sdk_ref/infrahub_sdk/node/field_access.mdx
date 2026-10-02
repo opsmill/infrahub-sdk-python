@@ -1,0 +1,48 @@
+---
+title: field_access
+sidebarTitle: field_access
+---
+
+# `infrahub_sdk.node.field_access`
+
+Reporting of reads of node fields whose value the SDK never fetched.
+
+## Functions
+
+### `internal_field_access`
+
+```python
+internal_field_access() -> Iterator[None]
+```
+
+Silence unknown-read reporting for reads the SDK makes itself within the block.
+
+The block must not start async tasks or call user code: both would inherit the silenced context.
+
+### `with_internal_field_access`
+
+```python
+with_internal_field_access(func: Callable[P, R]) -> Callable[P, R]
+```
+
+Run ``func``, a plain function or a coroutine function, under :func:`internal_field_access`.
+
+### `build_unloaded_message`
+
+```python
+build_unloaded_message(kind: str, field: str, selection: Selection | None) -> str
+```
+
+Return the message for an unknown read of ``<kind>.<field>``, without the node id.
+
+### `report_unloaded_read`
+
+```python
+report_unloaded_read(kind: str, field: str, selection: Selection | None, strict: bool) -> None
+```
+
+Report a read of a field the SDK does not know: silent for internal reads, else raise or warn.
+
+**Raises:**
+
+- `FieldNotLoadedError`: If strict field access is switched on, or ``strict`` is set for the node.

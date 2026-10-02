@@ -1,0 +1,110 @@
+---
+title: selection
+sidebarTitle: selection
+---
+
+# `infrahub_sdk.node.selection`
+
+Field selection of SDK-generated node queries: the recorded selection, ``only`` validation and selection rules.
+
+## Functions
+
+### `check_selection_conflict`
+
+```python
+check_selection_conflict(include: Collection[str] | None, exclude: Collection[str] | None, only: Collection[str] | None) -> None
+```
+
+Reject ``only`` combined with ``include`` or ``exclude``, even when those lists are empty.
+
+**Raises:**
+
+- `SelectionConflictError`: If ``only`` is given together with ``include`` or ``exclude``.
+
+### `validate_only`
+
+```python
+validate_only(only: Iterable[str], schema: MainSchemaTypesAPI, implementing_schemas: Sequence[MainSchemaTypesAPI], fragment: bool, kind: str) -> None
+```
+
+Check that every name in ``only`` resolves to a field of ``schema``.
+
+For a generic schema, a name that only the implementing kinds define is accepted when ``fragment`` is set.
+
+**Raises:**
+
+- `SelectionFieldNotFoundError`: If a name resolves nowhere, or only on implementing kinds without ``fragment``.
+
+### `peer_kind_only`
+
+```python
+peer_kind_only(only: Iterable[str], peer_schema: MainSchemaTypesAPI) -> list[str]
+```
+
+Return the names in ``only`` that ``peer_schema`` defines, identity floor names included.
+
+### `implementing_kind_only`
+
+```python
+implementing_kind_only(only: Iterable[str], generic_schema: MainSchemaTypesAPI, implementing_schema: MainSchemaTypesAPI) -> list[str]
+```
+
+Return the names in ``only`` to request in an implementing kind's fragment of a generic query.
+
+These are the names ``implementing_schema`` defines, inherited fields included, that ``generic_schema`` does not.
+
+### `is_attribute_selected`
+
+```python
+is_attribute_selected(name: str, include: Collection[str] | None, exclude: Collection[str] | None, only: Collection[str] | None) -> bool
+```
+
+### `is_relationship_selected`
+
+```python
+is_relationship_selected(rel_schema: RelationshipSchemaAPI, include: Collection[str] | None, exclude: Collection[str] | None, only: Collection[str] | None) -> bool
+```
+
+### `should_expand_peer`
+
+```python
+should_expand_peer(rel_name: str, include: Collection[str] | None, only: Collection[str] | None, prefetch_relationships: bool) -> bool
+```
+
+### `is_hierarchical_selected`
+
+```python
+is_hierarchical_selected(name: str, include: Collection[str] | None, exclude: Collection[str] | None, only: Collection[str] | None, prefetch_relationships: bool) -> bool
+```
+
+## Classes
+
+### `Selection`
+
+The selection of the SDK-generated query that produced a node.
+
+``strict`` is ``True`` when the selection came from ``only``, directly or through a parent query.
+``peer_of`` names the ``<Kind>.<relationship>`` a peer node was built from, and ``peer_floor`` marks
+a peer that only carries the identity floor.
+
+**Methods:**
+
+#### `from_args`
+
+```python
+from_args(cls, include: Iterable[str] | None = None, exclude: Iterable[str] | None = None, only: Iterable[str] | None = None) -> Selection
+```
+
+#### `for_peer`
+
+```python
+for_peer(parent: Selection, parent_kind: str, rel_name: str, peer_floor: bool = False) -> Selection
+```
+
+#### `describe`
+
+```python
+describe(self) -> str
+```
+
+Return the label used in messages, such as ``only=['name']`` or ``default selection``.
