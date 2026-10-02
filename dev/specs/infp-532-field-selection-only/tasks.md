@@ -46,30 +46,30 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
 
 ### Tests (write first; they must fail before T007–T009)
 
-- [ ] T004 [P] Write `tests/unit/sdk/test_field_access.py`, covering:
+- [X] T004 [P] Write `tests/unit/sdk/test_field_access.py`, covering:
   - (a) `build_unloaded_message(kind, field, selection)` returns exactly the three message forms in `contracts/public-api.md` § Message format: SDK selection, `Selection` with `peer_floor=True`, and `None` (origin unknown).
   - (b) `report_unloaded_read(...)` with strict off emits `FieldNotLoadedWarning` whose text is the message plus the 1.x suffix, and whose `filename` is this test file. That second point proves the stack level skips `infrahub_sdk` frames.
   - (c) With strict on, or with `strict=True` passed for the node, it raises `FieldNotLoadedError` with `.kind`, `.field`, `.selection` set and the message without the suffix.
   - (d) Inside `internal_field_access()` it neither warns nor raises, including from an `async def` decorated with the decorator.
   - (e) Two reports from the same call site with different node ids produce one warning under the default filter: run them in a `warnings.catch_warnings()` block with `simplefilter("default")` and assert `len(record) == 1`.
-- [ ] T005 [P] Write `tests/unit/sdk/test_selection.py`, covering:
+- [X] T005 [P] Write `tests/unit/sdk/test_selection.py`, covering:
   - `check_selection_conflict` raises `SelectionConflictError` (with `.parameters`) for `only` with `include=[]`, `include=[...]`, `exclude=[]` and `exclude=[...]`, and passes for `only` alone and for `include` with `exclude`.
   - `validate_only` accepts attribute, relationship, hierarchical (when `supports_hierarchy`) and floor names. It raises `SelectionFieldNotFoundError` naming the field for unknown names. For a generic, it accepts implementing-kind-only names when `fragment=True` and, when `fragment=False`, raises with `.implementing_kinds` set and a message mentioning `fragment=True`.
   - `Selection.describe()` returns `only=['name']`, `exclude=['description']`, `include=['tags'], exclude=['description']`, `default selection`, and the peer form `peer of InfraDevice.site, fetched with only=['site']`. `Selection.for_peer(...)` copies `strict`.
   - The decision helpers (`is_attribute_selected`, `is_relationship_selected`, `should_expand_peer`, `is_hierarchical_selected`) implement the rules in `research.md` R9, including today's rules when `only is None`.
-- [ ] T006 [P] Write tests in `tests/unit/sdk/test_exceptions.py` (create if absent) asserting that `FieldNotLoadedError`, `SelectionFieldNotFoundError` and `SelectionConflictError` are direct subclasses of `Error` (`__bases__ == (Error,)`) and are not subclasses of `AttributeError`, `UninitializedError` or `ValueError`. Also assert that `FieldNotLoadedWarning` subclasses `FutureWarning`.
+- [X] T006 [P] Write tests in `tests/unit/sdk/test_exceptions.py` (create if absent) asserting that `FieldNotLoadedError`, `SelectionFieldNotFoundError` and `SelectionConflictError` are direct subclasses of `Error` (`__bases__ == (Error,)`) and are not subclasses of `AttributeError`, `UninitializedError` or `ValueError`. Also assert that `FieldNotLoadedWarning` subclasses `FutureWarning`.
 
 ### Implementation
 
-- [ ] T007 Add `FieldNotLoadedError(Error)` (attributes `kind`, `field`, `selection: str | None`), `SelectionFieldNotFoundError(Error)` (attributes `kind`, `field`, `implementing_kinds: list[str]`), `SelectionConflictError(Error)` (attribute `parameters: list[str]`) and `FieldNotLoadedWarning(FutureWarning)` to `infrahub_sdk/exceptions.py`, following the `__init__`-sets-`self.message` pattern of the existing classes.
-- [ ] T008 Create `infrahub_sdk/node/selection.py`. Per `data-model.md` § Selection and `research.md` R7–R9, it contains:
+- [X] T007 Add `FieldNotLoadedError(Error)` (attributes `kind`, `field`, `selection: str | None`), `SelectionFieldNotFoundError(Error)` (attributes `kind`, `field`, `implementing_kinds: list[str]`), `SelectionConflictError(Error)` (attribute `parameters: list[str]`) and `FieldNotLoadedWarning(FutureWarning)` to `infrahub_sdk/exceptions.py`, following the `__init__`-sets-`self.message` pattern of the existing classes.
+- [X] T008 Create `infrahub_sdk/node/selection.py`. Per `data-model.md` § Selection and `research.md` R7–R9, it contains:
   - `IDENTITY_FLOOR_NAMES = frozenset({"id", "hfid", "display_label"})` and `HIERARCHICAL_FIELD_NAMES = ("parent", "children", "ancestors", "descendants")`.
   - A frozen dataclass `Selection` with fields `only`, `include`, `exclude` (tuples or `None`), `strict: bool`, `peer_of: str | None = None` and `peer_floor: bool = False`. It provides `Selection.from_args(include, exclude, only)` (strict iff `only is not None`), `Selection.for_peer(parent, parent_kind, rel_name, peer_floor)` and `describe()`.
   - `check_selection_conflict(include, exclude, only)`.
   - `validate_only(only, schema, implementing_schemas, fragment, kind)`.
   - Pure decision helpers: `is_attribute_selected(name, include, exclude, only)`, `is_relationship_selected(rel_schema, include, exclude, only)`, `should_expand_peer(rel_name, include, only, prefetch_relationships)` and `is_hierarchical_selected(name, include, exclude, only, prefetch_relationships)`.
   - It must not import `node.py` (no circular imports).
-- [ ] T009 Create `infrahub_sdk/node/field_access.py`, containing:
+- [X] T009 Create `infrahub_sdk/node/field_access.py`, containing:
   - `_STRICT_FIELD_ACCESS: bool = False` (the single switch).
   - `_INTERNAL_ACCESS: ContextVar[bool]` with `internal_field_access()` (context manager) and `with_internal_field_access` (decorator that works on sync functions and coroutine functions, using `inspect.iscoroutinefunction`).
   - `build_unloaded_message(kind, field, selection)`.
@@ -77,7 +77,7 @@ description: "Task list for INFP-532: field selection with `only` and known-stat
   - `_external_stacklevel()`, which walks `sys._getframe()` until the first frame whose filename is not under the `infrahub_sdk` package directory.
 
   Make T004 and T005 pass.
-- [ ] T010 Add `"error::infrahub_sdk.exceptions.FieldNotLoadedWarning"` to `[tool.pytest.ini_options].filterwarnings` in `pyproject.toml`. Run `uv run pytest tests/unit -q -p no:randomly` to confirm the suite still passes, since nothing emits the warning yet. Note that tests asserting the warning must use `pytest.warns(FieldNotLoadedWarning)`, which overrides the filter locally.
+- [X] T010 Add `"error::infrahub_sdk.exceptions.FieldNotLoadedWarning"` to `[tool.pytest.ini_options].filterwarnings` in `pyproject.toml`. Run `uv run pytest tests/unit -q -p no:randomly` to confirm the suite still passes, since nothing emits the warning yet. Note that tests asserting the warning must use `pytest.warns(FieldNotLoadedWarning)`, which overrides the filter locally.
 
 **Checkpoint**: Foundation ready. T004–T006 pass, and the full unit suite is green.
 
