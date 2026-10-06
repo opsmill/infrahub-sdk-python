@@ -928,7 +928,7 @@ types = [
 
 [[package]]
 name = "infrahub-testcontainers"
-version = "1.11.3"
+version = "1.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -938,9 +938,9 @@ dependencies = [
     { name = "pytest" },
     { name = "testcontainers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fc/20/0388d0e3e29217376b59cb06e11fe5ee8d35181b38b31cbbcfda6ddfa4e3/infrahub_testcontainers-1.11.3.tar.gz", hash = "sha256:1f4ca6ba3a570f5624b88b160f25dd7a1f9f189a5837acb800588e52ac5c5b07", size = 20670, upload-time = "2026-09-23T09:59:16.431Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/10/22/fb14890b44e949828b3b5ca0cddc8f820712c09e355f0a57a24f50adb71f/infrahub_testcontainers-1.11.4.tar.gz", hash = "sha256:b00178f86de83c5301e54d8963b8d488af0dc5945b6332ba1ede9fe0ff8cd88e", size = 20674, upload-time = "2026-10-01T08:00:04.735Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/57/9a8e83162fdcd0bcdbcf76214353854e4d047c51538d5cdb51fe34431a13/infrahub_testcontainers-1.11.3-py3-none-any.whl", hash = "sha256:01cc5682137a6904fd61e5ae2f0e4a23fcbec7717bf23a2c218f34c69a8e7d61", size = 27058, upload-time = "2026-09-23T09:59:15.469Z" },
+    { url = "https://files.pythonhosted.org/packages/27/49/36e792445c92cfe777b6ff468643ecfeeb1c5b6bbb173735dec2de39185a/infrahub_testcontainers-1.11.4-py3-none-any.whl", hash = "sha256:faa3c36d8f6a2460124080ef96f3ef721efbc25f094f087e329f59deac00de80", size = 27057, upload-time = "2026-10-01T08:00:03.565Z" },
 ]
 
 [[package]]
@@ -2943,11 +2943,11 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "2.7.0"
+version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/53/0c/06f8b233b8fd13b9e5ee11424ef85419ba0d8ba0b3138bf360be2ff56953/urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c", size = 433602, upload-time = "2026-05-07T16:13:18.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e3/05/b17359e1cefb4f909b5e40b1b90a496d987258916dbbf88e842c729f510e/urllib3-2.8.0.tar.gz", hash = "sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63", size = 458972, upload-time = "2026-09-15T19:29:36.253Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897", size = 131087, upload-time = "2026-05-07T16:13:17.151Z" },
+    { url = "https://files.pythonhosted.org/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl", hash = "sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3", size = 135717, upload-time = "2026-09-15T19:29:34.577Z" },
 ]
 
 [[package]]
