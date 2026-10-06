@@ -1,0 +1,1 @@
+Fixed an `AttributeError` escaping the client when a 401 response carried a body that was valid JSON but not an object, such as the bare array or string a proxy or gateway may return. The silent token refresh now treats any body it cannot read as an envelope as carrying no refresh signal, and the request surfaces `AuthenticationError` as it does for every other unreadable 401.

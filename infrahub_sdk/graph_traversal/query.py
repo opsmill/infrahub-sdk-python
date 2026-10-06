@@ -8,6 +8,7 @@ optional fields omitted (the server applies its own defaults).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 # Selection set shared by both queries.
@@ -39,7 +40,7 @@ REACHABLE_NODES_QUERY = f"""query InfrahubReachableNodes($data: ReachableNodesIn
 }}"""
 
 
-def is_unknown_field_error(errors: list[dict[str, Any]], field_name: str) -> bool:
+def is_unknown_field_error(errors: Sequence[dict[str, Any]], field_name: str) -> bool:
     """Return True if the GraphQL errors indicate ``field_name`` is an unknown query field.
 
     Used to detect a pre-1.10 server that lacks the traversal queries, so the SDK can

@@ -1,0 +1,21 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Unable to find the schema TestWidget in the database.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "extensions": {
+        "code": "SCHEMA_NOT_FOUND",
+        "http_status": 422,
+        "data": {
+          "kind": "TestWidget"
+        }
+      }
+    }
+  ]
+}

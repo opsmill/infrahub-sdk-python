@@ -8,7 +8,14 @@ import pytest
 from infrahub_sdk import Config, InfrahubClientSync
 from infrahub_sdk.branch import BranchData
 from infrahub_sdk.constants import InfrahubClientMode
-from infrahub_sdk.exceptions import BranchNotFoundError, URLNotFoundError
+from infrahub_sdk.exceptions import (
+    BranchNotFoundError,
+    GraphQLError,
+    NodeNotFoundError,
+    UniquenessViolationError,
+    URLNotFoundError,
+    code_names_the_failure,
+)
 from infrahub_sdk.node import InfrahubNodeSync
 from infrahub_sdk.playback import JSONPlayback
 from infrahub_sdk.recorder import JSONRecorder
@@ -200,6 +207,45 @@ class TestInfrahubClientSync(TestInfrahubDockerClient, SchemaAnimal):
     def test_query_unexisting_branch(self, client_sync: InfrahubClientSync) -> None:
         with pytest.raises(URLNotFoundError, match=r"/graphql/unexisting` not found."):
             client_sync.execute_graphql(query="unused", branch_name="unexisting")
+
+    @pytest.mark.catalogue
+    def test_a_unique_attribute_collision_raises_its_own_class(
+        self, client_sync: InfrahubClientSync, base_dataset: None
+    ) -> None:
+        """Against a real server, so the payload is the one Infrahub sends rather than a fixture."""
+        duplicate = client_sync.create(kind=TESTING_PERSON, name="Liam Walker", height=180)
+
+        # The two message shapes a supported server can produce here: the code named, or the text
+        # the call site falls back to when the server described nothing. A server that described the
+        # failure as some other code matches neither and fails, which is the point.
+        with pytest.raises(GraphQLError, match=r"UNIQUENESS_VIOLATION|An error occurred while") as exc_info:
+            duplicate.save()
+
+        # A server that did not describe the failure is one whose catalogue has no entry for it yet,
+        # which is the only tolerable reason to stop here.
+        if not code_names_the_failure(exc_info.value.code):
+            pytest.skip("this server's catalogue has no entry for a uniqueness violation")
+
+        assert isinstance(exc_info.value, UniquenessViolationError)
+        assert exc_info.value.code == "UNIQUENESS_VIOLATION"
+        assert exc_info.value.node_kind == TESTING_PERSON
+        assert exc_info.value.fields == ["name"]
+
+    @pytest.mark.catalogue
+    def test_deleting_a_missing_node_raises_its_own_class(
+        self, client_sync: InfrahubClientSync, base_dataset: None
+    ) -> None:
+        obj = client_sync.create(kind=TESTING_PERSON, name="Vanished Walker", height=170)
+        obj.save()
+        node_id = obj.id
+        obj.delete()
+
+        with pytest.raises(NodeNotFoundError, match="NODE_NOT_FOUND") as exc_info:
+            obj.delete()
+
+        assert exc_info.value.code == "NODE_NOT_FOUND"
+        assert exc_info.value.node_type == TESTING_PERSON
+        assert exc_info.value.identifier == node_id
 
     def test_create_generic_rel_with_hfid(
         self,

@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "message": "Something went wrong",
+      "extensions": {
+        "code": 500
+      }
+    }
+  ],
+  "data": null
+}
