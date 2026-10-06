@@ -5,6 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import ObjectValidationError, ValidationError
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
@@ -683,19 +684,19 @@ class ObjectFile(InfrahubFile):
     def spec(self) -> InfrahubObjectFileData:
         if not self._spec:
             try:
-                self._spec = InfrahubObjectFileData(**self.data.spec)
-            except Exception as exc:
-                raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
+                self._spec = InfrahubObjectFileData.model_validate(self.data.spec)
+            except PydanticValidationError as exc:
+                raise self._content_error(exc) from exc
         return self._spec
 
     def validate_content(self) -> None:
         super().validate_content()
         if self.kind != InfrahubFileKind.OBJECT:
-            raise ValueError("File is not an Infrahub Object file")
+            raise ValidationError(identifier=str(self.location), message="File is not an Infrahub Object file")
         try:
-            self._spec = InfrahubObjectFileData(**self.data.spec)
-        except Exception as exc:
-            raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
+            self._spec = InfrahubObjectFileData.model_validate(self.data.spec)
+        except PydanticValidationError as exc:
+            raise self._content_error(exc) from exc
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

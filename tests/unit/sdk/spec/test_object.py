@@ -486,3 +486,21 @@ async def test_validate_object_skips_mandatory_check_with_object_profile(
 
     mandatory_errors = [e for e in errors if e.message == "type is mandatory"]
     assert mandatory_errors == []
+
+
+def test_validate_content_wrong_kind(root_location: dict) -> None:
+    root_location["kind"] = "Menu"
+    obj = ObjectFile(location="some/path", content=root_location)
+    with pytest.raises(ValidationError, match=r"^some/path: File is not an Infrahub Object file$") as exc:
+        obj.validate_content()
+
+    assert exc.value.identifier == "some/path"
+
+
+def test_validate_content_invalid_spec(root_location: dict) -> None:
+    del root_location["spec"]["kind"]
+    obj = ObjectFile(location="some/path", content=root_location)
+    with pytest.raises(ValidationError, match=r"^some/path: kind \| Field required \(missing\)$") as exc:
+        obj.validate_content()
+
+    assert exc.value.messages == ["kind | Field required (missing)"]

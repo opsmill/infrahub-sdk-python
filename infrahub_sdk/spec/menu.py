@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pydantic import ValidationError as PydanticValidationError
+
+from ..exceptions import ValidationError
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .object import InfrahubObjectFileData, ObjectFile
 
@@ -24,11 +27,17 @@ class MenuFile(ObjectFile):
     @property
     def spec(self) -> InfrahubMenuFileData:
         if not self._spec:
-            self._spec = InfrahubMenuFileData(**self.data.spec)
+            try:
+                self._spec = InfrahubMenuFileData.model_validate(self.data.spec)
+            except PydanticValidationError as exc:
+                raise self._content_error(exc) from exc
         return self._spec
 
     def validate_content(self) -> None:
         InfrahubFile.validate_content(self)
         if self.kind != InfrahubFileKind.MENU:
-            raise ValueError("File is not an Infrahub Menu file")
-        self._spec = InfrahubMenuFileData(**self.data.spec)
+            raise ValidationError(identifier=str(self.location), message="File is not an Infrahub Menu file")
+        try:
+            self._spec = InfrahubMenuFileData.model_validate(self.data.spec)
+        except PydanticValidationError as exc:
+            raise self._content_error(exc) from exc

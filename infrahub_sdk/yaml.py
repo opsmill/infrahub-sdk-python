@@ -6,10 +6,11 @@ from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 from typing_extensions import Self
 from yaml.parser import ParserError
 
-from .exceptions import FileNotValidError
+from .exceptions import FileNotValidError, ValidationError
 from .utils import read_file
 
 
@@ -160,7 +161,23 @@ class InfrahubFile(YamlFile):
     def validate_content(self) -> None:
         if not self.content:
             raise ValueError("Content hasn't been loaded yet")
-        self._data = InfrahubFileData(**self.content)
+        try:
+            self._data = InfrahubFileData.model_validate(self.content)
+        except PydanticValidationError as exc:
+            raise self._content_error(exc) from exc
+
+    def _content_error(self, exc: PydanticValidationError) -> ValidationError:
+        """Describe each pydantic error on one line, as `path | reason, received value (type)`."""
+        messages = []
+        for error in exc.errors():
+            message = error["msg"]
+            if error["type"] != "missing" and isinstance(error.get("input"), (str, int, float, bool)):
+                message += f", received {error['input']!r}"
+            message += f" ({error['type']})"
+            if error["loc"]:
+                message = f"{'/'.join(str(item) for item in error['loc'])} | {message}"
+            messages.append(message)
+        return ValidationError(identifier=str(self.location), messages=messages)
 
 
 class SchemaFile(YamlFile):
