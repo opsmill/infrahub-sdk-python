@@ -294,11 +294,11 @@ def display_object_validate_format_success(file: ObjectFile, console: Console) -
 
 def display_object_validate_format_error(file: ObjectFile, error: ValidationError, console: Console) -> None:
     if file.multiple_documents:
-        console.print(f"[red] File '{file.location}' [{file.document_position}] is not valid!")
+        console.print(f"[red] File '{escape(str(file.location))}' [{file.document_position}] is not valid!")
     else:
-        console.print(f"[red] File '{file.location}' is not valid!")
+        console.print(f"[red] File '{escape(str(file.location))}' is not valid!")
     if error.messages:
         for message in error.messages:
-            console.print(f"[red] {message}")
+            console.print(f"[red] {escape(message)}")
     else:
-        console.print(f"[red] {error.message}")
+        console.print(f"[red] {escape(error.message or '')}")

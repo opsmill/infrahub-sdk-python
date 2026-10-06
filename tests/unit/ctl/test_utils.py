@@ -1,5 +1,6 @@
 import json
 from io import StringIO
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -11,6 +12,7 @@ from typer.testing import CliRunner
 from infrahub_sdk.async_typer import AsyncTyper
 from infrahub_sdk.ctl.utils import (
     catch_exception,
+    display_object_validate_format_error,
     handle_exception,
     print_graphql_errors,
     print_graphql_query_errors,
@@ -20,9 +22,11 @@ from infrahub_sdk.exceptions import (
     BranchNotFoundError,
     NodeNotFoundError,
     SchemaNotFoundError,
+    ValidationError,
     authentication_error_from_response,
     graphql_error_from_response,
 )
+from infrahub_sdk.spec.menu import MenuFile
 from tests.helpers.cli import remove_ansi_color
 from tests.helpers.fixtures import read_fixture
 
@@ -343,3 +347,18 @@ def test_catch_exception_renders_typer_abort_as_an_unhandled_error() -> None:
     assert result.exit_code == 1
     assert "human-readable failure message" in stdout
     assert "Traceback" in stdout, "the tail branch dumps one, which is what `typer.Exit` avoids"
+
+
+def test_display_object_validate_format_error_keeps_brackets() -> None:
+    menu = MenuFile(location=Path("menus/[main].yml"), content={})
+    error = ValidationError(
+        identifier="menus/[main].yml",
+        messages=["spec | Input should be a valid dictionary, received '[/devices]' (dict_type)"],
+    )
+    console = recording_console()
+    display_object_validate_format_error(file=menu, error=error, console=console)
+
+    assert rendered(console) == (
+        " File 'menus/[main].yml' is not valid!\n"
+        " spec | Input should be a valid dictionary, received '[/devices]' (dict_type)\n"
+    )
