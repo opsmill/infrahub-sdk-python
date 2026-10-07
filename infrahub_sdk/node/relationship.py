@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Generic, cast
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, cast
 
 from ..exceptions import (
     Error,
@@ -17,6 +17,25 @@ if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
     from .node import InfrahubNode, InfrahubNodeSync
+
+
+def _raise_missing_identifier(node: InfrahubNode | InfrahubNodeSync, name: str) -> NoReturn:
+    """Raise a clear error for fetching/editing a relationship on a node with no ID.
+
+    A relationship can only be fetched or edited once the parent node has an ID to look it up
+    by. When it does not, the underlying ``client.get()`` call would otherwise fail with a
+    generic "At least one filter must be provided to get()" message that gives the caller no
+    hint about the real cause.
+
+    Raises:
+        UninitializedError: Always; the parent node has no ID to look the relationship up by.
+
+    """
+    raise UninitializedError(
+        f"Cannot access the '{name}' relationship because the {node._schema.kind} node has no ID to "
+        f"look it up by. This usually means the node was created locally but not saved yet — call "
+        f".save() on it first (or fetch it from Infrahub) before fetching or editing its relationships."
+    )
 
 
 class RelationshipManagerBase(Generic[PeerT]):
@@ -242,6 +261,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
             exclude.remove(self.schema.name)
             node = await self.client.get(
@@ -292,6 +313,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(
             "RelatedNode[PeerT]", RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
@@ -336,6 +359,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
@@ -439,6 +464,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
             exclude.remove(self.schema.name)
             node = self.client.get(
@@ -489,6 +516,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(
             "RelatedNodeSync[PeerTSync]",
@@ -534,6 +563,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         """
         if not self.initialized:
+            if not self.node.id:
+                _raise_missing_identifier(self.node, self.name)
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
 
