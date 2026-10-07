@@ -38,6 +38,7 @@
   "ServerNotReachableError",
   "ServerNotResponsiveError",
   "TimestampFormatError",
+  "TrackingGroupCleanupError",
   "URLNotFoundError",
   "UndefinedError",
   "UninitializedError",
