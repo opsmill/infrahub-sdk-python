@@ -99,6 +99,10 @@ class NumberPoolParametersRead(AttributeParametersRead):
         default=None,
         description="The ID of the numberpool associated with this attribute. Only set after the number pool has been provisioned.",
     )
+    allocation_scope: list[str] | None = Field(
+        default=None,
+        description="Fields of the kind that divide the pool's space; allocation returns the lowest free number within the writer's division",
+    )
 
 
 class DropdownChoiceRead(BaseModel):
