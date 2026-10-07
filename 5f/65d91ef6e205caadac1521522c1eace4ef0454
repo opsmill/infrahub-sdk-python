@@ -1,0 +1,25 @@
+infrahub_sdk/schema/generated/write.py
+  s_0d946e7ab4dd58::t_a4076683c84f50 82-85
+infrahub_sdk/protocols.py
+  s_0d946e7ab4dd58::t_a4076683c84f50 778,1900
+infrahub_sdk/schema/generated/read.py
+  s_0d946e7ab4dd58::t_a4076683c84f50 82-85
+changelog/+number-pool-allocation-scope.added.md
+  s_0d946e7ab4dd58::t_23ab0f10d351bc 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f65d91ef6e205caadac1521522c1eace4ef0454",
+  "prompts": {},
+  "sessions": {
+    "s_0d946e7ab4dd58": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e5b54bb-72c0-45ce-9655-bb63548c5cbf",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
