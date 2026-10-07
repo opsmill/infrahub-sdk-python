@@ -13,6 +13,7 @@ from httpx import HTTPError
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.markup import escape
+from rich.table import Table
 
 from ..exceptions import (
     ApiError,
@@ -27,6 +28,7 @@ from ..exceptions import (
     SchemaNotFoundError,
     ServerNotReachableError,
     ServerNotResponsiveError,
+    TrackingGroupCleanupError,
     ValidationError,
     code_names_the_failure,
 )
@@ -103,6 +105,9 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
         raise typer.Exit(code=exit_code)
     if isinstance(exc, GraphQLError):
         print_graphql_errors(console=console, errors=exc.errors, fallback=str(exc))
+        raise typer.Exit(code=exit_code)
+    if isinstance(exc, TrackingGroupCleanupError):
+        print_tracking_group_failures(console=console, failures=exc.failures)
         raise typer.Exit(code=exit_code)
 
     console.print(f"[red]Error: {escape(str(exc))}")
@@ -222,6 +227,17 @@ def print_graphql_query_errors(console: Console, exc: GraphQLError) -> None:
             console.print(f"[yellow]   Location: {escape(str(error['locations']))}")
         if "Branch:" in message:
             console.print("[yellow]   you can specify a different branch with --branch")
+
+
+def print_tracking_group_failures(console: Console, failures: dict[str, str]) -> None:
+    table = Table(title="Unused tracking group members that could not be deleted")
+    table.add_column("Node ID")
+    table.add_column("Reason")
+    for node_id, reason in failures.items():
+        table.add_row(escape(node_id), escape(reason))
+
+    console.print(table)
+    console.print("[yellow]These nodes remain members of the tracking group and will be retried on the next run.")
 
 
 def parse_cli_vars(variables: list[str] | None) -> dict[str, str]:

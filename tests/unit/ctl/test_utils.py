@@ -22,6 +22,7 @@ from infrahub_sdk.exceptions import (
     BranchNotFoundError,
     NodeNotFoundError,
     SchemaNotFoundError,
+    TrackingGroupCleanupError,
     ValidationError,
     authentication_error_from_response,
     graphql_error_from_response,
@@ -305,6 +306,21 @@ class TestHandleExceptionLadder:
 
         assert "boom" in output
         assert "TestPerson" in output
+
+    def test_a_tracking_group_cleanup_failure_lists_every_member_and_reason(self) -> None:
+        """A refused cleanup names each surviving node and why, and its reason is not read as markup."""
+        failures = {
+            "17d5e3f4-1a2b-4c6d-8e9f-0a1b2c3d4e5f": "Cannot delete BuiltinTag [blue]",
+            "28e6f405-2b3c-4d7e-9fa0-1b2c3d4e5f60": "Cannot delete TestingPerson, a mandatory relationship points at it",
+        }
+
+        output = rendered_for(TrackingGroupCleanupError(failures=failures))
+
+        assert "Unused tracking group members that could not be deleted" in output
+        for node_id, reason in failures.items():
+            assert node_id in output
+            assert reason in output
+        assert "Traceback" not in output
 
 
 def test_catch_exception_sync_passes_through_typer_exit() -> None:
