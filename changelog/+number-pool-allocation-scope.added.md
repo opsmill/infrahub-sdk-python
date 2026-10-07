@@ -1,1 +1,0 @@
-The schema models accept `parameters.allocation_scope` on NumberPool attributes, the list of fields of the kind that divide the pool's space, and `CoreNumberPool` carries the matching `allocation_scope` attribute. Infrahub stores and returns the value; allocation does not apply it yet.
