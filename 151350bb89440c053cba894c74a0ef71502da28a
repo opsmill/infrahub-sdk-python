@@ -1,0 +1,21 @@
+docs/_templates/sdk_compatibility.j2
+  s_fb7660e26508f0::t_0f29230e434e35 60
+docs/docs/python-sdk/reference/compatibility.mdx
+  s_fb7660e26508f0::t_dee896a4b61c3f 165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "151350bb89440c053cba894c74a0ef71502da28a",
+  "prompts": {},
+  "sessions": {
+    "s_fb7660e26508f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_fb7660e26508f0",
+        "model": "unknown"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
