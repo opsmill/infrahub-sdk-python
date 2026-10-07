@@ -38,6 +38,7 @@ __all__ = [
     "ServerNotReachableError",
     "ServerNotResponsiveError",
     "TimestampFormatError",
+    "TrackingGroupCleanupError",
     "URLNotFoundError",
     "UninitializedError",
     "ValidationError",
@@ -182,6 +183,24 @@ class GraphQLError(ApiError):
 
     def __reduce__(self) -> tuple[Any, ...]:
         return (_rebuild_graphql_error, (type(self), self.args, self.__dict__))
+
+
+class TrackingGroupCleanupError(Error):
+    """Raised when unused members of a tracking group could not be deleted.
+
+    Every unused member is attempted before this is raised, and the ones the server refused
+    are kept in the tracking group so a later run retries them.
+    """
+
+    def __init__(self, failures: dict[str, str]) -> None:
+        self.failures = failures
+        details = "; ".join(f"{node_id} ({reason})" for node_id, reason in failures.items())
+        super().__init__(f"Unable to delete {len(failures)} unused member(s) of the tracking group: {details}")
+
+    def __reduce__(self) -> tuple[type[TrackingGroupCleanupError], tuple[dict[str, str]]]:
+        # Rebuild from the failures rather than the formatted message, so the exception
+        # survives the serialization that a task orchestrator applies to a failed run.
+        return (self.__class__, (self.failures,))
 
 
 class VersionNotSupportedError(Error):
