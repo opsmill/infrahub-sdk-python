@@ -40,5 +40,6 @@
   "UninitializedError",
   "UniquenessViolationError",
   "ValidationError",
-  "VersionNotSupportedError"
+  "VersionNotSupportedError",
+  "WorkerTimeoutError"
 ]

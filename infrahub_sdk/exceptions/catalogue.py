@@ -41,6 +41,8 @@ __all__ = [
     "UndefinedErrorData",
     "UniquenessViolationData",
     "UniquenessViolationError",
+    "WorkerTimeoutData",
+    "WorkerTimeoutError",
     "exception_from_payload",
 ]
 
@@ -201,6 +203,18 @@ class UniquenessViolationData(BaseModel):
 
     node_kind: str
     fields: list[str]
+
+
+class WorkerTimeoutData(BaseModel):
+    """Payload a server-reported WORKER_TIMEOUT carries."""
+
+    # A newer server may add fields this SDK has never heard of; ignoring them keeps the code
+    # resolvable rather than failing validation.
+    model_config = ConfigDict(extra="ignore")
+
+    operation: str
+    timeout_seconds: int
+    retry_after_seconds: int
 
 
 class AttributeConstraintViolationError(GraphQLError):
@@ -525,6 +539,47 @@ class UniquenessViolationError(GraphQLError):
         return cls(node_kind=payload.node_kind, fields=payload.fields)
 
 
+class WorkerTimeoutError(GraphQLError):
+    """Raised when the server reports WORKER_TIMEOUT.
+
+    No worker answered the request within the time allowed. The failure is transient; retry after the number
+    of seconds the payload reports.
+
+    Stability: evolving.
+    """
+
+    CODE: ClassVar[str | None] = "WORKER_TIMEOUT"
+    DATA_MODEL: ClassVar[type[BaseModel]] = WorkerTimeoutData
+
+    code: str | None = "WORKER_TIMEOUT"
+    http_status: int | None = 504
+
+    def __init__(
+        self,
+        *,
+        operation: str,
+        timeout_seconds: int,
+        retry_after_seconds: int,
+        errors: list[dict[str, Any]] | None = None,
+        query: str | None = None,
+        variables: dict | None = None,
+        message: str | None = None,
+    ) -> None:
+        self.operation = operation
+        self.timeout_seconds = timeout_seconds
+        self.retry_after_seconds = retry_after_seconds
+        super().__init__(errors=errors or [], query=query, variables=variables, message=message)
+
+    @classmethod
+    def from_payload(cls, payload: WorkerTimeoutData) -> Self:
+        """Build the exception from the validated payload of a server-reported failure."""
+        return cls(
+            operation=payload.operation,
+            timeout_seconds=payload.timeout_seconds,
+            retry_after_seconds=payload.retry_after_seconds,
+        )
+
+
 # Codes that map to a dedicated exception class. Authentication and permission codes are absent: the
 # SDK raises a generic class for those and carries the code on the instance.
 CODE_TO_EXCEPTION: dict[str, type[GraphQLError]] = {
@@ -540,6 +595,7 @@ CODE_TO_EXCEPTION: dict[str, type[GraphQLError]] = {
     "SCHEMA_NOT_FOUND": SchemaNotFoundError,
     "UNDEFINED_ERROR": UndefinedError,
     "UNIQUENESS_VIOLATION": UniquenessViolationError,
+    "WORKER_TIMEOUT": WorkerTimeoutError,
 }
 
 # Every code's payload model, including the codes that get no class, so a caller that observes one
@@ -560,6 +616,7 @@ CODE_TO_DATA_MODEL: dict[str, type[BaseModel]] = {
     "TOKEN_EXPIRED": TokenExpiredData,
     "UNDEFINED_ERROR": UndefinedErrorData,
     "UNIQUENESS_VIOLATION": UniquenessViolationData,
+    "WORKER_TIMEOUT": WorkerTimeoutData,
 }
 
 
@@ -611,6 +668,10 @@ def _build_uniqueness_violation(data: Mapping[str, Any]) -> GraphQLError:
     return UniquenessViolationError.from_payload(UniquenessViolationData.model_validate(data))
 
 
+def _build_worker_timeout(data: Mapping[str, Any]) -> GraphQLError:
+    return WorkerTimeoutError.from_payload(WorkerTimeoutData.model_validate(data))
+
+
 # Each builder validates against its own code's model, so the payload type is never widened on the
 # way to the constructor that consumes it.
 _CODE_TO_BUILDER: dict[str, Callable[[Mapping[str, Any]], GraphQLError]] = {
@@ -626,6 +687,7 @@ _CODE_TO_BUILDER: dict[str, Callable[[Mapping[str, Any]], GraphQLError]] = {
     "SCHEMA_NOT_FOUND": _build_schema_not_found,
     "UNDEFINED_ERROR": _build_undefined_error,
     "UNIQUENESS_VIOLATION": _build_uniqueness_violation,
+    "WORKER_TIMEOUT": _build_worker_timeout,
 }
 
 

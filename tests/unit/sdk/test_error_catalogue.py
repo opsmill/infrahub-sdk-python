@@ -28,6 +28,7 @@ from infrahub_sdk.exceptions import (
     SchemaNotFoundError,
     UndefinedError,
     UniquenessViolationError,
+    WorkerTimeoutError,
     authentication_error_from_response,
     graphql_error_from_response,
 )
@@ -218,6 +219,16 @@ CODE_CASES = [
         expected_class=UniquenessViolationError,
         expected_http_status=422,
         expected_attributes={"node_kind": "TestPerson", "fields": ["name"]},
+    ),
+    CodeCase(
+        name="WORKER_TIMEOUT",
+        expected_class=WorkerTimeoutError,
+        expected_http_status=504,
+        expected_attributes={
+            "operation": "git.repository.connectivity",
+            "timeout_seconds": 30,
+            "retry_after_seconds": 30,
+        },
     ),
 ]
 
