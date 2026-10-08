@@ -779,6 +779,7 @@ class CoreNodeTriggerRule(CoreTriggerRule):
 
 
 class CoreNumberPool(CoreResourcePool, LineageSource):
+    allocation_scope: ListAttributeOptional
     description: StringOptional
     end_range: IntegerOptional
     name: String
@@ -1912,6 +1913,7 @@ class CoreNodeTriggerRuleSync(CoreTriggerRuleSync):
 
 
 class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
+    allocation_scope: ListAttributeOptional
     description: StringOptional
     end_range: IntegerOptional
     name: String

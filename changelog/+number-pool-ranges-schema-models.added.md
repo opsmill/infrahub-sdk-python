@@ -1,0 +1,1 @@
+The schema models accept `parameters.ranges` on NumberPool attributes, a list of `start`/`end` ranges with an optional `weight`. The `start_range`/`end_range` shorthand is now optional and deprecated: a NumberPool attribute declared without any range is submitted as such instead of receiving a default range.

@@ -65,19 +65,43 @@ class NumberAttributeParametersWrite(AttributeParametersWrite):
     )
 
 
+class NumberPoolRangeWrite(BaseModel):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    start: int = Field(
+        ...,
+        description="First number of the range",
+    )
+    end: int = Field(
+        ...,
+        description="Last number of the range",
+    )
+    weight: int | None = Field(
+        default=None,
+        description="Ranges with a higher weight are allocated from first",
+    )
+
+
 class NumberPoolParametersWrite(AttributeParametersWrite):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
-    end_range: int = Field(
-        default=9223372036854775807,
-        description="End range for numbers for the associated NumberPool",
+    end_range: int | None = Field(
+        default=None,
+        description="Deprecated, use ranges instead. End of the single range, defaults to the largest supported number when only start_range is set",
     )
-    start_range: int = Field(
-        default=1,
-        description="Start range for numbers for the associated NumberPool",
+    start_range: int | None = Field(
+        default=None,
+        description="Deprecated, use ranges instead. Start of the single range, defaults to 1 when only end_range is set",
+    )
+    ranges: list[NumberPoolRangeWrite] = Field(
+        default_factory=list,
+        description="Ranges of numbers the associated NumberPool allocates from, they must not overlap",
     )
     number_pool_id: str | None = Field(
         default=None,
         description="The ID of the numberpool associated with this attribute. Only set after the number pool has been provisioned.",
+    )
+    allocation_scope: list[str] | None = Field(
+        default=None,
+        description="Fields of the kind that divide the pool's space; allocation returns the lowest free number within the writer's division",
     )
 
 
