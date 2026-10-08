@@ -153,9 +153,13 @@ class CoreGenericRepository(CoreNode):
     commit: StringOptional
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManager[CoreCheckDefinition]
     credential: RelationshipAttribute[CoreCredential]
@@ -840,10 +844,14 @@ class CoreReadOnlyRepository(LineageOwner, LineageSource, CoreGenericRepository,
     commit: StringOptional
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
     ref: String
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManager[CoreCheckDefinition]
     credential: RelationshipAttribute[CoreCredential]
@@ -861,9 +869,13 @@ class CoreRepository(LineageOwner, LineageSource, CoreGenericRepository, CoreTas
     default_branch: String
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManager[CoreCheckDefinition]
     credential: RelationshipAttribute[CoreCredential]
@@ -1264,9 +1276,13 @@ class CoreGenericRepositorySync(CoreNodeSync):
     commit: StringOptional
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManagerSync[CoreCheckDefinitionSync]
     credential: RelationshipAttributeSync[CoreCredentialSync]
@@ -1951,10 +1967,14 @@ class CoreReadOnlyRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGeneri
     commit: StringOptional
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
     ref: String
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManagerSync[CoreCheckDefinitionSync]
     credential: RelationshipAttributeSync[CoreCredentialSync]
@@ -1972,9 +1992,13 @@ class CoreRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGenericReposit
     default_branch: String
     description: StringOptional
     internal_status: Dropdown
+    last_rewrite_at: DateTimeOptional
+    last_rewrite_commit: StringOptional
+    last_rewrite_previous_commit: StringOptional
     location: String
     name: String
     operational_status: Dropdown
+    rewrite_count: IntegerOptional
     sync_status: Dropdown
     checks: RelationshipManagerSync[CoreCheckDefinitionSync]
     credential: RelationshipAttributeSync[CoreCredentialSync]
