@@ -867,6 +867,15 @@ class CoreReadOnlyRepository(LineageOwner, LineageSource, CoreGenericRepository,
 class CoreRepository(LineageOwner, LineageSource, CoreGenericRepository, CoreTaskTarget):
     commit: StringOptional
     default_branch: String
+    delivery_error: StringOptional
+    delivery_failure_cause: DropdownOptional
+    delivery_held_regeneration: JSONAttributeOptional
+    delivery_last_abandonment: JSONAttributeOptional
+    delivery_last_delivered_commit: StringOptional
+    delivery_progress: JSONAttributeOptional
+    delivery_queue: JSONAttributeOptional
+    delivery_reverted: JSONAttributeOptional
+    delivery_status: DropdownOptional
     description: StringOptional
     internal_status: Dropdown
     last_rewrite_at: DateTimeOptional
@@ -1990,6 +1999,15 @@ class CoreReadOnlyRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGeneri
 class CoreRepositorySync(LineageOwnerSync, LineageSourceSync, CoreGenericRepositorySync, CoreTaskTargetSync):
     commit: StringOptional
     default_branch: String
+    delivery_error: StringOptional
+    delivery_failure_cause: DropdownOptional
+    delivery_held_regeneration: JSONAttributeOptional
+    delivery_last_abandonment: JSONAttributeOptional
+    delivery_last_delivered_commit: StringOptional
+    delivery_progress: JSONAttributeOptional
+    delivery_queue: JSONAttributeOptional
+    delivery_reverted: JSONAttributeOptional
+    delivery_status: DropdownOptional
     description: StringOptional
     internal_status: Dropdown
     last_rewrite_at: DateTimeOptional
