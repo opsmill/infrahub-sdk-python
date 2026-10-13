@@ -116,3 +116,30 @@ def test_get_list_mode_with_options(extra_args: list[str]) -> None:
 
     # Exit 80 = query succeeded but no results (empty mock)
     assert result.exit_code == 80
+
+
+def test_get_list_mode_isnull_filter_passes_boolean() -> None:
+    """An ``__isnull`` filter reaches ``client.filters`` as a bool, not the string ``"true"``."""
+    mock_schema = MagicMock()
+    mock_schema.attribute_names = ["name"]
+    mock_schema.relationship_names = ["interfaces"]
+    mock_schema.get_attribute_or_none.return_value = None
+
+    mock_client = MagicMock()
+    mock_client.schema = MagicMock()
+    mock_client.schema.get = AsyncMock(return_value=mock_schema)
+    mock_client.filters = AsyncMock(return_value=[])
+
+    mock_formatter = MagicMock()
+    mock_formatter.format_list.return_value = "[]"
+
+    with (
+        patch("infrahub_sdk.ctl.object.get.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.get.detect_output_format", return_value="json"),
+        patch("infrahub_sdk.ctl.object.get.get_formatter", return_value=mock_formatter),
+    ):
+        result = runner.invoke(app, ["object", "get", "InfraDevice", "--filter", "interfaces__isnull=true"])
+
+    assert result.exit_code == 80
+    mock_client.filters.assert_awaited_once()
+    assert mock_client.filters.await_args.kwargs["interfaces__isnull"] is True
