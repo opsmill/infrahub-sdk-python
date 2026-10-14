@@ -387,17 +387,32 @@ async def test_manager_fetch_reloads_relationship_of_node_from_only(
 class HierarchyFetchCase:
     name: str
     relationship: str
+    fetch_only: list[str] | None
+    expected_peer_marker: OnlyMarker | None
 
 
 HIERARCHY_FETCH_CASES = [
-    HierarchyFetchCase(name="ancestors", relationship="ancestors"),
-    HierarchyFetchCase(name="descendants", relationship="descendants"),
+    HierarchyFetchCase(
+        name="ancestors-with-only",
+        relationship="ancestors",
+        fetch_only=["name"],
+        expected_peer_marker=OnlyMarker(only=("name",)),
+    ),
+    HierarchyFetchCase(
+        name="descendants-with-only",
+        relationship="descendants",
+        fetch_only=["name"],
+        expected_peer_marker=OnlyMarker(only=("name",)),
+    ),
+    HierarchyFetchCase(
+        name="ancestors-without-only", relationship="ancestors", fetch_only=None, expected_peer_marker=None
+    ),
 ]
 
 
 @pytest.mark.parametrize("client_type", client_types)
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HIERARCHY_FETCH_CASES])
-async def test_hierarchy_manager_fetch_with_only_loads_peers_of_node_from_only(
+async def test_hierarchy_manager_fetch_loads_peers_of_node_from_only(
     only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: HierarchyFetchCase
 ) -> None:
     edge = only_data.node_data(only_data.REGION_ID, REGION, name={"value": "Europe"})
@@ -418,7 +433,7 @@ async def test_hierarchy_manager_fetch_with_only_loads_peers_of_node_from_only(
     client = only_data.client_of(only_clients, client_type)
     manager = getattr(region, case.relationship)
 
-    await resolve(manager.fetch(only=["name"]))
+    await resolve(manager.fetch(only=case.fetch_only))
 
     assert body_of(httpx_mock, "Get_LocationRegion") == only_data.expected_body(
         REGION,
@@ -428,7 +443,7 @@ async def test_hierarchy_manager_fetch_with_only_loads_peers_of_node_from_only(
     )
     assert [manager.is_loaded, manager.peer_ids] == [True, [REGION_PEER_ID]]
     stored_peer = client.store.get(key=REGION_PEER_ID, kind=REGION)
-    assert [stored_peer._get_attribute("name").value, stored_peer._only_marker] == ["World", OnlyMarker(only=("name",))]
+    assert [stored_peer._get_attribute("name").value, stored_peer._only_marker] == ["World", case.expected_peer_marker]
     assert client.store.get(key=only_data.REGION_ID, kind=REGION) is region
 
 
