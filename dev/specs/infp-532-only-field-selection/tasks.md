@@ -123,12 +123,12 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
     - `node.hfid` does not change after a later query stores a narrower copy of the peer;
     - `node.hfid` is `None` when its HFID fields were not fetched and `hfid` was not named.
   - **store**: a node from `only` replaces a fuller copy in the store, and reading its unfetched fields from the store raises.
-- [ ] T015 [P] [US1] Read tests in `tests/unit/sdk/test_node_only_access.py`, on both clients, for nodes from `only` and peers returned with them. Every row of the contract §4 table:
+- [X] T015 [P] [US1] Read tests in `tests/unit/sdk/test_node_only_access.py`, on both clients, for nodes from `only` and peers returned with them. Every row of the contract §4 table:
   - raises `FieldNotLoadedError` when the field is not loaded, with a message naming the kind, the field and the `only` list (and the relationship for a peer);
   - does not raise when the field is loaded.
 
   The "never raises" reads do not raise. `get_path_value`, `get_flat_value`, `matches_local_checksum`, `download_file(skip_if_unchanged=True)` and `upload_if_changed` raise when the field they read was not fetched (research R13). `is_loaded` is `False` in exactly the raising cases (SC-005).
-- [ ] T016 [P] [US1] Tests for operations that must not raise, in `tests/unit/sdk/test_node_only_access.py`, on both clients, on a node from `only` with every other field unfetched (research R8, contract §4):
+- [X] T016 [P] [US1] Tests for operations that must not raise, in `tests/unit/sdk/test_node_only_access.py`, on both clients, on a node from `only` with every other field unfetched (research R8, contract §4):
   - `save()` for create and update;
   - `create(allow_upsert=True)`;
   - `update()`;
@@ -153,7 +153,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
   The public `generate_query_data*` methods stay unchanged. Make the async rows of T012 and T013 pass.
 - [X] T018 [US1] Mirror T017 in `InfrahubNodeSync` in `infrahub_sdk/node/node.py`. Make the sync rows of T012 and T013 pass.
-- [ ] T019 [US1] Raising accessors in `infrahub_sdk/node/attribute.py`, `infrahub_sdk/node/related_node.py` and `infrahub_sdk/node/relationship.py`: each "raises on" read in contract §4 checks `is_loaded` and the node's marker, and raises `FieldNotLoadedError` built from the marker, the node's kind and the field name. Reads on nodes without the marker are unchanged.
+- [X] T019 [US1] Raising accessors in `infrahub_sdk/node/attribute.py`, `infrahub_sdk/node/related_node.py` and `infrahub_sdk/node/relationship.py`: each "raises on" read in contract §4 checks `is_loaded` and the node's marker, and raises `FieldNotLoadedError` built from the marker, the node's kind and the field name. Reads on nodes without the marker are unchanged.
 - [X] T020 [US1] In `infrahub_sdk/node/node.py`, for both node classes:
   - add a private, non-raising version of `get_path_value`, which treats a field that is not loaded as missing and looks for a peer in the HFID-peer slot first, then through the cached peer and the store; make `get_human_friendly_id` use it;
   - leave the public `get_path_value` reading through the public accessors;
@@ -166,7 +166,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
   Document `only` in the docstrings of `all` and `filters` next to `include` and `exclude`, and add a docstring to `get` that documents it.
 - [X] T022 [US1] Mirror T021 in `InfrahubClientSync` in `infrahub_sdk/client.py`. Run `tests/unit/sdk/test_client.py::test_validate_method_signature` and `test_method_sanity`.
-- [ ] T023 [US1] Update the `Raises:` sections of `get_path_value`, `get_flat_value`, `matches_local_checksum`, `download_file` and `upload_if_changed` on both node classes in `infrahub_sdk/node/node.py` (research R16).
+- [X] T023 [US1] Update the `Raises:` sections of `get_path_value`, `get_flat_value`, `matches_local_checksum`, `download_file` and `upload_if_changed` on both node classes in `infrahub_sdk/node/node.py` (research R16).
 
 **Checkpoint**: T012 to T016 pass on both clients, and `uv run pytest tests/unit/sdk/ -q` passes without any existing test edited. User Story 1 can ship on its own here.
 

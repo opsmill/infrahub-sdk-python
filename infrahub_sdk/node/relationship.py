@@ -72,7 +72,11 @@ class RelationshipManagerBase(Generic[PeerT]):
         Returns:
             list[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         return self._peers
 
     @peers.setter
@@ -98,12 +102,19 @@ class RelationshipManagerBase(Generic[PeerT]):
     def _bind(self, node: InfrahubNodeBase) -> None:
         self._node = node
 
+    def _raise_if_not_loaded(self) -> None:
+        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
+            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.name)
+
     @property
     def peer_ids(self) -> list[str]:
         """Return the IDs of all peers that have one.
 
         Returns:
             list[str]: The IDs of the peers, in insertion order.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return [peer.id for peer in self.peers if peer.id]
@@ -115,6 +126,9 @@ class RelationshipManagerBase(Generic[PeerT]):
         Returns:
             list[list[Any]]: The HFIDs of the peers as lists of components, in insertion order.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
         return [peer.hfid for peer in self.peers if peer.hfid]
 
@@ -124,6 +138,9 @@ class RelationshipManagerBase(Generic[PeerT]):
 
         Returns:
             list[str]: The HFIDs of the peers as ``Kind__part1__part2`` strings.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return [peer.hfid_str for peer in self.peers if peer.hfid_str]
@@ -148,7 +165,11 @@ class RelationshipManagerBase(Generic[PeerT]):
         Returns:
             bool: ``True`` when at least one peer exists and all peers are from a profile.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if not self._peers:
             return False
         all_profiles = [p.is_from_profile for p in self._peers]
@@ -269,6 +290,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             )
 
     def __getitem__(self, item: int) -> RelatedNode[PeerT]:
+        self._raise_if_not_loaded()
         return cast("RelatedNode[PeerT]", self._peers[item])
 
     async def fetch(self) -> None:
@@ -466,6 +488,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             )
 
     def __getitem__(self, item: int) -> RelatedNodeSync[PeerTSync]:
+        self._raise_if_not_loaded()
         return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
     def fetch(self) -> None:

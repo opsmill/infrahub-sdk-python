@@ -138,7 +138,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.id
         return self._id
@@ -150,7 +154,11 @@ class RelatedNodeBase:
         Returns:
             list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.hfid
         return self._hfid
@@ -166,7 +174,11 @@ class RelatedNodeBase:
             str | None: The peer HFID joined with the HFID separator, or ``None`` when
             unavailable (no resolved peer or missing HFID).
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer and self.hfid:
             return self._peer.get_human_friendly_id_as_string(include_kind=True)
         return None
@@ -214,6 +226,10 @@ class RelatedNodeBase:
         self._node = node
         self._has_data = present
 
+    def _raise_if_not_loaded(self) -> None:
+        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
+            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.schema.name)
+
     @property
     def display_label(self) -> str | None:
         """Return the human-readable label of the related node.
@@ -221,7 +237,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer display label, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.display_label
         return self._display_label
@@ -233,7 +253,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer typename, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.typename
         return self._typename
@@ -245,7 +269,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer schema kind, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.get_kind()
         return self._kind
@@ -385,9 +413,11 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        self._raise_if_not_loaded()
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
@@ -404,6 +434,9 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
         Returns:
             PeerT: The resolved peer node.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return self.get()
@@ -425,9 +458,11 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             PeerT: The resolved peer node.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return cast("PeerT", self._peer)
 
@@ -482,9 +517,11 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        self._raise_if_not_loaded()
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
@@ -501,6 +538,9 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
         Returns:
             PeerTSync: The resolved peer node.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return self.get()
@@ -522,9 +562,11 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             PeerTSync: The resolved peer node.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return cast("PeerTSync", self._peer)
 

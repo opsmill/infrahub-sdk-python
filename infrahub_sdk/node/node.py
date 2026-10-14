@@ -158,7 +158,11 @@ class InfrahubNodeBase:
 
         Returns:
             Any: The resolved value, or ``None`` when any path component cannot be
-            resolved (for example, an unfetched related node not present in the store).
+            resolved (for example, a related node that is not in the store).
+
+        Raises:
+            FieldNotLoadedError: This node or the related node was queried with ``only`` and a field
+                the path reads was not fetched.
 
         """
         path_parts = path.split("__")
@@ -1190,6 +1194,8 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
             ValueError: If the node hasn't been saved yet, file not found, or
                   ``skip_if_unchanged=True`` was passed without a ``dest``.
+            FieldNotLoadedError: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+                  was queried with ``only`` without fetching ``checksum``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -1246,6 +1252,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -1294,6 +1301,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -2238,6 +2246,8 @@ class InfrahubNode(InfrahubNodeBase):
         Raises:
             ValueError: If a component does not match an attribute or relationship, or if
                 a relationship hop targets a non cardinality-one relationship.
+            FieldNotLoadedError: This node or a related node was queried with ``only`` and a field
+                the key reads was not fetched.
 
         Examples:
             name__value
@@ -2578,6 +2588,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
             ValueError: If the node hasn't been saved yet, file not found, or
                   ``skip_if_unchanged=True`` was passed without a ``dest``.
+            FieldNotLoadedError: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+                  was queried with ``only`` without fetching ``checksum``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -2634,6 +2646,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -2682,6 +2695,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -3623,6 +3637,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Raises:
             ValueError: If a component does not match an attribute or relationship, or if
                 a relationship hop targets a non cardinality-one relationship.
+            FieldNotLoadedError: This node or a related node was queried with ``only`` and a field
+                the key reads was not fetched.
 
         Examples:
             name__value

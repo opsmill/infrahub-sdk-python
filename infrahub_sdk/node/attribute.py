@@ -141,6 +141,13 @@ class Attribute:
 
     @property
     def value(self) -> Any:
+        """Return the attribute value.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the attribute was not fetched.
+
+        """
+        self._raise_if_not_loaded()
         return self._value
 
     @value.setter
@@ -166,6 +173,10 @@ class Attribute:
     def _bind(self, node: InfrahubNodeBase, present: bool) -> None:
         self._node = node
         self._has_data = present
+
+    def _raise_if_not_loaded(self) -> None:
+        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
+            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.name)
 
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
         """Resolve the attribute value into a GraphQL mutation payload object."""

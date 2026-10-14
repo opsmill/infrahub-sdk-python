@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.exceptions import FieldNotFoundError, FieldSelectionConflictError, NodeNotFoundError
+from infrahub_sdk.exceptions import (
+    FieldNotFoundError,
+    FieldNotLoadedError,
+    FieldSelectionConflictError,
+    NodeNotFoundError,
+)
 from infrahub_sdk.graphql import Query
 from infrahub_sdk.node._only import OnlyMarker  # noqa: PLC2701  # the helpers under test are private to the package
 
@@ -658,3 +664,6 @@ async def test_node_from_only_replaces_fuller_copy_in_store(
     stored = client.store.get(key=DEVICE_ID, kind="InfraDevice")
     assert stored is narrower[0]
     assert stored._only_marker == OnlyMarker(only=("name",))
+    message = "InfraDevice.description was not fetched: the node was queried with only=['name']."
+    with pytest.raises(FieldNotLoadedError, match=re.escape(message)):
+        _ = stored.description.value

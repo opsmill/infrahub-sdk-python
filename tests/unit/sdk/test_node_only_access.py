@@ -1,19 +1,28 @@
 from __future__ import annotations
 
+import hashlib
+import inspect
+import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.exceptions import Error, UninitializedError
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.exceptions import Error, FieldNotLoadedError, UninitializedError
+from infrahub_sdk.graphql import Mutation
+from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, UploadResult
 from infrahub_sdk.node.attribute import Attribute
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.node.relationship import RelationshipManager, RelationshipManagerSync
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRootAPI
 
+from . import test_client_only as only_data
+
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from pytest_httpx import HTTPXMock
 
     from .conftest import BothClients
@@ -497,3 +506,749 @@ def test_hierarchy_fields_that_are_not_loaded_read_as_before(clients: BothClient
         assert isinstance(manager, (RelationshipManager, RelationshipManagerSync))
         readings.append((manager.is_loaded, manager.peers, manager.initialized))
     assert readings == [(False, [], False), (False, [], False), (False, [], False)]
+
+
+DEVICE = "InfraDevice"
+SITE = "InfraSite"
+REGION = "LocationRegion"
+CONTRACT = "NetworkContract"
+CONTRACT_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+CONTRACT_CONTENT = b"contract content"
+CONTRACT_CHECKSUM = hashlib.sha1(CONTRACT_CONTENT, usedforsecurity=False).hexdigest()
+
+ONLY_SCHEMA: dict[str, Any] = {
+    **only_data.SCHEMA,
+    "nodes": [
+        *only_data.SCHEMA["nodes"],
+        {
+            "name": "Contract",
+            "namespace": "Network",
+            "inherit_from": ["CoreFileObject"],
+            "attributes": [
+                {"name": "file_name", "kind": "Text", "read_only": True},
+                {"name": "checksum", "kind": "Text", "read_only": True},
+            ],
+        },
+    ],
+}
+
+
+def reference(id: str, typename: str, label: str, **fields: dict[str, Any]) -> dict[str, Any]:
+    """A peer as the server returns it, with its display label and an HFID made of the label."""
+    return {"node": {"id": id, "hfid": [label], "display_label": label, "__typename": typename, **fields}}
+
+
+DEVICE_WITH_NAME = only_data.node_data(only_data.DEVICE_ID, DEVICE, name={"value": "dev1"})
+DEVICE_WITH_HFID = only_data.DEVICE_WITH_HFID
+DEVICE_WITH_EVERY_FIELD = only_data.node_data(
+    only_data.DEVICE_ID,
+    DEVICE,
+    description={"value": "core"},
+    site=reference(only_data.SITE_ID, SITE, "Paris", name={"value": "Paris"}, description={"value": None}),
+    tags={
+        "count": 2,
+        "edges": [
+            reference(only_data.TAG_ID, "BuiltinTag", "red", name={"value": "red"}),
+            reference(only_data.TAG_2_ID, "BuiltinTag", "blue", name={"value": "blue"}),
+        ],
+    },
+)
+REGION_WITH_NAME = only_data.node_data(only_data.REGION_ID, REGION, name={"value": "Europe"})
+REGION_WITH_PARENT = only_data.node_data(
+    only_data.REGION_ID, REGION, parent=only_data.peer(only_data.PARENT_ID, REGION, name={"value": "World"})
+)
+
+
+@pytest.fixture
+def only_clients(clients: BothClients) -> BothClients:
+    clients.standard.schema.set_cache(ONLY_SCHEMA)
+    clients.sync.schema.set_cache(ONLY_SCHEMA)
+    return clients
+
+
+async def resolve(result: object) -> object:
+    """Await what a call on the async client returns; a call on the sync client has already run."""
+    if inspect.isawaitable(result):
+        return await result
+    return result
+
+
+async def query_one(
+    clients: BothClients,
+    client_type: str,
+    httpx_mock: HTTPXMock,
+    kind: str,
+    only: list[str],
+    edge: dict[str, Any],
+    **kwargs: object,
+) -> AnyNode:
+    """Return the one node that `all(kind, only=...)` builds from a response holding `edge`."""
+    only_data.add_page(httpx_mock, kind, [edge])
+    nodes = await only_data.query_nodes(clients, client_type, "all", kind=kind, only=only, **kwargs)
+    return nodes[0]
+
+
+@dataclass
+class NotFetched:
+    kind: str
+    field: str
+    only: list[str]
+    peer_of: str | None = None
+
+    @property
+    def pattern(self) -> str:
+        if self.peer_of:
+            reason = f"the node is a peer of {self.peer_of}, queried with only={self.only!r}."
+        else:
+            reason = f"the node was queried with only={self.only!r}."
+        return re.escape(f"{self.kind}.{self.field} was not fetched: {reason}")
+
+    def check(self, error: FieldNotLoadedError) -> None:
+        assert [error.kind, error.field, error.only, error.peer_of] == [self.kind, self.field, self.only, self.peer_of]
+
+
+async def fetch_then_read_peer_description(related_node: RelatedNode | RelatedNodeSync) -> object:
+    await resolve(related_node.fetch())
+    return related_node.peer._get_attribute("description").value
+
+
+@dataclass
+class ReadCase:
+    name: str
+    field: str
+    read: Callable[[Any], Any]
+    fetched_value: Any
+    pages: tuple[tuple[str, list[dict[str, Any]]], ...] = ()
+
+
+READ_CASES = [
+    ReadCase(name="attribute-value", field="description", read=lambda attribute: attribute.value, fetched_value="core"),
+    ReadCase(name="related-node-id", field="site", read=lambda rel: rel.id, fetched_value=only_data.SITE_ID),
+    ReadCase(name="related-node-hfid", field="site", read=lambda rel: rel.hfid, fetched_value=["Paris"]),
+    # Without a cached peer the relationship has no HFID string, whether or not it was fetched.
+    ReadCase(name="related-node-hfid-str", field="site", read=lambda rel: rel.hfid_str, fetched_value=None),
+    ReadCase(
+        name="related-node-display-label", field="site", read=lambda rel: rel.display_label, fetched_value="Paris"
+    ),
+    ReadCase(name="related-node-typename", field="site", read=lambda rel: rel.typename, fetched_value=SITE),
+    # The server sends no kind with a reference.
+    ReadCase(name="related-node-kind", field="site", read=lambda rel: rel.kind, fetched_value=None),
+    ReadCase(name="related-node-peer", field="site", read=lambda rel: rel.peer.id, fetched_value=only_data.SITE_ID),
+    ReadCase(name="related-node-get", field="site", read=lambda rel: rel.get().id, fetched_value=only_data.SITE_ID),
+    ReadCase(
+        name="related-node-fetch",
+        field="site",
+        read=fetch_then_read_peer_description,
+        fetched_value="Main site",
+        pages=(
+            (
+                SITE,
+                [
+                    only_data.node_data(
+                        only_data.SITE_ID, SITE, name={"value": "Paris"}, description={"value": "Main site"}
+                    )
+                ],
+            ),
+        ),
+    ),
+    ReadCase(
+        name="manager-peers",
+        field="tags",
+        read=lambda manager: [peer.id for peer in manager.peers],
+        fetched_value=[only_data.TAG_ID, only_data.TAG_2_ID],
+    ),
+    ReadCase(
+        name="manager-peer-ids",
+        field="tags",
+        read=lambda manager: manager.peer_ids,
+        fetched_value=[only_data.TAG_ID, only_data.TAG_2_ID],
+    ),
+    ReadCase(
+        name="manager-peer-hfids",
+        field="tags",
+        read=lambda manager: manager.peer_hfids,
+        fetched_value=[["red"], ["blue"]],
+    ),
+    # The peers in the list have no cached peer, so none of them has an HFID string.
+    ReadCase(
+        name="manager-peer-hfids-str", field="tags", read=lambda manager: manager.peer_hfids_str, fetched_value=[]
+    ),
+    ReadCase(
+        name="manager-indexing", field="tags", read=lambda manager: manager[1].id, fetched_value=only_data.TAG_2_ID
+    ),
+    ReadCase(
+        name="manager-iteration",
+        field="tags",
+        read=lambda manager: [peer.id for peer in manager],
+        fetched_value=[only_data.TAG_ID, only_data.TAG_2_ID],
+    ),
+    ReadCase(
+        name="manager-is-from-profile", field="tags", read=lambda manager: manager.is_from_profile, fetched_value=False
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in READ_CASES])
+async def test_read_of_a_field_not_fetched_raises(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: ReadCase
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+    field_object = getattr(device, case.field)
+    expected = NotFetched(kind=DEVICE, field=case.field, only=["name"])
+    assert field_object.is_loaded is False
+
+    with pytest.raises(FieldNotLoadedError, match=expected.pattern) as error:
+        await resolve(case.read(field_object))
+
+    expected.check(error.value)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in READ_CASES])
+async def test_read_of_a_fetched_field_returns_its_value(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: ReadCase
+) -> None:
+    device = await query_one(
+        only_clients,
+        client_type,
+        httpx_mock,
+        kind=DEVICE,
+        only=["description", "site", "tags"],
+        edge=DEVICE_WITH_EVERY_FIELD,
+        prefetch_relationships=True,
+    )
+    for kind, edges in case.pages:
+        only_data.add_page(httpx_mock, kind, edges)
+    field_object = getattr(device, case.field)
+    assert field_object.is_loaded is True
+
+    assert await resolve(case.read(field_object)) == case.fetched_value
+
+
+ATTRIBUTE_READS_THAT_NEVER_RAISE = (
+    "is_loaded",
+    "name",
+    "id",
+    "is_default",
+    "is_from_profile",
+    "is_inherited",
+    "updated_at",
+    "is_protected",
+    "source",
+    "owner",
+    "updated_by",
+)
+RELATED_NODE_READS_THAT_NEVER_RAISE = (
+    "is_loaded",
+    "initialized",
+    "is_resource_pool",
+    "is_from_profile",
+    "name",
+    "is_protected",
+    "updated_at",
+    "source",
+    "owner",
+)
+MANAGER_READS_THAT_NEVER_RAISE = ("is_loaded", "initialized", "has_update", "name")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_reads_that_never_raise_on_fields_not_fetched(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+
+    site_relationship = device._get_relationship_one("site")
+    tags_relationship = device._get_relationship_many("tags")
+
+    description = {
+        name: getattr(device._get_attribute("description"), name) for name in ATTRIBUTE_READS_THAT_NEVER_RAISE
+    }
+    site = {name: getattr(site_relationship, name) for name in RELATED_NODE_READS_THAT_NEVER_RAISE}
+    tags = {name: getattr(tags_relationship, name) for name in MANAGER_READS_THAT_NEVER_RAISE}
+
+    assert description == {
+        "is_loaded": False,
+        "name": "description",
+        "id": None,
+        "is_default": None,
+        "is_from_profile": None,
+        "is_inherited": None,
+        "updated_at": None,
+        "is_protected": None,
+        "source": None,
+        "owner": None,
+        "updated_by": None,
+    }
+    assert site == {
+        "is_loaded": False,
+        "initialized": False,
+        "is_resource_pool": False,
+        "is_from_profile": False,
+        "name": "site",
+        "is_protected": None,
+        "updated_at": None,
+        "source": None,
+        "owner": None,
+    }
+    assert tags == {"is_loaded": False, "initialized": False, "has_update": False, "name": "tags"}
+    assert [site_relationship.schema.name, tags_relationship.schema.name] == ["site", "tags"]
+
+
+@dataclass
+class HierarchyReadCase:
+    name: str
+    read: Callable[[Any], Any]
+
+
+HIERARCHY_READ_CASES = [
+    HierarchyReadCase(name="parent", read=lambda rel: rel.id),
+    HierarchyReadCase(name="children", read=lambda manager: manager.peers),
+    HierarchyReadCase(name="ancestors", read=lambda manager: manager.peers),
+    HierarchyReadCase(name="descendants", read=lambda manager: manager.peers),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HIERARCHY_READ_CASES])
+async def test_read_of_a_hierarchy_field_not_fetched_raises(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: HierarchyReadCase
+) -> None:
+    region = await query_one(only_clients, client_type, httpx_mock, kind=REGION, only=["name"], edge=REGION_WITH_NAME)
+    expected = NotFetched(kind=REGION, field=case.name, only=["name"])
+
+    for field_object in (getattr(region, case.name), region._hierarchical_data[case.name]):
+        assert field_object.is_loaded is False
+        with pytest.raises(FieldNotLoadedError, match=expected.pattern) as error:
+            case.read(field_object)
+        expected.check(error.value)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_read_of_a_field_not_fetched_names_the_kind_of_the_node(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    edge = only_data.node_data(only_data.DOG_ID, "TestingDog", name={"value": "Rex"})
+    dog = await query_one(only_clients, client_type, httpx_mock, kind="TestingAnimal", only=["name"], edge=edge)
+    expected = NotFetched(kind="TestingDog", field="owner", only=["name"])
+
+    with pytest.raises(FieldNotLoadedError, match=expected.pattern) as error:
+        _ = dog._get_relationship_one("owner").id
+
+    expected.check(error.value)
+
+
+@dataclass
+class PeerReadCase:
+    name: str
+    kind: str
+    only: list[str]
+    edge: dict[str, Any]
+    peer_id: str
+    peer_kind: str
+    peer_name: str
+    field: str
+    read: Callable[[Any], Any]
+    peer_of: str
+    prefetch_relationships: bool = False
+
+
+PEER_READ_CASES = [
+    PeerReadCase(
+        name="peer-for-the-hfid-attribute",
+        kind=DEVICE,
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        peer_id=only_data.SITE_ID,
+        peer_kind=SITE,
+        peer_name="Paris",
+        field="description",
+        read=lambda attribute: attribute.value,
+        peer_of="InfraDevice.site",
+    ),
+    PeerReadCase(
+        name="prefetched-parent-cardinality-one",
+        kind=REGION,
+        only=["parent"],
+        edge=REGION_WITH_PARENT,
+        peer_id=only_data.PARENT_ID,
+        peer_kind=REGION,
+        peer_name="World",
+        field="parent",
+        read=lambda rel: rel.id,
+        peer_of="LocationRegion.parent",
+        prefetch_relationships=True,
+    ),
+    PeerReadCase(
+        name="prefetched-parent-cardinality-many",
+        kind=REGION,
+        only=["parent"],
+        edge=REGION_WITH_PARENT,
+        peer_id=only_data.PARENT_ID,
+        peer_kind=REGION,
+        peer_name="World",
+        field="children",
+        read=lambda manager: manager.peer_ids,
+        peer_of="LocationRegion.parent",
+        prefetch_relationships=True,
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in PEER_READ_CASES])
+async def test_read_of_a_field_not_fetched_on_a_peer_raises(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: PeerReadCase
+) -> None:
+    await query_one(
+        only_clients,
+        client_type,
+        httpx_mock,
+        kind=case.kind,
+        only=case.only,
+        edge=case.edge,
+        prefetch_relationships=case.prefetch_relationships,
+    )
+    peer = only_data.client_of(only_clients, client_type).store.get(key=case.peer_id, kind=case.peer_kind)
+    assert isinstance(peer, (InfrahubNode, InfrahubNodeSync))
+    field_object = getattr(peer, case.field)
+    expected = NotFetched(kind=case.peer_kind, field=case.field, only=case.only, peer_of=case.peer_of)
+    peer_name = peer._get_attribute("name")
+    assert [peer_name.is_loaded, peer_name.value, field_object.is_loaded] == [True, case.peer_name, False]
+
+    with pytest.raises(FieldNotLoadedError, match=expected.pattern) as error:
+        case.read(field_object)
+
+    expected.check(error.value)
+
+
+@dataclass
+class NodeReadCase:
+    name: str
+    only: list[str]
+    edge: dict[str, Any]
+    read: Callable[[Any], Any]
+    expected_value: Any = None
+    not_fetched: NotFetched | None = None
+
+
+NODE_READ_CASES = [
+    NodeReadCase(
+        name="path-to-an-attribute-not-fetched",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_path_value(path="description__value"),
+        not_fetched=NotFetched(kind=DEVICE, field="description", only=["hfid"]),
+    ),
+    NodeReadCase(
+        name="path-through-a-relationship-not-fetched",
+        only=["name"],
+        edge=DEVICE_WITH_NAME,
+        read=lambda node: node.get_path_value(path="site__name__value"),
+        not_fetched=NotFetched(kind=DEVICE, field="site", only=["name"]),
+    ),
+    NodeReadCase(
+        name="path-to-a-peer-attribute-not-fetched",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_path_value(path="site__description__value"),
+        not_fetched=NotFetched(kind=SITE, field="description", only=["hfid"], peer_of="InfraDevice.site"),
+    ),
+    NodeReadCase(
+        name="flat-value-of-an-attribute-not-fetched",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_flat_value(key="description__value"),
+        not_fetched=NotFetched(kind=DEVICE, field="description", only=["hfid"]),
+    ),
+    NodeReadCase(
+        name="flat-value-through-a-relationship-not-fetched",
+        only=["name"],
+        edge=DEVICE_WITH_NAME,
+        read=lambda node: node.get_flat_value(key="site__name__value"),
+        not_fetched=NotFetched(kind=DEVICE, field="site", only=["name"]),
+    ),
+    NodeReadCase(
+        name="path-to-a-fetched-attribute",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_path_value(path="name__value"),
+        expected_value="dev1",
+    ),
+    NodeReadCase(
+        name="path-to-a-fetched-peer-attribute",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_path_value(path="site__name__value"),
+        expected_value="Paris",
+    ),
+    NodeReadCase(
+        name="flat-value-of-a-fetched-attribute",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_flat_value(key="name__value"),
+        expected_value="dev1",
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in NODE_READ_CASES])
+async def test_node_reads_raise_only_for_fields_not_fetched(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: NodeReadCase
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=case.only, edge=case.edge)
+
+    if case.not_fetched is None:
+        assert await resolve(case.read(device)) == case.expected_value
+        return
+
+    with pytest.raises(FieldNotLoadedError, match=case.not_fetched.pattern) as error:
+        await resolve(case.read(device))
+    case.not_fetched.check(error.value)
+
+
+@dataclass
+class FileCase:
+    name: str
+    call: Callable[[Any, Path], Any]
+    fetched_value: Any
+
+
+FILE_CASES = [
+    FileCase(
+        name="matches-local-checksum",
+        call=lambda node, _dest: node.matches_local_checksum(source=CONTRACT_CONTENT),
+        fetched_value=True,
+    ),
+    FileCase(
+        name="download-file-skip-if-unchanged",
+        call=lambda node, dest: node.download_file(dest=dest, skip_if_unchanged=True),
+        fetched_value=0,
+    ),
+    FileCase(
+        name="upload-if-changed",
+        call=lambda node, _dest: node.upload_if_changed(source=CONTRACT_CONTENT, name="contract.pdf"),
+        fetched_value=UploadResult(was_uploaded=False, checksum=CONTRACT_CHECKSUM),
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in FILE_CASES])
+async def test_file_checks_raise_when_the_checksum_was_not_fetched(
+    only_clients: BothClients, httpx_mock: HTTPXMock, tmp_path: Path, client_type: str, case: FileCase
+) -> None:
+    dest = tmp_path / "contract.pdf"
+    dest.write_bytes(CONTRACT_CONTENT)
+    edge = only_data.node_data(CONTRACT_ID, CONTRACT, file_name={"value": "contract.pdf"})
+    contract = await query_one(only_clients, client_type, httpx_mock, kind=CONTRACT, only=["file_name"], edge=edge)
+    expected = NotFetched(kind=CONTRACT, field="checksum", only=["file_name"])
+
+    with pytest.raises(FieldNotLoadedError, match=expected.pattern) as error:
+        await resolve(case.call(contract, dest))
+
+    expected.check(error.value)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in FILE_CASES])
+async def test_file_checks_compare_with_a_fetched_checksum(
+    only_clients: BothClients, httpx_mock: HTTPXMock, tmp_path: Path, client_type: str, case: FileCase
+) -> None:
+    dest = tmp_path / "contract.pdf"
+    dest.write_bytes(CONTRACT_CONTENT)
+    edge = only_data.node_data(CONTRACT_ID, CONTRACT, checksum={"value": CONTRACT_CHECKSUM})
+    contract = await query_one(only_clients, client_type, httpx_mock, kind=CONTRACT, only=["checksum"], edge=edge)
+
+    assert await resolve(case.call(contract, dest)) == case.fetched_value
+
+
+MUTATION_RESULT_QUERY: dict[str, Any] = {"ok": None, "object": {"id": None}}
+
+
+def add_mutation(httpx_mock: HTTPXMock, mutation: str, id: str) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {mutation: {"ok": True, "object": {"id": id}}}},
+        match_headers={"X-Infrahub-Tracker": tracker_of(mutation)},
+    )
+
+
+def tracker_of(mutation: str) -> str:
+    for action in ("Create", "Update", "Upsert"):
+        if mutation.endswith(action):
+            return f"mutation-{mutation.removesuffix(action).lower()}-{action.lower()}"
+    raise ValueError(f"Unexpected mutation {mutation}")
+
+
+def sent_mutation(httpx_mock: HTTPXMock, mutation: str) -> str:
+    request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": tracker_of(mutation)})
+    assert request is not None
+    return json.loads(request.content)["query"]
+
+
+@dataclass
+class UpdateCase:
+    name: str
+    kind: str
+    node_id: str
+    edge: dict[str, Any]
+    save: Callable[[Any], Any]
+
+
+UPDATE_CASES = [
+    UpdateCase(
+        name="save-device",
+        kind=DEVICE,
+        node_id=only_data.DEVICE_ID,
+        edge=DEVICE_WITH_NAME,
+        save=lambda node: node.save(),
+    ),
+    UpdateCase(
+        name="update-device",
+        kind=DEVICE,
+        node_id=only_data.DEVICE_ID,
+        edge=DEVICE_WITH_NAME,
+        save=lambda node: node.update(),
+    ),
+    UpdateCase(
+        name="save-hierarchical-node",
+        kind=REGION,
+        node_id=only_data.REGION_ID,
+        edge=REGION_WITH_NAME,
+        save=lambda node: node.save(),
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in UPDATE_CASES])
+async def test_update_of_a_node_from_only_sends_its_id_and_changed_fields(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: UpdateCase
+) -> None:
+    node = await query_one(only_clients, client_type, httpx_mock, kind=case.kind, only=["name"], edge=case.edge)
+    add_mutation(httpx_mock, f"{case.kind}Update", case.node_id)
+
+    node._get_attribute("name").value = "renamed"
+    await resolve(case.save(node))
+
+    expected = Mutation(
+        mutation=f"{case.kind}Update",
+        input_data={"data": {"name": {"value": "renamed"}, "id": case.node_id}},
+        query=MUTATION_RESULT_QUERY,
+    )
+    assert sent_mutation(httpx_mock, f"{case.kind}Update") == expected.render()
+    assert [node.id, node._get_attribute("name").value] == [case.node_id, "renamed"]
+
+
+@dataclass
+class CreateCase:
+    name: str
+    create: Callable[[Any], Any]
+    mutation: str
+
+
+CREATE_CASES = [
+    CreateCase(name="save-with-upsert", create=lambda node: node.save(allow_upsert=True), mutation="InfraDeviceUpsert"),
+    CreateCase(
+        name="create-with-upsert", create=lambda node: node.create(allow_upsert=True), mutation="InfraDeviceUpsert"
+    ),
+    CreateCase(name="create", create=lambda node: node.create(), mutation="InfraDeviceCreate"),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in CREATE_CASES])
+async def test_create_of_a_node_from_only_sends_its_fetched_fields(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: CreateCase
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+    add_mutation(httpx_mock, case.mutation, only_data.DEVICE_ID)
+
+    await resolve(case.create(device))
+
+    expected = Mutation(
+        mutation=case.mutation,
+        input_data={"data": {"name": {"value": "dev1"}, "id": only_data.DEVICE_ID}},
+        query=MUTATION_RESULT_QUERY,
+    )
+    assert sent_mutation(httpx_mock, case.mutation) == expected.render()
+
+
+@dataclass
+class HfidReadCase:
+    name: str
+    only: list[str]
+    edge: dict[str, Any]
+    expected: list[Any]
+
+
+HFID_READ_CASES = [
+    HfidReadCase(
+        name="hfid-fields-not-fetched", only=["name"], edge=DEVICE_WITH_NAME, expected=[None, None, None, None]
+    ),
+    HfidReadCase(
+        name="hfid-fields-fetched",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        expected=[["dev1", "Paris"], "InfraDevice__dev1__Paris", ["dev1", "Paris"], "dev1__Paris"],
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HFID_READ_CASES])
+async def test_hfid_of_a_node_from_only_does_not_raise(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: HfidReadCase
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=case.only, edge=case.edge)
+
+    hfid_reads = [
+        device.hfid,
+        device.hfid_str,
+        device.get_human_friendly_id(),
+        device.get_human_friendly_id_as_string(),
+    ]
+
+    assert hfid_reads == case.expected
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_store_accepts_a_node_from_only(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    client = only_data.client_of(only_clients, client_type)
+    device = await query_one(
+        only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME, populate_store=False
+    )
+    assert client.store.count() == 0
+
+    if isinstance(device, InfrahubNode):
+        only_clients.standard.store.set(node=device)
+    else:
+        only_clients.sync.store.set(node=device)
+
+    assert client.store.get(key=only_data.DEVICE_ID, kind=DEVICE) is device
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_mutation_result_on_a_node_from_only(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+    response = {
+        "InfraDeviceUpdate": {"ok": True, "object": {"id": only_data.DEVICE_ID, "description": {"value": "edge"}}}
+    }
+
+    await resolve(device._process_mutation_result(mutation_name="InfraDeviceUpdate", response=response))
+
+    assert [device.id, device._get_attribute("description").is_loaded] == [only_data.DEVICE_ID, False]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_repr_of_a_node_from_only(only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+
+    assert [repr(device), str(device)] == [f"InfraDevice ({only_data.DEVICE_ID}) "] * 2
