@@ -219,7 +219,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   - `only=["hfid"]` on `TestingCat` gives `node.hfid` with the cat's own three HFID parts.
   - `dog.owner.fetch(only=["name"])` makes the owner's name readable.
   - Saving a node from `only` after changing one attribute leaves its other fields unchanged on the server.
-- [ ] T028 [P] Add the section on `only` to `docs/docs/python-sdk/guides/query_data.mdx` after "Excluding attribute and relationships". It covers:
+- [X] T028 [P] Add the section on `only` to `docs/docs/python-sdk/guides/query_data.mdx` after "Excluding attribute and relationships". It covers:
   - `only`, `only=[]`, `id` and `display_label`;
   - `hfid` in `only`;
   - relationships as references, and `prefetch_relationships` with `only`;
@@ -229,12 +229,12 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   - the errors raised before a request.
 
   Add `fetch(only=...)` under "Fetching relationships manually". Make no claim about what `include` returns for peers. Add one sentence to `docs/docs/python-sdk/guides/store.mdx`: a node from `only` replaces a fuller copy of the same node, and `is_loaded` tells which fields it carries (research R16).
-- [ ] T029 [P] Add `changelog/+only-field-selection.added.md`. It describes `only` on `get`, `all`, `filters` and `fetch`, `is_loaded`, and the three new errors, in the style of the existing fragments in `changelog/`.
-- [ ] T030 Run `uv run invoke docs-generate` and commit the regenerated pages under `docs/docs/python-sdk/sdk_ref/`. Then run `uv run invoke docs-validate`. Check that `infrahub_sdk/node/_only.py` gets no reference page; if it does, exclude it in `tasks.py` the way other private modules are.
-- [ ] T031 Run `uv run invoke format lint-code` and `uv run invoke lint-docs`. Fix every new finding without silencing a rule, unless an inline reason is given (constitution IV, VI).
-- [ ] T032 Run `uv run pytest tests/unit/ -q` and `uv run pytest tests/integration/test_node_only.py -q`. Confirm that `git diff origin/infrahub-develop -- tests/unit/sdk/test_node.py tests/unit/sdk/test_hierarchical_nodes.py` shows no changed lines (SC-003).
-- [ ] T033 Check the scope with `git diff --stat origin/infrahub-develop`. Only the files listed in plan.md "Source Code" and the regenerated docs may change. Run `grep -rn "INFP-532\|FR-0\|SC-0\|User Story" infrahub_sdk tests` and confirm it returns nothing.
-- [ ] T034 Run the checks in [quickstart.md](./quickstart.md) sections 1, 2 and 4.
+- [X] T029 [P] Add `changelog/+only-field-selection.added.md`. It describes `only` on `get`, `all`, `filters` and `fetch`, `is_loaded`, and the three new errors, in the style of the existing fragments in `changelog/`.
+- [X] T030 Run `uv run invoke docs-generate` and commit the regenerated pages under `docs/docs/python-sdk/sdk_ref/`. Then run `uv run invoke docs-validate`. Check that `infrahub_sdk/node/_only.py` gets no reference page; if it does, exclude it in `tasks.py` the way other private modules are.
+- [X] T031 Run `uv run invoke format lint-code` and `uv run invoke lint-docs`. Fix every new finding without silencing a rule, unless an inline reason is given (constitution IV, VI).
+- [X] T032 Run `uv run pytest tests/unit/ -q` and `uv run pytest tests/integration/test_node_only.py -q`. Confirm that `git diff origin/infrahub-develop -- tests/unit/sdk/test_node.py tests/unit/sdk/test_hierarchical_nodes.py` shows no changed lines (SC-003).
+- [X] T033 Check the scope with `git diff --stat origin/infrahub-develop`. Only the files listed in plan.md "Source Code" and the regenerated docs may change. Run `grep -rn "INFP-532\|FR-0\|SC-0\|User Story" infrahub_sdk tests` and confirm it returns nothing.
+- [X] T034 Run the checks in [quickstart.md](./quickstart.md) sections 1, 2 and 4.
 
 ---
 

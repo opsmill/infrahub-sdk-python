@@ -240,6 +240,7 @@ nodes:
         optional: true
   - name: Interface
     namespace: Test
+    human_friendly_id: ["device__name__value", "name__value"]
     attributes:
       - name: name
         kind: Text
@@ -414,6 +415,190 @@ You can exclude attributes and relationships that are retrieved with a query by 
   </TabItem>
 </Tabs>
 
+### Fetching only the named attributes and relationships
+
+Pass `only` to `get`, `filters` or `all` to request the attributes and relationships you name and no others. Each node also gets its `id`, `display_label` and `__typename`. The query that the SDK sends names only those fields, so the response does not contain the other attributes and relationships of the kind.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  devices = await client.all(kind="TestDevice", only=["name", "site"])
+  for device in devices:
+      print(device.name.value, device.site.display_label)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  devices = client.all(kind="TestDevice", only=["name", "site"])
+  for device in devices:
+      print(device.name.value, device.site.display_label)
+  ```
+
+  </TabItem>
+</Tabs>
+
+The names in `only` are the names of the attributes and relationships in the schema of the kind, plus `hfid` and the hierarchy fields described below. With `only=[]`, the query requests the `id`, `display_label` and `__typename` of each node and nothing else. `only` accepts `id` and `display_label`, but they add nothing, because every node gets them.
+
+`property=True` and `include_metadata=True` work with `only`: they add their data for the node and the named fields. `only` cannot be combined with `include` or `exclude`.
+
+#### Reading a field that was not fetched
+
+A node returned by a query with `only` contains only the fields that the query fetched. Reading any other field raises `FieldNotLoadedError`, so a field that was not fetched is never read as an empty value. To know whether a node contains a field, check `is_loaded` on the attribute or the relationship. `is_loaded` never raises.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  from infrahub_sdk.exceptions import FieldNotLoadedError
+
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["site"])
+  print(device.site.id)
+  print(device.name.is_loaded) # False
+
+  try:
+      print(device.name.value)
+  except FieldNotLoadedError as exc:
+      print(exc)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  from infrahub_sdk.exceptions import FieldNotLoadedError
+
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["site"])
+  print(device.site.id)
+  print(device.name.is_loaded) # False
+
+  try:
+      print(device.name.value)
+  except FieldNotLoadedError as exc:
+      print(exc)
+  ```
+
+  </TabItem>
+</Tabs>
+
+The message names the kind, the field and the `only` list:
+
+```text
+TestDevice.name was not fetched: the node was queried with only=['site']. Add 'name' to only, or check is_loaded before reading it.
+```
+
+These reads raise `FieldNotLoadedError` when the field was not fetched:
+
+- on an attribute: `value`;
+- on a relationship of cardinality one: `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `peer`, `get()` and `fetch()`;
+- on a relationship of cardinality many: `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile`, indexing and iteration.
+
+Node methods that read these fields raise in the same cases, for example `get_path_value` and `get_flat_value`. On a file node, `matches_local_checksum`, `upload_if_changed` and `download_file(skip_if_unchanged=True)` raise when the query did not fetch `checksum`.
+
+The SDK raises `FieldNotLoadedError` only on nodes returned by a query with `only`, on the peers returned with them, and on peers fetched with `fetch(only=...)`. On any other node, these reads behave as before, even when `is_loaded` is `False`, for example for an attribute that a query with `exclude` did not fetch.
+
+#### Saving a node from a query with `only`
+
+You can change and save a node returned by a query with `only`. `save()` sends the node's `id` and the fields you changed, so the fields that the query did not fetch keep their values in Infrahub. Reading `node.hfid` and adding the node to the store do not raise either.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  device.name.value = "atl1-edge01"
+  await device.save()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["name"])
+  device.name.value = "atl1-edge01"
+  device.save()
+  ```
+
+  </TabItem>
+</Tabs>
+
+#### Relationships named in `only`
+
+A relationship named in `only` is returned as a reference to its peers: their `id`, `hfid`, `display_label` and `__typename`. A relationship that you do not name is not requested, whatever its kind or cardinality, unless the query needs it for the human-friendly ID.
+
+With `prefetch_relationships=True`, the SDK also requests the default fields of the peers of the named relationships, builds peer nodes from them and adds the peer nodes to the store. The peer nodes follow the same rule as the node: reading a field that they do not contain raises `FieldNotLoadedError`.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(
+      kind="TestDevice", name__value="atl1-edge1", only=["name", "site"], prefetch_relationships=True
+  )
+  print(device.site.peer.name.value)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(
+      kind="TestDevice", name__value="atl1-edge1", only=["name", "site"], prefetch_relationships=True
+  )
+  print(device.site.peer.name.value)
+  ```
+
+  </TabItem>
+</Tabs>
+
+#### Human-friendly IDs of nodes from a query with `only`
+
+A query with `only` does not request the human-friendly ID that Infrahub calculates for each node. The SDK calculates `node.hfid` from the fields that make up the human-friendly ID of the kind instead. Name `hfid` in `only` to request those fields. If `only` names neither `hfid` nor those fields, `node.hfid` is `None`.
+
+With the `human_friendly_id` of `TestInterface` in the schema above, `only=["hfid"]` requests the `name` of each interface, its `device` relationship as a reference, and the `name` of the device:
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  interfaces = await client.filters(kind="TestInterface", device__name__value="atl1-edge1", only=["hfid"])
+  for interface in interfaces:
+      print(interface.hfid) # for example ["atl1-edge1", "Ethernet1"]
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  interfaces = client.filters(kind="TestInterface", device__name__value="atl1-edge1", only=["hfid"])
+  for interface in interfaces:
+      print(interface.hfid) # for example ["atl1-edge1", "Ethernet1"]
+  ```
+
+  </TabItem>
+</Tabs>
+
+When a part of the human-friendly ID is an attribute of a peer, the SDK keeps that peer on the node, so `node.hfid` works with `populate_store=False`. When `populate_store` is on, the SDK also adds the peer to the store. `prefetch_relationships` does not request the default fields of a relationship that the query requests only for the human-friendly ID.
+
+#### Hierarchy fields named in `only`
+
+A kind that is part of a hierarchy has four more fields: `parent`, `children`, `ancestors` and `descendants`. They are different from relationships of kind `Parent`, such as `device` on `TestInterface`, which `only` handles like any other relationship.
+
+`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK requests the same peer fields as a query with `prefetch_relationships=True` and no `only`, and builds peer nodes and adds them to the store for `parent` and `children` only.
+
+#### Generic kinds queried with `only`
+
+When you query a generic kind, `only` accepts the attributes and relationships of the generic and of every kind that implements it. If only some implementing kinds have a field, the query requests it for the nodes of those kinds. `fragment=True` adds no fields to a query with `only`.
+
+#### Errors raised before the nodes are queried
+
+Two errors from `infrahub_sdk.exceptions` report a mistake in the arguments before the SDK requests any node data:
+
+- `FieldSelectionConflictError`: `only` is combined with `include` or `exclude`, even with an empty list. The SDK raises it before it sends any request.
+- `FieldNotFoundError`: a name in `only` is not a field of the kind, or of a kind that implements it. The error names the field and the kind.
+
 ### Fetching relationships manually
 
 The `fetch` method can be used to retrieve relationships, initialize them; and retrieving the related nodes manually.
@@ -474,6 +659,52 @@ The `fetch` method can also be used on relationship that were previously initial
 
   </TabItem>
 </Tabs>
+
+#### Fetching only the named fields of the peers
+
+`fetch` accepts `only` on relationships of cardinality one and of cardinality many. Each peer gets its `id`, `display_label`, `__typename` and the named fields, and reading any other field of the peer raises `FieldNotLoadedError`.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  device = await client.get(kind="TestDevice", name__value="atl1-edge1", only=["name", "site"])
+
+  await device.site.fetch(only=["name"])
+  print(device.site.peer.name.value)
+
+  await device.interfaces.fetch(only=["name"])
+  for interface in device.interfaces.peers:
+      print(interface.peer.name.value)
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  device = client.get(kind="TestDevice", name__value="atl1-edge1", only=["name", "site"])
+
+  device.site.fetch(only=["name"])
+  print(device.site.peer.name.value)
+
+  device.interfaces.fetch(only=["name"])
+  for interface in device.interfaces.peers:
+      print(interface.peer.name.value)
+  ```
+
+  </TabItem>
+</Tabs>
+
+On a relationship of cardinality one, `fetch(only=[...])` sends one query for the peer, keeps the peer on the relationship and adds it to the store. If the fetched fields are not enough to calculate the peer's human-friendly ID, `hfid` and `hfid_str` on the relationship return the human-friendly ID that Infrahub returned with the reference.
+
+On a relationship of cardinality many, `fetch(only=[...])` works in this order:
+
+1. It checks the names against the peer kind of the relationship, before it sends any request.
+2. If the relationship was not fetched, it requests it. On a node returned by a query with `only`, it requests that relationship alone and does not change the node in the store. This also works for `ancestors` and `descendants`.
+3. It checks that every name is a field of the kind of every peer. If a name is missing on one of them, it raises `FieldNotFoundError` before it queries any peer.
+4. It sends one query for each peer kind and adds the peers to the store.
+
+On a node returned by a query with `only`, `fetch()` on a relationship of cardinality one that the query did not fetch raises `FieldNotLoadedError`. To fetch that peer, name the relationship in `only`.
 
 ### Prefetch relationships
 
