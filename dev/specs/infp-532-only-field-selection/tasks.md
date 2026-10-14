@@ -95,7 +95,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T012 [P] [US1] Query-generation tests in `tests/unit/sdk/test_node_only_query.py` that call the new private query methods on both node classes and compare the whole generated query (research R4, R5; contract §1). Cases:
+- [X] T012 [P] [US1] Query-generation tests in `tests/unit/sdk/test_node_only_query.py` that call the new private query methods on both node classes and compare the whole generated query (research R4, R5; contract §1). Cases:
   - `only=["name"]`;
   - `only=[]`;
   - `id` and `display_label`;
@@ -110,7 +110,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   - filters, `order`, `partial_match`, `offset`, `limit` and `count` unchanged.
 
   The node never requests `hfid`.
-- [ ] T013 [P] [US1] Schema-growth test in `tests/unit/sdk/test_node_only_query.py`: the same `only` call gives the same query after an attribute and a relationship are added to the kind and to another implementing kind, when they are not named in `only` (SC-002).
+- [X] T013 [P] [US1] Schema-growth test in `tests/unit/sdk/test_node_only_query.py`: the same `only` call gives the same query after an attribute and a relationship are added to the kind and to another implementing kind, when they are not named in `only` (SC-002).
 - [ ] T014 [P] [US1] Client tests in `tests/unit/sdk/test_client_only.py`, on both clients, with `httpx_mock`:
   - **errors before any request**: `get`, `all` and `filters` raise `FieldSelectionConflictError`, and no request is recorded (including the schema request in `get`). A misspelt name raises `FieldNotFoundError` and no GraphQL query is recorded.
   - **names on generic and hierarchical kinds**: a name only on an implementing kind is accepted. `ancestors` is accepted on a hierarchical kind and rejected on a kind without a hierarchy.
@@ -141,7 +141,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] In `infrahub_sdk/node/node.py`, add the private query methods for `only` to `InfrahubNode`, using the `_only.py` helpers and the existing peer-query helpers (`RelatedNode._generate_query_data`, `RelationshipManager._generate_query_data`, `generate_query_data_node` for prefetched peers) (research R4, R5, R14):
+- [X] T017 [US1] In `infrahub_sdk/node/node.py`, add the private query methods for `only` to `InfrahubNode`, using the `_only.py` helpers and the existing peer-query helpers (`RelatedNode._generate_query_data`, `RelationshipManager._generate_query_data`, `generate_query_data_node` for prefetched peers) (research R4, R5, R14):
   - **queried node**: `id`, `display_label`, `__typename`, no `hfid`;
   - **named fields**: named attributes; named relationships as references;
   - **prefetch**: default fields for named peers when `prefetch_relationships` is set;
@@ -152,7 +152,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   - **query arguments**: filters, `order`, `partial_match`, `offset` and `limit` as `generate_query_data_init` does.
 
   The public `generate_query_data*` methods stay unchanged. Make the async rows of T012 and T013 pass.
-- [ ] T018 [US1] Mirror T017 in `InfrahubNodeSync` in `infrahub_sdk/node/node.py`. Make the sync rows of T012 and T013 pass.
+- [X] T018 [US1] Mirror T017 in `InfrahubNodeSync` in `infrahub_sdk/node/node.py`. Make the sync rows of T012 and T013 pass.
 - [ ] T019 [US1] Raising accessors in `infrahub_sdk/node/attribute.py`, `infrahub_sdk/node/related_node.py` and `infrahub_sdk/node/relationship.py`: each "raises on" read in contract §4 checks `is_loaded` and the node's marker, and raises `FieldNotLoadedError` built from the marker, the node's kind and the field name. Reads on nodes without the marker are unchanged.
 - [ ] T020 [US1] In `infrahub_sdk/node/node.py`, for both node classes:
   - add a private, non-raising version of `get_path_value`, which treats a field that is not loaded as missing and looks for a peer in the HFID-peer slot first, then through the cached peer and the store; make `get_human_friendly_id` use it;

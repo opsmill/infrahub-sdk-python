@@ -23,6 +23,7 @@ from ..schema import (
     RelationshipSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
+from ._only import HIERARCHY_FIELD_NAMES, only_query_fields
 from .attribute import Attribute
 from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
@@ -44,7 +45,7 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
-    from ._only import OnlyMarker
+    from ._only import KindFields, OnlyMarker
 
 
 @dataclass(frozen=True)
@@ -721,6 +722,48 @@ class InfrahubNodeBase:
             data["@filters"]["partial_match"] = True
 
         return data
+
+    def _generate_only_query_data_init(
+        self,
+        filters: dict[str, Any] | None,
+        offset: int | str | None,
+        limit: int | str | None,
+        partial_match: bool,
+        order: Order | None,
+        include_metadata: bool,
+    ) -> dict[str, Any]:
+        data = self.generate_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        # The HFID of a node from a query with `only` is calculated from the fields it names.
+        del data["edges"]["node"]["hfid"]
+        return data
+
+    def _generate_only_attribute_data(
+        self, names: Iterable[str], property: bool, include_metadata: bool
+    ) -> dict[str, Any]:
+        return {
+            name: self._attribute_data[name]._generate_query_data(property=property, include_metadata=include_metadata)
+            for name in names
+            if name in self._attribute_data
+        }
+
+    @staticmethod
+    def _build_hierarchy_query_data(
+        name: str, hierarchy_kind: str, peer_data: dict[str, Any], property: bool
+    ) -> dict[str, Any]:
+        if name == "parent":
+            rel_data = RelatedNodeBase._generate_query_data(peer_data=peer_data, property=property)
+            rel_data["node"] = {f"...on {hierarchy_kind}": rel_data["node"]}
+        else:
+            rel_data = RelationshipManagerBase._generate_query_data(peer_data=peer_data, property=property)
+            rel_data["edges"]["node"] = {f"...on {hierarchy_kind}": rel_data["edges"]["node"]}
+        return rel_data
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -1553,6 +1596,140 @@ class InfrahubNode(InfrahubNodeBase):
         )
 
         return data
+
+    async def _generate_only_query_data(
+        self,
+        only: list[str],
+        filters: dict[str, Any] | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
+        fragment: bool = False,  # noqa: ARG002  # accepted so callers pass the same arguments as for the default query
+        prefetch_relationships: bool = False,
+        partial_match: bool = False,
+        property: bool = False,
+        order: Order | None = None,
+        include_metadata: bool = False,
+    ) -> dict[str, Any | dict]:
+        """Generate the GraphQL query payload that requests only the fields named in `only`.
+
+        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the named fields. Named
+        relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, a field that only some implementing kinds have is
+        requested in an aliased `...on Kind` block for each of them, so `fragment` adds nothing.
+
+        Raises:
+            FieldNotFoundError: a name in `only` is not a field of the kind or of any kind implementing it.
+
+        """
+        implementing_schemas = (
+            [await self._client.schema.get(kind=kind, branch=self._branch) for kind in self._schema.used_by]
+            if isinstance(self._schema, GenericSchemaAPI)
+            else []
+        )
+        fields = only_query_fields(only=only, schema=self._schema, implementing_schemas=implementing_schemas)
+
+        data = self._generate_only_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        node_data = data["edges"]["node"]
+        node_data.update(
+            await self._generate_only_query_data_node(
+                fields=fields.node,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+        )
+        for implementing_schema in implementing_schemas:
+            kind_fields = fields.implementing_kinds.get(implementing_schema.kind)
+            if kind_fields is None:
+                continue
+            kind_node = InfrahubNode(client=self._client, schema=implementing_schema, branch=self._branch)
+            node_data[f"...on {implementing_schema.kind}"] = await kind_node._generate_only_query_data_node(
+                fields=kind_fields,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+                insert_alias=True,
+            )
+
+        return {self._schema.kind: data}
+
+    async def _generate_only_query_data_node(
+        self,
+        fields: KindFields,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        insert_alias: bool = False,
+    ) -> dict[str, Any]:
+        data = self._generate_only_attribute_data(
+            names=fields.attributes, property=property, include_metadata=include_metadata
+        )
+
+        for rel_name, peer_attributes in fields.relationships.items():
+            rel_schema = self._schema.get_relationship(name=rel_name)
+            peer_data = await self._generate_only_peer_data(
+                peer_kind=rel_schema.peer,
+                peer_attributes=peer_attributes,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is not None:
+                data[rel_name] = rel_data
+
+        if fields.hierarchy_kind is not None:
+            for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
+                # Hierarchy peers get the fields that the default query's prefetch requests for them.
+                peer_data = await self._generate_only_peer_data(
+                    peer_kind=fields.hierarchy_kind,
+                    peer_attributes=peer_attributes,
+                    prefetch_relationships=prefetch_relationships,
+                    property=property,
+                    include_metadata=False,
+                    exclude=list(HIERARCHY_FIELD_NAMES),
+                )
+                data[hierarchical_name] = self._build_hierarchy_query_data(
+                    name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind, peer_data=peer_data, property=property
+                )
+
+        if insert_alias:
+            for name, field_data in data.items():
+                field_data["@alias"] = f"__alias__{self._schema.kind}__{name}"
+
+        return data
+
+    async def _generate_only_peer_data(
+        self,
+        peer_kind: str,
+        peer_attributes: tuple[str, ...],
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        exclude: list[str] | None = None,
+    ) -> dict[str, Any]:
+        if not prefetch_relationships and not peer_attributes:
+            return {}
+
+        peer_schema = await self._client.schema.get(kind=peer_kind, branch=self._branch)
+        peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
+        peer_data: dict[str, Any] = {}
+        if prefetch_relationships:
+            peer_data = await peer_node.generate_query_data_node(
+                exclude=exclude, property=property, include_metadata=include_metadata
+            )
+        missing = [name for name in peer_attributes if name not in peer_data]
+        peer_data.update(
+            peer_node._generate_only_attribute_data(names=missing, property=property, include_metadata=include_metadata)
+        )
+        return peer_data
 
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
         """Add peers to a cardinality-many relationship through a dedicated mutation.
@@ -2790,6 +2967,140 @@ class InfrahubNodeSync(InfrahubNodeBase):
         )
 
         return data
+
+    def _generate_only_query_data(
+        self,
+        only: list[str],
+        filters: dict[str, Any] | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
+        fragment: bool = False,  # noqa: ARG002  # accepted so callers pass the same arguments as for the default query
+        prefetch_relationships: bool = False,
+        partial_match: bool = False,
+        property: bool = False,
+        order: Order | None = None,
+        include_metadata: bool = False,
+    ) -> dict[str, Any | dict]:
+        """Generate the GraphQL query payload that requests only the fields named in `only`.
+
+        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the named fields. Named
+        relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, a field that only some implementing kinds have is
+        requested in an aliased `...on Kind` block for each of them, so `fragment` adds nothing.
+
+        Raises:
+            FieldNotFoundError: a name in `only` is not a field of the kind or of any kind implementing it.
+
+        """
+        implementing_schemas = (
+            [self._client.schema.get(kind=kind, branch=self._branch) for kind in self._schema.used_by]
+            if isinstance(self._schema, GenericSchemaAPI)
+            else []
+        )
+        fields = only_query_fields(only=only, schema=self._schema, implementing_schemas=implementing_schemas)
+
+        data = self._generate_only_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        node_data = data["edges"]["node"]
+        node_data.update(
+            self._generate_only_query_data_node(
+                fields=fields.node,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+        )
+        for implementing_schema in implementing_schemas:
+            kind_fields = fields.implementing_kinds.get(implementing_schema.kind)
+            if kind_fields is None:
+                continue
+            kind_node = InfrahubNodeSync(client=self._client, schema=implementing_schema, branch=self._branch)
+            node_data[f"...on {implementing_schema.kind}"] = kind_node._generate_only_query_data_node(
+                fields=kind_fields,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+                insert_alias=True,
+            )
+
+        return {self._schema.kind: data}
+
+    def _generate_only_query_data_node(
+        self,
+        fields: KindFields,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        insert_alias: bool = False,
+    ) -> dict[str, Any]:
+        data = self._generate_only_attribute_data(
+            names=fields.attributes, property=property, include_metadata=include_metadata
+        )
+
+        for rel_name, peer_attributes in fields.relationships.items():
+            rel_schema = self._schema.get_relationship(name=rel_name)
+            peer_data = self._generate_only_peer_data(
+                peer_kind=rel_schema.peer,
+                peer_attributes=peer_attributes,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is not None:
+                data[rel_name] = rel_data
+
+        if fields.hierarchy_kind is not None:
+            for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
+                # Hierarchy peers get the fields that the default query's prefetch requests for them.
+                peer_data = self._generate_only_peer_data(
+                    peer_kind=fields.hierarchy_kind,
+                    peer_attributes=peer_attributes,
+                    prefetch_relationships=prefetch_relationships,
+                    property=property,
+                    include_metadata=False,
+                    exclude=list(HIERARCHY_FIELD_NAMES),
+                )
+                data[hierarchical_name] = self._build_hierarchy_query_data(
+                    name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind, peer_data=peer_data, property=property
+                )
+
+        if insert_alias:
+            for name, field_data in data.items():
+                field_data["@alias"] = f"__alias__{self._schema.kind}__{name}"
+
+        return data
+
+    def _generate_only_peer_data(
+        self,
+        peer_kind: str,
+        peer_attributes: tuple[str, ...],
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        exclude: list[str] | None = None,
+    ) -> dict[str, Any]:
+        if not prefetch_relationships and not peer_attributes:
+            return {}
+
+        peer_schema = self._client.schema.get(kind=peer_kind, branch=self._branch)
+        peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
+        peer_data: dict[str, Any] = {}
+        if prefetch_relationships:
+            peer_data = peer_node.generate_query_data_node(
+                exclude=exclude, property=property, include_metadata=include_metadata
+            )
+        missing = [name for name in peer_attributes if name not in peer_data]
+        peer_data.update(
+            peer_node._generate_only_attribute_data(names=missing, property=property, include_metadata=include_metadata)
+        )
+        return peer_data
 
     def add_relationships(
         self,

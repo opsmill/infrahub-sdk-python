@@ -6,7 +6,7 @@ code paths reach the same decisions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from ..exceptions import FieldNotFoundError, FieldNotLoadedError, FieldSelectionConflictError
@@ -50,6 +50,39 @@ class HfidFields:
 
     attributes: tuple[str, ...]
     relationships: Mapping[str, tuple[str, ...]]
+
+
+@dataclass(frozen=True)
+class KindFields:
+    """The fields a query with `only` requests on one kind.
+
+    `relationships` and `hierarchy_fields` map each field to the peer attributes to request with it;
+    an empty tuple means the field is requested as a reference only. `hierarchy_kind` is the kind whose
+    fields the peers of the hierarchy fields get, and is set whenever `hierarchy_fields` is not empty.
+    Every field is listed in schema order, so the query does not depend on the order of `only`.
+    """
+
+    attributes: tuple[str, ...] = ()
+    relationships: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    hierarchy_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    hierarchy_kind: str | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        return not (self.attributes or self.relationships or self.hierarchy_fields)
+
+
+@dataclass(frozen=True)
+class OnlyQueryFields:
+    """Where a query with `only` requests each field.
+
+    `node` holds the fields requested on the queried kind. For a generic kind, `implementing_kinds`
+    maps each implementing kind that needs fields the generic does not have to the fields requested
+    in its `...on Kind` block.
+    """
+
+    node: KindFields
+    implementing_kinds: Mapping[str, KindFields]
 
 
 def check_only_conflict(
@@ -129,9 +162,100 @@ def expand_hfid(schema: MainSchemaTypesAPI) -> HfidFields:
     )
 
 
-def _is_hierarchical(schema: MainSchemaTypesAPI) -> bool:
+def only_query_fields(
+    only: Sequence[str], schema: MainSchemaTypesAPI, implementing_schemas: Iterable[MainSchemaTypesAPI] = ()
+) -> OnlyQueryFields:
+    """Decide which fields a query with `only` requests, and on which kind.
+
+    `id` and `display_label` add nothing. `hfid` adds the fields of the HFID of the queried kind, or for
+    a generic kind of each implementing kind. A field the generic has is requested on the generic;
+    any other field goes to the block of each implementing kind that has it (or whose HFID uses it).
+    On a hierarchical kind, `parent`, `children`, `ancestors` and `descendants` are hierarchy fields.
+
+    Raises:
+        FieldNotFoundError: a name is not a field of the kind or of any of `implementing_schemas`.
+    """
+    implementing_schemas = tuple(implementing_schemas)
+    check_only_names(only=only, schema=schema, implementing_schemas=implementing_schemas)
+
+    node = _KindFieldsBuilder(schema)
+    blocks = {implementing.kind: _KindFieldsBuilder(implementing) for implementing in implementing_schemas}
+    for name in dict.fromkeys(only):
+        if name in _ALWAYS_ACCEPTED_NAMES:
+            continue
+        if node.has(name):
+            node.add(name)
+            continue
+        for block in blocks.values():
+            if block.has(name):
+                block.add(name)
+
+    if "hfid" in only:
+        hfid_schemas = implementing_schemas if isinstance(schema, GenericSchemaAPI) else (schema,)
+        for hfid_schema in hfid_schemas:
+            owner = blocks.get(hfid_schema.kind, node)
+            hfid = expand_hfid(hfid_schema)
+            for name in hfid.attributes:
+                (node if node.has(name) else owner).add(name)
+            for name, peer_attributes in hfid.relationships.items():
+                (node if node.has(name) else owner).add(name, peer_attributes)
+
+    implementing_kinds = {kind: block.build() for kind, block in blocks.items()}
+    return OnlyQueryFields(
+        node=node.build(),
+        implementing_kinds={kind: fields for kind, fields in implementing_kinds.items() if not fields.is_empty},
+    )
+
+
+class _KindFieldsBuilder:
+    def __init__(self, schema: MainSchemaTypesAPI) -> None:
+        self._schema = schema
+        self._names = field_names(schema)
+        self._hierarchy_kind = _hierarchy_kind(schema)
+        self._attributes: set[str] = set()
+        self._relationships: dict[str, list[str]] = {}
+        self._hierarchy_fields: dict[str, list[str]] = {}
+
+    def has(self, name: str) -> bool:
+        return name in self._names
+
+    def add(self, name: str, peer_attributes: Iterable[str] = ()) -> None:
+        if self._hierarchy_kind is not None and name in HIERARCHY_FIELD_NAMES:
+            requested = self._hierarchy_fields.setdefault(name, [])
+        elif name in self._schema.attribute_names:
+            self._attributes.add(name)
+            return
+        else:
+            requested = self._relationships.setdefault(name, [])
+        for peer_attribute in peer_attributes:
+            if peer_attribute not in requested:
+                requested.append(peer_attribute)
+
+    def build(self) -> KindFields:
+        return KindFields(
+            attributes=tuple(name for name in self._schema.attribute_names if name in self._attributes),
+            relationships={
+                name: tuple(self._relationships[name])
+                for name in self._schema.relationship_names
+                if name in self._relationships
+            },
+            hierarchy_fields={
+                name: tuple(self._hierarchy_fields[name])
+                for name in HIERARCHY_FIELD_NAMES
+                if name in self._hierarchy_fields
+            },
+            hierarchy_kind=self._hierarchy_kind if self._hierarchy_fields else None,
+        )
+
+
+def _hierarchy_kind(schema: MainSchemaTypesAPI) -> str | None:
+    """The kind at the root of the kind's hierarchy, which a hierarchical generic is itself."""
     if isinstance(schema, NodeSchemaAPI):
-        return schema.hierarchy is not None
-    if isinstance(schema, GenericSchemaAPI):
-        return schema.hierarchical
-    return False
+        return schema.hierarchy
+    if isinstance(schema, GenericSchemaAPI) and schema.hierarchical:
+        return schema.kind
+    return None
+
+
+def _is_hierarchical(schema: MainSchemaTypesAPI) -> bool:
+    return _hierarchy_kind(schema) is not None
