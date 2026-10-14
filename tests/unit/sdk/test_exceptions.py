@@ -558,6 +558,9 @@ FIELD_SELECTION_ERROR_CASES = [
 ]
 
 FIELD_SELECTION_ERROR_PARAMS = [pytest.param(case, id=case.name) for case in FIELD_SELECTION_ERROR_CASES]
+FIELD_SELECTION_ERROR_WITH_ARGUMENTS_PARAMS = [
+    pytest.param(case, id=case.name) for case in FIELD_SELECTION_ERROR_CASES if case.expected_attributes
+]
 
 
 @pytest.mark.message
@@ -569,7 +572,7 @@ class TestFieldSelectionErrors:
         assert exc.message == case.expected_message
         assert str(exc) == case.expected_message
 
-    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_WITH_ARGUMENTS_PARAMS)
     def test_the_arguments_stay_readable(self, case: FieldSelectionErrorCase) -> None:
         exc = case.build()
 
