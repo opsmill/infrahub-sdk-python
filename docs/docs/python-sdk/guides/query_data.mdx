@@ -442,7 +442,7 @@ Pass `only` to `get`, `filters` or `all` to request the attributes and relations
 
 The names in `only` are the names of the attributes and relationships in the schema of the kind, plus `hfid` and the hierarchy fields described below. With `only=[]`, the query requests the `id`, `display_label` and `__typename` of each node and nothing else. `only` accepts `id` and `display_label`, but they add nothing, because every node gets them.
 
-`property=True` and `include_metadata=True` work with `only`: they add their data for the node and the named fields. `only` cannot be combined with `include` or `exclude`.
+`property=True` and `include_metadata=True` work with `only`. `property=True` adds the properties of the named fields, and `include_metadata=True` adds the metadata of the node and of the named fields. `only` cannot be combined with `include` or `exclude`.
 
 #### Reading a field that was not fetched
 
@@ -590,14 +590,14 @@ A kind that is part of a hierarchy has four more fields: `parent`, `children`, `
 
 #### Generic kinds queried with `only`
 
-When you query a generic kind, `only` accepts the attributes and relationships of the generic and of every kind that implements it. If only some implementing kinds have a field, the query requests it for the nodes of those kinds. `fragment=True` adds no fields to a query with `only`.
+When you query a generic kind, `only` accepts the attributes and relationships of the generic and of any kind that implements it. If only some implementing kinds have a field, the query requests it for the nodes of those kinds. `fragment=True` adds no fields to a query with `only`.
 
 #### Errors raised before the nodes are queried
 
 Two errors from `infrahub_sdk.exceptions` report a mistake in the arguments before the SDK requests any node data:
 
 - `FieldSelectionConflictError`: `only` is combined with `include` or `exclude`, even with an empty list. The SDK raises it before it sends any request.
-- `FieldNotFoundError`: a name in `only` is not a field of the kind, or of a kind that implements it. The error names the field and the kind.
+- `FieldNotFoundError`: a name in `only` is not a field of the kind or of any kind that implements it. The error names the field and the kind.
 
 ### Fetching relationships manually
 
