@@ -111,7 +111,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
   The node never requests `hfid`.
 - [X] T013 [P] [US1] Schema-growth test in `tests/unit/sdk/test_node_only_query.py`: the same `only` call gives the same query after an attribute and a relationship are added to the kind and to another implementing kind, when they are not named in `only` (SC-002).
-- [ ] T014 [P] [US1] Client tests in `tests/unit/sdk/test_client_only.py`, on both clients, with `httpx_mock`:
+- [X] T014 [P] [US1] Client tests in `tests/unit/sdk/test_client_only.py`, on both clients, with `httpx_mock`:
   - **errors before any request**: `get`, `all` and `filters` raise `FieldSelectionConflictError`, and no request is recorded (including the schema request in `get`). A misspelt name raises `FieldNotFoundError` and no GraphQL query is recorded.
   - **names on generic and hierarchical kinds**: a name only on an implementing kind is accepted. `ancestors` is accepted on a hierarchical kind and rejected on a kind without a hierarchy.
   - **requests**: the body of the GraphQL request equals the expected query.
@@ -154,18 +154,18 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   The public `generate_query_data*` methods stay unchanged. Make the async rows of T012 and T013 pass.
 - [X] T018 [US1] Mirror T017 in `InfrahubNodeSync` in `infrahub_sdk/node/node.py`. Make the sync rows of T012 and T013 pass.
 - [ ] T019 [US1] Raising accessors in `infrahub_sdk/node/attribute.py`, `infrahub_sdk/node/related_node.py` and `infrahub_sdk/node/relationship.py`: each "raises on" read in contract §4 checks `is_loaded` and the node's marker, and raises `FieldNotLoadedError` built from the marker, the node's kind and the field name. Reads on nodes without the marker are unchanged.
-- [ ] T020 [US1] In `infrahub_sdk/node/node.py`, for both node classes:
+- [X] T020 [US1] In `infrahub_sdk/node/node.py`, for both node classes:
   - add a private, non-raising version of `get_path_value`, which treats a field that is not loaded as missing and looks for a peer in the HFID-peer slot first, then through the cached peer and the store; make `get_human_friendly_id` use it;
   - leave the public `get_path_value` reading through the public accessors;
   - give `_process_relationships` a private argument with the relationship names to process, which reads from the node's data with aliases removed. Without the argument, its behaviour is unchanged (research R5, R8, R9).
-- [ ] T021 [US1] In `infrahub_sdk/client.py`, `InfrahubClient`:
+- [X] T021 [US1] In `infrahub_sdk/client.py`, `InfrahubClient`:
   - add `only: list[str] | None = None` as the last named parameter of `get` (6 overloads and the implementation), `all` (2 and the implementation) and `filters` (2 and the implementation), before `**kwargs`. Pass it from `get` and `all` to `filters`.
   - put the conflict check first in all three methods.
   - in `filters`, after the schema lookup: look up the implementing kinds' schemas with `branch`, run the name check, and call the private query method when `only` is not `None`.
   - in `_process_nodes_and_relationships`, under `only`: set the marker on each node; build peer nodes only for named relationships with `prefetch_relationships` (for hierarchy fields, `parent` and `children` as today) and for HFID paths; set the peer marker with `peer_of`; fill the HFID-peer slot. Add the peers to the related nodes that go to the store.
 
   Document `only` in the docstrings of `all` and `filters` next to `include` and `exclude`, and add a docstring to `get` that documents it.
-- [ ] T022 [US1] Mirror T021 in `InfrahubClientSync` in `infrahub_sdk/client.py`. Run `tests/unit/sdk/test_client.py::test_validate_method_signature` and `test_method_sanity`.
+- [X] T022 [US1] Mirror T021 in `InfrahubClientSync` in `infrahub_sdk/client.py`. Run `tests/unit/sdk/test_client.py::test_validate_method_signature` and `test_method_sanity`.
 - [ ] T023 [US1] Update the `Raises:` sections of `get_path_value`, `get_flat_value`, `matches_local_checksum`, `download_file` and `upload_if_changed` on both node classes in `infrahub_sdk/node/node.py` (research R16).
 
 **Checkpoint**: T012 to T016 pass on both clients, and `uv run pytest tests/unit/sdk/ -q` passes without any existing test edited. User Story 1 can ship on its own here.

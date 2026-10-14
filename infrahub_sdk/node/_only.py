@@ -22,6 +22,9 @@ HIERARCHY_FIELD_NAMES: tuple[str, ...] = ("parent", "children", "ancestors", "de
 # Every node is requested with its id and display label; "hfid" stands for the fields of the kind's HFID.
 _ALWAYS_ACCEPTED_NAMES = frozenset({"id", "display_label", "hfid"})
 
+# Like the default prefetch, only the hierarchy fields that are schema relationships get peer nodes.
+_HIERARCHY_PEER_NODE_NAMES = frozenset({"parent", "children"})
+
 
 @dataclass(frozen=True)
 class OnlyMarker:
@@ -86,6 +89,18 @@ class OnlyQueryFields:
 
     node: KindFields
     implementing_kinds: Mapping[str, KindFields]
+
+
+@dataclass(frozen=True)
+class OnlyPeerRelationships:
+    """The relationships of one node from a query with `only` whose peers are built as nodes.
+
+    `names` lists them in the order the query requests them. `hfid` holds those requested for the
+    node's HFID, whose peers the node keeps so that its HFID does not depend on the store.
+    """
+
+    names: tuple[str, ...]
+    hfid: frozenset[str]
 
 
 def check_only_conflict(
@@ -209,6 +224,32 @@ def only_query_fields(
         node=node.build(),
         implementing_kinds={kind: fields for kind, fields in implementing_kinds.items() if not fields.is_empty},
     )
+
+
+def only_peer_relationships(fields: OnlyQueryFields, kind: str, prefetch_relationships: bool) -> OnlyPeerRelationships:
+    """Decide which peers of a node of `kind`, returned by the query `fields` describes, are built as nodes.
+
+    A relationship qualifies when its peers carry attributes the HFID needs, or when it is named in `only`
+    and the query prefetches relationships. Of the hierarchy fields, only `parent` and `children` qualify.
+    A node of an implementing kind also gets the relationships of that kind's `...on Kind` block.
+    """
+    names: dict[str, None] = {}
+    hfid: set[str] = set()
+    for kind_fields in (fields.node, fields.implementing_kinds.get(kind)):
+        if kind_fields is None:
+            continue
+        hierarchy_fields = {
+            name: peer_attributes
+            for name, peer_attributes in kind_fields.hierarchy_fields.items()
+            if name in _HIERARCHY_PEER_NODE_NAMES
+        }
+        for name, peer_attributes in {**kind_fields.relationships, **hierarchy_fields}.items():
+            if peer_attributes:
+                hfid.add(name)
+                names[name] = None
+            elif prefetch_relationships and name in kind_fields.named:
+                names[name] = None
+    return OnlyPeerRelationships(names=tuple(names), hfid=frozenset(hfid))
 
 
 class _KindFieldsBuilder:

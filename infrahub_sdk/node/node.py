@@ -197,6 +197,58 @@ class InfrahubNodeBase:
 
         return return_value
 
+    def _get_path_value_if_loaded(self, path: str) -> Any:
+        """Resolve a dunder-separated path like the public path lookup, without raising for unfetched fields.
+
+        A field that the node's data did not contain counts as missing. The peer of a relationship comes
+        from the peers kept for the HFID when it is still the relationship's peer, then from the peer
+        cached on the relationship or the store.
+
+        Returns:
+            Any: The resolved value, or ``None`` when a path component is missing or was not fetched.
+
+        """
+        path_parts = path.split("__")
+
+        if path_parts[0] in self._schema.relationship_names:
+            peer = self._get_loaded_peer(name=path_parts[0])
+            if peer is None:
+                return None
+            if len(path_parts) == 1:
+                return peer.hfid or peer.id
+            return self._get_loaded_attribute_value(node=peer, path_parts=path_parts[1:])
+
+        if path_parts[0] in self._schema.attribute_names:
+            return self._get_loaded_attribute_value(node=self, path_parts=path_parts)
+
+        return None
+
+    def _get_loaded_peer(self, name: str) -> Any:
+        related_node = getattr(self, name, None)
+        if not related_node or not related_node.is_loaded:
+            return None
+
+        hfid_peer = self._hfid_peers.get(name)
+        if hfid_peer is not None and hfid_peer.id == related_node.id:
+            return hfid_peer
+
+        try:
+            return related_node.get()
+        except (NodeNotFoundError, ValueError):
+            # The store is not populated yet while nodes are created in a batch.
+            return None
+
+    @staticmethod
+    def _get_loaded_attribute_value(node: Any, path_parts: list[str]) -> Any:
+        attribute = getattr(node, path_parts[0], None)
+        if isinstance(attribute, Attribute) and not attribute.is_loaded:
+            return None
+        if len(path_parts) == 1:
+            return attribute
+        if path_parts[1] == "value" and isinstance(attribute, Attribute):
+            return attribute._value
+        return getattr(attribute, path_parts[1], None)
+
     def get_human_friendly_id(self) -> list[str] | None:
         """Compute the human-friendly ID for this node from its schema.
 
@@ -216,7 +268,7 @@ class InfrahubNodeBase:
             return None
 
         # If an HFID component is missing we assume that it is invalid and not usable for this node
-        hfid_components = [self.get_path_value(path=item) for item in self._schema.human_friendly_id]
+        hfid_components = [self._get_path_value_if_loaded(path=item) for item in self._schema.human_friendly_id]
         if None in hfid_components:
             return None
         return [str(hfid) for hfid in hfid_components]
@@ -1979,6 +2031,7 @@ class InfrahubNode(InfrahubNodeBase):
         related_nodes: list[InfrahubNode],
         timeout: int | None = None,
         recursive: bool = False,
+        names: Iterable[str] | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1988,12 +2041,21 @@ class InfrahubNode(InfrahubNodeBase):
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+            names (Iterable[str], optional): Process only these relationships, reading their peers from the node's
+                own data, where the fields that only an implementing kind has carry their plain names.
 
         """
-        for rel_name in self._relationships:
-            rel = getattr(self, rel_name)
+        if names is None:
+            relationship_names: Iterable[str] = self._relationships
+            data: dict[str, Any] = node_data["node"]
+        else:
+            relationship_names = names
+            data = self._data or {}
+
+        for rel_name in relationship_names:
+            rel = getattr(self, rel_name, None)
             if rel and isinstance(rel, RelatedNode):
-                relation = node_data["node"].get(rel_name, None)
+                relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = await InfrahubNode.from_graphql(
                         client=self._client,
@@ -2010,7 +2072,7 @@ class InfrahubNode(InfrahubNodeBase):
                             recursive=recursive,
                         )
             elif rel and isinstance(rel, RelationshipManager):
-                peers = node_data["node"].get(rel_name, None)
+                peers = data.get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = await InfrahubNode.from_graphql(
@@ -3354,6 +3416,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         related_nodes: list[InfrahubNodeSync],
         timeout: int | None = None,
         recursive: bool = False,
+        names: Iterable[str] | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNodeSync and add Related Nodes to a list.
 
@@ -3363,12 +3426,21 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+            names (Iterable[str], optional): Process only these relationships, reading their peers from the node's
+                own data, where the fields that only an implementing kind has carry their plain names.
 
         """
-        for rel_name in self._relationships:
-            rel = getattr(self, rel_name)
+        if names is None:
+            relationship_names: Iterable[str] = self._relationships
+            data: dict[str, Any] = node_data["node"]
+        else:
+            relationship_names = names
+            data = self._data or {}
+
+        for rel_name in relationship_names:
+            rel = getattr(self, rel_name, None)
             if rel and isinstance(rel, RelatedNodeSync):
-                relation = node_data["node"].get(rel_name, None)
+                relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
                         client=self._client,
@@ -3385,7 +3457,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                             recursive=recursive,
                         )
             elif rel and isinstance(rel, RelationshipManagerSync):
-                peers = node_data["node"].get(rel_name, None)
+                peers = data.get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
