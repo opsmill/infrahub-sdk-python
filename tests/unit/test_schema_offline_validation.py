@@ -162,6 +162,70 @@ def test_enum_backed_relationship_cardinality_valid_value_passes() -> None:
 
 
 # ---------------------------------------------------------------------------
+# NumberPool parameters: ranges, the deprecated shorthand, or neither
+# ---------------------------------------------------------------------------
+
+
+def _number_pool_parameters_of(schema: dict) -> dict:
+    dumped = InfrahubSchemaWrite.model_validate(schema).model_dump(exclude_unset=True)
+    return dumped["nodes"][0]["attributes"][0].get("parameters", {})
+
+
+def test_number_pool_ranges_declaration_passes() -> None:
+    schema = _schema_with_kind_and_parameters(
+        "NumberPool", {"ranges": [{"start": 1, "end": 10}, {"start": 20, "end": 30, "weight": 5}]}
+    )
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert result.warnings == []
+    assert _number_pool_parameters_of(schema)["ranges"] == [
+        {"start": 1, "end": 10},
+        {"start": 20, "end": 30, "weight": 5},
+    ]
+
+
+def test_number_pool_shorthand_is_still_accepted() -> None:
+    schema = _schema_with_kind_and_parameters("NumberPool", {"start_range": 1, "end_range": 10})
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert result.warnings == []
+    assert _number_pool_parameters_of(schema) == {"start_range": 1, "end_range": 10}
+
+
+@pytest.mark.parametrize("parameters", [None, {}], ids=["no-parameters", "empty-parameters"])
+def test_number_pool_without_any_range_spelling_leaves_the_range_fields_absent(parameters: dict | None) -> None:
+    # No default range is invented for the user: a pool declared without ranges is submitted as such.
+    schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["kind"] = "NumberPool"
+    if parameters is not None:
+        schema["nodes"][0]["attributes"][0]["parameters"] = parameters
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert _number_pool_parameters_of(schema) == {}
+    # The server drops None values before building its own schema, so no range may survive that dump either.
+    dumped = InfrahubSchemaWrite.model_validate(schema).model_dump(exclude_none=True)
+    submitted = dumped["nodes"][0]["attributes"][0].get("parameters") or {}
+    assert set(submitted) <= {"ranges"}
+    assert submitted.get("ranges", []) == []
+
+
+def test_number_pool_range_without_an_end_is_rejected() -> None:
+    schema = _schema_with_kind_and_parameters("NumberPool", {"ranges": [{"start": 1}]})
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is False
+    # A violation inside a discriminated union is located through the variant that was selected.
+    assert _fields_named(result) == {"nodes[0].attributes[0].NumberPool.parameters.ranges[0].end"}
+
+
+# ---------------------------------------------------------------------------
 # Read-only fields are accepted with a warning
 # ---------------------------------------------------------------------------
 
@@ -231,6 +295,16 @@ READ_ONLY_CASES = [
         expected_fields={
             "nodes[0].attributes[0].choices[0].id",
             "nodes[0].attributes[0].choices[0].state",
+        },
+    ),
+    ReadOnlyCase(
+        name="number-pool-range-bookkeeping-fields",
+        schema=_schema_with_kind_and_parameters(
+            "NumberPool", {"ranges": [{"start": 1, "end": 10, "id": None, "state": "present"}]}
+        ),
+        expected_fields={
+            "nodes[0].attributes[0].parameters.ranges[0].id",
+            "nodes[0].attributes[0].parameters.ranges[0].state",
         },
     ),
     # `transform` belongs to the TransformPython variant of the computed-attribute union, so it is
@@ -343,6 +417,11 @@ UNKNOWN_FIELD_CASES = [
         name="parameters-unknown-field",
         schema=_schema_with_parameters({"not_a_real_param": 1}),
         expected_fields={"nodes[0].attributes[0].parameters.not_a_real_param"},
+    ),
+    UnknownFieldCase(
+        name="number-pool-range-unknown-field",
+        schema=_schema_with_kind_and_parameters("NumberPool", {"ranges": [{"start": 1, "end": 10, "step": 2}]}),
+        expected_fields={"nodes[0].attributes[0].parameters.ranges[0].step"},
     ),
     # Parameters only valid for a different attribute kind do nothing on this one, so naming them
     # is the only way the author learns the setting had no effect.
