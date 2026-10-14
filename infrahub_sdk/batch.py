@@ -80,11 +80,20 @@ class InfrahubBatch:
             for batch_task in self._tasks
         ]
 
-        for completed_task in asyncio.as_completed(tasks):
-            node, result = await completed_task
-            if isinstance(result, Exception) and not self.return_exceptions:
-                raise result
-            yield node, result
+        try:
+            for completed_task in asyncio.as_completed(tasks):
+                node, result = await completed_task
+                if isinstance(result, Exception) and not self.return_exceptions:
+                    raise result
+                yield node, result
+        finally:
+            # Ensure no task created here outlives execute(). Cancel any still
+            # running, then drain so their exceptions are retrieved instead of
+            # surfacing later as "Task exception was never retrieved".
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 class InfrahubBatchSync:
