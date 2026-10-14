@@ -22,6 +22,8 @@ The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
 - `schema`: The schema describing the relationship.
 - `name`: The name of the relationship slot on the parent node.
 - `updated_at`: ISO-8601 timestamp of the most recent edge update.
+- `is_loaded`: True when the node's data contained the relationship, it was assigned since,
+or the node has no ``id`` yet.
 
 **Methods:**
 
@@ -41,6 +43,10 @@ non-None id, so .id and .peer.id are NOT interchangeable.
 
 - str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
 
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
 #### `hfid`
 
 ```python
@@ -49,9 +55,16 @@ hfid(self) -> list[Any] | None
 
 Return the human-friendly ID of the related node.
 
+When the cached peer was fetched with ``only`` and its HFID cannot be calculated from the
+fields it carries, the HFID the relationship was loaded with is returned instead.
+
 **Returns:**
 
-- list\[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
+- list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `hfid_str`
 
@@ -62,12 +75,18 @@ hfid_str(self) -> str | None
 Return the human-friendly ID of the related node as a separator-joined string.
 
 The returned string includes the kind prefix and is therefore suitable as a key
-for the client store.
+for the client store. When the cached peer was fetched with ``only`` and its HFID cannot
+be calculated from the fields it carries, the string is built from the HFID the
+relationship was loaded with.
 
 **Returns:**
 
 - str | None: The peer HFID joined with the HFID separator, or ``None`` when
 - unavailable (no resolved peer or missing HFID).
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `is_resource_pool`
 
@@ -93,6 +112,23 @@ Return whether this related node has an identifier.
 
 - ``True`` when an ID or HFID is known and the relationship can be referenced.
 
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether this relationship holds the peer from its node's data or from an assignment.
+
+Never raises and sends no request.
+
+**Returns:**
+
+- ``True`` when the data the node was built from contained the relationship, even
+- without a peer, when the relationship was assigned since, when it does not belong to a
+- node (such as a peer inside a cardinality-many relationship), or when its node has no
+- ``id`` yet. ``False`` otherwise.
+
 #### `display_label`
 
 ```python
@@ -104,6 +140,10 @@ Return the human-readable label of the related node.
 **Returns:**
 
 - str | None: The peer display label, or ``None`` when not provided.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `typename`
 
@@ -117,6 +157,10 @@ Return the GraphQL ``__typename`` of the related node.
 
 - str | None: The peer typename, or ``None`` when not provided.
 
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
 #### `kind`
 
 ```python
@@ -128,6 +172,10 @@ Return the schema kind of the related node.
 **Returns:**
 
 - str | None: The peer schema kind, or ``None`` when not provided.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `is_from_profile`
 
@@ -173,7 +221,7 @@ around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -186,9 +234,15 @@ available via :attr:`peer` or :meth:`get`.
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
 - `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
+- `only`: The only attributes and relationships to fetch on the peer, which also gets
+its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+raises FieldNotLoadedError.
 
 **Raises:**
 
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+- `FieldNotFoundError`: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+queried.
 - `Error`: If neither ``id`` nor ``typename`` is set on this related node.
 
 #### `peer`
@@ -205,6 +259,10 @@ fetched or stored in the client store.
 **Returns:**
 
 - The resolved peer node.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `get`
 
@@ -230,6 +288,7 @@ and ``.id`` diverge.
 
 **Raises:**
 
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 - `ValueError`: If neither an ID nor an HFID is available to look up the peer.
 
 ### `RelatedNodeSync`
@@ -246,7 +305,7 @@ store, and :attr:`peer` is a convenience accessor around :meth:`get`.
 #### `fetch`
 
 ```python
-fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None
+fetch(self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None) -> None
 ```
 
 Fetch the full peer node from the backend and cache it on this object.
@@ -259,9 +318,15 @@ available via :attr:`peer` or :meth:`get`.
 - `timeout`: Overrides the default timeout used when querying the
 GraphQL API. Specified in seconds.
 - `priority`: Override the client-wide request priority for this fetch. When None, the client default is used.
+- `only`: The only attributes and relationships to fetch on the peer, which also gets
+its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+raises FieldNotLoadedError.
 
 **Raises:**
 
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+- `FieldNotFoundError`: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+queried.
 - `Error`: If neither ``id`` nor ``typename`` is set on this related node.
 
 #### `peer`
@@ -278,6 +343,10 @@ fetched or stored in the client store.
 **Returns:**
 
 - The resolved peer node.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `get`
 
@@ -303,6 +372,7 @@ and ``.id`` diverge.
 
 **Raises:**
 
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 - `ValueError`: If neither an ID nor an HFID is available to look up the peer.
 
 ### `RelationshipAttribute`

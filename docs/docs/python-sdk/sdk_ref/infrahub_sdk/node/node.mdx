@@ -162,6 +162,8 @@ The node must have been saved (have an id) before calling this method.
 - `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
 - `ValueError`: If the node hasn't been saved yet, file not found, or
   ``skip_if_unchanged=True`` was passed without a ``dest``.
+- `FieldNotLoadedError`: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+  was queried with ``only`` without fetching ``checksum``.
 - `AuthenticationError`: If authentication fails.
 
 **Examples:**
@@ -213,6 +215,7 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: Node has no server-side checksum yet (unsaved or
 file never attached).
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `upload_if_changed`
 
@@ -253,6 +256,7 @@ from ``source.name`` when ``name`` is omitted.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: ``source`` is ``bytes`` or ``BinaryIO`` and no
 ``name`` was supplied.
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `delete`
 
@@ -510,6 +514,8 @@ rather than bulk traversal.
 
 - `ValueError`: If a component does not match an attribute or relationship, or if
 a relationship hop targets a non cardinality-one relationship.
+- `FieldNotLoadedError`: This node or a related node was queried with ``only`` and a field
+the key reads was not fetched.
 
 **Examples:**
 
@@ -691,6 +697,8 @@ The node must have been saved (have an id) before calling this method.
 - `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
 - `ValueError`: If the node hasn't been saved yet, file not found, or
   ``skip_if_unchanged=True`` was passed without a ``dest``.
+- `FieldNotLoadedError`: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+  was queried with ``only`` without fetching ``checksum``.
 - `AuthenticationError`: If authentication fails.
 
 **Examples:**
@@ -742,6 +750,7 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: Node has no server-side checksum yet (unsaved or
 file never attached).
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `upload_if_changed`
 
@@ -782,6 +791,7 @@ from ``source.name`` when ``name`` is omitted.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: ``source`` is ``bytes`` or ``BinaryIO`` and no
 ``name`` was supplied.
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `delete`
 
@@ -1039,6 +1049,8 @@ rather than bulk traversal.
 
 - `ValueError`: If a component does not match an attribute or relationship, or if
 a relationship hop targets a non cardinality-one relationship.
+- `FieldNotLoadedError`: This node or a related node was queried with ``only`` and a field
+the key reads was not fetched.
 
 **Examples:**
 
@@ -1135,7 +1147,12 @@ cardinality-one related node (``parent``), an attribute of that related node
 **Returns:**
 
 - The resolved value, or ``None`` when any path component cannot be
-- resolved (for example, an unfetched related node not present in the store).
+- resolved (for example, a related node that is not in the store).
+
+**Raises:**
+
+- `FieldNotLoadedError`: This node or the related node was queried with ``only`` and a field
+the path reads was not fetched.
 
 #### `get_human_friendly_id`
 

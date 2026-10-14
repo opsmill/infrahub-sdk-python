@@ -21,10 +21,55 @@ members are not loaded and editing is not allowed.
 - `name`: The name of the relationship slot on the parent node.
 - `schema`: The schema describing the relationship.
 - `branch`: The branch the relationship is bound to.
-- `peers`: The current peer set.
+- `peers`: The current peer set. Assigning a list marks the
+relationship as loaded.
 - `initialized`: ``True`` once the manager has been populated with data.
+- `is_loaded`: ``True`` once the manager has been populated with data or its peers were
+assigned, or when the node has no ``id`` yet.
 
 **Methods:**
+
+#### `peers`
+
+```python
+peers(self) -> list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]
+```
+
+Return the peer set.
+
+The list returned is the one the relationship holds, so changing it in place changes the
+relationship.
+
+**Returns:**
+
+- list\[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
+#### `peers`
+
+```python
+peers(self, value: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]) -> None
+```
+
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether this relationship holds the peers from its node's data or from an assignment.
+
+Never raises and sends no request.
+
+**Returns:**
+
+- ``True`` when the relationship is initialized (the data the node was built from
+- contained it, or :meth:`fetch` ran), when a list was assigned to ``peers``, when the
+- relationship does not belong to a node, or when its node has no ``id`` yet. ``False``
+- otherwise.
 
 #### `peer_ids`
 
@@ -38,6 +83,10 @@ Return the IDs of all peers that have one.
 
 - list\[str]: The IDs of the peers, in insertion order.
 
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
 #### `peer_hfids`
 
 ```python
@@ -50,6 +99,10 @@ Return the HFIDs of all peers that have one.
 
 - list\[list\[Any]]: The HFIDs of the peers as lists of components, in insertion order.
 
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
 #### `peer_hfids_str`
 
 ```python
@@ -61,6 +114,10 @@ Return the HFIDs of all peers as separator-joined strings.
 **Returns:**
 
 - list\[str]: The HFIDs of the peers as ``Kind__part1__part2`` strings.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
 
 #### `has_update`
 
@@ -89,6 +146,10 @@ sourced from a profile.
 
 - ``True`` when at least one peer exists and all peers are from a profile.
 
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the relationship was not fetched.
+
 ### `RelationshipManager`
 
 Asynchronous manager for a cardinality-many relationship.
@@ -104,17 +165,27 @@ accessed by index via ``manager[i]``.
 #### `fetch`
 
 ```python
-fetch(self) -> None
+fetch(self, only: list[str] | None = None) -> None
 ```
 
 Populate the peer set and resolve every peer to a full node.
 
 When the manager is not yet initialized, the parent node is re-queried with this
-relationship included so the peer list can be populated. The peers are then
-fetched in a parallel batch grouped by kind and stored in the client store.
+relationship included so the peer list can be populated. When the parent node was
+queried with ``only``, the re-query requests this relationship alone and does not
+replace the parent node in the client store. The peers are then fetched in a
+parallel batch grouped by kind and stored in the client store.
+
+**Args:**
+
+- `only`: The only attributes and relationships to fetch on each peer, which also
+gets its ``id``, ``display_label`` and ``__typename``. Every name must be a field of every peer's
+kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
 **Raises:**
 
+- `FieldNotFoundError`: A name in ``only`` is not a field of the relationship's peer kind, raised before
+any request, or is missing on the kind of one of the peers, raised before any peer is queried.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -195,17 +266,27 @@ accessed by index via ``manager[i]``.
 #### `fetch`
 
 ```python
-fetch(self) -> None
+fetch(self, only: list[str] | None = None) -> None
 ```
 
 Populate the peer set and resolve every peer to a full node.
 
 When the manager is not yet initialized, the parent node is re-queried with this
-relationship included so the peer list can be populated. The peers are then
-fetched in a parallel batch grouped by kind and stored in the client store.
+relationship included so the peer list can be populated. When the parent node was
+queried with ``only``, the re-query requests this relationship alone and does not
+replace the parent node in the client store. The peers are then fetched in a
+parallel batch grouped by kind and stored in the client store.
+
+**Args:**
+
+- `only`: The only attributes and relationships to fetch on each peer, which also
+gets its ``id``, ``display_label`` and ``__typename``. Every name must be a field of every peer's
+kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
 **Raises:**
 
+- `FieldNotFoundError`: A name in ``only`` is not a field of the relationship's peer kind, raised before
+any request, or is missing on the kind of one of the peers, raised before any peer is queried.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
