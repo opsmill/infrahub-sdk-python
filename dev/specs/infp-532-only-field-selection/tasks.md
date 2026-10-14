@@ -213,7 +213,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ## Phase 5: Polish and cross-cutting concerns
 
-- [ ] T027 [P] Integration tests in `tests/integration/test_node_only.py`, following `tests/integration/test_infrahub_client.py` and `tests/integration/test_infrahub_client_sync.py` (one test class per client). Use `SchemaAnimal` from `infrahub_sdk/testing/schemas/animal.py`.
+- [X] T027 [P] Integration tests in `tests/integration/test_node_only.py`, following `tests/integration/test_infrahub_client.py` and `tests/integration/test_infrahub_client_sync.py` (one test class per client). Use `SchemaAnimal` from `infrahub_sdk/testing/schemas/animal.py`.
   - `all(kind="TestingDog", only=["name", "owner"])` returns dogs with `name`, and `breed` raises.
   - `all(kind="TestingAnimal", only=["name", "breed"])` returns `breed` for dogs and cats.
   - `only=["hfid"]` on `TestingCat` gives `node.hfid` with the cat's own three HFID parts.
