@@ -37,6 +37,8 @@ class RelatedNodeBase:
         schema (RelationshipSchemaAPI): The schema describing the relationship.
         name (str | None): The name of the relationship slot on the parent node.
         updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
+        is_loaded (bool): True when the node's data contained the relationship, it was assigned since,
+            or the node has no ``id`` yet.
 
     """
 
@@ -56,6 +58,8 @@ class RelatedNodeBase:
         self.name = name
 
         self._branch = branch
+        self._node: InfrahubNodeBase | None = None
+        self._has_data = False
 
         self._properties_flag = PROPERTIES_FLAG
         self._properties_object = PROPERTIES_OBJECT
@@ -187,7 +191,28 @@ class RelatedNodeBase:
             bool: ``True`` when an ID or HFID is known and the relationship can be referenced.
 
         """
-        return bool(self.id) or bool(self.hfid)
+        if self._peer:
+            return bool(self._peer.id) or bool(self._peer.hfid)
+        return bool(self._id) or bool(self._hfid)
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether this relationship holds the peer from its node's data or from an assignment.
+
+        Never raises and sends no request.
+
+        Returns:
+            bool: ``True`` when the data the node was built from contained the relationship, even
+            without a peer, when the relationship was assigned since, when it does not belong to a
+            node (such as a peer inside a cardinality-many relationship), or when its node has no
+            ``id`` yet. ``False`` otherwise.
+
+        """
+        return self._has_data or self._node is None or not self._node.id
+
+    def _bind(self, node: InfrahubNodeBase, present: bool) -> None:
+        self._node = node
+        self._has_data = present
 
     @property
     def display_label(self) -> str | None:

@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
+    from ._only import OnlyMarker
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,8 @@ class InfrahubNodeBase:
         self._existing: bool = True
         self._attribute_data: dict[str, Attribute] = {}
         self._metadata: NodeMetadata | None = None
+        self._only_marker: OnlyMarker | None = None
+        self._hfid_peers: dict[str, InfrahubNodeBase] = {}
 
         # Generate a unique ID only to be used inside the SDK
         # The format if this ID is purposely different from the ID used by the API
@@ -271,9 +274,9 @@ class InfrahubNodeBase:
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
             attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
-            self._attribute_data[attr_schema.name] = Attribute(
-                name=attr_schema.name, schema=attr_schema, data=attr_data
-            )
+            attribute = Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data)
+            attribute._bind(node=self, present=isinstance(data, dict) and attr_schema.name in data)
+            self._attribute_data[attr_schema.name] = attribute
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Set values for attributes that exist or revert to normal behaviour."""
@@ -901,6 +904,7 @@ class InfrahubNode(InfrahubNodeBase):
     def _init_relationships(self, data: dict | RelatedNode | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNode):
@@ -916,11 +920,13 @@ class InfrahubNode(InfrahubNodeBase):
                         if value is not None
                     }
                     rel_data = peer_id_data or None
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                related_node = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(node=self, present=present)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
-                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
+                manager = RelationshipManager(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -928,19 +934,23 @@ class InfrahubNode(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+                manager._bind(node=self)
+                self._relationship_cardinality_many_data[rel_schema.name] = manager
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNode(
+                hierarchy_node = RelatedNode(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
-                self._hierarchical_data[rel_schema.name] = RelationshipManager(
+                hierarchy_manager = RelationshipManager(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -948,6 +958,8 @@ class InfrahubNode(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_manager._bind(node=self)
+                self._hierarchical_data[rel_schema.name] = hierarchy_manager
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -980,6 +992,7 @@ class InfrahubNode(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(node=self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
@@ -2137,6 +2150,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def _init_relationships(self, data: dict | RelatedNodeSync | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
                 if isinstance(rel_data, RelatedNodeSync):
@@ -2152,11 +2166,13 @@ class InfrahubNodeSync(InfrahubNodeBase):
                         if value is not None
                     }
                     rel_data = peer_id_data or None
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                related_node = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(node=self, present=present)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
-                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
+                manager = RelationshipManagerSync(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -2164,20 +2180,24 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+                manager._bind(node=self)
+                self._relationship_cardinality_many_data[rel_schema.name] = manager
 
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNodeSync(
+                hierarchy_node = RelatedNodeSync(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
-                self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
+                hierarchy_manager = RelationshipManagerSync(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -2185,6 +2205,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_manager._bind(node=self)
+                self._hierarchical_data[rel_schema.name] = hierarchy_manager
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -2217,6 +2239,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(node=self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 

@@ -53,7 +53,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
   - **name check**: accepts attributes, relationships, `id`, `display_label` and `hfid`. It accepts `parent`, `children`, `ancestors` and `descendants` only for a hierarchical kind. For a generic kind, it accepts names of the generic or of any implementing kind. Any other name raises `FieldNotFoundError` naming the field and the kind (research R3).
   - **strict peer check**: a name missing on one of several peer kinds raises (research R10).
   - **HFID expansion**: `name__value` gives the attribute `name`. `location__name__value` gives the relationship `location` with the peer attribute `name`. A kind with no HFID gives nothing. For a generic kind, each implementing kind uses its own HFID: `Cat` from `infrahub_sdk/testing/schemas/animal.py` (research R5).
-- [ ] T004 [P] Add `is_loaded` tests on nodes not from `only` in `tests/unit/sdk/test_node_only_access.py` (contract §3, data-model "record"), on both clients:
+- [X] T004 [P] Add `is_loaded` tests on nodes not from `only` in `tests/unit/sdk/test_node_only_access.py` (contract §3, data-model "record"), on both clients:
   - attribute, cardinality-one relationship, cardinality-many relationship, `parent`, `children`, `ancestors` and `descendants`, present and absent in the data;
   - `{"node": null}` counts as present;
   - assignment of an attribute value, of a relationship and of `peers` makes the field loaded;
@@ -67,21 +67,21 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 - [X] T005 Add `FieldNotLoadedError`, `FieldNotFoundError` and `FieldSelectionConflictError` to `infrahub_sdk/exceptions/base.py` (each with `Error` as its only base, messages per contract §5, arguments kept as attributes, following `FragmentNotFoundError`). Add them to `base.__all__`, to the import block and `__all__` in `infrahub_sdk/exceptions/__init__.py`, and to `tests/fixtures/error_catalogue/public_names.json`. Make T002 pass and keep `tests/unit/sdk/test_exceptions_public_names.py`, `tests/unit/sdk/test_exceptions_layering.py` and `tests/unit/sdk/test_exceptions.py` green.
 - [X] T006 Create the private module `infrahub_sdk/node/_only.py` with the conflict check, the name check (kind schema plus implementing kinds' schemas passed in), the strict peer check, the HFID expansion and the frozen marker dataclass (`only` tuple, `peer_of`). It takes schemas already looked up and does no I/O (plan, Design Notes). Make T003 pass.
-- [ ] T007 Add the record and `is_loaded` to `Attribute` in `infrahub_sdk/node/attribute.py`. Add a private `_bind(node, present)`. The `value` setter marks the attribute as loaded. `is_loaded` follows data-model "`is_loaded`". Switch `_initialize_graphql_payload`, `is_from_pool_attribute` and `is_unresolved_pool_attribute` to read `_value` (research R8).
-- [ ] T008 Add the record, `_bind` and `is_loaded` to `RelatedNode` and `RelatedNodeSync` (shared base) in `infrahub_sdk/node/related_node.py`. Make `initialized` read the cached peer, `_id` and `_hfid` directly (research R8, condition list).
-- [ ] T009 In `infrahub_sdk/node/relationship.py`:
+- [X] T007 Add the record and `is_loaded` to `Attribute` in `infrahub_sdk/node/attribute.py`. Add a private `_bind(node, present)`. The `value` setter marks the attribute as loaded. `is_loaded` follows data-model "`is_loaded`". Switch `_initialize_graphql_payload`, `is_from_pool_attribute` and `is_unresolved_pool_attribute` to read `_value` (research R8).
+- [X] T008 Add the record, `_bind` and `is_loaded` to `RelatedNode` and `RelatedNodeSync` (shared base) in `infrahub_sdk/node/related_node.py`. Make `initialized` read the cached peer, `_id` and `_hfid` directly (research R8, condition list).
+- [X] T009 In `infrahub_sdk/node/relationship.py`:
   - make `peers` a property backed by `_peers`, with a setter that marks the manager as loaded and a getter that returns the stored list itself;
   - switch every internal read and write (`__init__`, `add`, `extend`, `remove`, `fetch`, `_generate_input_data`, `is_from_profile`, `__getitem__`) to `_peers`;
   - add `_bind` and `is_loaded` (based on `initialized` and the setter flag), on both manager classes.
 
   Do not add `__len__` or `__bool__` (research R8).
-- [ ] T010 In `infrahub_sdk/node/node.py`, for `InfrahubNode` and `InfrahubNodeSync`, bind every field object with `present = name in data`:
+- [X] T010 In `infrahub_sdk/node/node.py`, for `InfrahubNode` and `InfrahubNodeSync`, bind every field object with `present = name in data`:
   - in `_init_attributes`;
   - in `_init_relationships`, for both copies of `parent` and `children` and for `_hierarchical_data`;
   - for the `RelatedNode` built by `__setattr__` when a relationship is assigned, which is marked as assigned.
 
   Add the private marker attribute (default `None`) and the private HFID-peer slot (default empty). Make T004 pass.
-- [ ] T011 [P] Add `is_loaded` to the `Attribute` and `RelatedNodeBase` protocols in `infrahub_sdk/protocols_base.py` (research R12).
+- [X] T011 [P] Add `is_loaded` to the `Attribute` and `RelatedNodeBase` protocols in `infrahub_sdk/protocols_base.py` (research R12).
 
 **Checkpoint**: `uv run pytest tests/unit/sdk/ -q` passes with the baseline count plus the new tests. No existing test was edited.
 
