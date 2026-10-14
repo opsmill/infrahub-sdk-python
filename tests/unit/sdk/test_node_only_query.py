@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from infrahub_sdk.exceptions import FieldNotFoundError
+from infrahub_sdk.graphql import Query
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.types import Order
 
@@ -596,6 +597,15 @@ async def test_only_query_arguments(query_clients: BothClients, client_type: str
     )
     assert data["BuiltinRack"]["@filters"] == default["BuiltinRack"]["@filters"]
     assert data["BuiltinRack"]["count"] == default["BuiltinRack"]["count"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_query_text_does_not_depend_on_name_order(query_clients: BothClients, client_type: str) -> None:
+    names = ["breed", "walker", "hfid", "weight", "color"]
+    forward = await generate_only_query(query_clients, client_type, kind="TestingAnimal", only=names)
+    backward = await generate_only_query(query_clients, client_type, kind="TestingAnimal", only=names[::-1])
+
+    assert Query(query=backward, name="Animals").render() == Query(query=forward, name="Animals").render()
 
 
 @pytest.mark.parametrize("client_type", client_types)
