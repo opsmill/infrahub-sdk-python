@@ -57,14 +57,17 @@ class KindFields:
     """The fields a query with `only` requests on one kind.
 
     `relationships` and `hierarchy_fields` map each field to the peer attributes to request with it;
-    an empty tuple means the field is requested as a reference only. `hierarchy_kind` is the kind whose
-    fields the peers of the hierarchy fields get, and is set whenever `hierarchy_fields` is not empty.
-    Every field is listed in schema order, so the query does not depend on the order of `only`.
+    an empty tuple means the field is requested as a reference only. `named` holds the relationships and
+    hierarchy fields named in `only`, which are the only ones whose peers get their default fields with
+    `prefetch_relationships`; the others are requested for the HFID alone. `hierarchy_kind` is the kind
+    whose fields the peers of the hierarchy fields get, and is set whenever `hierarchy_fields` is not
+    empty. Every field is listed in schema order, so the query does not depend on the order of `only`.
     """
 
     attributes: tuple[str, ...] = ()
     relationships: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     hierarchy_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    named: frozenset[str] = frozenset()
     hierarchy_kind: str | None = None
 
     @property
@@ -168,8 +171,9 @@ def only_query_fields(
     """Decide which fields a query with `only` requests, and on which kind.
 
     `id` and `display_label` add nothing. `hfid` adds the fields of the HFID of the queried kind, or for
-    a generic kind of each implementing kind. A field the generic has is requested on the generic;
-    any other field goes to the block of each implementing kind that has it (or whose HFID uses it).
+    a generic kind of each implementing kind; a relationship it adds carries only the peer attributes
+    the HFID needs. A field the generic has is requested on the generic; any other field goes to the
+    block of each implementing kind that has it (or whose HFID uses it).
     On a hierarchical kind, `parent`, `children`, `ancestors` and `descendants` are hierarchy fields.
 
     Raises:
@@ -196,9 +200,9 @@ def only_query_fields(
             owner = blocks.get(hfid_schema.kind, node)
             hfid = expand_hfid(hfid_schema)
             for name in hfid.attributes:
-                (node if node.has(name) else owner).add(name)
+                (node if node.has(name) else owner).add(name, named=False)
             for name, peer_attributes in hfid.relationships.items():
-                (node if node.has(name) else owner).add(name, peer_attributes)
+                (node if node.has(name) else owner).add(name, peer_attributes, named=False)
 
     implementing_kinds = {kind: block.build() for kind, block in blocks.items()}
     return OnlyQueryFields(
@@ -215,11 +219,12 @@ class _KindFieldsBuilder:
         self._attributes: set[str] = set()
         self._relationships: dict[str, list[str]] = {}
         self._hierarchy_fields: dict[str, list[str]] = {}
+        self._named: set[str] = set()
 
     def has(self, name: str) -> bool:
         return name in self._names
 
-    def add(self, name: str, peer_attributes: Iterable[str] = ()) -> None:
+    def add(self, name: str, peer_attributes: Iterable[str] = (), named: bool = True) -> None:
         if self._hierarchy_kind is not None and name in HIERARCHY_FIELD_NAMES:
             requested = self._hierarchy_fields.setdefault(name, [])
         elif name in self._schema.attribute_names:
@@ -227,6 +232,8 @@ class _KindFieldsBuilder:
             return
         else:
             requested = self._relationships.setdefault(name, [])
+        if named:
+            self._named.add(name)
         for peer_attribute in peer_attributes:
             if peer_attribute not in requested:
                 requested.append(peer_attribute)
@@ -244,6 +251,7 @@ class _KindFieldsBuilder:
                 for name in HIERARCHY_FIELD_NAMES
                 if name in self._hierarchy_fields
             },
+            named=frozenset(self._named),
             hierarchy_kind=self._hierarchy_kind if self._hierarchy_fields else None,
         )
 

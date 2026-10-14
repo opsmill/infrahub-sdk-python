@@ -67,9 +67,12 @@ def schema_payload(rack: NodeSchemaAPI, location: NodeSchemaAPI, grown: bool = F
     """The schemas of the tests, as the schema endpoint returns them.
 
     With `grown`, the rack, the animal generic (and the kinds that inherit its fields) and the dog
-    each gain an attribute and a relationship that no test names in `only`.
+    each gain an attribute and a relationship that no test names in `only`, and the location and the
+    person, whose names are parts of HFIDs, each gain an attribute.
     """
     rack_data = rack.model_dump()
+    location_data = location.model_dump()
+    person_attributes = [{"name": "name", "kind": "Text"}, {"name": "height", "kind": "Number", "optional": True}]
     animal_attributes = list(ANIMAL_ATTRIBUTES)
     animal_relationships = list(ANIMAL_RELATIONSHIPS)
     dog_attributes = [{"name": "breed", "kind": "Text"}]
@@ -81,6 +84,8 @@ def schema_payload(rack: NodeSchemaAPI, location: NodeSchemaAPI, grown: bool = F
         animal_relationships.append({"name": "vet", "peer": "TestingPerson", "cardinality": "one", "optional": True})
         dog_attributes.append({"name": "pattern", "kind": "Text", "optional": True})
         dog_relationships.append({"name": "rival", "peer": "TestingPerson", "cardinality": "one", "optional": True})
+        location_data["attributes"].append({"name": "latitude", "kind": "Number", "optional": True})
+        person_attributes.append({"name": "age", "kind": "Number", "optional": True})
 
     return {
         "version": "1.0",
@@ -110,16 +115,13 @@ def schema_payload(rack: NodeSchemaAPI, location: NodeSchemaAPI, grown: bool = F
         ],
         "nodes": [
             rack_data,
-            location.model_dump(),
+            location_data,
             TAG,
             {
                 "name": "Person",
                 "namespace": "Testing",
                 "human_friendly_id": ["name__value"],
-                "attributes": [
-                    {"name": "name", "kind": "Text"},
-                    {"name": "height", "kind": "Number", "optional": True},
-                ],
+                "attributes": person_attributes,
                 "relationships": [
                     {"name": "animals", "peer": "TestingAnimal", "cardinality": "many", "identifier": "person__animal"}
                 ],
@@ -400,9 +402,19 @@ ONLY_QUERY_CASES = [
         ),
     ),
     OnlyQueryCase(
-        name="hfid-merged-with-prefetch",
+        name="hfid-relationship-not-named-with-prefetch",
         kind="BuiltinRack",
-        only=["hfid"],
+        only=["tags", "hfid"],
+        prefetch_relationships=True,
+        expected=expected_query(
+            "BuiltinRack",
+            {"facility_id": VALUE, "location": one({"name": VALUE}), "tags": many(TAG_DEFAULT_FIELDS)},
+        ),
+    ),
+    OnlyQueryCase(
+        name="hfid-relationship-also-named-with-prefetch",
+        kind="BuiltinRack",
+        only=["location", "hfid"],
         prefetch_relationships=True,
         expected=expected_query("BuiltinRack", {"facility_id": VALUE, "location": one(LOCATION_DEFAULT_FIELDS)}),
     ),
@@ -471,6 +483,34 @@ ONLY_QUERY_CASES = [
             {
                 "name": VALUE,
                 "owner": one({"name": VALUE}),
+                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
+            },
+        ),
+    ),
+    OnlyQueryCase(
+        name="generic-hfid-relationship-not-named-with-prefetch",
+        kind="TestingAnimal",
+        only=["hfid"],
+        prefetch_relationships=True,
+        expected=expected_query(
+            "TestingAnimal",
+            {
+                "name": VALUE,
+                "owner": one({"name": VALUE}),
+                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
+            },
+        ),
+    ),
+    OnlyQueryCase(
+        name="generic-hfid-relationship-also-named-with-prefetch",
+        kind="TestingAnimal",
+        only=["owner", "hfid"],
+        prefetch_relationships=True,
+        expected=expected_query(
+            "TestingAnimal",
+            {
+                "name": VALUE,
+                "owner": one(PERSON_DEFAULT_FIELDS),
                 "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
             },
         ),
@@ -622,6 +662,8 @@ class SchemaGrowthCase:
     kind: str
     only: list[str]
     expected: dict[str, Any]
+    grown_kind: str
+    prefetch_relationships: bool = False
 
 
 SCHEMA_GROWTH_CASES = [
@@ -633,6 +675,30 @@ SCHEMA_GROWTH_CASES = [
             "BuiltinRack",
             {"facility_id": VALUE, "description": VALUE, "location": one({"name": VALUE}), "tags": many()},
         ),
+        grown_kind="BuiltinRack",
+    ),
+    SchemaGrowthCase(
+        name="hfid-peer-kind-with-prefetch",
+        kind="BuiltinRack",
+        only=["facility_id", "hfid"],
+        prefetch_relationships=True,
+        expected=expected_query("BuiltinRack", {"facility_id": VALUE, "location": one({"name": VALUE})}),
+        grown_kind="BuiltinLocation",
+    ),
+    SchemaGrowthCase(
+        name="generic-hfid-peer-kind-with-prefetch",
+        kind="TestingAnimal",
+        only=["hfid"],
+        prefetch_relationships=True,
+        expected=expected_query(
+            "TestingAnimal",
+            {
+                "name": VALUE,
+                "owner": one({"name": VALUE}),
+                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
+            },
+        ),
+        grown_kind="TestingPerson",
     ),
     SchemaGrowthCase(
         name="generic-kind-and-implementing-kinds",
@@ -654,6 +720,7 @@ SCHEMA_GROWTH_CASES = [
                 },
             },
         ),
+        grown_kind="TestingAnimal",
     ),
 ]
 
@@ -666,15 +733,27 @@ async def test_only_query_unchanged_when_schema_grows(
     client_type: str,
     case: SchemaGrowthCase,
 ) -> None:
-    before = await generate_only_query(query_clients, client_type, kind=case.kind, only=case.only)
-    default_before = await generate_default_query(query_clients, client_type, kind=case.kind, fragment=True)
+    before = await generate_only_query(
+        query_clients,
+        client_type,
+        kind=case.kind,
+        only=case.only,
+        prefetch_relationships=case.prefetch_relationships,
+    )
+    default_before = await generate_default_query(query_clients, client_type, kind=case.grown_kind, fragment=True)
 
     grown = schema_payload(rack=schema_with_hfid["rack"], location=schema_with_hfid["location"], grown=True)
     query_clients.standard.schema.set_cache(grown)
     query_clients.sync.schema.set_cache(grown)
 
-    after = await generate_only_query(query_clients, client_type, kind=case.kind, only=case.only)
-    default_after = await generate_default_query(query_clients, client_type, kind=case.kind, fragment=True)
+    after = await generate_only_query(
+        query_clients,
+        client_type,
+        kind=case.kind,
+        only=case.only,
+        prefetch_relationships=case.prefetch_relationships,
+    )
+    default_after = await generate_default_query(query_clients, client_type, kind=case.grown_kind, fragment=True)
 
     assert default_after != default_before
     assert before == case.expected

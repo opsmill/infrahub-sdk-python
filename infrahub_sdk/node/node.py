@@ -1677,7 +1677,7 @@ class InfrahubNode(InfrahubNodeBase):
             peer_data = await self._generate_only_peer_data(
                 peer_kind=rel_schema.peer,
                 peer_attributes=peer_attributes,
-                prefetch_relationships=prefetch_relationships,
+                prefetch_relationships=prefetch_relationships and rel_name in fields.named,
                 property=property,
                 include_metadata=include_metadata,
             )
@@ -1691,7 +1691,7 @@ class InfrahubNode(InfrahubNodeBase):
                 peer_data = await self._generate_only_peer_data(
                     peer_kind=fields.hierarchy_kind,
                     peer_attributes=peer_attributes,
-                    prefetch_relationships=prefetch_relationships,
+                    prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
                     property=property,
                     include_metadata=False,
                     exclude=list(HIERARCHY_FIELD_NAMES),
@@ -3048,7 +3048,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             peer_data = self._generate_only_peer_data(
                 peer_kind=rel_schema.peer,
                 peer_attributes=peer_attributes,
-                prefetch_relationships=prefetch_relationships,
+                prefetch_relationships=prefetch_relationships and rel_name in fields.named,
                 property=property,
                 include_metadata=include_metadata,
             )
@@ -3062,7 +3062,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 peer_data = self._generate_only_peer_data(
                     peer_kind=fields.hierarchy_kind,
                     peer_attributes=peer_attributes,
-                    prefetch_relationships=prefetch_relationships,
+                    prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
                     property=property,
                     include_metadata=False,
                     exclude=list(HIERARCHY_FIELD_NAMES),
