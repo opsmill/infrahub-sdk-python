@@ -983,6 +983,29 @@ class InfrahubNode(InfrahubNodeBase):
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
+        if "_relationship_cardinality_many_data" in self.__dict__ and name in self._relationship_cardinality_many_data:
+            rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
+            if not rel_schemas:
+                raise SchemaNotFoundError(
+                    identifier=self._schema.kind,
+                    message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
+                )
+            rel_schema = rel_schemas[0]
+            # RelationshipManager validates that a cardinality-many value is a list and raises a
+            # helpful error otherwise, so assigning a single node fails here instead of silently
+            # corrupting the node and blowing up later in save().
+            new_many_rel = RelationshipManager(
+                name=rel_schema.name,
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=rel_schema,
+                data=value,
+            )
+            new_many_rel._has_update = True
+            self._relationship_cardinality_many_data[name] = new_many_rel
+            return
+
         super().__setattr__(name, value)
 
     async def generate(self, nodes: list[str] | None = None) -> None:
@@ -2218,6 +2241,29 @@ class InfrahubNodeSync(InfrahubNodeBase):
             )
             new_rel._peer_has_been_mutated = True
             self._relationship_cardinality_one_data[name] = new_rel
+            return
+
+        if "_relationship_cardinality_many_data" in self.__dict__ and name in self._relationship_cardinality_many_data:
+            rel_schemas = [rel_schema for rel_schema in self._schema.relationships if rel_schema.name == name]
+            if not rel_schemas:
+                raise SchemaNotFoundError(
+                    identifier=self._schema.kind,
+                    message=f"Unable to find relationship schema for '{name}' on {self._schema.kind}",
+                )
+            rel_schema = rel_schemas[0]
+            # RelationshipManagerSync validates that a cardinality-many value is a list and raises a
+            # helpful error otherwise, so assigning a single node fails here instead of silently
+            # corrupting the node and blowing up later in save().
+            new_many_rel = RelationshipManagerSync(
+                name=rel_schema.name,
+                client=self._client,
+                node=self,
+                branch=self._branch,
+                schema=rel_schema,
+                data=value,
+            )
+            new_many_rel._has_update = True
+            self._relationship_cardinality_many_data[name] = new_many_rel
             return
 
         super().__setattr__(name, value)
