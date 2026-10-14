@@ -105,6 +105,11 @@ async def _update_with_set_args(
     rel_names = schema.relationship_names
     validate_set_fields(data, attr_names, rel_names)
 
+    read_only_keys = sorted(key for key in data if key in attr_names and schema.get_attribute(key).read_only)
+    if read_only_keys:
+        console.print(f"[red]Error: cannot update read-only field(s): {', '.join(read_only_keys)}.")
+        raise typer.Exit(code=1)
+
     node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 
     prepared = prepare_relationship_data(data, schema)

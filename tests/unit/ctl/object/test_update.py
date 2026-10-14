@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -39,6 +40,7 @@ def test_update_with_set_args() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name", "description"]
     mock_schema.relationship_names = []
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old-name"
@@ -81,6 +83,7 @@ def test_update_with_set_args_attribute_applied() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["description"]
     mock_schema.relationship_names = []
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old description"
@@ -118,6 +121,7 @@ def test_update_with_set_args_and_branch() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["name"]
     mock_schema.relationship_names = []
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "old"
@@ -166,6 +170,31 @@ def test_update_invalid_field() -> None:
         result = runner.invoke(app, ["object", "update", "InfraDevice", "abc-123", "--set", "unknown_field=value"])
 
     assert result.exit_code != 0
+
+
+def test_update_read_only_field_rejected() -> None:
+    """Using --set on a read-only attribute exits non-zero before resolving the node."""
+    mock_schema = MagicMock()
+    mock_schema.attribute_names = ["computed_address"]
+    mock_schema.relationship_names = []
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=True)
+
+    mock_client = MagicMock()
+    mock_client.schema = MagicMock()
+    mock_client.schema.get = AsyncMock(return_value=mock_schema)
+
+    mock_resolve = AsyncMock()
+    with (
+        patch("infrahub_sdk.ctl.object.update.initialize_client", return_value=mock_client),
+        patch("infrahub_sdk.ctl.object.update.resolve_node", mock_resolve),
+    ):
+        result = runner.invoke(app, ["object", "update", "InfraDevice", "abc-123", "--set", "computed_address=x"])
+
+    assert result.exit_code != 0
+    assert "read-only" in result.stdout
+    assert "computed_address" in result.stdout
+    # rejected during validation, before the node is fetched or mutated
+    mock_resolve.assert_not_awaited()
 
 
 def test_update_with_file() -> None:
@@ -256,6 +285,7 @@ def test_update_with_set_args_attribute_noop() -> None:
     mock_schema = MagicMock()
     mock_schema.attribute_names = ["description"]
     mock_schema.relationship_names = []
+    mock_schema.get_attribute = lambda _name: SimpleNamespace(read_only=False)
 
     mock_attr = MagicMock()
     mock_attr.value = "same value"
