@@ -180,7 +180,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T024 [P] [US2] Tests in `tests/unit/sdk/test_relationship_only.py`, on both clients, with `httpx_mock` (research R10, contract §2):
+- [X] T024 [P] [US2] Tests in `tests/unit/sdk/test_relationship_only.py`, on both clients, with `httpx_mock` (research R10, contract §2):
   - **`RelatedNode.fetch(only=["name"])`**:
     - sends one query with `id`, `display_label`, `__typename` and `name`;
     - the peer is readable and raises on `description`;
@@ -195,11 +195,11 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] In `infrahub_sdk/node/related_node.py`:
+- [X] T025 [US2] In `infrahub_sdk/node/related_node.py`:
   - add `only: list[str] | None = None` as the last parameter of `RelatedNode.fetch` and `RelatedNodeSync.fetch`, and pass it to `client.get`;
   - when the cached peer is a node from `only` and its HFID cannot be calculated, make `hfid` and `hfid_str` return the HFID the reference carried;
   - update the `Raises:` sections.
-- [ ] T026 [US2] In `infrahub_sdk/node/relationship.py`, add `only: list[str] | None = None` to `RelationshipManager.fetch` and `RelationshipManagerSync.fetch`. Steps, in order:
+- [X] T026 [US2] In `infrahub_sdk/node/relationship.py`, add `only: list[str] | None = None` to `RelationshipManager.fetch` and `RelationshipManagerSync.fetch`. Steps, in order:
   1. Check the names against `self.schema.peer`, before any request.
   2. If the manager is not loaded, reload it. On a node from `only`, use `client.get(kind=..., id=..., only=[self.schema.name], populate_store=False)`. On any other node, keep the existing reload.
   3. Run the strict check against every actual peer kind.

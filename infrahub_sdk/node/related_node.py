@@ -151,6 +151,9 @@ class RelatedNodeBase:
     def hfid(self) -> list[Any] | None:
         """Return the human-friendly ID of the related node.
 
+        When the cached peer was fetched with ``only`` and its HFID cannot be calculated from the
+        fields it carries, the HFID the relationship was loaded with is returned instead.
+
         Returns:
             list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
 
@@ -160,7 +163,10 @@ class RelatedNodeBase:
         """
         self._raise_if_not_loaded()
         if self._peer:
-            return self._peer.hfid
+            peer_hfid = self._peer.hfid
+            if peer_hfid is None and self._peer_is_from_only:
+                return self._hfid
+            return peer_hfid
         return self._hfid
 
     @property
@@ -168,7 +174,9 @@ class RelatedNodeBase:
         """Return the human-friendly ID of the related node as a separator-joined string.
 
         The returned string includes the kind prefix and is therefore suitable as a key
-        for the client store.
+        for the client store. When the cached peer was fetched with ``only`` and its HFID cannot
+        be calculated from the fields it carries, the string is built from the HFID the
+        relationship was loaded with.
 
         Returns:
             str | None: The peer HFID joined with the HFID separator, or ``None`` when
@@ -179,9 +187,18 @@ class RelatedNodeBase:
 
         """
         self._raise_if_not_loaded()
-        if self._peer and self.hfid:
+        if not self._peer:
+            return None
+        if self._peer.hfid:
             return self._peer.get_human_friendly_id_as_string(include_kind=True)
+        if self._peer_is_from_only and self._hfid:
+            return "__".join([self._peer.get_kind(), *(str(part) for part in self._hfid)])
         return None
+
+    @property
+    def _peer_is_from_only(self) -> bool:
+        # The cached peer can be typed as a protocol, which does not declare the marker.
+        return getattr(self._peer, "_only_marker", None) is not None
 
     @property
     def is_resource_pool(self) -> bool:
@@ -401,7 +418,9 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    async def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
+    async def fetch(
+        self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
+    ) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -411,9 +430,14 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): The only attributes and relationships to fetch on the peer, which also gets
+                its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+                raises FieldNotLoadedError.
 
         Raises:
             FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+            FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+                queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
@@ -422,7 +446,13 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
         self._peer = await self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            only=only,
         )
 
     @property
@@ -505,7 +535,9 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
+    def fetch(
+        self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
+    ) -> None:
         """Fetch the full peer node from the backend and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
@@ -515,9 +547,14 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): The only attributes and relationships to fetch on the peer, which also gets
+                its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+                raises FieldNotLoadedError.
 
         Raises:
             FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+            FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+                queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
@@ -526,7 +563,13 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
         self._peer = self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            only=only,
         )
 
     @property

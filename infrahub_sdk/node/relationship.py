@@ -8,14 +8,16 @@ from ..exceptions import (
     Error,
     UninitializedError,
 )
+from ..schema import GenericSchemaAPI
 from ..types import Order
+from ._only import check_only_names, check_only_names_on_every_kind
 from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
-    from ..schema import RelationshipSchemaAPI
+    from ..schema import MainSchemaTypesAPI, RelationshipSchemaAPI
     from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
 
@@ -178,6 +180,19 @@ class RelationshipManagerBase(Generic[PeerT]):
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self._peers]
 
+    def _peer_ids_per_kind(self) -> dict[str, list[str]]:
+        ids_per_kind_map: dict[str, list[str]] = defaultdict(list)
+        for peer in self._peers:
+            if not peer.id or not peer.typename:
+                raise Error("Unable to fetch the peer, id and/or typename are not defined")
+            ids_per_kind_map[peer.typename].append(peer.id)
+        return ids_per_kind_map
+
+    def _reload_exclude(self, node: InfrahubNodeBase) -> list[str]:
+        exclude = node._schema.relationship_names + node._schema.attribute_names
+        exclude.remove(self.schema.name)
+        return exclude
+
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
         return {}
@@ -293,36 +308,59 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         self._raise_if_not_loaded()
         return cast("RelatedNode[PeerT]", self._peers[item])
 
-    async def fetch(self) -> None:
+    async def fetch(self, only: list[str] | None = None) -> None:
         """Populate the peer set and resolve every peer to a full node.
 
         When the manager is not yet initialized, the parent node is re-queried with this
-        relationship included so the peer list can be populated. The peers are then
-        fetched in a parallel batch grouped by kind and stored in the client store.
+        relationship included so the peer list can be populated. When the parent node was
+        queried with ``only``, the re-query requests this relationship alone and does not
+        replace the parent node in the client store. The peers are then fetched in a
+        parallel batch grouped by kind and stored in the client store.
+
+        Args:
+            only (list[str], optional): The only attributes and relationships to fetch on each peer, which also
+                gets its ``id``, ``display_label`` and ``__typename``. Every name must be a field of every peer's
+                kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
         Raises:
+            FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
+                any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
-        if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
-            node = await self.client.get(
-                kind=self.node._schema.kind,
-                id=self.node.id,
-                branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+        if only is not None:
+            peer_schema = await self.client.schema.get(kind=self.schema.peer, branch=self.branch)
+            check_only_names(
+                only=only, schema=peer_schema, implementing_schemas=await self._implementing_schemas(peer_schema)
             )
+
+        if not self.initialized:
+            if self.node._only_marker is not None:
+                node = await self.client.get(
+                    kind=self.node._schema.kind,
+                    id=self.node.id,
+                    branch=self.branch,
+                    only=[self.schema.name],
+                    populate_store=False,
+                )
+            else:
+                node = await self.client.get(
+                    kind=self.node._schema.kind,
+                    id=self.node.id,
+                    branch=self.branch,
+                    include=[self.schema.name],
+                    exclude=self._reload_exclude(node=self.node),
+                )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
             self.initialized = True
 
-        ids_per_kind_map = defaultdict(list)
-        for peer in self._peers:
-            if not peer.id or not peer.typename:
-                raise Error("Unable to fetch the peer, id and/or typename are not defined")
-            ids_per_kind_map[peer.typename].append(peer.id)
+        ids_per_kind_map = self._peer_ids_per_kind()
+        if only is not None:
+            check_only_names_on_every_kind(
+                only=only,
+                schemas=[await self.client.schema.get(kind=kind, branch=self.branch) for kind in ids_per_kind_map],
+            )
 
         batch = await self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
@@ -334,10 +372,16 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
+                only=only,
             )
 
         async for _ in batch.execute():
             pass
+
+    async def _implementing_schemas(self, schema: MainSchemaTypesAPI) -> list[MainSchemaTypesAPI]:
+        if not isinstance(schema, GenericSchemaAPI):
+            return []
+        return [await self.client.schema.get(kind=kind, branch=self.branch) for kind in schema.used_by]
 
     def add(self, data: str | RelatedNode | dict) -> None:
         """Add a new peer to this relationship.
@@ -491,36 +535,59 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         self._raise_if_not_loaded()
         return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
-    def fetch(self) -> None:
+    def fetch(self, only: list[str] | None = None) -> None:
         """Populate the peer set and resolve every peer to a full node.
 
         When the manager is not yet initialized, the parent node is re-queried with this
-        relationship included so the peer list can be populated. The peers are then
-        fetched in a parallel batch grouped by kind and stored in the client store.
+        relationship included so the peer list can be populated. When the parent node was
+        queried with ``only``, the re-query requests this relationship alone and does not
+        replace the parent node in the client store. The peers are then fetched in a
+        parallel batch grouped by kind and stored in the client store.
+
+        Args:
+            only (list[str], optional): The only attributes and relationships to fetch on each peer, which also
+                gets its ``id``, ``display_label`` and ``__typename``. Every name must be a field of every peer's
+                kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
         Raises:
+            FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
+                any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
-        if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
-            node = self.client.get(
-                kind=self.node._schema.kind,
-                id=self.node.id,
-                branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+        if only is not None:
+            peer_schema = self.client.schema.get(kind=self.schema.peer, branch=self.branch)
+            check_only_names(
+                only=only, schema=peer_schema, implementing_schemas=self._implementing_schemas(peer_schema)
             )
+
+        if not self.initialized:
+            if self.node._only_marker is not None:
+                node = self.client.get(
+                    kind=self.node._schema.kind,
+                    id=self.node.id,
+                    branch=self.branch,
+                    only=[self.schema.name],
+                    populate_store=False,
+                )
+            else:
+                node = self.client.get(
+                    kind=self.node._schema.kind,
+                    id=self.node.id,
+                    branch=self.branch,
+                    include=[self.schema.name],
+                    exclude=self._reload_exclude(node=self.node),
+                )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
             self.initialized = True
 
-        ids_per_kind_map = defaultdict(list)
-        for peer in self._peers:
-            if not peer.id or not peer.typename:
-                raise Error("Unable to fetch the peer, id and/or typename are not defined")
-            ids_per_kind_map[peer.typename].append(peer.id)
+        ids_per_kind_map = self._peer_ids_per_kind()
+        if only is not None:
+            check_only_names_on_every_kind(
+                only=only,
+                schemas=[self.client.schema.get(kind=kind, branch=self.branch) for kind in ids_per_kind_map],
+            )
 
         batch = self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
@@ -532,10 +599,16 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
+                only=only,
             )
 
         for _ in batch.execute():
             pass
+
+    def _implementing_schemas(self, schema: MainSchemaTypesAPI) -> list[MainSchemaTypesAPI]:
+        if not isinstance(schema, GenericSchemaAPI):
+            return []
+        return [self.client.schema.get(kind=kind, branch=self.branch) for kind in schema.used_by]
 
     def add(self, data: str | RelatedNodeSync | dict) -> None:
         """Add a new peer to this relationship.
