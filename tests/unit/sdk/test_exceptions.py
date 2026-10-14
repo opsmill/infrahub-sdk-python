@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +17,9 @@ from infrahub_sdk.exceptions import (
     AuthenticationError,
     BranchNotFoundError,
     Error,
+    FieldNotFoundError,
+    FieldNotLoadedError,
+    FieldSelectionConflictError,
     GraphQLError,
     NodeInvalidError,
     NodeNotFoundError,
@@ -493,3 +497,91 @@ class TestMessages:
 
         assert exc.query == query
         assert exc.variables == {"name": "John"}
+
+
+@dataclass
+class FieldSelectionErrorCase:
+    name: str
+    build: Callable[[], Error]
+    expected_message: str
+    expected_attributes: dict[str, Any]
+
+
+FIELD_SELECTION_ERROR_CASES = [
+    FieldSelectionErrorCase(
+        name="not-loaded-on-a-queried-node",
+        build=lambda: FieldNotLoadedError(kind="InfraDevice", field="description", only=["name"]),
+        expected_message=(
+            "InfraDevice.description was not fetched: the node was queried with only=['name']. "
+            "Add 'description' to only, or check is_loaded before reading it."
+        ),
+        expected_attributes={"kind": "InfraDevice", "field": "description", "only": ["name"], "peer_of": None},
+    ),
+    FieldSelectionErrorCase(
+        name="not-loaded-with-an-empty-only",
+        build=lambda: FieldNotLoadedError(kind="InfraDevice", field="name", only=()),
+        expected_message=(
+            "InfraDevice.name was not fetched: the node was queried with only=[]. "
+            "Add 'name' to only, or check is_loaded before reading it."
+        ),
+        expected_attributes={"kind": "InfraDevice", "field": "name", "only": [], "peer_of": None},
+    ),
+    FieldSelectionErrorCase(
+        name="not-loaded-on-a-peer",
+        build=lambda: FieldNotLoadedError(
+            kind="InfraSite", field="description", only=("site", "name"), peer_of="InfraDevice.site"
+        ),
+        expected_message=(
+            "InfraSite.description was not fetched: the node is a peer of InfraDevice.site, "
+            "queried with only=['site', 'name']. "
+            "Fetch it with fetch(only=['description']) on InfraDevice.site, or check is_loaded before reading it."
+        ),
+        expected_attributes={
+            "kind": "InfraSite",
+            "field": "description",
+            "only": ["site", "name"],
+            "peer_of": "InfraDevice.site",
+        },
+    ),
+    FieldSelectionErrorCase(
+        name="not-found",
+        build=lambda: FieldNotFoundError(kind="InfraDevice", field="nmae"),
+        expected_message="'nmae' is not an attribute or relationship of InfraDevice.",
+        expected_attributes={"kind": "InfraDevice", "field": "nmae"},
+    ),
+    FieldSelectionErrorCase(
+        name="conflict",
+        build=FieldSelectionConflictError,
+        expected_message="only cannot be combined with include or exclude.",
+        expected_attributes={},
+    ),
+]
+
+FIELD_SELECTION_ERROR_PARAMS = [pytest.param(case, id=case.name) for case in FIELD_SELECTION_ERROR_CASES]
+
+
+@pytest.mark.message
+class TestFieldSelectionErrors:
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    def test_the_message_names_what_the_caller_needs(self, case: FieldSelectionErrorCase) -> None:
+        exc = case.build()
+
+        assert exc.message == case.expected_message
+        assert str(exc) == case.expected_message
+
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    def test_the_arguments_stay_readable(self, case: FieldSelectionErrorCase) -> None:
+        exc = case.build()
+
+        assert {attribute: getattr(exc, attribute) for attribute in case.expected_attributes} == (
+            case.expected_attributes
+        )
+
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    def test_the_only_base_class_is_error(self, case: FieldSelectionErrorCase) -> None:
+        assert type(case.build()).__bases__ == (Error,)
+
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    def test_except_error_catches_it(self, case: FieldSelectionErrorCase) -> None:
+        with pytest.raises(Error, match=re.escape(case.expected_message)):
+            raise case.build()

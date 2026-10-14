@@ -35,7 +35,7 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 **Purpose**: confirm a clean starting point.
 
-- [ ] T001 Install dependencies with `uv sync --all-groups --all-extras` and run `uv run pytest tests/unit/sdk/ -q` on the unchanged tree. Record the pass count in the commit message of the first code commit, as the baseline for SC-003.
+- [X] T001 Install dependencies with `uv sync --all-groups --all-extras` and run `uv run pytest tests/unit/sdk/ -q` on the unchanged tree. Record the pass count in the commit message of the first code commit, as the baseline for SC-003.
 
 ---
 
@@ -47,8 +47,8 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Tests first
 
-- [ ] T002 [P] Add tests for the three new errors in `tests/unit/sdk/test_exceptions.py`: `FieldNotLoadedError(kind, field, only, peer_of=None)` names the kind, the field and the `only` list, and the relationship when `peer_of` is set; `FieldNotFoundError(kind, field)` names the field and the kind; `FieldSelectionConflictError()` names `only`, `include` and `exclude`. Each keeps its arguments as attributes (contract §5).
-- [ ] T003 [P] Add tests for the private helpers in `tests/unit/sdk/test_node_only_helpers.py`, with schemas built in the test or taken from `tests/unit/sdk/conftest.py`:
+- [X] T002 [P] Add tests for the three new errors in `tests/unit/sdk/test_exceptions.py`: `FieldNotLoadedError(kind, field, only, peer_of=None)` names the kind, the field and the `only` list, and the relationship when `peer_of` is set; `FieldNotFoundError(kind, field)` names the field and the kind; `FieldSelectionConflictError()` names `only`, `include` and `exclude`. Each keeps its arguments as attributes (contract §5).
+- [X] T003 [P] Add tests for the private helpers in `tests/unit/sdk/test_node_only_helpers.py`, with schemas built in the test or taken from `tests/unit/sdk/conftest.py`:
   - **conflict check**: raises when `only` is set and `include` or `exclude` is not `None`, including empty lists; passes when either side is `None` (research R2).
   - **name check**: accepts attributes, relationships, `id`, `display_label` and `hfid`. It accepts `parent`, `children`, `ancestors` and `descendants` only for a hierarchical kind. For a generic kind, it accepts names of the generic or of any implementing kind. Any other name raises `FieldNotFoundError` naming the field and the kind (research R3).
   - **strict peer check**: a name missing on one of several peer kinds raises (research R10).
@@ -65,8 +65,8 @@ Single Python library. Production code is under `infrahub_sdk/`, tests under `te
 
 ### Implementation
 
-- [ ] T005 Add `FieldNotLoadedError`, `FieldNotFoundError` and `FieldSelectionConflictError` to `infrahub_sdk/exceptions/base.py` (each with `Error` as its only base, messages per contract §5, arguments kept as attributes, following `FragmentNotFoundError`). Add them to `base.__all__`, to the import block and `__all__` in `infrahub_sdk/exceptions/__init__.py`, and to `tests/fixtures/error_catalogue/public_names.json`. Make T002 pass and keep `tests/unit/sdk/test_exceptions_public_names.py`, `tests/unit/sdk/test_exceptions_layering.py` and `tests/unit/sdk/test_exceptions.py` green.
-- [ ] T006 Create the private module `infrahub_sdk/node/_only.py` with the conflict check, the name check (kind schema plus implementing kinds' schemas passed in), the strict peer check, the HFID expansion and the frozen marker dataclass (`only` tuple, `peer_of`). It takes schemas already looked up and does no I/O (plan, Design Notes). Make T003 pass.
+- [X] T005 Add `FieldNotLoadedError`, `FieldNotFoundError` and `FieldSelectionConflictError` to `infrahub_sdk/exceptions/base.py` (each with `Error` as its only base, messages per contract §5, arguments kept as attributes, following `FragmentNotFoundError`). Add them to `base.__all__`, to the import block and `__all__` in `infrahub_sdk/exceptions/__init__.py`, and to `tests/fixtures/error_catalogue/public_names.json`. Make T002 pass and keep `tests/unit/sdk/test_exceptions_public_names.py`, `tests/unit/sdk/test_exceptions_layering.py` and `tests/unit/sdk/test_exceptions.py` green.
+- [X] T006 Create the private module `infrahub_sdk/node/_only.py` with the conflict check, the name check (kind schema plus implementing kinds' schemas passed in), the strict peer check, the HFID expansion and the frozen marker dataclass (`only` tuple, `peer_of`). It takes schemas already looked up and does no I/O (plan, Design Notes). Make T003 pass.
 - [ ] T007 Add the record and `is_loaded` to `Attribute` in `infrahub_sdk/node/attribute.py`. Add a private `_bind(node, present)`. The `value` setter marks the attribute as loaded. `is_loaded` follows data-model "`is_loaded`". Switch `_initialize_graphql_payload`, `is_from_pool_attribute` and `is_unresolved_pool_attribute` to read `_value` (research R8).
 - [ ] T008 Add the record, `_bind` and `is_loaded` to `RelatedNode` and `RelatedNodeSync` (shared base) in `infrahub_sdk/node/related_node.py`. Make `initialized` read the cached peer, `_id` and `_hfid` directly (research R8, condition list).
 - [ ] T009 In `infrahub_sdk/node/relationship.py`:

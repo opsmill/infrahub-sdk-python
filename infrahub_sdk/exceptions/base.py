@@ -16,6 +16,9 @@ __all__ = [
     "DuplicateFragmentError",
     "Error",
     "FeatureNotSupportedError",
+    "FieldNotFoundError",
+    "FieldNotLoadedError",
+    "FieldSelectionConflictError",
     "FileNotValidError",
     "FragmentFileNotFoundError",
     "FragmentNotFoundError",
@@ -366,6 +369,45 @@ class URLNotFoundError(Error):
 
 class FeatureNotSupportedError(Error):
     """Raised when trying to use a method on a node that doesn't support it."""
+
+
+class FieldNotLoadedError(Error):
+    """Raised when code reads a field that a node fetched with `only` does not carry."""
+
+    def __init__(self, kind: str, field: str, only: Sequence[str], peer_of: str | None = None) -> None:
+        self.kind = kind
+        self.field = field
+        self.only = list(only)
+        self.peer_of = peer_of
+        if peer_of:
+            self.message = (
+                f"{kind}.{field} was not fetched: the node is a peer of {peer_of}, queried with only={self.only!r}. "
+                f"Fetch it with fetch(only={[field]!r}) on {peer_of}, or check is_loaded before reading it."
+            )
+        else:
+            self.message = (
+                f"{kind}.{field} was not fetched: the node was queried with only={self.only!r}. "
+                f"Add {field!r} to only, or check is_loaded before reading it."
+            )
+        super().__init__(self.message)
+
+
+class FieldNotFoundError(Error):
+    """Raised when a name in `only` is not a field of the kind being queried."""
+
+    def __init__(self, kind: str, field: str) -> None:
+        self.kind = kind
+        self.field = field
+        self.message = f"{field!r} is not an attribute or relationship of {kind}."
+        super().__init__(self.message)
+
+
+class FieldSelectionConflictError(Error):
+    """Raised when `only` is combined with `include` or `exclude`."""
+
+    def __init__(self) -> None:
+        self.message = "only cannot be combined with include or exclude."
+        super().__init__(self.message)
 
 
 class UninitializedError(Error):
