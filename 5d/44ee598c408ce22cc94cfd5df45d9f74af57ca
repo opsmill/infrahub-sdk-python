@@ -1,0 +1,24 @@
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_fc384784bd95ae 60-64,70
+  s_ff2fe7610915b8::t_68b4561bedd7e5 174-176,203,205,222,227,235-236,254
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_75528eded7a6cf 1680,1694,3051,3065
+tests/unit/sdk/test_node_only_query.py
+  s_ff2fe7610915b8::t_2a9df694fad329 70-71,74-75,87-88,118,124,405,407-417,490-517,665-666,678-701,723,736-743,749-756
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d44ee598c408ce22cc94cfd5df45d9f74af57ca",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
