@@ -91,8 +91,8 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
         default=None,
         description="Deprecated, use ranges instead. Start of the single range, defaults to 1 when only end_range is set",
     )
-    ranges: list[NumberPoolRangeWrite] = Field(
-        default_factory=list,
+    ranges: list[NumberPoolRangeWrite] | None = Field(
+        default=None,
         description="Ranges of numbers the associated NumberPool allocates from, they must not overlap",
     )
     number_pool_id: str | None = Field(
