@@ -11,9 +11,8 @@ from infrahub_sdk.exceptions import Error, FieldNotFoundError, FieldNotLoadedErr
 from infrahub_sdk.graphql import Query
 from infrahub_sdk.node._only import OnlyMarker  # noqa: PLC2701  # the marker is private to the package
 from infrahub_sdk.types import Order
-
-from . import test_client_only as only_data
-from .test_node_only_access import resolve
+from tests.helpers import only_data
+from tests.helpers.only_data import resolve
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -34,28 +33,8 @@ SHELTER = "TestingShelter"
 SHELTER_ID = "a7c9e1b3-2d4f-4a6b-8c0d-1e2f3a4b5c01"
 REGION_PEER_ID = "f1a6e1f5-1e1b-4f7a-8f9b-8d6b9b6c5c09"
 
-SCHEMA: dict[str, Any] = {
-    **only_data.SCHEMA,
-    "nodes": [
-        *only_data.SCHEMA["nodes"],
-        {
-            "name": "Shelter",
-            "namespace": "Testing",
-            "attributes": [{"name": "name", "kind": "Text"}],
-            "relationships": [{"name": "animals", "peer": "TestingAnimal", "cardinality": "many", "optional": True}],
-        },
-    ],
-}
-
 NODE_FIELDS = {"id": None, "hfid": None, "display_label": None, "__typename": None}
 PEER_ORDER = Order(disable=True)
-
-
-@pytest.fixture
-def only_clients(clients: BothClients) -> BothClients:
-    clients.standard.schema.set_cache(SCHEMA)
-    clients.sync.schema.set_cache(SCHEMA)
-    return clients
 
 
 def reference(id: str, typename: str, hfid: list[str]) -> dict[str, Any]:

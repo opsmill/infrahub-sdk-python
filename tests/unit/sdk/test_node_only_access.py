@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import inspect
 import json
 import re
 from collections.abc import Callable
@@ -17,8 +16,8 @@ from infrahub_sdk.node.attribute import Attribute
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.node.relationship import RelationshipManager, RelationshipManagerSync
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI, SchemaRootAPI
-
-from . import test_client_only as only_data
+from tests.helpers import only_data
+from tests.helpers.only_data import resolve
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -516,22 +515,6 @@ CONTRACT_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 CONTRACT_CONTENT = b"contract content"
 CONTRACT_CHECKSUM = hashlib.sha1(CONTRACT_CONTENT, usedforsecurity=False).hexdigest()
 
-ONLY_SCHEMA: dict[str, Any] = {
-    **only_data.SCHEMA,
-    "nodes": [
-        *only_data.SCHEMA["nodes"],
-        {
-            "name": "Contract",
-            "namespace": "Network",
-            "inherit_from": ["CoreFileObject"],
-            "attributes": [
-                {"name": "file_name", "kind": "Text", "read_only": True},
-                {"name": "checksum", "kind": "Text", "read_only": True},
-            ],
-        },
-    ],
-}
-
 
 def reference(id: str, typename: str, label: str, **fields: dict[str, Any]) -> dict[str, Any]:
     """A peer as the server returns it, with its display label and an HFID made of the label."""
@@ -557,20 +540,6 @@ REGION_WITH_NAME = only_data.node_data(only_data.REGION_ID, REGION, name={"value
 REGION_WITH_PARENT = only_data.node_data(
     only_data.REGION_ID, REGION, parent=only_data.peer(only_data.PARENT_ID, REGION, name={"value": "World"})
 )
-
-
-@pytest.fixture
-def only_clients(clients: BothClients) -> BothClients:
-    clients.standard.schema.set_cache(ONLY_SCHEMA)
-    clients.sync.schema.set_cache(ONLY_SCHEMA)
-    return clients
-
-
-async def resolve(result: object) -> object:
-    """Await what a call on the async client returns; a call on the sync client has already run."""
-    if inspect.isawaitable(result):
-        return await result
-    return result
 
 
 async def query_one(
