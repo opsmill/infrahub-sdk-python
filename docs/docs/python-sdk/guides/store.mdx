@@ -135,7 +135,7 @@ You can retrieve objects from the store using their `id` or `hfid`. When using t
   </TabItem>
 </Tabs>
 
-A node returned by a [query with `only`](../../python-sdk/guides/query_data#fetching-only-the-named-attributes-and-relationships) replaces any copy of the same node in the store, including one that contains more fields, so check `is_loaded` on a field of a node from the store to know whether the node contains that field.
+A node returned by a [query with `only`](../../python-sdk/guides/query_data#fetching-only-the-named-attributes-and-relationships), or a peer returned with it, replaces the copy stored under the same `id`, even one that contains more fields, so check `is_loaded` on a field of a node from the store before you read it. A lookup by human-friendly ID returns the earlier copy when the human-friendly ID of the new node cannot be calculated.
 
 ## Manually storing objects in the store
 

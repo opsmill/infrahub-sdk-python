@@ -251,7 +251,7 @@ nodes:
         cardinality: one
         kind: Parent
         peer: TestDevice
-        optional: true
+        optional: false
 ```
 
 ### Attributes
@@ -495,7 +495,7 @@ These reads raise `FieldNotLoadedError` when the field was not fetched:
 - on a relationship of cardinality one: `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `peer`, `get()` and `fetch()`;
 - on a relationship of cardinality many: `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, `is_from_profile`, indexing and iteration.
 
-Node methods that read these fields raise in the same cases, for example `get_path_value` and `get_flat_value`. On a file node, `matches_local_checksum`, `upload_if_changed` and `download_file(skip_if_unchanged=True)` raise when the query did not fetch `checksum`.
+Node methods that read these fields raise in the same cases, for example `get_path_value` and `get_flat_value`. On a file node, `matches_local_checksum` and `upload_if_changed` raise when the query did not fetch `checksum`, and so does `download_file(skip_if_unchanged=True)` when `dest` is an existing file.
 
 The SDK raises `FieldNotLoadedError` only on nodes returned by a query with `only`, on the peers returned with them, and on peers fetched with `fetch(only=...)`. On any other node, these reads behave as before, even when `is_loaded` is `False`, for example for an attribute that a query with `exclude` did not fetch.
 
@@ -555,7 +555,7 @@ With `prefetch_relationships=True`, the SDK also requests the default fields of 
 
 #### Human-friendly IDs of nodes from a query with `only`
 
-A query with `only` does not request the human-friendly ID that Infrahub calculates for each node. The SDK calculates `node.hfid` from the fields that make up the human-friendly ID of the kind instead. Name `hfid` in `only` to request those fields. If `only` names neither `hfid` nor those fields, `node.hfid` is `None`.
+A query with `only` does not request the human-friendly ID that Infrahub calculates for each node. The SDK calculates `node.hfid` from the fields that make up the human-friendly ID of the kind. Name `hfid` in `only` to request those fields. If `only` names neither `hfid` nor those fields, `node.hfid` is `None`.
 
 With the `human_friendly_id` of `TestInterface` in the schema above, `only=["hfid"]` requests the `name` of each interface, its `device` relationship as a reference, and the `name` of the device:
 
@@ -586,7 +586,7 @@ When a part of the human-friendly ID is an attribute of a peer, the SDK keeps th
 
 A kind that is part of a hierarchy has four more fields: `parent`, `children`, `ancestors` and `descendants`. They are different from relationships of kind `Parent`, such as `device` on `TestInterface`, which `only` handles like any other relationship.
 
-`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK requests the same peer fields as a query with `prefetch_relationships=True` and no `only`, and builds peer nodes and adds them to the store for `parent` and `children` only.
+`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it, or when you name `hfid` and the human-friendly ID of the kind uses it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK requests the same peer fields as a query with `prefetch_relationships=True` and no `only`, and builds peer nodes and adds them to the store for `parent` and `children` only.
 
 #### Generic kinds queried with `only`
 
@@ -702,7 +702,7 @@ On a relationship of cardinality many, `fetch(only=[...])` works in this order:
 1. It checks the names against the peer kind of the relationship, before it sends any request.
 2. If the relationship was not fetched, it requests it. On a node returned by a query with `only`, it requests that relationship alone and does not change the node in the store. This also works for `ancestors` and `descendants`.
 3. It checks that every name is a field of the kind of every peer. If a name is missing on one of them, it raises `FieldNotFoundError` before it queries any peer.
-4. It sends one query for each peer kind and adds the peers to the store.
+4. For each peer kind, it sends a query that counts the peers of that kind, then one query for each page of those peers, and adds the peers to the store.
 
 On a node returned by a query with `only`, `fetch()` on a relationship of cardinality one that the query did not fetch raises `FieldNotLoadedError`. To fetch that peer, name the relationship in `only`.
 
