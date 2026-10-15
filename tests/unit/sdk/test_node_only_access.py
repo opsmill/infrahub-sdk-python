@@ -12,6 +12,7 @@ import pytest
 from infrahub_sdk.exceptions import Error, FieldNotLoadedError, UninitializedError
 from infrahub_sdk.graphql import Mutation
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, UploadResult
+from infrahub_sdk.node._only import OnlyMarker  # noqa: PLC2701  # the marker is private to the package
 from infrahub_sdk.node.attribute import Attribute
 from infrahub_sdk.node.related_node import RelatedNode, RelatedNodeSync
 from infrahub_sdk.node.relationship import RelationshipManager, RelationshipManagerSync
@@ -1314,6 +1315,62 @@ def test_hfid_of_a_default_node_is_built_from_its_path_values(
     expected_hfid = None if path_value is None else [str(path_value)]
 
     assert path_value == case.path_value(device)
+    assert [device.hfid, device.get_human_friendly_id()] == [expected_hfid, expected_hfid]
+
+
+@dataclass
+class OnlyHfidCase:
+    name: str
+    path: str
+    expected_hfid: Callable[[Any], list[str] | None]
+    site_data: dict[str, Any] = field(default_factory=lambda: SITE_WITH_NAME)
+
+
+ONLY_HFID_CASES = [
+    OnlyHfidCase(name="relationship", path="site", expected_hfid=lambda _device: [str(["Paris"])]),
+    OnlyHfidCase(
+        name="relationship-to-a-peer-without-hfid",
+        path="site",
+        expected_hfid=lambda _device: [only_data.SITE_ID],
+        site_data={"id": only_data.SITE_ID},
+    ),
+    OnlyHfidCase(
+        name="relationship-attribute",
+        path="site__name",
+        expected_hfid=lambda device: [str(device.site.peer.name)],
+    ),
+    OnlyHfidCase(
+        name="relationship-attribute-value", path="site__name__value", expected_hfid=lambda _device: ["Paris"]
+    ),
+    OnlyHfidCase(
+        name="relationship-attribute-property", path="site__name__is_protected", expected_hfid=lambda _device: ["True"]
+    ),
+    OnlyHfidCase(name="attribute", path="name", expected_hfid=lambda device: [str(device._get_attribute("name"))]),
+    OnlyHfidCase(name="attribute-value", path="name__value", expected_hfid=lambda _device: ["dev1"]),
+    OnlyHfidCase(name="attribute-property", path="name__is_protected", expected_hfid=lambda _device: ["True"]),
+    OnlyHfidCase(name="attribute-not-fetched", path="description__value", expected_hfid=lambda _device: None),
+    OnlyHfidCase(name="attribute-not-fetched-without-property", path="description", expected_hfid=lambda _device: None),
+    OnlyHfidCase(name="unknown-first-part", path="rack__name__value", expected_hfid=lambda _device: None),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in ONLY_HFID_CASES])
+def test_hfid_of_a_node_from_only_is_built_from_the_fields_it_fetched(
+    clients: BothClients, client_type: str, case: OnlyHfidCase
+) -> None:
+    site = build_node(clients=clients, client_type=client_type, schema=HFID_SITE_SCHEMA, data=case.site_data)
+    if isinstance(site, InfrahubNode):
+        clients.standard.store.set(node=site)
+    else:
+        clients.sync.store.set(node=site)
+    device = build_node(
+        clients=clients, client_type=client_type, schema=device_schema_with_hfid(case.path), data=HFID_DEVICE_DATA
+    )
+    device._only_marker = OnlyMarker(only=("name", "site"))
+
+    expected_hfid = case.expected_hfid(device)
+
     assert [device.hfid, device.get_human_friendly_id()] == [expected_hfid, expected_hfid]
 
 
