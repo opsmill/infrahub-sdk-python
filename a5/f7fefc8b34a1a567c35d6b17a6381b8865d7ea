@@ -1,0 +1,42 @@
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_2c934c1d7de72a 1-137
+tests/unit/sdk/test_node_only_helpers.py
+  s_ff2fe7610915b8::t_c26d069b55b02b 1-10,12-492
+  s_ff2fe7610915b8::t_ca87bf39903274 493-500
+  s_ff2fe7610915b8::t_6a40421bebd57b 11
+tests/unit/sdk/test_exceptions.py
+  s_ff2fe7610915b8::t_648e053585797b 6,20-22
+  s_56750ac3060433::t_daaade8505da62 500-587
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_073e53cd45766a 38,50-51,68-69
+infrahub_sdk/exceptions/__init__.py
+  s_ff2fe7610915b8::t_47c4a5cc0a7f7d 26-28,85-87
+infrahub_sdk/exceptions/base.py
+  s_ff2fe7610915b8::t_ec4216ed58ab07 19-21,374-412
+tests/fixtures/error_catalogue/public_names.json
+  s_ff2fe7610915b8::t_480373624ca99b 14-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5f7fefc8b34a1a567c35d6b17a6381b8865d7ea",
+  "prompts": {},
+  "sessions": {
+    "s_56750ac3060433": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7aaefe6f-6c41-42c8-884d-b3a9d06df44a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    },
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
