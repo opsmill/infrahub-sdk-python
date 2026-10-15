@@ -9,6 +9,10 @@ import pytest
 from infrahub_sdk.exceptions import FieldNotFoundError
 from infrahub_sdk.graphql import Query
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.node._only import (  # noqa: PLC2701  # the helpers under test are private to the package
+    only_query_fields,
+)
+from infrahub_sdk.schema import GenericSchemaAPI
 from infrahub_sdk.types import Order
 
 if TYPE_CHECKING:
@@ -210,7 +214,6 @@ async def generate_only_query(
     filters: dict[str, Any] | None = None,
     offset: int | str | None = None,
     limit: int | str | None = None,
-    fragment: bool = False,
     prefetch_relationships: bool = False,
     partial_match: bool = False,
     property: bool = False,
@@ -219,13 +222,17 @@ async def generate_only_query(
 ) -> dict[str, Any]:
     if client_type == "standard":
         schema = await clients.standard.schema.get(kind=kind)
+        implementing_schemas = (
+            [await clients.standard.schema.get(kind=name) for name in schema.used_by]
+            if isinstance(schema, GenericSchemaAPI)
+            else []
+        )
         node = InfrahubNode(client=clients.standard, schema=schema)
         return await node._generate_only_query_data(
-            only=only,
+            fields=only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas),
             filters=filters,
             offset=offset,
             limit=limit,
-            fragment=fragment,
             prefetch_relationships=prefetch_relationships,
             partial_match=partial_match,
             property=property,
@@ -233,13 +240,15 @@ async def generate_only_query(
             include_metadata=include_metadata,
         )
     schema = clients.sync.schema.get(kind=kind)
+    implementing_schemas = (
+        [clients.sync.schema.get(kind=name) for name in schema.used_by] if isinstance(schema, GenericSchemaAPI) else []
+    )
     node_sync = InfrahubNodeSync(client=clients.sync, schema=schema)
     return node_sync._generate_only_query_data(
-        only=only,
+        fields=only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas),
         filters=filters,
         offset=offset,
         limit=limit,
-        fragment=fragment,
         prefetch_relationships=prefetch_relationships,
         partial_match=partial_match,
         property=property,
@@ -290,7 +299,6 @@ class OnlyQueryCase:
     only: list[str]
     expected: dict[str, Any]
     prefetch_relationships: bool = False
-    fragment: bool = False
     property: bool = False
     include_metadata: bool = False
 
@@ -516,15 +524,6 @@ ONLY_QUERY_CASES = [
         ),
     ),
     OnlyQueryCase(
-        name="generic-fragment-adds-nothing",
-        kind="TestingAnimal",
-        only=["name", "color"],
-        fragment=True,
-        expected=expected_query(
-            "TestingAnimal", {"name": VALUE, "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)}}
-        ),
-    ),
-    OnlyQueryCase(
         name="property-on-named-fields",
         kind="BuiltinRack",
         only=["description", "location"],
@@ -586,7 +585,6 @@ async def test_only_query(query_clients: BothClients, client_type: str, case: On
         client_type,
         kind=case.kind,
         only=case.only,
-        fragment=case.fragment,
         prefetch_relationships=case.prefetch_relationships,
         property=case.property,
         include_metadata=case.include_metadata,

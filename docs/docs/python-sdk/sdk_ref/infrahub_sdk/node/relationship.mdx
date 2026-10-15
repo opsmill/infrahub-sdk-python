@@ -25,7 +25,7 @@ members are not loaded and editing is not allowed.
 relationship as loaded.
 - `initialized`: ``True`` once the manager has been populated with data.
 - `is_loaded`: ``True`` once the manager has been populated with data or its peers were
-assigned, or when the node has no ``id`` yet.
+assigned, when it does not belong to a node, or when the node has no ``id`` yet.
 
 **Methods:**
 
@@ -168,7 +168,7 @@ accessed by index via ``manager[i]``.
 fetch(self, only: list[str] | None = None) -> None
 ```
 
-Populate the peer set and resolve every peer to a full node.
+Populate the peer set and fetch every peer with its default fields, or only the fields named in ``only``.
 
 When the manager is not yet initialized, the parent node is re-queried with this
 relationship included so the peer list can be populated. When the parent node was
@@ -269,7 +269,7 @@ accessed by index via ``manager[i]``.
 fetch(self, only: list[str] | None = None) -> None
 ```
 
-Populate the peer set and resolve every peer to a full node.
+Populate the peer set and fetch every peer with its default fields, or only the fields named in ``only``.
 
 When the manager is not yet initialized, the parent node is re-queried with this
 relationship included so the peer list can be populated. When the parent node was

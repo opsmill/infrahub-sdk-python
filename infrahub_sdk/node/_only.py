@@ -59,14 +59,16 @@ class HfidFields:
 class KindFields:
     """The fields a query with `only` requests on one kind.
 
-    `relationships` and `hierarchy_fields` map each field to the peer attributes to request with it;
-    an empty tuple means the field is requested as a reference only. `named` holds the relationships and
-    hierarchy fields named in `only`, which are the only ones whose peers get their default fields with
-    `prefetch_relationships`; the others are requested for the HFID alone. `hierarchy_kind` is the kind
-    whose fields the peers of the hierarchy fields get, and is set whenever `hierarchy_fields` is not
-    empty. Every field is listed in schema order, so the query does not depend on the order of `only`.
+    `schema` is the schema of that kind. `relationships` and `hierarchy_fields` map each field to the peer
+    attributes to request with it; an empty tuple means the field is requested as a reference only. `named`
+    holds the relationships and hierarchy fields named in `only`, which are the only ones whose peers get
+    their default fields with `prefetch_relationships`; the others are requested for the HFID alone.
+    `hierarchy_kind` is the kind whose fields the peers of the hierarchy fields get, and is set whenever
+    `hierarchy_fields` is not empty. Every field is listed in a fixed order, so the query does not depend
+    on the order of `only`.
     """
 
+    schema: MainSchemaTypesAPI
     attributes: tuple[str, ...] = ()
     relationships: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     hierarchy_fields: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
@@ -82,24 +84,28 @@ class KindFields:
 class OnlyQueryFields:
     """Where a query with `only` requests each field.
 
-    `node` holds the fields requested on the queried kind. For a generic kind, `implementing_kinds`
-    maps each implementing kind that needs fields the generic does not have to the fields requested
-    in its `...on Kind` block.
+    `only` is the list the query was built from, as given. `node` holds the fields requested on the
+    queried kind. For a generic kind, `implementing_kinds` maps each implementing kind that needs fields
+    the generic does not have to the fields requested in its `...on Kind` block, in the order the
+    implementing schemas were given.
     """
 
+    only: tuple[str, ...]
     node: KindFields
     implementing_kinds: Mapping[str, KindFields]
 
 
 @dataclass(frozen=True)
 class OnlyPeerRelationships:
-    """The relationships of one node from a query with `only` whose peers are built as nodes.
+    """How the nodes of one kind returned by a query with `only` are marked, and which of their peers are built.
 
-    `names` lists them in the order the query requests them. `hfid` holds those requested for the
-    node's HFID, whose peers the node keeps so that its HFID does not depend on the store.
+    `marker` goes on each node. `peer_markers` maps each relationship whose peers are built as nodes, in
+    the order the query requests them, to the marker of those peers. `hfid` holds the relationships
+    requested for the node's HFID, whose peers the node keeps so that its HFID does not depend on the store.
     """
 
-    names: tuple[str, ...]
+    marker: OnlyMarker
+    peer_markers: Mapping[str, OnlyMarker]
     hfid: frozenset[str]
 
 
@@ -136,8 +142,11 @@ def check_only_names(
     generic or any of those kinds has it.
 
     Raises:
+        TypeError: `only` is a string instead of a list of names.
         FieldNotFoundError: a name is not accepted; it names that field and `schema.kind`.
     """
+    if isinstance(only, str):
+        raise TypeError("only must be a list of field names, not a string")
     accepted = set(field_names(schema))
     for implementing_schema in implementing_schemas:
         accepted.update(field_names(implementing_schema))
@@ -192,6 +201,7 @@ def only_query_fields(
     On a hierarchical kind, `parent`, `children`, `ancestors` and `descendants` are hierarchy fields.
 
     Raises:
+        TypeError: `only` is a string instead of a list of names.
         FieldNotFoundError: a name is not a field of the kind or of any of `implementing_schemas`.
     """
     implementing_schemas = tuple(implementing_schemas)
@@ -221,17 +231,19 @@ def only_query_fields(
 
     implementing_kinds = {kind: block.build() for kind, block in blocks.items()}
     return OnlyQueryFields(
+        only=tuple(only),
         node=node.build(),
         implementing_kinds={kind: fields for kind, fields in implementing_kinds.items() if not fields.is_empty},
     )
 
 
 def only_peer_relationships(fields: OnlyQueryFields, kind: str, prefetch_relationships: bool) -> OnlyPeerRelationships:
-    """Decide which peers of a node of `kind`, returned by the query `fields` describes, are built as nodes.
+    """Decide how the nodes of `kind` returned by the query `fields` describes are marked, and which peers are built.
 
-    A relationship qualifies when its peers carry attributes the HFID needs, or when it is named in `only`
-    and the query prefetches relationships. Of the hierarchy fields, only `parent` and `children` qualify.
-    A node of an implementing kind also gets the relationships of that kind's `...on Kind` block.
+    A relationship's peers are built as nodes when they carry attributes the HFID needs, or when the
+    relationship is named in `only` and the query prefetches relationships. Of the hierarchy fields, only
+    `parent` and `children` qualify. A node of an implementing kind also gets the relationships of that
+    kind's `...on Kind` block.
     """
     names: dict[str, None] = {}
     hfid: set[str] = set()
@@ -249,7 +261,11 @@ def only_peer_relationships(fields: OnlyQueryFields, kind: str, prefetch_relatio
                 names[name] = None
             elif prefetch_relationships and name in kind_fields.named:
                 names[name] = None
-    return OnlyPeerRelationships(names=tuple(names), hfid=frozenset(hfid))
+    return OnlyPeerRelationships(
+        marker=OnlyMarker(only=fields.only),
+        peer_markers={name: OnlyMarker(only=fields.only, peer_of=f"{kind}.{name}") for name in names},
+        hfid=frozenset(hfid),
+    )
 
 
 class _KindFieldsBuilder:
@@ -281,6 +297,7 @@ class _KindFieldsBuilder:
 
     def build(self) -> KindFields:
         return KindFields(
+            schema=self._schema,
             attributes=tuple(name for name in self._schema.attribute_names if name in self._attributes),
             relationships={
                 name: tuple(self._relationships[name])
@@ -298,7 +315,7 @@ class _KindFieldsBuilder:
 
 
 def _hierarchy_kind(schema: MainSchemaTypesAPI) -> str | None:
-    """The kind at the root of the kind's hierarchy, which a hierarchical generic is itself."""
+    """The hierarchical generic the kind's hierarchy is defined on; a hierarchical generic is its own."""
     if isinstance(schema, NodeSchemaAPI):
         return schema.hierarchy
     if isinstance(schema, GenericSchemaAPI) and schema.hierarchical:

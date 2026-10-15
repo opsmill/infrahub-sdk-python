@@ -37,7 +37,7 @@ class RelationshipManagerBase(Generic[PeerT]):
             relationship as loaded.
         initialized (bool): ``True`` once the manager has been populated with data.
         is_loaded (bool): ``True`` once the manager has been populated with data or its peers were
-            assigned, or when the node has no ``id`` yet.
+            assigned, when it does not belong to a node, or when the node has no ``id`` yet.
 
     """
 
@@ -309,7 +309,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         return cast("RelatedNode[PeerT]", self._peers[item])
 
     async def fetch(self, only: list[str] | None = None) -> None:
-        """Populate the peer set and resolve every peer to a full node.
+        """Populate the peer set and fetch every peer with its default fields, or only the fields named in ``only``.
 
         When the manager is not yet initialized, the parent node is re-queried with this
         relationship included so the peer list can be populated. When the parent node was
@@ -536,7 +536,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         return cast("RelatedNodeSync[PeerTSync]", self._peers[item])
 
     def fetch(self, only: list[str] | None = None) -> None:
-        """Populate the peer set and resolve every peer to a full node.
+        """Populate the peer set and fetch every peer with its default fields, or only the fields named in ``only``.
 
         When the manager is not yet initialized, the parent node is re-queried with this
         relationship included so the peer list can be populated. When the parent node was

@@ -62,7 +62,7 @@ class Attribute:
         value (Any): The current attribute value. Setting this marks the attribute as mutated.
         value_has_been_mutated (bool): True when ``value`` has been assigned after construction.
         is_loaded (bool): True when the node's data contained the attribute, a value was assigned since,
-            or the node has no ``id`` yet.
+            the attribute does not belong to a node, or the node has no ``id`` yet.
         is_default (bool | None): True when the value comes from the schema default.
         is_from_profile (bool | None): True when the value is inherited from a profile.
         is_inherited (bool | None): True when the attribute is inherited from a generic.

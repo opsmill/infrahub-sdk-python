@@ -293,6 +293,16 @@ async def test_unknown_name_in_only_raises_before_the_query(
     assert httpx_mock.get_requests() == []
 
 
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_given_as_a_string_raises_before_the_query(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    with pytest.raises(TypeError, match="only must be a list of field names, not a string"):
+        await run(only_clients, client_type, "all", kind="InfraDevice", only="name")
+
+    assert httpx_mock.get_requests() == []
+
+
 @dataclass
 class RequestCase:
     name: str
@@ -341,6 +351,21 @@ REQUEST_CASES = [
             "TestingAnimal",
             "All_TestingAnimal",
             {"...on TestingDog": {"walker": {"node": REFERENCE, "@alias": "__alias__TestingDog__walker"}}},
+        ),
+    ),
+    RequestCase(
+        name="fragment-adds-nothing-on-generic",
+        method="all",
+        kind="TestingAnimal",
+        only=["name", "walker"],
+        arguments={"fragment": True},
+        expected=expected_body(
+            "TestingAnimal",
+            "All_TestingAnimal",
+            {
+                "name": VALUE,
+                "...on TestingDog": {"walker": {"node": REFERENCE, "@alias": "__alias__TestingDog__walker"}},
+            },
         ),
     ),
     RequestCase(

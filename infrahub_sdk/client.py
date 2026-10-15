@@ -47,7 +47,7 @@ from .graph_traversal.query import (
 )
 from .graphql import MultipartBuilder, Mutation, Query
 from .node import InfrahubNode, InfrahubNodeSync
-from .node._only import OnlyMarker, check_only_conflict, only_peer_relationships, only_query_fields
+from .node._only import check_only_conflict, only_peer_relationships, only_query_fields
 from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
@@ -68,7 +68,7 @@ if TYPE_CHECKING:
     from httpx._types import ProxyTypes
 
     from .context import RequestContext
-    from .node._only import OnlyQueryFields
+    from .node._only import OnlyPeerRelationships, OnlyQueryFields
     from .schema import MainSchemaTypesAPI
 
 
@@ -821,7 +821,8 @@ class InfrahubClient(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
-            ValueError: No filter was given, or `hfid` was given for a kind without a human-friendly ID.
+            ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
+                human-friendly ID.
             NodeNotFoundError: No node matches and `raise_when_missing` is True.
             IndexError: More than one node matches.
 
@@ -924,11 +925,10 @@ class InfrahubClient(BaseClient):
             )
             only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
             query_data = await node._generate_only_query_data(
-                only=only,
+                fields=only_fields,
                 offset="$offset",
                 limit="$limit",
                 filters=filters,
-                fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
                 property=property,
@@ -945,7 +945,6 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
-        only: list[str] | None = None,
         only_fields: OnlyQueryFields | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
@@ -956,10 +955,10 @@ class InfrahubClient(BaseClient):
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
-            only (list[str], optional): The `only` list of the query. Given with `only_fields`, every node and every
-                peer built with it records the list, and peers are built only for the relationships named in `only`
-                when `prefetch_relationships` is set, and for the relationships the HFID needs.
-            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field.
+            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
+                every node and every peer built with it records the `only` list, and peers are built only for the
+                relationships named in `only` when `prefetch_relationships` is set, and for the relationships the
+                HFID needs.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -969,27 +968,26 @@ class InfrahubClient(BaseClient):
         """
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
+        only_plans: dict[str, OnlyPeerRelationships] = {}
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if only is not None and only_fields is not None:
-                node._only_marker = OnlyMarker(only=tuple(only))
-                peer_relationships = only_peer_relationships(
-                    fields=only_fields, kind=node.get_kind(), prefetch_relationships=prefetch_relationships
-                )
-                for rel_name in peer_relationships.names:
-                    peers: list[InfrahubNode] = []
-                    await node._process_relationships(
-                        node_data=item, branch=branch, related_nodes=peers, timeout=timeout, names=[rel_name]
+            if only_fields is not None:
+                kind = node.get_kind()
+                if kind not in only_plans:
+                    only_plans[kind] = only_peer_relationships(
+                        fields=only_fields, kind=kind, prefetch_relationships=prefetch_relationships
                     )
-                    peer_marker = OnlyMarker(only=tuple(only), peer_of=f"{node.get_kind()}.{rel_name}")
-                    for peer in peers:
-                        peer._only_marker = peer_marker
-                    if rel_name in peer_relationships.hfid and peers:
-                        node._hfid_peers[rel_name] = peers[0]
-                    related_nodes.extend(peers)
+                peers: dict[str, list[InfrahubNode]] = {}
+                for rel_name in only_plans[kind].peer_markers:
+                    peers[rel_name] = []
+                    await node._process_relationships(
+                        node_data=item, branch=branch, related_nodes=peers[rel_name], timeout=timeout, names=[rel_name]
+                    )
+                node._mark_from_only(plan=only_plans[kind], peers=peers)
+                related_nodes.extend(peer for rel_peers in peers.values() for peer in rel_peers)
             elif prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
                     node_data=item,
@@ -1519,7 +1517,6 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
-                only=only,
                 only_fields=only_fields,
             )
             return response, process_result
@@ -3281,11 +3278,10 @@ class InfrahubClientSync(BaseClient):
             )
             only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
             query_data = node._generate_only_query_data(
-                only=only,
+                fields=only_fields,
                 offset="$offset",
                 limit="$limit",
                 filters=filters,
-                fragment=fragment,
                 prefetch_relationships=prefetch_relationships,
                 partial_match=partial_match,
                 property=property,
@@ -3302,7 +3298,6 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
-        only: list[str] | None = None,
         only_fields: OnlyQueryFields | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
@@ -3313,10 +3308,10 @@ class InfrahubClientSync(BaseClient):
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
-            only (list[str], optional): The `only` list of the query. Given with `only_fields`, every node and every
-                peer built with it records the list, and peers are built only for the relationships named in `only`
-                when `prefetch_relationships` is set, and for the relationships the HFID needs.
-            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field.
+            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
+                every node and every peer built with it records the `only` list, and peers are built only for the
+                relationships named in `only` when `prefetch_relationships` is set, and for the relationships the
+                HFID needs.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -3326,27 +3321,26 @@ class InfrahubClientSync(BaseClient):
         """
         nodes: list[InfrahubNodeSync] = []
         related_nodes: list[InfrahubNodeSync] = []
+        only_plans: dict[str, OnlyPeerRelationships] = {}
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if only is not None and only_fields is not None:
-                node._only_marker = OnlyMarker(only=tuple(only))
-                peer_relationships = only_peer_relationships(
-                    fields=only_fields, kind=node.get_kind(), prefetch_relationships=prefetch_relationships
-                )
-                for rel_name in peer_relationships.names:
-                    peers: list[InfrahubNodeSync] = []
-                    node._process_relationships(
-                        node_data=item, branch=branch, related_nodes=peers, timeout=timeout, names=[rel_name]
+            if only_fields is not None:
+                kind = node.get_kind()
+                if kind not in only_plans:
+                    only_plans[kind] = only_peer_relationships(
+                        fields=only_fields, kind=kind, prefetch_relationships=prefetch_relationships
                     )
-                    peer_marker = OnlyMarker(only=tuple(only), peer_of=f"{node.get_kind()}.{rel_name}")
-                    for peer in peers:
-                        peer._only_marker = peer_marker
-                    if rel_name in peer_relationships.hfid and peers:
-                        node._hfid_peers[rel_name] = peers[0]
-                    related_nodes.extend(peers)
+                peers: dict[str, list[InfrahubNodeSync]] = {}
+                for rel_name in only_plans[kind].peer_markers:
+                    peers[rel_name] = []
+                    node._process_relationships(
+                        node_data=item, branch=branch, related_nodes=peers[rel_name], timeout=timeout, names=[rel_name]
+                    )
+                node._mark_from_only(plan=only_plans[kind], peers=peers)
+                related_nodes.extend(peer for rel_peers in peers.values() for peer in rel_peers)
             elif prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(
                     node_data=item,
@@ -3518,7 +3512,6 @@ class InfrahubClientSync(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
-                only=only,
                 only_fields=only_fields,
             )
             return response, process_result
@@ -3773,7 +3766,8 @@ class InfrahubClientSync(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
-            ValueError: No filter was given, or `hfid` was given for a kind without a human-friendly ID.
+            ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
+                human-friendly ID.
             NodeNotFoundError: No node matches and `raise_when_missing` is True.
             IndexError: More than one node matches.
 

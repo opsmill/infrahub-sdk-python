@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import pickle  # noqa: S403
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -534,7 +536,7 @@ FIELD_SELECTION_ERROR_CASES = [
         expected_message=(
             "InfraSite.description was not fetched: the node is a peer of InfraDevice.site, "
             "queried with only=['site', 'name']. "
-            "Fetch it with fetch(only=['description']) on InfraDevice.site, or check is_loaded before reading it."
+            "Fetch the peer again with every field you read, or check is_loaded before reading it."
         ),
         expected_attributes={
             "kind": "InfraSite",
@@ -562,6 +564,12 @@ FIELD_SELECTION_ERROR_WITH_ARGUMENTS_PARAMS = [
     pytest.param(case, id=case.name) for case in FIELD_SELECTION_ERROR_CASES if case.expected_attributes
 ]
 
+ROUND_TRIPS = {
+    "pickle": lambda exc: pickle.loads(pickle.dumps(exc)),  # noqa: S301
+    "deepcopy": copy.deepcopy,
+    "copy": copy.copy,
+}
+
 
 @pytest.mark.message
 class TestFieldSelectionErrors:
@@ -577,6 +585,21 @@ class TestFieldSelectionErrors:
         exc = case.build()
 
         assert {attribute: getattr(exc, attribute) for attribute in case.expected_attributes} == (
+            case.expected_attributes
+        )
+
+    @pytest.mark.parametrize("round_trip", [pytest.param(fn, id=name) for name, fn in ROUND_TRIPS.items()])
+    @pytest.mark.parametrize("case", FIELD_SELECTION_ERROR_PARAMS)
+    def test_the_error_survives_serialisation(
+        self, case: FieldSelectionErrorCase, round_trip: Callable[[Error], Error]
+    ) -> None:
+        exc = case.build()
+
+        restored = round_trip(exc)
+
+        assert type(restored) is type(exc)
+        assert [restored.message, str(restored)] == [case.expected_message, case.expected_message]
+        assert {attribute: getattr(restored, attribute) for attribute in case.expected_attributes} == (
             case.expected_attributes
         )
 

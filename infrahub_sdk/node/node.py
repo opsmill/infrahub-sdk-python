@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,7 +23,7 @@ from ..schema import (
     RelationshipSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
-from ._only import HIERARCHY_FIELD_NAMES, only_query_fields
+from ._only import HIERARCHY_FIELD_NAMES
 from .attribute import Attribute
 from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
-    from ._only import KindFields, OnlyMarker
+    from ._only import KindFields, OnlyMarker, OnlyPeerRelationships, OnlyQueryFields
 
 
 @dataclass(frozen=True)
@@ -808,6 +808,19 @@ class InfrahubNodeBase:
             for name in names
             if name in self._attribute_data
         }
+
+    def _mark_from_only(self, plan: OnlyPeerRelationships, peers: Mapping[str, Sequence[InfrahubNodeBase]]) -> None:
+        """Mark this node and the peers built from its data as coming from a query with `only`.
+
+        `peers` maps each relationship in `plan` to the peers built for it. The node keeps the first peer of
+        each relationship its HFID needs.
+        """
+        self._only_marker = plan.marker
+        for rel_name, rel_peers in peers.items():
+            for peer in rel_peers:
+                peer._only_marker = plan.peer_markers[rel_name]
+            if rel_name in plan.hfid and rel_peers:
+                self._hfid_peers[rel_name] = rel_peers[0]
 
     @staticmethod
     def _build_hierarchy_query_data(
@@ -1659,35 +1672,23 @@ class InfrahubNode(InfrahubNodeBase):
 
     async def _generate_only_query_data(
         self,
-        only: list[str],
+        fields: OnlyQueryFields,
         filters: dict[str, Any] | None = None,
         offset: int | str | None = None,
         limit: int | str | None = None,
-        fragment: bool = False,  # noqa: ARG002  # accepted so callers pass the same arguments as for the default query
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
-        """Generate the GraphQL query payload that requests only the fields named in `only`.
+        """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
 
-        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the named fields. Named
-        relationships are references, and their peers get their default fields with
-        `prefetch_relationships`. For a generic kind, a field that only some implementing kinds have is
-        requested in an aliased `...on Kind` block for each of them, so `fragment` adds nothing.
-
-        Raises:
-            FieldNotFoundError: a name in `only` is not a field of the kind or of any kind implementing it.
-
+        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the fields of `fields.node`.
+        Named relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
+        are requested in an aliased `...on Kind` block.
         """
-        implementing_schemas = (
-            [await self._client.schema.get(kind=kind, branch=self._branch) for kind in self._schema.used_by]
-            if isinstance(self._schema, GenericSchemaAPI)
-            else []
-        )
-        fields = only_query_fields(only=only, schema=self._schema, implementing_schemas=implementing_schemas)
-
         data = self._generate_only_query_data_init(
             filters=filters,
             offset=offset,
@@ -1705,12 +1706,9 @@ class InfrahubNode(InfrahubNodeBase):
                 include_metadata=include_metadata,
             )
         )
-        for implementing_schema in implementing_schemas:
-            kind_fields = fields.implementing_kinds.get(implementing_schema.kind)
-            if kind_fields is None:
-                continue
-            kind_node = InfrahubNode(client=self._client, schema=implementing_schema, branch=self._branch)
-            node_data[f"...on {implementing_schema.kind}"] = await kind_node._generate_only_query_data_node(
+        for kind_fields in fields.implementing_kinds.values():
+            kind_node = InfrahubNode(client=self._client, schema=kind_fields.schema, branch=self._branch)
+            node_data[f"...on {kind_fields.schema.kind}"] = await kind_node._generate_only_query_data_node(
                 fields=kind_fields,
                 prefetch_relationships=prefetch_relationships,
                 property=property,
@@ -2061,7 +2059,7 @@ class InfrahubNode(InfrahubNodeBase):
             data = self._data or {}
 
         for rel_name in relationship_names:
-            rel = getattr(self, rel_name, None)
+            rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNode):
                 relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):
@@ -3046,35 +3044,23 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
     def _generate_only_query_data(
         self,
-        only: list[str],
+        fields: OnlyQueryFields,
         filters: dict[str, Any] | None = None,
         offset: int | str | None = None,
         limit: int | str | None = None,
-        fragment: bool = False,  # noqa: ARG002  # accepted so callers pass the same arguments as for the default query
         prefetch_relationships: bool = False,
         partial_match: bool = False,
         property: bool = False,
         order: Order | None = None,
         include_metadata: bool = False,
     ) -> dict[str, Any | dict]:
-        """Generate the GraphQL query payload that requests only the fields named in `only`.
+        """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
 
-        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the named fields. Named
-        relationships are references, and their peers get their default fields with
-        `prefetch_relationships`. For a generic kind, a field that only some implementing kinds have is
-        requested in an aliased `...on Kind` block for each of them, so `fragment` adds nothing.
-
-        Raises:
-            FieldNotFoundError: a name in `only` is not a field of the kind or of any kind implementing it.
-
+        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the fields of `fields.node`.
+        Named relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
+        are requested in an aliased `...on Kind` block.
         """
-        implementing_schemas = (
-            [self._client.schema.get(kind=kind, branch=self._branch) for kind in self._schema.used_by]
-            if isinstance(self._schema, GenericSchemaAPI)
-            else []
-        )
-        fields = only_query_fields(only=only, schema=self._schema, implementing_schemas=implementing_schemas)
-
         data = self._generate_only_query_data_init(
             filters=filters,
             offset=offset,
@@ -3092,12 +3078,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 include_metadata=include_metadata,
             )
         )
-        for implementing_schema in implementing_schemas:
-            kind_fields = fields.implementing_kinds.get(implementing_schema.kind)
-            if kind_fields is None:
-                continue
-            kind_node = InfrahubNodeSync(client=self._client, schema=implementing_schema, branch=self._branch)
-            node_data[f"...on {implementing_schema.kind}"] = kind_node._generate_only_query_data_node(
+        for kind_fields in fields.implementing_kinds.values():
+            kind_node = InfrahubNodeSync(client=self._client, schema=kind_fields.schema, branch=self._branch)
+            node_data[f"...on {kind_fields.schema.kind}"] = kind_node._generate_only_query_data_node(
                 fields=kind_fields,
                 prefetch_relationships=prefetch_relationships,
                 property=property,
@@ -3452,7 +3435,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             data = self._data or {}
 
         for rel_name in relationship_names:
-            rel = getattr(self, rel_name, None)
+            rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNodeSync):
                 relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):

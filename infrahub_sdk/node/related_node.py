@@ -30,7 +30,7 @@ class RelatedNodeBase:
     A ``RelatedNodeBase`` is the peer end of a cardinality-one relationship. It carries
     the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
     with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
-    The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
+    The peer node is fetched lazily through :meth:`RelatedNode.fetch` /
     :meth:`RelatedNodeSync.fetch`.
 
     Attributes:
@@ -38,7 +38,7 @@ class RelatedNodeBase:
         name (str | None): The name of the relationship slot on the parent node.
         updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
         is_loaded (bool): True when the node's data contained the relationship, it was assigned since,
-            or the node has no ``id`` yet.
+            it does not belong to a node, or the node has no ``id`` yet.
 
     """
 
@@ -421,7 +421,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
     async def fetch(
         self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
     ) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+        """Fetch the peer with its default fields, or only the fields named in ``only``, and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
         available via :attr:`peer` or :meth:`get`.
@@ -538,7 +538,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
     def fetch(
         self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
     ) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+        """Fetch the peer with its default fields, or only the fields named in ``only``, and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
         available via :attr:`peer` or :meth:`get`.

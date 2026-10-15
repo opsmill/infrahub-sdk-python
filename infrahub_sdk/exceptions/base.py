@@ -371,6 +371,17 @@ class FeatureNotSupportedError(Error):
     """Raised when trying to use a method on a node that doesn't support it."""
 
 
+def _rebuild_error(cls: type[Error], args: tuple[Any, ...], state: dict[str, Any]) -> Error:
+    """Reconstruct an exception whose constructor does not take its message, without calling the constructor.
+
+    `BaseException.__reduce__` rebuilds by calling `cls(*args)`, where `args` is the message alone.
+    """
+    exc = cls.__new__(cls)
+    exc.args = args
+    exc.__dict__.update(state)
+    return exc
+
+
 class FieldNotLoadedError(Error):
     """Raised when code reads a field that a node fetched with `only` does not carry."""
 
@@ -382,7 +393,7 @@ class FieldNotLoadedError(Error):
         if peer_of:
             self.message = (
                 f"{kind}.{field} was not fetched: the node is a peer of {peer_of}, queried with only={self.only!r}. "
-                f"Fetch it with fetch(only={[field]!r}) on {peer_of}, or check is_loaded before reading it."
+                "Fetch the peer again with every field you read, or check is_loaded before reading it."
             )
         else:
             self.message = (
@@ -390,6 +401,9 @@ class FieldNotLoadedError(Error):
                 f"Add {field!r} to only, or check is_loaded before reading it."
             )
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
 
 
 class FieldNotFoundError(Error):
@@ -401,6 +415,9 @@ class FieldNotFoundError(Error):
         self.message = f"{field!r} is not an attribute or relationship of {kind}."
         super().__init__(self.message)
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
+
 
 class FieldSelectionConflictError(Error):
     """Raised when `only` is combined with `include` or `exclude`."""
@@ -408,6 +425,9 @@ class FieldSelectionConflictError(Error):
     def __init__(self) -> None:
         self.message = "only cannot be combined with include or exclude."
         super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
 
 
 class UninitializedError(Error):

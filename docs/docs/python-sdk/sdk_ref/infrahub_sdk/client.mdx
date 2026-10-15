@@ -97,7 +97,8 @@ on the field first. Cannot be combined with `include` or `exclude`.
 
 - `FieldSelectionConflictError`: `only` is combined with `include` or `exclude`; raised before any request.
 - `FieldNotFoundError`: A name in `only` is not a field of the kind; raised before the data query.
-- `ValueError`: No filter was given, or `hfid` was given for a kind without a human-friendly ID.
+- `ValueError`: No filter was given, or `hfid` was given for a generic kind or a kind without a
+human-friendly ID.
 - `NodeNotFoundError`: No node matches and `raise_when_missing` is True.
 - `IndexError`: More than one node matches.
 
@@ -689,7 +690,8 @@ on the field first. Cannot be combined with `include` or `exclude`.
 
 - `FieldSelectionConflictError`: `only` is combined with `include` or `exclude`; raised before any request.
 - `FieldNotFoundError`: A name in `only` is not a field of the kind; raised before the data query.
-- `ValueError`: No filter was given, or `hfid` was given for a kind without a human-friendly ID.
+- `ValueError`: No filter was given, or `hfid` was given for a generic kind or a kind without a
+human-friendly ID.
 - `NodeNotFoundError`: No node matches and `raise_when_missing` is True.
 - `IndexError`: More than one node matches.
 
