@@ -155,6 +155,33 @@ async def test_only_given_as_a_string_raises_before_the_query(
 
 
 @dataclass
+class IgnoredNameCase:
+    name: str
+    arguments: dict[str, Any]
+
+
+IGNORED_NAME_CASES = [
+    IgnoredNameCase(name="include", arguments={"include": ["nmae"]}),
+    IgnoredNameCase(name="exclude", arguments={"exclude": ["nmae"]}),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in IGNORED_NAME_CASES])
+async def test_unknown_name_in_include_or_exclude_is_ignored(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: IgnoredNameCase
+) -> None:
+    add_page(httpx_mock, "InfraDevice", [])
+
+    await run(only_clients, client_type, "all", kind="InfraDevice")
+    await run(only_clients, client_type, "all", kind="InfraDevice", **case.arguments)
+
+    default_body, body = [json.loads(request.content) for request in httpx_mock.get_requests()]
+    assert body["operationName"] == "All_InfraDevice"
+    assert body == default_body
+
+
+@dataclass
 class RequestCase:
     name: str
     method: str

@@ -7,7 +7,13 @@ import pytest
 
 from infrahub_sdk.exceptions import FieldNotLoadedError
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
-from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, SchemaAnimal
+from infrahub_sdk.testing.schemas.animal import (
+    TESTING_ANIMAL,
+    TESTING_CAT,
+    TESTING_DOG,
+    TESTING_PERSON,
+    SchemaAnimal,
+)
 
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
@@ -23,6 +29,13 @@ BREED_BY_ANIMAL = {
 }
 BELLA_HFID = ["Ethan Carter", "Bella", "#123456"]
 ROCKY_WEIGHT = 32
+KIND_OF_ETHAN_ANIMALS = {"Bella": TESTING_CAT, "Luna": TESTING_CAT, "Daisy": TESTING_DOG}
+DAISY_OWNER_NAME_AND_HEIGHT = ("Ethan Carter", 185)
+ROCKY_OWNER_NAME_AND_HEIGHT = ("Sophia Walker", 168)
+
+
+def not_fetched(kind: str, field: str, only: list[str]) -> str:
+    return re.escape(f"{kind}.{field} was not fetched: the node was queried with only={only!r}.")
 
 
 class TestNodeOnly(TestInfrahubDockerClient, SchemaAnimal):
@@ -81,6 +94,33 @@ class TestNodeOnly(TestInfrahubDockerClient, SchemaAnimal):
         assert owner.name.value == "Sophia Walker"
         with pytest.raises(FieldNotLoadedError, match=HEIGHT_NOT_FETCHED):
             _ = owner.height.value
+
+    async def test_manager_fetch_with_only_reads_the_named_fields_of_each_peer_kind(
+        self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        person = await client.get(kind=TESTING_PERSON, id=person_ethan.id, only=["name"])
+
+        await person.animals.fetch(only=["name"])
+
+        animals = [related_node.peer for related_node in person.animals.peers]
+        assert {animal.name.value: animal.get_kind() for animal in animals} == KIND_OF_ETHAN_ANIMALS
+        for animal in animals:
+            with pytest.raises(FieldNotLoadedError, match=not_fetched(animal.get_kind(), "breed", ["name"])):
+                _ = animal.breed.value
+
+    async def test_all_with_only_and_prefetch_gives_the_peer_its_default_fields(
+        self, client: InfrahubClient, base_dataset: None, dog_daisy: InfrahubNode, dog_rocky: InfrahubNode
+    ) -> None:
+        dogs = await client.all(kind=TESTING_DOG, only=["owner"], prefetch_relationships=True)
+
+        owners = {dog.id: dog.owner.peer for dog in dogs}
+        assert {dog_id: (owner.name.value, owner.height.value) for dog_id, owner in owners.items()} == {
+            dog_daisy.id: DAISY_OWNER_NAME_AND_HEIGHT,
+            dog_rocky.id: ROCKY_OWNER_NAME_AND_HEIGHT,
+        }
+        for dog in dogs:
+            with pytest.raises(FieldNotLoadedError, match=not_fetched(TESTING_DOG, "name", ["owner"])):
+                _ = dog.name.value
 
     async def test_save_of_node_from_only_keeps_its_other_fields(
         self, client: InfrahubClient, base_dataset: None, dog_rocky: InfrahubNode, person_sophia: InfrahubNode
@@ -156,6 +196,37 @@ class TestNodeOnlySync(TestInfrahubDockerClient, SchemaAnimal):
         assert owner.name.value == "Sophia Walker"
         with pytest.raises(FieldNotLoadedError, match=HEIGHT_NOT_FETCHED):
             _ = owner.height.value
+
+    def test_manager_fetch_with_only_reads_the_named_fields_of_each_peer_kind(
+        self, client_sync: InfrahubClientSync, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        person = client_sync.get(kind=TESTING_PERSON, id=person_ethan.id, only=["name"])
+
+        person.animals.fetch(only=["name"])
+
+        animals = [related_node.peer for related_node in person.animals.peers]
+        assert {animal.name.value: animal.get_kind() for animal in animals} == KIND_OF_ETHAN_ANIMALS
+        for animal in animals:
+            with pytest.raises(FieldNotLoadedError, match=not_fetched(animal.get_kind(), "breed", ["name"])):
+                _ = animal.breed.value
+
+    def test_all_with_only_and_prefetch_gives_the_peer_its_default_fields(
+        self,
+        client_sync: InfrahubClientSync,
+        base_dataset: None,
+        dog_daisy: InfrahubNode,
+        dog_rocky: InfrahubNode,
+    ) -> None:
+        dogs = client_sync.all(kind=TESTING_DOG, only=["owner"], prefetch_relationships=True)
+
+        owners = {dog.id: dog.owner.peer for dog in dogs}
+        assert {dog_id: (owner.name.value, owner.height.value) for dog_id, owner in owners.items()} == {
+            dog_daisy.id: DAISY_OWNER_NAME_AND_HEIGHT,
+            dog_rocky.id: ROCKY_OWNER_NAME_AND_HEIGHT,
+        }
+        for dog in dogs:
+            with pytest.raises(FieldNotLoadedError, match=not_fetched(TESTING_DOG, "name", ["owner"])):
+                _ = dog.name.value
 
     def test_save_of_node_from_only_keeps_its_other_fields(
         self,

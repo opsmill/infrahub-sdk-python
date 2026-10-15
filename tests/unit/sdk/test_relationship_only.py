@@ -90,7 +90,12 @@ async def query_all(
     edge: dict[str, Any],
     only: list[str] | None,
 ) -> list[Any]:
-    """Return the nodes that `all(kind, only=...)` builds from a response holding `edge`."""
+    """Return the nodes that `all(kind, only=...)` builds from a response holding `edge`.
+
+    With `only`, `edge` may hold only the fields the query requests, as the server's response would.
+    """
+    if only is not None:
+        assert set(edge["node"]) <= {"id", "display_label", "__typename", *only}
     only_data.add_page(httpx_mock, kind, [edge])
     return await only_data.query_nodes(clients, client_type, "all", kind=kind, only=only)
 
@@ -105,6 +110,7 @@ SHELTER_WITH_ANIMALS = only_data.node_data(
     SHELTER,
     animals=only_data.peers(only_data.peer(only_data.CAT_ID, CAT), only_data.peer(only_data.DOG_ID, DOG)),
 )
+SHELTER_WITH_NAME = only_data.node_data(SHELTER_ID, SHELTER, name={"value": "North"})
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -125,6 +131,33 @@ async def test_related_node_fetch_with_only_requests_the_named_fields(
     assert client.store.get(key=only_data.SITE_ID, kind=SITE) is site
     with pytest.raises(FieldNotLoadedError, match=not_fetched(SITE, "description", ["name"])):
         _ = site.description.value
+
+
+@dataclass
+class DeviceCase:
+    name: str
+    device_only: list[str] | None
+
+
+DEVICE_CASES = [
+    DeviceCase(name="node-from-only", device_only=["site"]),
+    DeviceCase(name="default-node", device_only=None),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in DEVICE_CASES])
+async def test_related_node_fetch_with_unknown_name_in_only_sends_no_peer_query(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: DeviceCase
+) -> None:
+    [device] = await query_all(
+        only_clients, client_type, httpx_mock, kind=DEVICE, edge=DEVICE_WITH_SITE, only=case.device_only
+    )
+
+    with pytest.raises(FieldNotFoundError, match=re.escape("'nmae' is not an attribute or relationship of InfraSite.")):
+        await resolve(device.site.fetch(only=["nmae"]))
+
+    assert [body["operationName"] for body in request_bodies(httpx_mock)] == ["All_InfraDevice"]
 
 
 @dataclass
@@ -219,7 +252,6 @@ class PeerKindCase:
     name: str
     fetch_only: list[str]
     message: str
-    shelter_only: list[str]
 
 
 PEER_KIND_CASES = [
@@ -227,19 +259,11 @@ PEER_KIND_CASES = [
         name="name-missing-on-first-peer-kind",
         fetch_only=["walker"],
         message="'walker' is not an attribute or relationship of TestingCat",
-        shelter_only=["animals"],
     ),
     PeerKindCase(
         name="name-missing-on-second-peer-kind",
         fetch_only=["name", "home"],
         message="'home' is not an attribute or relationship of TestingDog",
-        shelter_only=["animals"],
-    ),
-    PeerKindCase(
-        name="relationship-reloaded-first",
-        fetch_only=["walker"],
-        message="'walker' is not an attribute or relationship of TestingCat",
-        shelter_only=["name"],
     ),
 ]
 
@@ -250,17 +274,39 @@ async def test_manager_fetch_with_name_missing_on_one_peer_kind_sends_no_peer_qu
     only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: PeerKindCase
 ) -> None:
     [shelter] = await query_all(
-        only_clients, client_type, httpx_mock, kind=SHELTER, edge=SHELTER_WITH_ANIMALS, only=case.shelter_only
+        only_clients, client_type, httpx_mock, kind=SHELTER, edge=SHELTER_WITH_ANIMALS, only=["animals"]
     )
-    reloads = [] if shelter.animals.is_loaded else [SHELTER_WITH_ANIMALS]
-    if reloads:
-        only_data.add_page(httpx_mock, SHELTER, reloads)
+    assert shelter.animals.is_loaded is True
 
     with pytest.raises(FieldNotFoundError, match=case.message):
         await resolve(shelter.animals.fetch(only=case.fetch_only))
 
-    expected_operations = ["All_TestingShelter"] + ["Get_TestingShelter"] * len(reloads)
-    assert [body["operationName"] for body in request_bodies(httpx_mock)] == expected_operations
+    assert [body["operationName"] for body in request_bodies(httpx_mock)] == ["All_TestingShelter"]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_manager_fetch_reloads_the_relationship_before_checking_each_peer_kind(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    [shelter] = await query_all(
+        only_clients, client_type, httpx_mock, kind=SHELTER, edge=SHELTER_WITH_NAME, only=["name"]
+    )
+    only_data.add_page(httpx_mock, SHELTER, [SHELTER_WITH_ANIMALS])
+    assert shelter.animals.is_loaded is False
+
+    with pytest.raises(FieldNotFoundError, match="'walker' is not an attribute or relationship of TestingCat"):
+        await resolve(shelter.animals.fetch(only=["walker"]))
+
+    assert [body["operationName"] for body in request_bodies(httpx_mock)] == [
+        "All_TestingShelter",
+        "Get_TestingShelter",
+    ]
+    assert body_of(httpx_mock, "Get_TestingShelter") == only_data.expected_body(
+        SHELTER,
+        "Get_TestingShelter",
+        {"animals": {"edges": {"node": only_data.REFERENCE}}},
+        filters={"ids": [SHELTER_ID]},
+    )
 
 
 @dataclass
@@ -283,7 +329,7 @@ MISSPELT_NAME_CASES = [
     MisspeltNameCase(
         name="generic-peer-kind",
         kind=SHELTER,
-        edge=only_data.node_data(SHELTER_ID, SHELTER, name={"value": "North"}),
+        edge=SHELTER_WITH_NAME,
         relationship="animals",
         message="'nmae' is not an attribute or relationship of TestingAnimal",
     ),

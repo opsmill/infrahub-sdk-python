@@ -4,7 +4,7 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -509,6 +509,7 @@ def test_hierarchy_fields_that_are_not_loaded_read_as_before(clients: BothClient
 
 DEVICE = "InfraDevice"
 SITE = "InfraSite"
+TAG = "BuiltinTag"
 REGION = "LocationRegion"
 CONTRACT = "NetworkContract"
 CONTRACT_ID = "cccccccc-cccc-cccc-cccc-cccccccccccc"
@@ -581,6 +582,15 @@ async def fetch_then_read_peer_description(related_node: RelatedNode | RelatedNo
     return related_node.peer._get_attribute("description").value
 
 
+def cache_no_peer(_field_object: object) -> None:
+    return None
+
+
+async def fetch_each_peer(manager: RelationshipManager | RelationshipManagerSync) -> None:
+    for related_node in manager.peers:
+        await resolve(related_node.fetch())
+
+
 @dataclass
 class ReadCase:
     name: str
@@ -588,14 +598,22 @@ class ReadCase:
     read: Callable[[Any], Any]
     fetched_value: Any
     pages: tuple[tuple[str, list[dict[str, Any]]], ...] = ()
+    # An HFID string needs the peer cached on the relationship, which only fetch() does.
+    cache_peers: Callable[[Any], Any] = cache_no_peer
 
 
 READ_CASES = [
     ReadCase(name="attribute-value", field="description", read=lambda attribute: attribute.value, fetched_value="core"),
     ReadCase(name="related-node-id", field="site", read=lambda rel: rel.id, fetched_value=only_data.SITE_ID),
     ReadCase(name="related-node-hfid", field="site", read=lambda rel: rel.hfid, fetched_value=["Paris"]),
-    # Without a cached peer the relationship has no HFID string, whether or not it was fetched.
-    ReadCase(name="related-node-hfid-str", field="site", read=lambda rel: rel.hfid_str, fetched_value=None),
+    ReadCase(
+        name="related-node-hfid-str",
+        field="site",
+        read=lambda rel: rel.hfid_str,
+        fetched_value="InfraSite__Paris",
+        pages=((SITE, [only_data.node_data(only_data.SITE_ID, SITE, name={"value": "Paris"})]),),
+        cache_peers=lambda rel: rel.fetch(),
+    ),
     ReadCase(
         name="related-node-display-label", field="site", read=lambda rel: rel.display_label, fetched_value="Paris"
     ),
@@ -638,9 +656,16 @@ READ_CASES = [
         read=lambda manager: manager.peer_hfids,
         fetched_value=[["red"], ["blue"]],
     ),
-    # The peers in the list have no cached peer, so none of them has an HFID string.
     ReadCase(
-        name="manager-peer-hfids-str", field="tags", read=lambda manager: manager.peer_hfids_str, fetched_value=[]
+        name="manager-peer-hfids-str",
+        field="tags",
+        read=lambda manager: manager.peer_hfids_str,
+        fetched_value=["BuiltinTag__red", "BuiltinTag__blue"],
+        pages=(
+            (TAG, [only_data.node_data(only_data.TAG_ID, TAG, name={"value": "red"})]),
+            (TAG, [only_data.node_data(only_data.TAG_2_ID, TAG, name={"value": "blue"})]),
+        ),
+        cache_peers=fetch_each_peer,
     ),
     ReadCase(
         name="manager-indexing", field="tags", read=lambda manager: manager[1].id, fetched_value=only_data.TAG_2_ID
@@ -691,6 +716,7 @@ async def test_read_of_a_fetched_field_returns_its_value(
         only_data.add_page(httpx_mock, kind, edges)
     field_object = getattr(device, case.field)
     assert field_object.is_loaded is True
+    await resolve(case.cache_peers(field_object))
 
     assert await resolve(case.read(field_object)) == case.fetched_value
 
@@ -763,6 +789,34 @@ async def test_reads_that_never_raise_on_fields_not_fetched(
     }
     assert tags == {"is_loaded": False, "initialized": False, "has_update": False, "name": "tags"}
     assert [site_relationship.schema.name, tags_relationship.schema.name] == ["site", "tags"]
+
+
+@dataclass
+class EditCase:
+    name: str
+    edit: Callable[[Any], None]
+
+
+EDIT_CASES = [
+    EditCase(name="add", edit=lambda manager: manager.add(only_data.TAG_ID)),
+    EditCase(name="extend", edit=lambda manager: manager.extend([only_data.TAG_ID])),
+    EditCase(name="remove", edit=lambda manager: manager.remove(only_data.TAG_ID)),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in EDIT_CASES])
+async def test_edit_of_a_relationship_not_fetched_raises_as_before(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: EditCase
+) -> None:
+    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=["name"], edge=DEVICE_WITH_NAME)
+    tags = device._get_relationship_many("tags")
+    assert tags.is_loaded is False
+
+    with pytest.raises(UninitializedError, match=re.escape("Must call fetch() on RelationshipManager before editing")):
+        case.edit(tags)
+
+    assert [tags.is_loaded, tags.has_update] == [False, False]
 
 
 @dataclass
@@ -1182,6 +1236,80 @@ async def test_hfid_of_a_node_from_only_does_not_raise(
     ]
 
     assert hfid_reads == case.expected
+
+
+HFID_SITE_SCHEMA = NodeSchema(
+    name="Site",
+    namespace="Infra",
+    human_friendly_id=["name__value"],
+    attributes=[{"name": "name", "kind": "Text"}],
+).convert_api()
+HFID_DEVICE_DATA = {
+    "id": only_data.DEVICE_ID,
+    "name": {"value": "dev1", "is_protected": True},
+    "site": {"node": {"id": only_data.SITE_ID, "hfid": ["Paris"], "display_label": "Paris", "__typename": SITE}},
+}
+SITE_WITH_NAME = {"id": only_data.SITE_ID, "name": {"value": "Paris", "is_protected": True}}
+
+
+def device_schema_with_hfid(path: str) -> NodeSchemaAPI:
+    return NodeSchema(
+        name="Device",
+        namespace="Infra",
+        human_friendly_id=[path],
+        attributes=[{"name": "name", "kind": "Text"}, {"name": "description", "kind": "Text", "optional": True}],
+        relationships=[{"name": "site", "peer": SITE, "cardinality": "one", "optional": True}],
+    ).convert_api()
+
+
+@dataclass
+class DefaultHfidCase:
+    name: str
+    path: str
+    path_value: Callable[[Any], Any]
+    site_data: dict[str, Any] = field(default_factory=lambda: SITE_WITH_NAME)
+
+
+DEFAULT_HFID_CASES = [
+    DefaultHfidCase(name="relationship", path="site", path_value=lambda _device: ["Paris"]),
+    DefaultHfidCase(
+        name="relationship-to-a-peer-without-hfid",
+        path="site",
+        path_value=lambda _device: only_data.SITE_ID,
+        site_data={"id": only_data.SITE_ID},
+    ),
+    DefaultHfidCase(name="relationship-attribute", path="site__name", path_value=lambda device: device.site.peer.name),
+    DefaultHfidCase(name="relationship-attribute-value", path="site__name__value", path_value=lambda _device: "Paris"),
+    DefaultHfidCase(
+        name="relationship-attribute-property", path="site__name__is_protected", path_value=lambda _device: True
+    ),
+    DefaultHfidCase(name="attribute", path="name", path_value=lambda device: device._get_attribute("name")),
+    DefaultHfidCase(name="attribute-value", path="name__value", path_value=lambda _device: "dev1"),
+    DefaultHfidCase(name="attribute-property", path="name__is_protected", path_value=lambda _device: True),
+    DefaultHfidCase(name="attribute-not-in-data", path="description__value", path_value=lambda _device: None),
+    DefaultHfidCase(name="unknown-first-part", path="rack__name__value", path_value=lambda _device: None),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in DEFAULT_HFID_CASES])
+def test_hfid_of_a_default_node_is_built_from_its_path_values(
+    clients: BothClients, client_type: str, case: DefaultHfidCase
+) -> None:
+    site = build_node(clients=clients, client_type=client_type, schema=HFID_SITE_SCHEMA, data=case.site_data)
+    if isinstance(site, InfrahubNode):
+        clients.standard.store.set(node=site)
+    else:
+        clients.sync.store.set(node=site)
+    device = build_node(
+        clients=clients, client_type=client_type, schema=device_schema_with_hfid(case.path), data=HFID_DEVICE_DATA
+    )
+
+    path_value = device.get_path_value(path=case.path)
+    expected_hfid = None if path_value is None else [str(path_value)]
+
+    assert path_value == case.path_value(device)
+    assert [device.hfid, device.get_human_friendly_id()] == [expected_hfid, expected_hfid]
 
 
 @pytest.mark.parametrize("client_type", client_types)

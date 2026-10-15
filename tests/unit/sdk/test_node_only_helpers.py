@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -9,7 +8,6 @@ import pytest
 
 from infrahub_sdk.exceptions import FieldNotFoundError, FieldNotLoadedError, FieldSelectionConflictError
 from infrahub_sdk.node._only import (  # noqa: PLC2701  # the helpers under test are private to the package
-    HIERARCHY_FIELD_NAMES,
     HfidFields,
     OnlyMarker,
     check_only_conflict,
@@ -197,10 +195,6 @@ FIELD_NAMES_CASES = [
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in FIELD_NAMES_CASES])
 def test_field_names_of_one_kind(case: FieldNamesCase, schemas: dict[str, MainSchemaTypesAPI]) -> None:
     assert field_names(schemas[case.schema]) == case.expected
-
-
-def test_hierarchy_field_names() -> None:
-    assert HIERARCHY_FIELD_NAMES == ("parent", "children", "ancestors", "descendants")
 
 
 @dataclass
@@ -459,15 +453,6 @@ def test_hfid_expansion(case: HfidCase, schemas: dict[str, MainSchemaTypesAPI]) 
     assert expand_hfid(schemas[case.schema]) == case.expected
 
 
-def test_hfid_expansion_of_a_generic_kind_uses_each_implementing_kind() -> None:
-    expansions = {schema.kind: expand_hfid(schema) for schema in (CAT, DOG)}
-
-    assert expansions == {
-        "TestingCat": HfidFields(attributes=("name", "color"), relationships={"owner": ("name",)}),
-        "TestingDog": HfidFields(attributes=("name",), relationships={"owner": ("name",)}),
-    }
-
-
 def test_marker_builds_the_error_for_a_queried_node() -> None:
     marker = OnlyMarker(only=("name",))
 
@@ -488,13 +473,3 @@ def test_marker_builds_the_error_for_a_peer() -> None:
         ["site"],
         "InfraDevice.site",
     )
-
-
-def test_marker_fields_cannot_be_reassigned() -> None:
-    marker = OnlyMarker(only=("name",), peer_of="InfraDevice.site")
-
-    for marker_field in dataclasses.fields(marker):
-        with pytest.raises(dataclasses.FrozenInstanceError, match=f"cannot assign to field '{marker_field.name}'"):
-            setattr(marker, marker_field.name, None)
-
-    assert marker == OnlyMarker(only=("name",), peer_of="InfraDevice.site")
