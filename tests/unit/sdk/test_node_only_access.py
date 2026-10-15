@@ -598,7 +598,7 @@ class ReadCase:
     read: Callable[[Any], Any]
     fetched_value: Any
     pages: tuple[tuple[str, list[dict[str, Any]]], ...] = ()
-    # An HFID string needs the peer cached on the relationship, which only fetch() does.
+    # An HFID string needs the peer cached on the relationship, which a fetch sets.
     cache_peers: Callable[[Any], Any] = cache_no_peer
 
 
