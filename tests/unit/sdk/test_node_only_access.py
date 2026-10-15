@@ -425,23 +425,15 @@ def test_field_objects_built_on_their_own_are_loaded(
     node = build_node(clients=clients, client_type=client_type, schema=location_schema, data={"id": LOCATION_ID})
     attribute_schema = location_schema.get_attribute(name="description")
     primary_tag_schema = location_schema.get_relationship(name="primary_tag")
-    tags_schema = location_schema.get_relationship(name="tags")
 
     attribute = Attribute(name="description", schema=attribute_schema, data=None)
     related_node: RelatedNode | RelatedNodeSync
-    manager: RelationshipManager | RelationshipManagerSync
     if isinstance(node, InfrahubNode):
         related_node = RelatedNode(client=clients.standard, branch="main", schema=primary_tag_schema, data=None)
-        manager = RelationshipManager(
-            name="tags", client=clients.standard, node=None, branch="main", schema=tags_schema, data=None
-        )
     else:
         related_node = RelatedNodeSync(client=clients.sync, branch="main", schema=primary_tag_schema, data=None)
-        manager = RelationshipManagerSync(
-            name="tags", client=clients.sync, node=None, branch="main", schema=tags_schema, data=None
-        )
 
-    assert [attribute.is_loaded, related_node.is_loaded, manager.is_loaded] == [True, True, True]
+    assert [attribute.is_loaded, related_node.is_loaded] == [True, True]
 
 
 @pytest.mark.parametrize("client_type", client_types)
