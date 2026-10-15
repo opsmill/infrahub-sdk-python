@@ -124,3 +124,13 @@ A review of [opsmill/infrahub-sdk-python#1423](https://github.com/opsmill/infrah
 The review also found that every field holds a reference to its node, which adds reference cycles (critique E12). No change was made: nodes from the default schemas were already in a cycle through their relationship managers before this branch.
 
 Unit suite after the commit, rebased on `521e7459`: 2858 passed, 2 skipped, 1 xfailed, 8 failed. The 8 failures are the tests in `tests/unit/pytest_plugin/test_plugin.py` described in §6. The integration tests were not run again.
+
+## 9. Later changes to code, docs and changelog
+
+- [`74cf1d34`](https://github.com/opsmill/infrahub-sdk-python/commit/74cf1d34) states in the docstrings of `expand_hfid` and `get_human_friendly_id` that the SDK calculates `node.hfid` from fields and never reads the server's `hfid`, which is why `hfid` in `only` fetches those fields. A new test checks this. The description of `only` on `get`, `all` and `filters` is shortened to three lines; the details are in the query guide.
+- [`6ca76bca`](https://github.com/opsmill/infrahub-sdk-python/commit/6ca76bca) shortens the changelog fragment to one sentence, created with `towncrier create`.
+- [`0ca1a463`](https://github.com/opsmill/infrahub-sdk-python/commit/0ca1a4636573864e8ff705fa005db6a02159ce52) builds the arguments of the reload in `RelationshipManager.fetch` and of the two query builders in `_build_filters_query` once, then calls once. The requests are unchanged, so the contract (§2 reload rows) still holds.
+
+Recorded as a follow-up in a [review comment](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4281924788): build the query for `only` with the default builder instead of its own builder. A local probe built the query both ways for every case in `tests/unit/sdk/test_node_only_query.py`, and 20 of 32 matched. The rest differ because of the HFID expansion and three gaps in the default builder, which the comment lists. Before that refactoring, the default builder needs a private way to request a relationship without fetching its peer's fields; no public parameter is to be added.
+
+Unit suite on `0ca1a463`: 2862 passed, 2 skipped, 1 xfailed, 8 failed (the same 8 as in §6).
