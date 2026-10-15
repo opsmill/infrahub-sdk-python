@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite, validate_schema
+from infrahub_sdk.schema import InfrahubSchemaRead, InfrahubSchemaWrite, SchemaRoot, validate_schema
 from infrahub_sdk.schema.validate import SchemaValidationResult
 
 
@@ -211,8 +211,20 @@ def test_number_pool_without_any_range_spelling_leaves_the_range_fields_absent(p
     # The server drops None values before building its own schema, so no range may survive that dump either.
     dumped = InfrahubSchemaWrite.model_validate(schema).model_dump(exclude_none=True)
     submitted = dumped["nodes"][0]["attributes"][0].get("parameters") or {}
-    assert set(submitted) <= {"ranges"}
-    assert submitted.get("ranges", []) == []
+    assert "ranges" not in submitted
+
+
+def test_number_pool_explicit_empty_ranges_survive_the_dumps() -> None:
+    # An explicitly empty range list declares zero ranges, unlike a declaration that leaves the ranges out.
+    schema = _schema_with_kind_and_parameters("NumberPool", {"ranges": []})
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    server_dump = InfrahubSchemaWrite.model_validate(schema).model_dump(exclude_none=True)
+    assert server_dump["nodes"][0]["attributes"][0]["parameters"] == {"ranges": []}
+    client_dump = SchemaRoot.model_validate(schema).to_schema_dict()
+    assert client_dump["nodes"][0]["attributes"][0]["parameters"] == {"ranges": []}
 
 
 def test_number_pool_range_without_an_end_is_rejected() -> None:
