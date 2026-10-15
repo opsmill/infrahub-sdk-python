@@ -1287,6 +1287,11 @@ DEFAULT_HFID_CASES = [
     DefaultHfidCase(name="attribute-value", path="name__value", path_value=lambda _device: "dev1"),
     DefaultHfidCase(name="attribute-property", path="name__is_protected", path_value=lambda _device: True),
     DefaultHfidCase(name="attribute-not-in-data", path="description__value", path_value=lambda _device: None),
+    DefaultHfidCase(
+        name="attribute-not-in-data-without-property",
+        path="description",
+        path_value=lambda device: device._get_attribute("description"),
+    ),
     DefaultHfidCase(name="unknown-first-part", path="rack__name__value", path_value=lambda _device: None),
 ]
 

@@ -271,8 +271,10 @@ class InfrahubNodeBase:
         if not self._schema.human_friendly_id:
             return None
 
+        # Nodes not built from an `only` query keep the public lookup, so their HFID is resolved exactly as before.
+        read_path = self.get_path_value if self._only_marker is None else self._get_path_value_if_loaded
         # If an HFID component is missing we assume that it is invalid and not usable for this node
-        hfid_components = [self._get_path_value_if_loaded(path=item) for item in self._schema.human_friendly_id]
+        hfid_components = [read_path(path=item) for item in self._schema.human_friendly_id]
         if None in hfid_components:
             return None
         return [str(hfid) for hfid in hfid_components]
