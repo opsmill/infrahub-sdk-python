@@ -35,7 +35,7 @@ Kept on each field object of every node (research R6):
 | `RelatedNode` (cardinality one, `parent`) | the node's data has the relationship's name as a key, even with `{"node": null}`; the relationship is assigned through the node | new private flag |
 | `RelationshipManager` (cardinality many, `children`, `ancestors`, `descendants`) | `initialized` is true (data was given, or `fetch()` ran); the `peers` setter runs | existing `initialized`, plus a private flag for the setter |
 
-Each field object also holds a private reference to its node, bound after construction. Field objects built on their own have no node.
+Each attribute and cardinality-one relationship also holds a private reference to its node, bound after construction. A cardinality-many relationship reads its node from `node`, which its constructor already takes. Field objects built without a node have none.
 
 ## `is_loaded` (public, read-only property)
 
@@ -74,7 +74,7 @@ All three are in `infrahub_sdk/exceptions/base.py`, subclass `Error` only, and a
 | Error | Attributes | Raised when |
 |---|---|---|
 | `FieldNotLoadedError` | `kind`, `field`, `only`, `peer_of` | a raising accessor (contract table) reads a field that is not loaded, on a node with the marker |
-| `FieldNotFoundError` | `kind`, `field` | a name in `only` is not accepted for the kind (or for one of the peer kinds in `RelationshipManager.fetch`) |
+| `FieldNotFoundError` | `kind`, `field` | a name in `only` is not accepted for the kind (or for one of the peer kinds in `RelationshipManager.fetch`); or, with `hfid` in `only`, an HFID path reads a peer attribute that the peer kind does not have |
 | `FieldSelectionConflictError` | none | `only` is passed with `include` or `exclude` that is not `None` |
 
 ## State transitions of a field on a node from `only`

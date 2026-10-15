@@ -111,3 +111,16 @@ Six reviewers ran in parallel on `89ccb4a5..3f24468d`: code, tests, comments and
    - the `infrahubctl object update --set` issue on cardinality-many relationships;
    - the existing issues listed in plan.md "Design Notes" (the default reload of a manager stores a partial parent and fails on `ancestors`/`descendants`; reference-only peers stored when `include` names a relationship; the fragment loop reading the default branch's schemas).
 4. Run `speckit-opsmill-extract` after the pull request is reviewed.
+
+## 8. Changes after the pull-request review
+
+A review of [opsmill/infrahub-sdk-python#1423](https://github.com/opsmill/infrahub-sdk-python/pull/1423) led to commit [`909a2936`](https://github.com/opsmill/infrahub-sdk-python/commit/909a293673cdb487da2e78e4e8dd1672ff9aee28). It changes the following behaviour and code:
+
+- **HFID through `parent`.** A hierarchy field that the kind also declares as a relationship now uses the declared peer kind for its inline fragment and its peer fields. Before, the query used the hierarchy generic and left out any HFID attribute that only the parent kind has, so `node.hfid` was `None`. A peer attribute that the peer kind does not have now raises `FieldNotFoundError` instead of being left out of the query. With `prefetch_relationships`, the peers of `parent` and `children` get the default fields of the declared peer kind.
+- **One HFID reader.** Every node calculates its HFID with the private reader. It replaces the split restored in `0be31de9` (§5, §6), and gives the same results as before for nodes outside `only`. It also stops a node from a default query from raising `FieldNotLoadedError` when its peer in the store came from `only`.
+- **Managers keep one reference to their node.** The finding deferred in §5 is fixed: managers read `node`. The test that built a manager with a node and expected `is_loaded` to be `True` now builds it without a node.
+- **Smaller changes.** The default query wraps hierarchy fields with the same helper as the query with `only`. `fetch()` passes `only` to the client only when it is set. `all()` no longer repeats the check that `filters()` runs.
+
+The review also found that every field holds a reference to its node, which adds reference cycles (critique E12). No change was made: nodes from the default schemas were already in a cycle through their relationship managers before this branch.
+
+Unit suite after the commit, rebased on `521e7459`: 2858 passed, 2 skipped, 1 xfailed, 8 failed. The 8 failures are the tests in `tests/unit/pytest_plugin/test_plugin.py` described in §6. The integration tests were not run again.
