@@ -187,10 +187,14 @@ class RelationshipManagerBase(Generic[PeerT]):
             ids_per_kind_map[peer.typename].append(peer.id)
         return ids_per_kind_map
 
-    def _reload_exclude(self, node: InfrahubNodeBase) -> list[str]:
+    def _reload_kwargs(self, node: InfrahubNodeBase) -> dict[str, Any]:
+        """The arguments of the `get` that reloads `node` with this relationship only."""
+        if node._only_marker is not None:
+            # Keep the node from `only` in the store instead of replacing it with this narrower copy.
+            return {"only": [self.schema.name], "populate_store": False}
         exclude = node._schema.relationship_names + node._schema.attribute_names
         exclude.remove(self.schema.name)
-        return exclude
+        return {"include": [self.schema.name], "exclude": exclude}
 
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
@@ -337,22 +341,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             )
 
         if not self.initialized:
-            if self.node._only_marker is not None:
-                node = await self.client.get(
-                    kind=self.node._schema.kind,
-                    id=self.node.id,
-                    branch=self.branch,
-                    only=[self.schema.name],
-                    populate_store=False,
-                )
-            else:
-                node = await self.client.get(
-                    kind=self.node._schema.kind,
-                    id=self.node.id,
-                    branch=self.branch,
-                    include=[self.schema.name],
-                    exclude=self._reload_exclude(node=self.node),
-                )
+            node = await self.client.get(
+                kind=self.node._schema.kind,
+                id=self.node.id,
+                branch=self.branch,
+                **self._reload_kwargs(node=self.node),
+            )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
             self.initialized = True
@@ -569,22 +563,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             )
 
         if not self.initialized:
-            if self.node._only_marker is not None:
-                node = self.client.get(
-                    kind=self.node._schema.kind,
-                    id=self.node.id,
-                    branch=self.branch,
-                    only=[self.schema.name],
-                    populate_store=False,
-                )
-            else:
-                node = self.client.get(
-                    kind=self.node._schema.kind,
-                    id=self.node.id,
-                    branch=self.branch,
-                    include=[self.schema.name],
-                    exclude=self._reload_exclude(node=self.node),
-                )
+            node = self.client.get(
+                kind=self.node._schema.kind,
+                id=self.node.id,
+                branch=self.branch,
+                **self._reload_kwargs(node=self.node),
+            )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
             self.initialized = True

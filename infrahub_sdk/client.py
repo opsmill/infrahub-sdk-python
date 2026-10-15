@@ -898,22 +898,22 @@ class InfrahubClient(BaseClient):
 
         """
         node = InfrahubNode(client=self, schema=schema, branch=branch)
-        # Pagination is passed as GraphQL variables so the rendered query text stays
-        # identical across pages and can hit the server-side query cache.
+        query_args: dict[str, Any] = {
+            # Pagination is passed as GraphQL variables so the rendered query text stays
+            # identical across pages and can hit the server-side query cache.
+            "offset": "$offset",
+            "limit": "$limit",
+            "filters": filters,
+            "prefetch_relationships": prefetch_relationships,
+            "partial_match": partial_match,
+            "property": property,
+            "order": order,
+            "include_metadata": include_metadata,
+        }
         if only is None:
             only_fields = None
             query_data = await node.generate_query_data(
-                offset="$offset",
-                limit="$limit",
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
+                include=include, exclude=exclude, fragment=fragment, **query_args
             )
         else:
             implementing_schemas = (
@@ -922,17 +922,7 @@ class InfrahubClient(BaseClient):
                 else []
             )
             only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
-            query_data = await node._generate_only_query_data(
-                fields=only_fields,
-                offset="$offset",
-                limit="$limit",
-                filters=filters,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
+            query_data = await node._generate_only_query_data(fields=only_fields, **query_args)
         return Query(query=query_data, name=query_name, variables={"offset": int, "limit": int}), only_fields
 
     async def _process_nodes_and_relationships(
@@ -3243,23 +3233,21 @@ class InfrahubClientSync(BaseClient):
 
         """
         node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
-        # Pagination is passed as GraphQL variables so the rendered query text stays
-        # identical across pages and can hit the server-side query cache.
+        query_args: dict[str, Any] = {
+            # Pagination is passed as GraphQL variables so the rendered query text stays
+            # identical across pages and can hit the server-side query cache.
+            "offset": "$offset",
+            "limit": "$limit",
+            "filters": filters,
+            "prefetch_relationships": prefetch_relationships,
+            "partial_match": partial_match,
+            "property": property,
+            "order": order,
+            "include_metadata": include_metadata,
+        }
         if only is None:
             only_fields = None
-            query_data = node.generate_query_data(
-                offset="$offset",
-                limit="$limit",
-                filters=filters,
-                include=include,
-                exclude=exclude,
-                fragment=fragment,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
+            query_data = node.generate_query_data(include=include, exclude=exclude, fragment=fragment, **query_args)
         else:
             implementing_schemas = (
                 [self.schema.get(kind=implementing_kind, branch=branch) for implementing_kind in schema.used_by]
@@ -3267,17 +3255,7 @@ class InfrahubClientSync(BaseClient):
                 else []
             )
             only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
-            query_data = node._generate_only_query_data(
-                fields=only_fields,
-                offset="$offset",
-                limit="$limit",
-                filters=filters,
-                prefetch_relationships=prefetch_relationships,
-                partial_match=partial_match,
-                property=property,
-                order=order,
-                include_metadata=include_metadata,
-            )
+            query_data = node._generate_only_query_data(fields=only_fields, **query_args)
         return Query(query=query_data, name=query_name, variables={"offset": int, "limit": int}), only_fields
 
     def _process_nodes_and_relationships(
