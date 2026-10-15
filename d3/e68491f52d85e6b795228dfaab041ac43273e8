@@ -1,0 +1,19 @@
+dev/specs/infp-532-only-field-selection/opsmill-implement-report.md
+  s_2ea2a1594067df::t_de7c4121b36f82 127-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d3e68491f52d85e6b795228dfaab041ac43273e8",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
