@@ -166,12 +166,10 @@ def check_only_names_on_every_kind(only: Sequence[str], schemas: Iterable[MainSc
 
 
 def expand_hfid(schema: MainSchemaTypesAPI) -> HfidFields:
-    """The fields named by the kind's own `human_friendly_id` paths, read the way the HFID is calculated.
+    """The fields a query must fetch for the kind's HFID, which the SDK calculates instead of reading the server's.
 
-    A path whose first part is a relationship (`location`, `location__name`, `location__name__value`)
-    gives that relationship, with the peer attribute when the path has one. A path whose first part
-    is an attribute (`name`, `name__value`) gives that attribute. Any other path gives nothing. For a
-    generic kind, call it once per implementing kind, since each of them may define its own HFID.
+    A relationship path (`location__name__value`) gives the relationship plus the peer attribute; an
+    attribute path (`name__value`) gives the attribute. For a generic kind, call it per implementing kind.
     """
     attributes: list[str] = []
     relationships: dict[str, list[str]] = {}

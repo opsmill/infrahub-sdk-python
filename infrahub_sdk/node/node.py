@@ -107,6 +107,7 @@ class InfrahubNodeBase:
         self._attribute_data: dict[str, Attribute] = {}
         self._metadata: NodeMetadata | None = None
         self._only_marker: OnlyMarker | None = None
+        # Kept so that the HFID of a node from `only` does not depend on the store.
         self._hfid_peers: dict[str, InfrahubNodeBase] = {}
 
         # Generate a unique ID only to be used inside the SDK
@@ -265,7 +266,8 @@ class InfrahubNodeBase:
 
         The HFID is composed of the values addressed by the schema's
         ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
-        considered invalid and ``None`` is returned.
+        considered invalid and ``None`` is returned. The server's ``hfid`` is not used, so a query
+        with ``only`` must name ``hfid`` to fetch these values.
 
         Returns:
             list[str] | None: The HFID as a list of stringified components, or ``None``
@@ -803,7 +805,7 @@ class InfrahubNodeBase:
             order=order,
             include_metadata=include_metadata,
         )
-        # The HFID of a node from a query with `only` is calculated from the fields it names.
+        # `node.hfid` is calculated from fields, never read from the response.
         del data["edges"]["node"]["hfid"]
         return data
 

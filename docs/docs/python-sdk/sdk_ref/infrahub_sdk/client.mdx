@@ -81,12 +81,9 @@ filter when it has one.
 - `query_name`: If provided is used as the GraphQL operation name else Get_&lt;kind&gt; is used.
 - `priority`: Per-request priority emitted as the X-Priority header, overriding the
 client default for these requests only. When None, the client default (if any) is used.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
@@ -307,12 +304,9 @@ Retrieve all nodes of a given kind.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -368,12 +362,9 @@ Retrieve nodes of a given kind based on provided filters.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.
@@ -677,12 +668,9 @@ filter when it has one.
 - `query_name`: If provided is used as the GraphQL operation name else Get_&lt;kind&gt; is used.
 - `priority`: Per-request priority emitted as the X-Priority header, overriding the
 client default for these requests only. When None, the client default (if any) is used.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `**kwargs`: Additional filter criteria for the query.
 
 **Returns:**
@@ -948,12 +936,9 @@ Retrieve all nodes of a given kind.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `parallel`: Whether to use parallel processing for the query.
@@ -1009,12 +994,9 @@ Retrieve nodes of a given kind based on provided filters.
 - `limit`: The limit for pagination.
 - `include`: List of attributes or relationships to include in the query.
 - `exclude`: List of attributes or relationships to exclude from the query.
-- `only`: The only attributes and relationships to fetch. Each node also gets its
-`id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-`prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-on the field first. Cannot be combined with `include` or `exclude`.
+- `only`: Fetch only these attributes and relationships, plus `id`, `display_label`
+and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
 - `fragment`: Flag to use GraphQL fragments for generic schemas.
 - `prefetch_relationships`: Flag to indicate whether to pre-fetch related node data.
 - `partial_match`: Allow partial match of filter criteria for the query.

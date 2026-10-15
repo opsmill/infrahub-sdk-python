@@ -807,12 +807,9 @@ class InfrahubClient(BaseClient):
             query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
             priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
                 client default for these requests only. When None, the client default (if any) is used.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -1310,12 +1307,9 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -1442,12 +1436,9 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3185,12 +3176,9 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -3438,12 +3426,9 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3755,12 +3740,9 @@ class InfrahubClientSync(BaseClient):
             query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
             priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
                 client default for these requests only. When None, the client default (if any) is used.
-            only (list[str], optional): The only attributes and relationships to fetch. Each node also gets its
-                `id`, `display_label` and `__typename`, and nothing else. `hfid` fetches the fields of the kind's
-                human-friendly ID. A named relationship is fetched as a reference, or with its peer's fields when
-                `prefetch_relationships` is set. For a generic kind, the fields of the kinds that implement it are
-                accepted too. Reading a field that was not fetched raises FieldNotLoadedError; check `is_loaded`
-                on the field first. Cannot be combined with `include` or `exclude`.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
+                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:

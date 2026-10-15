@@ -1382,6 +1382,39 @@ async def test_hfid_of_a_default_node_skips_a_stored_peer_field_that_only_did_no
     assert [device.hfid, device.get_human_friendly_id()] == [None, None]
 
 
+@dataclass
+class ResponseHfidCase:
+    name: str
+    data: dict[str, Any]
+    expected_hfid: list[str] | None
+
+
+RESPONSE_HFID_CASES = [
+    ResponseHfidCase(
+        name="hfid-fields-in-data",
+        data={"id": only_data.DEVICE_ID, "hfid": ["from-server"], "name": {"value": "dev1"}},
+        expected_hfid=["dev1"],
+    ),
+    ResponseHfidCase(
+        name="hfid-fields-not-in-data",
+        data={"id": only_data.DEVICE_ID, "hfid": ["from-server"]},
+        expected_hfid=None,
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RESPONSE_HFID_CASES])
+def test_hfid_is_calculated_from_the_fields_and_never_read_from_the_response(
+    clients: BothClients, client_type: str, case: ResponseHfidCase
+) -> None:
+    device = build_node(
+        clients=clients, client_type=client_type, schema=device_schema_with_hfid("name__value"), data=case.data
+    )
+
+    assert [device.hfid, device.get_human_friendly_id()] == [case.expected_hfid, case.expected_hfid]
+
+
 @pytest.mark.parametrize("client_type", client_types)
 async def test_store_accepts_a_node_from_only(
     only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
