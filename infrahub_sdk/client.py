@@ -1334,7 +1334,6 @@ class InfrahubClient(BaseClient):
             TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
-        check_only_conflict(only=only, include=include, exclude=exclude)
         if query_name is None:
             query_name = f"All_{get_kind_as_string(kind=kind)}"
         return await self.filters(
@@ -3210,7 +3209,6 @@ class InfrahubClientSync(BaseClient):
             TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
-        check_only_conflict(only=only, include=include, exclude=exclude)
         if query_name is None:
             query_name = f"All_{get_kind_as_string(kind=kind)}"
         return self.filters(

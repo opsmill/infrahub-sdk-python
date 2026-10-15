@@ -609,6 +609,69 @@ async def test_only_query_hierarchy_prefetch_matches_default_hierarchy_fields(
     assert only_node["parent"] == hierarchy_one({"name": VALUE})
 
 
+def declared_parent_schema(parent_peer: str) -> dict[str, Any]:
+    """A site whose HFID reads `code`, which only the region has, through a `parent` that declares `parent_peer`."""
+    return {
+        "version": "1.0",
+        "generics": [
+            {
+                "name": "Generic",
+                "namespace": "Location",
+                "hierarchical": True,
+                "used_by": ["LocationRegion", "LocationSite"],
+                "attributes": [{"name": "name", "kind": "Text"}],
+            }
+        ],
+        "nodes": [
+            {
+                "name": "Region",
+                "namespace": "Location",
+                "inherit_from": ["LocationGeneric"],
+                "hierarchy": "LocationGeneric",
+                "attributes": [{"name": "name", "kind": "Text"}, {"name": "code", "kind": "Text"}],
+            },
+            {
+                "name": "Site",
+                "namespace": "Location",
+                "inherit_from": ["LocationGeneric"],
+                "hierarchy": "LocationGeneric",
+                "human_friendly_id": ["parent__code__value", "name__value"],
+                "attributes": [{"name": "name", "kind": "Text"}],
+                "relationships": [
+                    {"name": "parent", "peer": parent_peer, "cardinality": "one", "kind": "Hierarchy", "optional": True}
+                ],
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_query_hfid_uses_the_declared_parent_kind(clients: BothClients, client_type: str) -> None:
+    schema = declared_parent_schema(parent_peer="LocationRegion")
+    clients.standard.schema.set_cache(schema)
+    clients.sync.schema.set_cache(schema)
+
+    data = await generate_only_query(clients, client_type, kind="LocationSite", only=["hfid"])
+
+    assert data == expected_query(
+        "LocationSite", {"name": VALUE, "parent": {"node": {"...on LocationRegion": {**REFERENCE, "code": VALUE}}}}
+    )
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_query_rejects_an_hfid_peer_attribute_the_peer_kind_lacks(
+    clients: BothClients, client_type: str
+) -> None:
+    schema = declared_parent_schema(parent_peer="LocationGeneric")
+    clients.standard.schema.set_cache(schema)
+    clients.sync.schema.set_cache(schema)
+
+    with pytest.raises(
+        FieldNotFoundError, match=re.escape("'code' is not an attribute or relationship of LocationGeneric.")
+    ):
+        await generate_only_query(clients, client_type, kind="LocationSite", only=["hfid"])
+
+
 @pytest.mark.parametrize("client_type", client_types)
 async def test_only_query_arguments(query_clients: BothClients, client_type: str) -> None:
     arguments: dict[str, Any] = {

@@ -446,6 +446,8 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         self._peer = await self._client.get(
             kind=self.typename,
             id=self.id,
@@ -453,7 +455,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             branch=self._branch,
             timeout=timeout,
             priority=priority,
-            only=only,
+            **only_kwargs,
         )
 
     @property
@@ -564,6 +566,8 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         self._peer = self._client.get(
             kind=self.typename,
             id=self.id,
@@ -571,7 +575,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             branch=self._branch,
             timeout=timeout,
             priority=priority,
-            only=only,
+            **only_kwargs,
         )
 
     @property

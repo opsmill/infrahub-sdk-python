@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO, overload
 from ..constants import InfrahubClientMode, Priority
 from ..exceptions import (
     FeatureNotSupportedError,
+    FieldNotFoundError,
     NodeNotFoundError,
     ResourceNotDefinedError,
     SchemaNotFoundError,
@@ -204,9 +205,10 @@ class InfrahubNodeBase:
     def _get_path_value_if_loaded(self, path: str) -> Any:
         """Resolve a dunder-separated path like the public path lookup, without raising for unfetched fields.
 
-        A field that the node's data did not contain counts as missing. The peer of a relationship comes
-        from the peers kept for the HFID when it is still the relationship's peer, then from the peer
-        cached on the relationship or the store.
+        Used for the HFID of every node. A field that a node from `only` did not fetch counts as missing,
+        including on a peer from the store; any other field is read as the public lookup reads it. The
+        peer of a relationship comes from the peers kept for the HFID when it is still the relationship's
+        peer, then from the peer cached on the relationship or the store.
 
         Returns:
             Any: The resolved value, or ``None`` when a path component is missing or was not fetched.
@@ -245,7 +247,12 @@ class InfrahubNodeBase:
     @staticmethod
     def _get_loaded_attribute_value(node: Any, path_parts: list[str]) -> Any:
         attribute = getattr(node, path_parts[0], None)
-        if isinstance(attribute, Attribute) and not attribute.is_loaded:
+        # Only a node from `only` raises on an unfetched attribute; any other node reads it as before.
+        if (
+            isinstance(attribute, Attribute)
+            and not attribute.is_loaded
+            and getattr(node, "_only_marker", None) is not None
+        ):
             return None
         if len(path_parts) == 1:
             return attribute
@@ -271,10 +278,8 @@ class InfrahubNodeBase:
         if not self._schema.human_friendly_id:
             return None
 
-        # Nodes not built from an `only` query keep the public lookup, so their HFID is resolved exactly as before.
-        read_path = self.get_path_value if self._only_marker is None else self._get_path_value_if_loaded
         # If an HFID component is missing we assume that it is invalid and not usable for this node
-        hfid_components = [read_path(path=item) for item in self._schema.human_friendly_id]
+        hfid_components = [self._get_path_value_if_loaded(path=item) for item in self._schema.human_friendly_id]
         if None in hfid_components:
             return None
         return [str(hfid) for hfid in hfid_components]
@@ -805,11 +810,14 @@ class InfrahubNodeBase:
     def _generate_only_attribute_data(
         self, names: Iterable[str], property: bool, include_metadata: bool
     ) -> dict[str, Any]:
-        return {
-            name: self._attribute_data[name]._generate_query_data(property=property, include_metadata=include_metadata)
-            for name in names
-            if name in self._attribute_data
-        }
+        data: dict[str, Any] = {}
+        for name in names:
+            if name not in self._attribute_data:
+                raise FieldNotFoundError(kind=self._schema.kind, field=name)
+            data[name] = self._attribute_data[name]._generate_query_data(
+                property=property, include_metadata=include_metadata
+            )
+        return data
 
     def _mark_from_only(self, plan: OnlyPeerRelationships, peers: Mapping[str, Sequence[InfrahubNodeBase]]) -> None:
         """Mark this node and the peers built from its data as coming from a query with `only`.
@@ -824,16 +832,23 @@ class InfrahubNodeBase:
             if rel_name in plan.hfid and rel_peers:
                 self._hfid_peers[rel_name] = rel_peers[0]
 
+    def _hierarchy_peer_kind(self, name: str, hierarchy_kind: str) -> str:
+        """The kind of the peers of a hierarchy field: the declared peer when the kind has the field as a relationship."""
+        if name in self._schema.relationship_names:
+            return self._schema.get_relationship(name=name).peer
+        return hierarchy_kind
+
     @staticmethod
     def _build_hierarchy_query_data(
-        name: str, hierarchy_kind: str, peer_data: dict[str, Any], property: bool
+        name: str, peer_kind: str, peer_data: dict[str, Any], property: bool
     ) -> dict[str, Any]:
+        # `parent` is cardinality one, the other hierarchy fields are cardinality many.
         if name == "parent":
             rel_data = RelatedNodeBase._generate_query_data(peer_data=peer_data, property=property)
-            rel_data["node"] = {f"...on {hierarchy_kind}": rel_data["node"]}
+            rel_data["node"] = {f"...on {peer_kind}": rel_data["node"]}
         else:
             rel_data = RelationshipManagerBase._generate_query_data(peer_data=peer_data, property=property)
-            rel_data["edges"]["node"] = {f"...on {hierarchy_kind}": rel_data["edges"]["node"]}
+            rel_data["edges"]["node"] = {f"...on {peer_kind}": rel_data["edges"]["node"]}
         return rel_data
 
     def __hash__(self) -> int:
@@ -1040,7 +1055,7 @@ class InfrahubNode(InfrahubNodeBase):
                 related_node._bind(node=self, present=present)
                 self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
-                manager = RelationshipManager(
+                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -1048,8 +1063,6 @@ class InfrahubNode(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
-                manager._bind(node=self)
-                self._relationship_cardinality_many_data[rel_schema.name] = manager
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
@@ -1064,7 +1077,7 @@ class InfrahubNode(InfrahubNodeBase):
                 hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
                 self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
-                hierarchy_manager = RelationshipManager(
+                self._hierarchical_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -1072,8 +1085,6 @@ class InfrahubNode(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
-                hierarchy_manager._bind(node=self)
-                self._hierarchical_data[rel_schema.name] = hierarchy_manager
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManager | RelatedNode:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -1467,21 +1478,12 @@ class InfrahubNode(InfrahubNodeBase):
                 property=property,
             )
 
-            # Parent is cardinality one, others are cardinality many
-            if hierarchical_name == "parent":
-                hierarchical_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["node"]
-                hierarchical_data["node"] = {}
-                hierarchical_data["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-            else:
-                hierarchical_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["edges"]["node"]
-                hierarchical_data["edges"]["node"] = {}
-                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-
-            data[hierarchical_name] = hierarchical_data
+            data[hierarchical_name] = self._build_hierarchy_query_data(
+                name=hierarchical_name,
+                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_data=peer_data,
+                property=property,
+            )
 
             if insert_alias:
                 data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
@@ -1747,9 +1749,10 @@ class InfrahubNode(InfrahubNodeBase):
 
         if fields.hierarchy_kind is not None:
             for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
-                # Hierarchy peers get the fields that the default query's prefetch requests for them.
+                peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
+                # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
                 peer_data = await self._generate_only_peer_data(
-                    peer_kind=fields.hierarchy_kind,
+                    peer_kind=peer_kind,
                     peer_attributes=peer_attributes,
                     prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
                     property=property,
@@ -1757,7 +1760,7 @@ class InfrahubNode(InfrahubNodeBase):
                     exclude=list(HIERARCHY_FIELD_NAMES),
                 )
                 data[hierarchical_name] = self._build_hierarchy_query_data(
-                    name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind, peer_data=peer_data, property=property
+                    name=hierarchical_name, peer_kind=peer_kind, peer_data=peer_data, property=property
                 )
 
         if insert_alias:
@@ -2421,7 +2424,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 related_node._bind(node=self, present=present)
                 self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
-                manager = RelationshipManagerSync(
+                self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -2429,8 +2432,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
-                manager._bind(node=self)
-                self._relationship_cardinality_many_data[rel_schema.name] = manager
 
         # Initialize parent, children, ancestors and descendants for hierarchical nodes
         for rel_schema in self._schema.hierarchical_relationship_schemas:
@@ -2446,7 +2447,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
                 self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
-                hierarchy_manager = RelationshipManagerSync(
+                self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
                     client=self._client,
                     node=self,
@@ -2454,8 +2455,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     schema=rel_schema,
                     data=rel_data,
                 )
-                hierarchy_manager._bind(node=self)
-                self._hierarchical_data[rel_schema.name] = hierarchy_manager
 
     def __getattr__(self, name: str) -> Attribute | RelationshipManagerSync | RelatedNodeSync:
         if "_attribute_data" in self.__dict__ and name in self._attribute_data:
@@ -2840,21 +2839,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 property=property,
             )
 
-            # Parent is cardinality one, others are cardinality many
-            if hierarchical_name == "parent":
-                hierarchical_data = RelatedNodeSync._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["node"]
-                hierarchical_data["node"] = {}
-                hierarchical_data["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-            else:
-                hierarchical_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["edges"]["node"]
-                hierarchical_data["edges"]["node"] = {}
-                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-
-            data[hierarchical_name] = hierarchical_data
+            data[hierarchical_name] = self._build_hierarchy_query_data(
+                name=hierarchical_name,
+                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_data=peer_data,
+                property=property,
+            )
 
             if insert_alias:
                 data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
@@ -3119,9 +3109,10 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         if fields.hierarchy_kind is not None:
             for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
-                # Hierarchy peers get the fields that the default query's prefetch requests for them.
+                peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
+                # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
                 peer_data = self._generate_only_peer_data(
-                    peer_kind=fields.hierarchy_kind,
+                    peer_kind=peer_kind,
                     peer_attributes=peer_attributes,
                     prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
                     property=property,
@@ -3129,7 +3120,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     exclude=list(HIERARCHY_FIELD_NAMES),
                 )
                 data[hierarchical_name] = self._build_hierarchy_query_data(
-                    name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind, peer_data=peer_data, property=property
+                    name=hierarchical_name, peer_kind=peer_kind, peer_data=peer_data, property=property
                 )
 
         if insert_alias:

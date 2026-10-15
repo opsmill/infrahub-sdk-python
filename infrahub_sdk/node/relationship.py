@@ -41,6 +41,9 @@ class RelationshipManagerBase(Generic[PeerT]):
 
     """
 
+    # The node the relationship belongs to; the subclasses set it.
+    node: InfrahubNodeBase | None = None
+
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
         """Build the base relationship manager state.
 
@@ -61,7 +64,6 @@ class RelationshipManagerBase(Generic[PeerT]):
         self._properties = self._properties_flag + self._properties_object
 
         self._peers: list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]] = []
-        self._node: InfrahubNodeBase | None = None
         self._peers_assigned = False
 
     @property
@@ -99,14 +101,11 @@ class RelationshipManagerBase(Generic[PeerT]):
             otherwise.
 
         """
-        return self.initialized or self._peers_assigned or self._node is None or not self._node.id
-
-    def _bind(self, node: InfrahubNodeBase) -> None:
-        self._node = node
+        return self.initialized or self._peers_assigned or self.node is None or not self.node.id
 
     def _raise_if_not_loaded(self) -> None:
-        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
-            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.name)
+        if not self.is_loaded and self.node is not None and self.node._only_marker is not None:
+            raise self.node._only_marker.not_loaded_error(kind=self.node.get_kind(), field=self.name)
 
     @property
     def peer_ids(self) -> list[str]:
@@ -247,6 +246,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
     accessed by index via ``manager[i]``.
     """
 
+    node: InfrahubNode
+
     def __init__(
         self,
         name: str,
@@ -363,6 +364,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 schemas=[await self.client.schema.get(kind=kind, branch=self.branch) for kind in ids_per_kind_map],
             )
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         batch = await self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
             batch.add(
@@ -373,7 +376,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
-                only=only,
+                **only_kwargs,
             )
 
         async for _ in batch.execute():
@@ -474,6 +477,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
     list in memory. Peers are exposed as :class:`RelatedNodeSync` instances and can be
     accessed by index via ``manager[i]``.
     """
+
+    node: InfrahubNodeSync
 
     def __init__(
         self,
@@ -591,6 +596,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 schemas=[self.client.schema.get(kind=kind, branch=self.branch) for kind in ids_per_kind_map],
             )
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         batch = self.client.create_batch()
         for kind, ids in ids_per_kind_map.items():
             batch.add(
@@ -601,7 +608,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 branch=self.branch,
                 parallel=True,
                 order=Order(disable=True),
-                only=only,
+                **only_kwargs,
             )
 
         for _ in batch.execute():

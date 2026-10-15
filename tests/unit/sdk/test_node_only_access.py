@@ -433,12 +433,12 @@ def test_field_objects_built_on_their_own_are_loaded(
     if isinstance(node, InfrahubNode):
         related_node = RelatedNode(client=clients.standard, branch="main", schema=primary_tag_schema, data=None)
         manager = RelationshipManager(
-            name="tags", client=clients.standard, node=node, branch="main", schema=tags_schema, data=None
+            name="tags", client=clients.standard, node=None, branch="main", schema=tags_schema, data=None
         )
     else:
         related_node = RelatedNodeSync(client=clients.sync, branch="main", schema=primary_tag_schema, data=None)
         manager = RelationshipManagerSync(
-            name="tags", client=clients.sync, node=node, branch="main", schema=tags_schema, data=None
+            name="tags", client=clients.sync, node=None, branch="main", schema=tags_schema, data=None
         )
 
     assert [attribute.is_loaded, related_node.is_loaded, manager.is_loaded] == [True, True, True]
@@ -1372,6 +1372,22 @@ def test_hfid_of_a_node_from_only_is_built_from_the_fields_it_fetched(
     expected_hfid = case.expected_hfid(device)
 
     assert [device.hfid, device.get_human_friendly_id()] == [expected_hfid, expected_hfid]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_hfid_of_a_default_node_skips_a_stored_peer_field_that_only_did_not_fetch(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    site_without_name = only_data.node_data(only_data.SITE_ID, SITE, description={"value": "hq"})
+    await query_one(only_clients, client_type, httpx_mock, kind=SITE, only=["description"], edge=site_without_name)
+    device = build_node(
+        clients=only_clients,
+        client_type=client_type,
+        schema=device_schema_with_hfid("site__name__value"),
+        data=HFID_DEVICE_DATA,
+    )
+
+    assert [device.hfid, device.get_human_friendly_id()] == [None, None]
 
 
 @pytest.mark.parametrize("client_type", client_types)
