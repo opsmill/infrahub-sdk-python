@@ -186,6 +186,7 @@ kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
 - `FieldNotFoundError`: A name in ``only`` is not a field of the relationship's peer kind, raised before
 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
+- `TypeError`: ``only`` is a string instead of a list of field names; raised before any request.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -287,6 +288,7 @@ kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
 - `FieldNotFoundError`: A name in ``only`` is not a field of the relationship's peer kind, raised before
 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
+- `TypeError`: ``only`` is a string instead of a list of field names; raised before any request.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`

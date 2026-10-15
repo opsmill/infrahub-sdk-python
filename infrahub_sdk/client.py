@@ -821,6 +821,7 @@ class InfrahubClient(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
             ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
                 human-friendly ID.
             NodeNotFoundError: No node matches and `raise_when_missing` is True.
@@ -1330,6 +1331,7 @@ class InfrahubClient(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         check_only_conflict(only=only, include=include, exclude=exclude)
@@ -1464,6 +1466,7 @@ class InfrahubClient(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         check_only_conflict(only=only, include=include, exclude=exclude)
@@ -3204,6 +3207,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         check_only_conflict(only=only, include=include, exclude=exclude)
@@ -3459,6 +3463,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         check_only_conflict(only=only, include=include, exclude=exclude)
@@ -3766,6 +3771,7 @@ class InfrahubClientSync(BaseClient):
         Raises:
             FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
             FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
             ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
                 human-friendly ID.
             NodeNotFoundError: No node matches and `raise_when_missing` is True.

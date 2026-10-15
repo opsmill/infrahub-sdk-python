@@ -438,6 +438,7 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
                 queried.
+            TypeError: ``only`` is a string instead of a list of field names; raised before the peer is queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
@@ -555,6 +556,7 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
                 queried.
+            TypeError: ``only`` is a string instead of a list of field names; raised before the peer is queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
