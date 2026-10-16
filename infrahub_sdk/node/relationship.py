@@ -194,9 +194,7 @@ class RelationshipManagerBase(Generic[PeerT]):
             return {"only": [self.schema.name], "populate_store": False}
         # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
         exclude = [
-            name
-            for name in node._schema.relationship_names + node._schema.attribute_names
-            if name != self.schema.name
+            name for name in node._schema.relationship_names + node._schema.attribute_names if name != self.schema.name
         ]
         return {"include": [self.schema.name], "exclude": exclude}
 
