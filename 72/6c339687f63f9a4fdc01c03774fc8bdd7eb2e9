@@ -1,0 +1,53 @@
+.agents/skills/opsmill-dev-backporting-fixes/SKILL.md
+  s_8ed3f1c81b9cf6::t_9fca4f875894df 78,84
+.agents/skills/opsmill-dev-creating-issues/SKILL.md
+  s_8ed3f1c81b9cf6::t_82b68d35149a61 13,43,45,51-91,107,123,128,133,138-159,163,177
+.agents/skills/opsmill-dev-creating-prd/SKILL.md
+  s_8ed3f1c81b9cf6::t_a871f82ddae2af 8-9
+.agents/skills/opsmill-dev-fixing-bugs/SKILL.md
+  s_8ed3f1c81b9cf6::t_73ee249bd2b2bd 141,161-162,164-167,198
+.agents/skills/opsmill-dev-judging-changes/DECISION.md
+  s_8ed3f1c81b9cf6::t_0c3b213227f7e1 1-4,12-13,25-62,64,66-70
+.agents/skills/opsmill-dev-judging-changes/SKILL.md
+  s_8ed3f1c81b9cf6::t_f6ed310f7cf4d9 1-176
+.agents/skills/opsmill-dev-judging-changes/evals/evals.json
+  s_8ed3f1c81b9cf6::t_c3038882de0aeb 1-60
+.agents/skills/opsmill-dev-judging-changes/hooks/ship-gate-check.sh
+  s_8ed3f1c81b9cf6::t_3f3219248d4546 2,4-5,11,72,74
+.agents/skills/opsmill-dev-judging-changes/references/anti-gaming.md
+  s_8ed3f1c81b9cf6::t_b9acedefb138ee 1,3-4,9-11,15-34
+.agents/skills/opsmill-dev-judging-changes/references/gate-model.md
+  s_8ed3f1c81b9cf6::t_cf3c70acfd491f 3-6,8-12,14,19,22,24,26-30,32,34-40,42-44,46,48-53
+.agents/skills/opsmill-dev-merging-branches/SKILL.md
+  s_8ed3f1c81b9cf6::t_d998d14803cebf 102
+.agents/skills/opsmill-dev-monitoring-pull-requests/SKILL.md
+  s_8ed3f1c81b9cf6::t_b93b8696c7d359 7-8,40,115-117,138,263,278,380-381,403
+.agents/skills/opsmill-dev-pr/SKILL.md
+  s_8ed3f1c81b9cf6::t_e3f682766651ec 8,11,30,119,162,164,166,169-170,173,181,236
+.agents/skills/opsmill-dev-rebase/SKILL.md
+  s_8ed3f1c81b9cf6::t_cdec80492f35ff 5-6,65,68,71-72,127,174-178,193
+.agents/skills/opsmill-dev-test-driving-bugs/SKILL.md
+  s_8ed3f1c81b9cf6::t_c143da957f125c 189-190,207
+.agents/skills/opsmill-dev-verifying-changes/SKILL.md
+  s_8ed3f1c81b9cf6::t_65645870b47f46 2,4-13,19,21-24,26-28,30,32-33,35,37-44,46,48-50,52-80
+.agents/skills/opsmill-dev-verifying-changes/evals/evals.json
+  s_8ed3f1c81b9cf6::t_c86c1e983339f4 2-3,7-16,20-29,33-42
+skills-lock.json
+  s_8ed3f1c81b9cf6::t_75cf48b2c3867d 8,20,26,32,38,44,50-56,62,68,74,86,92,94,97-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "726c339687f63f9a4fdc01c03774fc8bdd7eb2e9",
+  "prompts": {},
+  "sessions": {
+    "s_8ed3f1c81b9cf6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_8ed3f1c81b9cf6",
+        "model": "unknown"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
