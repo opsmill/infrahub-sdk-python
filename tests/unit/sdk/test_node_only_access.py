@@ -517,6 +517,7 @@ def reference(id: str, typename: str, label: str, **fields: dict[str, Any]) -> d
 
 DEVICE_WITH_NAME = only_data.node_data(only_data.DEVICE_ID, DEVICE, name={"value": "dev1"})
 DEVICE_WITH_HFID = only_data.DEVICE_WITH_HFID
+DEVICE_WITH_NAME_AND_SITE = only_data.DEVICE_WITH_NAME_AND_SITE
 DEVICE_WITH_EVERY_FIELD = only_data.node_data(
     only_data.DEVICE_ID,
     DEVICE,
@@ -872,16 +873,17 @@ class PeerReadCase:
 
 PEER_READ_CASES = [
     PeerReadCase(
-        name="peer-for-the-hfid-attribute",
+        name="prefetched-site",
         kind=DEVICE,
-        only=["hfid"],
-        edge=DEVICE_WITH_HFID,
+        only=["name", "site"],
+        edge=DEVICE_WITH_NAME_AND_SITE,
         peer_id=only_data.SITE_ID,
         peer_kind=SITE,
         peer_name="Paris",
         field="description",
         read=lambda attribute: attribute.value,
         peer_of="InfraDevice.site",
+        prefetch_relationships=True,
     ),
     PeerReadCase(
         name="prefetched-parent-cardinality-one",
@@ -947,6 +949,7 @@ class NodeReadCase:
     read: Callable[[Any], Any]
     expected_value: Any = None
     not_fetched: NotFetched | None = None
+    prefetch_relationships: bool = False
 
 
 NODE_READ_CASES = [
@@ -958,6 +961,13 @@ NODE_READ_CASES = [
         not_fetched=NotFetched(kind=DEVICE, field="description", only=["hfid"]),
     ),
     NodeReadCase(
+        name="path-to-an-hfid-part-with-hfid-named",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        read=lambda node: node.get_path_value(path="name__value"),
+        not_fetched=NotFetched(kind=DEVICE, field="name", only=["hfid"]),
+    ),
+    NodeReadCase(
         name="path-through-a-relationship-not-fetched",
         only=["name"],
         edge=DEVICE_WITH_NAME,
@@ -966,10 +976,11 @@ NODE_READ_CASES = [
     ),
     NodeReadCase(
         name="path-to-a-peer-attribute-not-fetched",
-        only=["hfid"],
-        edge=DEVICE_WITH_HFID,
+        only=["name", "site"],
+        edge=DEVICE_WITH_NAME_AND_SITE,
         read=lambda node: node.get_path_value(path="site__description__value"),
-        not_fetched=NotFetched(kind=SITE, field="description", only=["hfid"], peer_of="InfraDevice.site"),
+        not_fetched=NotFetched(kind=SITE, field="description", only=["name", "site"], peer_of="InfraDevice.site"),
+        prefetch_relationships=True,
     ),
     NodeReadCase(
         name="flat-value-of-an-attribute-not-fetched",
@@ -987,22 +998,23 @@ NODE_READ_CASES = [
     ),
     NodeReadCase(
         name="path-to-a-fetched-attribute",
-        only=["hfid"],
-        edge=DEVICE_WITH_HFID,
+        only=["name"],
+        edge=DEVICE_WITH_NAME,
         read=lambda node: node.get_path_value(path="name__value"),
         expected_value="dev1",
     ),
     NodeReadCase(
         name="path-to-a-fetched-peer-attribute",
-        only=["hfid"],
-        edge=DEVICE_WITH_HFID,
+        only=["name", "site"],
+        edge=DEVICE_WITH_NAME_AND_SITE,
         read=lambda node: node.get_path_value(path="site__name__value"),
         expected_value="Paris",
+        prefetch_relationships=True,
     ),
     NodeReadCase(
         name="flat-value-of-a-fetched-attribute",
-        only=["hfid"],
-        edge=DEVICE_WITH_HFID,
+        only=["name"],
+        edge=DEVICE_WITH_NAME,
         read=lambda node: node.get_flat_value(key="name__value"),
         expected_value="dev1",
     ),
@@ -1014,7 +1026,15 @@ NODE_READ_CASES = [
 async def test_node_reads_raise_only_for_fields_not_fetched(
     only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: NodeReadCase
 ) -> None:
-    device = await query_one(only_clients, client_type, httpx_mock, kind=DEVICE, only=case.only, edge=case.edge)
+    device = await query_one(
+        only_clients,
+        client_type,
+        httpx_mock,
+        kind=DEVICE,
+        only=case.only,
+        edge=case.edge,
+        prefetch_relationships=case.prefetch_relationships,
+    )
 
     if case.not_fetched is None:
         assert await resolve(case.read(device)) == case.expected_value
@@ -1206,7 +1226,7 @@ HFID_READ_CASES = [
         name="hfid-fields-not-fetched", only=["name"], edge=DEVICE_WITH_NAME, expected=[None, None, None, None]
     ),
     HfidReadCase(
-        name="hfid-fields-fetched",
+        name="hfid-named",
         only=["hfid"],
         edge=DEVICE_WITH_HFID,
         expected=[["dev1", "Paris"], "InfraDevice__dev1__Paris", ["dev1", "Paris"], "dev1__Paris"],
@@ -1405,7 +1425,7 @@ RESPONSE_HFID_CASES = [
 
 @pytest.mark.parametrize("client_type", client_types)
 @pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in RESPONSE_HFID_CASES])
-def test_hfid_is_calculated_from_the_fields_and_never_read_from_the_response(
+def test_hfid_of_a_default_node_is_calculated_and_never_read_from_the_response(
     clients: BothClients, client_type: str, case: ResponseHfidCase
 ) -> None:
     device = build_node(

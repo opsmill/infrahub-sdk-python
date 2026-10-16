@@ -182,9 +182,11 @@ def expected_query(
     node_fields: dict[str, Any],
     filters: dict[str, Any] | None = None,
     include_metadata: bool = False,
+    hfid: bool = False,
 ) -> dict[str, Any]:
-    """The whole query: the queried node always gets `id`, `display_label` and `__typename`, never `hfid`."""
-    edges: dict[str, Any] = {"node": {"id": None, "display_label": None, "__typename": None, **node_fields}}
+    """The whole query: the queried node always gets `id`, `display_label` and `__typename`, and `hfid` with `hfid`."""
+    identifiers: dict[str, Any] = {"id": None, "hfid": None} if hfid else {"id": None}
+    edges: dict[str, Any] = {"node": {**identifiers, "display_label": None, "__typename": None, **node_fields}}
     if include_metadata:
         edges["node_metadata"] = NODE_METADATA
     return {kind: {"count": None, "@filters": filters or {}, "edges": edges}}
@@ -394,41 +396,36 @@ ONLY_QUERY_CASES = [
         ),
     ),
     OnlyQueryCase(
-        name="hfid-through-attribute",
+        name="hfid-on-kind-whose-hfid-reads-an-attribute",
         kind="BuiltinLocation",
         only=["hfid"],
-        expected=expected_query("BuiltinLocation", {"name": VALUE}),
+        expected=expected_query("BuiltinLocation", {}, hfid=True),
     ),
     OnlyQueryCase(
-        name="hfid-through-relationship",
+        name="hfid-on-kind-whose-hfid-reads-a-relationship",
         kind="BuiltinRack",
         only=["hfid"],
-        expected=expected_query("BuiltinRack", {"facility_id": VALUE, "location": one({"name": VALUE})}),
+        expected=expected_query("BuiltinRack", {}, hfid=True),
     ),
     OnlyQueryCase(
-        name="hfid-merged-with-named-relationship",
+        name="hfid-merged-with-named-fields",
         kind="BuiltinRack",
         only=["location", "description", "hfid"],
-        expected=expected_query(
-            "BuiltinRack", {"facility_id": VALUE, "description": VALUE, "location": one({"name": VALUE})}
-        ),
+        expected=expected_query("BuiltinRack", {"description": VALUE, "location": one()}, hfid=True),
     ),
     OnlyQueryCase(
-        name="hfid-relationship-not-named-with-prefetch",
+        name="hfid-with-prefetch",
         kind="BuiltinRack",
         only=["tags", "hfid"],
         prefetch_relationships=True,
-        expected=expected_query(
-            "BuiltinRack",
-            {"facility_id": VALUE, "location": one({"name": VALUE}), "tags": many(TAG_DEFAULT_FIELDS)},
-        ),
+        expected=expected_query("BuiltinRack", {"tags": many(TAG_DEFAULT_FIELDS)}, hfid=True),
     ),
     OnlyQueryCase(
-        name="hfid-relationship-also-named-with-prefetch",
+        name="hfid-with-prefetch-of-a-relationship-the-hfid-reads",
         kind="BuiltinRack",
         only=["location", "hfid"],
         prefetch_relationships=True,
-        expected=expected_query("BuiltinRack", {"facility_id": VALUE, "location": one(LOCATION_DEFAULT_FIELDS)}),
+        expected=expected_query("BuiltinRack", {"location": one(LOCATION_DEFAULT_FIELDS)}, hfid=True),
     ),
     OnlyQueryCase(
         name="hfid-on-kind-without-hfid", kind="BuiltinTag", only=["hfid"], expected=expected_query("BuiltinTag", {})
@@ -474,58 +471,27 @@ ONLY_QUERY_CASES = [
         ),
     ),
     OnlyQueryCase(
-        name="generic-hfid-per-implementing-kind",
+        name="generic-hfid",
         kind="TestingAnimal",
         only=["hfid"],
-        expected=expected_query(
-            "TestingAnimal",
-            {
-                "name": VALUE,
-                "owner": one({"name": VALUE}),
-                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
-            },
-        ),
+        expected=expected_query("TestingAnimal", {}, hfid=True),
     ),
     OnlyQueryCase(
-        name="generic-hfid-merged-with-named-relationship",
+        name="generic-hfid-merged-with-named-fields",
         kind="TestingAnimal",
-        only=["owner", "hfid"],
+        only=["owner", "color", "hfid"],
         expected=expected_query(
             "TestingAnimal",
-            {
-                "name": VALUE,
-                "owner": one({"name": VALUE}),
-                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
-            },
+            {"owner": one(), "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)}},
+            hfid=True,
         ),
     ),
     OnlyQueryCase(
-        name="generic-hfid-relationship-not-named-with-prefetch",
-        kind="TestingAnimal",
-        only=["hfid"],
-        prefetch_relationships=True,
-        expected=expected_query(
-            "TestingAnimal",
-            {
-                "name": VALUE,
-                "owner": one({"name": VALUE}),
-                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
-            },
-        ),
-    ),
-    OnlyQueryCase(
-        name="generic-hfid-relationship-also-named-with-prefetch",
+        name="generic-hfid-with-prefetch",
         kind="TestingAnimal",
         only=["owner", "hfid"],
         prefetch_relationships=True,
-        expected=expected_query(
-            "TestingAnimal",
-            {
-                "name": VALUE,
-                "owner": one(PERSON_DEFAULT_FIELDS),
-                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
-            },
-        ),
+        expected=expected_query("TestingAnimal", {"owner": one(PERSON_DEFAULT_FIELDS)}, hfid=True),
     ),
     OnlyQueryCase(
         name="property-on-named-fields",
@@ -538,17 +504,11 @@ ONLY_QUERY_CASES = [
         ),
     ),
     OnlyQueryCase(
-        name="property-on-hfid-fields",
+        name="property-adds-nothing-to-hfid",
         kind="BuiltinRack",
-        only=["hfid"],
+        only=["description", "hfid"],
         property=True,
-        expected=expected_query(
-            "BuiltinRack",
-            {
-                "facility_id": ATTRIBUTE_PROPERTIES,
-                "location": one({"name": ATTRIBUTE_PROPERTIES}, properties=RELATIONSHIP_PROPERTIES),
-            },
-        ),
+        expected=expected_query("BuiltinRack", {"description": ATTRIBUTE_PROPERTIES}, hfid=True),
     ),
     OnlyQueryCase(
         name="property-on-hierarchy-field",
@@ -669,19 +629,6 @@ def declared_parent_schema(parent_peer: str) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_only_query_hfid_uses_the_declared_parent_kind(clients: BothClients, client_type: str) -> None:
-    schema = declared_parent_schema(parent_peer="LocationRegion")
-    clients.standard.schema.set_cache(schema)
-    clients.sync.schema.set_cache(schema)
-
-    data = await generate_only_query(clients, client_type, kind="LocationSite", only=["hfid"])
-
-    assert data == expected_query(
-        "LocationSite", {"name": VALUE, "parent": {"node": {"...on LocationRegion": {**REFERENCE, "code": VALUE}}}}
-    )
-
-
-@pytest.mark.parametrize("client_type", client_types)
 async def test_only_query_prefetch_uses_the_declared_parent_kind(clients: BothClients, client_type: str) -> None:
     schema = declared_parent_schema(parent_peer="LocationRegion")
     clients.standard.schema.set_cache(schema)
@@ -724,18 +671,59 @@ async def test_prefetched_parent_of_the_declared_kind_is_built_and_stored(
     assert site.hfid == ["EU", "Lyon"]
 
 
+def place_schema(site_hfid: list[str] | None) -> dict[str, Any]:
+    """A generic without an HFID, implemented by a site whose HFID is `site_hfid`."""
+    return {
+        "version": "1.0",
+        "generics": [
+            {
+                "name": "Place",
+                "namespace": "Infra",
+                "used_by": ["InfraSite"],
+                "attributes": [{"name": "name", "kind": "Text"}],
+            }
+        ],
+        "nodes": [
+            {
+                "name": "Site",
+                "namespace": "Infra",
+                "inherit_from": ["InfraPlace"],
+                "human_friendly_id": site_hfid,
+                "attributes": [{"name": "name", "kind": "Text"}],
+            }
+        ],
+    }
+
+
+@dataclass
+class GenericHfidCase:
+    name: str
+    site_hfid: list[str] | None
+    expected: dict[str, Any]
+
+
+GENERIC_HFID_CASES = [
+    GenericHfidCase(
+        name="implementing-kind-with-hfid",
+        site_hfid=["name__value"],
+        expected=expected_query("InfraPlace", {}, hfid=True),
+    ),
+    GenericHfidCase(name="no-kind-with-hfid", site_hfid=None, expected=expected_query("InfraPlace", {})),
+]
+
+
 @pytest.mark.parametrize("client_type", client_types)
-async def test_only_query_rejects_an_hfid_peer_attribute_the_peer_kind_lacks(
-    clients: BothClients, client_type: str
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in GENERIC_HFID_CASES])
+async def test_only_query_hfid_on_a_generic_without_hfid_follows_its_implementing_kinds(
+    clients: BothClients, client_type: str, case: GenericHfidCase
 ) -> None:
-    schema = declared_parent_schema(parent_peer="LocationGeneric")
+    schema = place_schema(site_hfid=case.site_hfid)
     clients.standard.schema.set_cache(schema)
     clients.sync.schema.set_cache(schema)
 
-    with pytest.raises(
-        FieldNotFoundError, match=re.escape("'code' is not an attribute or relationship of LocationGeneric.")
-    ):
-        await generate_only_query(clients, client_type, kind="LocationSite", only=["hfid"])
+    data = await generate_only_query(clients, client_type, kind="InfraPlace", only=["hfid"])
+
+    assert data == case.expected
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -798,33 +786,23 @@ SCHEMA_GROWTH_CASES = [
         name="node-kind",
         kind="BuiltinRack",
         only=["description", "tags", "hfid"],
-        expected=expected_query(
-            "BuiltinRack",
-            {"facility_id": VALUE, "description": VALUE, "location": one({"name": VALUE}), "tags": many()},
-        ),
+        expected=expected_query("BuiltinRack", {"description": VALUE, "tags": many()}, hfid=True),
         grown_kind="BuiltinRack",
     ),
     SchemaGrowthCase(
-        name="hfid-peer-kind-with-prefetch",
+        name="peer-kind-the-hfid-reads-with-prefetch",
         kind="BuiltinRack",
         only=["facility_id", "hfid"],
         prefetch_relationships=True,
-        expected=expected_query("BuiltinRack", {"facility_id": VALUE, "location": one({"name": VALUE})}),
+        expected=expected_query("BuiltinRack", {"facility_id": VALUE}, hfid=True),
         grown_kind="BuiltinLocation",
     ),
     SchemaGrowthCase(
-        name="generic-hfid-peer-kind-with-prefetch",
+        name="generic-peer-kind-the-hfid-reads-with-prefetch",
         kind="TestingAnimal",
         only=["hfid"],
         prefetch_relationships=True,
-        expected=expected_query(
-            "TestingAnimal",
-            {
-                "name": VALUE,
-                "owner": one({"name": VALUE}),
-                "...on TestingCat": {"color": aliased("TestingCat", "color", VALUE)},
-            },
-        ),
+        expected=expected_query("TestingAnimal", {}, hfid=True),
         grown_kind="TestingPerson",
     ),
     SchemaGrowthCase(
@@ -834,18 +812,14 @@ SCHEMA_GROWTH_CASES = [
         expected=expected_query(
             "TestingAnimal",
             {
-                "name": VALUE,
                 "weight": VALUE,
-                "owner": one({"name": VALUE}),
-                "...on TestingCat": {
-                    "breed": aliased("TestingCat", "breed", VALUE),
-                    "color": aliased("TestingCat", "color", VALUE),
-                },
+                "...on TestingCat": {"breed": aliased("TestingCat", "breed", VALUE)},
                 "...on TestingDog": {
                     "breed": aliased("TestingDog", "breed", VALUE),
                     "walker": aliased("TestingDog", "walker", one()),
                 },
             },
+            hfid=True,
         ),
         grown_kind="TestingAnimal",
     ),

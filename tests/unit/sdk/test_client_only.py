@@ -18,6 +18,7 @@ from tests.helpers.only_data import (
     CAT_ID,
     DEVICE_ID,
     DEVICE_WITH_HFID,
+    DEVICE_WITH_NAME_AND_SITE,
     DOG_ID,
     PARENT_ID,
     REFERENCE,
@@ -257,6 +258,37 @@ REQUEST_CASES = [
             {"ancestors": {"edges": {"node": {"...on LocationGeneric": REFERENCE}}}},
         ),
     ),
+    RequestCase(
+        name="hfid-requests-the-hfid-the-server-stores",
+        method="all",
+        kind="InfraDevice",
+        only=["hfid"],
+        expected=expected_body("InfraDevice", "All_InfraDevice", {}, hfid=True),
+    ),
+    RequestCase(
+        name="hfid-with-a-named-relationship",
+        method="get",
+        kind="InfraDevice",
+        only=["site", "hfid"],
+        arguments={"id": DEVICE_ID},
+        expected=expected_body(
+            "InfraDevice", "Get_InfraDevice", {"site": {"node": REFERENCE}}, filters={"ids": [DEVICE_ID]}, hfid=True
+        ),
+    ),
+    RequestCase(
+        name="hfid-on-generic",
+        method="all",
+        kind="TestingAnimal",
+        only=["hfid"],
+        expected=expected_body("TestingAnimal", "All_TestingAnimal", {}, hfid=True),
+    ),
+    RequestCase(
+        name="hfid-on-kind-without-hfid",
+        method="all",
+        kind="TestingShelter",
+        only=["hfid"],
+        expected=expected_body("TestingShelter", "All_TestingShelter", {}),
+    ),
 ]
 
 
@@ -336,14 +368,13 @@ STORE_CASES = [
         },
     ),
     StoreCase(
-        name="prefetch-and-hfid-build-named-and-hfid-peers",
+        name="prefetch-and-hfid-build-only-named-peers",
         kind="InfraDevice",
         only=["tags", "hfid"],
         prefetch_relationships=True,
         edges=[DEVICE_WITH_PEERS],
         expected_markers={
             DEVICE_ID: OnlyMarker(only=("tags", "hfid")),
-            SITE_ID: OnlyMarker(only=("tags", "hfid"), peer_of="InfraDevice.site"),
             TAG_ID: OnlyMarker(only=("tags", "hfid"), peer_of="InfraDevice.tags"),
             TAG_2_ID: OnlyMarker(only=("tags", "hfid"), peer_of="InfraDevice.tags"),
         },
@@ -432,22 +463,76 @@ async def test_peer_of_reference_is_not_found_when_not_in_store(
 
 
 @dataclass
-class HfidCase:
+class ServerHfidCase:
+    name: str
+    only: list[str]
+    edge: dict[str, Any]
+    expected: list[Any]
+
+
+SERVER_HFID_CASES = [
+    ServerHfidCase(
+        name="server-value",
+        only=["hfid"],
+        edge=DEVICE_WITH_HFID,
+        expected=[["dev1", "Paris"], "InfraDevice__dev1__Paris", ["dev1", "Paris"], "dev1__Paris"],
+    ),
+    ServerHfidCase(
+        name="server-value-over-the-fetched-fields",
+        only=["name", "hfid"],
+        edge=node_data(DEVICE_ID, "InfraDevice", hfid=["dev1", "Paris"], name={"value": "renamed"}),
+        expected=[["dev1", "Paris"], "InfraDevice__dev1__Paris", ["dev1", "Paris"], "dev1__Paris"],
+    ),
+    ServerHfidCase(
+        name="empty-server-value",
+        only=["hfid"],
+        edge=node_data(DEVICE_ID, "InfraDevice", hfid=[]),
+        expected=[None, None, None, None],
+    ),
+    ServerHfidCase(
+        name="null-server-value",
+        only=["name", "hfid"],
+        edge=node_data(DEVICE_ID, "InfraDevice", hfid=None, name={"value": "dev1"}),
+        expected=[None, None, None, None],
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in SERVER_HFID_CASES])
+async def test_hfid_from_only_is_the_value_the_server_returned(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: ServerHfidCase
+) -> None:
+    add_page(httpx_mock, "InfraDevice", [case.edge])
+
+    nodes = await query_nodes(only_clients, client_type, "all", kind="InfraDevice", only=case.only)
+
+    device = nodes[0]
+    assert [
+        device.hfid,
+        device.hfid_str,
+        device.get_human_friendly_id(),
+        device.get_human_friendly_id_as_string(),
+    ] == case.expected
+
+
+@dataclass
+class HfidStoreCase:
     name: str
     populate_store: bool
     expected_store_count: int
 
 
-HFID_CASES = [
-    HfidCase(name="populate-store", populate_store=True, expected_store_count=2),
-    HfidCase(name="no-store", populate_store=False, expected_store_count=0),
+HFID_STORE_CASES = [
+    HfidStoreCase(name="populate-store", populate_store=True, expected_store_count=1),
+    HfidStoreCase(name="no-store", populate_store=False, expected_store_count=0),
 ]
 
 
 @pytest.mark.parametrize("client_type", client_types)
-@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HFID_CASES])
-async def test_hfid_from_only_is_calculated(
-    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: HfidCase
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HFID_STORE_CASES])
+async def test_hfid_from_only_needs_no_peer_in_the_store(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: HfidStoreCase
 ) -> None:
     add_page(httpx_mock, "InfraDevice", [DEVICE_WITH_HFID])
     client = client_of(only_clients, client_type)
@@ -470,36 +555,52 @@ async def test_store_finds_node_from_only_by_hfid(
     nodes = await query_nodes(only_clients, client_type, "all", kind="InfraDevice", only=["hfid"])
 
     assert client.store.get(key=["dev1", "Paris"], kind="InfraDevice") is nodes[0]
-    assert client.store.get(key=SITE_ID, kind="InfraSite")._only_marker == OnlyMarker(
-        only=("hfid",), peer_of="InfraDevice.site"
+    assert client.store.get(key="InfraDevice__dev1__Paris") is nodes[0]
+
+
+@dataclass
+class CalculatedHfidCase:
+    name: str
+    only: list[str]
+    edge: dict[str, Any]
+    expected_hfid: list[str] | None
+    prefetch_relationships: bool = False
+
+
+CALCULATED_HFID_CASES = [
+    CalculatedHfidCase(
+        name="hfid-fields-not-fetched",
+        only=["description"],
+        edge=node_data(DEVICE_ID, "InfraDevice", description={"value": "core"}),
+        expected_hfid=None,
+    ),
+    CalculatedHfidCase(
+        name="hfid-fields-fetched",
+        only=["name", "site"],
+        edge=DEVICE_WITH_NAME_AND_SITE,
+        prefetch_relationships=True,
+        expected_hfid=["dev1", "Paris"],
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in CALCULATED_HFID_CASES])
+async def test_hfid_from_only_without_hfid_is_calculated_from_the_fetched_fields(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: CalculatedHfidCase
+) -> None:
+    add_page(httpx_mock, "InfraDevice", [case.edge])
+
+    nodes = await query_nodes(
+        only_clients,
+        client_type,
+        "all",
+        kind="InfraDevice",
+        only=case.only,
+        prefetch_relationships=case.prefetch_relationships,
     )
 
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_hfid_does_not_change_when_store_gets_narrower_peer(
-    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
-) -> None:
-    add_page(httpx_mock, "InfraDevice", [DEVICE_WITH_HFID])
-    add_page(httpx_mock, "InfraSite", [node_data(SITE_ID, "InfraSite", description={"value": "Main site"})])
-    client = client_of(only_clients, client_type)
-
-    devices = await query_nodes(only_clients, client_type, "all", kind="InfraDevice", only=["hfid"])
-    sites = await query_nodes(only_clients, client_type, "all", kind="InfraSite", only=["description"])
-
-    assert client.store.get(key=SITE_ID, kind="InfraSite") is sites[0]
-    assert sites[0].hfid is None
-    assert devices[0].hfid == ["dev1", "Paris"]
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_hfid_is_none_when_its_fields_were_not_fetched(
-    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
-) -> None:
-    add_page(httpx_mock, "InfraDevice", [node_data(DEVICE_ID, "InfraDevice", description={"value": "core"})])
-
-    nodes = await query_nodes(only_clients, client_type, "all", kind="InfraDevice", only=["description"])
-
-    assert nodes[0].hfid is None
+    assert nodes[0].hfid == case.expected_hfid
 
 
 @pytest.mark.parametrize("client_type", client_types)
@@ -510,19 +611,8 @@ async def test_hfid_of_each_implementing_kind_from_only(
         httpx_mock,
         "TestingAnimal",
         [
-            node_data(
-                CAT_ID,
-                "TestingCat",
-                name={"value": "Tom"},
-                owner=peer(OWNER_ID, "TestingPerson", name={"value": "Alice"}),
-                __alias__TestingCat__home=peer(HOME_ID, "InfraSite", name={"value": "Paris"}),
-            ),
-            node_data(
-                DOG_ID,
-                "TestingDog",
-                name={"value": "Rex"},
-                owner=peer(OWNER_2_ID, "TestingPerson", name={"value": "Carol"}),
-            ),
+            node_data(CAT_ID, "TestingCat", hfid=["Paris", "Tom"]),
+            node_data(DOG_ID, "TestingDog", hfid=["Carol", "Rex"]),
         ],
     )
     client = client_of(only_clients, client_type)
@@ -530,9 +620,18 @@ async def test_hfid_of_each_implementing_kind_from_only(
     nodes = await query_nodes(only_clients, client_type, "all", kind="TestingAnimal", only=["hfid"])
 
     assert {node.id: node.hfid for node in nodes} == {CAT_ID: ["Paris", "Tom"], DOG_ID: ["Carol", "Rex"]}
-    assert client.store.get(key=HOME_ID, kind="InfraSite")._only_marker == OnlyMarker(
-        only=("hfid",), peer_of="TestingCat.home"
-    )
+    assert client.store.count() == len(nodes)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_hfid_of_a_default_node_ignores_the_value_the_server_returned(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    add_page(httpx_mock, "InfraSite", [node_data(SITE_ID, "InfraSite", hfid=["from-server"], name={"value": "Paris"})])
+
+    nodes = await query_nodes(only_clients, client_type, "all", kind="InfraSite")
+
+    assert [nodes[0]._only_marker, nodes[0].hfid, nodes[0].hfid_str] == [None, ["Paris"], "InfraSite__Paris"]
 
 
 @pytest.mark.parametrize("client_type", client_types)

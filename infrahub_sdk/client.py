@@ -821,8 +821,8 @@ class InfrahubClient(BaseClient):
             priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
                 client default for these requests only. When None, the client default (if any) is used.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:
@@ -958,8 +958,7 @@ class InfrahubClient(BaseClient):
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
                 every node and every peer built with it records the `only` list, and peers are built only for the
-                relationships named in `only` when `prefetch_relationships` is set, and for the relationships the
-                HFID needs.
+                relationships named in `only` when `prefetch_relationships` is set.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -1311,8 +1310,8 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -1440,8 +1439,8 @@ class InfrahubClient(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3180,8 +3179,8 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -3291,8 +3290,7 @@ class InfrahubClientSync(BaseClient):
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
             only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
                 every node and every peer built with it records the `only` list, and peers are built only for the
-                relationships named in `only` when `prefetch_relationships` is set, and for the relationships the
-                HFID needs.
+                relationships named in `only` when `prefetch_relationships` is set.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -3418,8 +3416,8 @@ class InfrahubClientSync(BaseClient):
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3732,8 +3730,8 @@ class InfrahubClientSync(BaseClient):
             priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
                 client default for these requests only. When None, the client default (if any) is used.
             only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
-                and `__typename`; name `hfid` to fetch the fields of the HFID. Reading a field that was not fetched
-                raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             **kwargs (Any): Additional filter criteria for the query.
 
         Returns:

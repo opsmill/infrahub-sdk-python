@@ -8,13 +8,12 @@ import pytest
 
 from infrahub_sdk.exceptions import FieldNotFoundError, FieldNotLoadedError, FieldSelectionConflictError
 from infrahub_sdk.node._only import (  # noqa: PLC2701  # the helpers under test are private to the package
-    HfidFields,
     OnlyMarker,
     check_only_conflict,
     check_only_names,
     check_only_names_on_every_kind,
-    expand_hfid,
     field_names,
+    only_query_fields,
 )
 from infrahub_sdk.schema import GenericSchemaAPI, NodeSchemaAPI
 
@@ -87,42 +86,29 @@ PLACE = GenericSchemaAPI(
     used_by=["LocationSite"],
     attributes=[{"name": "name", "kind": "Text"}],
 )
-HFID_PATHS = NodeSchemaAPI(
-    name="Rack",
-    namespace="Infra",
-    human_friendly_id=[
-        "location__name__value",
-        "location__code__value",
-        "location__name__value",
-        "name__value",
-        "name",
-        "building",
-        "missing__value",
-    ],
-    attributes=[{"name": "name", "kind": "Text"}],
-    relationships=[
-        {"name": "location", "peer": "InfraLocation", "cardinality": "one"},
-        {"name": "building", "peer": "InfraBuilding", "cardinality": "one"},
-    ],
+SITE_WITH_HFID = NodeSchemaAPI(
+    name="Site",
+    namespace="Location",
+    inherit_from=["LocationGeneric", "InfraPlace"],
+    hierarchy="LocationGeneric",
+    human_friendly_id=["name__value"],
+    attributes=[{"name": "name", "kind": "Text"}, {"name": "facility", "kind": "Text"}],
+    relationships=HIERARCHY_RELATIONSHIPS,
 )
 
 
 @pytest.fixture
-def schemas(
-    location_schema: NodeSchemaAPI, schema_with_hfid: dict[str, NodeSchemaAPI]
-) -> dict[str, MainSchemaTypesAPI]:
+def schemas(location_schema: NodeSchemaAPI) -> dict[str, MainSchemaTypesAPI]:
     return {
         "location": location_schema,
-        "location-with-hfid": schema_with_hfid["location"],
-        "rack": schema_with_hfid["rack"],
         "animal": ANIMAL,
         "cat": CAT,
         "dog": DOG,
         "person": PERSON,
         "location-generic": LOCATION_GENERIC,
         "site": SITE,
+        "site-with-hfid": SITE_WITH_HFID,
         "place": PLACE,
-        "hfid-paths": HFID_PATHS,
     }
 
 
@@ -412,45 +398,52 @@ def test_peer_check_rejects_a_name_missing_on_one_kind(
 
 
 @dataclass
-class HfidCase:
+class HfidRequestCase:
     name: str
+    only: list[str]
     schema: str
-    expected: HfidFields
+    implementing: list[str]
+    expected: bool
 
 
-HFID_CASES = [
-    HfidCase(
-        name="attribute-path",
-        schema="location-with-hfid",
-        expected=HfidFields(attributes=("name",), relationships={}),
+HFID_REQUEST_CASES = [
+    HfidRequestCase(name="node-kind-with-hfid", only=["hfid"], schema="cat", implementing=[], expected=True),
+    HfidRequestCase(name="hfid-not-named", only=["name", "color"], schema="cat", implementing=[], expected=False),
+    HfidRequestCase(name="node-kind-without-hfid", only=["hfid"], schema="location", implementing=[], expected=False),
+    HfidRequestCase(
+        name="generic-with-hfid", only=["hfid"], schema="animal", implementing=["cat", "dog"], expected=True
     ),
-    HfidCase(
-        name="relationship-path",
-        schema="rack",
-        expected=HfidFields(attributes=("facility_id",), relationships={"location": ("name",)}),
+    HfidRequestCase(
+        name="generic-without-hfid-implemented-by-a-kind-with-hfid",
+        only=["hfid"],
+        schema="place",
+        implementing=["site-with-hfid"],
+        expected=True,
     ),
-    HfidCase(name="no-hfid", schema="location", expected=HfidFields(attributes=(), relationships={})),
-    HfidCase(
-        name="implementing-kind-with-its-own-hfid",
-        schema="cat",
-        expected=HfidFields(attributes=("name", "color"), relationships={"owner": ("name",)}),
-    ),
-    HfidCase(
-        name="implementing-kind-with-the-generic-hfid",
-        schema="dog",
-        expected=HfidFields(attributes=("name",), relationships={"owner": ("name",)}),
-    ),
-    HfidCase(
-        name="every-path-form-once-each",
-        schema="hfid-paths",
-        expected=HfidFields(attributes=("name",), relationships={"location": ("name", "code"), "building": ()}),
+    HfidRequestCase(
+        name="generic-and-implementing-kind-without-hfid",
+        only=["hfid"],
+        schema="place",
+        implementing=["site"],
+        expected=False,
     ),
 ]
 
 
-@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HFID_CASES])
-def test_hfid_expansion(case: HfidCase, schemas: dict[str, MainSchemaTypesAPI]) -> None:
-    assert expand_hfid(schemas[case.schema]) == case.expected
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in HFID_REQUEST_CASES])
+def test_hfid_is_requested_when_named_and_a_kind_has_one(
+    case: HfidRequestCase, schemas: dict[str, MainSchemaTypesAPI]
+) -> None:
+    schema = schemas[case.schema]
+    implementing = [schemas[kind] for kind in case.implementing]
+
+    fields = only_query_fields(only=case.only, schema=schema, implementing_schemas=implementing)
+    without_hfid = only_query_fields(
+        only=[name for name in case.only if name != "hfid"], schema=schema, implementing_schemas=implementing
+    )
+
+    assert fields.hfid is case.expected
+    assert [fields.node, fields.implementing_kinds] == [without_hfid.node, without_hfid.implementing_kinds]
 
 
 def test_marker_builds_the_error_for_a_queried_node() -> None:

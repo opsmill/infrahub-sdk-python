@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, BinaryIO, overload
 from ..constants import InfrahubClientMode, Priority
 from ..exceptions import (
     FeatureNotSupportedError,
-    FieldNotFoundError,
     NodeNotFoundError,
     ResourceNotDefinedError,
     SchemaNotFoundError,
@@ -107,8 +106,8 @@ class InfrahubNodeBase:
         self._attribute_data: dict[str, Attribute] = {}
         self._metadata: NodeMetadata | None = None
         self._only_marker: OnlyMarker | None = None
-        # Kept so that the HFID of a node from `only` does not depend on the store.
-        self._hfid_peers: dict[str, InfrahubNodeBase] = {}
+        # Set only on a node from `only` whose response contained `hfid`, so default nodes keep calculating theirs.
+        self._server_hfid: list[Any] | None = None
 
         # Generate a unique ID only to be used inside the SDK
         # The format if this ID is purposely different from the ID used by the API
@@ -208,8 +207,7 @@ class InfrahubNodeBase:
 
         Used for the HFID of every node. A field that a node from `only` did not fetch counts as missing,
         including on a peer from the store; any other field is read as the public lookup reads it. The
-        peer of a relationship comes from the peers kept for the HFID when it is still the relationship's
-        peer, then from the peer cached on the relationship or the store.
+        peer of a relationship comes from the peer cached on the relationship or the store.
 
         Returns:
             Any: The resolved value, or ``None`` when a path component is missing or was not fetched.
@@ -234,10 +232,6 @@ class InfrahubNodeBase:
         related_node = getattr(self, name, None)
         if not related_node or not related_node.is_loaded:
             return None
-
-        hfid_peer = self._hfid_peers.get(name)
-        if hfid_peer is not None and hfid_peer.id == related_node.id:
-            return hfid_peer
 
         try:
             return related_node.get()
@@ -266,14 +260,17 @@ class InfrahubNodeBase:
 
         The HFID is composed of the values addressed by the schema's
         ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
-        considered invalid and ``None`` is returned. The server's ``hfid`` is not used, so a query
-        with ``only`` must name ``hfid`` to fetch these values.
+        considered invalid and ``None`` is returned. A node from a query that named ``hfid`` in
+        ``only`` returns the HFID the server stores instead, or ``None`` when that value is empty.
 
         Returns:
             list[str] | None: The HFID as a list of stringified components, or ``None``
             when the schema does not define an HFID or a component is missing.
 
         """
+        if self._server_hfid is not None:
+            return [str(part) for part in self._server_hfid] or None
+
         if not hasattr(self._schema, "human_friendly_id"):
             return None
 
@@ -796,6 +793,7 @@ class InfrahubNodeBase:
         partial_match: bool,
         order: Order | None,
         include_metadata: bool,
+        hfid: bool,
     ) -> dict[str, Any]:
         data = self.generate_query_data_init(
             filters=filters,
@@ -805,34 +803,30 @@ class InfrahubNodeBase:
             order=order,
             include_metadata=include_metadata,
         )
-        # `node.hfid` is calculated from fields, never read from the response.
-        del data["edges"]["node"]["hfid"]
+        if not hfid:
+            del data["edges"]["node"]["hfid"]
         return data
 
     def _generate_only_attribute_data(
         self, names: Iterable[str], property: bool, include_metadata: bool
     ) -> dict[str, Any]:
-        data: dict[str, Any] = {}
-        for name in names:
-            if name not in self._attribute_data:
-                raise FieldNotFoundError(kind=self._schema.kind, field=name)
-            data[name] = self._attribute_data[name]._generate_query_data(
-                property=property, include_metadata=include_metadata
-            )
-        return data
+        return {
+            name: self._attribute_data[name]._generate_query_data(property=property, include_metadata=include_metadata)
+            for name in names
+        }
 
     def _mark_from_only(self, plan: OnlyPeerRelationships, peers: Mapping[str, Sequence[InfrahubNodeBase]]) -> None:
         """Mark this node and the peers built from its data as coming from a query with `only`.
 
-        `peers` maps each relationship in `plan` to the peers built for it. The node keeps the first peer of
-        each relationship its HFID needs.
+        `peers` maps each relationship in `plan` to the peers built for it. When the node's data contains
+        `hfid`, which the query requests only when `only` names it, the node keeps that value as its HFID.
         """
         self._only_marker = plan.marker
+        if isinstance(self._data, dict) and "hfid" in self._data:
+            self._server_hfid = list(self._data["hfid"] or [])
         for rel_name, rel_peers in peers.items():
             for peer in rel_peers:
                 peer._only_marker = plan.peer_markers[rel_name]
-            if rel_name in plan.hfid and rel_peers:
-                self._hfid_peers[rel_name] = rel_peers[0]
 
     def _hierarchy_peer_kind(self, name: str, hierarchy_kind: str) -> str:
         """The kind of the peers of a hierarchy field: the declared peer when the kind has the field as a relationship."""
@@ -1690,8 +1684,8 @@ class InfrahubNode(InfrahubNodeBase):
     ) -> dict[str, Any | dict]:
         """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
 
-        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the fields of `fields.node`.
-        Named relationships are references, and their peers get their default fields with
+        The node gets `id`, `display_label` and `__typename`, `hfid` when `fields.hfid` is set, plus the fields
+        of `fields.node`. Named relationships are references, and their peers get their default fields with
         `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
         are requested in an aliased `...on Kind` block.
         """
@@ -1702,6 +1696,7 @@ class InfrahubNode(InfrahubNodeBase):
             partial_match=partial_match,
             order=order,
             include_metadata=include_metadata,
+            hfid=fields.hfid,
         )
         node_data = data["edges"]["node"]
         node_data.update(
@@ -1736,12 +1731,11 @@ class InfrahubNode(InfrahubNodeBase):
             names=fields.attributes, property=property, include_metadata=include_metadata
         )
 
-        for rel_name, peer_attributes in fields.relationships.items():
+        for rel_name in fields.relationships:
             rel_schema = self._schema.get_relationship(name=rel_name)
             peer_data = await self._generate_only_peer_data(
                 peer_kind=rel_schema.peer,
-                peer_attributes=peer_attributes,
-                prefetch_relationships=prefetch_relationships and rel_name in fields.named,
+                prefetch_relationships=prefetch_relationships,
                 property=property,
                 include_metadata=include_metadata,
             )
@@ -1750,13 +1744,12 @@ class InfrahubNode(InfrahubNodeBase):
                 data[rel_name] = rel_data
 
         if fields.hierarchy_kind is not None:
-            for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
+            for hierarchical_name in fields.hierarchy_fields:
                 peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
                 # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
                 peer_data = await self._generate_only_peer_data(
                     peer_kind=peer_kind,
-                    peer_attributes=peer_attributes,
-                    prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
+                    prefetch_relationships=prefetch_relationships,
                     property=property,
                     include_metadata=False,
                     exclude=list(HIERARCHY_FIELD_NAMES),
@@ -1774,27 +1767,19 @@ class InfrahubNode(InfrahubNodeBase):
     async def _generate_only_peer_data(
         self,
         peer_kind: str,
-        peer_attributes: tuple[str, ...],
         prefetch_relationships: bool,
         property: bool,
         include_metadata: bool,
         exclude: list[str] | None = None,
     ) -> dict[str, Any]:
-        if not prefetch_relationships and not peer_attributes:
+        if not prefetch_relationships:
             return {}
 
         peer_schema = await self._client.schema.get(kind=peer_kind, branch=self._branch)
         peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
-        peer_data: dict[str, Any] = {}
-        if prefetch_relationships:
-            peer_data = await peer_node.generate_query_data_node(
-                exclude=exclude, property=property, include_metadata=include_metadata
-            )
-        missing = [name for name in peer_attributes if name not in peer_data]
-        peer_data.update(
-            peer_node._generate_only_attribute_data(names=missing, property=property, include_metadata=include_metadata)
+        return await peer_node.generate_query_data_node(
+            exclude=exclude, property=property, include_metadata=include_metadata
         )
-        return peer_data
 
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
         """Add peers to a cardinality-many relationship through a dedicated mutation.
@@ -3050,8 +3035,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
     ) -> dict[str, Any | dict]:
         """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
 
-        The node gets `id`, `display_label` and `__typename`, never `hfid`, plus the fields of `fields.node`.
-        Named relationships are references, and their peers get their default fields with
+        The node gets `id`, `display_label` and `__typename`, `hfid` when `fields.hfid` is set, plus the fields
+        of `fields.node`. Named relationships are references, and their peers get their default fields with
         `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
         are requested in an aliased `...on Kind` block.
         """
@@ -3062,6 +3047,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             partial_match=partial_match,
             order=order,
             include_metadata=include_metadata,
+            hfid=fields.hfid,
         )
         node_data = data["edges"]["node"]
         node_data.update(
@@ -3096,12 +3082,11 @@ class InfrahubNodeSync(InfrahubNodeBase):
             names=fields.attributes, property=property, include_metadata=include_metadata
         )
 
-        for rel_name, peer_attributes in fields.relationships.items():
+        for rel_name in fields.relationships:
             rel_schema = self._schema.get_relationship(name=rel_name)
             peer_data = self._generate_only_peer_data(
                 peer_kind=rel_schema.peer,
-                peer_attributes=peer_attributes,
-                prefetch_relationships=prefetch_relationships and rel_name in fields.named,
+                prefetch_relationships=prefetch_relationships,
                 property=property,
                 include_metadata=include_metadata,
             )
@@ -3110,13 +3095,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 data[rel_name] = rel_data
 
         if fields.hierarchy_kind is not None:
-            for hierarchical_name, peer_attributes in fields.hierarchy_fields.items():
+            for hierarchical_name in fields.hierarchy_fields:
                 peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
                 # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
                 peer_data = self._generate_only_peer_data(
                     peer_kind=peer_kind,
-                    peer_attributes=peer_attributes,
-                    prefetch_relationships=prefetch_relationships and hierarchical_name in fields.named,
+                    prefetch_relationships=prefetch_relationships,
                     property=property,
                     include_metadata=False,
                     exclude=list(HIERARCHY_FIELD_NAMES),
@@ -3134,27 +3118,17 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def _generate_only_peer_data(
         self,
         peer_kind: str,
-        peer_attributes: tuple[str, ...],
         prefetch_relationships: bool,
         property: bool,
         include_metadata: bool,
         exclude: list[str] | None = None,
     ) -> dict[str, Any]:
-        if not prefetch_relationships and not peer_attributes:
+        if not prefetch_relationships:
             return {}
 
         peer_schema = self._client.schema.get(kind=peer_kind, branch=self._branch)
         peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
-        peer_data: dict[str, Any] = {}
-        if prefetch_relationships:
-            peer_data = peer_node.generate_query_data_node(
-                exclude=exclude, property=property, include_metadata=include_metadata
-            )
-        missing = [name for name in peer_attributes if name not in peer_data]
-        peer_data.update(
-            peer_node._generate_only_attribute_data(names=missing, property=property, include_metadata=include_metadata)
-        )
-        return peer_data
+        return peer_node.generate_query_data_node(exclude=exclude, property=property, include_metadata=include_metadata)
 
     def add_relationships(
         self,

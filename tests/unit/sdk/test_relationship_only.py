@@ -185,6 +185,20 @@ FETCHED_HFID_CASES = [
         expected_hfid_str="InfraSite__Lyon",
     ),
     FetchedHfidCase(
+        name="hfid-named-gives-the-server-hfid",
+        fetch_only=["hfid"],
+        fetched_fields={"hfid": ["Lyon"]},
+        expected_hfid=["Lyon"],
+        expected_hfid_str="InfraSite__Lyon",
+    ),
+    FetchedHfidCase(
+        name="hfid-named-with-a-null-server-hfid-keeps-the-reference-hfid",
+        fetch_only=["hfid"],
+        fetched_fields={"hfid": None},
+        expected_hfid=["Paris"],
+        expected_hfid_str="InfraSite__Paris",
+    ),
+    FetchedHfidCase(
         name="peer-fetched-without-only-keeps-the-calculated-hfid",
         fetch_only=None,
         fetched_fields={"description": {"value": "Main site"}},

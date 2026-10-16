@@ -76,12 +76,17 @@ class TestNodeOnly(TestInfrahubDockerClient, SchemaAnimal):
 
         assert {animal.name.value: (animal.get_kind(), animal.breed.value) for animal in animals} == BREED_BY_ANIMAL
 
-    async def test_hfid_in_only_gives_the_hfid_of_the_kind(
+    async def test_hfid_in_only_gives_the_hfid_the_server_stores(
         self, client: InfrahubClient, base_dataset: None, cat_bella: InfrahubNode
     ) -> None:
         cat = await client.get(kind=TESTING_CAT, id=cat_bella.id, only=["hfid"])
 
-        assert cat.hfid == BELLA_HFID
+        assert [cat.hfid, cat.name.is_loaded, cat.owner.is_loaded, cat.color.is_loaded] == [
+            BELLA_HFID,
+            False,
+            False,
+            False,
+        ]
 
     async def test_fetch_with_only_on_owner_reads_its_name(
         self, client: InfrahubClient, base_dataset: None, dog_rocky: InfrahubNode
@@ -178,12 +183,17 @@ class TestNodeOnlySync(TestInfrahubDockerClient, SchemaAnimal):
 
         assert {animal.name.value: (animal.get_kind(), animal.breed.value) for animal in animals} == BREED_BY_ANIMAL
 
-    def test_hfid_in_only_gives_the_hfid_of_the_kind(
+    def test_hfid_in_only_gives_the_hfid_the_server_stores(
         self, client_sync: InfrahubClientSync, base_dataset: None, cat_bella: InfrahubNode
     ) -> None:
         cat = client_sync.get(kind=TESTING_CAT, id=cat_bella.id, only=["hfid"])
 
-        assert cat.hfid == BELLA_HFID
+        assert [cat.hfid, cat.name.is_loaded, cat.owner.is_loaded, cat.color.is_loaded] == [
+            BELLA_HFID,
+            False,
+            False,
+            False,
+        ]
 
     def test_fetch_with_only_on_owner_reads_its_name(
         self, client_sync: InfrahubClientSync, base_dataset: None, dog_rocky: InfrahubNode

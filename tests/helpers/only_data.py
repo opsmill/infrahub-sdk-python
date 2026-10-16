@@ -137,13 +137,18 @@ PAGINATION = {"offset": "$offset", "limit": "$limit"}
 
 
 def expected_body(
-    kind: str, query_name: str, node_fields: dict[str, Any], filters: dict[str, Any] | None = None
+    kind: str,
+    query_name: str,
+    node_fields: dict[str, Any],
+    filters: dict[str, Any] | None = None,
+    hfid: bool = False,
 ) -> dict[str, Any]:
     """The JSON body of the first page request: the node always gets `id`, `display_label` and `__typename`."""
+    identifiers: dict[str, Any] = {"id": None, "hfid": None} if hfid else {"id": None}
     query = {
         kind: {
             "count": None,
-            "edges": {"node": {"id": None, "display_label": None, "__typename": None, **node_fields}},
+            "edges": {"node": {**identifiers, "display_label": None, "__typename": None, **node_fields}},
             "@filters": {**(filters or {}), **PAGINATION},
         }
     }
@@ -162,11 +167,12 @@ def peers(*nodes: dict[str, Any]) -> dict[str, Any]:
     return {"edges": list(nodes)}
 
 
-def node_data(id: str, typename: str, **fields: dict[str, Any]) -> dict[str, Any]:
+def node_data(id: str, typename: str, **fields: object) -> dict[str, Any]:
     return {"node": {"id": id, "display_label": None, "__typename": typename, **fields}}
 
 
-DEVICE_WITH_HFID = node_data(
+DEVICE_WITH_HFID = node_data(DEVICE_ID, "InfraDevice", hfid=["dev1", "Paris"])
+DEVICE_WITH_NAME_AND_SITE = node_data(
     DEVICE_ID, "InfraDevice", name={"value": "dev1"}, site=peer(SITE_ID, "InfraSite", name={"value": "Paris"})
 )
 

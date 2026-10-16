@@ -151,8 +151,9 @@ class RelatedNodeBase:
     def hfid(self) -> list[Any] | None:
         """Return the human-friendly ID of the related node.
 
-        When the cached peer was fetched with ``only`` and its HFID cannot be calculated from the
-        fields it carries, the HFID the relationship was loaded with is returned instead.
+        When the cached peer was fetched with ``only`` and has no HFID, because the response did not
+        contain one and the fields it carries do not give one, the HFID the relationship was loaded with
+        is returned instead.
 
         Returns:
             list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
@@ -174,9 +175,9 @@ class RelatedNodeBase:
         """Return the human-friendly ID of the related node as a separator-joined string.
 
         The returned string includes the kind prefix and is therefore suitable as a key
-        for the client store. When the cached peer was fetched with ``only`` and its HFID cannot
-        be calculated from the fields it carries, the string is built from the HFID the
-        relationship was loaded with.
+        for the client store. When the cached peer was fetched with ``only`` and has no HFID,
+        because the response did not contain one and the fields it carries do not give one, the
+        string is built from the HFID the relationship was loaded with.
 
         Returns:
             str | None: The peer HFID joined with the HFID separator, or ``None`` when
