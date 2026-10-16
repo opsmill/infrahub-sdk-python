@@ -1164,8 +1164,8 @@ Compute the human-friendly ID for this node from its schema.
 
 The HFID is composed of the values addressed by the schema's
 ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
-considered invalid and ``None`` is returned. The server's ``hfid`` is not used, so a query
-with ``only`` must name ``hfid`` to fetch these values.
+considered invalid and ``None`` is returned. A node from a query that named ``hfid`` in
+``only`` returns the HFID the server stores instead, or ``None`` when that value is empty.
 
 **Returns:**
 
