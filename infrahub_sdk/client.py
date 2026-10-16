@@ -81,6 +81,19 @@ class ProcessRelationsNode(TypedDict):
     related_nodes: list[InfrahubNode]
 
 
+class _QueryBuilderArgs(TypedDict):
+    """The arguments that the default query builder and the builder for `only` share."""
+
+    offset: int | str | None
+    limit: int | str | None
+    filters: dict[str, Any] | None
+    prefetch_relationships: bool
+    partial_match: bool
+    property: bool
+    order: Order | None
+    include_metadata: bool
+
+
 class ProxyConfig(TypedDict):
     proxy: ProxyTypes | None
     mounts: Mapping[str, AsyncBaseTransport | None] | None
@@ -898,7 +911,7 @@ class InfrahubClient(BaseClient):
 
         """
         node = InfrahubNode(client=self, schema=schema, branch=branch)
-        query_args: dict[str, Any] = {
+        query_args: _QueryBuilderArgs = {
             # Pagination is passed as GraphQL variables so the rendered query text stays
             # identical across pages and can hit the server-side query cache.
             "offset": "$offset",
@@ -3233,7 +3246,7 @@ class InfrahubClientSync(BaseClient):
 
         """
         node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
-        query_args: dict[str, Any] = {
+        query_args: _QueryBuilderArgs = {
             # Pagination is passed as GraphQL variables so the rendered query text stays
             # identical across pages and can hit the server-side query cache.
             "offset": "$offset",
