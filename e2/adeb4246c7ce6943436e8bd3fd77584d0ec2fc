@@ -1,0 +1,25 @@
+.agents/rules/infrahub-ci.md
+  s_d67fbcfba4a470::t_2e1394f975af97 1-12
+dev/guides/testing-against-infrahub-ci.md
+  s_d67fbcfba4a470::t_f0485c00487b92 1-51
+AGENTS.md
+  s_d67fbcfba4a470::t_f2df6075698276 78
+dev/guides/README.md
+  s_d67fbcfba4a470::t_404e4957f803ee 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2adeb4246c7ce6943436e8bd3fd77584d0ec2fc",
+  "prompts": {},
+  "sessions": {
+    "s_d67fbcfba4a470": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a2380645-6023-480e-8e7b-cc332684202c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
