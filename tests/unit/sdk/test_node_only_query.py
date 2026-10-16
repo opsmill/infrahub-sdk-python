@@ -10,12 +10,16 @@ from infrahub_sdk.exceptions import FieldNotFoundError
 from infrahub_sdk.graphql import Query
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.node._only import (  # noqa: PLC2701  # the helpers under test are private to the package
+    OnlyMarker,
     only_query_fields,
 )
 from infrahub_sdk.schema import GenericSchemaAPI
 from infrahub_sdk.types import Order
+from tests.helpers import only_data
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.schema import NodeSchemaAPI
     from tests.unit.sdk.conftest import BothClients
 
@@ -594,7 +598,7 @@ async def test_only_query(query_clients: BothClients, client_type: str, case: On
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_only_query_hierarchy_prefetch_matches_default_hierarchy_fields(
+async def test_only_query_hierarchy_prefetch_matches_default_when_the_generic_is_the_declared_peer(
     query_clients: BothClients, client_type: str
 ) -> None:
     hierarchy_names = ["parent", "children", "ancestors", "descendants"]
@@ -610,7 +614,10 @@ async def test_only_query_hierarchy_prefetch_matches_default_hierarchy_fields(
 
 
 def declared_parent_schema(parent_peer: str) -> dict[str, Any]:
-    """A site whose HFID reads `code`, which only the region has, through a `parent` that declares `parent_peer`."""
+    """A site whose HFID reads `code`, which only the region has, through a `parent` that declares `parent_peer`.
+
+    The region has its own `parent` and `children`, which a prefetch of the site's parent must not request.
+    """
     return {
         "version": "1.0",
         "generics": [
@@ -629,6 +636,22 @@ def declared_parent_schema(parent_peer: str) -> dict[str, Any]:
                 "inherit_from": ["LocationGeneric"],
                 "hierarchy": "LocationGeneric",
                 "attributes": [{"name": "name", "kind": "Text"}, {"name": "code", "kind": "Text"}],
+                "relationships": [
+                    {
+                        "name": "parent",
+                        "peer": "LocationGeneric",
+                        "cardinality": "one",
+                        "kind": "Hierarchy",
+                        "optional": True,
+                    },
+                    {
+                        "name": "children",
+                        "peer": "LocationSite",
+                        "cardinality": "many",
+                        "kind": "Hierarchy",
+                        "optional": True,
+                    },
+                ],
             },
             {
                 "name": "Site",
@@ -656,6 +679,49 @@ async def test_only_query_hfid_uses_the_declared_parent_kind(clients: BothClient
     assert data == expected_query(
         "LocationSite", {"name": VALUE, "parent": {"node": {"...on LocationRegion": {**REFERENCE, "code": VALUE}}}}
     )
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_only_query_prefetch_uses_the_declared_parent_kind(clients: BothClients, client_type: str) -> None:
+    schema = declared_parent_schema(parent_peer="LocationRegion")
+    clients.standard.schema.set_cache(schema)
+    clients.sync.schema.set_cache(schema)
+
+    data = await generate_only_query(
+        clients, client_type, kind="LocationSite", only=["parent"], prefetch_relationships=True
+    )
+
+    assert data == expected_query(
+        "LocationSite",
+        {"parent": {"node": {"...on LocationRegion": {**REFERENCE, "name": VALUE, "code": VALUE}}}},
+    )
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_prefetched_parent_of_the_declared_kind_is_built_and_stored(
+    clients: BothClients, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    schema = declared_parent_schema(parent_peer="LocationRegion")
+    clients.standard.schema.set_cache(schema)
+    clients.sync.schema.set_cache(schema)
+    region_data = only_data.peer(only_data.REGION_ID, "LocationRegion", name={"value": "Europe"}, code={"value": "EU"})
+    only_data.add_page(
+        httpx_mock,
+        "LocationSite",
+        [only_data.node_data(only_data.SITE_ID, "LocationSite", name={"value": "Lyon"}, parent=region_data)],
+    )
+
+    [site] = await only_data.query_nodes(
+        clients, client_type, "all", kind="LocationSite", only=["name", "parent"], prefetch_relationships=True
+    )
+
+    region = only_data.client_of(clients, client_type).store.get(key=only_data.REGION_ID, kind="LocationRegion")
+    assert [region.get_kind(), region._get_attribute("code").value, region._only_marker] == [
+        "LocationRegion",
+        "EU",
+        OnlyMarker(only=("name", "parent"), peer_of="LocationSite.parent"),
+    ]
+    assert site.hfid == ["EU", "Lyon"]
 
 
 @pytest.mark.parametrize("client_type", client_types)
