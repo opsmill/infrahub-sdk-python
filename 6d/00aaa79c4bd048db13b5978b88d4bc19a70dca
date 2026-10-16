@@ -1,0 +1,25 @@
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_6ed0798035dc18 42-43
+dev/specs/infp-532-only-field-selection/opsmill-implement-report.md
+  s_ff2fe7610915b8::t_411d6a65225def 140,149-150,153
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_c0c96fc08a17cc 66,201
+docs/docs/python-sdk/guides/query_data.mdx
+  s_ff2fe7610915b8::t_d4934e56007a70 589
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d00aaa79c4bd048db13b5978b88d4bc19a70dca",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
