@@ -1,0 +1,32 @@
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_b1dba89de4bfbc 271
+  s_ff2fe7610915b8::t_b8671561c1e2cc 200-251,2044,3419
+  s_ff2fe7610915b8::t_a5bc6e6287cac0 2034,2045,2048-2056,2058,2075,3429-3430,3433-3441,3443,3460
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_130693029baa50 94-105
+  s_ff2fe7610915b8::t_07fdf369645252 25-27
+  s_ff2fe7610915b8::t_328949ee76e6e5 229-254
+tests/unit/sdk/test_client_only.py
+  s_ff2fe7610915b8::t_a73d5f22c71312 1-648
+  s_ff2fe7610915b8::t_5e444dcd9cd286 649-660
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_63d08825d0c60d 114,157,161,168
+infrahub_sdk/client.py
+  s_ff2fe7610915b8::t_8488b0e37cc0ae 50,57,71-72,648,671,694,717,740,763,785,788-829,866,879-939,948-949,959-962,977-993,1255,1278,1300,1314-1319,1332-1335,1337,1358,1382,1407,1431,1446-1451,1466-1469,1471,1482-1485,1495,1522-1523,3130,3153,3175,3189-3194,3207-3210,3212,3233,3236-3296,3305-3306,3316-3319,3334-3350,3381,3406,3430,3445-3450,3465-3468,3470,3481-3484,3494,3521-3522,3600,3623,3646,3669,3692,3715,3737,3740-3781,3818
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0b36b35ebb57b7d528d25582fee90d9f060ba4e1",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+infrahub_sdk/node/related_node.py
+  s_2ea2a1594067df::t_e807e1637b13e4 569-570,578
+  s_2ea2a1594067df::t_0b47e45abd7cf6 449-450,458
+docs/docs/python-sdk/guides/query_data.mdx
+  s_2ea2a1594067df::t_f0806b74106cff 589
+infrahub_sdk/node/node.py
+  s_2ea2a1594067df::t_02071c37c68fed 845,848,851
+  s_2ea2a1594067df::t_5ce1b90d8ae609 208-211
+  s_2ea2a1594067df::t_a2757801e7b7ea 1058,1080,2427,2450
+  s_2ea2a1594067df::t_9997bbc8d1261f 2842-2847
+  s_2ea2a1594067df::t_4e3ce44e54f87d 12
+  s_2ea2a1594067df::t_4ba3b0029a91cc 835-840
+  s_2ea2a1594067df::t_009c81c325e321 250-255
+  s_2ea2a1594067df::t_d74f6ae54ad594 1752-1753,1755,1763,3112-3113,3115,3123
+  s_2ea2a1594067df::t_25faea8280af0a 1481-1486
+  s_2ea2a1594067df::t_b7dc8b9e54fc32 843
+  s_2ea2a1594067df::t_4eec392b06a761 282
+  s_2ea2a1594067df::t_f463bfc87460d4 813-820
+tests/unit/sdk/test_node_only_access.py
+  s_2ea2a1594067df::t_b327f2a48bf0f8 436
+  s_2ea2a1594067df::t_d884840359d910 441
+  s_2ea2a1594067df::t_8950f228bb009b 1378-1392
+  s_2ea2a1594067df::t_7d67a20db2d8c6 1377
+infrahub_sdk/node/relationship.py
+  s_2ea2a1594067df::t_e7782835ccb040 599-600,611
+  s_2ea2a1594067df::t_5ad2214c764446 104,107-108
+  s_2ea2a1594067df::t_5d5ac435716aca 44-45
+  s_2ea2a1594067df::t_24e01bceed4efe 249-250
+  s_2ea2a1594067df::t_7d2d9b99b9d7b3 481-482
+  s_2ea2a1594067df::t_3e23e9a5b8c7a3 46
+  s_2ea2a1594067df::t_0526f0ca99c775 367-368,379
+tests/unit/sdk/test_node_only_query.py
+  s_2ea2a1594067df::t_a103268bca89d9 612-674
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "909a293673cdb487da2e78e4e8dd1672ff9aee28",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

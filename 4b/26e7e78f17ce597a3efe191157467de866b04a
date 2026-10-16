@@ -1,0 +1,27 @@
+tests/unit/sdk/test_relationship_only.py
+  s_ff2fe7610915b8::t_b9d368c0b6f20b 519
+  s_ff2fe7610915b8::t_9fbf38b76a861e 1-111,113-518,520
+  s_ff2fe7610915b8::t_d64975de0eb71a 112
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_e103958042fe7a 183,198,202
+infrahub_sdk/node/related_node.py
+  s_ff2fe7610915b8::t_02aa529a9b62d8 154-156,166-169,177-179,190-192,194-195,198-202,421-423,433-435,439-440,449-455,538-540,550-552,556-557,566-572
+infrahub_sdk/node/relationship.py
+  s_ff2fe7610915b8::t_4e0374d8aa4407 11,13,20,183-195,311,315-323,326-327,331-334,336-353,358-363,375,381-385,538,542-550,553-554,558-561,563-580,585-590,602,608-612
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4b26e7e78f17ce597a3efe191157467de866b04a",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

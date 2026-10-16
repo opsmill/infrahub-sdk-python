@@ -1,0 +1,31 @@
+dev/specs/infp-532-only-field-selection/alignment-check.md
+  s_ff2fe7610915b8::t_2b432601e21bb7 29,35,39-49,53
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_ac792ad615cf8f 41-42
+dev/specs/infp-532-only-field-selection/critiques/critique-20261014-1.md
+  s_ff2fe7610915b8::t_f2617af6449c6d 217-218,221-222
+dev/specs/infp-532-only-field-selection/plan.md
+  s_ff2fe7610915b8::t_a5bcd6ee0436c3 19,26
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_c9135b9eda09da 66,70-71,144,161,183,203
+dev/specs/infp-532-only-field-selection/spec.md
+  s_ff2fe7610915b8::t_dfa1e02acdc590 84
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_15173d130b3eaa 104,118,148,165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "113cea711cb6aa33f31e1098227daad3e9eb8f96",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+tests/unit/sdk/test_client_only.py
+  s_ff2fe7610915b8::t_45cc5b9ec3a24b 17-37
+tests/helpers/only_data.py
+  s_ff2fe7610915b8::t_714329ba20ed53 1-203
+tests/unit/sdk/conftest.py
+  s_ff2fe7610915b8::t_037bfdb02a14a6 17
+  s_ff2fe7610915b8::t_e9e0481b737375 67-72
+  s_ff2fe7610915b8::t_a065bc7b0f4e55 66
+tests/unit/sdk/test_node_only_access.py
+  s_ff2fe7610915b8::t_311f0d4da46790 19-20
+tests/unit/sdk/test_relationship_only.py
+  s_ff2fe7610915b8::t_eade171ad8437f 14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5cb84017074cf6bd4d5ea2fa5efd0c46a6737c20",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
