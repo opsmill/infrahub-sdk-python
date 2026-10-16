@@ -28,6 +28,7 @@ READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
     "NumberAttributeWrite": frozenset({"inherited"}),
     "NumberPoolAttributeWrite": frozenset({"inherited"}),
     "NumberPoolParametersWrite": frozenset({"id", "state"}),
+    "NumberPoolRangeWrite": frozenset({"id", "state"}),
     "RelationshipSchemaWrite": frozenset({"hierarchical", "inherited"}),
     "SchemaExtensionWrite": frozenset({"id", "state"}),
     "TextAttributeParametersWrite": frozenset({"id", "state"}),
