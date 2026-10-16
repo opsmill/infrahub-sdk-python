@@ -16,6 +16,9 @@ __all__ = [
     "DuplicateFragmentError",
     "Error",
     "FeatureNotSupportedError",
+    "FieldNotFoundError",
+    "FieldNotLoadedError",
+    "FieldSelectionConflictError",
     "FileNotValidError",
     "FragmentFileNotFoundError",
     "FragmentNotFoundError",
@@ -366,6 +369,65 @@ class URLNotFoundError(Error):
 
 class FeatureNotSupportedError(Error):
     """Raised when trying to use a method on a node that doesn't support it."""
+
+
+def _rebuild_error(cls: type[Error], args: tuple[Any, ...], state: dict[str, Any]) -> Error:
+    """Reconstruct an exception whose constructor does not take its message, without calling the constructor.
+
+    `BaseException.__reduce__` rebuilds by calling `cls(*args)`, where `args` is the message alone.
+    """
+    exc = cls.__new__(cls)
+    exc.args = args
+    exc.__dict__.update(state)
+    return exc
+
+
+class FieldNotLoadedError(Error):
+    """Raised when code reads a field that a node fetched with `only` does not carry."""
+
+    def __init__(self, kind: str, field: str, only: Sequence[str], peer_of: str | None = None) -> None:
+        self.kind = kind
+        self.field = field
+        self.only = list(only)
+        self.peer_of = peer_of
+        if peer_of:
+            self.message = (
+                f"{kind}.{field} was not fetched: the node is a peer of {peer_of}, queried with only={self.only!r}. "
+                "Fetch the peer again with every field you read, or check is_loaded before reading it."
+            )
+        else:
+            self.message = (
+                f"{kind}.{field} was not fetched: the node was queried with only={self.only!r}. "
+                f"Add {field!r} to only, or check is_loaded before reading it."
+            )
+        super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
+
+
+class FieldNotFoundError(Error):
+    """Raised when a name in `only` is not a field of the kind being queried."""
+
+    def __init__(self, kind: str, field: str) -> None:
+        self.kind = kind
+        self.field = field
+        self.message = f"{field!r} is not an attribute or relationship of {kind}."
+        super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
+
+
+class FieldSelectionConflictError(Error):
+    """Raised when `only` is combined with `include` or `exclude`."""
+
+    def __init__(self) -> None:
+        self.message = "only cannot be combined with include or exclude."
+        super().__init__(self.message)
+
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (_rebuild_error, (type(self), self.args, self.__dict__))
 
 
 class UninitializedError(Error):

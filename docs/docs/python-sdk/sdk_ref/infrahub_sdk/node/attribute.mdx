@@ -22,6 +22,8 @@ used by ``InfrahubNode.update()`` to send only the changed fields to the API.
 - `id`: The unique identifier of the attribute, when known.
 - `value`: The current attribute value. Setting this marks the attribute as mutated.
 - `value_has_been_mutated`: True when ``value`` has been assigned after construction.
+- `is_loaded`: True when the node's data contained the attribute, a value was assigned since,
+the attribute does not belong to a node, or the node has no ``id`` yet.
 - `is_default`: True when the value comes from the schema default.
 - `is_from_profile`: True when the value is inherited from a profile.
 - `is_inherited`: True when the attribute is inherited from a generic.
@@ -39,11 +41,33 @@ used by ``InfrahubNode.update()`` to send only the changed fields to the API.
 value(self) -> Any
 ```
 
+Return the attribute value.
+
+**Raises:**
+
+- `FieldNotLoadedError`: The node was queried with ``only`` and the attribute was not fetched.
+
 #### `value`
 
 ```python
 value(self, value: Any) -> None
 ```
+
+#### `is_loaded`
+
+```python
+is_loaded(self) -> bool
+```
+
+Return whether this attribute holds a value from its node's data or from an assignment.
+
+Never raises and sends no request.
+
+**Returns:**
+
+- ``True`` when the data the node was built from contained the attribute, when a value
+- was assigned since, when the attribute does not belong to a node, or when its node has no
+- ``id`` yet. ``False`` otherwise.
 
 #### `is_from_pool_attribute`
 
