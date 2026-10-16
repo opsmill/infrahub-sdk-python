@@ -39,8 +39,8 @@ Behaviour:
 | `only=["site"], prefetch_relationships=True` | The `site` peer also gets its default fields; peer nodes are built and stored |
 | `only=["hfid"]` | Node requests `id`, `hfid`, `display_label`, `__typename`; no field, relationship or peer that the HFID is made of. For a generic kind, `hfid` is requested when the generic or an implementing kind has an HFID |
 | `only=["hfid"]` on a kind without an HFID | Same as `only=[]` |
-| `only=["parent"]` on a hierarchical kind | Adds `parent` as a reference, in an inline fragment on the hierarchy generic; no other hierarchy field |
-| `only=["parent"], prefetch_relationships=True` | The `parent` peer also gets the hierarchy generic's default fields, as today's prefetch requests them; the peer node is built and stored |
+| `only=["parent"]` on a hierarchical kind | Adds `parent` as a reference, in an inline fragment on the peer kind that the kind's schema declares for `parent`, or on the hierarchy generic when the schema declares none; no other hierarchy field. `children` works the same way; `ancestors` and `descendants` always use the hierarchy generic |
+| `only=["parent"], prefetch_relationships=True` | The `parent` peer also gets the default fields of that peer kind, without its own hierarchy fields; the peer node is built and stored |
 | `only=["id", "display_label"]` | Same as `only=[]` |
 | Generic kind, name only on some implementing kinds | Requested in `...on Kind` blocks for those kinds, with or without `fragment=True` |
 

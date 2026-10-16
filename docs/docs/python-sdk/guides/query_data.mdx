@@ -586,7 +586,7 @@ For a generic kind, the query requests `hfid` when the generic or one of the kin
 
 A kind that is part of a hierarchy has four more fields: `parent`, `children`, `ancestors` and `descendants`. They are different from relationships of kind `Parent`, such as `device` on `TestInterface`, which `only` handles like any other relationship.
 
-`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK requests the same peer fields as a query with `prefetch_relationships=True` and no `only`: the default fields of the hierarchy generic, without its own hierarchy fields. It builds peer nodes and adds them to the store for `parent` and `children` only.
+`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK also requests the default fields of the peers, without their own hierarchy fields, and builds peer nodes and adds them to the store for `parent` and `children` only. The peers of `parent` and `children` are of the peer kind that the schema of the kind declares for them, or of the hierarchy generic when the schema does not declare them. The peers of `ancestors` and `descendants` are of the hierarchy generic.
 
 #### Generic kinds queried with `only`
 

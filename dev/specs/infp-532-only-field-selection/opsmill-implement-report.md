@@ -137,7 +137,7 @@ Unit suite on `0ca1a463`: 2862 passed, 2 skipped, 1 xfailed, 8 failed (the same 
 
 ## 10. HFID from the server
 
-On 2026-10-16 the owner decided that `hfid` in `only` requests the HFID that the server stores, instead of the fields that make it up ([review thread](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4294381206); research R5 gives the reason and links the server code). Commit [`ef9f766c`](https://github.com/opsmill/infrahub-sdk-python/commit/ef9f766c661a67055009c194b1d6a4d1d2d54a3d) makes the change:
+On 2026-10-16 the owner decided that `hfid` in `only` requests the HFID that the server stores, instead of the fields that make it up ([review thread](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4294381206); research R5 gives the reason and links the server code). Commit [`aa48ae25`](https://github.com/opsmill/infrahub-sdk-python/commit/aa48ae2551848db68c370ece7abc752e6f954fd5) makes the change:
 
 - `hfid` in `only` adds the server's `hfid` field to the queried node and nothing else. For `client.all(kind="TestingCat", only=["hfid"])`, the query no longer requests `name`, `color` and `owner { node { id hfid display_label __typename name { value } } }`.
 - A node from that query returns the server's value from `hfid`, `hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()`, or `None` when the value is empty or null, and the store indexes the node by it. Without `hfid` in `only`, the HFID is calculated from the fetched fields, as before. Nodes from default queries, and peers built for a node from `only`, keep calculating theirs.
@@ -145,8 +145,9 @@ On 2026-10-16 the owner decided that `hfid` in `only` requests the HFID that the
   - `expand_hfid` and `HfidFields`;
   - the peer attributes and the split between named and HFID-only relationships in `KindFields`, and `OnlyPeerRelationships.hfid`;
   - the HFID peers kept on a node (`_hfid_peers`) and their use in the private HFID reader;
-  - the declared peer kind for hierarchy fields from `909a2936` (`_hierarchy_peer_kind`): the peers of hierarchy fields again use the hierarchy generic, as the default prefetch does;
   - the `FieldNotFoundError` for an HFID peer attribute that the peer kind does not have.
+- Commit [`a4015e84`](https://github.com/opsmill/infrahub-sdk-python/commit/a4015e84f8aca72df36e14909a754b55837f0b70) stops using the stored value once a field the HFID is built from changes on the node; the HFID is then calculated from the fetched fields.
+- Kept from `909a2936`: a hierarchy field that the kind also declares as a relationship uses the declared peer kind for its inline fragment and, with `prefetch_relationships`, for its peer fields (`_hierarchy_peer_kind`). Only the HFID part of that commit was removed.
 - Queries without `only` are unchanged. No test in `tests/unit/sdk/test_node.py` or `tests/unit/sdk/test_hierarchical_nodes.py` was edited. A local check rendered the default queries of four kinds of the animal schema, with and without `prefetch_relationships`, before and after the commit, and the text was the same.
 
-Unit suite on `ef9f766c`: 2893 passed, 2 skipped, 1 xfailed, 8 failed (the same 8 as in §6). `tests/integration/test_node_only.py`: 14 passed against Infrahub 1.11.5.
+Unit suite on `a4015e84`: 2907 passed, 2 skipped, 1 xfailed, 8 failed (the same 8 failures as in §6). `tests/integration/test_node_only.py`: 14 passed against Infrahub 1.11.5.
