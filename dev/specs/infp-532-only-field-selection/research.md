@@ -60,7 +60,7 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
 ## R4. The query under `only` (FR-002, FR-003, FR-004, FR-006, FR-007)
 
 - **Decision**:
-  - The queried node requests `id`, `display_label` and `__typename`. It does not request the server's `hfid`.
+  - The queried node requests `id`, `display_label` and `__typename`. It requests the server's `hfid` only when `only` names `hfid` (R5).
   - An attribute is requested only when named. A relationship of any cardinality and kind is requested only when named, as a reference (`id`, `hfid`, `display_label`, `__typename`).
   - With `prefetch_relationships=True`, a named relationship's peer also gets its default fields, as today (`peer_node.generate_query_data_node(property, include_metadata)`). Relationships that are not named are not requested.
   - `parent`, `children`, `ancestors` and `descendants` are requested only when named. Without `prefetch_relationships` they are references. With it, they get the same peer fields today's prefetch requests for them: the hierarchy generic's default fields, without the four hierarchy names, inside `...on <hierarchy generic>` (`_process_hierarchical_fields`, `node.py:1307-1356`). Under `only`, `parent` and `children` come from one place only (`_process_hierarchical_fields`), so the relationship loop does not add them a second time.
@@ -74,21 +74,15 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
 
 ## R5. `hfid` in `only` (FR-005)
 
-- **Decision**: `id` and `display_label` are always requested, so naming them adds nothing. `hfid` is replaced by the fields in the kind's `human_friendly_id`:
-  - `name__value` adds the attribute `name`.
-  - `location__name__value` adds the relationship `location`, requested as a reference plus `name { value }` on the peer.
-  - When the developer also names `location`, or sets `prefetch_relationships=True`, the requests are merged.
-- **Peers in the store**: peers added for an HFID path are built as nodes and put in the store when `populate_store` is on, as for a relationship named in `include` (R9).
-- **Peers kept on the node**: the same peer nodes are also kept in a private slot on the node they belong to, keyed by relationship name. Only the private HFID calculation (R8) reads that slot, before it looks in the store. So `node.hfid` can be calculated:
-  - with `populate_store=False`;
-  - when `store.set` runs for the node before its peers are stored (`client.py:1404-1411`), so the node is indexed by HFID;
-  - after a later query stores a copy of the peer without the HFID field.
-- **Generic kinds**: each kind in `used_by` uses its own `human_friendly_id`, in its `...on Kind` block. In `infrahub_sdk/testing/schemas/animal.py`, `Cat` sets a different HFID from the generic `TestingAnimal`.
-- **A kind with no HFID**: naming `hfid` adds nothing.
-- **Rationale**: FR-005 asks for these fields to be readable and for the peers to go to the store "as with `include`". Without the private slot, `node.hfid` would depend on what the store holds when it is read (critique X1, E8).
+- **Decision**: `id` and `display_label` are always requested, so naming them adds nothing. `hfid` requests the server's `hfid` field on the queried node, in the place the default query puts it (after `id`), and nothing else: no field, relationship or peer that the HFID is made of.
+  - For a generic kind, `hfid` is requested on the generic part of the query when the generic or any kind in `used_by` has an HFID.
+  - For a kind with no HFID, naming `hfid` adds nothing.
+- **Reading it**: a node from a query with `only` keeps the `hfid` that its response contained in a private attribute, set when the node gets its marker (R7). `hfid`, `hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()` return that value, or `None` when it is empty or null, and the store indexes the node by it. A node from `only` whose response did not contain `hfid` calculates its HFID from the fields it fetched (R8).
+- **Nodes that keep calculating their HFID**: nodes not from `only`, and peers built for a node from `only` (R9), never get the private attribute. Their HFID is calculated as before, even though the response contains a server `hfid` for them (in the default query and in every peer reference).
+- **Rationale**: since Infrahub 1.5.0, the server stores each node's HFID as an attribute, computed when the node is written (commit [`d30588206c`](https://github.com/opsmill/infrahub/commit/d30588206c), "IFC-1812 Refactor HFID & display_labels"). When a query requests `hfid`, the server adds `human_friendly_id` to the attributes it loads with the node ([`resolver.py:254`](https://github.com/opsmill/infrahub/blob/infrahub-v1.11.7/backend/infrahub/graphql/resolvers/resolver.py#L254) in Infrahub 1.11.7), and `Node.get_hfid()` returns the stored value; it calculates the value only when none is stored ([`core/node/__init__.py:231`](https://github.com/opsmill/infrahub/blob/infrahub-v1.11.7/backend/infrahub/core/node/__init__.py#L231)). Requesting the parts of the HFID instead makes the server follow each relationship that a part goes through, and read the peer's attribute plus the peer's own `hfid` and `display_label`. That costs more than reading the stored value, which works against the purpose of `only`. The owner chose the stored value on 2026-10-16 ([review thread](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4294381206)).
 - **Alternatives considered**:
-  - Setting the cached peer on the relationship. Rejected: `RelatedNode.hfid` would then return the peer's calculated HFID instead of the server value (`related_node.py:150`), which changes `device.location.hfid`.
-  - Relying on the store only. Rejected: `node.hfid` would be `None` with `populate_store=False`, nodes would not be indexed by HFID, and a later write to the store could change `node.hfid`.
+  - Replacing `hfid` with the fields of the kind's `human_friendly_id`, with one peer attribute for a part that goes through a relationship, and keeping those peers in a private slot on the node so that `node.hfid` did not depend on the store. This was the first design and was implemented. The owner replaced it on 2026-10-16 for the cost described above.
+  - Reading the server's `hfid` on every node. Rejected: it would change `node.hfid` for nodes not from `only` (SC-003, constitution II).
 
 ## R6. Recording which fields the response contained (FR-011)
 
@@ -127,7 +121,7 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
   - `Attribute._initialize_graphql_payload`, `is_from_pool_attribute` and `is_unresolved_pool_attribute` read `_value` (`attribute.py:151-177`, `:233-248`). `_process_mutation_result` calls `is_from_pool_attribute` on every attribute (`node.py:1607`).
   - `RelatedNode.initialized` reads the cached peer, `_id` and `_hfid` (`related_node.py:190`). `_generate_input_data` and `_strip_unmodified` call it on every relationship (`node.py:474`, `:583`).
   - `RelationshipManager` methods (`add`, `extend`, `remove`, `fetch`, `_generate_input_data`, `is_from_profile`) read `_peers`. `peers` becomes a property backed by `_peers`.
-  - `get_human_friendly_id` uses a private version of `get_path_value` that treats a field that is not loaded as missing (`None`). It finds the peer without raising: first in the node's private slot of HFID peers (R5), then through the cached peer and the store. `store.set` (`store.py:56`), `hfid`, `hfid_str` and `_generate_input_data` all go through it.
+  - `get_human_friendly_id` uses a private version of `get_path_value` that treats a field that is not loaded as missing (`None`). It finds the peer without raising, through the cached peer and the store. A node from `only` whose response contained `hfid` returns that value instead (R5). `store.set` (`store.py:56`), `hfid`, `hfid_str` and `_generate_input_data` all go through `get_human_friendly_id`.
 - **Conditions for this list to stay complete** (critique E5):
   - `RelatedNode.initialized` keeps using the peer's calculated HFID when a peer is cached, which goes through the non-raising calculation.
   - `RelationshipManager.__init__` and every internal write use `_peers`, not `peers` (`relationship.py:58`, `:209`, `:217`).
@@ -140,9 +134,7 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
 
 ## R9. Building peer nodes under `only`
 
-- **Decision**: under `only`, `_process_nodes_and_relationships` builds and stores peer nodes only for:
-  - relationships named in `only`, when `prefetch_relationships=True`. For hierarchy fields this is what today's prefetch builds: peer nodes for `parent` and `children`, which are schema relationships. The peers of `ancestors` and `descendants` stay on the relationship and are not built as nodes, as today;
-  - relationships added for an HFID path (R5).
+- **Decision**: under `only`, `_process_nodes_and_relationships` builds and stores peer nodes only for relationships named in `only`, when `prefetch_relationships=True`. For hierarchy fields this is what today's prefetch builds: peer nodes for `parent` and `children`, which are schema relationships. The peers of `ancestors` and `descendants` stay on the relationship and are not built as nodes, as today.
 - Under `only`, the peers are read from the node's data with the `__alias__Kind__` prefixes removed (the node's `_data` after `_strip_alias`, `node.py:616`). Today `_process_relationships` reads the raw response (`node.py:1806`, `:1823`), so the peers of a relationship that only an implementing kind has would never be built (critique E1).
 - `_process_relationships` gets a private argument with the relationship names to process. Without `only`, the existing condition and loop are unchanged.
 - **Rationale**: today, when `include` names any relationship, every cardinality-one peer in the response is built as a node, even one requested as a reference only, and stored with every attribute `None`. Under `only` this would replace fuller copies in the store with empty ones. It would also break the edge case where `device.site.peer` raises `NodeNotFoundError` when the site is not in the store.
@@ -158,9 +150,9 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
     3. When `only` is given, check its names against every distinct peer kind in the loaded list. Any name missing on any of those kinds raises `FieldNotFoundError` before any peer query is added to the batch.
     4. Add one `filters(kind=..., ids=..., only=only, ...)` per peer kind to the batch, as today.
   - Peers fetched this way go to the store and carry the `only` marker (R7).
-  - **`RelatedNode.hfid` after `fetch(only=...)`**: `fetch` keeps setting the cached peer, as today (`related_node.py:369-371`). When the cached peer is a node from `only` and its HFID cannot be calculated from the fields it carries, `RelatedNode.hfid` and `hfid_str` return the HFID the reference carried from the server. So `device.site.hfid` keeps its value after `device.site.fetch(only=["description"])` (critique P4). For a cached peer that is not from `only`, `hfid` is unchanged. Confirmed by the owner on 2026-10-14: this concerns the relationship's `hfid`, not the excluded fallback for `node.hfid`.
+  - **`RelatedNode.hfid` after `fetch(only=...)`**: `fetch` keeps setting the cached peer, as today (`related_node.py:369-371`). When the cached peer is a node from `only` and has no HFID, because its response did not contain `hfid` (or contained an empty value) and the fields it carries do not give one, `RelatedNode.hfid` and `hfid_str` return the HFID the reference carried from the server. So `device.site.hfid` keeps its value after `device.site.fetch(only=["description"])` (critique P4). For a cached peer that is not from `only`, `hfid` is unchanged. Confirmed by the owner on 2026-10-14: this concerns the relationship's `hfid`, not the excluded fallback for `node.hfid`.
 - **Rationale**: FR-012 requires every name on every peer kind, checked before the peer queries are sent. The batch sends queries concurrently, so the check has to run before any query is added. `fetch()` on a manager is how a developer loads a cardinality-many relationship, so it must work on a manager that is not loaded, including `ancestors` and `descendants`, which FR-006 leaves unloaded unless named.
-- **Alternatives considered**: not setting the cached peer under `only`, so `.peer` reads the store. Rejected: `.peer` would then depend on what the store holds, which is the problem R5 avoids for the HFID.
+- **Alternatives considered**: not setting the cached peer under `only`, so `.peer` reads the store. Rejected: `.peer` would then depend on what the store holds.
 - **Not changed**: on nodes not from `only`, the reload keeps using `include` and `exclude`, as today, including its existing failure on `ancestors` and `descendants`.
 
 ## R11. Error types
@@ -191,19 +183,25 @@ The prototype branch `field-selection-only-infp-532` was read for the problems i
 ## R15. Test strategy
 
 - **Unit tests** cover both clients through `client_type` parametrisation and use dataclass cases (`.agents/rules/python-testing.md`):
-  - Query generation under `only`, comparing the whole generated query: attributes, cardinality-one and cardinality-many relationships, `prefetch_relationships`, `hfid` (attribute path, relationship path, no HFID), hierarchy fields, generic kinds, `only=[]`, `id` and `display_label`. Existing fixtures: `schema_with_hfid` (`tests/unit/sdk/conftest.py:229`), `hierarchical_schema` (`tests/unit/sdk/test_hierarchical_nodes.py:19`), `mock_schema_query_02`, `location_schema`, `device_schema`.
+  - Query generation under `only`, comparing the whole generated query: attributes, cardinality-one and cardinality-many relationships, `prefetch_relationships`, `hfid` (a kind with an HFID, a generic kind without one whose implementing kind has one, a kind with no HFID, merged with named fields and with `prefetch_relationships`), hierarchy fields, generic kinds, `only=[]`, `id` and `display_label`. Existing fixtures: `schema_with_hfid` (`tests/unit/sdk/conftest.py:229`), `hierarchical_schema` (`tests/unit/sdk/test_hierarchical_nodes.py:19`), `mock_schema_query_02`, `location_schema`, `device_schema`.
   - SC-002: the same `only` call before and after adding an attribute and a relationship to the schema gives the same query.
   - SC-003: no existing query-generation test is edited. They must pass unchanged.
   - SC-004 and FR-009: the errors are raised and `httpx_mock` records no GraphQL request.
   - SC-005: the accessor table, on nodes from `only`, on peers returned with them and on peers from `fetch(only=...)`: each listed read raises when not loaded, and `is_loaded` is `False` in exactly those cases. On a default node the same reads return what they return today.
   - FR-010: the internal-operations matrix from R8.
   - FR-012: `fetch(only=...)` on cardinality-one and cardinality-many relationships, including mixed peer kinds with a name missing on one kind, a misspelt name on a manager that is not loaded (no request sent), and `ancestors.fetch(only=...)` and `descendants.fetch(only=...)` on a node from `only` where they are not loaded.
-  - Generic kinds: a relationship that only an implementing kind has, named in `only` with `prefetch_relationships=True`, gives a peer node in the store; `hfid` through such a relationship is calculated.
-  - HFID: `node.hfid` from `only=["hfid"]` with `populate_store=True` and `populate_store=False`; `client.store.get(key=node.hfid, kind=...)` returns the node from `only`; `node.hfid` is unchanged after a later query stores a narrower copy of the peer; `device.site.hfid` is unchanged after `device.site.fetch(only=["description"])`.
+  - Generic kinds: a relationship that only an implementing kind has, named in `only` with `prefetch_relationships=True`, gives a peer node in the store.
+  - HFID:
+    - `node.hfid` from `only=["hfid"]` is the server's value, also over fetched fields that would give another value, and `None` for an empty or null value;
+    - with `populate_store=True` and `populate_store=False`, and no peer is stored for it;
+    - `client.store.get(key=node.hfid, kind=...)` returns the node from `only`;
+    - without `hfid` in `only`, `node.hfid` is calculated from the fetched fields;
+    - a node from a default query keeps the calculated HFID when the response's `hfid` differs;
+    - `device.site.hfid` is unchanged after `device.site.fetch(only=["description"])`, and after `device.site.fetch(only=["hfid"])` when the server returns a null `hfid`.
   - Hierarchy fields named in `only`: references without `prefetch_relationships`; with it, the hierarchy generic's default fields, peer nodes built and stored for `parent` and `children` only, and no other hierarchy field added.
   - `fragment=True` with `only` adds no default fields of implementing kinds.
   - Error classes: messages and registration (the existing public-name tests pick them up).
-- **Integration tests**, one per client, on `SchemaAnimal` (`infrahub_sdk/testing/schemas/animal.py`): a generic kind, an HFID through a relationship (`owner__name__value`) and an implementing kind with its own HFID (`Cat`).
+- **Integration tests**, one per client, on `SchemaAnimal` (`infrahub_sdk/testing/schemas/animal.py`): a generic kind, and `only=["hfid"]` on an implementing kind with its own HFID (`Cat`), whose three parts include one through a relationship (`owner__name__value`) and come from the server.
 
 ## R16. Documentation and changelog
 
@@ -222,7 +220,7 @@ The prototype changes 58 files. This plan keeps to the brief.
 | Area | Prototype | This plan |
 |---|---|---|
 | Reading an unfetched field on any other node | Warning in 1.x, private switch for errors in 2.0 | No change (out of scope) |
-| `hfid` in `only` | Adds the server `hfid` to the query | Replaced by the HFID's fields (FR-005) |
+| `hfid` in `only` | Adds the server `hfid` to the query | Adds the server `hfid` to the query (FR-005, R5) |
 | Names that exist only on implementing kinds | Need `fragment=True` | Accepted without it (FR-008) |
 | `fetch(only=...)` on mixed peer kinds | Filters `only` per kind and skips kinds without the names | Raises unless every kind has every name (FR-012) |
 | `fetch(exclude=...)` | Added | Out of scope |

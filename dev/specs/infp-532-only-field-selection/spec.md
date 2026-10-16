@@ -62,10 +62,10 @@ A developer who fetched a device with `only=["site"]` holds a reference to the s
 - **Empty list**: `only=[]` fetches `id`, `display_label` and `__typename` only. Not passing `only`, or passing `None`, keeps the default set.
 - **Misspelt name**: `only=["nmae"]` raises the unknown-field error before the data query is sent, naming `nmae` and the kind.
 - **Fields that are always fetched**: `id` and `display_label` in `only` are accepted and change nothing.
-- **`hfid` in `only`**: replaced by the fields that make up the kind's HFID. For an HFID component that goes through a relationship, such as the name of the device's site, the one field of the peer it needs is fetched. Those fields can be read like named fields. For a kind without an HFID, naming `hfid` changes nothing.
-- **Client store**: a node from `only` goes into the store and can replace a fuller copy of the same node. Code that later reads it from the store gets `FieldNotLoadedError` for the fields it lacks, and can check `is_loaded` first. The SDK's own HFID calculation does not raise when it reads such a node from the store: for any node, a field that the stored node lacks counts as missing. Peers fetched for the HFID go to the store in the same way as peers of a relationship named in `include`, and can replace fuller copies of those peers.
+- **`hfid` in `only`**: requests the HFID that the server stores for each node, and none of the fields it is made of. `node.hfid` returns that value. For a kind without an HFID, naming `hfid` changes nothing.
+- **Client store**: a node from `only` goes into the store and can replace a fuller copy of the same node. Code that later reads it from the store gets `FieldNotLoadedError` for the fields it lacks, and can check `is_loaded` first. The SDK's own HFID calculation does not raise when it reads such a node from the store: for any node, a field that the stored node lacks counts as missing.
 - **Saving**: saving a node from `only` sends `id` and the changed fields only. Fields that were not fetched are neither sent nor cleared on the server.
-- **HFID that cannot be calculated**: `node.hfid` on a node from `only` is `None` when its HFID fields were not fetched and `hfid` was not named.
+- **HFID that cannot be calculated**: `node.hfid` on a node from `only` is `None` when `hfid` was not named and its HFID fields were not fetched, and when `hfid` was named and the server returned an empty value.
 - **Reference without a stored peer**: `device.site.peer` on a reference raises the existing `NodeNotFoundError` when the site is not in the store, as after a default query today.
 - **New node after saving**: after a node the developer created is saved, the fields it never set have `is_loaded` `False`. Reading them raises only on nodes from `only`; on other nodes they behave as today.
 - **Generic kinds**: when only some kinds that implement a generic have a named field, the field is fetched for the nodes of those kinds.
@@ -77,10 +77,10 @@ A developer who fetched a device with `only=["site"]` holds a reference to the s
 #### Choosing fields on the query methods
 
 - **FR-001**: Users MUST be able to pass `only=[...]` to `get()`, `all()` and `filters()` on `InfrahubClient` and `InfrahubClientSync`. For the queried nodes and their peers, the query MUST request the fields FR-002 to FR-007 define, and no other field. The query's filters, ordering, pagination and `count` stay as they are today, and so does the data that `property=True` and `include_metadata=True` add for the requested fields.
-- **FR-002**: For the queried node, a query with `only` MUST fetch `id`, `display_label` and `__typename`, plus the named attributes and relationships. The server's `hfid` field MUST NOT be fetched for the queried node.
+- **FR-002**: For the queried node, a query with `only` MUST fetch `id`, `display_label` and `__typename`, plus the named attributes and relationships. The server's `hfid` field MUST be fetched for the queried node only when `only` names `hfid` (FR-005).
 - **FR-003**: A relationship named in `only` MUST return its peers as references (`id`, `hfid`, `display_label`, `__typename`), as a relationship in the default set does today.
 - **FR-004**: With `prefetch_relationships=True`, the peers of the relationships named in `only` MUST come back with their default fields. Relationships not named in `only` MUST NOT be queried.
-- **FR-005**: In `only`, `id` and `display_label` MUST be accepted and change nothing. `hfid` MUST be replaced by the fields that make up the kind's HFID, including one field of a peer for an HFID component that goes through a relationship. Those fields MUST be readable like named fields, and those peers MUST go to the client store as peers of a relationship named in `include` do. For a generic kind, the HFID of each implementing kind applies to the nodes of that kind. For a kind without an HFID, naming `hfid` MUST change nothing.
+- **FR-005**: In `only`, `id` and `display_label` MUST be accepted and change nothing. `hfid` MUST request the server's stored `hfid` field on the queried node, and no field, relationship or peer that the HFID is made of. On a node from that query, `hfid`, `hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()` MUST return the server's value, or `None` when that value is empty or null, and the client store MUST index the node by it. When `hfid` is not named, they MUST be calculated from the fields the node fetched, and be `None` when a part was not fetched. For a generic kind, `hfid` MUST be requested when the generic or any kind implementing it has an HFID. For a kind without an HFID, naming `hfid` MUST change nothing.
 - **FR-006**: `parent`, `children`, `ancestors` and `descendants` MUST be fetched only when named in `only`. When named, they follow FR-003 and FR-004 like any other named relationship: references, or their peers' default fields when `prefetch_relationships=True`.
 - **FR-007**: `only=[]` MUST fetch `id`, `display_label` and `__typename` only. Not passing `only`, or passing `None`, MUST keep the default set.
 
@@ -150,7 +150,7 @@ A developer who fetched a device with `only=["site"]` holds a reference to the s
 - `fetch(exclude=...)`.
 - Path syntax in `only`, such as `site__name`.
 - Removing `hfid` and `display_label` from peer references.
-- Using the server's `hfid` as a fallback for `node.hfid`.
+- Using the server's `hfid` for `node.hfid` on nodes not from `only`, or on nodes from `only` whose query did not name `hfid`.
 
 ## Follow-ups (outside this feature)
 

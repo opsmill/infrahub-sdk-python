@@ -32,16 +32,15 @@ Behaviour:
 | `only=None` (or not passed) | Query and nodes exactly as today |
 | `only=[...]` with `include` or `exclude` not `None` | `FieldSelectionConflictError`, no request sent |
 | `only=[...]` with an unknown name | `FieldNotFoundError(kind, field)`, before the data query |
-| `only=["hfid"]` on a kind whose HFID reads a peer attribute that the peer kind does not have | `FieldNotFoundError(peer kind, attribute)`, before the data query |
 | `only=[...]` on a generic kind with `fragment=True` | Same query as without `fragment`; no default fields of implementing kinds are added |
 | `only=[]` | Node requests `id`, `display_label`, `__typename` only |
 | `only=["name"]` | Node requests `id`, `display_label`, `__typename`, `name { value }` |
 | `only=["site"]` | Adds `site { node { id hfid display_label __typename } }` |
 | `only=["site"], prefetch_relationships=True` | The `site` peer also gets its default fields; peer nodes are built and stored |
-| `only=["hfid"]` | Adds the fields of the kind's `human_friendly_id`; a path through a relationship adds that relationship as a reference plus the one peer attribute |
-| `only=["parent"]` on a hierarchical kind | Adds `parent` as a reference, in an inline fragment on the peer kind that the kind's schema declares for `parent`, or on the hierarchy generic when the schema declares none; no other hierarchy field. `children` works the same way; `ancestors` and `descendants` always use the hierarchy generic |
-| `only=["parent"], prefetch_relationships=True` | The `parent` peer also gets the default fields of that peer kind, without its own hierarchy fields; the peer node is built and stored |
-| `only=["hfid"]` on a kind whose HFID reads an attribute of `parent` | Adds `parent` as a reference plus that attribute, in the inline fragment on the declared peer kind, so an attribute that only the parent kind has is requested |
+| `only=["hfid"]` | Node requests `id`, `hfid`, `display_label`, `__typename`; no field, relationship or peer that the HFID is made of. For a generic kind, `hfid` is requested when the generic or an implementing kind has an HFID |
+| `only=["hfid"]` on a kind without an HFID | Same as `only=[]` |
+| `only=["parent"]` on a hierarchical kind | Adds `parent` as a reference, in an inline fragment on the hierarchy generic; no other hierarchy field |
+| `only=["parent"], prefetch_relationships=True` | The `parent` peer also gets the hierarchy generic's default fields, as today's prefetch requests them; the peer node is built and stored |
 | `only=["id", "display_label"]` | Same as `only=[]` |
 | Generic kind, name only on some implementing kinds | Requested in `...on Kind` blocks for those kinds, with or without `fragment=True` |
 
@@ -62,7 +61,7 @@ async def fetch(self, only: list[str] | None = None) -> None
 
 | Call | Result |
 |---|---|
-| `RelatedNode.fetch(only=[...])` | One `get` of the peer with `only`; the peer replaces the cached peer and goes to the store. `hfid` and `hfid_str` keep the reference's server value when the fetched peer's HFID cannot be calculated |
+| `RelatedNode.fetch(only=[...])` | One `get` of the peer with `only`; the peer replaces the cached peer and goes to the store. `hfid` and `hfid_str` keep the reference's server value when the fetched peer has no HFID: its response contained no `hfid` (or an empty one) and its fields do not give one |
 | `RelatedNode.fetch()` on a relationship that is not loaded, node from `only` | `FieldNotLoadedError` |
 | `RelatedNode.fetch()` on a relationship with no peer, any other node | `Error`, as today |
 | `RelationshipManager.fetch(only=[...])` | In this order: checks `only` against the declared peer kind (no request yet); reloads the relationship if it is not loaded; checks `only` against every actual peer kind; then one `filters(..., only=...)` per peer kind in a batch |
@@ -97,11 +96,11 @@ Operations that never raise on a node from `only`:
 - `save()` (create and update);
 - `create(allow_upsert=True)`;
 - `update()`;
-- `hfid`, `hfid_str`, `get_human_friendly_id()`, `get_human_friendly_id_as_string()`;
+- `hfid`, `hfid_str`, `get_human_friendly_id()`, `get_human_friendly_id_as_string()`. When `only` named `hfid`, they return the server's value, or `None` when it is empty or null; otherwise they are calculated from the fetched fields;
 - putting the node in the store;
 - `__repr__` and `__str__`.
 
-The HFID of every node is calculated by the same private reader. A field that a node from `only` did not fetch counts as missing, also when the reader reaches that node as a peer in the store. Every other field is read as `get_path_value` reads it. So the HFID methods above, and putting a node in the store, do not raise on any other node either, even when a peer that the HFID reads came from `only`.
+When the HFID is calculated, every node uses the same private reader. A field that a node from `only` did not fetch counts as missing, also when the reader reaches that node as a peer in the store. Every other field is read as `get_path_value` reads it. So the HFID methods above, and putting a node in the store, do not raise on any other node either, even when a peer that the HFID reads came from `only`.
 
 `add`, `extend` and `remove` on a cardinality-many relationship that is not loaded keep raising `UninitializedError`, as today.
 

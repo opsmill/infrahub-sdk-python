@@ -13,21 +13,17 @@ Technical approach (details and alternatives in [research.md](./research.md)):
 1. **Signatures** (R1): `only: list[str] | None = None` is appended as the last named parameter of `get`, `all` and `filters`, in every overload and implementation, on both clients. The public `generate_query_data*` methods do not change.
 2. **Checks before any request** (R2, R3): the conflict check is the first statement of `get`, `all` and `filters`. `filters` checks the names against the kind's schema after resolving it and before generating the data query. For generic kinds the check includes every implementing kind's schema, read from the same branch's cache.
 3. **Query generation** (R4, R5, R14): new private methods on both node classes build the query for `only`, and `filters` calls them when `only` is not `None`. The existing generators are not touched.
-   - The node requests `id`, `display_label`, `__typename`, without `hfid`.
+   - The node requests `id`, `display_label` and `__typename`, and the server's `hfid` only when `only` names it.
    - Named attributes are requested, and named relationships as references.
    - With `prefetch_relationships`, the peers of named relationships get their default fields.
    - Hierarchy fields are requested only when named, and then follow the same rules as other named relationships.
-   - `hfid` is replaced by the kind's HFID paths, using each implementing kind's own HFID for generic kinds.
+   - `hfid` requests the HFID that the server stores, when the kind, or for a generic kind the generic or an implementing kind, has an HFID. It adds no part of the HFID.
    - For generic kinds, names not on the generic go in `...on Kind` blocks under the existing alias form, with or without `fragment=True`.
 4. **Recording what the response contained** (R6): every field object records whether its node's data contained it, and holds a private reference to its node. `is_loaded` combines that record with "the field was assigned" and "the node has no `id`".
 5. **Raising** (R7): nodes built from an `only` response, and the peers built with them, carry a private marker holding the `only` list. The accessors listed in the [contract](./contracts/public-api.md) raise `FieldNotLoadedError` when the field is not loaded and the node has the marker.
-6. **SDK reads that must not raise** (R8): saving, upserting, HFID calculation and storing read private storage at a short list of places. `RelationshipManager.peers` becomes a property backed by `_peers`.
-7. **Peer nodes** (R5, R9): under `only`, peer nodes are built from the response with aliases removed, and only for:
-   - named relationships with `prefetch_relationships` (for hierarchy fields, the same peers today's prefetch builds: `parent` and `children`);
-   - HFID paths through a relationship.
-
-   They go to the store. HFID peers are also kept in a private slot on their node, so `node.hfid` does not depend on the store.
-8. **`fetch(only=...)`** (R10): `RelatedNode.fetch` passes `only` to `client.get`. When the cached peer is from `only` and its HFID cannot be calculated, `RelatedNode.hfid` keeps the reference's server value. `RelationshipManager.fetch` runs its checks in this order:
+6. **SDK reads that must not raise** (R8): saving, upserting, HFID calculation and storing read private storage at a short list of places. `RelationshipManager.peers` becomes a property backed by `_peers`. A node from `only` whose response contained `hfid` keeps that value privately and returns it as its HFID (R5).
+7. **Peer nodes** (R9): under `only`, peer nodes are built from the response with aliases removed, and only for named relationships with `prefetch_relationships` (for hierarchy fields, the same peers today's prefetch builds: `parent` and `children`). They go to the store.
+8. **`fetch(only=...)`** (R10): `RelatedNode.fetch` passes `only` to `client.get`. When the cached peer is from `only` and has no HFID, `RelatedNode.hfid` keeps the reference's server value. `RelationshipManager.fetch` runs its checks in this order:
    - checks the names against the declared peer kind before any request;
    - reloads a relationship that is not loaded (on nodes from `only`, with `get(..., only=[name], populate_store=False)`);
    - checks every actual peer kind before adding any query to the batch.
@@ -74,7 +70,7 @@ Checked against `dev/constitution.md` (version 1.0.0).
 
 | Principle | Status | How the plan meets it |
 |---|---|---|
-| I. Async/sync parity | Pass | Every new parameter, property and error is on both clients and both relationship classes. The node query generators exist in both node classes. Shared decisions (name check, HFID expansion, names to request) go in one private helper module used by both. Tests are parametrised over `client_type`. |
+| I. Async/sync parity | Pass | Every new parameter, property and error is on both clients and both relationship classes. The node query generators exist in both node classes. Shared decisions (name check, names to request, whether to request `hfid`) go in one private helper module used by both. Tests are parametrised over `client_type`. |
 | II. Backward compatibility | Pass | Additive: `only` goes last and defaults to `None`. Existing queries are pinned by the unedited query-generation tests (SC-003). For nodes not from `only`, nothing raises. `is_loaded` is new. The public-API change was approved in the product review (spec, Governance Gates Crossed). |
 | III. Layered architecture | Pass | All logic is in the SDK. `infrahub_sdk/ctl/` is not changed. |
 | IV. Type safety and typed errors | Pass | Three new subclasses of `Error`, each with one base class as the SDK's tests require. All signatures are typed. `is_loaded` is added to the protocols in `protocols_base.py`. |
@@ -109,10 +105,10 @@ infrahub_sdk/
 │                          #       name check in filters; marker on nodes and peers in
 │                          #       _process_nodes_and_relationships; peer processing limited under only
 ├── node/
-│   ├── _only.py           # ADD (private helpers): names to request for a kind, HFID expansion,
+│   ├── _only.py           # ADD (private helpers): names to request for a kind, whether to request hfid,
 │   │                      #       name check for a kind and its implementing kinds
 │   ├── node.py            # EDIT: private only-query methods (both node classes), reusing the
-│   │                      #       existing peer and hierarchy helpers; HFID peer slot;
+│   │                      #       existing peer and hierarchy helpers; server hfid kept on nodes from only;
 │   │                      #       field record and owner binding in _init_attributes / _init_relationships;
 │   │                      #       non-raising HFID path; marker attribute; _process_relationships name filter
 │   ├── attribute.py       # EDIT: is_loaded; record flag; raising value getter; internal reads use _value
@@ -128,7 +124,7 @@ infrahub_sdk/
 tests/
 ├── fixtures/error_catalogue/public_names.json   # EDIT: the three new names
 ├── unit/sdk/
-│   ├── test_node_only_helpers.py   # ADD: name check, conflict check, HFID expansion
+│   ├── test_node_only_helpers.py   # ADD: name check, conflict check, when hfid is requested
 │   ├── test_node_only_query.py     # ADD: query generation under only (both clients)
 │   ├── test_node_only_access.py    # ADD: reads that raise, is_loaded, operations that must not raise
 │   ├── test_client_only.py         # ADD: get/all/filters checks and nodes from only (httpx_mock)
@@ -155,7 +151,7 @@ changelog/+only-field-selection.added.md   # ADD
 - **Owner binding**: field objects get a private `_bind(node, present)` call after construction in `_init_attributes` and `_init_relationships`, so the public constructors keep their signatures.
 - **Marker and message**: the marker is a frozen dataclass with `only` (tuple) and `peer_of` (`"Kind.relationship"` or `None`). `FieldNotLoadedError` is built from the marker, the node's kind and the field name.
 - **Order in `filters`**: conflict check → schema lookup (existing) → name check → query generation (existing call, plus `only`) → requests → node building with marker → store. In `get`, the conflict check comes before its own schema lookup.
-- **HFID peers**: peers built for an HFID path are stored (when `populate_store` is on) and also kept in a private slot on their node, which only the HFID calculation reads (R5). So `node.hfid` works with `populate_store=False`, the node is indexed by HFID when it is stored, and later writes to the store do not change it.
+- **`hfid` in `only`**: the query requests the HFID the server stores, on the queried node only. The node keeps the value in a private attribute, set together with its marker, and `node.hfid` returns it (R5). So `node.hfid` works with `populate_store=False`, the node is indexed by HFID when it is stored, and later writes to the store do not change it. Nodes not from `only` never get the attribute, so their HFID is calculated as before.
 - **Existing issues found and left alone**:
   - `RelationshipManager.fetch()` on a manager that is not loaded stores the reloaded, partial parent.
   - `_process_relationships` stores reference-only peers when `include` names any relationship.

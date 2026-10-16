@@ -18,7 +18,7 @@
 The SDK accepts `only=[...]` on `get`, `all` and `filters` (async and sync) and on `fetch` of `RelatedNode`, `RelatedNodeSync`, `RelationshipManager` and `RelationshipManagerSync`.
 
 - A query with `only` requests `id`, `display_label`, `__typename` and the named fields, and no other field of the kind.
-- `hfid` in `only` is replaced by the fields of the kind's human-friendly ID. For a generic kind, each implementing kind's own HFID applies.
+- `hfid` in `only` is replaced by the fields of the kind's human-friendly ID. For a generic kind, each implementing kind's own HFID applies. Changed on 2026-10-16: `hfid` now requests the HFID that the server stores (§10).
 - Reading a field that a node from `only` (or a peer returned with it) did not fetch raises `FieldNotLoadedError`.
 - Every attribute and relationship has `is_loaded`.
 - `FieldNotFoundError` and `FieldSelectionConflictError` are raised before the data query.
@@ -134,3 +134,19 @@ Unit suite after the commit, rebased on `521e7459`: 2858 passed, 2 skipped, 1 xf
 Recorded as a follow-up in a [review comment](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4281924788): build the query for `only` with the default builder instead of its own builder. A local probe built the query both ways for every case in `tests/unit/sdk/test_node_only_query.py`, and 20 of 32 matched. The rest differ because of the HFID expansion and three gaps in the default builder, which the comment lists. Before that refactoring, the default builder needs a private way to request a relationship without fetching its peer's fields; no public parameter is to be added.
 
 Unit suite on `0ca1a463`: 2862 passed, 2 skipped, 1 xfailed, 8 failed (the same 8 as in §6).
+
+## 10. HFID from the server
+
+On 2026-10-16 the owner decided that `hfid` in `only` requests the HFID that the server stores, instead of the fields that make it up ([review thread](https://github.com/opsmill/infrahub-sdk-python/pull/1423#discussion_r4294381206); research R5 gives the reason and links the server code). Commit [`ef9f766c`](https://github.com/opsmill/infrahub-sdk-python/commit/ef9f766c661a67055009c194b1d6a4d1d2d54a3d) makes the change:
+
+- `hfid` in `only` adds the server's `hfid` field to the queried node and nothing else. For `client.all(kind="TestingCat", only=["hfid"])`, the query no longer requests `name`, `color` and `owner { node { id hfid display_label __typename name { value } } }`.
+- A node from that query returns the server's value from `hfid`, `hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()`, or `None` when the value is empty or null, and the store indexes the node by it. Without `hfid` in `only`, the HFID is calculated from the fetched fields, as before. Nodes from default queries, and peers built for a node from `only`, keep calculating theirs.
+- Removed because they only served the expansion:
+  - `expand_hfid` and `HfidFields`;
+  - the peer attributes and the split between named and HFID-only relationships in `KindFields`, and `OnlyPeerRelationships.hfid`;
+  - the HFID peers kept on a node (`_hfid_peers`) and their use in the private HFID reader;
+  - the declared peer kind for hierarchy fields from `909a2936` (`_hierarchy_peer_kind`): the peers of hierarchy fields again use the hierarchy generic, as the default prefetch does;
+  - the `FieldNotFoundError` for an HFID peer attribute that the peer kind does not have.
+- Queries without `only` are unchanged. No test in `tests/unit/sdk/test_node.py` or `tests/unit/sdk/test_hierarchical_nodes.py` was edited. A local check rendered the default queries of four kinds of the animal schema, with and without `prefetch_relationships`, before and after the commit, and the text was the same.
+
+Unit suite on `ef9f766c`: 2893 passed, 2 skipped, 1 xfailed, 8 failed (the same 8 as in §6). `tests/integration/test_node_only.py`: 14 passed against Infrahub 1.11.5.

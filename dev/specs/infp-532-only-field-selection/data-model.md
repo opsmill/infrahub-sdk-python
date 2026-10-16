@@ -18,7 +18,7 @@ This feature adds no stored data. It adds one parameter, one property on field o
     - an attribute or relationship of the kind;
     - for a generic kind, an attribute or relationship of the generic or of any kind in `used_by`;
     - `parent`, `children`, `ancestors` or `descendants`, when the kind has a hierarchy;
-    - `id`, `display_label` (accepted, add nothing) or `hfid` (replaced by the HFID's fields, research R5).
+    - `id`, `display_label` (accepted, add nothing) or `hfid` (requests the HFID the server stores, research R5).
 - **Validation**:
   - `only` with `include` or `exclude` that is not `None` raises `FieldSelectionConflictError` before any request.
   - A name outside the list above raises `FieldNotFoundError` before the data query.
@@ -63,9 +63,9 @@ Set by `_process_nodes_and_relationships` when the query had `only`:
 
 Peers from `fetch(only=...)` get their own marker, because they come from `filters`. Nodes built any other way have no marker and never raise `FieldNotLoadedError`.
 
-## HFID peers (private)
+## Server HFID (private)
 
-Kept on `InfrahubNode` and `InfrahubNodeSync` that come from a query with `hfid` in `only`: a mapping from relationship name to the peer node built for an HFID path through that relationship. Only the private HFID calculation reads it, before the cached peer and the store. It is filled by `_process_nodes_and_relationships` (research R5).
+Kept on `InfrahubNode` and `InfrahubNodeSync` that come from a query with `only`, when the node's data contained `hfid`, which the query requests only when `only` names it: the list the server returned, empty for a null value. It is set together with the marker. `get_human_friendly_id` returns it, or `None` when it is empty, instead of calculating the HFID. Nodes not from `only`, and peers returned with them, never have it (research R5).
 
 ## Error types (public)
 
@@ -74,7 +74,7 @@ All three are in `infrahub_sdk/exceptions/base.py`, subclass `Error` only, and a
 | Error | Attributes | Raised when |
 |---|---|---|
 | `FieldNotLoadedError` | `kind`, `field`, `only`, `peer_of` | a raising accessor (contract table) reads a field that is not loaded, on a node with the marker |
-| `FieldNotFoundError` | `kind`, `field` | a name in `only` is not accepted for the kind (or for one of the peer kinds in `RelationshipManager.fetch`); or, with `hfid` in `only`, an HFID path reads a peer attribute that the peer kind does not have |
+| `FieldNotFoundError` | `kind`, `field` | a name in `only` is not accepted for the kind (or for one of the peer kinds in `RelationshipManager.fetch`) |
 | `FieldSelectionConflictError` | none | `only` is passed with `include` or `exclude` that is not `None` |
 
 ## State transitions of a field on a node from `only`

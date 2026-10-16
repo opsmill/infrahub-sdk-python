@@ -526,7 +526,7 @@ You can change and save a node returned by a query with `only`. `save()` sends t
 
 #### Relationships named in `only`
 
-A relationship named in `only` is returned as a reference to its peers: their `id`, `hfid`, `display_label` and `__typename`. A relationship that you do not name is not requested, whatever its kind or cardinality, unless the query needs it for the human-friendly ID.
+A relationship named in `only` is returned as a reference to its peers: their `id`, `hfid`, `display_label` and `__typename`. A relationship that you do not name is not requested, whatever its kind or cardinality.
 
 With `prefetch_relationships=True`, the SDK also requests the default fields of the peers of the named relationships, builds peer nodes from them and adds the peer nodes to the store. The peer nodes follow the same rule as the node: reading a field that they do not contain raises `FieldNotLoadedError`.
 
@@ -555,9 +555,7 @@ With `prefetch_relationships=True`, the SDK also requests the default fields of 
 
 #### Human-friendly IDs of nodes from a query with `only`
 
-A query with `only` does not request the human-friendly ID that Infrahub calculates for each node. The SDK calculates `node.hfid` from the fields that make up the human-friendly ID of the kind. Name `hfid` in `only` to request those fields. If `only` names neither `hfid` nor those fields, `node.hfid` is `None`.
-
-With the `human_friendly_id` of `TestInterface` in the schema above, `only=["hfid"]` requests the `name` of each interface, its `device` relationship as a reference, and the `name` of the device:
+Name `hfid` in `only` to fetch the human-friendly ID that Infrahub stores for each node. `node.hfid`, `node.hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()` return that value, and the SDK adds the node to the store under it. Naming `hfid` does not fetch the attributes and relationships that make up the human-friendly ID: reading them raises `FieldNotLoadedError` unless you name them too.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
@@ -580,13 +578,15 @@ With the `human_friendly_id` of `TestInterface` in the schema above, `only=["hfi
   </TabItem>
 </Tabs>
 
-When a part of the human-friendly ID is an attribute of a peer, the SDK keeps that peer on the node, so `node.hfid` works with `populate_store=False`. When `populate_store` is on, the SDK also adds the peer to the store. `prefetch_relationships` does not request the default fields of a relationship that the query requests only for the human-friendly ID.
+If `only` does not name `hfid`, the SDK calculates `node.hfid` from the fields that the query fetched. `node.hfid` is then `None` when one of those fields was not fetched.
+
+For a generic kind, the query requests `hfid` when the generic or one of the kinds that implement it has a human-friendly ID. For a kind without a human-friendly ID, naming `hfid` changes nothing.
 
 #### Hierarchy fields named in `only`
 
 A kind that is part of a hierarchy has four more fields: `parent`, `children`, `ancestors` and `descendants`. They are different from relationships of kind `Parent`, such as `device` on `TestInterface`, which `only` handles like any other relationship.
 
-`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it, or when you name `hfid` and the human-friendly ID of the kind uses it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK also requests the default fields of the peers, without their own hierarchy fields, and builds peer nodes and adds them to the store for `parent` and `children` only. The peers of `parent` and `children` are of the peer kind that the schema of the kind declares for them, or of the hierarchy generic when the schema does not declare them. The peers of `ancestors` and `descendants` are of the hierarchy generic.
+`only` accepts the four hierarchy fields only on a kind that is part of a hierarchy, and the query requests a hierarchy field only when you name it. A named hierarchy field is returned as a reference. With `prefetch_relationships=True`, the SDK requests the same peer fields as a query with `prefetch_relationships=True` and no `only`: the default fields of the hierarchy generic, without its own hierarchy fields. It builds peer nodes and adds them to the store for `parent` and `children` only.
 
 #### Generic kinds queried with `only`
 
@@ -695,7 +695,7 @@ The `fetch` method can also be used on relationship that were previously initial
   </TabItem>
 </Tabs>
 
-On a relationship of cardinality one, `fetch(only=[...])` sends one query for the peer, keeps the peer on the relationship and adds it to the store. If the fetched fields are not enough to calculate the peer's human-friendly ID, `hfid` and `hfid_str` on the relationship return the human-friendly ID that Infrahub returned with the reference.
+On a relationship of cardinality one, `fetch(only=[...])` sends one query for the peer, keeps the peer on the relationship and adds it to the store. If the peer has no human-friendly ID, because `only` did not name `hfid` and the fetched fields are not enough to calculate it, `hfid` and `hfid_str` on the relationship return the human-friendly ID that Infrahub returned with the reference.
 
 On a relationship of cardinality many, `fetch(only=[...])` works in this order:
 

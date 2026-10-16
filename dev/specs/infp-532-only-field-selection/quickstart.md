@@ -31,7 +31,7 @@ Expected:
 uv run pytest tests/integration/ -q -k only
 ```
 
-Expected: the tests on the animal schema (`infrahub_sdk/testing/schemas/animal.py`) pass on both clients, against a real Infrahub server. They cover a generic kind, an HFID through a relationship and an implementing kind with its own HFID.
+Expected: the tests on the animal schema (`infrahub_sdk/testing/schemas/animal.py`) pass on both clients, against a real Infrahub server. They cover a generic kind, and `only=["hfid"]` on an implementing kind with its own HFID, whose value comes from the server.
 
 ## 3. Manual check against a running Infrahub
 
