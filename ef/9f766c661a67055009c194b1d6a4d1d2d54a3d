@@ -1,0 +1,39 @@
+infrahub_sdk/client.py
+  s_ff2fe7610915b8::t_eafae55729b664 811-812,948,1300-1301,1429-1430,3169-3170,3280,3406-3407,3720-3721
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_e20bcbe6581f20 9,22,49-51,56-57,72-73,79,87,155-159,168-178,181-183,190-192,195-199,201-203,210-222
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_16fad210b2d1fe 109-110,210,263-264,271-273,796,806-807,813-816,821-822,825-826,1681-1682,1693,1728,1732,1741,1744-1745,1751,1768,1773-1774,3031-3032,3043,3078,3082,3091,3094-3095,3101,3118,3123
+infrahub_sdk/node/related_node.py
+  s_ff2fe7610915b8::t_ccbba1965bb470 154-156,178-180
+tests/helpers/only_data.py
+  s_ff2fe7610915b8::t_808eac4dc57817 140-144,147,151,170,174-175
+tests/integration/test_node_only.py
+  s_ff2fe7610915b8::t_24a6afd6eb9203 79,84-89,186,191-196
+tests/unit/sdk/test_client_only.py
+  s_ff2fe7610915b8::t_397b4568adfa5d 21,261-291,371,466-520,526-528,533-535,558,561-567,570-584,588-590,592,594-601,603,614-615,623-634
+tests/unit/sdk/test_node_only_access.py
+  s_ff2fe7610915b8::t_aa66ef7c8f397c 520,876,878-879,886,952,963-969,979-980,982-983,1001-1002,1008-1009,1012,1016-1017,1029-1037,1229,1428
+tests/unit/sdk/test_node_only_helpers.py
+  s_ff2fe7610915b8::t_44eab0cfdd40c0 16,89-96,101,110,401,403,405-406,409-414,416-421,423-428,433-446
+tests/unit/sdk/test_node_only_query.py
+  s_ff2fe7610915b8::t_4ad70e8a04be1d 181,183-185,395,398,401,404,407,410,413,417,420,424,470,473,476,478,481-482,486,490,503,505,507,572-573,578-580,587-589,591,596-600,603-610,614-616,618,622-624,687,691,695,699,703,714,720
+tests/unit/sdk/test_relationship_only.py
+  s_ff2fe7610915b8::t_8c48c0cada5005 187-200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef9f766c661a67055009c194b1d6a4d1d2d54a3d",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
