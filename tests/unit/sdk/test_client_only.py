@@ -14,6 +14,7 @@ from infrahub_sdk.exceptions import (
     NodeNotFoundError,
 )
 from infrahub_sdk.node._only import OnlyMarker  # noqa: PLC2701  # the helpers under test are private to the package
+from infrahub_sdk.node.attribute import Attribute
 from tests.helpers.only_data import (
     CAT_ID,
     DEVICE_ID,
@@ -38,8 +39,11 @@ from tests.helpers.only_data import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pytest_httpx import HTTPXMock
 
+    from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
     from tests.unit.sdk.conftest import BothClients
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
@@ -514,6 +518,84 @@ async def test_hfid_from_only_is_the_value_the_server_returned(
         device.get_human_friendly_id(),
         device.get_human_friendly_id_as_string(),
     ] == case.expected
+
+
+@dataclass
+class ChangedHfidFieldCase:
+    name: str
+    only: list[str]
+    prefetch_relationships: bool
+    edge: dict[str, Any]
+    change: Callable[[InfrahubNode | InfrahubNodeSync], None]
+    expected_hfid: list[str] | None
+
+
+def rename_device(device: InfrahubNode | InfrahubNodeSync) -> None:
+    name = device.name
+    assert isinstance(name, Attribute)
+    name.value = "dev2"
+
+
+def replace_site(device: InfrahubNode | InfrahubNodeSync) -> None:
+    device.site = "another-site-id"
+
+
+CHANGED_HFID_FIELD_CASES = [
+    ChangedHfidFieldCase(
+        name="name-changed-and-site-not-fetched",
+        only=["name", "hfid"],
+        prefetch_relationships=False,
+        edge=node_data(DEVICE_ID, "InfraDevice", hfid=["dev1", "Paris"], name={"value": "dev1"}),
+        change=rename_device,
+        expected_hfid=None,
+    ),
+    ChangedHfidFieldCase(
+        name="name-changed-and-site-prefetched",
+        only=["name", "site", "hfid"],
+        prefetch_relationships=True,
+        edge=node_data(
+            DEVICE_ID,
+            "InfraDevice",
+            hfid=["dev1", "Paris"],
+            name={"value": "dev1"},
+            site=peer(SITE_ID, "InfraSite", name={"value": "Paris"}),
+        ),
+        change=rename_device,
+        expected_hfid=["dev2", "Paris"],
+    ),
+    ChangedHfidFieldCase(
+        name="site-replaced",
+        only=["name", "site", "hfid"],
+        prefetch_relationships=False,
+        edge=node_data(
+            DEVICE_ID, "InfraDevice", hfid=["dev1", "Paris"], name={"value": "dev1"}, site=peer(SITE_ID, "InfraSite")
+        ),
+        change=replace_site,
+        expected_hfid=None,
+    ),
+]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("case", [pytest.param(case, id=case.name) for case in CHANGED_HFID_FIELD_CASES])
+async def test_hfid_from_only_stops_using_the_server_value_when_an_hfid_field_changes(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, case: ChangedHfidFieldCase
+) -> None:
+    add_page(httpx_mock, "InfraDevice", [case.edge])
+    nodes = await query_nodes(
+        only_clients,
+        client_type,
+        "all",
+        kind="InfraDevice",
+        only=case.only,
+        prefetch_relationships=case.prefetch_relationships,
+    )
+    device = nodes[0]
+    assert device.hfid == ["dev1", "Paris"]
+
+    case.change(device)
+
+    assert [device.hfid, device.get_human_friendly_id()] == [case.expected_hfid, case.expected_hfid]
 
 
 @dataclass

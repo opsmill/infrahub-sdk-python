@@ -261,14 +261,15 @@ class InfrahubNodeBase:
         The HFID is composed of the values addressed by the schema's
         ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
         considered invalid and ``None`` is returned. A node from a query that named ``hfid`` in
-        ``only`` returns the HFID the server stores instead, or ``None`` when that value is empty.
+        ``only`` returns the HFID the server stores instead, or ``None`` when that value is empty,
+        until a field the HFID is built from is changed on the node.
 
         Returns:
             list[str] | None: The HFID as a list of stringified components, or ``None``
             when the schema does not define an HFID or a component is missing.
 
         """
-        if self._server_hfid is not None:
+        if self._server_hfid is not None and not self._hfid_field_changed():
             return [str(part) for part in self._server_hfid] or None
 
         if not hasattr(self._schema, "human_friendly_id"):
@@ -282,6 +283,16 @@ class InfrahubNodeBase:
         if None in hfid_components:
             return None
         return [str(hfid) for hfid in hfid_components]
+
+    def _hfid_field_changed(self) -> bool:
+        # The stored HFID no longer matches the node once a field it is built from changes locally.
+        for path in getattr(self._schema, "human_friendly_id", None) or []:
+            field = getattr(self, path.split("__")[0], None)
+            if isinstance(field, Attribute) and field.value_has_been_mutated:
+                return True
+            if isinstance(field, RelatedNodeBase) and field._peer_has_been_mutated:
+                return True
+        return False
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None:
         """Return the human-friendly ID joined into a single string.

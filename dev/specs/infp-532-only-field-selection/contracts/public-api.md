@@ -96,7 +96,7 @@ Operations that never raise on a node from `only`:
 - `save()` (create and update);
 - `create(allow_upsert=True)`;
 - `update()`;
-- `hfid`, `hfid_str`, `get_human_friendly_id()`, `get_human_friendly_id_as_string()`. When `only` named `hfid`, they return the server's value, or `None` when it is empty or null; otherwise they are calculated from the fetched fields;
+- `hfid`, `hfid_str`, `get_human_friendly_id()`, `get_human_friendly_id_as_string()`. When `only` named `hfid`, they return the server's value, or `None` when it is empty or null, until a field the HFID is built from is changed on the node; otherwise they are calculated from the fetched fields;
 - putting the node in the store;
 - `__repr__` and `__str__`.
 

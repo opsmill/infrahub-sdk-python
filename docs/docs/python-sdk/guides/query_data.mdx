@@ -555,7 +555,7 @@ With `prefetch_relationships=True`, the SDK also requests the default fields of 
 
 #### Human-friendly IDs of nodes from a query with `only`
 
-Name `hfid` in `only` to fetch the human-friendly ID that Infrahub stores for each node. `node.hfid`, `node.hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()` return that value, and the SDK adds the node to the store under it. Naming `hfid` does not fetch the attributes and relationships that make up the human-friendly ID: reading them raises `FieldNotLoadedError` unless you name them too.
+Name `hfid` in `only` to fetch the human-friendly ID that Infrahub stores for each node. `node.hfid`, `node.hfid_str`, `get_human_friendly_id()` and `get_human_friendly_id_as_string()` return that value, and the SDK adds the node to the store under it. If you change a field that the human-friendly ID is built from, the SDK stops using the stored value and calculates the human-friendly ID from the node's fields, which gives `None` when one of its parts was not fetched. Naming `hfid` does not fetch the attributes and relationships that make up the human-friendly ID: reading them raises `FieldNotLoadedError` unless you name them too.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>
