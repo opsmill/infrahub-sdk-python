@@ -473,6 +473,37 @@ async def test_hierarchy_manager_fetch_loads_peers_of_node_from_only(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+@pytest.mark.parametrize("relationship", ["ancestors", "descendants"])
+async def test_hierarchy_manager_fetch_reloads_the_relationship_of_a_default_node(
+    only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str, relationship: str
+) -> None:
+    edge = only_data.node_data(only_data.REGION_ID, REGION, name={"value": "Europe"})
+    [region] = await query_all(only_clients, client_type, httpx_mock, kind=REGION, edge=edge, only=None)
+    only_data.add_page(
+        httpx_mock,
+        REGION,
+        [
+            only_data.node_data(
+                only_data.REGION_ID, REGION, **{relationship: only_data.peers(only_data.peer(REGION_PEER_ID, REGION))}
+            )
+        ],
+    )
+    only_data.add_page(httpx_mock, REGION, [only_data.node_data(REGION_PEER_ID, REGION, name={"value": "World"})])
+    add_counts(httpx_mock, {REGION: 1})
+    manager = getattr(region, relationship)
+
+    await resolve(manager.fetch())
+
+    assert body_of(httpx_mock, "Get_LocationRegion") == default_body(
+        REGION,
+        "Get_LocationRegion",
+        {relationship: {"edges": {"node": {"...on LocationGeneric": NODE_FIELDS}}}},
+        filters={"ids": [only_data.REGION_ID]},
+    )
+    assert [manager.is_loaded, manager.peer_ids] == [True, [REGION_PEER_ID]]
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_peers_from_manager_fetch_with_only_carry_the_marker(
     only_clients: BothClients, httpx_mock: HTTPXMock, client_type: str
 ) -> None:

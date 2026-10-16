@@ -192,8 +192,12 @@ class RelationshipManagerBase(Generic[PeerT]):
         if node._only_marker is not None:
             # Keep the node from `only` in the store instead of replacing it with this narrower copy.
             return {"only": [self.schema.name], "populate_store": False}
-        exclude = node._schema.relationship_names + node._schema.attribute_names
-        exclude.remove(self.schema.name)
+        # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
+        exclude = [
+            name
+            for name in node._schema.relationship_names + node._schema.attribute_names
+            if name != self.schema.name
+        ]
         return {"include": [self.schema.name], "exclude": exclude}
 
     def _generate_mutation_query(self) -> dict[str, Any]:
