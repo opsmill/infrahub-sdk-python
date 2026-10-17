@@ -595,6 +595,23 @@ HFID_REFERENCE_INFO_CASES = [
         reason="Kind TestingUnicorn is not a valid peer for relationship favorite_animal, expected TestingAnimal",
     ),
     HfidReferenceInfoCase(
+        name="one_kind_is_the_peer_itself",
+        relationship="favorite_animal",
+        value={"kind": "TestingAnimal", "hfid": ["Jane Smith", "Max"]},
+        is_valid=True,
+        format=RelationshipDataFormat.ONE_REF,
+        peer_kind="TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_not_a_string",
+        relationship="favorite_animal",
+        value={"kind": ["TestingDog"], "hfid": ["Jane Smith", "Max"]},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="'kind' must be a string",
+    ),
+    HfidReferenceInfoCase(
         name="one_unexpected_key",
         relationship="favorite_animal",
         value={"kind": "TestingDog", "hfid": ["Jane Smith", "Max"], "name": "Max"},
