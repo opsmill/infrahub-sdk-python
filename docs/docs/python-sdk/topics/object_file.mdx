@@ -97,6 +97,50 @@ spec:
             address: "192.168.1.1"
 ```
 
+#### Existing node referenced by its HFID and its kind
+
+When the peer of a relationship is a generic, the HFID is often defined on the nodes that implement the generic and not on the generic itself. In that case a plain HFID reference fails, because the server looks the HFID up on the generic.
+To reference the node, provide a mapping with `hfid` and `kind`. The server then looks the HFID up on that node kind.
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: InfraSubInterface
+  data:
+    - name: Gi0/0/3.10
+      device: router1
+      parent_interface:         # The peer of this relationship is a generic without an HFID
+        kind: InfraPhysicalInterface
+        hfid: [router1, Gi0/0/3]
+      vlan_id: 10
+```
+
+The mapping accepts only `hfid` and `kind`:
+
+- `hfid` is a list of values, or a string for an HFID with a single component. A string under `hfid` is always treated as an HFID and never as an ID.
+- `kind` is optional. It must be the peer of the relationship or, when the peer is a generic, a node kind that implements that generic.
+
+> A mapping with a `data` key creates or updates the peer; a mapping with an `hfid` key references an existing one.
+
+The same mapping can be used as an item in the list of a relationship of cardinality many, next to string and list references:
+
+```yaml
+best_friends:
+  - kind: TestingDog
+    hfid: [Mike Johnson, Luna]
+  - [Bill Smith, Bella]
+```
+
+:::note
+
+Infrahub resolves the `kind` next to `hfid` on the server side, starting with Infrahub 1.1.0. On an earlier version, a mutation that includes `kind` fails with a GraphQL error about an unknown input field.
+
+A bare string or list in the same list is still handled according to the relationship peer. When the peer is a generic without an HFID, a bare string is sent as an ID, so use the mapping form to reference a node by HFID in that case.
+
+:::
+
 ### Relationship of cardinality many
 
 A relationship of cardinality many can reference existing nodes via their HFID or define nested objects.

@@ -1,0 +1,15 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPerson
+  data:
+    - name: Olivia Brown
+      height: 170
+      favorite_animal: # Existing node referenced by its HFID and its kind, the relationship peer is a generic
+        kind: TestingCat
+        hfid: [Emily Parker, Whiskers, "#FFD700"]
+      best_friends:
+        - kind: TestingDog
+          hfid: [Mike Johnson, Luna]
+        - [Bill Smith, Bella]
