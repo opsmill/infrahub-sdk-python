@@ -137,6 +137,26 @@ class TestSpecObject(TestInfrahubDockerClient, SchemaAnimal):
         animals_emily = [animal.display_label for animal in person_by_name["Emily Parker"].animals.peers]
         assert sorted(animals_emily) == sorted(["Max Golden Retriever", "Whiskers Siamese #FFD700"])
 
+    async def test_load_persons03_hfid_reference_with_kind(
+        self, client: InfrahubClient, branch_name: str, initial_schema: None
+    ) -> None:
+        """Reference peers of a generic relationship by HFID and kind, including a kind with its own HFID."""
+        obj_file = load_object_file("animal_person03.yml")
+        await obj_file.validate_format(client=client, branch=branch_name)
+
+        assert len(await client.all(kind=obj_file.spec.kind, branch=branch_name)) == 6
+
+        await obj_file.process(client=client, branch=branch_name)
+
+        olivia = await client.get(kind=obj_file.spec.kind, name__value="Olivia Brown", branch=branch_name)
+        await olivia.favorite_animal.fetch()
+        assert olivia.favorite_animal.peer.get_kind() == "TestingCat"
+        assert olivia.favorite_animal.peer.hfid == ["Emily Parker", "Whiskers", "#FFD700"]
+
+        await olivia.best_friends.fetch()
+        friends = sorted(peer.hfid for peer in olivia.best_friends.peers)
+        assert friends == [["Bill Smith", "Bella"], ["Mike Johnson", "Luna"]]
+
     async def test_load_menu(self, client: InfrahubClient, branch_name: str, initial_schema: None) -> None:
         menu_file = load_menu_file("animal_menu01.yml")
         await menu_file.validate_format(client=client, branch=branch_name)

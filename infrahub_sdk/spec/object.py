@@ -23,8 +23,33 @@ def validate_list_of_scalars(value: list[Any]) -> bool:
     return all(isinstance(item, (str, int, float, bool)) for item in value)
 
 
+HFID_REFERENCE_KEYS = frozenset({"hfid", "kind"})
+
+
+def is_hfid_reference(value: Any) -> bool:
+    """Indicate if a value is a mapping that references an existing peer by its HFID.
+
+    The mapping has an ``hfid`` key and an optional ``kind`` key. It has no ``data`` key,
+    which distinguishes it from a nested object that creates or updates the peer.
+    """
+    return isinstance(value, dict) and "hfid" in value and "data" not in value
+
+
+def validate_hfid_reference(value: dict[str, Any]) -> str | None:
+    """Return the reason an HFID reference mapping is not valid, or None when it is valid."""
+    unexpected_keys = sorted(set(value) - HFID_REFERENCE_KEYS)
+    if unexpected_keys:
+        return f"HFID reference only accepts 'hfid' and 'kind', found {unexpected_keys}"
+    hfid = value["hfid"]
+    if not isinstance(hfid, str) and not (isinstance(hfid, list) and validate_list_of_scalars(hfid)):
+        return "'hfid' must be a string or a list of values"
+    if "kind" in value and not isinstance(value["kind"], str):
+        return "'kind' must be a string"
+    return None
+
+
 def validate_list_of_hfids(value: list[Any]) -> bool:
-    return all(isinstance(item, (str, list)) for item in value)
+    return all(isinstance(item, (str, list)) or is_hfid_reference(item) for item in value)
 
 
 def validate_list_of_data_dicts(value: list[Any]) -> bool:
@@ -64,6 +89,35 @@ def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[
     Each string that is not a valid UUID will be wrapped in a list to treat it as a single-component HFID.
     """
     return [normalize_hfid_reference(v) for v in values]
+
+
+def normalize_hfid_reference_mapping(value: dict[str, Any]) -> dict[str, Any]:
+    """Convert an HFID reference mapping into the input the client sends for a related node.
+
+    The ``hfid`` key marks the value as an HFID, so a string is always wrapped in a list
+    (single-component HFID) and is never treated as an ID. ``kind`` is kept when present
+    so the server looks the HFID up on that node kind rather than on the relationship peer,
+    which matters when the peer is a generic without an HFID.
+    """
+    hfid = value["hfid"]
+    normalized: dict[str, Any] = {"hfid": [hfid] if isinstance(hfid, str) else hfid}
+    if "kind" in value:
+        normalized["kind"] = value["kind"]
+    return normalized
+
+
+def normalize_reference(value: Any, peer_has_hfid: bool) -> Any:
+    """Normalize one reference item (string, list or HFID reference mapping).
+
+    Args:
+        value: The reference as written in the object file.
+        peer_has_hfid: Whether the relationship peer schema defines a human_friendly_id.
+            Strings are only converted to single-component HFIDs when it does.
+
+    """
+    if is_hfid_reference(value):
+        return normalize_hfid_reference_mapping(value)
+    return normalize_hfid_reference(value) if peer_has_hfid else value
 
 
 class RelationshipDataFormat(str, Enum):
@@ -141,6 +195,65 @@ class RelationshipInfo(BaseModel):
         return self.peer_rel
 
 
+async def validate_reference_kind(
+    client: InfrahubClient, rel_schema: RelationshipSchemaAPI, kind: str, branch: str | None = None
+) -> str | None:
+    """Return the reason a kind cannot be the peer of an HFID reference, or None when it can.
+
+    The kind must be the relationship peer itself or, when the peer is a generic,
+    one of the node kinds that implement it.
+    """
+    if kind == rel_schema.peer:
+        return None
+    peer_schema = await client.schema.get(kind=rel_schema.peer, branch=branch)
+    if isinstance(peer_schema, GenericSchemaAPI) and kind in peer_schema.used_by:
+        return None
+    return f"Kind {kind} is not a valid peer for relationship {rel_schema.name}, expected {rel_schema.peer}"
+
+
+async def validate_hfid_references(
+    client: InfrahubClient, rel_schema: RelationshipSchemaAPI, values: list[Any], branch: str | None = None
+) -> str | None:
+    """Return the reason the first invalid HFID reference mapping in values is not valid, or None."""
+    for value in values:
+        if not is_hfid_reference(value):
+            continue
+        reason = validate_hfid_reference(value)
+        if reason is None and "kind" in value:
+            reason = await validate_reference_kind(
+                client=client, rel_schema=rel_schema, kind=value["kind"], branch=branch
+            )
+        if reason:
+            return reason
+    return None
+
+
+async def validate_relationship_value(
+    client: InfrahubClient, rel_schema: RelationshipSchemaAPI, value: Any, branch: str | None = None
+) -> str | None:
+    """Return the reason a relationship value has an invalid mapping structure, or None.
+
+    This runs before the peer schema is resolved. It checks the HFID reference mappings
+    (standalone or inside a list) and rejects a mapping that is neither a reference
+    nor a nested object.
+    """
+    if is_hfid_reference(value):
+        reason = await validate_hfid_references(client=client, rel_schema=rel_schema, values=[value], branch=branch)
+        if reason:
+            return reason
+        if rel_schema.cardinality == RelationshipCardinality.MANY:
+            return f"Relationship {rel_schema.name} has a cardinality of many, provide the HFID references as a list"
+        return None
+
+    if isinstance(value, dict) and "data" not in value:
+        return f"Relationship {rel_schema.name} must be a dict with 'data' or 'hfid'"
+
+    if isinstance(value, list):
+        return await validate_hfid_references(client=client, rel_schema=rel_schema, values=value, branch=branch)
+
+    return None
+
+
 async def get_relationship_info(
     client: InfrahubClient, schema: MainSchemaTypesAPI, name: str, value: Any, branch: str | None = None
 ) -> RelationshipInfo:
@@ -149,8 +262,10 @@ async def get_relationship_info(
 
     info = RelationshipInfo(name=name, peer_kind=rel_schema.peer, rel_schema=rel_schema)
 
-    if isinstance(value, dict) and "data" not in value:
-        info.reason_relationship_not_valid = f"Relationship {name} must be a dict with 'data'"
+    info.reason_relationship_not_valid = await validate_relationship_value(
+        client=client, rel_schema=rel_schema, value=value, branch=branch
+    )
+    if info.reason_relationship_not_valid:
         return info
 
     if isinstance(value, dict) and "kind" in value:
@@ -171,7 +286,7 @@ async def get_relationship_info(
         else:
             info.reason_relationship_not_valid = "Too many objects provided for a relationship of cardinality one"
 
-    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, str):
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and (isinstance(value, str) or is_hfid_reference(value)):
         info.format = RelationshipDataFormat.ONE_REF
 
     elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, dict) and "data" in value:
@@ -335,7 +450,7 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
-        if isinstance(data, (list, str)) and rel_info.format == RelationshipDataFormat.ONE_REF:
+        if isinstance(data, (list, str, dict)) and rel_info.format == RelationshipDataFormat.ONE_REF:
             return errors
 
         if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF:
@@ -485,11 +600,11 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is bidirectional and is not mandatory on the other side, then we need should create the related object First
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
-                    # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
-                    clean_data[key] = normalize_hfid_references(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = [
+                        normalize_reference(value=item, peer_has_hfid=rel_info.peer_has_hfid) for item in value
+                    ]
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
-                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = normalize_reference(value=value, peer_has_hfid=rel_info.peer_has_hfid)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:

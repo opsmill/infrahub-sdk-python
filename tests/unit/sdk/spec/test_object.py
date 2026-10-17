@@ -8,12 +8,14 @@ import pytest
 
 from infrahub_sdk.exceptions import ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
+from infrahub_sdk.schema import GenericSchema, NodeSchema, SchemaRootAPI
 from infrahub_sdk.spec.object import (
     InfrahubObjectFileData,
     ObjectFile,
     RelationshipDataFormat,
     get_relationship_info,
     normalize_hfid_reference,
+    normalize_hfid_reference_mapping,
 )
 
 if TYPE_CHECKING:
@@ -486,3 +488,283 @@ async def test_validate_object_skips_mandatory_check_with_object_profile(
 
     mandatory_errors = [e for e in errors if e.message == "type is mandatory"]
     assert mandatory_errors == []
+
+
+@pytest.fixture
+async def client_with_generic_peer_schema(client: InfrahubClient) -> InfrahubClient:
+    """Schema where a relationship points at a generic that has no HFID, while its nodes do."""
+    owner_rel = {"name": "owner", "peer": "TestingPerson", "cardinality": "one", "identifier": "person__animal"}
+    animal_data: dict[str, Any] = {
+        "name": "Animal",
+        "namespace": "Testing",
+        "attributes": [{"name": "name", "kind": "Text"}],
+        "relationships": [owner_rel],
+    }
+    animal = GenericSchema(**animal_data).convert_api()
+    animal.used_by = ["TestingDog", "TestingCat"]
+
+    def animal_node(name: str) -> NodeSchema:
+        data: dict[str, Any] = {
+            "name": name,
+            "namespace": "Testing",
+            "inherit_from": ["TestingAnimal"],
+            "human_friendly_id": ["owner__name__value", "name__value"],
+            "attributes": [{"name": "name", "kind": "Text"}],
+            "relationships": [owner_rel],
+        }
+        return NodeSchema(**data)
+
+    person_data: dict[str, Any] = {
+        "name": "Person",
+        "namespace": "Testing",
+        "human_friendly_id": ["name__value"],
+        "attributes": [{"name": "name", "kind": "Text"}],
+        "relationships": [
+            {
+                "name": "favorite_animal",
+                "peer": "TestingAnimal",
+                "cardinality": "one",
+                "optional": True,
+                "identifier": "favorite_animal",
+            },
+            {
+                "name": "animals",
+                "peer": "TestingAnimal",
+                "cardinality": "many",
+                "optional": True,
+                "identifier": "person__animal",
+            },
+        ],
+    }
+    person = NodeSchema(**person_data)
+
+    schema = SchemaRootAPI(
+        generics=[animal],
+        nodes=[animal_node("Dog").convert_api(), animal_node("Cat").convert_api(), person.convert_api()],
+    )
+    client.schema.set_cache(schema=schema, branch="main")
+    return client
+
+
+@dataclass
+class HfidReferenceInfoCase:
+    """Test case for relationship info of an HFID reference mapping."""
+
+    name: str
+    relationship: str
+    value: Any
+    is_valid: bool
+    format: RelationshipDataFormat
+    peer_kind: str
+    reason: str | None = None
+
+
+HFID_REFERENCE_INFO_CASES = [
+    HfidReferenceInfoCase(
+        name="one_with_kind",
+        relationship="favorite_animal",
+        value={"kind": "TestingDog", "hfid": ["Jane Smith", "Max"]},
+        is_valid=True,
+        format=RelationshipDataFormat.ONE_REF,
+        peer_kind="TestingDog",
+    ),
+    HfidReferenceInfoCase(
+        name="one_without_kind",
+        relationship="favorite_animal",
+        value={"hfid": ["Jane Smith", "Max"]},
+        is_valid=True,
+        format=RelationshipDataFormat.ONE_REF,
+        peer_kind="TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_not_implementing_generic",
+        relationship="favorite_animal",
+        value={"kind": "TestingPerson", "hfid": ["Jane Smith"]},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="Kind TestingPerson is not a valid peer for relationship favorite_animal, expected TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_unknown",
+        relationship="favorite_animal",
+        value={"kind": "TestingUnicorn", "hfid": ["Jane Smith", "Max"]},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="Kind TestingUnicorn is not a valid peer for relationship favorite_animal, expected TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_is_the_peer_itself",
+        relationship="favorite_animal",
+        value={"kind": "TestingAnimal", "hfid": ["Jane Smith", "Max"]},
+        is_valid=True,
+        format=RelationshipDataFormat.ONE_REF,
+        peer_kind="TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_not_a_string",
+        relationship="favorite_animal",
+        value={"kind": ["TestingDog"], "hfid": ["Jane Smith", "Max"]},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="'kind' must be a string",
+    ),
+    HfidReferenceInfoCase(
+        name="one_unexpected_key",
+        relationship="favorite_animal",
+        value={"kind": "TestingDog", "hfid": ["Jane Smith", "Max"], "name": "Max"},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="HFID reference only accepts 'hfid' and 'kind', found ['name']",
+    ),
+    HfidReferenceInfoCase(
+        name="one_hfid_not_a_list",
+        relationship="favorite_animal",
+        value={"kind": "TestingDog", "hfid": {"name": "Max"}},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="'hfid' must be a string or a list of values",
+    ),
+    HfidReferenceInfoCase(
+        name="one_kind_without_hfid_or_data",
+        relationship="favorite_animal",
+        value={"kind": "TestingDog"},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="Relationship favorite_animal must be a dict with 'data' or 'hfid'",
+    ),
+    HfidReferenceInfoCase(
+        name="many_bare_mapping",
+        relationship="animals",
+        value={"kind": "TestingDog", "hfid": ["Jane Smith", "Max"]},
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="Relationship animals has a cardinality of many, provide the HFID references as a list",
+    ),
+    HfidReferenceInfoCase(
+        name="many_mixed_list",
+        relationship="animals",
+        value=[{"kind": "TestingDog", "hfid": ["Jane Smith", "Max"]}, {"kind": "TestingCat", "hfid": "Whiskers"}],
+        is_valid=True,
+        format=RelationshipDataFormat.MANY_REF,
+        peer_kind="TestingAnimal",
+    ),
+    HfidReferenceInfoCase(
+        name="many_list_with_invalid_mapping",
+        relationship="animals",
+        value=[["Jane Smith", "Max"], {"kind": "TestingPerson", "hfid": ["Jane Smith"]}],
+        is_valid=False,
+        format=RelationshipDataFormat.UNKNOWN,
+        peer_kind="TestingAnimal",
+        reason="Kind TestingPerson is not a valid peer for relationship animals, expected TestingAnimal",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in HFID_REFERENCE_INFO_CASES])
+async def test_get_relationship_info_hfid_reference(
+    client_with_generic_peer_schema: InfrahubClient, case: HfidReferenceInfoCase
+) -> None:
+    person_schema = await client_with_generic_peer_schema.schema.get(kind="TestingPerson")
+
+    rel_info = await get_relationship_info(
+        client_with_generic_peer_schema, person_schema, case.relationship, case.value
+    )
+
+    assert rel_info.is_valid == case.is_valid
+    assert rel_info.format == case.format
+    assert rel_info.peer_kind == case.peer_kind
+    assert rel_info.reason_relationship_not_valid == case.reason
+
+
+async def test_validate_format_reports_invalid_hfid_reference(client_with_generic_peer_schema: InfrahubClient) -> None:
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {
+            "kind": "TestingPerson",
+            "data": [{"name": "Olivia", "favorite_animal": {"kind": "TestingPerson", "hfid": ["Jane Smith"]}}],
+        },
+    }
+    obj = ObjectFile(location="some/path", content=content)
+
+    with pytest.raises(
+        ValidationError, match="Kind TestingPerson is not a valid peer for relationship favorite_animal"
+    ):
+        await obj.validate_format(client=client_with_generic_peer_schema)
+
+
+async def test_hfid_reference_in_object_loading(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reference mapping is sent as hfid plus kind, and a string hfid is wrapped as a single-component HFID."""
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {
+            "kind": "TestingPerson",
+            "data": [
+                {
+                    "name": "Olivia",
+                    "favorite_animal": {"kind": "TestingDog", "hfid": ["Jane Smith", "Max"]},
+                    "animals": [
+                        {"kind": "TestingCat", "hfid": "Whiskers"},
+                        {"hfid": ["Jane Smith", "Max"]},
+                        "550e8400-e29b-41d4-a716-446655440000",
+                    ],
+                }
+            ],
+        },
+    }
+    obj = ObjectFile(location="some/path", content=content)
+    await obj.validate_format(client=client_with_generic_peer_schema)
+
+    create_calls: list[dict[str, Any]] = []
+    original_create = client_with_generic_peer_schema.create
+
+    async def capture_create(kind: str, branch: str | None = None, data: dict | None = None, **kwargs: Any) -> Any:  # noqa: ANN401
+        create_calls.append({"kind": kind, "data": data})
+        return await original_create(kind=kind, branch=branch, data=data, **kwargs)
+
+    async def skip_save(self: InfrahubNode, **kwargs: Any) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(client_with_generic_peer_schema, "create", capture_create)
+    monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
+
+    await obj.process(client=client_with_generic_peer_schema)
+
+    assert len(create_calls) == 1
+    assert create_calls[0]["data"]["favorite_animal"] == {"hfid": ["Jane Smith", "Max"], "kind": "TestingDog"}
+    assert create_calls[0]["data"]["animals"] == [
+        {"hfid": ["Whiskers"], "kind": "TestingCat"},
+        {"hfid": ["Jane Smith", "Max"]},
+        "550e8400-e29b-41d4-a716-446655440000",
+    ]
+
+
+def test_normalize_hfid_reference_mapping() -> None:
+    assert normalize_hfid_reference_mapping({"hfid": "Max", "kind": "TestingDog"}) == {
+        "hfid": ["Max"],
+        "kind": "TestingDog",
+    }
+    assert normalize_hfid_reference_mapping({"hfid": ["Jane Smith", "Max"]}) == {"hfid": ["Jane Smith", "Max"]}
+
+
+def test_related_node_graphql_payload_with_kind() -> None:
+    """A related node built from hfid and kind sends both in the mutation input."""
+    related_node = RelatedNode(
+        schema=MagicMock(),
+        name="favorite_animal",
+        branch="main",
+        client=MagicMock(),
+        data={"hfid": ["Jane Smith", "Max"], "kind": "TestingDog"},
+    )
+
+    assert related_node._generate_input_data() == {"hfid": ["Jane Smith", "Max"], "kind": "TestingDog"}
