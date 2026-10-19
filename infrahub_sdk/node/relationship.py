@@ -16,7 +16,7 @@ from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
     from ..schema import RelationshipSchemaAPI
-    from .node import InfrahubNode, InfrahubNodeSync
+    from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
 
 class RelationshipManagerBase(Generic[PeerT]):
@@ -115,6 +115,15 @@ class RelationshipManagerBase(Generic[PeerT]):
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
+
+    def _reload_kwargs(self, node: InfrahubNodeBase) -> dict[str, Any]:
+        """The arguments of the `get` that reloads `node` with this relationship only."""
+        # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
+        exclude = [
+            name for name in node._schema.relationship_names + node._schema.attribute_names if name != self.schema.name
+        ]
+        # Keep `node` in the store instead of replacing it with this copy that has no attribute values.
+        return {"include": [self.schema.name], "exclude": exclude, "populate_store": False}
 
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
@@ -238,22 +247,18 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
         fetched in a parallel batch grouped by kind and stored in the client store.
 
         Raises:
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
         if not self.initialized:
-            # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
-            exclude = [
-                name
-                for name in self.node._schema.relationship_names + self.node._schema.attribute_names
-                if name != self.schema.name
-            ]
+            if not self.node.id:
+                raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+                **self._reload_kwargs(node=self.node),
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
@@ -439,22 +444,18 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
         fetched in a parallel batch grouped by kind and stored in the client store.
 
         Raises:
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
         if not self.initialized:
-            # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
-            exclude = [
-                name
-                for name in self.node._schema.relationship_names + self.node._schema.attribute_names
-                if name != self.schema.name
-            ]
+            if not self.node.id:
+                raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                include=[self.schema.name],
-                exclude=exclude,
+                **self._reload_kwargs(node=self.node),
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
