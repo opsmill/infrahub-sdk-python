@@ -17,6 +17,7 @@ from .property import NodeProperty
 
 if TYPE_CHECKING:
     from ..schema import AttributeSchemaAPI
+    from .node import InfrahubNodeBase
 
 
 class _GraphQLPayloadAttribute(NamedTuple):
@@ -60,6 +61,8 @@ class Attribute:
         id (str | None): The unique identifier of the attribute, when known.
         value (Any): The current attribute value. Setting this marks the attribute as mutated.
         value_has_been_mutated (bool): True when ``value`` has been assigned after construction.
+        is_loaded (bool): True when the node's data contained the attribute, a value was assigned since,
+            the attribute does not belong to a node, or the node has no ``id`` yet.
         is_default (bool | None): True when the value comes from the schema default.
         is_from_profile (bool | None): True when the value is inherited from a profile.
         is_inherited (bool | None): True when the attribute is inherited from a generic.
@@ -88,6 +91,8 @@ class Attribute:
         self.name = name
         self._schema = schema
         self._from_pool: dict[str, Any] | None = None
+        self._node: InfrahubNodeBase | None = None
+        self._has_data = False
 
         if isinstance(data, dict) and "from_pool" in data:
             self._from_pool = data.pop("from_pool")
@@ -103,7 +108,7 @@ class Attribute:
 
         self.id: str | None = data.get("id")
 
-        self._value: Any | None = data.get("value")
+        self._value: Any = data.get("value")
         self.value_has_been_mutated = False
         self.is_default: bool | None = data.get("is_default")
         self.is_from_profile: bool | None = data.get("is_from_profile")
@@ -136,45 +141,75 @@ class Attribute:
 
     @property
     def value(self) -> Any:
+        """Return the attribute value.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the attribute was not fetched.
+
+        """
+        self._raise_if_not_loaded()
         return self._value
 
     @value.setter
     def value(self, value: Any) -> None:
         self._value = value
         self.value_has_been_mutated = True
+        self._has_data = True
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether this attribute holds a value from its node's data or from an assignment.
+
+        Never raises and sends no request.
+
+        Returns:
+            bool: ``True`` when the data the node was built from contained the attribute, when a value
+            was assigned since, when the attribute does not belong to a node, or when its node has no
+            ``id`` yet. ``False`` otherwise.
+
+        """
+        return self._has_data or self._node is None or not self._node.id
+
+    def _bind(self, node: InfrahubNodeBase, present: bool) -> None:
+        self._node = node
+        self._has_data = present
+
+    def _raise_if_not_loaded(self) -> None:
+        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
+            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.name)
 
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
         """Resolve the attribute value into a GraphQL mutation payload object."""
         # Pool-based allocation (dict data or resource-pool node)
         if self._from_pool is not None:
             return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
-        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
+        if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return _GraphQLPayloadAttribute(
-                payload={"from_pool": {"id": self.value.id}}, variables={}, needs_metadata=True
+                payload={"from_pool": {"id": self._value.id}}, variables={}, needs_metadata=True
             )
 
         # Null value
-        if self.value is None:
+        if self._value is None:
             data = {"value": None} if (self._schema.optional and self.value_has_been_mutated) else {}
             return _GraphQLPayloadAttribute(payload=data, variables={}, needs_metadata=False)
 
         # Unsafe strings need a variable binding to avoid injection
-        if isinstance(self.value, str) and not SAFE_VALUE.match(self.value):
+        if isinstance(self._value, str) and not SAFE_VALUE.match(self._value):
             var_name = f"value_{UUIDT.new().hex}"
             return _GraphQLPayloadAttribute(
                 payload={"value": f"${var_name}"},
-                variables={var_name: self.value},
+                variables={var_name: self._value},
                 needs_metadata=True,
             )
 
         # Safe strings, IP types, and everything else
-        if isinstance(self.value, get_args(IP_TYPES)):
-            value = self.value.with_prefixlen
-        elif isinstance(self.value, get_args(IP_ADDRESS_TYPES)):
+        if isinstance(self._value, get_args(IP_TYPES)):
+            value = self._value.with_prefixlen
+        elif isinstance(self._value, get_args(IP_ADDRESS_TYPES)):
             # bare addresses have no prefix; serialize their canonical string form
-            value = str(self.value)
+            value = str(self._value)
         else:
-            value = self.value
+            value = self._value
         return _GraphQLPayloadAttribute(payload={"value": value}, variables={}, needs_metadata=True)
 
     def _generate_input_data(self) -> _GraphQLPayloadAttribute:
@@ -230,7 +265,7 @@ class Attribute:
 
         """
         return (
-            hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool()
+            hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool()
         ) or self._from_pool is not None
 
     def is_unresolved_pool_attribute(self) -> bool:
@@ -243,6 +278,6 @@ class Attribute:
         An attribute whose _from_pool dict is set but whose value has already been populated
         with the allocated scalar (e.g. after a prior save) is considered resolved.
         """
-        if hasattr(self.value, "is_resource_pool") and self.value.is_resource_pool():
+        if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return True
-        return self._from_pool is not None and self.value is None
+        return self._from_pool is not None and self._value is None
