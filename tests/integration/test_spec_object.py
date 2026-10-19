@@ -5,7 +5,16 @@ import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.exceptions import GraphQLError
-from infrahub_sdk.schema import SchemaRoot
+from infrahub_sdk.schema.main import (
+    AttributeKind,
+    GenericSchema,
+    GenericSchemaAPI,
+    NodeSchema,
+    RelationshipCardinality,
+    SchemaRoot,
+)
+from infrahub_sdk.schema.main import AttributeSchema as Attr
+from infrahub_sdk.schema.main import RelationshipSchema as Rel
 from infrahub_sdk.spec.menu import MenuFile
 from infrahub_sdk.spec.object import ObjectFile
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
@@ -208,3 +217,100 @@ class TestSpecObjectWithTemplate(TestInfrahubDockerClient, SchemaAnimal):
 
         assert len(exc_info.value.errors) == 1
         assert exc_info.value.errors[0]["message"] == "breed is mandatory for TestingDog at breed"
+
+
+class TestSpecObjectGenericPeer(TestInfrahubDockerClient):
+    @pytest.fixture(scope="class")
+    def schema_generic_peer(self) -> SchemaRoot:
+        def interface(name: str) -> NodeSchema:
+            return NodeSchema(
+                name=name,
+                namespace="Testing",
+                inherit_from=["TestingSupportsSubintf"],
+                human_friendly_id=["device__name__value", "name__value"],
+                attributes=[Attr(name="name", kind=AttributeKind.TEXT)],
+                relationships=[
+                    Rel(
+                        name="device",
+                        peer="TestingDevice",
+                        cardinality=RelationshipCardinality.ONE,
+                        optional=False,
+                    )
+                ],
+            )
+
+        return SchemaRoot(
+            version="1.0",
+            generics=[
+                GenericSchema(
+                    name="SupportsSubintf",
+                    namespace="Testing",
+                    relationships=[
+                        Rel(
+                            name="sub_interfaces",
+                            peer="TestingSubInterface",
+                            cardinality=RelationshipCardinality.MANY,
+                            identifier="supports_subintf__subinterface",
+                        )
+                    ],
+                )
+            ],
+            nodes=[
+                interface("PhysicalInterface"),
+                interface("PortChannelInterface"),
+                NodeSchema(
+                    name="Device",
+                    namespace="Testing",
+                    human_friendly_id=["name__value"],
+                    attributes=[Attr(name="name", kind=AttributeKind.TEXT, unique=True)],
+                ),
+                NodeSchema(
+                    name="SubInterface",
+                    namespace="Testing",
+                    attributes=[
+                        Attr(name="name", kind=AttributeKind.TEXT),
+                        Attr(name="vlan_id", kind=AttributeKind.NUMBER),
+                    ],
+                    relationships=[
+                        Rel(
+                            name="parent_interface",
+                            peer="TestingSupportsSubintf",
+                            cardinality=RelationshipCardinality.ONE,
+                            optional=True,
+                            identifier="supports_subintf__subinterface",
+                        )
+                    ],
+                ),
+                NodeSchema(
+                    name="Tunnel",
+                    namespace="Testing",
+                    attributes=[Attr(name="name", kind=AttributeKind.TEXT)],
+                    relationships=[
+                        Rel(
+                            name="source_interfaces",
+                            peer="TestingSupportsSubintf",
+                            cardinality=RelationshipCardinality.MANY,
+                            optional=True,
+                        )
+                    ],
+                ),
+            ],
+        )
+
+    @pytest.fixture(scope="class")
+    async def initial_schema(
+        self, default_branch: str, client: InfrahubClient, schema_generic_peer: SchemaRoot
+    ) -> None:
+        await client.schema.wait_until_converged(branch=default_branch)
+        resp = await client.schema.load(
+            schemas=[schema_generic_peer.to_schema_dict()], branch=default_branch, wait_until_converged=True
+        )
+        assert resp.errors == {}
+
+    async def test_schema_loaded(self, client: InfrahubClient, initial_schema: None) -> None:
+        generic = await client.schema.get(kind="TestingSupportsSubintf")
+        assert isinstance(generic, GenericSchemaAPI)
+        assert sorted(generic.used_by) == ["TestingPhysicalInterface", "TestingPortChannelInterface"]
+
+        interface = await client.schema.get(kind="TestingPhysicalInterface")
+        assert interface.human_friendly_id == ["device__name__value", "name__value"]

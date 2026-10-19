@@ -19,7 +19,7 @@
 
 **Purpose**: give the unit tests and integration tests a schema in which a relationship points to a generic without an HFID.
 
-- [ ] T001 [P] Add a pytest fixture `schema_generic_peer_data` to `tests/unit/sdk/spec/test_object.py`. It returns a schema dict in the same `{"main": ..., "nodes": [...], "generics": [...]}` shape as `tests/fixtures/schema_01.json`, with these parts:
+- [X] T001 [P] Add a pytest fixture `schema_generic_peer_data` to `tests/unit/sdk/spec/test_object.py`. It returns a schema dict in the same `{"main": ..., "nodes": [...], "generics": [...]}` shape as `tests/fixtures/schema_01.json`, with these parts:
   - Generic `TestingSupportsSubintf`: no `human_friendly_id`, `used_by: ["TestingPhysicalInterface", "TestingPortChannelInterface"]`, and relationship `sub_interfaces` with identifier `supports_subintf__subinterface`.
   - Nodes `TestingPhysicalInterface` and `TestingPortChannelInterface`: both `inherit_from: ["TestingSupportsSubintf"]`, both with attribute `name` and a cardinality-one relationship `device` to `TestingDevice`, and both with `human_friendly_id: ["device__name__value", "name__value"]`.
   - Node `TestingDevice`: attribute `name` and `human_friendly_id: ["name__value"]`.
@@ -29,7 +29,7 @@
   - Node `TestingNoHfid`, which inherits from the generic and has no HFID.
 
   Add `client_with_generic_peer_schema`, which calls `client.schema.set_cache(schema=..., branch="main")` as `client_with_schema_01` does in `tests/unit/sdk/conftest.py:1739`.
-- [ ] T002 [P] Add the same schema as an `infrahub_sdk.schema.SchemaRoot` (namespace `Testing`) in a new class-scoped fixture `schema_generic_peer` inside a new test class `TestSpecObjectGenericPeer(TestInfrahubDockerClient)` in `tests/integration/test_spec_object.py`. Load it with `client.schema.load(..., wait_until_converged=True)` in an `initial_schema` fixture, following `TestSpecObject.initial_schema`. Leave out `TestingOther` and `TestingNoHfid`; those are for unit tests only.
+- [X] T002 [P] Add the same schema as an `infrahub_sdk.schema.SchemaRoot` (namespace `Testing`) in a new class-scoped fixture `schema_generic_peer` inside a new test class `TestSpecObjectGenericPeer(TestInfrahubDockerClient)` in `tests/integration/test_spec_object.py`. Load it with `client.schema.load(..., wait_until_converged=True)` in an `initial_schema` fixture, following `TestSpecObject.initial_schema`. Leave out `TestingOther` and `TestingNoHfid`; those are for unit tests only.
 
 ---
 

@@ -128,6 +128,96 @@ def location_with_empty_parameters(root_location: dict) -> dict:
     return location
 
 
+def _attr(name: str, kind: str = "Text") -> dict[str, Any]:
+    return {"name": name, "kind": kind, "optional": False}
+
+
+def _rel(name: str, peer: str, cardinality: str = "one", identifier: str | None = None) -> dict[str, Any]:
+    rel: dict[str, Any] = {"name": name, "peer": peer, "cardinality": cardinality, "optional": True}
+    if identifier:
+        rel["identifier"] = identifier
+    return rel
+
+
+def _interface_node(name: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "namespace": "Testing",
+        "inherit_from": ["TestingSupportsSubintf"],
+        "human_friendly_id": ["device__name__value", "name__value"],
+        "attributes": [_attr("name")],
+        "relationships": [
+            {**_rel("device", "TestingDevice"), "optional": False},
+            _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface"),
+        ],
+    }
+
+
+@pytest.fixture
+def schema_generic_peer_data() -> dict[str, Any]:
+    return {
+        "main": "generic-peer",
+        "generics": [
+            {
+                "name": "SupportsSubintf",
+                "namespace": "Testing",
+                "used_by": ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"],
+                "attributes": [],
+                "relationships": [
+                    _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
+                ],
+            }
+        ],
+        "nodes": [
+            _interface_node("PhysicalInterface"),
+            _interface_node("PortChannelInterface"),
+            {
+                "name": "Device",
+                "namespace": "Testing",
+                "human_friendly_id": ["name__value"],
+                "attributes": [_attr("name")],
+                "relationships": [],
+            },
+            {
+                "name": "SubInterface",
+                "namespace": "Testing",
+                "attributes": [_attr("name"), _attr("vlan_id", "Number")],
+                "relationships": [
+                    _rel("parent_interface", "TestingSupportsSubintf", identifier="supports_subintf__subinterface")
+                ],
+            },
+            {
+                "name": "Tunnel",
+                "namespace": "Testing",
+                "attributes": [_attr("name")],
+                "relationships": [_rel("source_interfaces", "TestingSupportsSubintf", "many")],
+            },
+            {
+                "name": "Other",
+                "namespace": "Testing",
+                "human_friendly_id": ["name__value"],
+                "attributes": [_attr("name")],
+                "relationships": [],
+            },
+            {
+                "name": "NoHfid",
+                "namespace": "Testing",
+                "inherit_from": ["TestingSupportsSubintf"],
+                "attributes": [_attr("name")],
+                "relationships": [
+                    _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
+                ],
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def client_with_generic_peer_schema(client: InfrahubClient, schema_generic_peer_data: dict) -> InfrahubClient:
+    client.schema.set_cache(schema=schema_generic_peer_data, branch="main")
+    return client
+
+
 async def test_validate_object(client: InfrahubClient, schema_query_01_data: dict, location_mexico_01: dict) -> None:
     client.schema.set_cache(schema=schema_query_01_data, branch="main")
     obj = ObjectFile(location="some/path", content=location_mexico_01)
