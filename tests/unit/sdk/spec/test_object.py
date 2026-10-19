@@ -341,6 +341,60 @@ async def test_get_relationship_info_tags(
     assert rel_info.format == format
 
 
+async def test_get_relationship_info_generic_peer_without_hfid(client_with_generic_peer_schema: InfrahubClient) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind="TestingSubInterface")
+
+    rel_info = await get_relationship_info(
+        client_with_generic_peer_schema, schema, "parent_interface", ["router1", "Gi0/0/3"]
+    )
+    assert rel_info.format == RelationshipDataFormat.ONE_REF
+    assert rel_info.peer_has_hfid is False
+    assert rel_info.peer_is_generic_without_hfid is True
+    assert rel_info.peer_used_by == ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"]
+
+
+@dataclass
+class KindHfidReferenceCase:
+    name: str
+    kind: str
+    relationship: str
+    data: dict | list
+    format: RelationshipDataFormat
+
+
+KIND_HFID_REFERENCE_CASES = [
+    KindHfidReferenceCase(
+        name="one_kind_hfid",
+        kind="TestingSubInterface",
+        relationship="parent_interface",
+        data={"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+        format=RelationshipDataFormat.ONE_REF,
+    ),
+    KindHfidReferenceCase(
+        name="many_kind_hfid",
+        kind="TestingTunnel",
+        relationship="source_interfaces",
+        data=[
+            {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+            {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+        ],
+        format=RelationshipDataFormat.MANY_REF,
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in KIND_HFID_REFERENCE_CASES])
+async def test_get_relationship_info_kind_hfid_reference(
+    client_with_generic_peer_schema: InfrahubClient, case: KindHfidReferenceCase
+) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind=case.kind)
+
+    rel_info = await get_relationship_info(client_with_generic_peer_schema, schema, case.relationship, case.data)
+    assert rel_info.is_valid
+    assert rel_info.format == case.format
+    assert rel_info.peer_is_generic_without_hfid is True
+
+
 async def test_parameters_top_level(client_with_schema_01: InfrahubClient, location_expansion: dict) -> None:
     obj = ObjectFile(location="some/path", content=location_expansion)
     await obj.validate_format(client=client_with_schema_01)

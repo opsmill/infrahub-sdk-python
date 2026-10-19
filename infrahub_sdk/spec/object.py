@@ -23,8 +23,12 @@ def validate_list_of_scalars(value: list[Any]) -> bool:
     return all(isinstance(item, (str, int, float, bool)) for item in value)
 
 
+def is_hfid_reference_dict(value: Any) -> bool:
+    return isinstance(value, dict) and "hfid" in value and "data" not in value
+
+
 def validate_list_of_hfids(value: list[Any]) -> bool:
-    return all(isinstance(item, (str, list)) for item in value)
+    return all(isinstance(item, (str, list)) or is_hfid_reference_dict(item) for item in value)
 
 
 def validate_list_of_data_dicts(value: list[Any]) -> bool:
@@ -85,6 +89,8 @@ class RelationshipInfo(BaseModel):
     reason_relationship_not_valid: str | None = None
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
     peer_human_friendly_id: list[str] | None = None
+    peer_is_generic_without_hfid: bool = False
+    peer_used_by: list[str] = Field(default_factory=list)
 
     @property
     def peer_has_hfid(self) -> bool:
@@ -149,14 +155,23 @@ async def get_relationship_info(
 
     info = RelationshipInfo(name=name, peer_kind=rel_schema.peer, rel_schema=rel_schema)
 
-    if isinstance(value, dict) and "data" not in value:
+    if isinstance(value, dict) and "data" not in value and not is_hfid_reference_dict(value):
         info.reason_relationship_not_valid = f"Relationship {name} must be a dict with 'data'"
         return info
 
     if isinstance(value, dict) and "kind" in value:
         info.peer_kind = value["kind"]
 
-    peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
+    declared_peer_schema = await client.schema.get(kind=rel_schema.peer, branch=branch)
+    if isinstance(declared_peer_schema, GenericSchemaAPI) and not declared_peer_schema.human_friendly_id:
+        info.peer_is_generic_without_hfid = True
+        info.peer_used_by = declared_peer_schema.used_by
+
+    peer_schema = (
+        declared_peer_schema
+        if info.peer_kind == rel_schema.peer
+        else await client.schema.get(kind=info.peer_kind, branch=branch)
+    )
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
     with contextlib.suppress(ValueError):
@@ -171,7 +186,9 @@ async def get_relationship_info(
         else:
             info.reason_relationship_not_valid = "Too many objects provided for a relationship of cardinality one"
 
-    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, str):
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and (
+        isinstance(value, str) or is_hfid_reference_dict(value)
+    ):
         info.format = RelationshipDataFormat.ONE_REF
 
     elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, dict) and "data" in value:

@@ -37,9 +37,9 @@
 
 **Purpose**: classify `{kind, hfid}` mappings as references and record whether the declared peer is a generic without an HFID. All stories depend on this phase.
 
-- [ ] T003 Add a test to `tests/unit/sdk/spec/test_object.py` that reproduces the failure. Load `TestingSubInterface` data with `parent_interface: [router1, Gi0/0/3]` using `client_with_generic_peer_schema`. Assert that `get_relationship_info` returns `format == RelationshipDataFormat.ONE_REF` and `peer_has_hfid is False`. Also assert the new field `peer_is_generic_without_hfid is True`, which fails before T005.
-- [ ] T004 In `infrahub_sdk/spec/object.py`, add the helper `is_hfid_reference_dict(value: Any) -> bool`. It returns true when `value` is a dict that contains `hfid` and does not contain `data`. Extend `validate_list_of_hfids` (line 26) so that items for which `is_hfid_reference_dict` is true are accepted.
-- [ ] T005 In `infrahub_sdk/spec/object.py`, add two fields to `RelationshipInfo` (line 80):
+- [X] T003 Add a test to `tests/unit/sdk/spec/test_object.py` that reproduces the failure. Load `TestingSubInterface` data with `parent_interface: [router1, Gi0/0/3]` using `client_with_generic_peer_schema`. Assert that `get_relationship_info` returns `format == RelationshipDataFormat.ONE_REF` and `peer_has_hfid is False`. Also assert the new field `peer_is_generic_without_hfid is True`, which fails before T005.
+- [X] T004 In `infrahub_sdk/spec/object.py`, add the helper `is_hfid_reference_dict(value: Any) -> bool`. It returns true when `value` is a dict that contains `hfid` and does not contain `data`. Extend `validate_list_of_hfids` (line 26) so that items for which `is_hfid_reference_dict` is true are accepted.
+- [X] T005 In `infrahub_sdk/spec/object.py`, add two fields to `RelationshipInfo` (line 80):
   - `peer_is_generic_without_hfid: bool = False`
   - `peer_used_by: list[str] = Field(default_factory=list)`
 
