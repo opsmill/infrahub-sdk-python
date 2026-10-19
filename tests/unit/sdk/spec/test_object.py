@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from infrahub_sdk.exceptions import ValidationError
+from infrahub_sdk.exceptions import ObjectValidationError, ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
 from infrahub_sdk.spec.object import (
     InfrahubObjectFileData,
@@ -608,6 +608,105 @@ async def test_kind_hfid_reference_in_object_loading(
 
     assert len(create_calls) == 1
     assert create_calls[0]["data"][case.relationship] == case.expected
+
+
+def _patch_hfid_lookup(
+    client: InfrahubClient, monkeypatch: pytest.MonkeyPatch, matching_kinds: set[str]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Patch ``client.get`` to find a node only for ``matching_kinds``, and capture ``client.create`` calls."""
+    get_calls: list[dict[str, Any]] = []
+    create_calls: list[dict[str, Any]] = []
+    original_create = client.create
+
+    async def fake_get(**kwargs: Any) -> str | None:  # noqa: ANN401
+        get_calls.append(kwargs)
+        return "node" if kwargs["kind"] in matching_kinds else None
+
+    async def capture_create(kind: str, data: dict | None = None, **kwargs: Any) -> InfrahubNode:  # noqa: ANN401
+        create_calls.append({"kind": kind, "data": data})
+        return await original_create(kind=kind, data=data, **kwargs)
+
+    async def skip_save(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(client, "get", fake_get)
+    monkeypatch.setattr(client, "create", capture_create)
+    monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
+    return get_calls, create_calls
+
+
+def _sub_interface_file(parent_interface: Any) -> ObjectFile:  # noqa: ANN401
+    data = {"name": "Gi0/0/3.20", "vlan_id": 20, "parent_interface": parent_interface}
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {"kind": "TestingSubInterface", "data": [data]},
+    }
+    return ObjectFile(location="some/path", content=content)
+
+
+async def test_hfid_only_reference_to_generic_peer_resolves_single_match(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(["router2", "Gi0/0/3"])
+    await obj.validate_format(client=client)
+    get_calls, create_calls = _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface"})
+
+    await obj.process(client=client)
+
+    assert create_calls[0]["data"]["parent_interface"] == {
+        "hfid": ["router2", "Gi0/0/3"],
+        "kind": "TestingPhysicalInterface",
+    }
+    assert get_calls == [
+        {"kind": kind, "hfid": ["router2", "Gi0/0/3"], "branch": None, "raise_when_missing": False}
+        for kind in ("TestingPhysicalInterface", "TestingPortChannelInterface")
+    ]
+
+
+async def test_hfid_only_reference_to_generic_peer_ambiguous(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(["router2", "Gi0/0/3"])
+    await obj.validate_format(client=client)
+    _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface", "TestingPortChannelInterface"})
+
+    with pytest.raises(ObjectValidationError, match="parent_interface") as exc:
+        await obj.process(client=client)
+
+    for expected in ("TestingPhysicalInterface", "TestingPortChannelInterface", "kind:"):
+        assert expected in str(exc.value)
+
+
+@dataclass
+class HfidOnlyNoMatchCase:
+    name: str
+    parent_interface: str | list[str]
+    expected_get_calls: int
+
+
+HFID_ONLY_NO_MATCH_CASES = [
+    HfidOnlyNoMatchCase(name="two_parts", parent_interface=["router9", "Gi0/0/3"], expected_get_calls=2),
+    HfidOnlyNoMatchCase(name="one_part_no_candidate", parent_interface="router9", expected_get_calls=0),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in HFID_ONLY_NO_MATCH_CASES])
+async def test_hfid_only_reference_to_generic_peer_no_match(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, case: HfidOnlyNoMatchCase
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(case.parent_interface)
+    await obj.validate_format(client=client)
+    get_calls, _ = _patch_hfid_lookup(client, monkeypatch, matching_kinds=set())
+
+    with pytest.raises(ObjectValidationError, match="no TestingSupportsSubintf with HFID") as exc:
+        await obj.process(client=client)
+
+    assert "router9" in str(exc.value)
+    assert len(get_calls) == case.expected_get_calls
 
 
 def test_normalize_hfid_reference_function() -> None:

@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from infrahub_sdk import InfrahubClient
-from infrahub_sdk.exceptions import GraphQLError
+from infrahub_sdk.exceptions import GraphQLError, ObjectValidationError
 from infrahub_sdk.schema.main import (
     AttributeKind,
     GenericSchema,
@@ -329,3 +329,25 @@ class TestSpecObjectGenericPeer(TestInfrahubDockerClient):
             sub = await client.get(kind="TestingSubInterface", name__value=sub_name, prefetch_relationships=True)
             assert sub.parent_interface.peer.get_kind() == kind
             assert sub.parent_interface.hfid == hfid
+
+    async def test_load_hfid_only(self, client: InfrahubClient, initial_schema: None) -> None:
+        for obj_file in ObjectFile.load_from_disk(
+            paths=[get_fixtures_dir() / "spec_objects" / "generic_peer_subinterfaces03.yml"]
+        ):
+            await obj_file.validate_format(client=client)
+            await obj_file.process(client=client)
+
+        sub = await client.get(kind="TestingSubInterface", name__value="Gi0/0/3.20", prefetch_relationships=True)
+        assert sub.parent_interface.peer.get_kind() == "TestingPhysicalInterface"
+        assert sub.parent_interface.hfid == ["router2", "Gi0/0/3"]
+
+    async def test_load_hfid_only_ambiguous(self, client: InfrahubClient, initial_schema: None) -> None:
+        port_channel = await client.create(kind="TestingPortChannelInterface", name="Gi0/0/3", device=["router2"])
+        await port_channel.save()
+
+        obj_file = ObjectFile.load_from_disk(
+            paths=[get_fixtures_dir() / "spec_objects" / "generic_peer_subinterfaces04.yml"]
+        )[0]
+        await obj_file.validate_format(client=client)
+        with pytest.raises(ObjectValidationError, match="add `kind:` to the reference"):
+            await obj_file.process(client=client)

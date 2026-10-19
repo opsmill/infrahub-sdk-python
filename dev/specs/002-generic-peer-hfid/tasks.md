@@ -92,23 +92,23 @@
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] In `tests/unit/sdk/spec/test_object.py`, patch `client.get` with an `AsyncMock`. Make it return a node for `TestingPhysicalInterface` and `None` for `TestingPortChannelInterface`. Load `parent_interface: [router2, Gi0/0/3]` and assert:
+- [X] T012 [P] [US2] In `tests/unit/sdk/spec/test_object.py`, patch `client.get` with an `AsyncMock`. Make it return a node for `TestingPhysicalInterface` and `None` for `TestingPortChannelInterface`. Load `parent_interface: [router2, Gi0/0/3]` and assert:
   - The `create` data is `{"hfid": ["router2", "Gi0/0/3"], "kind": "TestingPhysicalInterface"}`.
   - `client.get` was awaited with `hfid=["router2", "Gi0/0/3"]`, `raise_when_missing=False` and `branch` for each candidate kind.
-- [ ] T013 [P] [US2] Same setup, with both kinds returning a node. Assert that `obj.process()` raises `ObjectValidationError`, and that `str(error)` contains `parent_interface`, `TestingPhysicalInterface`, `TestingPortChannelInterface` and `kind:`.
-- [ ] T014 [P] [US2] Same setup, with both kinds returning `None`. Assert that `ObjectValidationError` is raised and that the message contains `TestingSupportsSubintf` and `router9`. Add one more case: when the reference has one part and no candidate kind has a one-part HFID, assert that `client.get` is never awaited and that the "no node matches" error is raised.
+- [X] T013 [P] [US2] Same setup, with both kinds returning a node. Assert that `obj.process()` raises `ObjectValidationError`, and that `str(error)` contains `parent_interface`, `TestingPhysicalInterface`, `TestingPortChannelInterface` and `kind:`.
+- [X] T014 [P] [US2] Same setup, with both kinds returning `None`. Assert that `ObjectValidationError` is raised and that the message contains `TestingSupportsSubintf` and `router9`. Add one more case: when the reference has one part and no candidate kind has a one-part HFID, assert that `client.get` is never awaited and that the "no node matches" error is raised.
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._resolve_generic_hfid(cls, client, rel_info, hfid, position, branch) -> dict` as a classmethod. It follows research R3:
+- [X] T015 [US2] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._resolve_generic_hfid(cls, client, rel_info, hfid, position, branch) -> dict` as a classmethod. It follows research R3:
   1. Normalize `hfid` to a list.
   2. For each kind in `rel_info.peer_used_by`, fetch the kind's schema and keep it if its `human_friendly_id` has the same length as the HFID.
   3. Call `await client.get(kind=k, hfid=hfid, branch=branch, raise_when_missing=False)` for each kept kind.
   4. Return `{"hfid": hfid, "kind": k}` for exactly one match. Otherwise raise `ObjectValidationError` with the messages in `contracts/object-file-reference.md`.
 
   Add the comment `# ponytail: one query per candidate kind, add a (kind, hfid) cache if large files become slow`.
-- [ ] T016 [US2] In `create_node` (line 487-492), apply `_resolve_generic_hfid` when `rel_info.peer_is_generic_without_hfid` is true and the reference item is a string or list without a kind. Leave UUID strings unchanged (`is_valid_uuid`). For `MANY_REF`, resolve each such item.
-- [ ] T017 [US2] In `TestSpecObjectGenericPeer` in `tests/integration/test_spec_object.py`, add `test_load_hfid_only`. It loads a fixture `tests/fixtures/spec_objects/generic_peer_subinterfaces03.yml` (`Gi0/0/3.20` on router2 with `parent_interface: [router2, Gi0/0/3]`) and asserts that the peer kind is `TestingPhysicalInterface`. Then add `test_load_hfid_only_ambiguous`:
+- [X] T016 [US2] In `create_node` (line 487-492), apply `_resolve_generic_hfid` when `rel_info.peer_is_generic_without_hfid` is true and the reference item is a string or list without a kind. Leave UUID strings unchanged (`is_valid_uuid`). For `MANY_REF`, resolve each such item.
+- [X] T017 [US2] In `TestSpecObjectGenericPeer` in `tests/integration/test_spec_object.py`, add `test_load_hfid_only`. It loads a fixture `tests/fixtures/spec_objects/generic_peer_subinterfaces03.yml` (`Gi0/0/3.20` on router2 with `parent_interface: [router2, Gi0/0/3]`) and asserts that the peer kind is `TestingPhysicalInterface`. Then add `test_load_hfid_only_ambiguous`:
   1. Create a `TestingPortChannelInterface` named `Gi0/0/3` on `router2` with `client.create(...).save()`.
   2. Load `generic_peer_subinterfaces04.yml`, which has the same kind of reference with a new sub-interface name.
   3. Assert that `ObjectValidationError` is raised.

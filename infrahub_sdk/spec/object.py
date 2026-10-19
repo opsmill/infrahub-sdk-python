@@ -454,6 +454,65 @@ class InfrahubObjectFileData(BaseModel):
         return data
 
     @classmethod
+    async def _clean_reference(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        value: Any,
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> Any:
+        """Convert one peer reference from an object file to the format used to create the node."""
+        if is_hfid_reference_dict(value):
+            return normalize_kind_hfid_reference(value)
+        if rel_info.peer_is_generic_without_hfid and (
+            isinstance(value, list) or (isinstance(value, str) and not is_valid_uuid(value))
+        ):
+            return await cls._resolve_generic_hfid(client, rel_info, value, position, branch)
+        return normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+
+    @classmethod
+    async def _resolve_generic_hfid(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        hfid: str | list[str],
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> dict[str, Any]:
+        """Find the single node, among the kinds that inherit from the generic peer, that matches ``hfid``.
+
+        Raises:
+            ObjectValidationError: When no node or more than one node matches ``hfid``.
+        """
+        hfid = hfid if isinstance(hfid, list) else [hfid]
+        candidates = []
+        for kind in rel_info.peer_used_by:
+            kind_schema = await client.schema.get(kind=kind, branch=branch)
+            if kind_schema.human_friendly_id and len(kind_schema.human_friendly_id) == len(hfid):
+                candidates.append(kind)
+
+        # ponytail: one query per candidate kind, add a (kind, hfid) cache if large files become slow
+        matches = [
+            kind
+            for kind in candidates
+            if await client.get(kind=kind, hfid=hfid, branch=branch, raise_when_missing=False) is not None
+        ]
+
+        error_position = [*position, rel_info.name]
+        if not matches:
+            raise ObjectValidationError(
+                position=error_position,
+                message=f"no {rel_info.rel_schema.peer} with HFID {hfid} among {candidates}",
+            )
+        if len(matches) > 1:
+            raise ObjectValidationError(
+                position=error_position,
+                message=f"HFID {hfid} matches {', '.join(matches)}; add `kind:` to the reference",
+            )
+        return {"hfid": hfid, "kind": matches[0]}
+
+    @classmethod
     async def create_node(
         cls,
         client: InfrahubClient,
@@ -510,18 +569,10 @@ class InfrahubObjectFileData(BaseModel):
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
                     # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
                     clean_data[key] = [
-                        normalize_kind_hfid_reference(item)
-                        if is_hfid_reference_dict(item)
-                        else normalize_hfid_reference(item)
-                        if rel_info.peer_has_hfid
-                        else item
-                        for item in value
+                        await cls._clean_reference(client, rel_info, item, position, branch) for item in value
                     ]
-                elif rel_info.format == RelationshipDataFormat.ONE_REF and is_hfid_reference_dict(value):
-                    clean_data[key] = normalize_kind_hfid_reference(value)
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
-                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = await cls._clean_reference(client, rel_info, value, position, branch)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
