@@ -125,7 +125,7 @@
 
 ### Tests for User Story 3
 
-- [ ] T018 [P] [US3] In `tests/unit/sdk/spec/test_object.py`, add a parametrized test that calls `ObjectFile(...).validate_format(client=client_with_generic_peer_schema)` and asserts that `ValidationError` is raised and its message includes the expected text. The cases are:
+- [X] T018 [P] [US3] In `tests/unit/sdk/spec/test_object.py`, add a parametrized test that calls `ObjectFile(...).validate_format(client=client_with_generic_peer_schema)` and asserts that `ValidationError` is raised and its message includes the expected text. The cases are:
   - `kind: TestingOther`. Expected text: "is not TestingSupportsSubintf and does not inherit from it".
   - `kind: TestingNoHfid`. Expected text: "has no human_friendly_id".
   - `hfid: [Gi0/0/3]` for `TestingPhysicalInterface`. Expected text: "expected 2 values".
@@ -135,7 +135,7 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._validate_kind_hfid_reference(cls, client, rel_info, value, position, branch) -> list[ObjectValidationError]` as a classmethod. It implements rules V1–V4 from `data-model.md` using `client.schema.get(kind=..., branch=...)` and `rel_info.peer_used_by`. If the declared peer is a node, V1 requires `kind == rel_schema.peer`. If it is a generic, V1 requires the kind to be in its `used_by`. Call it from `validate_related_nodes`:
+- [X] T019 [US3] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._validate_kind_hfid_reference(cls, client, rel_info, value, position, branch) -> list[ObjectValidationError]` as a classmethod. It implements rules V1–V4 from `data-model.md` using `client.schema.get(kind=..., branch=...)` and `rel_info.peer_used_by`. If the declared peer is a node, V1 requires `kind == rel_schema.peer`. If it is a generic, V1 requires the kind to be in its `used_by`. Call it from `validate_related_nodes`:
   - In the `ONE_REF` branch, for a dict value.
   - In the `MANY_REF` branch, for each dict item, with position `[*position, idx + 1]`.
 

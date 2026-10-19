@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -393,6 +394,89 @@ async def test_get_relationship_info_kind_hfid_reference(
     assert rel_info.is_valid
     assert rel_info.format == case.format
     assert rel_info.peer_is_generic_without_hfid is True
+
+
+@dataclass
+class InvalidKindHfidCase:
+    name: str
+    kind: str
+    item: dict[str, Any]
+    expected: str
+
+
+PHYSICAL_GI003 = {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]}
+
+INVALID_KIND_HFID_CASES = [
+    InvalidKindHfidCase(
+        name="kind_not_inheriting",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingOther", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingOther is not TestingSupportsSubintf and does not inherit from it",
+    ),
+    InvalidKindHfidCase(
+        name="kind_unknown",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingMissing", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingMissing is not TestingSupportsSubintf and does not inherit from it",
+    ),
+    InvalidKindHfidCase(
+        name="kind_without_hfid",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingNoHfid", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingNoHfid has no human_friendly_id",
+    ),
+    InvalidKindHfidCase(
+        name="wrong_hfid_length",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingPhysicalInterface", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: expected 2 values for TestingPhysicalInterface",
+    ),
+    InvalidKindHfidCase(
+        name="extra_key",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {**PHYSICAL_GI003, "id": "abc"}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed",
+    ),
+    InvalidKindHfidCase(
+        name="missing_kind",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"hfid": ["router1", "Gi0/0/3"]}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed in a peer reference, and both are required, got hfid",
+    ),
+    InvalidKindHfidCase(
+        name="many_ref_item",
+        kind="TestingTunnel",
+        item={"source_interfaces": [PHYSICAL_GI003, {"kind": "TestingOther", "hfid": ["Gi0/0/3"]}]},
+        expected="1.source_interfaces.2: TestingOther is not TestingSupportsSubintf",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in INVALID_KIND_HFID_CASES])
+async def test_validate_format_invalid_kind_hfid_reference(
+    client_with_generic_peer_schema: InfrahubClient, case: InvalidKindHfidCase
+) -> None:
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {"kind": case.kind, "data": [{"name": "Gi0/0/3.10", **case.item}]},
+    }
+    obj = ObjectFile(location="some/path", content=content)
+
+    with pytest.raises(ValidationError, match=re.escape(case.expected)):
+        await obj.validate_format(client=client_with_generic_peer_schema)
+
+
+async def test_validate_format_valid_kind_hfid_reference(client_with_generic_peer_schema: InfrahubClient) -> None:
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {
+            "kind": "TestingTunnel",
+            "data": [{"name": "t1", "source_interfaces": [PHYSICAL_GI003, ["router1", "Po1"]]}],
+        },
+    }
+    await ObjectFile(location="some/path", content=content).validate_format(client=client_with_generic_peer_schema)
 
 
 async def test_parameters_top_level(client_with_schema_01: InfrahubClient, location_expansion: dict) -> None:

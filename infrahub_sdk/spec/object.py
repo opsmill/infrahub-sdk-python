@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ def validate_list_of_scalars(value: list[Any]) -> bool:
     return all(isinstance(item, (str, int, float, bool)) for item in value)
 
 
-def is_hfid_reference_dict(value: Any) -> bool:
+def is_hfid_reference_dict(value: Any) -> TypeGuard[dict[str, Any]]:
     return isinstance(value, dict) and "hfid" in value and "data" not in value
 
 
@@ -169,14 +169,15 @@ async def get_relationship_info(
         info.peer_kind = value["kind"]
 
     declared_peer_schema = await client.schema.get(kind=rel_schema.peer, branch=branch)
-    if isinstance(declared_peer_schema, GenericSchemaAPI) and not declared_peer_schema.human_friendly_id:
-        info.peer_is_generic_without_hfid = True
+    if isinstance(declared_peer_schema, GenericSchemaAPI):
         info.peer_used_by = declared_peer_schema.used_by
+        info.peer_is_generic_without_hfid = not declared_peer_schema.human_friendly_id
 
+    # A kind outside the peer's hierarchy is reported during validation, so its schema is not fetched here.
     peer_schema = (
-        declared_peer_schema
-        if info.peer_kind == rel_schema.peer
-        else await client.schema.get(kind=info.peer_kind, branch=branch)
+        await client.schema.get(kind=info.peer_kind, branch=branch)
+        if info.peer_kind in info.peer_used_by
+        else declared_peer_schema
     )
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
@@ -358,10 +359,17 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
-        if isinstance(data, (list, str, dict)) and rel_info.format == RelationshipDataFormat.ONE_REF:
-            return errors
-
-        if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF:
+        if rel_info.is_reference:
+            references = (
+                [([*position, idx + 1], item) for idx, item in enumerate(data)]
+                if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF
+                else [(position, data)]
+            )
+            for ref_position, reference in references:
+                if is_hfid_reference_dict(reference):
+                    errors.extend(
+                        await cls._validate_kind_hfid_reference(client, rel_info, reference, ref_position, branch)
+                    )
             return errors
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
@@ -448,6 +456,40 @@ class InfrahubObjectFileData(BaseModel):
             )
         )
         return errors
+
+    @classmethod
+    async def _validate_kind_hfid_reference(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        value: dict[str, Any],
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> list[ObjectValidationError]:
+        """Check a ``{"kind": ..., "hfid": ...}`` peer reference against the schema, without querying nodes."""
+        if set(value) != {"kind", "hfid"}:
+            message = f"only `kind` and `hfid` are allowed in a peer reference, and both are required, got {', '.join(sorted(value))}"
+            return [ObjectValidationError(position=position, message=message)]
+
+        kind = value["kind"]
+        peer = rel_info.rel_schema.peer
+        if kind != peer and kind not in rel_info.peer_used_by:
+            message = f"{kind} is not {peer} and does not inherit from it"
+            return [ObjectValidationError(position=position, message=message)]
+
+        hfid_paths = (await client.schema.get(kind=kind, branch=branch)).human_friendly_id
+        if not hfid_paths:
+            return [ObjectValidationError(position=position, message=f"{kind} has no human_friendly_id")]
+
+        hfid = value["hfid"]
+        hfid = [hfid] if isinstance(hfid, str) else hfid
+        if not isinstance(hfid, list) or not all(isinstance(part, str) for part in hfid):
+            return [ObjectValidationError(position=position, message="`hfid` must be a string or a list of strings")]
+        if len(hfid) != len(hfid_paths):
+            message = f"expected {len(hfid_paths)} values for {kind} ({', '.join(hfid_paths)}), got {len(hfid)}"
+            return [ObjectValidationError(position=position, message=message)]
+
+        return []
 
     @classmethod
     def enrich_node(cls, data: dict, context: dict) -> dict:  # noqa: ARG003
