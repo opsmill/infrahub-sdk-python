@@ -242,8 +242,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         """
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
+            # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
+            exclude = [
+                name
+                for name in self.node._schema.relationship_names + self.node._schema.attribute_names
+                if name != self.schema.name
+            ]
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
@@ -439,8 +443,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         """
         if not self.initialized:
-            exclude = self.node._schema.relationship_names + self.node._schema.attribute_names
-            exclude.remove(self.schema.name)
+            # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
+            exclude = [
+                name
+                for name in self.node._schema.relationship_names + self.node._schema.attribute_names
+                if name != self.schema.name
+            ]
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
