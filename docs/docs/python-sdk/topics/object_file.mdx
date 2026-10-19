@@ -236,7 +236,7 @@ When the generic peer does not define an HFID, a reference can also be an HFID w
 During the load, the SDK searches the kinds that inherit from the generic and define an HFID with the same number of values, and uses the single node that matches.
 The load fails in the following cases:
 
-- No node matches the HFID. The error lists the kinds that were searched.
+- No node matches the HFID. The error lists the kinds that were searched, or says that no kind has an HFID with that number of values.
 - More than one node matches the HFID, for example a physical interface and a port-channel both named `Gi0/0/3` on `router1`. The error lists the matching kinds. Add `kind` to the reference to select one of them.
 
 When the generic peer defines an HFID, a reference by HFID alone is handled in the same way as for any other peer.

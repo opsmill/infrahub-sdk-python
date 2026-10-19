@@ -397,6 +397,36 @@ async def test_get_relationship_info_kind_hfid_reference(
 
 
 @dataclass
+class NestedObjectKindCase:
+    name: str
+    nested_kind: str
+
+
+NESTED_OBJECT_KIND_CASES = [
+    NestedObjectKindCase(name="kind_in_used_by", nested_kind="TestingPhysicalInterface"),
+    NestedObjectKindCase(name="kind_outside_used_by", nested_kind="TestingOther"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in NESTED_OBJECT_KIND_CASES])
+async def test_get_relationship_info_nested_object_uses_named_kind_schema(
+    client_with_generic_peer_schema: InfrahubClient, case: NestedObjectKindCase
+) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind="TestingSubInterface")
+    named_schema = await client_with_generic_peer_schema.schema.get(kind=case.nested_kind)
+
+    rel_info = await get_relationship_info(
+        client_with_generic_peer_schema,
+        schema,
+        "parent_interface",
+        {"kind": case.nested_kind, "data": {"name": "Gi0/0/9"}},
+    )
+    assert rel_info.format == RelationshipDataFormat.ONE_OBJ
+    assert rel_info.peer_kind == case.nested_kind
+    assert rel_info.peer_human_friendly_id == named_schema.human_friendly_id
+
+
+@dataclass
 class InvalidKindHfidCase:
     name: str
     kind: str
@@ -442,6 +472,12 @@ INVALID_KIND_HFID_CASES = [
         kind="TestingSubInterface",
         item={"vlan_id": 10, "parent_interface": {"hfid": ["router1", "Gi0/0/3"]}},
         expected="1.parent_interface: only `kind` and `hfid` are allowed in a peer reference, and both are required, got hfid",
+    ),
+    InvalidKindHfidCase(
+        name="missing_hfid",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingPhysicalInterface"}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed in a peer reference, and both are required, got kind",
     ),
     InvalidKindHfidCase(
         name="many_ref_item",
@@ -769,11 +805,22 @@ class HfidOnlyNoMatchCase:
     name: str
     parent_interface: str | list[str]
     expected_get_calls: int
+    expected_message: str
 
 
 HFID_ONLY_NO_MATCH_CASES = [
-    HfidOnlyNoMatchCase(name="two_parts", parent_interface=["router9", "Gi0/0/3"], expected_get_calls=2),
-    HfidOnlyNoMatchCase(name="one_part_no_candidate", parent_interface="router9", expected_get_calls=0),
+    HfidOnlyNoMatchCase(
+        name="two_parts",
+        parent_interface=["router9", "Gi0/0/3"],
+        expected_get_calls=2,
+        expected_message="among TestingPhysicalInterface, TestingPortChannelInterface",
+    ),
+    HfidOnlyNoMatchCase(
+        name="one_part_no_candidate",
+        parent_interface="router9",
+        expected_get_calls=0,
+        expected_message="no kind that inherits from it has an HFID with 1 values",
+    ),
 ]
 
 
@@ -790,6 +837,7 @@ async def test_hfid_only_reference_to_generic_peer_no_match(
         await obj.process(client=client)
 
     assert "router9" in str(exc.value)
+    assert case.expected_message in str(exc.value)
     assert len(get_calls) == case.expected_get_calls
 
 

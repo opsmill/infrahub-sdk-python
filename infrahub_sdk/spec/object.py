@@ -24,7 +24,7 @@ def validate_list_of_scalars(value: list[Any]) -> bool:
 
 
 def is_hfid_reference_dict(value: Any) -> TypeGuard[dict[str, Any]]:
-    return isinstance(value, dict) and "hfid" in value and "data" not in value
+    return isinstance(value, dict) and ("hfid" in value or "kind" in value) and "data" not in value
 
 
 def validate_list_of_hfids(value: list[Any]) -> bool:
@@ -173,11 +173,12 @@ async def get_relationship_info(
         info.peer_used_by = declared_peer_schema.used_by
         info.peer_is_generic_without_hfid = not declared_peer_schema.human_friendly_id
 
-    # A kind outside the peer's hierarchy is reported during validation, so its schema is not fetched here.
+    # A peer reference with a kind outside the peer's hierarchy is reported during validation, so its schema is not fetched.
+    reference_outside_hierarchy = is_hfid_reference_dict(value) and info.peer_kind not in info.peer_used_by
     peer_schema = (
-        await client.schema.get(kind=info.peer_kind, branch=branch)
-        if info.peer_kind in info.peer_used_by
-        else declared_peer_schema
+        declared_peer_schema
+        if info.peer_kind == rel_schema.peer or reference_outside_hierarchy
+        else await client.schema.get(kind=info.peer_kind, branch=branch)
     )
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
@@ -543,9 +544,14 @@ class InfrahubObjectFileData(BaseModel):
 
         error_position = [*position, rel_info.name]
         if not matches:
+            searched = (
+                f"among {', '.join(candidates)}"
+                if candidates
+                else f"; no kind that inherits from it has an HFID with {len(hfid)} values"
+            )
             raise ObjectValidationError(
                 position=error_position,
-                message=f"no {rel_info.rel_schema.peer} with HFID {hfid} among {candidates}",
+                message=f"no {rel_info.rel_schema.peer} with HFID {hfid} {searched}",
             )
         if len(matches) > 1:
             raise ObjectValidationError(
