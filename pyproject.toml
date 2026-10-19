@@ -76,9 +76,15 @@ testcontainers = [
     "packaging>=21.0",
 ]
 
+# Sends the W3C trace context with each request when the caller's process traces with OpenTelemetry.
+# 1.16 is the first release that imports without `pkg_resources`.
+tracing = [
+    "opentelemetry-api>=1.16",
+]
+
 # Self-referential so it cannot drift out of sync with the extras it aggregates.
 all = [
-    "infrahub-sdk[ctl,testing,testcontainers]",
+    "infrahub-sdk[ctl,testing,testcontainers,tracing]",
 ]
 
 [dependency-groups]
@@ -86,6 +92,7 @@ all = [
 tests = [
     "infrahub-testcontainers>=1.7.3",
     "jsonschema>=4.25.1",
+    "opentelemetry-api>=1.16",
     "pytest>=9.0,<9.1",
     "pytest-asyncio>=1.3,<1.4",
     "pytest-clarity>=1.0.1",
