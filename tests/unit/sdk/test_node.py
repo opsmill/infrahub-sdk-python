@@ -4,6 +4,7 @@ import inspect
 import ipaddress
 import json
 import tempfile
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -313,6 +314,127 @@ async def test_init_node_data_user_with_relationships_using_related_node(
     assert "type" in keys
     assert "tags" in keys
     assert "get_kind" in keys
+
+
+@dataclass
+class RelatedNodeInputCase:
+    name: str
+    peer_data: dict[str, Any]
+    expected_input: dict[str, Any]
+
+
+RELATED_NODE_INPUT_CASES = [
+    RelatedNodeInputCase(
+        name="id",
+        peer_data={"id": "pppppppp", "__typename": "BuiltinTag"},
+        expected_input={"id": "pppppppp"},
+    ),
+    RelatedNodeInputCase(
+        name="hfid",
+        peer_data={"hfid": ["pppp"], "display_label": "mmmm", "kind": "BuiltinTag"},
+        expected_input={"hfid": ["pppp"], "kind": "BuiltinTag"},
+    ),
+]
+
+
+def _build_location(
+    clients: BothClients, client_type: str, schema: NodeSchemaAPI, data: dict[str, Any]
+) -> InfrahubNode | InfrahubNodeSync:
+    if client_type == "standard":
+        return InfrahubNode(client=clients.standard, schema=schema, data=data)
+    return InfrahubNodeSync(client=clients.sync, schema=schema, data=data)
+
+
+def _build_related_node(
+    clients: BothClients, client_type: str, schema: NodeSchemaAPI, rel_name: str, data: dict[str, Any]
+) -> RelatedNode | RelatedNodeSync:
+    rel_schema = schema.get_relationship(name=rel_name)
+    if client_type == "standard":
+        return RelatedNode(name=rel_name, branch="main", client=clients.standard, schema=rel_schema, data=data)
+    return RelatedNodeSync(name=rel_name, branch="main", client=clients.sync, schema=rel_schema, data=data)
+
+
+def _assert_peer_matches(peer: RelatedNodeBase, peer_data: dict[str, Any]) -> None:
+    assert peer.id == peer_data.get("id")
+    assert peer.hfid == peer_data.get("hfid")
+    assert peer.typename == peer_data.get("__typename")
+    assert peer.kind == peer_data.get("kind")
+    assert peer.display_label == peer_data.get("display_label")
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in RELATED_NODE_INPUT_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_many_init_with_related_node(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelatedNodeInputCase
+) -> None:
+    tag = _build_related_node(clients, client_type, location_schema, "tags", case.peer_data)
+
+    node = _build_location(
+        clients, client_type, location_schema, {"name": {"value": "JFK1"}, "type": {"value": "SITE"}, "tags": [tag]}
+    )
+
+    _assert_peer_matches(node.tags.peers[0], case.peer_data)
+    assert node._generate_input_data()["data"]["data"]["tags"] == [case.expected_input]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in RELATED_NODE_INPUT_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_relationship_manager_add_related_node(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelatedNodeInputCase
+) -> None:
+    tag = _build_related_node(clients, client_type, location_schema, "tags", case.peer_data)
+    node = _build_location(
+        clients,
+        client_type,
+        location_schema,
+        {"id": "llllllll", "name": {"value": "JFK1"}, "type": {"value": "SITE"}, "tags": {"count": 0, "edges": []}},
+    )
+
+    node.tags.add(tag)
+
+    assert len(node.tags.peers) == 1
+    _assert_peer_matches(node.tags.peers[0], case.peer_data)
+    assert node._generate_input_data()["data"]["data"]["tags"] == [case.expected_input]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in RELATED_NODE_INPUT_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_relationship_manager_remove_related_node(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelatedNodeInputCase
+) -> None:
+    tag = _build_related_node(clients, client_type, location_schema, "tags", case.peer_data)
+    node = _build_location(
+        clients,
+        client_type,
+        location_schema,
+        {
+            "id": "llllllll",
+            "name": {"value": "JFK1"},
+            "type": {"value": "SITE"},
+            "tags": {"count": 1, "edges": [{"node": case.peer_data}]},
+        },
+    )
+
+    node.tags.remove(tag)
+
+    assert node.tags.peers == []
+    assert node.tags.has_update is True
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in RELATED_NODE_INPUT_CASES])
+@pytest.mark.parametrize("client_type", client_types)
+async def test_cardinality_one_assign_related_node(
+    clients: BothClients, location_schema: NodeSchemaAPI, client_type: str, case: RelatedNodeInputCase
+) -> None:
+    primary_tag = _build_related_node(clients, client_type, location_schema, "primary_tag", case.peer_data)
+    node = _build_location(
+        clients, client_type, location_schema, {"name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    )
+
+    node.primary_tag = primary_tag
+
+    _assert_peer_matches(node.primary_tag, case.peer_data)
+    assert node._generate_input_data()["data"]["data"]["primary_tag"] == case.expected_input
 
 
 @pytest.mark.parametrize("property_test", property_tests)

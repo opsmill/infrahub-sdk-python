@@ -47,8 +47,9 @@ class RelatedNodeBase:
             branch (str): The branch where the related node resides.
             schema (RelationshipSchemaAPI): The schema of the relationship.
             data (Any | dict): Data representing the related node. Accepts a peer
-                :class:`CoreNodeBase` instance, a list (treated as an HFID), a string
-                (treated as an ID), or a dict in either paginated or flat GraphQL format.
+                :class:`CoreNodeBase` instance, another ``RelatedNodeBase`` (only its peer
+                identifiers are copied), a list (treated as an HFID), a string (treated as
+                an ID), or a dict in either paginated or flat GraphQL format.
             name (str, optional): The name of the relationship slot on the parent node.
 
         """
@@ -73,6 +74,20 @@ class RelatedNodeBase:
         # Distinguishes "never loaded" (partial GraphQL payload) from "explicitly cleared"
         # so we don't silently null-clear unfetched relationships on save.
         self._peer_has_been_mutated: bool = False
+
+        # Copy only the peer identifiers: the edge properties belong to the source relationship.
+        if isinstance(data, RelatedNodeBase):
+            data = {
+                key: value
+                for key, value in (
+                    ("id", data.id),
+                    ("hfid", data.hfid),
+                    ("__typename", data.typename),
+                    ("kind", data.kind),
+                    ("display_label", data.display_label),
+                )
+                if value is not None
+            }
 
         # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
         # circular import (node.py imports this module at load time).
