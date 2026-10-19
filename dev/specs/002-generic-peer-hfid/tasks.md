@@ -61,24 +61,24 @@
 
 ### Tests for User Story 1
 
-- [ ] T006 [P] [US1] In `tests/unit/sdk/spec/test_object.py`, add a parametrized test modelled on `test_hfid_normalization_in_object_loading` (line 344). It captures the `create` data from `obj.process()` for these cases:
+- [X] T006 [P] [US1] In `tests/unit/sdk/spec/test_object.py`, add a parametrized test modelled on `test_hfid_normalization_in_object_loading` (line 344). It captures the `create` data from `obj.process()` for these cases:
   - Cardinality one with `{kind: TestingPhysicalInterface, hfid: [router1, Gi0/0/3]}`. Expected: `{"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"}`.
   - Cardinality one with `{kind: TestingPortChannelInterface, hfid: [router1, Po1]}`.
   - Cardinality many (`TestingTunnel.source_interfaces`) with a list of two mappings.
   - A mapping whose `hfid` is a string, for a kind with a one-part HFID. Use `TestingDevice` through a relationship whose peer is `TestingDevice`. Expected: the string becomes a one-item list.
-- [ ] T007 [P] [US1] In `tests/unit/sdk/spec/test_object.py`, add a test that `RelatedNode` built from `{"hfid": [...], "kind": "TestingPhysicalInterface"}` produces `_generate_input_data() == {"hfid": [...], "kind": "TestingPhysicalInterface"}`. Use the existing `RELATED_NODE_PAYLOAD_TEST_CASES` pattern (line 400).
+- [X] T007 [P] [US1] In `tests/unit/sdk/spec/test_object.py`, add a test that `RelatedNode` built from `{"hfid": [...], "kind": "TestingPhysicalInterface"}` produces `_generate_input_data() == {"hfid": [...], "kind": "TestingPhysicalInterface"}`. Use the existing `RELATED_NODE_PAYLOAD_TEST_CASES` pattern (line 400).
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] In `infrahub_sdk/spec/object.py`, add the helper `normalize_kind_hfid_reference(value: dict) -> dict`. It returns `{"hfid": normalize_hfid_reference(value["hfid"]), "kind": value["kind"]}`, and the result is always a list. In `create_node`, apply it in the `ONE_REF` branch (line 491) when the value is such a dict. In the `MANY_REF` branch (line 488), apply it per item: dict items use the new helper, and other items keep today's `normalize_hfid_reference` logic.
-- [ ] T009 [US1] Confirm that `validate_related_nodes` (line 338-342) returns no format error for a cardinality-one dict reference and for a `MANY_REF` list with dicts. Extend the `isinstance` checks to accept `dict` for `ONE_REF`.
-- [ ] T010 [P] [US1] Add `tests/fixtures/spec_objects/generic_peer_subinterfaces01.yml`. It creates:
+- [X] T008 [US1] In `infrahub_sdk/spec/object.py`, add the helper `normalize_kind_hfid_reference(value: dict) -> dict`. It returns `{"hfid": normalize_hfid_reference(value["hfid"]), "kind": value["kind"]}`, and the result is always a list. In `create_node`, apply it in the `ONE_REF` branch (line 491) when the value is such a dict. In the `MANY_REF` branch (line 488), apply it per item: dict items use the new helper, and other items keep today's `normalize_hfid_reference` logic.
+- [X] T009 [US1] Confirm that `validate_related_nodes` (line 338-342) returns no format error for a cardinality-one dict reference and for a `MANY_REF` list with dicts. Extend the `isinstance` checks to accept `dict` for `ONE_REF`.
+- [X] T010 [P] [US1] Add `tests/fixtures/spec_objects/generic_peer_subinterfaces01.yml`. It creates:
   - Devices `router1` and `router2`.
   - `TestingPhysicalInterface` `router1/Gi0/0/3` and `router2/Gi0/0/3`.
   - `TestingPortChannelInterface` `router1/Po1`.
 
   Then add `tests/fixtures/spec_objects/generic_peer_subinterfaces02.yml` with two `TestingSubInterface` items: one referencing `{kind: TestingPhysicalInterface, hfid: [router1, Gi0/0/3]}` and one referencing `{kind: TestingPortChannelInterface, hfid: [router1, Po1]}`.
-- [ ] T011 [US1] In `TestSpecObjectGenericPeer` in `tests/integration/test_spec_object.py`, add `test_load_with_kind`. It loads both files from T010 with `validate_format` and then `process`. It then queries each sub-interface with `prefetch_relationships=True` and asserts that `parent_interface.peer.get_kind()` and the `hfid` match the expected kind and `[router1, Gi0/0/3]` / `[router1, Po1]`.
+- [X] T011 [US1] In `TestSpecObjectGenericPeer` in `tests/integration/test_spec_object.py`, add `test_load_with_kind`. It loads both files from T010 with `validate_format` and then `process`. It then queries each sub-interface with `prefetch_relationships=True` and asserts that `parent_interface.peer.get_kind()` and the `hfid` match the expected kind and `[router1, Gi0/0/3]` / `[router1, Po1]`.
 
 **Checkpoint**: User Story 1 works on its own. A file that names kinds loads without schema changes.
 

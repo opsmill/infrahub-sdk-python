@@ -70,6 +70,12 @@ def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[
     return [normalize_hfid_reference(v) for v in values]
 
 
+def normalize_kind_hfid_reference(value: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a ``{"kind": ..., "hfid": ...}`` reference so that ``hfid`` is always a list."""
+    hfid = value["hfid"]
+    return {"hfid": hfid if isinstance(hfid, list) else [hfid], "kind": value["kind"]}
+
+
 class RelationshipDataFormat(str, Enum):
     UNKNOWN = "unknown"
 
@@ -352,7 +358,7 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
-        if isinstance(data, (list, str)) and rel_info.format == RelationshipDataFormat.ONE_REF:
+        if isinstance(data, (list, str, dict)) and rel_info.format == RelationshipDataFormat.ONE_REF:
             return errors
 
         if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF:
@@ -503,7 +509,16 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
                     # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
-                    clean_data[key] = normalize_hfid_references(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = [
+                        normalize_kind_hfid_reference(item)
+                        if is_hfid_reference_dict(item)
+                        else normalize_hfid_reference(item)
+                        if rel_info.peer_has_hfid
+                        else item
+                        for item in value
+                    ]
+                elif rel_info.format == RelationshipDataFormat.ONE_REF and is_hfid_reference_dict(value):
+                    clean_data[key] = normalize_kind_hfid_reference(value)
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
                     # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
                     clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value

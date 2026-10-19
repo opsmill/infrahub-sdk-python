@@ -524,6 +524,92 @@ async def test_hfid_normalization_in_object_loading(
         assert create_calls[0]["data"]["tags"] == test_case.expected_tags
 
 
+@dataclass
+class KindHfidLoadCase:
+    name: str
+    kind: str
+    data: dict[str, Any]
+    relationship: str
+    expected: dict[str, Any] | list[dict[str, Any]]
+
+
+KIND_HFID_LOAD_CASES = [
+    KindHfidLoadCase(
+        name="one_physical_interface",
+        kind="TestingSubInterface",
+        data={
+            "name": "Gi0/0/3.100",
+            "vlan_id": 100,
+            "parent_interface": {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+        },
+        relationship="parent_interface",
+        expected={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+    ),
+    KindHfidLoadCase(
+        name="one_port_channel_interface",
+        kind="TestingSubInterface",
+        data={
+            "name": "Po1.100",
+            "vlan_id": 100,
+            "parent_interface": {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+        },
+        relationship="parent_interface",
+        expected={"hfid": ["router1", "Po1"], "kind": "TestingPortChannelInterface"},
+    ),
+    KindHfidLoadCase(
+        name="many_mixed_kinds",
+        kind="TestingTunnel",
+        data={
+            "name": "tunnel1",
+            "source_interfaces": [
+                {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+                {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+            ],
+        },
+        relationship="source_interfaces",
+        expected=[
+            {"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+            {"hfid": ["router1", "Po1"], "kind": "TestingPortChannelInterface"},
+        ],
+    ),
+    KindHfidLoadCase(
+        name="one_string_hfid_becomes_list",
+        kind="TestingPhysicalInterface",
+        data={"name": "Gi0/0/3", "device": {"kind": "TestingDevice", "hfid": "router1"}},
+        relationship="device",
+        expected={"hfid": ["router1"], "kind": "TestingDevice"},
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in KIND_HFID_LOAD_CASES])
+async def test_kind_hfid_reference_in_object_loading(
+    client_with_generic_peer_schema: InfrahubClient, case: KindHfidLoadCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    content = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": case.kind, "data": [case.data]}}
+    obj = ObjectFile(location="some/path", content=content)
+    await obj.validate_format(client=client)
+
+    create_calls: list[dict[str, Any]] = []
+    original_create = client.create
+
+    async def capture_create(kind: str, data: dict | None = None, **kwargs: Any) -> InfrahubNode:  # noqa: ANN401
+        create_calls.append({"kind": kind, "data": data})
+        return await original_create(kind=kind, data=data, **kwargs)
+
+    async def skip_save(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(client, "create", capture_create)
+    monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
+
+    await obj.process(client=client)
+
+    assert len(create_calls) == 1
+    assert create_calls[0]["data"][case.relationship] == case.expected
+
+
 def test_normalize_hfid_reference_function() -> None:
     """Test the normalize_hfid_reference function directly.
 
@@ -549,7 +635,7 @@ class RelatedNodePayloadTestCase:
     """Test case for verifying the actual GraphQL payload structure from RelatedNode."""
 
     name: str
-    input_data: str | list[str]
+    input_data: str | list[str] | dict[str, Any]
     expected_payload: dict[str, Any]
 
 
@@ -571,6 +657,11 @@ RELATED_NODE_PAYLOAD_TEST_CASES = [
         name="multi_component_hfid_payload",
         input_data=["namespace", "name"],
         expected_payload={"hfid": ["namespace", "name"]},
+    ),
+    RelatedNodePayloadTestCase(
+        name="kind_hfid_dict_payload",
+        input_data={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+        expected_payload={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
     ),
 ]
 

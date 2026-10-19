@@ -314,3 +314,18 @@ class TestSpecObjectGenericPeer(TestInfrahubDockerClient):
 
         interface = await client.schema.get(kind="TestingPhysicalInterface")
         assert interface.human_friendly_id == ["device__name__value", "name__value"]
+
+    async def test_load_with_kind(self, client: InfrahubClient, initial_schema: None) -> None:
+        for name in ("generic_peer_subinterfaces01.yml", "generic_peer_subinterfaces02.yml"):
+            for obj_file in ObjectFile.load_from_disk(paths=[get_fixtures_dir() / "spec_objects" / name]):
+                await obj_file.validate_format(client=client)
+                await obj_file.process(client=client)
+
+        expected = {
+            "Gi0/0/3.100": ("TestingPhysicalInterface", ["router1", "Gi0/0/3"]),
+            "Po1.200": ("TestingPortChannelInterface", ["router1", "Po1"]),
+        }
+        for sub_name, (kind, hfid) in expected.items():
+            sub = await client.get(kind="TestingSubInterface", name__value=sub_name, prefetch_relationships=True)
+            assert sub.parent_interface.peer.get_kind() == kind
+            assert sub.parent_interface.hfid == hfid
