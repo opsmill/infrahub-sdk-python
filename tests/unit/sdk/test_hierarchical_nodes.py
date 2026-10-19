@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
+import httpx
 import pytest
 
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
@@ -225,6 +229,59 @@ async def test_hierarchical_node_with_descendants_data(
     assert node.descendants.peers[1].display_label == "New York"
     assert node.descendants.peers[2].id == "descendant-3"
     assert node.descendants.peers[2].display_label == "Texas"
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+@pytest.mark.parametrize("relationship", ["ancestors", "descendants"])
+async def test_hierarchical_manager_fetch_reloads_relationship_not_loaded(
+    client: InfrahubClient,
+    client_sync: InfrahubClientSync,
+    hierarchical_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+    client_type: str,
+    relationship: str,
+) -> None:
+    """Test that fetch() on ancestors or descendants that were not loaded reloads them and resolves the peers."""
+    node_id = "11111111-1111-1111-1111-111111111111"
+    peer_id = "22222222-2222-2222-2222-222222222222"
+    peer_edge = {"node": {"id": peer_id, "__typename": "InfraLocation", "display_label": "Earth"}}
+    responses = {
+        "Get_InfraLocation": {
+            "count": 1,
+            "edges": [{"node": {"id": node_id, "__typename": "InfraLocation", relationship: {"edges": [peer_edge]}}}],
+        },
+        "Count_InfraLocation": {"count": 1},
+        "Filters_InfraLocation": {
+            "count": 1,
+            "edges": [{"node": {**peer_edge["node"], "name": {"value": "Earth"}}}],
+        },
+    }
+    queries: dict[str, str] = {}
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        queries[payload["operationName"]] = payload["query"]
+        return httpx.Response(status_code=200, json={"data": {"InfraLocation": responses[payload["operationName"]]}})
+
+    httpx_mock.add_callback(respond, is_reusable=True)
+    cache_data = {"version": "1.0", "nodes": [hierarchical_schema.model_dump()]}
+    data = {"id": node_id, "name": {"value": "USA"}}
+
+    if client_type == "standard":
+        client.schema.set_cache(cache_data)
+        node = InfrahubNode(client=client, schema=hierarchical_schema, data=data)
+        await getattr(node, relationship).fetch()
+    else:
+        client_sync.schema.set_cache(cache_data)
+        node = InfrahubNodeSync(client=client_sync, schema=hierarchical_schema, data=data)
+        getattr(node, relationship).fetch()
+
+    manager = getattr(node, relationship)
+    assert manager.initialized is True
+    assert manager.peer_ids == [peer_id]
+    assert manager.peers[0].peer.name.value == "Earth"
+    assert relationship in queries["Get_InfraLocation"]
+    assert "description" not in queries["Get_InfraLocation"]
 
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
