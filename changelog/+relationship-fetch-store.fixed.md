@@ -1,0 +1,1 @@
+Fixed `fetch()` on a cardinality-many relationship that was not loaded, such as `children`, replacing the node in the client store with a copy that has no attribute values, on both the async and the sync client. `fetch()` on a node that has not been saved now raises `UninitializedError` instead of `At least one filter must be provided to get()`.
