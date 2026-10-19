@@ -145,12 +145,12 @@
 
 ## Phase 6: Polish and cross-cutting concerns
 
-- [ ] T020 [P] In `docs/docs/python-sdk/topics/object_file.mdx`, add a section "Reference a node through a generic relationship". It describes the `kind` plus `hfid` form, the HFID-alone lookup and its ambiguity error, using the sub-interface example from `contracts/object-file-reference.md`. It also states that validation does not check whether the peer exists.
-- [ ] T021 [P] Add the towncrier fragment `changelog/+generic-peer-hfid.added.md`. It says that object files can reference peers of a generic relationship by kind plus HFID, or by HFID alone when exactly one inheriting node matches.
-- [ ] T022 Run `uv run invoke format lint-code` and `uv run invoke lint-docs`, and fix every finding.
-- [ ] T023 Run `uv run pytest tests/unit/sdk/spec/ tests/unit/ctl/object/` and confirm that every test passes, including the existing HFID normalization tests (FR-008).
-- [ ] T024 Run the integration tests from `quickstart.md`: `uv run pytest tests/integration/test_spec_object.py -k GenericPeer -v`.
-- [ ] T025 Check the minimum supported Infrahub server version in `docs/docs/python-sdk/reference/compatibility.mdx` against the release that added `RelatedNodeInput.kind` (server issue #4649). Record the result in the pull request description.
+- [X] T020 [P] In `docs/docs/python-sdk/topics/object_file.mdx`, add a section "Reference a node through a generic relationship". It describes the `kind` plus `hfid` form, the HFID-alone lookup and its ambiguity error, using the sub-interface example from `contracts/object-file-reference.md`. It also states that validation does not check whether the peer exists.
+- [X] T021 [P] Add the towncrier fragment `changelog/+generic-peer-hfid.added.md`. It says that object files can reference peers of a generic relationship by kind plus HFID, or by HFID alone when exactly one inheriting node matches.
+- [X] T022 Run `uv run invoke format lint-code` and `uv run invoke lint-docs`, and fix every finding.
+- [X] T023 Run `uv run pytest tests/unit/sdk/spec/ tests/unit/ctl/object/` and confirm that every test passes, including the existing HFID normalization tests (FR-008).
+- [X] T024 Run the integration tests from `quickstart.md`: `uv run pytest tests/integration/test_spec_object.py -k GenericPeer -v`.
+- [X] T025 Check the minimum supported Infrahub server version in `docs/docs/python-sdk/reference/compatibility.mdx` against the release that added `RelatedNodeInput.kind` (server issue #4649). Record the result in the pull request description.
 
 ---
 
