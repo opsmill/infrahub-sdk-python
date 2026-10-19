@@ -75,7 +75,7 @@ When editing `.md` or `.mdx` files (`uv run invoke lint-docs` enforces these):
 
 - Adding new dependencies
 - Changing public API signatures
-- Opening a draft pull request in `opsmill/infrahub` to run its CI against an SDK branch. Suggest it before merging a change to code that Infrahub calls ([dev/guides/testing-against-infrahub-ci.md](dev/guides/testing-against-infrahub-ci.md))
+- Opening a pull request in `opsmill/infrahub`, such as a draft that runs its CI against an SDK branch ([dev/guides/testing-against-infrahub-ci.md](dev/guides/testing-against-infrahub-ci.md))
 
 🚫 **Never**
 
