@@ -63,7 +63,7 @@ This extra is considerably larger than the others, since running Infrahub in con
 
 <!-- vale on -->
 
-The `tracing` extra installs the OpenTelemetry API. When your application traces with OpenTelemetry, the SDK then sends the W3C `traceparent` header with each request, so the Infrahub server records its spans in your application's trace. Without an active span, the SDK sends no header.
+The `tracing` extra installs the OpenTelemetry API, so the SDK can send the W3C `traceparent` header with each request and the Infrahub server records its spans in your application's trace. The SDK sends the header only when both conditions are true: OpenTelemetry is installed, and the request runs inside an active span of your application.
 
 ```shell
 pip install 'infrahub-sdk[tracing]'
