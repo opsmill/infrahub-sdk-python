@@ -903,19 +903,6 @@ class InfrahubNode(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                if isinstance(rel_data, RelatedNode):
-                    peer_id_data: dict[str, Any] = {
-                        key: value
-                        for key, value in (
-                            ("id", rel_data.id),
-                            ("hfid", rel_data.hfid),
-                            ("__typename", rel_data.typename),
-                            ("kind", rel_data.kind),
-                            ("display_label", rel_data.display_label),
-                        )
-                        if value is not None
-                    }
-                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
@@ -2139,19 +2126,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                if isinstance(rel_data, RelatedNodeSync):
-                    peer_id_data: dict[str, Any] = {
-                        key: value
-                        for key, value in (
-                            ("id", rel_data.id),
-                            ("hfid", rel_data.hfid),
-                            ("__typename", rel_data.typename),
-                            ("kind", rel_data.kind),
-                            ("display_label", rel_data.display_label),
-                        )
-                        if value is not None
-                    }
-                    rel_data = peer_id_data or None
                 self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
