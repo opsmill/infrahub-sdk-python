@@ -36,6 +36,9 @@ class RelationshipManagerBase(Generic[PeerT]):
 
     """
 
+    # The node the relationship belongs to; the subclasses set it.
+    node: InfrahubNodeBase | None = None
+
     def __init__(self, name: str, branch: str, schema: RelationshipSchemaAPI) -> None:
         """Build the base relationship manager state.
 
@@ -116,13 +119,19 @@ class RelationshipManagerBase(Generic[PeerT]):
     def _generate_input_data(self, allocate_from_pool: bool = False) -> list[dict]:
         return [peer._generate_input_data(allocate_from_pool=allocate_from_pool) for peer in self.peers]
 
-    def _reload_kwargs(self, node: InfrahubNodeBase) -> dict[str, Any]:
-        """The arguments of the `get` that reloads `node` with this relationship only."""
+    def _reload_kwargs(self) -> dict[str, Any]:
+        """The arguments of the `get` that reloads `self.node` with this relationship only.
+
+        Raises:
+            UninitializedError: If the manager has no node or the node has no ``id``.
+
+        """
+        if self.node is None or not self.node.id:
+            raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
+        schema = self.node._schema
         # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
-        exclude = [
-            name for name in node._schema.relationship_names + node._schema.attribute_names if name != self.schema.name
-        ]
-        # Keep `node` in the store instead of replacing it with this copy that has no attribute values.
+        exclude = [name for name in schema.relationship_names + schema.attribute_names if name != self.schema.name]
+        # Keep `self.node` in the store instead of replacing it with this copy that has no attribute values.
         return {"include": [self.schema.name], "exclude": exclude, "populate_store": False}
 
     def _generate_mutation_query(self) -> dict[str, Any]:
@@ -178,6 +187,8 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
     list in memory. Peers are exposed as :class:`RelatedNode` instances and can be
     accessed by index via ``manager[i]``.
     """
+
+    node: InfrahubNode
 
     def __init__(
         self,
@@ -252,13 +263,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
 
         """
         if not self.initialized:
-            if not self.node.id:
-                raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
+            reload_kwargs = self._reload_kwargs()
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                **self._reload_kwargs(node=self.node),
+                **reload_kwargs,
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
@@ -376,6 +386,8 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
     accessed by index via ``manager[i]``.
     """
 
+    node: InfrahubNodeSync
+
     def __init__(
         self,
         name: str,
@@ -449,13 +461,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
 
         """
         if not self.initialized:
-            if not self.node.id:
-                raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
+            reload_kwargs = self._reload_kwargs()
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                **self._reload_kwargs(node=self.node),
+                **reload_kwargs,
             )
             rm = getattr(node, self.schema.name)
             self.peers = rm.peers
