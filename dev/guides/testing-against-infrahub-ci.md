@@ -47,6 +47,7 @@ gh pr create --draft --base develop --title "[DO NOT MERGE] Run Infrahub CI agai
 
 ## Read the results
 
+- Check that `huge-runner-gate` passed. When a check that the gate depends on fails, the gate fails and [Infrahub's CI](https://github.com/opsmill/infrahub/blob/develop/.github/workflows/ci.yml) skips the component, integration and functional backend jobs. A skipped job is not a pass. For example, a change to `InfrahubRepositoryConfig` makes Infrahub's `dotinfrahub.mdx` out of date, so `validate-generated-documentation` fails, the gate fails and the backend jobs do not run.
 - Compare a failing job with the latest run of the same job on the Infrahub branch. A job that also fails there is not caused by the SDK change.
 - Link the Infrahub pull request from the SDK pull request, with the result.
 - Close the Infrahub pull request and delete its branch when you are done. It is never merged: SDK releases reach Infrahub through Infrahub's submodule update workflow.
