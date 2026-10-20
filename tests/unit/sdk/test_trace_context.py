@@ -7,9 +7,11 @@ import opentelemetry
 import pytest
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, use_span
 
-from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
+from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync, trace_context
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest_httpx import HTTPXMock
 
 TRACE_ID = 0x0AF7651916CD43DD8448EB211C80319C
@@ -32,6 +34,13 @@ async def _execute(client_type: str) -> None:
         await InfrahubClient(config=config).execute_graphql(query=QUERY)
     else:
         InfrahubClientSync(config=config).execute_graphql(query=QUERY)
+
+
+@pytest.fixture(autouse=True)
+def fresh_version_check() -> Iterator[None]:
+    trace_context._supported_opentelemetry_is_installed.cache_clear()
+    yield
+    trace_context._supported_opentelemetry_is_installed.cache_clear()
 
 
 @pytest.fixture
@@ -100,3 +109,47 @@ async def test_invalid_propagator_setting_sends_no_traceparent_and_warns_once(
         f"(Propagator {propagator} not found. It is either misspelled or not installed.)"
     )
     assert [record.getMessage() for record in caplog.records if "trace context" in record.getMessage()] == [expected]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_unsupported_opentelemetry_is_never_imported_and_warns_once(
+    client_type: str, graphql_response: HTTPXMock, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(trace_context, "version", lambda _distribution: "1.18.0")
+    monkeypatch.delitem(sys.modules, "opentelemetry.propagate", raising=False)
+    monkeypatch.delattr(opentelemetry, "propagate", raising=False)
+
+    with use_span(_span()), caplog.at_level("WARNING", logger="infrahub_sdk"):
+        await _execute(client_type)
+        await _execute(client_type)
+
+    requests = graphql_response.get_requests()
+    assert len(requests) == 2
+    assert all("traceparent" not in request.headers for request in requests)
+    assert "opentelemetry.propagate" not in sys.modules
+    assert [record.getMessage() for record in caplog.records if "trace context" in record.getMessage()] == [
+        "Not sending the trace context: opentelemetry-api 1.18.0 is installed, 1.33 or later is required"
+    ]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_installed_version_is_read_once(
+    client_type: str, graphql_response: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lookups: list[str] = []
+
+    def fake_version(distribution: str) -> str:
+        lookups.append(distribution)
+        return "1.45.1"
+
+    monkeypatch.setattr(trace_context, "version", fake_version)
+
+    with use_span(_span()):
+        await _execute(client_type)
+        await _execute(client_type)
+
+    assert lookups == ["opentelemetry-api"]
+    assert [request.headers["traceparent"] for request in graphql_response.get_requests()] == [
+        EXPECTED_TRACEPARENT,
+        EXPECTED_TRACEPARENT,
+    ]
