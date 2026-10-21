@@ -794,8 +794,8 @@ class CoreNumberPool(CoreResourcePool, LineageSource):
 
 class CoreNumberPoolRange(CoreWeightedPoolResource):
     allocation_weight: IntegerOptional
-    end: Integer
-    start: Integer
+    end: IntegerOptional
+    start: IntegerOptional
     member_of_groups: RelationshipManager[CoreGroup]
     pool: RelationshipAttribute[CoreNumberPool]
     subscriber_of_groups: RelationshipManager[CoreGroup]
@@ -1937,8 +1937,8 @@ class CoreNumberPoolSync(CoreResourcePoolSync, LineageSourceSync):
 
 class CoreNumberPoolRangeSync(CoreWeightedPoolResourceSync):
     allocation_weight: IntegerOptional
-    end: Integer
-    start: Integer
+    end: IntegerOptional
+    start: IntegerOptional
     member_of_groups: RelationshipManagerSync[CoreGroupSync]
     pool: RelationshipAttributeSync[CoreNumberPoolSync]
     subscriber_of_groups: RelationshipManagerSync[CoreGroupSync]

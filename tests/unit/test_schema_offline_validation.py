@@ -227,14 +227,22 @@ def test_number_pool_explicit_empty_ranges_survive_the_dumps() -> None:
     assert client_dump["nodes"][0]["attributes"][0]["parameters"] == {"ranges": []}
 
 
-def test_number_pool_range_without_an_end_is_rejected() -> None:
-    schema = _schema_with_kind_and_parameters("NumberPool", {"ranges": [{"start": 1}]})
+def test_number_pool_range_with_one_bound_is_accepted() -> None:
+    schema = _schema_with_kind_and_parameters("NumberPool", {"ranges": [{"start": 1}, {"end": 0}]})
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True
+
+
+def test_number_pool_range_with_a_weight_that_is_not_a_number_is_rejected() -> None:
+    schema = _schema_with_kind_and_parameters("NumberPool", {"ranges": [{"start": 1, "weight": "heavy"}]})
 
     result = validate_schema(schema=schema)
 
     assert result.valid is False
     # A violation inside a discriminated union is located through the variant that was selected.
-    assert _fields_named(result) == {"nodes[0].attributes[0].NumberPool.parameters.ranges[0].end"}
+    assert _fields_named(result) == {"nodes[0].attributes[0].NumberPool.parameters.ranges[0].weight"}
 
 
 # ---------------------------------------------------------------------------
