@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
+import httpx
 import pytest
 
+from infrahub_sdk.exceptions import UninitializedError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 from infrahub_sdk.schema import NodeSchema, NodeSchemaAPI
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
@@ -225,6 +230,86 @@ async def test_hierarchical_node_with_descendants_data(
     assert node.descendants.peers[1].display_label == "New York"
     assert node.descendants.peers[2].id == "descendant-3"
     assert node.descendants.peers[2].display_label == "Texas"
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+@pytest.mark.parametrize("relationship", ["ancestors", "descendants"])
+async def test_hierarchical_manager_fetch_reloads_relationship_not_loaded(
+    client: InfrahubClient,
+    client_sync: InfrahubClientSync,
+    hierarchical_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+    client_type: str,
+    relationship: str,
+) -> None:
+    """Test that fetch() on unloaded ancestors or descendants resolves the peers and keeps the node in the store."""
+    node_id = "11111111-1111-1111-1111-111111111111"
+    peer_id = "22222222-2222-2222-2222-222222222222"
+    peer_edge = {"node": {"id": peer_id, "__typename": "InfraLocation", "display_label": "Earth"}}
+    responses = {
+        "Get_InfraLocation": {
+            "count": 1,
+            "edges": [{"node": {"id": node_id, "__typename": "InfraLocation", relationship: {"edges": [peer_edge]}}}],
+        },
+        "Count_InfraLocation": {"count": 1},
+        "Filters_InfraLocation": {
+            "count": 1,
+            "edges": [{"node": {**peer_edge["node"], "name": {"value": "Earth"}}}],
+        },
+    }
+    queries: dict[str, str] = {}
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        queries[payload["operationName"]] = payload["query"]
+        return httpx.Response(status_code=200, json={"data": {"InfraLocation": responses[payload["operationName"]]}})
+
+    httpx_mock.add_callback(respond, is_reusable=True)
+    cache_data = {"version": "1.0", "nodes": [hierarchical_schema.model_dump()]}
+    data = {"id": node_id, "name": {"value": "USA"}}
+
+    if client_type == "standard":
+        client.schema.set_cache(cache_data)
+        node = InfrahubNode(client=client, schema=hierarchical_schema, data=data)
+        client.store.set(node=node)
+        await getattr(node, relationship).fetch()
+        stored_node = client.store.get(key=node_id)
+    else:
+        client_sync.schema.set_cache(cache_data)
+        node = InfrahubNodeSync(client=client_sync, schema=hierarchical_schema, data=data)
+        client_sync.store.set(node=node)
+        getattr(node, relationship).fetch()
+        stored_node = client_sync.store.get(key=node_id)
+
+    manager = getattr(node, relationship)
+    assert manager.initialized is True
+    assert manager.peer_ids == [peer_id]
+    assert manager.peers[0].peer.name.value == "Earth"
+    assert relationship in queries["Get_InfraLocation"]
+    assert "description" not in queries["Get_InfraLocation"]
+    assert stored_node.name.value == "USA"
+
+
+@pytest.mark.parametrize("client_type", ["standard", "sync"])
+@pytest.mark.parametrize("relationship", ["children", "ancestors", "descendants"])
+async def test_hierarchical_manager_fetch_on_unsaved_node_raises(
+    client: InfrahubClient,
+    client_sync: InfrahubClientSync,
+    hierarchical_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+    client_type: str,
+    relationship: str,
+) -> None:
+    """Test that fetch() on a relationship of a node that has no id raises before sending any request."""
+    data = {"name": {"value": "USA"}}
+
+    with pytest.raises(UninitializedError, match=f"Unable to fetch '{relationship}' on a node that has not been saved"):
+        if client_type == "standard":
+            await getattr(InfrahubNode(client=client, schema=hierarchical_schema, data=data), relationship).fetch()
+        else:
+            getattr(InfrahubNodeSync(client=client_sync, schema=hierarchical_schema, data=data), relationship).fetch()
+
+    assert httpx_mock.get_requests() == []
 
 
 @pytest.mark.parametrize("client_type", ["standard", "sync"])
