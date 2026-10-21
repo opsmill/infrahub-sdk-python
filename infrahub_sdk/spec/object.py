@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import BaseModel, Field
 
@@ -23,8 +23,12 @@ def validate_list_of_scalars(value: list[Any]) -> bool:
     return all(isinstance(item, (str, int, float, bool)) for item in value)
 
 
+def is_hfid_reference_dict(value: Any) -> TypeGuard[dict[str, Any]]:
+    return isinstance(value, dict) and ("hfid" in value or "kind" in value) and "data" not in value
+
+
 def validate_list_of_hfids(value: list[Any]) -> bool:
-    return all(isinstance(item, (str, list)) for item in value)
+    return all(isinstance(item, (str, list)) or is_hfid_reference_dict(item) for item in value)
 
 
 def validate_list_of_data_dicts(value: list[Any]) -> bool:
@@ -66,6 +70,12 @@ def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[
     return [normalize_hfid_reference(v) for v in values]
 
 
+def normalize_kind_hfid_reference(value: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a ``{"kind": ..., "hfid": ...}`` reference so that ``hfid`` is always a list."""
+    hfid = value["hfid"]
+    return {"hfid": hfid if isinstance(hfid, list) else [hfid], "kind": value["kind"]}
+
+
 class RelationshipDataFormat(str, Enum):
     UNKNOWN = "unknown"
 
@@ -85,6 +95,8 @@ class RelationshipInfo(BaseModel):
     reason_relationship_not_valid: str | None = None
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
     peer_human_friendly_id: list[str] | None = None
+    peer_is_generic_without_hfid: bool = False
+    peer_used_by: list[str] = Field(default_factory=list)
 
     @property
     def peer_has_hfid(self) -> bool:
@@ -149,14 +161,25 @@ async def get_relationship_info(
 
     info = RelationshipInfo(name=name, peer_kind=rel_schema.peer, rel_schema=rel_schema)
 
-    if isinstance(value, dict) and "data" not in value:
+    if isinstance(value, dict) and "data" not in value and not is_hfid_reference_dict(value):
         info.reason_relationship_not_valid = f"Relationship {name} must be a dict with 'data'"
         return info
 
     if isinstance(value, dict) and "kind" in value:
         info.peer_kind = value["kind"]
 
-    peer_schema = await client.schema.get(kind=info.peer_kind, branch=branch)
+    declared_peer_schema = await client.schema.get(kind=rel_schema.peer, branch=branch)
+    if isinstance(declared_peer_schema, GenericSchemaAPI):
+        info.peer_used_by = declared_peer_schema.used_by
+        info.peer_is_generic_without_hfid = not declared_peer_schema.human_friendly_id
+
+    # A peer reference with a kind outside the peer's hierarchy is reported during validation, so its schema is not fetched.
+    reference_outside_hierarchy = is_hfid_reference_dict(value) and info.peer_kind not in info.peer_used_by
+    peer_schema = (
+        declared_peer_schema
+        if info.peer_kind == rel_schema.peer or reference_outside_hierarchy
+        else await client.schema.get(kind=info.peer_kind, branch=branch)
+    )
     info.peer_human_friendly_id = peer_schema.human_friendly_id
 
     with contextlib.suppress(ValueError):
@@ -171,7 +194,9 @@ async def get_relationship_info(
         else:
             info.reason_relationship_not_valid = "Too many objects provided for a relationship of cardinality one"
 
-    elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, str):
+    elif rel_schema.cardinality == RelationshipCardinality.ONE and (
+        isinstance(value, str) or is_hfid_reference_dict(value)
+    ):
         info.format = RelationshipDataFormat.ONE_REF
 
     elif rel_schema.cardinality == RelationshipCardinality.ONE and isinstance(value, dict) and "data" in value:
@@ -335,10 +360,17 @@ class InfrahubObjectFileData(BaseModel):
         context = context.copy() if context else {}
         errors: list[ObjectValidationError] = []
 
-        if isinstance(data, (list, str)) and rel_info.format == RelationshipDataFormat.ONE_REF:
-            return errors
-
-        if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF:
+        if rel_info.is_reference:
+            references = (
+                [([*position, idx + 1], item) for idx, item in enumerate(data)]
+                if isinstance(data, list) and rel_info.format == RelationshipDataFormat.MANY_REF
+                else [(position, data)]
+            )
+            for ref_position, reference in references:
+                if is_hfid_reference_dict(reference):
+                    errors.extend(
+                        await cls._validate_kind_hfid_reference(client, rel_info, reference, ref_position, branch)
+                    )
             return errors
 
         if isinstance(data, dict) and rel_info.format == RelationshipDataFormat.ONE_OBJ:
@@ -427,8 +459,106 @@ class InfrahubObjectFileData(BaseModel):
         return errors
 
     @classmethod
+    async def _validate_kind_hfid_reference(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        value: dict[str, Any],
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> list[ObjectValidationError]:
+        """Check a ``{"kind": ..., "hfid": ...}`` peer reference against the schema, without querying nodes."""
+        if set(value) != {"kind", "hfid"}:
+            message = f"only `kind` and `hfid` are allowed in a peer reference, and both are required, got {', '.join(sorted(value))}"
+            return [ObjectValidationError(position=position, message=message)]
+
+        kind = value["kind"]
+        peer = rel_info.rel_schema.peer
+        if kind != peer and kind not in rel_info.peer_used_by:
+            message = f"{kind} is not {peer} and does not inherit from it"
+            return [ObjectValidationError(position=position, message=message)]
+
+        hfid_paths = (await client.schema.get(kind=kind, branch=branch)).human_friendly_id
+        if not hfid_paths:
+            return [ObjectValidationError(position=position, message=f"{kind} has no human_friendly_id")]
+
+        hfid = value["hfid"]
+        hfid = [hfid] if isinstance(hfid, str) else hfid
+        if not isinstance(hfid, list) or not all(isinstance(part, str) for part in hfid):
+            return [ObjectValidationError(position=position, message="`hfid` must be a string or a list of strings")]
+        if len(hfid) != len(hfid_paths):
+            message = f"expected {len(hfid_paths)} values for {kind} ({', '.join(hfid_paths)}), got {len(hfid)}"
+            return [ObjectValidationError(position=position, message=message)]
+
+        return []
+
+    @classmethod
     def enrich_node(cls, data: dict, context: dict) -> dict:  # noqa: ARG003
         return data
+
+    @classmethod
+    async def _clean_reference(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        value: Any,
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> Any:
+        """Convert one peer reference from an object file to the format used to create the node."""
+        if is_hfid_reference_dict(value):
+            return normalize_kind_hfid_reference(value)
+        if rel_info.peer_is_generic_without_hfid and (
+            isinstance(value, list) or (isinstance(value, str) and not is_valid_uuid(value))
+        ):
+            return await cls._resolve_generic_hfid(client, rel_info, value, position, branch)
+        return normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+
+    @classmethod
+    async def _resolve_generic_hfid(
+        cls,
+        client: InfrahubClient,
+        rel_info: RelationshipInfo,
+        hfid: str | list[str],
+        position: list[int | str],
+        branch: str | None = None,
+    ) -> dict[str, Any]:
+        """Find the single node, among the kinds that inherit from the generic peer, that matches ``hfid``.
+
+        Raises:
+            ObjectValidationError: When no node or more than one node matches ``hfid``.
+        """
+        hfid = hfid if isinstance(hfid, list) else [hfid]
+        candidates = []
+        for kind in rel_info.peer_used_by:
+            kind_schema = await client.schema.get(kind=kind, branch=branch)
+            if kind_schema.human_friendly_id and len(kind_schema.human_friendly_id) == len(hfid):
+                candidates.append(kind)
+
+        # ponytail: one query per candidate kind, add a (kind, hfid) cache if large files become slow
+        matches = [
+            kind
+            for kind in candidates
+            if await client.get(kind=kind, hfid=hfid, branch=branch, raise_when_missing=False) is not None
+        ]
+
+        error_position = [*position, rel_info.name]
+        if not matches:
+            searched = (
+                f"among {', '.join(candidates)}"
+                if candidates
+                else f"; no kind that inherits from it has an HFID with {len(hfid)} values"
+            )
+            raise ObjectValidationError(
+                position=error_position,
+                message=f"no {rel_info.rel_schema.peer} with HFID {hfid} {searched}",
+            )
+        if len(matches) > 1:
+            raise ObjectValidationError(
+                position=error_position,
+                message=f"HFID {hfid} matches {', '.join(matches)}; add `kind:` to the reference",
+            )
+        return {"hfid": hfid, "kind": matches[0]}
 
     @classmethod
     async def create_node(
@@ -486,10 +616,11 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
                     # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
-                    clean_data[key] = normalize_hfid_references(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = [
+                        await cls._clean_reference(client, rel_info, item, position, branch) for item in value
+                    ]
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
-                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = await cls._clean_reference(client, rel_info, value, position, branch)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:

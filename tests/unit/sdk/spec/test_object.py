@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from infrahub_sdk.exceptions import ValidationError
+from infrahub_sdk.exceptions import ObjectValidationError, ValidationError
 from infrahub_sdk.node.related_node import RelatedNode
 from infrahub_sdk.spec.object import (
     InfrahubObjectFileData,
@@ -126,6 +127,96 @@ def location_with_empty_parameters(root_location: dict) -> dict:
     location["spec"]["data"] = data
     location["spec"]["parameters"] = {}
     return location
+
+
+def _attr(name: str, kind: str = "Text") -> dict[str, Any]:
+    return {"name": name, "kind": kind, "optional": False}
+
+
+def _rel(name: str, peer: str, cardinality: str = "one", identifier: str | None = None) -> dict[str, Any]:
+    rel: dict[str, Any] = {"name": name, "peer": peer, "cardinality": cardinality, "optional": True}
+    if identifier:
+        rel["identifier"] = identifier
+    return rel
+
+
+def _interface_node(name: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "namespace": "Testing",
+        "inherit_from": ["TestingSupportsSubintf"],
+        "human_friendly_id": ["device__name__value", "name__value"],
+        "attributes": [_attr("name")],
+        "relationships": [
+            {**_rel("device", "TestingDevice"), "optional": False},
+            _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface"),
+        ],
+    }
+
+
+@pytest.fixture
+def schema_generic_peer_data() -> dict[str, Any]:
+    return {
+        "main": "generic-peer",
+        "generics": [
+            {
+                "name": "SupportsSubintf",
+                "namespace": "Testing",
+                "used_by": ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"],
+                "attributes": [],
+                "relationships": [
+                    _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
+                ],
+            }
+        ],
+        "nodes": [
+            _interface_node("PhysicalInterface"),
+            _interface_node("PortChannelInterface"),
+            {
+                "name": "Device",
+                "namespace": "Testing",
+                "human_friendly_id": ["name__value"],
+                "attributes": [_attr("name")],
+                "relationships": [],
+            },
+            {
+                "name": "SubInterface",
+                "namespace": "Testing",
+                "attributes": [_attr("name"), _attr("vlan_id", "Number")],
+                "relationships": [
+                    _rel("parent_interface", "TestingSupportsSubintf", identifier="supports_subintf__subinterface")
+                ],
+            },
+            {
+                "name": "Tunnel",
+                "namespace": "Testing",
+                "attributes": [_attr("name")],
+                "relationships": [_rel("source_interfaces", "TestingSupportsSubintf", "many")],
+            },
+            {
+                "name": "Other",
+                "namespace": "Testing",
+                "human_friendly_id": ["name__value"],
+                "attributes": [_attr("name")],
+                "relationships": [],
+            },
+            {
+                "name": "NoHfid",
+                "namespace": "Testing",
+                "inherit_from": ["TestingSupportsSubintf"],
+                "attributes": [_attr("name")],
+                "relationships": [
+                    _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
+                ],
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def client_with_generic_peer_schema(client: InfrahubClient, schema_generic_peer_data: dict) -> InfrahubClient:
+    client.schema.set_cache(schema=schema_generic_peer_data, branch="main")
+    return client
 
 
 async def test_validate_object(client: InfrahubClient, schema_query_01_data: dict, location_mexico_01: dict) -> None:
@@ -249,6 +340,179 @@ async def test_get_relationship_info_tags(
     rel_info = await get_relationship_info(client_with_schema_01, location_schema, "tags", data)
     assert rel_info.is_valid == is_valid
     assert rel_info.format == format
+
+
+async def test_get_relationship_info_generic_peer_without_hfid(client_with_generic_peer_schema: InfrahubClient) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind="TestingSubInterface")
+
+    rel_info = await get_relationship_info(
+        client_with_generic_peer_schema, schema, "parent_interface", ["router1", "Gi0/0/3"]
+    )
+    assert rel_info.format == RelationshipDataFormat.ONE_REF
+    assert rel_info.peer_has_hfid is False
+    assert rel_info.peer_is_generic_without_hfid is True
+    assert rel_info.peer_used_by == ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"]
+
+
+@dataclass
+class KindHfidReferenceCase:
+    name: str
+    kind: str
+    relationship: str
+    data: dict | list
+    format: RelationshipDataFormat
+
+
+KIND_HFID_REFERENCE_CASES = [
+    KindHfidReferenceCase(
+        name="one_kind_hfid",
+        kind="TestingSubInterface",
+        relationship="parent_interface",
+        data={"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+        format=RelationshipDataFormat.ONE_REF,
+    ),
+    KindHfidReferenceCase(
+        name="many_kind_hfid",
+        kind="TestingTunnel",
+        relationship="source_interfaces",
+        data=[
+            {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+            {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+        ],
+        format=RelationshipDataFormat.MANY_REF,
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in KIND_HFID_REFERENCE_CASES])
+async def test_get_relationship_info_kind_hfid_reference(
+    client_with_generic_peer_schema: InfrahubClient, case: KindHfidReferenceCase
+) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind=case.kind)
+
+    rel_info = await get_relationship_info(client_with_generic_peer_schema, schema, case.relationship, case.data)
+    assert rel_info.is_valid
+    assert rel_info.format == case.format
+    assert rel_info.peer_is_generic_without_hfid is True
+
+
+@dataclass
+class NestedObjectKindCase:
+    name: str
+    nested_kind: str
+
+
+NESTED_OBJECT_KIND_CASES = [
+    NestedObjectKindCase(name="kind_in_used_by", nested_kind="TestingPhysicalInterface"),
+    NestedObjectKindCase(name="kind_outside_used_by", nested_kind="TestingOther"),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in NESTED_OBJECT_KIND_CASES])
+async def test_get_relationship_info_nested_object_uses_named_kind_schema(
+    client_with_generic_peer_schema: InfrahubClient, case: NestedObjectKindCase
+) -> None:
+    schema = await client_with_generic_peer_schema.schema.get(kind="TestingSubInterface")
+    named_schema = await client_with_generic_peer_schema.schema.get(kind=case.nested_kind)
+
+    rel_info = await get_relationship_info(
+        client_with_generic_peer_schema,
+        schema,
+        "parent_interface",
+        {"kind": case.nested_kind, "data": {"name": "Gi0/0/9"}},
+    )
+    assert rel_info.format == RelationshipDataFormat.ONE_OBJ
+    assert rel_info.peer_kind == case.nested_kind
+    assert rel_info.peer_human_friendly_id == named_schema.human_friendly_id
+
+
+@dataclass
+class InvalidKindHfidCase:
+    name: str
+    kind: str
+    item: dict[str, Any]
+    expected: str
+
+
+PHYSICAL_GI003 = {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]}
+
+INVALID_KIND_HFID_CASES = [
+    InvalidKindHfidCase(
+        name="kind_not_inheriting",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingOther", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingOther is not TestingSupportsSubintf and does not inherit from it",
+    ),
+    InvalidKindHfidCase(
+        name="kind_unknown",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingMissing", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingMissing is not TestingSupportsSubintf and does not inherit from it",
+    ),
+    InvalidKindHfidCase(
+        name="kind_without_hfid",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingNoHfid", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: TestingNoHfid has no human_friendly_id",
+    ),
+    InvalidKindHfidCase(
+        name="wrong_hfid_length",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingPhysicalInterface", "hfid": ["Gi0/0/3"]}},
+        expected="1.parent_interface: expected 2 values for TestingPhysicalInterface",
+    ),
+    InvalidKindHfidCase(
+        name="extra_key",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {**PHYSICAL_GI003, "id": "abc"}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed",
+    ),
+    InvalidKindHfidCase(
+        name="missing_kind",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"hfid": ["router1", "Gi0/0/3"]}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed in a peer reference, and both are required, got hfid",
+    ),
+    InvalidKindHfidCase(
+        name="missing_hfid",
+        kind="TestingSubInterface",
+        item={"vlan_id": 10, "parent_interface": {"kind": "TestingPhysicalInterface"}},
+        expected="1.parent_interface: only `kind` and `hfid` are allowed in a peer reference, and both are required, got kind",
+    ),
+    InvalidKindHfidCase(
+        name="many_ref_item",
+        kind="TestingTunnel",
+        item={"source_interfaces": [PHYSICAL_GI003, {"kind": "TestingOther", "hfid": ["Gi0/0/3"]}]},
+        expected="1.source_interfaces.2: TestingOther is not TestingSupportsSubintf",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in INVALID_KIND_HFID_CASES])
+async def test_validate_format_invalid_kind_hfid_reference(
+    client_with_generic_peer_schema: InfrahubClient, case: InvalidKindHfidCase
+) -> None:
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {"kind": case.kind, "data": [{"name": "Gi0/0/3.10", **case.item}]},
+    }
+    obj = ObjectFile(location="some/path", content=content)
+
+    with pytest.raises(ValidationError, match=re.escape(case.expected)):
+        await obj.validate_format(client=client_with_generic_peer_schema)
+
+
+async def test_validate_format_valid_kind_hfid_reference(client_with_generic_peer_schema: InfrahubClient) -> None:
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {
+            "kind": "TestingTunnel",
+            "data": [{"name": "t1", "source_interfaces": [PHYSICAL_GI003, ["router1", "Po1"]]}],
+        },
+    }
+    await ObjectFile(location="some/path", content=content).validate_format(client=client_with_generic_peer_schema)
 
 
 async def test_parameters_top_level(client_with_schema_01: InfrahubClient, location_expansion: dict) -> None:
@@ -380,6 +644,203 @@ async def test_hfid_normalization_in_object_loading(
         assert create_calls[0]["data"]["tags"] == test_case.expected_tags
 
 
+@dataclass
+class KindHfidLoadCase:
+    name: str
+    kind: str
+    data: dict[str, Any]
+    relationship: str
+    expected: dict[str, Any] | list[dict[str, Any]]
+
+
+KIND_HFID_LOAD_CASES = [
+    KindHfidLoadCase(
+        name="one_physical_interface",
+        kind="TestingSubInterface",
+        data={
+            "name": "Gi0/0/3.100",
+            "vlan_id": 100,
+            "parent_interface": {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+        },
+        relationship="parent_interface",
+        expected={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+    ),
+    KindHfidLoadCase(
+        name="one_port_channel_interface",
+        kind="TestingSubInterface",
+        data={
+            "name": "Po1.100",
+            "vlan_id": 100,
+            "parent_interface": {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+        },
+        relationship="parent_interface",
+        expected={"hfid": ["router1", "Po1"], "kind": "TestingPortChannelInterface"},
+    ),
+    KindHfidLoadCase(
+        name="many_mixed_kinds",
+        kind="TestingTunnel",
+        data={
+            "name": "tunnel1",
+            "source_interfaces": [
+                {"kind": "TestingPhysicalInterface", "hfid": ["router1", "Gi0/0/3"]},
+                {"kind": "TestingPortChannelInterface", "hfid": ["router1", "Po1"]},
+            ],
+        },
+        relationship="source_interfaces",
+        expected=[
+            {"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+            {"hfid": ["router1", "Po1"], "kind": "TestingPortChannelInterface"},
+        ],
+    ),
+    KindHfidLoadCase(
+        name="one_string_hfid_becomes_list",
+        kind="TestingPhysicalInterface",
+        data={"name": "Gi0/0/3", "device": {"kind": "TestingDevice", "hfid": "router1"}},
+        relationship="device",
+        expected={"hfid": ["router1"], "kind": "TestingDevice"},
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in KIND_HFID_LOAD_CASES])
+async def test_kind_hfid_reference_in_object_loading(
+    client_with_generic_peer_schema: InfrahubClient, case: KindHfidLoadCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    content = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": case.kind, "data": [case.data]}}
+    obj = ObjectFile(location="some/path", content=content)
+    await obj.validate_format(client=client)
+
+    create_calls: list[dict[str, Any]] = []
+    original_create = client.create
+
+    async def capture_create(kind: str, data: dict | None = None, **kwargs: Any) -> InfrahubNode:  # noqa: ANN401
+        create_calls.append({"kind": kind, "data": data})
+        return await original_create(kind=kind, data=data, **kwargs)
+
+    async def skip_save(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(client, "create", capture_create)
+    monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
+
+    await obj.process(client=client)
+
+    assert len(create_calls) == 1
+    assert create_calls[0]["data"][case.relationship] == case.expected
+
+
+def _patch_hfid_lookup(
+    client: InfrahubClient, monkeypatch: pytest.MonkeyPatch, matching_kinds: set[str]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Patch ``client.get`` to find a node only for ``matching_kinds``, and capture ``client.create`` calls."""
+    get_calls: list[dict[str, Any]] = []
+    create_calls: list[dict[str, Any]] = []
+    original_create = client.create
+
+    async def fake_get(**kwargs: Any) -> str | None:  # noqa: ANN401
+        get_calls.append(kwargs)
+        return "node" if kwargs["kind"] in matching_kinds else None
+
+    async def capture_create(kind: str, data: dict | None = None, **kwargs: Any) -> InfrahubNode:  # noqa: ANN401
+        create_calls.append({"kind": kind, "data": data})
+        return await original_create(kind=kind, data=data, **kwargs)
+
+    async def skip_save(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        return None
+
+    monkeypatch.setattr(client, "get", fake_get)
+    monkeypatch.setattr(client, "create", capture_create)
+    monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
+    return get_calls, create_calls
+
+
+def _sub_interface_file(parent_interface: Any) -> ObjectFile:  # noqa: ANN401
+    data = {"name": "Gi0/0/3.20", "vlan_id": 20, "parent_interface": parent_interface}
+    content = {
+        "apiVersion": "infrahub.app/v1",
+        "kind": "Object",
+        "spec": {"kind": "TestingSubInterface", "data": [data]},
+    }
+    return ObjectFile(location="some/path", content=content)
+
+
+async def test_hfid_only_reference_to_generic_peer_resolves_single_match(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(["router2", "Gi0/0/3"])
+    await obj.validate_format(client=client)
+    get_calls, create_calls = _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface"})
+
+    await obj.process(client=client)
+
+    assert create_calls[0]["data"]["parent_interface"] == {
+        "hfid": ["router2", "Gi0/0/3"],
+        "kind": "TestingPhysicalInterface",
+    }
+    assert get_calls == [
+        {"kind": kind, "hfid": ["router2", "Gi0/0/3"], "branch": None, "raise_when_missing": False}
+        for kind in ("TestingPhysicalInterface", "TestingPortChannelInterface")
+    ]
+
+
+async def test_hfid_only_reference_to_generic_peer_ambiguous(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(["router2", "Gi0/0/3"])
+    await obj.validate_format(client=client)
+    _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface", "TestingPortChannelInterface"})
+
+    with pytest.raises(ObjectValidationError, match="parent_interface") as exc:
+        await obj.process(client=client)
+
+    for expected in ("TestingPhysicalInterface", "TestingPortChannelInterface", "kind:"):
+        assert expected in str(exc.value)
+
+
+@dataclass
+class HfidOnlyNoMatchCase:
+    name: str
+    parent_interface: str | list[str]
+    expected_get_calls: int
+    expected_message: str
+
+
+HFID_ONLY_NO_MATCH_CASES = [
+    HfidOnlyNoMatchCase(
+        name="two_parts",
+        parent_interface=["router9", "Gi0/0/3"],
+        expected_get_calls=2,
+        expected_message="among TestingPhysicalInterface, TestingPortChannelInterface",
+    ),
+    HfidOnlyNoMatchCase(
+        name="one_part_no_candidate",
+        parent_interface="router9",
+        expected_get_calls=0,
+        expected_message="no kind that inherits from it has an HFID with 1 values",
+    ),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in HFID_ONLY_NO_MATCH_CASES])
+async def test_hfid_only_reference_to_generic_peer_no_match(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, case: HfidOnlyNoMatchCase
+) -> None:
+    client = client_with_generic_peer_schema
+    obj = _sub_interface_file(case.parent_interface)
+    await obj.validate_format(client=client)
+    get_calls, _ = _patch_hfid_lookup(client, monkeypatch, matching_kinds=set())
+
+    with pytest.raises(ObjectValidationError, match="no TestingSupportsSubintf with HFID") as exc:
+        await obj.process(client=client)
+
+    assert "router9" in str(exc.value)
+    assert case.expected_message in str(exc.value)
+    assert len(get_calls) == case.expected_get_calls
+
+
 def test_normalize_hfid_reference_function() -> None:
     """Test the normalize_hfid_reference function directly.
 
@@ -405,7 +866,7 @@ class RelatedNodePayloadTestCase:
     """Test case for verifying the actual GraphQL payload structure from RelatedNode."""
 
     name: str
-    input_data: str | list[str]
+    input_data: str | list[str] | dict[str, Any]
     expected_payload: dict[str, Any]
 
 
@@ -427,6 +888,11 @@ RELATED_NODE_PAYLOAD_TEST_CASES = [
         name="multi_component_hfid_payload",
         input_data=["namespace", "name"],
         expected_payload={"hfid": ["namespace", "name"]},
+    ),
+    RelatedNodePayloadTestCase(
+        name="kind_hfid_dict_payload",
+        input_data={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
+        expected_payload={"hfid": ["router1", "Gi0/0/3"], "kind": "TestingPhysicalInterface"},
     ),
 ]
 
