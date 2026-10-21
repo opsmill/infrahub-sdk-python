@@ -67,13 +67,13 @@ class NumberAttributeParametersWrite(AttributeParametersWrite):
 
 class NumberPoolRangeWrite(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
-    start: int = Field(
-        ...,
-        description="First number of the range",
+    start: int | None = Field(
+        default=None,
+        description="First number of the range, 1 when unset",
     )
-    end: int = Field(
-        ...,
-        description="Last number of the range",
+    end: int | None = Field(
+        default=None,
+        description="Last number of the range, the largest supported number when unset",
     )
     weight: int | None = Field(
         default=None,
@@ -93,7 +93,7 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
     )
     ranges: list[NumberPoolRangeWrite] | None = Field(
         default=None,
-        description="Ranges of numbers the associated NumberPool allocates from, they must not overlap",
+        description="Ranges the NumberPool allocates from, without overlap. Unset means one range with no start or end; an empty list means no range",
     )
     number_pool_id: str | None = Field(
         default=None,
