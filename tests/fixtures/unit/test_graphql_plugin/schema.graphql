@@ -7,7 +7,6 @@ directive @expand(
 """Attribute of type Text"""
 type TextAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -21,7 +20,6 @@ type TextAttribute implements AttributeInterface {
 
 interface AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -51,7 +49,6 @@ enum BranchRelativePermissionDecision {
 """Attribute of type Dropdown"""
 type Dropdown implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -69,7 +66,6 @@ type Dropdown implements AttributeInterface {
 """Attribute of type MacAddress"""
 type MacAddress implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -102,7 +98,6 @@ type MacAddress implements AttributeInterface {
 """Attribute of type Number"""
 type NumberAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -124,7 +119,6 @@ scalar BigInt
 """Attribute of type IPHost"""
 type IPHost implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -146,7 +140,6 @@ type IPHost implements AttributeInterface {
 """Attribute of type IPNetwork"""
 type IPNetwork implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -169,7 +162,6 @@ type IPNetwork implements AttributeInterface {
 """Attribute of type Checkbox"""
 type CheckboxAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -184,7 +176,6 @@ type CheckboxAttribute implements AttributeInterface {
 """Attribute of type List"""
 type ListAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -206,7 +197,6 @@ scalar GenericScalar
 """Attribute of type JSON"""
 type JSONAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
@@ -221,7 +211,6 @@ type JSONAttribute implements AttributeInterface {
 """Attribute of type GenericScalar"""
 type AnyAttribute implements AttributeInterface {
   is_default: Boolean
-  is_inherited: Boolean
   is_protected: Boolean
   is_visible: Boolean
   updated_at: DateTime
