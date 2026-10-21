@@ -51,6 +51,7 @@ LOWER_BOUND_OPERATORS = frozenset({">=", ">", "==", "~="})
 # normalisation cannot recover. Everything else maps by normalising the module name.
 IMPORT_NAME_TO_DISTRIBUTION = {
     "graphql": "graphql-core",
+    "opentelemetry": "opentelemetry-api",
     "ruamel": "ruamel.yaml",
     "yaml": "pyyaml",
 }

@@ -761,6 +761,7 @@ all = [
     { name = "ariadne-codegen" },
     { name = "click" },
     { name = "infrahub-testcontainers" },
+    { name = "opentelemetry-api" },
     { name = "packaging" },
     { name = "pyarrow" },
     { name = "pytest" },
@@ -782,6 +783,9 @@ testcontainers = [
 testing = [
     { name = "pytest" },
 ]
+tracing = [
+    { name = "opentelemetry-api" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -794,6 +798,7 @@ dev = [
     { name = "jsonschema" },
     { name = "mdxify" },
     { name = "mypy" },
+    { name = "opentelemetry-api" },
     { name = "prek" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -825,6 +830,7 @@ lint = [
 tests = [
     { name = "infrahub-testcontainers" },
     { name = "jsonschema" },
+    { name = "opentelemetry-api" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-clarity" },
@@ -852,6 +858,8 @@ requires-dist = [
     { name = "infrahub-testcontainers", marker = "extra == 'testcontainers'", specifier = ">=1.7.3" },
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "netutils", specifier = ">=1.0.0" },
+    { name = "opentelemetry-api", marker = "extra == 'all'", specifier = ">=1.33" },
+    { name = "opentelemetry-api", marker = "extra == 'tracing'", specifier = ">=1.33" },
     { name = "packaging", marker = "extra == 'all'", specifier = ">=21.0" },
     { name = "packaging", marker = "extra == 'testcontainers'", specifier = ">=21.0" },
     { name = "pyarrow", marker = "extra == 'all'", specifier = ">=14" },
@@ -872,7 +880,7 @@ requires-dist = [
     { name = "ujson", specifier = ">=5" },
     { name = "whenever", specifier = ">=0.9.3,<0.10.0" },
 ]
-provides-extras = ["all", "ctl", "testcontainers", "testing"]
+provides-extras = ["all", "ctl", "testcontainers", "testing", "tracing"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -884,6 +892,7 @@ dev = [
     { name = "jsonschema", specifier = ">=4.25.1" },
     { name = "mdxify", specifier = ">=0.2.23" },
     { name = "mypy", specifier = "==2.3.1" },
+    { name = "opentelemetry-api", specifier = ">=1.33" },
     { name = "prek", specifier = ">=0.3.0" },
     { name = "pytest", specifier = ">=9.0,<9.1" },
     { name = "pytest-asyncio", specifier = ">=1.3,<1.4" },
@@ -913,6 +922,7 @@ lint = [
 tests = [
     { name = "infrahub-testcontainers", specifier = ">=1.7.3" },
     { name = "jsonschema", specifier = ">=4.25.1" },
+    { name = "opentelemetry-api", specifier = ">=1.33" },
     { name = "pytest", specifier = ">=9.0,<9.1" },
     { name = "pytest-asyncio", specifier = ">=1.3,<1.4" },
     { name = "pytest-clarity", specifier = ">=1.0.1" },

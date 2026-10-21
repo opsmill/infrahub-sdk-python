@@ -58,6 +58,7 @@ from .schema import GenericSchemaAPI, InfrahubSchema, InfrahubSchemaSync, NodeSc
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
+from .trace_context import trace_context_headers
 from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
@@ -410,13 +411,14 @@ class BaseClient:
         return headers
 
     def _merge_request_headers(self, headers: dict | None) -> dict:
-        """Merge a per-request header delta over the client's current base headers.
+        """Merge a per-request header delta over the client's current base headers and the active trace context.
 
         Per-request entries take precedence over the client-wide base headers, so a caller may
         override any header (including auth) for a single request, and a token refreshed mid-flight
         during the automatic relogin retry is picked up from the freshly-copied ``self.headers``.
         """
         merged = copy.copy(self.headers or {})
+        merged.update(trace_context_headers())
         if headers:
             merged.update(headers)
         return merged
