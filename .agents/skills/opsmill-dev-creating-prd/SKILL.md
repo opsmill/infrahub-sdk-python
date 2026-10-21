@@ -5,8 +5,8 @@ description: >-
   it to GitHub (as a comment on a referenced issue, or a new issue). Synthesises from context;
   does not interview. TRIGGER when: the conversation has produced enough understanding of a
   feature and the user wants it captured as a PRD. DO NOT TRIGGER when: a single small issue is
-  enough → opsmill-dev-creating-issues; the idea has not been stress-tested yet → opsmill-dev-grilling-ideas first; bug
-  reports.
+  enough → opsmill-dev-creating-issues; the idea has not been stress-tested yet → opsmill-dev-grilling-ideas first;
+  discovery-stage capture as a product card → opsmill-product-creating-jpd-cards; bug reports.
 argument-hint: Optional — extra instructions, scope hints, or an explicit issue number/URL to target
 compatibility: Requires GitHub access (gh CLI authenticated, or an equivalent GitHub MCP/API tool) and write access to the target repository. Reads project context (AGENTS.md, CONTEXT.md, dev/constitution.md, ADRs, specs) when present and falls back gracefully when absent.
 metadata:
