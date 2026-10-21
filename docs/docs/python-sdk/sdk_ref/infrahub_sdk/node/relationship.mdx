@@ -115,6 +115,7 @@ fetched in a parallel batch grouped by kind and stored in the client store.
 
 **Raises:**
 
+- `UninitializedError`: If the manager is not initialized and the parent node has no ``id``.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
@@ -206,6 +207,7 @@ fetched in a parallel batch grouped by kind and stored in the client store.
 
 **Raises:**
 
+- `UninitializedError`: If the manager is not initialized and the parent node has no ``id``.
 - `Error`: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
 #### `add`
