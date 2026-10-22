@@ -1881,6 +1881,49 @@ class InfrahubClient(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
+    @handle_relogin
+    async def _put(
+        self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None
+    ) -> httpx.Response:
+        """Execute a HTTP PUT with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        await self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return await self._request(
+            url=url,
+            method=HTTPMethod.PUT,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+            payload=payload,
+        )
+
+    @handle_relogin
+    async def _delete(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP DELETE with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        await self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return await self._request(
+            url=url,
+            method=HTTPMethod.DELETE,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+        )
+
     @asynccontextmanager
     async def _get_streaming(
         self,
@@ -4208,6 +4251,47 @@ class InfrahubClientSync(BaseClient):
         return self._request(
             url=url,
             method=HTTPMethod.GET,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+        )
+
+    @handle_relogin_sync
+    def _put(self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP PUT with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return self._request(
+            url=url,
+            method=HTTPMethod.PUT,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+            payload=payload,
+        )
+
+    @handle_relogin_sync
+    def _delete(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP DELETE with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return self._request(
+            url=url,
+            method=HTTPMethod.DELETE,
             headers=headers,
             timeout=timeout or self.default_timeout,
         )

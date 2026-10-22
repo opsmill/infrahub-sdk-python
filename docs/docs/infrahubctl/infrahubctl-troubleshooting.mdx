@@ -1,0 +1,84 @@
+# `infrahubctl troubleshooting`
+
+**Usage**:
+
+```console
+$ infrahubctl troubleshooting [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--install-completion`: Install completion for the current shell.
+* `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `trace-sample-ratio`: Record more traces during an incident,...
+
+## `infrahubctl troubleshooting trace-sample-ratio`
+
+Record more traces during an incident, without restarting Infrahub.
+
+**Usage**:
+
+```console
+$ infrahubctl troubleshooting trace-sample-ratio [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `get`: Show the trace sampling ratio of the API...
+* `set`: Set a temporary trace sampling ratio on...
+* `clear`: Clear the temporary trace sampling ratio,...
+
+### `infrahubctl troubleshooting trace-sample-ratio get`
+
+Show the trace sampling ratio of the API server that answers.
+
+**Usage**:
+
+```console
+$ infrahubctl troubleshooting trace-sample-ratio get [OPTIONS]
+```
+
+**Options**:
+
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+### `infrahubctl troubleshooting trace-sample-ratio set`
+
+Set a temporary trace sampling ratio on every API server and task worker.
+
+**Usage**:
+
+```console
+$ infrahubctl troubleshooting trace-sample-ratio set [OPTIONS]
+```
+
+**Options**:
+
+* `--ratio FLOAT RANGE`: Share of new root traces to record, from 0 to 1  [0&lt;=x&lt;=1; required]
+* `--duration INTEGER RANGE`: Number of seconds the ratio applies, at most 86400 (24 hours)  [1&lt;=x&lt;=86400; required]
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.
+
+### `infrahubctl troubleshooting trace-sample-ratio clear`
+
+Clear the temporary trace sampling ratio, so every process uses its default ratio again.
+
+**Usage**:
+
+```console
+$ infrahubctl troubleshooting trace-sample-ratio clear [OPTIONS]
+```
+
+**Options**:
+
+* `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
+* `--help`: Show this message and exit.

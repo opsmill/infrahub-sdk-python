@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 class HTTPMethod(str, enum.Enum):
     GET = "get"
     POST = "post"
+    PUT = "put"
+    DELETE = "delete"
 
 
 class RequesterTransport(str, enum.Enum):

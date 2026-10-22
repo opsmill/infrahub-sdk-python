@@ -1,0 +1,1 @@
+Add `infrahubctl troubleshooting trace-sample-ratio` with the `get`, `set` and `clear` commands, to read, set or clear the temporary trace sampling ratio of an Infrahub instance during an incident, without a restart. `set` takes `--ratio` (0 to 1) and `--duration` in seconds (1 to 86400). The client gains `PUT` and `DELETE` requests for these endpoints.
