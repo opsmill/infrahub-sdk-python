@@ -92,6 +92,9 @@ VERSION_RANGES: list[VersionRange] = [
 # Detailed mapping of every Infrahub release to its pinned SDK version.
 # Auto-updated by update_compatibility.py.
 RELEASE_MAPPINGS: list[ReleaseMapping] = [
+    ReleaseMapping(infrahub="1.11.9", sdk="1.23.2", date="2026-10-22"),
+    ReleaseMapping(infrahub="1.11.8", sdk="1.23.2", date="2026-10-19"),
+    ReleaseMapping(infrahub="1.11.7", sdk="1.23.2", date="2026-10-14"),
     ReleaseMapping(infrahub="1.11.6", sdk="1.23.2", date="2026-10-13"),
     ReleaseMapping(infrahub="1.11.5", sdk="1.23.2", date="2026-10-08"),
     ReleaseMapping(infrahub="1.11.4", sdk="1.23.2", date="2026-10-01"),
