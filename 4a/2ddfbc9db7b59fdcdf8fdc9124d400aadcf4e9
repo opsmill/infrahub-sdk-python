@@ -1,0 +1,21 @@
+infrahub_sdk/node/relationship.py
+  s_2ea2a1594067df::t_dba983397aa6ad 195-200
+tests/unit/sdk/test_relationship_only.py
+  s_2ea2a1594067df::t_86cc32856ce92c 475-505
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a2ddfbc9db7b59fdcdf8fdc9124d400aadcf4e9",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

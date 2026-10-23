@@ -1,0 +1,29 @@
+infrahub_sdk/node/relationship.py
+  s_a1156b88dffb11::t_a2a1b03c7d481c 250,447
+  s_a1156b88dffb11::t_d7035fd73b2a3f 19
+  s_a1156b88dffb11::t_5014edd6d1ee7e 452-453,458
+  s_a1156b88dffb11::t_2cccda2762fdc5 255-256,261
+  s_a1156b88dffb11::t_a3cfce640a92ed 119-127
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/relationship.mdx
+  s_a1156b88dffb11::t_741ac4bd466578 118,210
+tests/unit/sdk/test_hierarchical_nodes.py
+  s_a1156b88dffb11::t_79b6ac8cc9fa42 11
+  s_a1156b88dffb11::t_b11c49f8362842 245
+  s_a1156b88dffb11::t_f61753504449ba 274,276,280,282,290-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a2179738c53471555c6b02c8b1ba07ac83830e3",
+  "prompts": {},
+  "sessions": {
+    "s_a1156b88dffb11": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24dcc6b4-81f3-4f3e-9c7a-aca8979c92a9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

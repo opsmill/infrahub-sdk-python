@@ -1,0 +1,21 @@
+AGENTS.md
+  s_85f30356119c28::t_73b5eecb64b3df 58
+  s_85f30356119c28::t_a3aef0ac3bf30b 7
+  s_85f30356119c28::t_c646d7de3c6c12 70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.7",
+  "base_commit_sha": "440abf714d0a9370939c1b8e054c0a3a9fcfbc09",
+  "prompts": {},
+  "sessions": {
+    "s_85f30356119c28": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b14d78a-c802-40c3-b0e1-b8facc965984",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Benoit Kohler <bkohler@mbpbenoitkohler.tailc018d.ts.net>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+tests/unit/sdk/test_node_only_query.py
+  s_2ea2a1594067df::t_20c0e93660d879 13,18,21-22,601,617-620,639-654,684-726
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b5f70d017e7a9e455fdc163614c5170bdef4af1",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "unknown"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_f678223bc8b93b 146
+  s_ff2fe7610915b8::t_2219351c0f3740 200-202,204,211-213
+  s_ff2fe7610915b8::t_8a5cac889b8465 1-36,42-65,67-68,72-80,86-87,92-99,106-129,136-143,145,147-154,160,165-176,179-182,184-199,205-210,214-234
+  s_ff2fe7610915b8::t_3c2497507b5a49 81-85,88-91
+  s_ff2fe7610915b8::t_1b51da77f2ff13 155-159,162-164
+  s_ff2fe7610915b8::t_9542f49b7defdc 178
+  s_ff2fe7610915b8::t_54ba51b79ee795 177
+  s_ff2fe7610915b8::t_a4b41ed00c8563 69
+  s_ff2fe7610915b8::t_2710c227a61800 100-105
+  s_ff2fe7610915b8::t_47d6295316bd21 130-135
+  s_ff2fe7610915b8::t_c9135b9eda09da 66,70-71,144,161,183,203
+  s_ff2fe7610915b8::t_ad5dd8d38f854e 37-41
+dev/specs/infp-532-only-field-selection/plan.md
+  s_ff2fe7610915b8::t_a5bcd6ee0436c3 19,26
+  s_ff2fe7610915b8::t_0c40dee549ab02 1-12,14,16-18,22-24,34-113,116-130,132-152,155-157,159-162,164-169
+  s_ff2fe7610915b8::t_b149c3955d9670 13,15,20-21,25,27-33,114-115,153-154,158,163
+  s_ff2fe7610915b8::t_52db64d0078287 131
+dev/specs/infp-532-only-field-selection/alignment-check.md
+  s_ff2fe7610915b8::t_c51aa69ffee100 1-28,30-34,36-38,50-52
+  s_ff2fe7610915b8::t_2b432601e21bb7 29,35,39-49,53
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_19c44c2e2c965a 1-103,105-117,119-147,149-164,166-283
+  s_ff2fe7610915b8::t_15173d130b3eaa 104,118,148,165
+dev/specs/infp-532-only-field-selection/quickstart.md
+  s_ff2fe7610915b8::t_4bd1f02b1c6c31 1-70
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_eaf899409e9719 35,48,63,66-70,85
+  s_ff2fe7610915b8::t_ac792ad615cf8f 41-42
+  s_ff2fe7610915b8::t_73f67583f30c90 1-34,36-40,43-47,49-62,64-65,71-84,86-123
+dev/specs/infp-532-only-field-selection/spec.md
+  s_ff2fe7610915b8::t_a1e68978f20c20 119
+  s_ff2fe7610915b8::t_054e5d242d66ca 1-33,35-78,80-82,85-118,120-159
+  s_ff2fe7610915b8::t_d3f676d0e54cf6 83
+  s_ff2fe7610915b8::t_4a0a9742b596ac 34
+  s_ff2fe7610915b8::t_1c17cb196b4fcc 79
+  s_ff2fe7610915b8::t_dfa1e02acdc590 84
+dev/specs/infp-532-only-field-selection/data-model.md
+  s_ff2fe7610915b8::t_efae9b2420fdea 12-13,66-69
+  s_ff2fe7610915b8::t_22d6ae177bc8fe 1-11,14-65,70-92
+dev/specs/infp-532-only-field-selection/critiques/critique-20261014-1.md
+  s_ff2fe7610915b8::t_4fdb6b483259b9 14
+  s_ff2fe7610915b8::t_6386377b1d1b30 1-13,15-53,55-115,117-132,134-195,197-203
+  s_ff2fe7610915b8::t_e02b8a8cbe4f08 54
+  s_ff2fe7610915b8::t_4ea27aa87d2702 204-216,219-220,223-235
+  s_ff2fe7610915b8::t_35c1429ab27ff1 133
+  s_ff2fe7610915b8::t_f2617af6449c6d 217-218,221-222
+  s_ff2fe7610915b8::t_3800d8caaf3e38 196
+  s_ff2fe7610915b8::t_ecc1feb6e764c5 116
+dev/specs/infp-532-only-field-selection/checklists/requirements.md
+  s_ff2fe7610915b8::t_d42177bdaefbd0 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89ccb4a57c229aadd45b641b3feea277dd82d5a0",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "unknown"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

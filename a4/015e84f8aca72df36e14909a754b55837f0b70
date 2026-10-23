@@ -1,0 +1,33 @@
+tests/unit/sdk/test_client_only.py
+  s_ff2fe7610915b8::t_a12a8f9fdf43d1 42-43
+  s_ff2fe7610915b8::t_13bcd851d3af83 523-599
+  s_ff2fe7610915b8::t_bab655b1531f3e 17,46,600
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_2c304d7026470f 99
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_4c1b006df1c544 80
+dev/specs/infp-532-only-field-selection/spec.md
+  s_ff2fe7610915b8::t_3b4fab2330e895 65,83
+docs/docs/python-sdk/guides/query_data.mdx
+  s_ff2fe7610915b8::t_2015d429843bcc 558
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/node.mdx
+  s_ff2fe7610915b8::t_bb019f61950e2d 1168-1169
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_bf7dc36c4738b8 264-265,272,287-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a4015e84f8aca72df36e14909a754b55837f0b70",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+infrahub_sdk/schema/generated/read.py
+  s_335e21d8b58334::t_a586306d68efca 88
+infrahub_sdk/schema/generated/write.py
+  s_335e21d8b58334::t_b2b0070e8318da 88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "525b28fcc2253e2d1442e24d4ad8e68500d828ed",
+  "prompts": {},
+  "sessions": {
+    "s_335e21d8b58334": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_335e21d8b58334",
+        "model": "unknown"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
