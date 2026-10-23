@@ -1,0 +1,21 @@
+infrahub_sdk/node/related_node.py
+  s_65009ef9c97ec4::t_5d80e31e87e16f 27-34,112
+  s_65009ef9c97ec4::t_1b7faff4a7ba05 35-54,110
+  s_65009ef9c97ec4::t_e90a0aeac0375f 111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba9b26b95e9e01e2156a55b63d9dee58e561fb54",
+  "prompts": {},
+  "sessions": {
+    "s_65009ef9c97ec4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26b37fac-c018-44b8-a39f-3eb967f624ea",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
