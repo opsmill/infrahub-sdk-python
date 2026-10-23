@@ -1,0 +1,19 @@
+uv.lock
+  s_65009ef9c97ec4::t_fdb5fa99aa7989 7,942,952,954,1007,1092,1255-1335,1471-1547,1766-1787,1810-1862,1867,1875,1877,1882,1887-1991,2157-2174,2247,2257-2359,2405-2522,2859,2861,2863,2868,2873,2875,2901-2996
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2cd998de3b0d04ca5d9ddc74cd41210fcf34b2a9",
+  "prompts": {},
+  "sessions": {
+    "s_65009ef9c97ec4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26b37fac-c018-44b8-a39f-3eb967f624ea",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
