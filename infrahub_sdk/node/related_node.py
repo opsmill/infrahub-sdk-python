@@ -24,6 +24,34 @@ PeerT = TypeVar("PeerT", default="InfrahubNode")
 PeerTSync = TypeVar("PeerTSync", default="InfrahubNodeSync")
 
 
+def _is_peer_node(data: Any) -> bool:
+    """True when the data is a peer node instance rather than raw relationship data."""
+    # Imported lazily to avoid a circular import: node.py imports this module at load time.
+    from .node import InfrahubNodeBase  # noqa: PLC0415
+
+    return isinstance(data, (CoreNodeBase, InfrahubNodeBase))
+
+
+def _peer_input(data: Any) -> Any:
+    """Narrow another related node to its peer identifiers; pass anything else through.
+
+    The edge properties of the source relationship do not carry over to the new one.
+    """
+    if not isinstance(data, RelatedNodeBase):
+        return data
+    return {
+        key: value
+        for key, value in (
+            ("id", data.id),
+            ("hfid", data.hfid),
+            ("__typename", data.typename),
+            ("kind", data.kind),
+            ("display_label", data.display_label),
+        )
+        if value is not None
+    }
+
+
 class RelatedNodeBase:
     """Base class for representing a related node in a relationship.
 
@@ -79,25 +107,9 @@ class RelatedNodeBase:
         # so we don't silently null-clear unfetched relationships on save.
         self._peer_has_been_mutated: bool = False
 
-        # Copy only the peer identifiers: the edge properties belong to the source relationship.
-        if isinstance(data, RelatedNodeBase):
-            data = {
-                key: value
-                for key, value in (
-                    ("id", data.id),
-                    ("hfid", data.hfid),
-                    ("__typename", data.typename),
-                    ("kind", data.kind),
-                    ("display_label", data.display_label),
-                )
-                if value is not None
-            }
+        data = _peer_input(data)
 
-        # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
-        # circular import (node.py imports this module at load time).
-        from .node import InfrahubNodeBase as _InfrahubNodeBase  # noqa: PLC0415
-
-        if isinstance(data, (CoreNodeBase, _InfrahubNodeBase)):
+        if _is_peer_node(data):
             self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
