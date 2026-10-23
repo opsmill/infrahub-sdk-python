@@ -187,16 +187,23 @@ class RelationshipManagerBase(Generic[PeerT]):
             ids_per_kind_map[peer.typename].append(peer.id)
         return ids_per_kind_map
 
-    def _reload_kwargs(self, node: InfrahubNodeBase) -> dict[str, Any]:
-        """The arguments of the `get` that reloads `node` with this relationship only."""
-        if node._only_marker is not None:
+    def _reload_kwargs(self) -> dict[str, Any]:
+        """The arguments of the `get` that reloads `self.node` with this relationship only.
+
+        Raises:
+            UninitializedError: If the manager has no node or the node has no ``id``.
+
+        """
+        if self.node is None or not self.node.id:
+            raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
+        if self.node._only_marker is not None:
             # Keep the node from `only` in the store instead of replacing it with this narrower copy.
             return {"only": [self.schema.name], "populate_store": False}
+        schema = self.node._schema
         # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
-        exclude = [
-            name for name in node._schema.relationship_names + node._schema.attribute_names if name != self.schema.name
-        ]
-        return {"include": [self.schema.name], "exclude": exclude}
+        exclude = [name for name in schema.relationship_names + schema.attribute_names if name != self.schema.name]
+        # Keep `self.node` in the store instead of replacing it with this copy that has no attribute values.
+        return {"include": [self.schema.name], "exclude": exclude, "populate_store": False}
 
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
@@ -333,6 +340,7 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
                 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             TypeError: ``only`` is a string instead of a list of field names; raised before any request.
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
@@ -343,11 +351,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             )
 
         if not self.initialized:
+            reload_kwargs = self._reload_kwargs()
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                **self._reload_kwargs(node=self.node),
+                **reload_kwargs,
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
@@ -555,6 +564,7 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
                 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             TypeError: ``only`` is a string instead of a list of field names; raised before any request.
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
@@ -565,11 +575,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             )
 
         if not self.initialized:
+            reload_kwargs = self._reload_kwargs()
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
-                **self._reload_kwargs(node=self.node),
+                **reload_kwargs,
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers

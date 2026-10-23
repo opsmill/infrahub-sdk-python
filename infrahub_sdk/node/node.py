@@ -1043,19 +1043,6 @@ class InfrahubNode(InfrahubNodeBase):
             present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                if isinstance(rel_data, RelatedNode):
-                    peer_id_data: dict[str, Any] = {
-                        key: value
-                        for key, value in (
-                            ("id", rel_data.id),
-                            ("hfid", rel_data.hfid),
-                            ("__typename", rel_data.typename),
-                            ("kind", rel_data.kind),
-                            ("display_label", rel_data.display_label),
-                        )
-                        if value is not None
-                    }
-                    rel_data = peer_id_data or None
                 related_node = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
@@ -2403,19 +2390,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
             present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                if isinstance(rel_data, RelatedNodeSync):
-                    peer_id_data: dict[str, Any] = {
-                        key: value
-                        for key, value in (
-                            ("id", rel_data.id),
-                            ("hfid", rel_data.hfid),
-                            ("__typename", rel_data.typename),
-                            ("kind", rel_data.kind),
-                            ("display_label", rel_data.display_label),
-                        )
-                        if value is not None
-                    }
-                    rel_data = peer_id_data or None
                 related_node = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )

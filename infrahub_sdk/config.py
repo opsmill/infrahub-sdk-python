@@ -338,6 +338,9 @@ class Config(ConfigBase):
             "sync_requester": self.sync_requester,
             "log": self.log,
         }
+        if branch:
+            # A requested branch must win over the Git lookup that the flag would otherwise trigger.
+            config["default_branch_from_git"] = False
         covered_keys = list(config.keys())
         for field in Config.model_fields:
             if field not in covered_keys:
