@@ -16,12 +16,9 @@ from infrahub_sdk.exceptions import (
     UniquenessViolationError,
 )
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
-<<<<<<< HEAD
-from tests.helpers.fixtures import read_fixture
-=======
 from infrahub_sdk.repository import GitRepoManager
+from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory
->>>>>>> origin/develop
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
