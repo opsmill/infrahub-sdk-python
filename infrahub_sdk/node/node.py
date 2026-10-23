@@ -1043,6 +1043,7 @@ class InfrahubNode(InfrahubNodeBase):
             present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
+<<<<<<< HEAD
                 if isinstance(rel_data, RelatedNode):
                     peer_id_data: dict[str, Any] = {
                         key: value
@@ -1057,6 +1058,9 @@ class InfrahubNode(InfrahubNodeBase):
                     }
                     rel_data = peer_id_data or None
                 related_node = RelatedNode(
+=======
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+>>>>>>> origin/develop
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
                 related_node._bind(node=self, present=present)
@@ -2403,6 +2407,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
+<<<<<<< HEAD
                 if isinstance(rel_data, RelatedNodeSync):
                     peer_id_data: dict[str, Any] = {
                         key: value
@@ -2417,6 +2422,9 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     }
                     rel_data = peer_id_data or None
                 related_node = RelatedNodeSync(
+=======
+                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+>>>>>>> origin/develop
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
                 related_node._bind(node=self, present=present)

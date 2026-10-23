@@ -16,7 +16,12 @@ from infrahub_sdk.exceptions import (
     UniquenessViolationError,
 )
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+<<<<<<< HEAD
 from tests.helpers.fixtures import read_fixture
+=======
+from infrahub_sdk.repository import GitRepoManager
+from tests.helpers.utils import change_directory
+>>>>>>> origin/develop
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -768,6 +773,39 @@ async def test_clone_define_branch(clients: BothClients, client_type: str) -> No
     assert clone.default_branch == clone_branch
     assert original_branch != clone_branch
     assert clone.store._default_branch == clone_branch
+
+
+def _client_with_branch_from_git(client_type: str) -> InfrahubClient | InfrahubClientSync:
+    config = Config(address="http://mock", default_branch="main", default_branch_from_git=True)
+    if client_type == "standard":
+        return InfrahubClient(config=config)
+    return InfrahubClientSync(config=config)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_clone_requested_branch_wins_over_branch_from_git(tmp_path: Path, client_type: str) -> None:
+    GitRepoManager(root_directory=str(tmp_path), branch="git-branch")
+
+    with change_directory(str(tmp_path)):
+        client = _client_with_branch_from_git(client_type=client_type)
+        clone = client.clone(branch="test")
+
+    assert client.default_branch == "git-branch"
+    assert clone.default_branch == "test"
+    assert clone.store._default_branch == "test"
+    assert clone.config.default_branch_from_git is False
+    assert clone.clone().default_branch == "test"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_clone_without_branch_keeps_branch_from_git(tmp_path: Path, client_type: str) -> None:
+    GitRepoManager(root_directory=str(tmp_path), branch="git-branch")
+
+    with change_directory(str(tmp_path)):
+        clone = _client_with_branch_from_git(client_type=client_type).clone()
+
+    assert clone.config.default_branch_from_git is True
+    assert clone.default_branch == "git-branch"
 
 
 @pytest.mark.parametrize("client_type", client_types)

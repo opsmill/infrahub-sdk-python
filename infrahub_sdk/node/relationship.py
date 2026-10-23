@@ -17,7 +17,11 @@ from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
     from ..client import InfrahubClient, InfrahubClientSync
+<<<<<<< HEAD
     from ..schema import MainSchemaTypesAPI, RelationshipSchemaAPI
+=======
+    from ..schema import RelationshipSchemaAPI
+>>>>>>> origin/develop
     from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync
 
 
@@ -198,6 +202,21 @@ class RelationshipManagerBase(Generic[PeerT]):
         ]
         return {"include": [self.schema.name], "exclude": exclude}
 
+    def _reload_kwargs(self) -> dict[str, Any]:
+        """The arguments of the `get` that reloads `self.node` with this relationship only.
+
+        Raises:
+            UninitializedError: If the manager has no node or the node has no ``id``.
+
+        """
+        if self.node is None or not self.node.id:
+            raise UninitializedError(f"Unable to fetch '{self.schema.name}' on a node that has not been saved")
+        schema = self.node._schema
+        # `ancestors` and `descendants` are not schema relationships, so they may be missing from these names.
+        exclude = [name for name in schema.relationship_names + schema.attribute_names if name != self.schema.name]
+        # Keep `self.node` in the store instead of replacing it with this copy that has no attribute values.
+        return {"include": [self.schema.name], "exclude": exclude, "populate_store": False}
+
     def _generate_mutation_query(self) -> dict[str, Any]:
         # Does nothing for now
         return {}
@@ -330,9 +349,13 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
         Raises:
+<<<<<<< HEAD
             FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
                 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             TypeError: ``only`` is a string instead of a list of field names; raised before any request.
+=======
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
+>>>>>>> origin/develop
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
@@ -343,11 +366,19 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
             )
 
         if not self.initialized:
+<<<<<<< HEAD
+=======
+            reload_kwargs = self._reload_kwargs()
+>>>>>>> origin/develop
             node = await self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
+<<<<<<< HEAD
                 **self._reload_kwargs(node=self.node),
+=======
+                **reload_kwargs,
+>>>>>>> origin/develop
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
@@ -552,9 +583,13 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 kind. Reading a field of a peer that was not fetched raises FieldNotLoadedError.
 
         Raises:
+<<<<<<< HEAD
             FieldNotFoundError: A name in ``only`` is not a field of the relationship's peer kind, raised before
                 any request, or is missing on the kind of one of the peers, raised before any peer is queried.
             TypeError: ``only`` is a string instead of a list of field names; raised before any request.
+=======
+            UninitializedError: If the manager is not initialized and the parent node has no ``id``.
+>>>>>>> origin/develop
             Error: If any peer is missing an ``id`` or ``typename`` and cannot be resolved.
 
         """
@@ -565,11 +600,19 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
             )
 
         if not self.initialized:
+<<<<<<< HEAD
+=======
+            reload_kwargs = self._reload_kwargs()
+>>>>>>> origin/develop
             node = self.client.get(
                 kind=self.node._schema.kind,
                 id=self.node.id,
                 branch=self.branch,
+<<<<<<< HEAD
                 **self._reload_kwargs(node=self.node),
+=======
+                **reload_kwargs,
+>>>>>>> origin/develop
             )
             rm = getattr(node, self.schema.name)
             self._peers = rm._peers
