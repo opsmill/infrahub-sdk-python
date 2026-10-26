@@ -606,6 +606,14 @@ class InfrahubNodeBase:
         }
 
     @staticmethod
+    def _keeps_unmodified_key(data_item: dict, item_key: str) -> bool:
+        # Related nodes typically require an ID, so it is only removed when it is the last key in the context.
+        if item_key == "id":
+            return len(data_item.keys()) > 1
+        # Without the value, naming a pool over a held number asks to replace it, not attach it.
+        return item_key == "value" and "from_pool" in data_item
+
+    @staticmethod
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
         data_item = data.get(item)
         if item in original_data and isinstance(original_data[item], dict) and isinstance(data_item, dict):
@@ -618,9 +626,7 @@ class InfrahubNodeBase:
                     ):
                         original_data[item][property_name] = original_data[item][property_name]["id"]
                 if item_key in data[item]:
-                    if item_key == "id" and len(data[item].keys()) > 1:
-                        # Related nodes typically require an ID. So the ID is only
-                        # removed if it's the last key in the current context
+                    if InfrahubNodeBase._keeps_unmodified_key(data_item=data[item], item_key=item_key):
                         continue
 
                     variable_key = None
@@ -1842,6 +1848,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
@@ -3182,6 +3189,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 

@@ -323,6 +323,87 @@ vlan = await client.create(
 await vlan.save()
 ```
 
+### Attach a number you choose to a pool
+
+To keep a number you choose and have the pool track it, pass both `value` and `from_pool`. The pool records the number as one a user provided, and does not allocate a new one.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  vlan = await client.create(
+      kind="InfraVLAN",
+      name="VLAN-200",
+      vlan_id={"value": 200, "from_pool": {"id": pool_id}},
+  )
+  await vlan.save()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  vlan = client.create(
+      kind="InfraVLAN",
+      name="VLAN-200",
+      vlan_id={"value": 200, "from_pool": {"id": pool_id}},
+  )
+  vlan.save()
+  ```
+
+  </TabItem>
+</Tabs>
+
+On an existing node, call `attach_to_pool()` on the attribute with the pool or its ID. The pool tracks the number the attribute holds when the node is saved.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  vlan = await client.get(kind="InfraVLAN", name__value="VLAN-300")
+  vlan.vlan_id.attach_to_pool(pool)
+  await vlan.save()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  vlan = client.get(kind="InfraVLAN", name__value="VLAN-300")
+  vlan.vlan_id.attach_to_pool(pool)
+  vlan.save()
+  ```
+
+  </TabItem>
+</Tabs>
+
+### Detach a number from its pool
+
+Call `detach_from_pool()` on the attribute. The attribute keeps its number, and the pool stops tracking it when the node is saved.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  vlan = await client.get(kind="InfraVLAN", name__value="VLAN-200")
+  vlan.vlan_id.detach_from_pool()
+  await vlan.save()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  vlan = client.get(kind="InfraVLAN", name__value="VLAN-200")
+  vlan.vlan_id.detach_from_pool()
+  vlan.save()
+  ```
+
+  </TabItem>
+</Tabs>
+
+To find which pool tracks a number on a node you fetched, query the node with `property=True` and read the attribute's `source`, which is the number pool.
+
 ### Limitation: `allow_upsert=True` with a pool-sourced HFID attribute
 
 `CoreNumberPool` assigns the integer value at server creation time, and a new value on each creation. When a node's human-friendly identifier (HFID) includes a pool-sourced attribute, the HFID is never stable, so an upsert can never match an existing node by it. Rather than updating, each `save(allow_upsert=True)` would create another node. The SDK blocks this up front to avoid silently duplicating data.

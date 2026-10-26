@@ -125,9 +125,17 @@ class EnumOptional(Attribute):
 class Integer(Attribute):
     value: int
 
+    def attach_to_pool(self, pool: CoreNodeBase | str) -> None: ...
+
+    def detach_from_pool(self) -> None: ...
+
 
 class IntegerOptional(Attribute):
     value: int | None
+
+    def attach_to_pool(self, pool: CoreNodeBase | str) -> None: ...
+
+    def detach_from_pool(self) -> None: ...
 
 
 class IPHost(Attribute):
