@@ -112,6 +112,8 @@ INVALID_OPTION_CASES = [
     InvalidOptionCase(name="ratio-above-1", ratio="1.5", duration="60"),
     InvalidOptionCase(name="duration-below-1", ratio="0.5", duration="0"),
     InvalidOptionCase(name="duration-above-24-hours", ratio="0.5", duration="86401"),
+    InvalidOptionCase(name="ratio-nan", ratio="nan", duration="60"),
+    InvalidOptionCase(name="duration-nan", ratio="0.5", duration="nan"),
 ]
 
 

@@ -14,11 +14,11 @@ $ infrahubctl troubleshooting [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `trace-sample-ratio`: Record more traces during an incident,...
+* `trace-sample-ratio`: Read, set or clear the temporary trace...
 
 ## `infrahubctl troubleshooting trace-sample-ratio`
 
-Record more traces during an incident, without restarting Infrahub.
+Read, set or clear the temporary trace sampling ratio.
 
 **Usage**:
 
@@ -63,8 +63,8 @@ $ infrahubctl troubleshooting trace-sample-ratio set [OPTIONS]
 
 **Options**:
 
-* `--ratio FLOAT RANGE`: Share of new root traces to record, from 0 to 1  [0&lt;=x&lt;=1; required]
-* `--duration INTEGER RANGE`: Number of seconds the ratio applies, at most 86400 (24 hours)  [1&lt;=x&lt;=86400; required]
+* `--ratio FLOAT RANGE`: Share of new root traces to record  [0&lt;=x&lt;=1; required]
+* `--duration INTEGER RANGE`: Number of seconds the ratio applies  [1&lt;=x&lt;=86400; required]
 * `--config-file TEXT`: [env var: INFRAHUBCTL_CONFIG; default: infrahubctl.toml]
 * `--help`: Show this message and exit.
 

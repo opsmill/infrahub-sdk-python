@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any
 
 import typer
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     import httpx
 
 app = AsyncTyper()
-trace_sample_ratio_app = AsyncTyper(help="Record more traces during an incident, without restarting Infrahub.")
+trace_sample_ratio_app = AsyncTyper(help="Read, set or clear the temporary trace sampling ratio.")
 app.add_typer(trace_sample_ratio_app, name="trace-sample-ratio")
 
 console = Console()
@@ -31,6 +32,13 @@ STATE_FIELDS = {
     "expires_at": "Expires at (UTC)",
     "ratio_in_force": "Ratio in force",
 }
+
+
+def _require_finite_ratio(value: float) -> float:
+    # A range check passes `nan`, because every comparison with it is false.
+    if not math.isfinite(value):
+        raise typer.BadParameter("must be a number from 0 to 1")
+    return value
 
 
 def _print_state(response: httpx.Response) -> None:
@@ -70,10 +78,10 @@ async def get_trace_sample_ratio(_: str = CONFIG_PARAM) -> None:
 @trace_sample_ratio_app.command(name="set")
 @catch_exception(console=console)
 async def set_trace_sample_ratio(
-    ratio: float = typer.Option(..., min=0, max=1, help="Share of new root traces to record, from 0 to 1"),
-    duration: int = typer.Option(
-        ..., min=1, max=MAX_DURATION_SECONDS, help="Number of seconds the ratio applies, at most 86400 (24 hours)"
+    ratio: float = typer.Option(
+        ..., min=0, max=1, callback=_require_finite_ratio, help="Share of new root traces to record"
     ),
+    duration: int = typer.Option(..., min=1, max=MAX_DURATION_SECONDS, help="Number of seconds the ratio applies"),
     _: str = CONFIG_PARAM,
 ) -> None:
     """Set a temporary trace sampling ratio on every API server and task worker."""
