@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING
 
 from infrahub_sdk import Config, InfrahubClient
 from infrahub_sdk.node import InfrahubNode
+from infrahub_sdk.repository import GitRepoManager
 from infrahub_sdk.transforms import InfrahubTransform
+from tests.helpers.utils import change_directory
 
 if TYPE_CHECKING:
     import pytest
@@ -63,6 +65,22 @@ async def test_branch_name_falls_back_to_git_branch_when_opted_in(monkeypatch: p
     assert transform.branch_name == f"git:{pathlib.Path.cwd()}"
 
 
+async def test_explicit_branch_wins_over_git_branch_for_the_operation_client(tmp_path: pathlib.Path) -> None:
+    """Reads and writes of one run must target the same branch, even with `default_branch_from_git`."""
+    GitRepoManager(root_directory=str(tmp_path), branch="git-branch")
+
+    with change_directory(str(tmp_path)):
+        client = InfrahubClient(
+            config=Config(address="http://mock", default_branch="main", default_branch_from_git=True)
+        )
+        transform = _build_transform(client=client, branch="test", root_directory=str(tmp_path))
+
+    assert client.default_branch == "git-branch"
+
+    assert transform.branch_name == "test"
+    assert transform._init_client.default_branch == "test"
+
+
 async def test_git_branch_is_read_from_the_root_directory(monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_git_branch(monkeypatch)
     client = InfrahubClient(config=Config(address="http://mock", default_branch="test", default_branch_from_git=True))
@@ -70,3 +88,4 @@ async def test_git_branch_is_read_from_the_root_directory(monkeypatch: pytest.Mo
     transform = _build_transform(client=client, root_directory="/some/repository")
 
     assert transform.branch_name == "git:/some/repository"
+    assert transform._init_client.default_branch == "git:/some/repository"

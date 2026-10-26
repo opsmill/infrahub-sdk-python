@@ -70,5 +70,7 @@ def _define_config(
 
     if branch:
         client_config["default_branch"] = branch
+        # Overrides INFRAHUB_DEFAULT_BRANCH_FROM_GIT so the requested branch is not replaced by the Git branch.
+        client_config["default_branch_from_git"] = False
 
     return Config(**client_config)

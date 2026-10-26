@@ -394,7 +394,14 @@ client default for these requests only. When None, the client default (if any) i
 clone(self, branch: str | None = None) -> InfrahubClient
 ```
 
-Return a cloned version of the client using the same configuration.
+Return a new client with a copy of this client's configuration.
+
+**Args:**
+
+- `branch`: Branch that the new client targets by default. When set, it takes
+priority over `default_branch_from_git`, and the new client does not
+read its branch from the local Git repository. When not set, the new
+client finds its default branch the same way this client did.
 
 #### `execute_graphql`
 
@@ -756,7 +763,14 @@ Return user permissions.
 clone(self, branch: str | None = None) -> InfrahubClientSync
 ```
 
-Return a cloned version of the client using the same configuration.
+Return a new client with a copy of this client's configuration.
+
+**Args:**
+
+- `branch`: Branch that the new client targets by default. When set, it takes
+priority over `default_branch_from_git`, and the new client does not
+read its branch from the local Git repository. When not set, the new
+client finds its default branch the same way this client did.
 
 #### `execute_graphql`
 
