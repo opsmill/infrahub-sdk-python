@@ -38,6 +38,7 @@ from ..ctl.schema import app as schema_app
 from ..ctl.task import app as task_app
 from ..ctl.telemetry import app as telemetry_app
 from ..ctl.transform import list_transforms
+from ..ctl.troubleshooting import app as troubleshooting_app
 from ..ctl.utils import (
     catch_exception,
     execute_graphql_query,
@@ -81,6 +82,7 @@ app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
 app.add_typer(marketplace_app, name="marketplace")
 app.add_typer(telemetry_app, name="telemetry")
+app.add_typer(troubleshooting_app, name="troubleshooting")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
