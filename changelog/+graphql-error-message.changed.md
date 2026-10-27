@@ -1,0 +1,1 @@
+The `GraphQLError` exception message no longer embeds the executed query and the raw error payload; it now joins the server-provided error messages only. The query and variables remain available on the `query` and `variables` attributes for programmatic access, keeping potentially large or sensitive payloads out of logs and tracebacks.
