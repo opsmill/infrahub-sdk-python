@@ -1,0 +1,47 @@
+infrahub_sdk/constants.py
+  s_3d89cc37cb4ed4::t_95f1a228ed49ba 12-18
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/node.mdx
+  s_3d89cc37cb4ed4::t_50ca073c96ada6 474-497,1033-1056,1148-1158
+  s_3d89cc37cb4ed4::t_8db4e9945c2333 1159
+infrahub_sdk/node/__init__.py
+  s_3d89cc37cb4ed4::t_3719a54316af69 17
+  s_3d89cc37cb4ed4::t_c3d8814ba21a7c 46
+tests/unit/sdk/pool/conftest.py
+  s_3d89cc37cb4ed4::t_f4b173f0460dc0 120-151
+  s_3d89cc37cb4ed4::t_1d701bf5e63ac4 119
+tests/unit/sdk/pool/test_pool_queries.py
+  s_3d89cc37cb4ed4::t_06fe8f3225a468 7-8
+  s_3d89cc37cb4ed4::t_5b0defb2ae386a 192-301
+  s_3d89cc37cb4ed4::t_66c44f43641b39 119-122
+  s_3d89cc37cb4ed4::t_3941d0586b91b8 123
+infrahub_sdk/node/node.py
+  s_3d89cc37cb4ed4::t_ed6869a4f20818 9
+  s_3d89cc37cb4ed4::t_156975b298f4b6 464-479
+  s_3d89cc37cb4ed4::t_7a6ab556fde990 2159-2161,2163-2164,2166-2193,2195,2197-2201,2203,2214,2216-2217
+  s_3d89cc37cb4ed4::t_597475352d1a8d 3506-3508,3510-3511,3513-3540,3542,3544-3548,3550,3561,3563-3564
+  s_3d89cc37cb4ed4::t_9b0339d887b16d 34-36
+  s_3d89cc37cb4ed4::t_f91ef3cc935008 80-105
+  s_3d89cc37cb4ed4::t_f5f395d52da821 480-481
+  s_3d89cc37cb4ed4::t_9e5e7275f32f16 2218
+  s_3d89cc37cb4ed4::t_65e4c26946d87a 3565
+infrahub_sdk/node/constants.py
+  s_3d89cc37cb4ed4::t_63ec2826dd2277 45-48
+changelog/+pool-allocations-provenance.added.md
+  s_3d89cc37cb4ed4::t_cb43e95869c1a1 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "878a41a114612ae73571ec323ebecd19d1864cce",
+  "prompts": {},
+  "sessions": {
+    "s_3d89cc37cb4ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79103755-077e-4541-ab08-bcfed6153b4f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
