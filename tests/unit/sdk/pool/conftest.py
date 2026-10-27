@@ -117,6 +117,39 @@ async def ipprefix_pool_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
+async def number_pool_schema() -> NodeSchemaAPI:
+    data: dict[str, Any] = {
+        "name": "NumberPool",
+        "namespace": "Core",
+        "description": "A pool of number resources",
+        "label": "Number Pool",
+        "include_in_menu": False,
+        "branch": BranchSupportType.AGNOSTIC.value,
+        "inherit_from": ["CoreResourcePool", "LineageSource"],
+        "human_friendly_id": ["name__value"],
+        "attributes": [
+            {"name": "name", "kind": "Text", "unique": True},
+            {"name": "node", "kind": "Text"},
+            {"name": "node_attribute", "kind": "Text"},
+            {"name": "start_range", "kind": "Number", "optional": True},
+            {"name": "end_range", "kind": "Number", "optional": True},
+        ],
+        "relationships": [
+            {
+                "name": "ranges",
+                "peer": "CoreNumberPoolRange",
+                "kind": "Component",
+                "identifier": "numberpool__range",
+                "cardinality": "many",
+                "branch": BranchSupportType.AGNOSTIC.value,
+                "optional": True,
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
 async def vlan_schema_with_pool_hfid() -> NodeSchemaAPI:
     """VLAN schema where vlan_id (NumberPool-sourced) is part of the human_friendly_id."""
     data: dict[str, Any] = {

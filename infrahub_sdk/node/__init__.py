@@ -14,7 +14,7 @@ from .constants import (
     SAFE_VALUE,
     UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
-from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync, UploadResult
+from .node import InfrahubNode, InfrahubNodeBase, InfrahubNodeSync, PoolAllocation, UploadResult
 from .parsers import parse_human_friendly_id
 from .property import NodeProperty
 from .related_node import (
@@ -43,6 +43,7 @@ __all__ = [
     "InfrahubNodeBase",
     "InfrahubNodeSync",
     "NodeProperty",
+    "PoolAllocation",
     "RelatedNode",
     "RelatedNodeBase",
     "RelatedNodeSync",

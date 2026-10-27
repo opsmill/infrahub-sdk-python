@@ -42,5 +42,9 @@ UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE = (
 
 HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
 
+POOL_ALLOCATED_QUERY_NAME = "InfrahubResourcePoolAllocated"
+POOL_ALLOCATION_FIELDS = ["id", "kind", "branch", "display_label", "identifier", "provenance"]
+POOL_ALLOCATED_RESOURCE_FIELDS = ["id", "kind", "branch", "identifier"]
+
 HFID_STR_SEPARATOR = "__"
 PROFILE_KIND_PREFIX = "Profile"
