@@ -310,6 +310,88 @@ query {
 
 Notice that we have one IP address allocated by the Resource manager in the test branch. The query in the main branch shows us this allocation, indicating that it has been allocated and the resource cannot be allocated again. However, the IP address does not exist itself within the main branch.
 
+## Create a number pool with ranges
+
+A number pool allocates from its ranges. Pass `ranges` as a list of dictionaries with `start`, `end` and `allocation_weight`. A range without a `start` or an `end` is open on that side, and ranges with a higher `allocation_weight` are allocated from first. Without `ranges`, the pool has one range with no start and no end.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  pool = await client.create(
+      kind="CoreNumberPool",
+      name="VLAN IDs",
+      node="InfraVLAN",
+      node_attribute="vlan_id",
+      ranges=[
+          {"start": 100, "end": 199, "allocation_weight": 10},
+          {"start": 200, "end": 2999},
+      ],
+  )
+  await pool.save()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  pool = client.create(
+      kind="CoreNumberPool",
+      name="VLAN IDs",
+      node="InfraVLAN",
+      node_attribute="vlan_id",
+      ranges=[
+          {"start": 100, "end": 199, "allocation_weight": 10},
+          {"start": 200, "end": 2999},
+      ],
+  )
+  pool.save()
+  ```
+
+  </TabItem>
+</Tabs>
+
+The declared list is the complete set of ranges. Saving the same pool with `allow_upsert=True` sets the ranges of an existing pool to that list: Infrahub keeps the ranges whose bounds match, creates the new ones and deletes the others.
+
+To add, change or delete a single range of an existing pool, work with its `CoreNumberPoolRange` node. Infrahub refuses changes made through the pool's `ranges` relationship with `add()` or `remove()`, because the pool takes its ranges as bounds, not as references to range nodes.
+
+<Tabs groupId="async-sync">
+  <TabItem value="Async" default>
+
+  ```python
+  # Add a range
+  new_range = await client.create(kind="CoreNumberPoolRange", start=3000, end=3999, pool=pool)
+  await new_range.save()
+
+  # Change its weight
+  new_range.allocation_weight.value = 50
+  await new_range.save()
+
+  # Delete it
+  await new_range.delete()
+  ```
+
+  </TabItem>
+  <TabItem value="Sync" default>
+
+  ```python
+  # Add a range
+  new_range = client.create(kind="CoreNumberPoolRange", start=3000, end=3999, pool=pool)
+  new_range.save()
+
+  # Change its weight
+  new_range.allocation_weight.value = 50
+  new_range.save()
+
+  # Delete it
+  new_range.delete()
+  ```
+
+  </TabItem>
+</Tabs>
+
+Infrahub refuses a range that overlaps another range of the pool, and refuses a change or a deletion that would leave a number the pool tracks outside every range. The ranges of a pool generated from a schema attribute are set in the attribute's `parameters.ranges` instead, and cannot be changed through `CoreNumberPoolRange` nodes.
+
 ## CoreNumberPool and attribute allocation
 
 `CoreNumberPool` allocates integer values (such as VLAN IDs or AS numbers) directly to node attributes. The pool assigns the integer value at the moment the node is created on the server.

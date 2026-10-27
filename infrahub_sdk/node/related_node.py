@@ -7,7 +7,7 @@ from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
-from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .constants import INLINE_INPUT_PEER_KINDS, PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
 from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
@@ -30,6 +30,13 @@ def _is_peer_node(data: Any) -> bool:
     from .node import InfrahubNodeBase  # noqa: PLC0415
 
     return isinstance(data, (CoreNodeBase, InfrahubNodeBase))
+
+
+def _inline_input(schema: RelationshipSchemaAPI, data: Any) -> dict[str, Any] | None:
+    """Return the peer's fields when its relationship takes them as mutation input instead of a reference."""
+    if schema.peer in INLINE_INPUT_PEER_KINDS and isinstance(data, dict) and not data.keys() & {"id", "hfid", "node"}:
+        return dict(data)
+    return None
 
 
 def _peer_input(data: Any) -> Any:
@@ -108,12 +115,12 @@ class RelatedNodeBase:
         self._peer_has_been_mutated: bool = False
 
         data = _peer_input(data)
+        self._inline_input = _inline_input(schema=schema, data=data)
 
         if _is_peer_node(data):
             self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
-            self._relationship_metadata = None
 
         elif isinstance(data, list):
             data = {"hfid": data}
@@ -351,6 +358,9 @@ class RelatedNodeBase:
         return self._relationship_metadata
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
+        if self._inline_input is not None:
+            return dict(self._inline_input)
+
         data: dict[str, Any] = {}
 
         if self.is_resource_pool and allocate_from_pool:
