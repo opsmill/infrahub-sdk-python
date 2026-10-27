@@ -444,6 +444,8 @@ class CoreGraphQLQuery(CoreNode):
     models: ListAttributeOptional
     depth: IntegerOptional
     height: IntegerOptional
+    cost_level: Enum
+    cost_estimate: JSONAttributeOptional
     repository: RelatedNode
     tags: RelationshipManager
     query_groups: RelationshipManager
@@ -1050,6 +1052,8 @@ class CoreGraphQLQuerySync(CoreNodeSync):
     models: ListAttributeOptional
     depth: IntegerOptional
     height: IntegerOptional
+    cost_level: Enum
+    cost_estimate: JSONAttributeOptional
     repository: RelatedNodeSync
     tags: RelationshipManagerSync
     query_groups: RelationshipManagerSync
