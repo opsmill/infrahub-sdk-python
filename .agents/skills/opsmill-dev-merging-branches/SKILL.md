@@ -91,8 +91,6 @@ If the input is ambiguous (e.g. only one branch named, or direction unclear), as
 
 9. **Validate** before opening the PR. Run the project's locally-executable CI checks (see "Per-Project Specifics" for the concrete command) and regenerate any generated files touched by the merge (see "Generated Files"). A merge that leaves generated files stale will fail CI. Scope validation to what the merge actually changed — type-check, lint, and run the unit tests for the conflicted modules rather than the whole suite when the substantive change is confined to a few files; **state in the report what was not run** (e.g. functional/integration tests needing a running stack).
 
-> **Gate (T2-verify · P1):** paste the build/test run showing the merged tree is sound after resolving mechanical conflicts. See `../quality-gates/gates/primitives/evidence-before-done.md`.
-
 10. **Push the branch** (confirm with the user first — see Important Rules):
 
     ```bash
@@ -101,7 +99,7 @@ If the input is ambiguous (e.g. only one branch named, or direction unclear), as
 
 11. **Open the draft PR** (see "PR Description"):
 
-    > **Ship gate (T2 · P2 + P3) — before opening the draft PR.** Run the ship gate per `../quality-gates/gates/primitives/independent-judge.md` (judge → on-FAIL STOP → R2 degrade → write receipt on PASS, all defined there). R1 criteria: the two branches' diffs / the conflicting hunks verbatim (NOT your summary). Artifact: your conflict resolution (the merge diff). Forbidden evasions: the merge/rebase-gate evasions from `../quality-gates/gates/primitives/anti-gaming.md`. The judge confirms refactors and non-obvious (semantic) conflicts were SURFACED for review, not silently resolved.
+    > **Optional independent verdict:** run `/opsmill-dev-judging-changes <the conflicting hunks of both branches> artifact: <the merge diff>` (gate kind `merge-rebase`) before opening the draft PR. Only repos that enforce ship-gate receipts (`.claude/quality-gates/enabled`) require it.
 
     ```bash
     gh pr create --draft --base <destination> --head <branch-name> \
@@ -194,15 +192,6 @@ Recap of the guardrails enforced in the steps above:
 - Never edit generated files by hand — accept one side and regenerate.
 - Confirm with the user before pushing. The skill's only outputs are the integration branch and a draft PR — it never pushes to the source, destination, or any long-lived branch.
 - Run the project's local CI checks and ensure generated files are committed before marking the PR ready — CI validates this.
-
-## Quality gates
-
-Gates for this skill follow `../quality-gates/gates/gate-model.md`. `merging-branches` is **Tier 2 — it merges a source branch and opens a draft PR**.
-
-| Gate | Step / trigger | Tier | Primitives | Pass criteria | On-fail |
-|---|---|---|---|---|---|
-| Mechanical-conflicts | during resolution | T2-verify | P1 | Mechanical conflicts resolved; build/tests pass. Paste output. | STOP |
-| Semantic-surfaced | before opening the draft PR | T2-ship | P2 + P3 | A fresh judge confirms refactors / non-obvious (semantic) conflicts were SURFACED for review, not silently resolved. | STOP; surface the conflicts; do not open the PR |
 
 ## Per-Project Specifics
 
