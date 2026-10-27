@@ -7,7 +7,7 @@ import warnings
 from collections.abc import MutableMapping
 from enum import Enum
 from time import sleep
-from typing import TYPE_CHECKING, Any, TypeAlias, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypedDict
 from urllib.parse import urlencode
 
 import httpx
@@ -19,11 +19,11 @@ from ..exceptions import (
     JsonDecodeError,
     SchemaNotFoundError,
     ValidationError,
+    VersionNotSupportedError,
 )
 from ..graphql import Mutation
 from ..protocols_base import CoreNodeBase
 from ..queries import SCHEMA_HASH_SYNC_STATUS
-from .export import RESTRICTED_NAMESPACES, NamespaceExport, SchemaExport, schema_to_export_dict
 from .generated.read import InfrahubSchemaRead
 from .generated.write import InfrahubSchemaWrite
 from .main import (
@@ -66,7 +66,6 @@ __all__ = [
     "GenericSchemaAPI",
     "InfrahubSchemaRead",
     "InfrahubSchemaWrite",
-    "NamespaceExport",
     "NodeSchema",
     "NodeSchemaAPI",
     "ProfileSchemaAPI",
@@ -74,14 +73,13 @@ __all__ = [
     "RelationshipKind",
     "RelationshipSchema",
     "RelationshipSchemaAPI",
-    "SchemaExport",
+    "SchemaExportMode",
     "SchemaRoot",
     "SchemaRootAPI",
     "SchemaValidationErrorDetail",
     "SchemaValidationResult",
     "SchemaValidationWarningDetail",
     "TemplateSchemaAPI",
-    "schema_to_export_dict",
     "validate_schema",
 ]
 
@@ -107,6 +105,9 @@ MainSchemaTypesAPI: TypeAlias = NodeSchemaAPI | GenericSchemaAPI | ProfileSchema
 MainSchemaTypesAll: TypeAlias = (
     NodeSchema | GenericSchema | NodeSchemaAPI | GenericSchemaAPI | ProfileSchemaAPI | TemplateSchemaAPI
 )
+SchemaExportMode: TypeAlias = Literal["brief", "full"]
+
+SCHEMA_EXPORT_MIN_INFRAHUB_VERSION = "1.13.0"
 
 
 class SchemaWarningType(Enum):
@@ -137,47 +138,18 @@ class InfrahubSchemaBase:
         self.client = client
         self.cache = {}
 
+    def _export_url(self, branch: str, namespaces: list[str] | None, mode: SchemaExportMode) -> str:
+        url_parts = [("branch", branch), ("mode", mode)]
+        url_parts.extend([("namespaces", namespace) for namespace in namespaces or []])
+        return f"{self.client.address}/api/schema/export?{urlencode(url_parts)}"
+
     @staticmethod
-    def _build_export_schemas(
-        schema_nodes: MutableMapping[str, MainSchemaTypesAPI],
-        namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Organize fetched schemas into a per-namespace export structure.
-
-        Filters out system types (Profile/Template) and restricted namespaces
-        (see :data:`RESTRICTED_NAMESPACES`), and optionally limits to specific
-        namespaces.  If the caller requests restricted namespaces they are
-        silently excluded and a :func:`warnings.warn` is emitted.
-
-        Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
-
-        """
-        if namespaces:
-            restricted = set(namespaces) & set(RESTRICTED_NAMESPACES)
-            if restricted:
-                warnings.warn(
-                    f"Restricted namespace(s) {sorted(restricted)} requested but will be excluded from export",
-                    stacklevel=3,
-                )
-
-        ns_map: dict[str, NamespaceExport] = {}
-        for schema in schema_nodes.values():
-            if isinstance(schema, (ProfileSchemaAPI, TemplateSchemaAPI)):
-                continue
-            if schema.namespace in RESTRICTED_NAMESPACES:
-                continue
-            if namespaces and schema.namespace not in namespaces:
-                continue
-            ns = schema.namespace
-            if ns not in ns_map:
-                ns_map[ns] = NamespaceExport()
-            schema_dict = schema_to_export_dict(schema)
-            if isinstance(schema, GenericSchemaAPI):
-                ns_map[ns].generics.append(schema_dict)
-            else:
-                ns_map[ns].nodes.append(schema_dict)
-        return SchemaExport(namespaces=ns_map)
+    def _parse_export_response(response: httpx.Response, branch: str) -> InfrahubSchemaWrite:
+        # An older server reads `export` as a schema kind and answers 422.
+        if response.status_code in {404, 422}:
+            raise VersionNotSupportedError(feature="Schema export", required_version=SCHEMA_EXPORT_MIN_INFRAHUB_VERSION)
+        data = InfrahubSchemaBase._parse_schema_response(response=response, branch=branch)
+        return InfrahubSchemaWrite.model_validate(data)
 
     def validate(self, data: dict[str, Any]) -> SchemaValidationResult:
         """Validate a schema payload against the generated write contract.
@@ -579,28 +551,22 @@ class InfrahubSchema(InfrahubSchemaBase):
         self,
         branch: str | None = None,
         namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Export user-defined schemas organized by namespace.
-
-        Fetches schemas from the server, filters out system types and
-        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
-        a :class:`SchemaExport` object with per-namespace data.  Restricted
-        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
-        explicitly listed in *namespaces*; a warning is emitted when this
-        happens.
+        mode: SchemaExportMode = "brief",
+    ) -> InfrahubSchemaWrite:
+        """Export the user-defined schema of a branch in the schema file format, as Infrahub serves it.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None,
-                all user-defined namespaces are exported.
+            namespaces: Namespaces to export. All user-defined namespaces when empty.
+            mode: ``brief`` leaves out the values Infrahub derives again on load, ``full`` writes them.
 
-        Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
+        Raises:
+            VersionNotSupportedError: When the server does not provide the schema export.
 
         """
         branch = branch or self.client.default_branch
-        schema_nodes = await self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
-        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+        response = await self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._parse_export_response(response=response, branch=branch)
 
     async def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.
@@ -857,28 +823,22 @@ class InfrahubSchemaSync(InfrahubSchemaBase):
         self,
         branch: str | None = None,
         namespaces: list[str] | None = None,
-    ) -> SchemaExport:
-        """Export user-defined schemas organized by namespace.
-
-        Fetches schemas from the server, filters out system types and
-        restricted namespaces (see :data:`RESTRICTED_NAMESPACES`), and returns
-        a :class:`SchemaExport` object with per-namespace data.  Restricted
-        namespaces such as ``Core`` and ``Builtin`` are always excluded even if
-        explicitly listed in *namespaces*; a warning is emitted when this
-        happens.
+        mode: SchemaExportMode = "brief",
+    ) -> InfrahubSchemaWrite:
+        """Export the user-defined schema of a branch in the schema file format, as Infrahub serves it.
 
         Args:
             branch: Branch to export from. Defaults to default_branch.
-            namespaces: Optional list of namespaces to include. If empty/None,
-                all user-defined namespaces are exported.
+            namespaces: Namespaces to export. All user-defined namespaces when empty.
+            mode: ``brief`` leaves out the values Infrahub derives again on load, ``full`` writes them.
 
-        Returns:
-            A :class:`SchemaExport` containing user-defined schemas by namespace.
+        Raises:
+            VersionNotSupportedError: When the server does not provide the schema export.
 
         """
         branch = branch or self.client.default_branch
-        schema_nodes = self.fetch(branch=branch, namespaces=namespaces, populate_cache=False)
-        return self._build_export_schemas(schema_nodes=schema_nodes, namespaces=namespaces)
+        response = self.client._get(url=self._export_url(branch=branch, namespaces=namespaces, mode=mode))
+        return self._parse_export_response(response=response, branch=branch)
 
     def get_graphql_schema(self, branch: str | None = None) -> str:
         """Get the GraphQL schema as a string.

@@ -45,6 +45,11 @@ class FormatOutcome(Enum):
     CHANGED = "changed"
 
 
+class ExportMode(str, Enum):
+    BRIEF = "brief"
+    FULL = "full"
+
+
 @app.callback()
 def callback() -> None:
     """Manage the schema in a remote Infrahub instance."""
@@ -297,39 +302,57 @@ async def export(
     directory: Path = typer.Option(_default_export_directory, help="Directory path to store schema files"),
     branch: str = typer.Option(None, help="Branch from which to export the schema"),
     namespaces: list[str] = typer.Option([], help="Namespace(s) to export (default: all user-defined)"),
+    mode: ExportMode = typer.Option(
+        ExportMode.BRIEF, help="brief leaves out the values Infrahub derives again on load, full writes them"
+    ),
+    single_file: bool = typer.Option(False, help="Write every namespace to one schema.yml file"),
     debug: bool = False,
     _: str = CONFIG_PARAM,
 ) -> None:
-    """Export the schema from Infrahub as YAML files, one per namespace."""
+    """Export the user-defined schema from Infrahub as YAML files, one per namespace by default."""
     init_logging(debug=debug)
 
     client = initialize_client()
-    user_schemas = await client.schema.export(
-        branch=branch,
-        namespaces=namespaces or None,
-    )
+    exported = await client.schema.export(branch=branch, namespaces=namespaces or None, mode=mode.value)
+    document = exported.model_dump(mode="json", exclude_unset=True)
 
-    if not user_schemas.namespaces:
+    if not document.get("generics") and not document.get("nodes"):
         console.print("[yellow]No user-defined schema found to export.")
         return
 
     directory.mkdir(parents=True, exist_ok=True)
 
-    for ns, data in sorted(user_schemas.namespaces.items()):
-        payload: dict[str, Any] = {"version": "1.0"}
-        if data.generics:
-            payload["generics"] = data.generics
-        if data.nodes:
-            payload["nodes"] = data.nodes
+    if single_file:
+        output_file = directory / "schema.yml"
+        _write_schema_file(path=output_file, document=_ordered_document(document=document))
+        console.print(f"[green] Schema exported to {output_file}")
+        return
 
-        output_file = directory / f"{ns.lower()}.yml"
-        output_file.write_text(
-            yaml.dump(payload, default_flow_style=False, sort_keys=False, allow_unicode=True),
-            encoding="utf-8",
-        )
-        console.print(f"[green] Exported namespace '{ns}' to {output_file}")
+    for namespace in sorted({element["namespace"] for element in document["generics"] + document["nodes"]}):
+        output_file = directory / f"{namespace.lower()}.yml"
+        _write_schema_file(path=output_file, document=_ordered_document(document=document, namespace=namespace))
+        console.print(f"[green] Exported namespace '{namespace}' to {output_file}")
 
     console.print(f"[green] Schema exported to {directory}")
+
+
+def _ordered_document(document: dict[str, Any], namespace: str | None = None) -> dict[str, Any]:
+    ordered: dict[str, Any] = {"version": document["version"]}
+    if document.get("infrahub_version"):
+        ordered["infrahub_version"] = document["infrahub_version"]
+    for section in ("generics", "nodes"):
+        elements = [
+            element for element in document.get(section, []) if namespace is None or element["namespace"] == namespace
+        ]
+        if elements or namespace is None:
+            ordered[section] = elements
+    return ordered
+
+
+def _write_schema_file(path: Path, document: dict[str, Any]) -> None:
+    path.write_text(
+        yaml.dump(document, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
 
 
 @app.command(name="list")

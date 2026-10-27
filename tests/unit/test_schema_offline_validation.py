@@ -597,6 +597,15 @@ def test_missing_version_is_rejected() -> None:
     assert _fields_named(result) == {"version"}
 
 
+def test_infrahub_version_is_accepted_without_warning() -> None:
+    # An exported schema records the release that produced it; loading it back must stay silent.
+    result = validate_schema(schema=_schema_with_root_fields(infrahub_version="1.13.0"))
+
+    assert result.valid is True
+    assert result.errors == []
+    assert result.warnings == []
+
+
 def test_error_detail_carries_the_location_reason_and_value_of_an_unknown_field() -> None:
     schema = _extension_node_schema(
         {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "Text", "not_a_field": "boom"}]}

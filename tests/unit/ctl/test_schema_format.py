@@ -72,6 +72,12 @@ def test_node_key_order_is_canonical() -> None:
     ]
 
 
+def test_infrahub_version_follows_version() -> None:
+    text = format_schema_text('---\nnodes: []\ninfrahub_version: "1.13.0"\nversion: "1.0"\n')
+
+    assert _keys_of(text, []) == ["version", "infrahub_version", "nodes"]
+
+
 def test_attribute_relationship_and_choice_inner_order() -> None:
     text = format_schema_text(NODE_DOC)
 

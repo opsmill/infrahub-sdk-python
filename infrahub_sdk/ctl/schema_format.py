@@ -73,7 +73,7 @@ _LANGUAGE_SERVER_HEADER_RE = re.compile(r"^[ \t]*#[ \t]*yaml-language-server[ \t
 # Canonical key orders. Each pair is (leading keys, trailing keys); any key not
 # listed is preserved in its original position between the two groups so the
 # formatter never drops data.
-FILE_ORDER = ["version", "generics", "nodes", "extensions"]
+FILE_ORDER = ["version", "infrahub_version", "generics", "nodes", "extensions"]
 
 NODE_ORDER = [
     "name",

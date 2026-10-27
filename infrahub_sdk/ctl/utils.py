@@ -28,6 +28,7 @@ from ..exceptions import (
     ServerNotReachableError,
     ServerNotResponsiveError,
     ValidationError,
+    VersionNotSupportedError,
     code_names_the_failure,
 )
 from ..graphql.query_renderer import render_query
@@ -80,7 +81,7 @@ def handle_exception(exc: Exception, console: Console, exit_code: int) -> NoRetu
     if isinstance(exc, AuthenticationError):
         console.print(f"[red]Authentication failure: {escape(str(exc))}")
         raise typer.Exit(code=exit_code)
-    if isinstance(exc, (ServerNotReachableError, ServerNotResponsiveError)):
+    if isinstance(exc, (ServerNotReachableError, ServerNotResponsiveError, VersionNotSupportedError)):
         console.print(f"[red]{escape(str(exc))}")
         raise typer.Exit(code=exit_code)
     if isinstance(exc, HTTPError):
