@@ -237,9 +237,9 @@ class Attribute:
     def _pool_write_payload(self) -> _GraphQLPayloadAttribute:
         # A pending write that names no pool is a detach.
         if self._from_pool is None:
-            # A node that is not saved yet must still send the number it is created with.
             if not self.value_has_been_mutated and self._node is not None and self._node.id:
                 return _GraphQLPayloadAttribute(payload={"from_pool": None}, variables={}, needs_metadata=True)
+            # A changed number, or the number of a node that is not saved yet, must still be sent.
             value_payload = self._value_payload()
             return _GraphQLPayloadAttribute(
                 payload={**value_payload.payload, "from_pool": None},
