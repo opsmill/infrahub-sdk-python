@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.exceptions import ValidationError
+from infrahub_sdk.exceptions import GraphQLError, ValidationError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
 
 if TYPE_CHECKING:
@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from infrahub_sdk import InfrahubClient, InfrahubClientSync
     from infrahub_sdk.schema import NodeSchemaAPI
+    from tests.unit.sdk.conftest import BothClients
 
 
 POOL_ID = "185b9728-1b76-dda7-d13d-106529b1bcd9"
@@ -322,6 +323,143 @@ async def test_create_upsert_raises_when_numberpool_attr_in_hfid(
 
     with pytest.raises(ValidationError, match=re.escape("Attribute 'vlan_id' is sourced from a CoreNumberPool")):
         await node.create(allow_upsert=True)
+
+
+client_types = ["standard", "sync"]
+
+FETCHED_VLAN_ID = "vvvvvvvv-vvvv-vvvv-vvvv-vvvvvvvvvvvv"
+FETCHED_VLAN_DATA: dict[str, Any] = {
+    "id": FETCHED_VLAN_ID,
+    "name": {"value": "Example VLAN"},
+    "vlan_id": {"value": 100},
+}
+
+
+def _make_vlan(
+    clients: BothClients, client_type: str, schema: NodeSchemaAPI, data: dict[str, Any]
+) -> InfrahubNode | InfrahubNodeSync:
+    if client_type == "standard":
+        return InfrahubNode(client=clients.standard, schema=schema, data=data)
+    return InfrahubNodeSync(client=clients.sync, schema=schema, data=data)
+
+
+async def _save(node: InfrahubNode | InfrahubNodeSync) -> None:
+    if isinstance(node, InfrahubNode):
+        await node.save()
+    else:
+        node.save()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_create_with_value_and_from_pool_attaches(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    node = _make_vlan(
+        clients,
+        client_type,
+        vlan_schema,
+        {"name": "Example VLAN", "vlan_id": {"value": 100, "from_pool": {"id": POOL_ID}}},
+    )
+
+    input_data = node._generate_input_data()["data"]["data"]
+
+    assert input_data["vlan_id"] == {"value": 100, "from_pool": {"id": POOL_ID}}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_update_after_allocation_does_not_resend_from_pool(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfraVLANCreate": {"ok": True, "object": {"id": FETCHED_VLAN_ID, "vlan_id": {"value": 100}}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-infravlan-create"},
+    )
+    node = _make_vlan(
+        clients, client_type, vlan_schema, {"name": "Example VLAN", "vlan_id": {"from_pool": {"id": POOL_ID}}}
+    )
+
+    await _save(node)
+
+    vlan_id = node._generate_input_data(exclude_unmodified=True)["data"]["data"]["vlan_id"]
+    assert vlan_id == {"value": 100}
+    assert node._get_attribute("vlan_id").is_from_pool_attribute() is True
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_attach_on_fetched_node_keeps_unchanged_value(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    node = _make_vlan(clients, client_type, vlan_schema, FETCHED_VLAN_DATA)
+
+    node._get_attribute("vlan_id").attach_to_pool(POOL_ID)
+
+    input_data = node._generate_input_data(exclude_unmodified=True)["data"]["data"]
+    assert input_data == {"id": FETCHED_VLAN_ID, "vlan_id": {"value": 100, "from_pool": {"id": POOL_ID}}}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_detach_on_fetched_node(clients: BothClients, vlan_schema: NodeSchemaAPI, client_type: str) -> None:
+    node = _make_vlan(clients, client_type, vlan_schema, FETCHED_VLAN_DATA)
+
+    node._get_attribute("vlan_id").detach_from_pool()
+
+    input_data = node._generate_input_data(exclude_unmodified=True)["data"]["data"]
+    assert input_data == {"id": FETCHED_VLAN_ID, "vlan_id": {"from_pool": None}}
+    assert node._get_attribute("vlan_id").value == 100
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_detach_before_first_save_keeps_the_value(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    node = _make_vlan(
+        clients,
+        client_type,
+        vlan_schema,
+        {"name": "Example VLAN", "vlan_id": {"value": 100, "from_pool": {"id": POOL_ID}}},
+    )
+
+    node._get_attribute("vlan_id").detach_from_pool()
+
+    input_data = node._generate_input_data()["data"]["data"]
+    assert input_data["vlan_id"] == {"value": 100, "from_pool": None}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_saved_detach_is_not_resent(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"InfraVLANUpdate": {"ok": True, "object": {"id": FETCHED_VLAN_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-infravlan-update"},
+    )
+    node = _make_vlan(clients, client_type, vlan_schema, FETCHED_VLAN_DATA)
+    node._get_attribute("vlan_id").detach_from_pool()
+
+    await _save(node)
+
+    assert node._generate_input_data(exclude_unmodified=True)["data"]["data"] == {"id": FETCHED_VLAN_ID}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_failed_save_keeps_pool_write_pending(
+    clients: BothClients, vlan_schema: NodeSchemaAPI, httpx_mock: HTTPXMock, client_type: str
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={"errors": [{"message": "pool refused the number"}]},
+        match_headers={"X-Infrahub-Tracker": "mutation-infravlan-update"},
+    )
+    node = _make_vlan(clients, client_type, vlan_schema, FETCHED_VLAN_DATA)
+    node._get_attribute("vlan_id").attach_to_pool(POOL_ID)
+
+    with pytest.raises(GraphQLError, match="pool refused the number"):
+        await _save(node)
+
+    vlan_id = node._generate_input_data(exclude_unmodified=True)["data"]["data"]["vlan_id"]
+    assert vlan_id == {"value": 100, "from_pool": {"id": POOL_ID}}
 
 
 def test_create_upsert_raises_when_numberpool_attr_in_hfid_sync(

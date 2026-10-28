@@ -1,0 +1,1 @@
+Number attributes have `attach_to_pool()` and `detach_from_pool()`. `attach_to_pool()` makes a number pool track the number the attribute holds, without allocating a new one, and `detach_from_pool()` makes the pool stop tracking it while the attribute keeps its number. Both take effect when the node is saved, and require Infrahub 1.12 or later.

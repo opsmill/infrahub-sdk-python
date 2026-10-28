@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
-from ..constants import InfrahubClientMode, Priority
+from ..constants import InfrahubClientMode, PoolAllocationProvenance, Priority
 from ..exceptions import (
     FeatureNotSupportedError,
     NodeNotFoundError,
@@ -31,6 +31,9 @@ from .constants import (
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
     MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
+    POOL_ALLOCATED_QUERY_NAME,
+    POOL_ALLOCATED_RESOURCE_FIELDS,
+    POOL_ALLOCATION_FIELDS,
     PROPERTIES_OBJECT,
     UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
@@ -72,6 +75,32 @@ class UploadResult:
 
     was_uploaded: bool
     checksum: str | None
+
+
+@dataclass(frozen=True)
+class PoolAllocation:
+    """One resource a pool holds, as returned by :meth:`InfrahubNode.get_pool_allocations` and its sync twin."""
+
+    node_id: str
+    kind: str
+    branch: str
+    display_label: str
+    """The allocated resource; for a number pool, the number itself."""
+    identifier: str | None
+    provenance: PoolAllocationProvenance | None
+    """``None`` for IP pools, which do not record it."""
+
+    @classmethod
+    def from_graphql(cls, data: dict[str, Any]) -> PoolAllocation:
+        provenance = data.get("provenance")
+        return cls(
+            node_id=data["id"],
+            kind=data["kind"],
+            branch=data["branch"],
+            display_label=data["display_label"],
+            identifier=data.get("identifier"),
+            provenance=PoolAllocationProvenance[provenance] if provenance else None,
+        )
 
 
 class InfrahubNodeBase:
@@ -432,6 +461,24 @@ class InfrahubNodeBase:
         """
         return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
 
+    def _pool_allocated_query(self, edge_fields: Sequence[str]) -> str:
+        return Query(
+            query={
+                POOL_ALLOCATED_QUERY_NAME: {
+                    "@filters": {
+                        "pool_id": "$pool_id",
+                        "resource_id": "$resource_id",
+                        "offset": "$offset",
+                        "limit": "$limit",
+                    },
+                    "count": None,
+                    "edges": {"node": dict.fromkeys(edge_fields)},
+                }
+            },
+            name="GetAllocatedResourceForPool",
+            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        ).render()
+
     def is_file_object(self) -> bool:
         """Return whether this node inherits from ``CoreFileObject`` and supports file uploads.
 
@@ -606,6 +653,14 @@ class InfrahubNodeBase:
         }
 
     @staticmethod
+    def _keeps_unmodified_key(data_item: dict, item_key: str) -> bool:
+        # Related nodes typically require an ID, so it is only removed when it is the last key in the context.
+        if item_key == "id":
+            return len(data_item.keys()) > 1
+        # Without the value, naming a pool over a held number asks to replace it, not attach it.
+        return item_key == "value" and "from_pool" in data_item
+
+    @staticmethod
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
         data_item = data.get(item)
         if item in original_data and isinstance(original_data[item], dict) and isinstance(data_item, dict):
@@ -618,9 +673,7 @@ class InfrahubNodeBase:
                     ):
                         original_data[item][property_name] = original_data[item][property_name]["id"]
                 if item_key in data[item]:
-                    if item_key == "id" and len(data[item].keys()) > 1:
-                        # Related nodes typically require an ID. So the ID is only
-                        # removed if it's the last key in the current context
+                    if InfrahubNodeBase._keeps_unmodified_key(data_item=data[item], item_key=item_key):
                         continue
 
                     variable_key = None
@@ -1842,6 +1895,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
@@ -2102,32 +2156,52 @@ class InfrahubNode(InfrahubNodeBase):
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
-        graphql_query_name = "InfrahubResourcePoolAllocated"
-        node_ids_per_kind: dict[str, list[str]] = {}
-
-        query = Query(
-            query={
-                graphql_query_name: {
-                    "@filters": {
-                        "pool_id": "$pool_id",
-                        "resource_id": "$resource_id",
-                        "offset": "$offset",
-                        "limit": "$limit",
-                    },
-                    "count": None,
-                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                }
-            },
-            name="GetAllocatedResourceForPool",
-            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        rows = await self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATED_RESOURCE_FIELDS, tracker="get-allocated-resources"
         )
-        query_str = query.render()
+        node_ids_per_kind: dict[str, list[str]] = {}
+        for row in rows:
+            node_ids_per_kind.setdefault(row["kind"], []).append(row["id"])
 
-        has_remaining_items = True
+        nodes: list[InfrahubNode] = []
+        for kind, node_ids in node_ids_per_kind.items():
+            nodes.extend(await self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
+
+        return nodes
+
+    async def get_pool_allocations(self, resource: InfrahubNode) -> list[PoolAllocation]:
+        """Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+        Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+        allocated nodes.
+
+        Args:
+            resource (InfrahubNode): The resource from which the nodes were allocated: the pool itself, or one of
+                its ranges or prefixes.
+
+        Returns:
+            list[PoolAllocation]: One entry per resource the pool holds.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
+        """
+        if not self.is_resource_pool():
+            raise ValueError("Pool allocations can only be fetched from resource pool nodes.")
+
+        rows = await self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATION_FIELDS, tracker="get-pool-allocations"
+        )
+        return [PoolAllocation.from_graphql(row) for row in rows]
+
+    async def _get_pool_allocated_rows(
+        self, resource: InfrahubNode, edge_fields: Sequence[str], tracker: str
+    ) -> list[dict[str, Any]]:
+        query_str = self._pool_allocated_query(edge_fields=edge_fields)
+        rows: list[dict[str, Any]] = []
         page_number = 1
-        while has_remaining_items:
+        while True:
             page_offset = (page_number - 1) * self._client.pagination_size
-
             response = await self._client.execute_graphql(
                 query=query_str,
                 variables={
@@ -2137,26 +2211,12 @@ class InfrahubNode(InfrahubNodeBase):
                     "limit": self._client.pagination_size,
                 },
                 branch_name=self._branch,
-                tracker=f"get-allocated-resources-page{page_number}",
+                tracker=f"{tracker}-page{page_number}",
             )
-
-            for edge in response[graphql_query_name]["edges"]:
-                node = edge["node"]
-                node_ids_per_kind.setdefault(node["kind"], []).append(node["id"])
-
-            remaining_items = response[graphql_query_name].get("count", 0) - (
-                page_offset + self._client.pagination_size
-            )
-            if remaining_items <= 0:
-                has_remaining_items = False
-
+            rows.extend(edge["node"] for edge in response[POOL_ALLOCATED_QUERY_NAME]["edges"])
+            if response[POOL_ALLOCATED_QUERY_NAME].get("count", 0) <= page_offset + self._client.pagination_size:
+                return rows
             page_number += 1
-
-        nodes: list[InfrahubNode] = []
-        for kind, node_ids in node_ids_per_kind.items():
-            nodes.extend(await self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
-
-        return nodes
 
     async def get_pool_resources_utilization(self) -> list[dict[str, Any]]:
         """Fetch the utilization of each resource for the pool.
@@ -3182,6 +3242,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
@@ -3442,32 +3503,52 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
-        graphql_query_name = "InfrahubResourcePoolAllocated"
-        node_ids_per_kind: dict[str, list[str]] = {}
-
-        query = Query(
-            query={
-                graphql_query_name: {
-                    "@filters": {
-                        "pool_id": "$pool_id",
-                        "resource_id": "$resource_id",
-                        "offset": "$offset",
-                        "limit": "$limit",
-                    },
-                    "count": None,
-                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                }
-            },
-            name="GetAllocatedResourceForPool",
-            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        rows = self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATED_RESOURCE_FIELDS, tracker="get-allocated-resources"
         )
-        query_str = query.render()
+        node_ids_per_kind: dict[str, list[str]] = {}
+        for row in rows:
+            node_ids_per_kind.setdefault(row["kind"], []).append(row["id"])
 
-        has_remaining_items = True
+        nodes: list[InfrahubNodeSync] = []
+        for kind, node_ids in node_ids_per_kind.items():
+            nodes.extend(self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
+
+        return nodes
+
+    def get_pool_allocations(self, resource: InfrahubNodeSync) -> list[PoolAllocation]:
+        """Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+        Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+        allocated nodes.
+
+        Args:
+            resource (InfrahubNodeSync): The resource from which the nodes were allocated: the pool itself, or one
+                of its ranges or prefixes.
+
+        Returns:
+            list[PoolAllocation]: One entry per resource the pool holds.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
+        """
+        if not self.is_resource_pool():
+            raise ValueError("Pool allocations can only be fetched from resource pool nodes.")
+
+        rows = self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATION_FIELDS, tracker="get-pool-allocations"
+        )
+        return [PoolAllocation.from_graphql(row) for row in rows]
+
+    def _get_pool_allocated_rows(
+        self, resource: InfrahubNodeSync, edge_fields: Sequence[str], tracker: str
+    ) -> list[dict[str, Any]]:
+        query_str = self._pool_allocated_query(edge_fields=edge_fields)
+        rows: list[dict[str, Any]] = []
         page_number = 1
-        while has_remaining_items:
+        while True:
             page_offset = (page_number - 1) * self._client.pagination_size
-
             response = self._client.execute_graphql(
                 query=query_str,
                 variables={
@@ -3477,26 +3558,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     "limit": self._client.pagination_size,
                 },
                 branch_name=self._branch,
-                tracker=f"get-allocated-resources-page{page_number}",
+                tracker=f"{tracker}-page{page_number}",
             )
-
-            for edge in response[graphql_query_name]["edges"]:
-                node = edge["node"]
-                node_ids_per_kind.setdefault(node["kind"], []).append(node["id"])
-
-            remaining_items = response[graphql_query_name].get("count", 0) - (
-                page_offset + self._client.pagination_size
-            )
-            if remaining_items <= 0:
-                has_remaining_items = False
-
+            rows.extend(edge["node"] for edge in response[POOL_ALLOCATED_QUERY_NAME]["edges"])
+            if response[POOL_ALLOCATED_QUERY_NAME].get("count", 0) <= page_offset + self._client.pagination_size:
+                return rows
             page_number += 1
-
-        nodes: list[InfrahubNodeSync] = []
-        for kind, node_ids in node_ids_per_kind.items():
-            nodes.extend(self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
-
-        return nodes
 
     def get_pool_resources_utilization(self) -> list[dict[str, Any]]:
         """Fetch the utilization of each resource for the pool.

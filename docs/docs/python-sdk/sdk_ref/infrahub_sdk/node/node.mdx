@@ -471,6 +471,30 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - `ValueError`: If the node is not a resource pool.
 
+#### `get_pool_allocations`
+
+```python
+get_pool_allocations(self, resource: InfrahubNode) -> list[PoolAllocation]
+```
+
+Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+allocated nodes.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated\: the pool itself, or one of
+its ranges or prefixes.
+
+**Returns:**
+
+- list\[PoolAllocation]: One entry per resource the pool holds.
+
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -1006,6 +1030,30 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - `ValueError`: If the node is not a resource pool.
 
+#### `get_pool_allocations`
+
+```python
+get_pool_allocations(self, resource: InfrahubNodeSync) -> list[PoolAllocation]
+```
+
+Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+allocated nodes.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated\: the pool itself, or one
+of its ranges or prefixes.
+
+**Returns:**
+
+- list\[PoolAllocation]: One entry per resource the pool holds.
+
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -1096,6 +1144,18 @@ The comparison used by ``upload_if_changed`` reads the node's
 fetched via ``client.get(...)``. A server-side change to the file
 between the fetch and the call will not be detected unless the
 caller re-fetches the node first.
+
+### `PoolAllocation`
+
+One resource a pool holds, as returned by :meth:`InfrahubNode.get_pool_allocations` and its sync twin.
+
+**Methods:**
+
+#### `from_graphql`
+
+```python
+from_graphql(cls, data: dict[str, Any]) -> PoolAllocation
+```
 
 ### `InfrahubNodeBase`
 

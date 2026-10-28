@@ -16,6 +16,7 @@ from .constants import (
 from .property import NodeProperty
 
 if TYPE_CHECKING:
+    from ..protocols_base import CoreNodeBase
     from ..schema import AttributeSchemaAPI
     from .node import InfrahubNodeBase
 
@@ -86,16 +87,19 @@ class Attribute:
             data (Any | dict): The data for the attribute. Either a scalar value, a dict
                 with a ``value`` key (and optional metadata properties), or a dict with a
                 ``from_pool`` key to allocate the value from a resource pool when saving.
+                A dict with both ``value`` and ``from_pool`` attaches that value to the pool.
 
         """
         self.name = name
         self._schema = schema
         self._from_pool: dict[str, Any] | None = None
+        self._pool_write_pending = False
         self._node: InfrahubNodeBase | None = None
         self._has_data = False
 
         if isinstance(data, dict) and "from_pool" in data:
             self._from_pool = data.pop("from_pool")
+            self._pool_write_pending = self._from_pool is not None
             data.setdefault("value", None)
         elif not isinstance(data, dict) or "value" not in data:
             data = {"value": data}
@@ -178,16 +182,82 @@ class Attribute:
         if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
             raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.name)
 
+    def attach_to_pool(self, pool: CoreNodeBase | str) -> None:
+        """Attach the number this attribute holds to a number pool when the node is next saved.
+
+        The pool then tracks the number as one a user provided, without allocating a new one.
+
+        Args:
+            pool (CoreNodeBase | str): The number pool node, or its ID.
+
+        Raises:
+            ValueError: If the attribute holds no number, or if ``pool`` is a node that is not a resource pool or
+                has not been saved.
+
+        """
+        if self.value is None or self.is_unresolved_pool_attribute():
+            raise ValueError(
+                f"Attribute '{self.name}' holds no number to attach; "
+                "assign the pool to the attribute instead to allocate a number from it."
+            )
+        if isinstance(pool, str):
+            pool_id = pool
+        elif not pool.is_resource_pool():
+            raise ValueError(f"{pool.get_kind()} is not a resource pool.")
+        elif not pool.id:
+            raise ValueError(f"Save the {pool.get_kind()} before attaching a number to it.")
+        else:
+            pool_id = pool.id
+        self._from_pool = {"id": pool_id}
+        self._pool_write_pending = True
+        self._has_data = True
+
+    def detach_from_pool(self) -> None:
+        """Detach the number this attribute holds from its number pool when the node is next saved.
+
+        The attribute keeps its number, and the pool stops tracking it.
+        """
+        self._from_pool = None
+        self._pool_write_pending = True
+        self._has_data = True
+
+    def _mark_pool_write_sent(self) -> None:
+        self._pool_write_pending = False
+
     def _initialize_graphql_payload(self) -> _GraphQLPayloadAttribute:
         """Resolve the attribute value into a GraphQL mutation payload object."""
-        # Pool-based allocation (dict data or resource-pool node)
-        if self._from_pool is not None:
-            return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
+        if self._pool_write_pending:
+            return self._pool_write_payload()
         if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return _GraphQLPayloadAttribute(
                 payload={"from_pool": {"id": self._value.id}}, variables={}, needs_metadata=True
             )
+        return self._value_payload()
 
+    def _pool_write_payload(self) -> _GraphQLPayloadAttribute:
+        # A pending write that names no pool is a detach.
+        if self._from_pool is None:
+            if not self.value_has_been_mutated and self._node is not None and self._node.id:
+                return _GraphQLPayloadAttribute(payload={"from_pool": None}, variables={}, needs_metadata=True)
+            # A changed number, or the number of a node that is not saved yet, must still be sent.
+            value_payload = self._value_payload()
+            return _GraphQLPayloadAttribute(
+                payload={**value_payload.payload, "from_pool": None},
+                variables=value_payload.variables,
+                needs_metadata=True,
+            )
+
+        if self._value is None:
+            return _GraphQLPayloadAttribute(payload={"from_pool": self._from_pool}, variables={}, needs_metadata=True)
+
+        value_payload = self._value_payload()
+        return _GraphQLPayloadAttribute(
+            payload={**value_payload.payload, "from_pool": self._from_pool},
+            variables=value_payload.variables,
+            needs_metadata=True,
+        )
+
+    def _value_payload(self) -> _GraphQLPayloadAttribute:
         # Null value
         if self._value is None:
             data = {"value": None} if (self._schema.optional and self.value_has_been_mutated) else {}
@@ -260,6 +330,9 @@ class Attribute:
     def is_from_pool_attribute(self) -> bool:
         """Check whether this attribute's value is sourced from a resource pool.
 
+        This reflects only the pool requests made through this object. For a node fetched from the server, query it
+        with ``property=True`` and read the attribute's ``source``, which is the number pool tracking the value.
+
         Returns:
             True if the attribute value is a resource pool node or was explicitly allocated from a pool.
 
@@ -275,8 +348,8 @@ class Attribute:
         - its value is a pool node object (the pool reference itself, not an allocated scalar), or
         - its value is None and the from_pool allocation dict is set.
 
-        An attribute whose _from_pool dict is set but whose value has already been populated
-        with the allocated scalar (e.g. after a prior save) is considered resolved.
+        An attribute whose _from_pool dict is set but which holds a number, either the one allocated by a
+        prior save or one given to attach to the pool, is considered resolved.
         """
         if hasattr(self._value, "is_resource_pool") and self._value.is_resource_pool():
             return True
