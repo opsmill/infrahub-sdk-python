@@ -406,6 +406,7 @@ async def test_detach_on_fetched_node(clients: BothClients, vlan_schema: NodeSch
 
     input_data = node._generate_input_data(exclude_unmodified=True)["data"]["data"]
     assert input_data == {"id": FETCHED_VLAN_ID, "vlan_id": {"from_pool": None}}
+    assert node._get_attribute("vlan_id").value == 100
 
 
 @pytest.mark.parametrize("client_type", client_types)
