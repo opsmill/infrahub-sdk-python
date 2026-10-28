@@ -53,6 +53,22 @@ infrahub_sdk/
 └── pytest_plugin/      # Custom pytest plugin
 ```
 
+## Branches
+
+| Branch | Holds |
+|--------|-------|
+| `stable` | The released SDK and its fixes |
+| `develop` | SDK features that work with the current Infrahub version |
+| `infrahub-release-x.y` | The SDK that ships with Infrahub `x.y`; created from `infrahub-develop` when Infrahub cuts `release-x.y` |
+| `infrahub-develop` | SDK changes that need the next Infrahub version |
+
+The Infrahub repository pins `python_sdk` to the branch that matches its own: `stable` to `stable`,
+`release-x.y` to `infrahub-release-x.y`, `develop` to `infrahub-develop`.
+
+A bot opens a pull request to sync each branch into the next one, in this order:
+`stable` → `develop` → `infrahub-release-x.y` → `infrahub-develop`. The rules are in
+[opsmill/infrahub-github-bot `config.yaml`](https://github.com/opsmill/infrahub-github-bot/blob/main/config.yaml).
+
 ## Markdown style
 
 When editing `.md` or `.mdx` files (`uv run invoke lint-docs` enforces these):
