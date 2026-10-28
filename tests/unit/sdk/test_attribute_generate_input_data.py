@@ -328,6 +328,116 @@ class TestProperties:
 
 
 # ──────────────────────────────────────────────
+# Attaching a held number to a pool
+# ──────────────────────────────────────────────
+
+
+class TestAttachToPool:
+    def test_from_pool_dict_with_value_sends_both(self) -> None:
+        attr = Attribute(
+            name="vlan_id",
+            schema=_make_schema(AttributeKind.NUMBER),
+            data={"value": 100, "from_pool": {"id": "pool-uuid-1"}},
+        )
+
+        result = attr._generate_input_data()
+
+        assert result.payload == {"value": 100, "from_pool": {"id": "pool-uuid-1"}}
+
+    def test_attach_to_pool_by_id(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+
+        attr.attach_to_pool("pool-uuid-1")
+
+        assert attr._generate_input_data().payload == {"value": 100, "from_pool": {"id": "pool-uuid-1"}}
+        assert attr.is_from_pool_attribute() is True
+        assert attr.is_unresolved_pool_attribute() is False
+
+    def test_attach_to_pool_by_node(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+
+        attr.attach_to_pool(_FakeNode(node_id="pool-uuid-1", is_pool=True))
+
+        assert attr._generate_input_data().payload == {"value": 100, "from_pool": {"id": "pool-uuid-1"}}
+
+    def test_attach_to_pool_without_value_raises(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER, optional=True), data=None)
+
+        with pytest.raises(ValueError, match="holds no number to attach"):
+            attr.attach_to_pool("pool-uuid-1")
+
+    def test_attach_to_pool_with_pool_node_value_raises(self) -> None:
+        attr = Attribute(
+            name="vlan_id",
+            schema=_make_schema(AttributeKind.NUMBER),
+            data=_FakeNode(node_id="pool-uuid-1", is_pool=True),
+        )
+
+        with pytest.raises(ValueError, match="holds no number to attach"):
+            attr.attach_to_pool("pool-uuid-2")
+
+    def test_attach_to_unsaved_pool_raises(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+
+        with pytest.raises(ValueError, match="before attaching a number to it"):
+            attr.attach_to_pool(_FakeNode(node_id="", is_pool=True))
+
+    def test_attach_to_non_pool_node_raises(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+
+        with pytest.raises(ValueError, match="is not a resource pool"):
+            attr.attach_to_pool(_FakeNode(node_id="node-uuid-1", is_pool=False))
+
+    def test_sent_attach_is_not_sent_again(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+        attr.attach_to_pool("pool-uuid-1")
+
+        attr._mark_pool_write_sent()
+
+        assert attr._generate_input_data().payload == {"value": 100}
+        assert attr.is_from_pool_attribute() is True
+
+
+# ──────────────────────────────────────────────
+# Detaching a held number from its pool
+# ──────────────────────────────────────────────
+
+
+class TestDetachFromPool:
+    def test_detach_without_a_saved_node_keeps_the_value(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+
+        attr.detach_from_pool()
+
+        assert attr._generate_input_data().payload == {"value": 100, "from_pool": None}
+        assert attr.is_from_pool_attribute() is False
+
+    def test_detach_with_value_change_sends_both(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+        attr.value = 200
+
+        attr.detach_from_pool()
+
+        assert attr._generate_input_data().payload == {"value": 200, "from_pool": None}
+
+    def test_detach_replaces_pending_attach(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+        attr.attach_to_pool("pool-uuid-1")
+
+        attr.detach_from_pool()
+
+        assert attr._generate_input_data().payload == {"value": 100, "from_pool": None}
+
+    def test_sent_detach_is_not_sent_again(self) -> None:
+        attr = Attribute(name="vlan_id", schema=_make_schema(AttributeKind.NUMBER), data={"value": 100})
+        attr.detach_from_pool()
+
+        attr._mark_pool_write_sent()
+
+        assert attr._generate_input_data().payload == {"value": 100}
+
+
+# ──────────────────────────────────────────────
 # Return type: to_dict() integration
 # ──────────────────────────────────────────────
 
