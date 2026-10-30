@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from infrahub_sdk.exceptions import ObjectValidationError, ValidationError
@@ -18,6 +20,8 @@ from infrahub_sdk.spec.object import (
 )
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.client import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
 
@@ -162,7 +166,12 @@ def schema_generic_peer_data() -> dict[str, Any]:
             {
                 "name": "SupportsSubintf",
                 "namespace": "Testing",
-                "used_by": ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"],
+                "used_by": [
+                    "TestingPhysicalInterface",
+                    "TestingPortChannelInterface",
+                    "TestingNoHfid",
+                    "ProfileTestingPhysicalInterface",
+                ],
                 "attributes": [],
                 "relationships": [
                     _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
@@ -209,6 +218,15 @@ def schema_generic_peer_data() -> dict[str, Any]:
                     _rel("sub_interfaces", "TestingSubInterface", "many", "supports_subintf__subinterface")
                 ],
             },
+        ],
+        "profiles": [
+            {
+                "name": "TestingPhysicalInterface",
+                "namespace": "Profile",
+                "human_friendly_id": ["profile_name__value"],
+                "attributes": [_attr("profile_name")],
+                "relationships": [],
+            }
         ],
     }
 
@@ -351,7 +369,12 @@ async def test_get_relationship_info_generic_peer_without_hfid(client_with_gener
     assert rel_info.format == RelationshipDataFormat.ONE_REF
     assert rel_info.peer_has_hfid is False
     assert rel_info.peer_is_generic_without_hfid is True
-    assert rel_info.peer_used_by == ["TestingPhysicalInterface", "TestingPortChannelInterface", "TestingNoHfid"]
+    assert rel_info.peer_used_by == [
+        "TestingPhysicalInterface",
+        "TestingPortChannelInterface",
+        "TestingNoHfid",
+        "ProfileTestingPhysicalInterface",
+    ]
 
 
 @dataclass
@@ -730,17 +753,21 @@ async def test_kind_hfid_reference_in_object_loading(
     assert create_calls[0]["data"][case.relationship] == case.expected
 
 
-def _patch_hfid_lookup(
-    client: InfrahubClient, monkeypatch: pytest.MonkeyPatch, matching_kinds: set[str]
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Patch ``client.get`` to find a node only for ``matching_kinds``, and capture ``client.create`` calls."""
-    get_calls: list[dict[str, Any]] = []
+def _mock_hfid_lookup(
+    client: InfrahubClient, monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock, matching_kinds: set[str]
+) -> tuple[list[str], list[dict[str, Any]]]:
+    """Answer GraphQL lookups with a node only for ``matching_kinds``, and capture ``client.create`` calls."""
+    queried_kinds: list[str] = []
     create_calls: list[dict[str, Any]] = []
     original_create = client.create
 
-    async def fake_get(**kwargs: Any) -> str | None:  # noqa: ANN401
-        get_calls.append(kwargs)
-        return "node" if kwargs["kind"] in matching_kinds else None
+    def lookup(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        kind = payload["operationName"].removeprefix("Get_")
+        queried_kinds.append(kind)
+        assert "hfid: " in payload["query"]
+        edges = [{"node": {"id": f"{kind}-id", "__typename": kind}}] if kind in matching_kinds else []
+        return httpx.Response(200, json={"data": {kind: {"count": len(edges), "edges": edges}}})
 
     async def capture_create(kind: str, data: dict | None = None, **kwargs: Any) -> InfrahubNode:  # noqa: ANN401
         create_calls.append({"kind": kind, "data": data})
@@ -749,10 +776,12 @@ def _patch_hfid_lookup(
     async def skip_save(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         return None
 
-    monkeypatch.setattr(client, "get", fake_get)
+    httpx_mock.add_callback(
+        lookup, method="POST", url=re.compile(r".*/graphql/main"), is_optional=True, is_reusable=True
+    )
     monkeypatch.setattr(client, "create", capture_create)
     monkeypatch.setattr("infrahub_sdk.node.InfrahubNode.save", skip_save)
-    return get_calls, create_calls
+    return queried_kinds, create_calls
 
 
 def _sub_interface_file(parent_interface: Any) -> ObjectFile:  # noqa: ANN401
@@ -766,32 +795,30 @@ def _sub_interface_file(parent_interface: Any) -> ObjectFile:  # noqa: ANN401
 
 
 async def test_hfid_only_reference_to_generic_peer_resolves_single_match(
-    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
 ) -> None:
     client = client_with_generic_peer_schema
     obj = _sub_interface_file(["router2", "Gi0/0/3"])
     await obj.validate_format(client=client)
-    get_calls, create_calls = _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface"})
+    queried_kinds, create_calls = _mock_hfid_lookup(
+        client, monkeypatch, httpx_mock, matching_kinds={"TestingPhysicalInterface"}
+    )
 
     await obj.process(client=client)
 
-    assert create_calls[0]["data"]["parent_interface"] == {
-        "hfid": ["router2", "Gi0/0/3"],
-        "kind": "TestingPhysicalInterface",
-    }
-    assert get_calls == [
-        {"kind": kind, "hfid": ["router2", "Gi0/0/3"], "branch": None, "raise_when_missing": False}
-        for kind in ("TestingPhysicalInterface", "TestingPortChannelInterface")
-    ]
+    assert create_calls[0]["data"]["parent_interface"] == {"id": "TestingPhysicalInterface-id"}
+    assert queried_kinds == ["TestingPhysicalInterface", "TestingPortChannelInterface"]
 
 
 async def test_hfid_only_reference_to_generic_peer_ambiguous(
-    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
 ) -> None:
     client = client_with_generic_peer_schema
     obj = _sub_interface_file(["router2", "Gi0/0/3"])
     await obj.validate_format(client=client)
-    _patch_hfid_lookup(client, monkeypatch, matching_kinds={"TestingPhysicalInterface", "TestingPortChannelInterface"})
+    _mock_hfid_lookup(
+        client, monkeypatch, httpx_mock, matching_kinds={"TestingPhysicalInterface", "TestingPortChannelInterface"}
+    )
 
     with pytest.raises(ObjectValidationError, match="parent_interface") as exc:
         await obj.process(client=client)
@@ -813,7 +840,7 @@ HFID_ONLY_NO_MATCH_CASES = [
         name="two_parts",
         parent_interface=["router9", "Gi0/0/3"],
         expected_get_calls=2,
-        expected_message="among TestingPhysicalInterface, TestingPortChannelInterface",
+        expected_message="['router9', 'Gi0/0/3'] among TestingPhysicalInterface, TestingPortChannelInterface",
     ),
     HfidOnlyNoMatchCase(
         name="one_part_no_candidate",
@@ -826,19 +853,66 @@ HFID_ONLY_NO_MATCH_CASES = [
 
 @pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in HFID_ONLY_NO_MATCH_CASES])
 async def test_hfid_only_reference_to_generic_peer_no_match(
-    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, case: HfidOnlyNoMatchCase
+    client_with_generic_peer_schema: InfrahubClient,
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+    case: HfidOnlyNoMatchCase,
 ) -> None:
+    """The profile kind in the generic's used_by has a 1-part HFID, but is never queried."""
     client = client_with_generic_peer_schema
     obj = _sub_interface_file(case.parent_interface)
     await obj.validate_format(client=client)
-    get_calls, _ = _patch_hfid_lookup(client, monkeypatch, matching_kinds=set())
+    queried_kinds, _ = _mock_hfid_lookup(client, monkeypatch, httpx_mock, matching_kinds=set())
 
     with pytest.raises(ObjectValidationError, match="no TestingSupportsSubintf with HFID") as exc:
         await obj.process(client=client)
 
-    assert "router9" in str(exc.value)
     assert case.expected_message in str(exc.value)
-    assert len(get_calls) == case.expected_get_calls
+    assert len(queried_kinds) == case.expected_get_calls
+
+
+async def test_hfid_only_reference_error_names_list_item(
+    client_with_generic_peer_schema: InfrahubClient, monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
+) -> None:
+    client = client_with_generic_peer_schema
+    data = {
+        "name": "tun1",
+        "source_interfaces": [{"kind": "TestingPhysicalInterface", "hfid": ["r1", "Gi1"]}, ["router9", "Gi0/0/3"]],
+    }
+    content = {"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": "TestingTunnel", "data": [data]}}
+    obj = ObjectFile(location="some/path", content=content)
+    await obj.validate_format(client=client)
+    _mock_hfid_lookup(client, monkeypatch, httpx_mock, matching_kinds=set())
+
+    with pytest.raises(ObjectValidationError) as exc:
+        await obj.process(client=client)
+
+    assert exc.value.position == [1, "source_interfaces", 2]
+
+
+async def test_string_reference_to_generic_peer_with_default_filter_is_sent_as_id(
+    client: InfrahubClient, schema_generic_peer_data: dict, monkeypatch: pytest.MonkeyPatch, httpx_mock: HTTPXMock
+) -> None:
+    schema_generic_peer_data["generics"][0]["default_filter"] = "name__value"
+    client.schema.set_cache(schema=schema_generic_peer_data, branch="main")
+    obj = _sub_interface_file("Gi0/0/3")
+    await obj.validate_format(client=client)
+    queried_kinds, create_calls = _mock_hfid_lookup(client, monkeypatch, httpx_mock, matching_kinds=set())
+
+    await obj.process(client=client)
+
+    assert create_calls[0]["data"]["parent_interface"] == "Gi0/0/3"
+    assert queried_kinds == []
+
+
+async def test_nested_object_without_data_key_error_mentions_data(
+    client_with_generic_peer_schema: InfrahubClient,
+) -> None:
+    parent = {"kind": "TestingPhysicalInterface", "name": "Gi0/0/3", "device": "router1"}
+    obj = _sub_interface_file(parent)
+
+    with pytest.raises(ValidationError, match="under `data:`"):
+        await obj.validate_format(client=client_with_generic_peer_schema)
 
 
 def test_normalize_hfid_reference_function() -> None:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeGuard
 from pydantic import BaseModel, Field
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
+from ..schema import GenericSchemaAPI, NodeSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
@@ -60,16 +60,6 @@ def normalize_hfid_reference(value: str | list[str]) -> str | list[str]:
     return [value]
 
 
-def normalize_hfid_references(values: list[str | list[str]]) -> list[str | list[str]]:
-    """Normalize a list of reference values to HFID format.
-
-    Only call this function when the peer schema has human_friendly_id defined.
-
-    Each string that is not a valid UUID will be wrapped in a list to treat it as a single-component HFID.
-    """
-    return [normalize_hfid_reference(v) for v in values]
-
-
 def normalize_kind_hfid_reference(value: dict[str, Any]) -> dict[str, Any]:
     """Normalize a ``{"kind": ..., "hfid": ...}`` reference so that ``hfid`` is always a list."""
     hfid = value["hfid"]
@@ -96,6 +86,7 @@ class RelationshipInfo(BaseModel):
     format: RelationshipDataFormat = RelationshipDataFormat.UNKNOWN
     peer_human_friendly_id: list[str] | None = None
     peer_is_generic_without_hfid: bool = False
+    peer_has_default_filter: bool = False
     peer_used_by: list[str] = Field(default_factory=list)
 
     @property
@@ -172,6 +163,7 @@ async def get_relationship_info(
     if isinstance(declared_peer_schema, GenericSchemaAPI):
         info.peer_used_by = declared_peer_schema.used_by
         info.peer_is_generic_without_hfid = not declared_peer_schema.human_friendly_id
+        info.peer_has_default_filter = bool(declared_peer_schema.default_filter)
 
     # A peer reference with a kind outside the peer's hierarchy is reported during validation, so its schema is not fetched.
     reference_outside_hierarchy = is_hfid_reference_dict(value) and info.peer_kind not in info.peer_used_by
@@ -470,6 +462,8 @@ class InfrahubObjectFileData(BaseModel):
         """Check a ``{"kind": ..., "hfid": ...}`` peer reference against the schema, without querying nodes."""
         if set(value) != {"kind", "hfid"}:
             message = f"only `kind` and `hfid` are allowed in a peer reference, and both are required, got {', '.join(sorted(value))}"
+            if "hfid" not in value:
+                message += "; to create a new peer, put its attributes under `data:`"
             return [ObjectValidationError(position=position, message=message)]
 
         kind = value["kind"]
@@ -508,8 +502,10 @@ class InfrahubObjectFileData(BaseModel):
         """Convert one peer reference from an object file to the format used to create the node."""
         if is_hfid_reference_dict(value):
             return normalize_kind_hfid_reference(value)
+        # A plain string for a generic with a default_filter is sent as an id, so the server looks it up with that filter.
         if rel_info.peer_is_generic_without_hfid and (
-            isinstance(value, list) or (isinstance(value, str) and not is_valid_uuid(value))
+            isinstance(value, list)
+            or (isinstance(value, str) and not is_valid_uuid(value) and not rel_info.peer_has_default_filter)
         ):
             return await cls._resolve_generic_hfid(client, rel_info, value, position, branch)
         return normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
@@ -522,8 +518,10 @@ class InfrahubObjectFileData(BaseModel):
         hfid: str | list[str],
         position: list[int | str],
         branch: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, str]:
         """Find the single node, among the kinds that inherit from the generic peer, that matches ``hfid``.
+
+        Returns the node's id, so the server does not look the node up again.
 
         Raises:
             ObjectValidationError: When no node or more than one node matches ``hfid``.
@@ -532,33 +530,37 @@ class InfrahubObjectFileData(BaseModel):
         candidates = []
         for kind in rel_info.peer_used_by:
             kind_schema = await client.schema.get(kind=kind, branch=branch)
-            if kind_schema.human_friendly_id and len(kind_schema.human_friendly_id) == len(hfid):
+            # Profile and template kinds are in a generic's used_by, but client.get cannot look them up by HFID.
+            if (
+                isinstance(kind_schema, NodeSchemaAPI)
+                and kind_schema.human_friendly_id
+                and len(kind_schema.human_friendly_id) == len(hfid)
+            ):
                 candidates.append(kind)
 
         # ponytail: one query per candidate kind, add a (kind, hfid) cache if large files become slow
         matches = [
-            kind
+            node
             for kind in candidates
-            if await client.get(kind=kind, hfid=hfid, branch=branch, raise_when_missing=False) is not None
+            if (node := await client.get(kind=kind, hfid=hfid, branch=branch, raise_when_missing=False)) is not None
         ]
 
-        error_position = [*position, rel_info.name]
         if not matches:
             searched = (
-                f"among {', '.join(candidates)}"
+                f" among {', '.join(candidates)}"
                 if candidates
                 else f"; no kind that inherits from it has an HFID with {len(hfid)} values"
             )
             raise ObjectValidationError(
-                position=error_position,
-                message=f"no {rel_info.rel_schema.peer} with HFID {hfid} {searched}",
+                position=position,
+                message=f"no {rel_info.rel_schema.peer} with HFID {hfid}{searched}",
             )
         if len(matches) > 1:
             raise ObjectValidationError(
-                position=error_position,
-                message=f"HFID {hfid} matches {', '.join(matches)}; add `kind:` to the reference",
+                position=position,
+                message=f"HFID {hfid} matches {', '.join(node.get_kind() for node in matches)}; add `kind:` to the reference",
             )
-        return {"hfid": hfid, "kind": matches[0]}
+        return {"id": matches[0].id}
 
     @classmethod
     async def create_node(
@@ -615,12 +617,13 @@ class InfrahubObjectFileData(BaseModel):
                 #  - if the relationship is bidirectional and is not mandatory on the other side, then we need should create the related object First
                 #  - if the relationship is not bidirectional, then we need to create the related object First
                 if rel_info.format == RelationshipDataFormat.MANY_REF and isinstance(value, list):
-                    # Cardinality-many reference: normalize string HFIDs to list format if peer has HFID defined
+                    # Cardinality-many reference: normalize HFIDs, and resolve HFID-only references to a generic peer
                     clean_data[key] = [
-                        await cls._clean_reference(client, rel_info, item, position, branch) for item in value
+                        await cls._clean_reference(client, rel_info, item, [*position, key, idx + 1], branch)
+                        for idx, item in enumerate(value)
                     ]
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-                    clean_data[key] = await cls._clean_reference(client, rel_info, value, position, branch)
+                    clean_data[key] = await cls._clean_reference(client, rel_info, value, [*position, key], branch)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:

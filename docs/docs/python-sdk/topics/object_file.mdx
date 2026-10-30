@@ -230,10 +230,14 @@ A reference with `kind` and `hfid` must follow these rules:
 
 `infrahubctl object validate` and `infrahubctl object load` report a reference that breaks one of these rules.
 
+> On Infrahub 1.11 and earlier, a computed attribute that reads a peer referenced with `kind` and `hfid` is rendered without the value of that peer. A reference without a `kind`, described below, is not affected.
+
 #### Reference without a kind
 
 When the generic peer does not define an HFID, a reference can also be an HFID without a `kind`, for example `parent_interface: [router1, Gi0/0/3]`.
-During the load, the SDK searches the kinds that inherit from the generic and define an HFID with the same number of values, and uses the single node that matches.
+During the load, the SDK searches the node kinds that inherit from the generic and define an HFID with the same number of values, and uses the single node that matches. Profile and template kinds are not searched.
+The SDK sends one query for each kind that it searches.
+When the generic defines a `default_filter`, a reference written as a single string is sent to Infrahub as is, and Infrahub looks the node up with the `default_filter`.
 The load fails in the following cases:
 
 - No node matches the HFID. The error lists the kinds that were searched, or says that no kind has an HFID with that number of values.
