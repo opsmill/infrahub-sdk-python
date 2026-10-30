@@ -189,6 +189,64 @@ spec:
             breed: Persian
 ```
 
+### Reference a node through a generic relationship
+
+A relationship can have a generic as its peer, for example a sub-interface whose `parent_interface` accepts any node that inherits from `InterfacesSupportsSubinterface`, such as a physical interface or a port-channel.
+To reference an existing node through such a relationship, provide the kind of the node and its HFID:
+
+```yaml
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: InterfacesSubInterface
+  data:
+    - name: Gi0/0/3.100
+      parent_interface:
+        kind: InterfacesPhysicalInterface   # Kind of the referenced node
+        hfid: [router1, Gi0/0/3]            # HFID of the referenced node
+    - name: Po1.200
+      parent_interface:
+        kind: InterfacesPortChannelInterface
+        hfid: [router1, Po1]
+```
+
+The same form works in a relationship of cardinality many, where each item of the list is a reference:
+
+```yaml
+member_interfaces:
+  - kind: InterfacesPhysicalInterface
+    hfid: [router1, Gi0/0/1]
+  - kind: InterfacesPhysicalInterface
+    hfid: [router1, Gi0/0/2]
+```
+
+A reference with `kind` and `hfid` must follow these rules:
+
+- Both `kind` and `hfid` are required, and no other key is allowed.
+- `kind` must be the peer kind of the relationship or a kind that inherits from it.
+- `kind` must define an HFID.
+- `hfid` is a string or a list of strings. It must have as many values as the HFID of `kind`.
+
+`infrahubctl object validate` and `infrahubctl object load` report a reference that breaks one of these rules.
+
+> On Infrahub 1.11 and earlier, a computed attribute that reads a peer referenced with `kind` and `hfid` is rendered without the value of that peer. A reference without a `kind`, described below, is not affected.
+
+#### Reference without a kind
+
+When the generic peer does not define an HFID, a reference can also be an HFID without a `kind`, for example `parent_interface: [router1, Gi0/0/3]`.
+During the load, the SDK searches the node kinds that inherit from the generic and define an HFID with the same number of values, and uses the single node that matches. Profile and template kinds are not searched.
+The SDK sends one query for each kind that it searches.
+When the generic defines a `default_filter`, a reference written as a single string is sent to Infrahub as is, and Infrahub looks the node up with the `default_filter`.
+The load fails in the following cases:
+
+- No node matches the HFID. The error lists the kinds that were searched, or says that no kind has an HFID with that number of values.
+- More than one node matches the HFID, for example a physical interface and a port-channel both named `Gi0/0/3` on `router1`. The error lists the matching kinds. Add `kind` to the reference to select one of them.
+
+When the generic peer defines an HFID, a reference by HFID alone is handled in the same way as for any other peer.
+
+> `infrahubctl object validate` checks references against the schema only. It does not check that the referenced node exists, and it does not detect an HFID that matches more than one node. These errors are reported by `infrahubctl object load`.
+
 ### Support for metadata
 
 Metadata support is planned for future releases. Currently, the Object file does not support metadata on attributes or relationships.
