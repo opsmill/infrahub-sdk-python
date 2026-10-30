@@ -95,10 +95,6 @@ class NumberPoolParametersWrite(AttributeParametersWrite):
         default=None,
         description="Ranges the NumberPool allocates from, without overlap. Unset means one range with no start or end; an empty list means no range",
     )
-    number_pool_id: str | None = Field(
-        default=None,
-        description="The ID of the numberpool associated with this attribute. Only set after the number pool has been provisioned.",
-    )
     allocation_scope: list[str] | None = Field(
         default=None,
         description="Fields of the kind that divide the pool's space; allocation returns the lowest free number within the writer's division",
