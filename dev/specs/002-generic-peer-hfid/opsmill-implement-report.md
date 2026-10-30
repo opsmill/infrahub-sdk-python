@@ -12,13 +12,13 @@
 
 | # | Chunk | Tasks | Outcome | Commit | Notes from the subagent |
 |---|-------|-------|---------|--------|-------------------------|
-| 1 | Phase 1: Setup | T001–T002 | 2 done | `6ac2567d` | `TestingNoHfid` added to the generic's `used_by` so the "no HFID" error can be tested. `device` set as required in the test schemas. |
-| 2 | Phase 2: Foundational | T003–T005 | 3 done | `7b08db30` | The declared peer schema is always read (from the client cache). A single `{kind, hfid}` dict on a cardinality-many relationship now reports the "Invalid structure" message. |
-| 3 | Phase 3: User Story 1 | T006–T011 | 6 done | `7f66e483` | `normalize_kind_hfid_reference` always returns a list, including for a UUID-like string, because a value under `hfid` is an HFID. The test fixture `generic_peer_subinterfaces01.yml` contains three YAML documents. |
-| 4 | Phase 4: User Story 2 | T012–T017 | 6 done | `5570ff47` | Per-reference handling moved into `_clean_reference` to stay under the complexity limit. The integration tests were not observed failing before the code was written. |
-| 5 | Phase 5: User Story 3 | T018–T019 | 2 done | `0f2fc46a` | A mapping without `kind` is rejected. `hfid` values must be strings. `peer_used_by` is filled for every generic peer. |
-| 6 | Phase 6: Polish | T020–T025 | 6 done | `052cbb9c` | See T025 in section 6. |
-| — | Review fixes | — | — | `b5a6ae88` | See section 5. |
+| 1 | Phase 1: Setup | T001 to T002 | 2 done | `6ac2567d` | `TestingNoHfid` added to the generic's `used_by` so the "no HFID" error can be tested. `device` set as required in the test schemas. |
+| 2 | Phase 2: Foundational | T003 to T005 | 3 done | `7b08db30` | The declared peer schema is always read (from the client cache). A single `{kind, hfid}` dict on a cardinality-many relationship now reports the "Invalid structure" message. |
+| 3 | Phase 3: User Story 1 | T006 to T011 | 6 done | `7f66e483` | `normalize_kind_hfid_reference` always returns a list, including for a UUID-like string, because a value under `hfid` is an HFID. The test fixture `generic_peer_subinterfaces01.yml` contains three YAML documents. |
+| 4 | Phase 4: User Story 2 | T012 to T017 | 6 done | `5570ff47` | Per-reference handling moved into `_clean_reference` to stay under the complexity limit. The integration tests were not observed failing before the code was written. |
+| 5 | Phase 5: User Story 3 | T018 to T019 | 2 done | `0f2fc46a` | A mapping without `kind` is rejected. `hfid` values must be strings. `peer_used_by` is filled for every generic peer. |
+| 6 | Phase 6: Polish | T020 to T025 | 6 done | `052cbb9c` | See T025 in section 6. |
+| - | Review fixes | - | - | `b5a6ae88` | See section 5. |
 
 ## 2. Tasks not completed
 

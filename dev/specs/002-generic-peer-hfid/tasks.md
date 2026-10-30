@@ -88,7 +88,7 @@
 
 **Goal**: `parent_interface: [router2, Gi0/0/3]` resolves to the single matching inheriting node. When zero or more than one node matches, the load stops with `ObjectValidationError`.
 
-**Independent test**: the unit tests T012–T014 pass with a mocked `client.get`, and the integration test T017 links to the physical interface and then fails after a port-channel with the same HFID is added.
+**Independent test**: the unit tests T012 to T014 pass with a mocked `client.get`, and the integration test T017 links to the physical interface and then fails after a port-channel with the same HFID is added.
 
 ### Tests for User Story 2
 
@@ -135,7 +135,7 @@
 
 ### Implementation for User Story 3
 
-- [X] T019 [US3] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._validate_kind_hfid_reference(cls, client, rel_info, value, position, branch) -> list[ObjectValidationError]` as a classmethod. It implements rules V1–V4 from `data-model.md` using `client.schema.get(kind=..., branch=...)` and `rel_info.peer_used_by`. If the declared peer is a node, V1 requires `kind == rel_schema.peer`. If it is a generic, V1 requires the kind to be in its `used_by`. Call it from `validate_related_nodes`:
+- [X] T019 [US3] In `infrahub_sdk/spec/object.py`, add `InfrahubObjectFileData._validate_kind_hfid_reference(cls, client, rel_info, value, position, branch) -> list[ObjectValidationError]` as a classmethod. It implements rules V1 to V4 from `data-model.md` using `client.schema.get(kind=..., branch=...)` and `rel_info.peer_used_by`. If the declared peer is a node, V1 requires `kind == rel_schema.peer`. If it is a generic, V1 requires the kind to be in its `used_by`. Call it from `validate_related_nodes`:
   - In the `ONE_REF` branch, for a dict value.
   - In the `MANY_REF` branch, for each dict item, with position `[*position, idx + 1]`.
 
@@ -157,11 +157,11 @@
 ## Dependencies and execution order
 
 - **Setup (T001, T002)**: no dependencies. T001 and T002 can run in parallel.
-- **Foundational (T003–T005)**: depends on T001. Blocks all stories.
-- **User Story 1 (T006–T011)**: depends on Phase 2.
-- **User Story 2 (T012–T017)**: depends on Phase 2. It also edits the same `create_node` branches as T008, so do it after T008.
-- **User Story 3 (T018–T019)**: depends on Phase 2 and can be done after US1 or in parallel with US2. T019 edits `validate_related_nodes`, which T009 also edits, so do it after T009.
-- **Polish (T020–T025)**: after the stories it documents or verifies.
+- **Foundational (T003 to T005)**: depends on T001. Blocks all stories.
+- **User Story 1 (T006 to T011)**: depends on Phase 2.
+- **User Story 2 (T012 to T017)**: depends on Phase 2. It also edits the same `create_node` branches as T008, so do it after T008.
+- **User Story 3 (T018 to T019)**: depends on Phase 2 and can be done after US1 or in parallel with US2. T019 edits `validate_related_nodes`, which T009 also edits, so do it after T009.
+- **Polish (T020 to T025)**: after the stories it documents or verifies.
 
 ### Within each story
 
@@ -185,7 +185,7 @@ T020 docs  ||  T021 changelog
 
 ## Implementation strategy
 
-1. **MVP**: Phases 1–3 (T001–T011). This unblocks the interfaces schema in the request: the engineer adds `kind:` to each reference and needs no schema change.
+1. **MVP**: Phases 1 to 3 (T001 to T011). This unblocks the interfaces schema in the request: the engineer adds `kind:` to each reference and needs no schema change.
 2. **Add User Story 2**: object files written as in the request (`[router1, Gi0/0/3]`) load without changes.
 3. **Add User Story 3**: errors at validation time give clear messages.
 4. **Polish**: docs, changelog, lint, compatibility check.

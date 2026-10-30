@@ -15,7 +15,7 @@ The server already resolves `{hfid, kind}` for generic peers (research R1), so t
 
 ## Technical Context
 
-**Language/Version**: Python 3.10–3.13
+**Language/Version**: Python 3.10 to 3.13
 
 **Primary Dependencies**: pydantic >= 2.0, httpx (no new dependencies)
 
@@ -83,7 +83,7 @@ All changes are in `infrahub_sdk/spec/object.py`.
    - The existing `"kind" in value` branch already sets `peer_kind`, so `peer_human_friendly_id` comes from the named kind.
    - For cardinality many, `validate_list_of_hfids` also accepts `{kind, hfid}` dicts.
    - Record whether the declared peer is a generic without an HFID, and its `used_by`.
-2. **Validation** (`validate_related_nodes`, `ONE_REF` and `MANY_REF` branches): apply rules V1–V4 from `data-model.md` to each `{kind, hfid}` item. These checks use only the schema.
+2. **Validation** (`validate_related_nodes`, `ONE_REF` and `MANY_REF` branches): apply rules V1 to V4 from `data-model.md` to each `{kind, hfid}` item. These checks use only the schema.
 3. **Normalization** (`create_node`): a `{kind, hfid}` item becomes `{"hfid": normalize(hfid), "kind": kind}`. `RelatedNode` already sends both (`related_node.py:263-266`).
 4. **Resolution by HFID alone** (`create_node`): for a generic peer without an HFID, call a new private helper, `_resolve_generic_hfid(client, rel_info, hfid, position, branch)`, for each string or list item. The helper follows research R3 and returns `{"hfid", "kind"}` or raises `ObjectValidationError`.
 5. Every other path stays as it is.
