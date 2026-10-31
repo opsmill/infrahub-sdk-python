@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -261,23 +262,39 @@ class InfrahubTaskManager(InfraHubTaskManagerBase):
     async def wait_for_completion(self, id: str, interval: int = 1, timeout: int = 60) -> Task:
         """Wait for a task to complete.
 
+        Check immediately so an already-final task is not rejected just because the
+        polling interval exceeds the timeout. The deadline governs polling and sleeps;
+        an in-progress request retains the client's request and retry policies.
+
         Args:
             id: The id of the task to wait for.
-            interval: The interval to check the task state. Defaults to 1.
-            timeout: The timeout to wait for the task to complete. Defaults to 60.
+            interval: Positive finite seconds between task-state requests. Defaults to 1.
+            timeout: Non-negative finite polling timeout in seconds. Defaults to 60.
 
         Returns:
             The task object.
 
         Raises:
             TaskNotCompletedError: The task did not complete in the given timeout.
+            ValueError: Timing is non-finite, the interval is not positive, or the timeout is negative.
 
         """
-        for _ in range(timeout // interval):
+        if not math.isfinite(interval) or interval <= 0:
+            raise ValueError("interval must be finite and greater than zero")
+        if not math.isfinite(timeout) or timeout < 0:
+            raise ValueError("timeout must be finite and non-negative")
+
+        deadline = time.monotonic() + timeout
+        while True:
             task = await self.get(id=id)
             if task.state in FINAL_STATES:
                 return task
-            await asyncio.sleep(interval)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(min(interval, remaining))
+            if time.monotonic() >= deadline:
+                break
         raise TaskNotCompletedError(id=id, message=f"Task {id} did not complete in {timeout} seconds")
 
     async def retry(self, id: str) -> str:
@@ -572,23 +589,39 @@ class InfrahubTaskManagerSync(InfraHubTaskManagerBase):
     def wait_for_completion(self, id: str, interval: int = 1, timeout: int = 60) -> Task:
         """Wait for a task to complete.
 
+        Check immediately so an already-final task is not rejected just because the
+        polling interval exceeds the timeout. The deadline governs polling and sleeps;
+        an in-progress request retains the client's request and retry policies.
+
         Args:
             id: The id of the task to wait for.
-            interval: The interval to check the task state. Defaults to 1.
-            timeout: The timeout to wait for the task to complete. Defaults to 60.
+            interval: Positive finite seconds between task-state requests. Defaults to 1.
+            timeout: Non-negative finite polling timeout in seconds. Defaults to 60.
 
         Returns:
             The task object.
 
         Raises:
             TaskNotCompletedError: The task did not complete in the given timeout.
+            ValueError: Timing is non-finite, the interval is not positive, or the timeout is negative.
 
         """
-        for _ in range(timeout // interval):
+        if not math.isfinite(interval) or interval <= 0:
+            raise ValueError("interval must be finite and greater than zero")
+        if not math.isfinite(timeout) or timeout < 0:
+            raise ValueError("timeout must be finite and non-negative")
+
+        deadline = time.monotonic() + timeout
+        while True:
             task = self.get(id=id)
             if task.state in FINAL_STATES:
                 return task
-            time.sleep(interval)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(interval, remaining))
+            if time.monotonic() >= deadline:
+                break
         raise TaskNotCompletedError(id=id, message=f"Task {id} did not complete in {timeout} seconds")
 
     def retry(self, id: str) -> str:
