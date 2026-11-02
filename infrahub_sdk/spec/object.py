@@ -128,10 +128,20 @@ class RelationshipInfo(BaseModel):
             RelationshipDataFormat.MANY_OBJ_LIST_DICT,
         }
 
-    def inline_peer_fields(self, value: Any) -> list[dict[str, Any]]:
-        """Return the fields of every peer, from either form that declares them as objects."""
+    async def inline_peer_fields(
+        self, value: Any, parameters: InfrahubObjectParameters | None = None
+    ) -> list[dict[str, Any]]:
+        """Return the fields of every peer, from either form that declares them as objects.
+
+        A list under ``data`` goes through the processors the validation pass runs over it, so both
+        passes read the same peers.
+        """
         if self.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
-            return list(value["data"])
+            return await DataProcessorFactory.process_data(
+                kind=value.get("kind") or self.peer_kind,
+                data=list(value["data"]),
+                parameters=parameters or InfrahubObjectParameters(),
+            )
         return [item["data"] for item in value]
 
     def get_context(self, value: Any) -> dict:
@@ -510,7 +520,12 @@ class InfrahubObjectFileData(BaseModel):
                     # The mutation takes the peers' fields, so they travel with this object. Creating them
                     # afterwards as nodes of their own makes Infrahub refuse them against the ones the
                     # object already holds.
-                    clean_data[key] = rel_info.inline_peer_fields(value)
+                    clean_data[key] = await rel_info.inline_peer_fields(
+                        value,
+                        parameters=InfrahubObjectParameters(**value["parameters"])
+                        if isinstance(value, dict) and "parameters" in value
+                        else None,
+                    )
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
