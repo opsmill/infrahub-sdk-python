@@ -1,0 +1,21 @@
+infrahub_sdk/node/relationship.py
+  s_0a8328b9180e0a::t_a5486c748d9b12 80-82
+tests/unit/sdk/pool/test_number_pool_ranges.py
+  s_0a8328b9180e0a::t_4401a69b404cee 245-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "558e5fd6f34829d991ebfce9f15b1ed2abb47a98",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
