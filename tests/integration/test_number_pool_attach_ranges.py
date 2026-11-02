@@ -1,14 +1,16 @@
-"""Number pool ranges declared on create and upsert, attaching and detaching numbers, and allocation provenance."""
+"""Ranges declared on create, on upsert and in an object file; numbers attached, detached and their provenance."""
 
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk.constants import PoolAllocationProvenance
 from infrahub_sdk.exceptions import FeatureNotSupportedError
+from infrahub_sdk.spec.object import ObjectFile
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient, skip_version
 
 if TYPE_CHECKING:
@@ -41,6 +43,13 @@ VLAN_SCHEMA: dict[str, Any] = {
 
 def _bounds(range_nodes: list[Any]) -> list[tuple[int | None, int | None, int | None]]:
     return sorted((r.start.value, r.end.value, r.allocation_weight.value) for r in range_nodes)
+
+
+def _object_file(kind: str, data: list[dict[str, Any]]) -> ObjectFile:
+    return ObjectFile(
+        location=Path("inline"),
+        content={"apiVersion": "infrahub.app/v1", "kind": "Object", "spec": {"kind": kind, "data": data}},
+    )
 
 
 @pytest.mark.skipif(skip_version(min_infrahub_version="1.12"), reason="Requires Infrahub 1.12 or later")
@@ -117,6 +126,30 @@ class TestNumberPoolAttachRanges(TestInfrahubDockerClient):
 
         ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
         assert _bounds(ranges) == [(2000, 2099, None), (2100, 2199, None)]
+
+    async def test_an_object_file_sets_the_ranges_of_a_new_and_of_an_existing_pool(
+        self, client: InfrahubClient, load_vlan_schema: None
+    ) -> None:
+        """Ranges declared in an object file travel with the pool, on a new pool and on one that exists."""
+        obj = _object_file(
+            kind="CoreNumberPool",
+            data=[
+                {
+                    "name": "Object File Pool",
+                    "node": VLAN_KIND,
+                    "node_attribute": "vlan_id",
+                    "ranges": {"data": [{"start": 3000, "end": 3099}]},
+                }
+            ],
+        )
+        await obj.validate_format(client=client)
+
+        await obj.process(client=client)
+        await obj.process(client=client)
+
+        pool = await client.get(kind="CoreNumberPool", name__value="Object File Pool")
+        ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
+        assert _bounds(ranges) == [(3000, 3099, None)]
 
     async def test_attach_detach_and_provenance(self, client: InfrahubClient, vlan_pool: InfrahubNode) -> None:
         allocated = await client.create(kind=VLAN_KIND, name="allocated", vlan_id={"from_pool": {"id": vlan_pool.id}})

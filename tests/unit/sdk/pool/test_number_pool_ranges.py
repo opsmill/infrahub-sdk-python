@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk.exceptions import FeatureNotSupportedError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, RelatedNode, RelatedNodeSync
+from infrahub_sdk.spec.object import ObjectFile
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -287,3 +289,87 @@ async def test_another_relationship_to_a_range_stays_editable(
 
     assert allowed.peer_ids == ["range-1", "range-2"]
     assert policy._generate_input_data()["data"]["data"]["allowed_ranges"] == [{"id": "range-1"}, {"id": "range-2"}]
+
+
+@dataclass
+class ObjectFileRangeCase:
+    name: str
+    declared: Any
+
+
+OBJECT_FILE_RANGE_CASES = [
+    ObjectFileRangeCase(name="ranges-hold-one-data-list", declared={"data": [{"start": 3000, "end": 3099}]}),
+    ObjectFileRangeCase(name="each-range-holds-its-data", declared=[{"data": {"start": 3000, "end": 3099}}]),
+]
+
+
+@pytest.mark.parametrize("case", [pytest.param(tc, id=tc.name) for tc in OBJECT_FILE_RANGE_CASES])
+async def test_object_file_sends_the_declared_ranges_with_the_pool(
+    clients: BothClients,
+    number_pool_schema: NodeSchemaAPI,
+    number_pool_range_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+    case: ObjectFileRangeCase,
+) -> None:
+    """A range an object file declares is a bound of the pool, not a node to create next to it."""
+    client = clients.standard
+    client.schema.set_cache(
+        schema={"nodes": [number_pool_schema.model_dump(), number_pool_range_schema.model_dump()]}, branch="main"
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"CoreNumberPoolUpsert": {"ok": True, "object": {"id": POOL_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"},
+    )
+    obj = ObjectFile(
+        location=Path("inline"),
+        content={
+            "apiVersion": "infrahub.app/v1",
+            "kind": "Object",
+            "spec": {"kind": "CoreNumberPool", "data": [{**POOL_DATA, "ranges": case.declared}]},
+        },
+    )
+    await obj.validate_format(client=client)
+
+    # A request for anything other than the pool mutation, a range node of its own among them, has no
+    # response registered and fails the test.
+    await obj.process(client=client)
+
+    request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"})
+    assert request is not None
+    query = " ".join(json.loads(request.content)["query"].split())
+    assert "ranges: [ { start: 3000 end: 3099 }, ]" in query
+
+
+async def test_object_file_points_the_pool_at_a_range_it_names(
+    clients: BothClients,
+    number_pool_schema: NodeSchemaAPI,
+    number_pool_range_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """An object file that names existing ranges still points the pool at them."""
+    client = clients.standard
+    client.schema.set_cache(
+        schema={"nodes": [number_pool_schema.model_dump(), number_pool_range_schema.model_dump()]}, branch="main"
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"CoreNumberPoolUpsert": {"ok": True, "object": {"id": POOL_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"},
+    )
+    obj = ObjectFile(
+        location=Path("inline"),
+        content={
+            "apiVersion": "infrahub.app/v1",
+            "kind": "Object",
+            "spec": {"kind": "CoreNumberPool", "data": [{**POOL_DATA, "ranges": ["range-1"]}]},
+        },
+    )
+    await obj.validate_format(client=client)
+
+    await obj.process(client=client)
+
+    request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"})
+    assert request is not None
+    query = " ".join(json.loads(request.content)["query"].split())
+    assert 'ranges: [ { id: "range-1" }, ]' in query
