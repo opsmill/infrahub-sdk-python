@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from infrahub_sdk.constants import PoolAllocationProvenance
+from infrahub_sdk.exceptions import FeatureNotSupportedError
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient, skip_version
 
 if TYPE_CHECKING:
@@ -14,6 +16,12 @@ if TYPE_CHECKING:
     from infrahub_sdk.node import InfrahubNode
 
 VLAN_KIND = "TestingPoolVlan"
+REFUSAL_MESSAGE = re.escape(
+    "The peers of 'ranges' cannot be edited one at a time, because the mutation takes the fields of a "
+    "CoreNumberPoolRange and not a reference to one. To set them, pass the complete list of 'ranges' to "
+    "client.create() and save the node with allow_upsert=True, or create, update or delete the "
+    "CoreNumberPoolRange node itself."
+)
 VLAN_SCHEMA: dict[str, Any] = {
     "version": "1.0",
     "nodes": [
@@ -81,6 +89,34 @@ class TestNumberPoolAttachRanges(TestInfrahubDockerClient):
 
         ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
         assert _bounds(ranges) == [(1000, 1099, 20), (1200, None, None)]
+
+    async def test_the_way_out_named_by_the_refusal_adds_the_range(
+        self, client: InfrahubClient, load_vlan_schema: None
+    ) -> None:
+        """After the refusal, saving the pool again with the complete list adds the range."""
+        pool = await client.create(
+            kind="CoreNumberPool",
+            name="Recovered Pool",
+            node=VLAN_KIND,
+            node_attribute="vlan_id",
+            ranges=[{"start": 2000, "end": 2099}],
+        )
+        await pool.save()
+        fetched = await client.get(kind="CoreNumberPool", id=pool.id)
+        with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+            fetched.ranges.add({"start": 2100, "end": 2199})
+
+        recovered = await client.create(
+            kind="CoreNumberPool",
+            name="Recovered Pool",
+            node=VLAN_KIND,
+            node_attribute="vlan_id",
+            ranges=[{"start": 2000, "end": 2099}, {"start": 2100, "end": 2199}],
+        )
+        await recovered.save(allow_upsert=True)
+
+        ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
+        assert _bounds(ranges) == [(2000, 2099, None), (2100, 2199, None)]
 
     async def test_attach_detach_and_provenance(self, client: InfrahubClient, vlan_pool: InfrahubNode) -> None:
         allocated = await client.create(kind=VLAN_KIND, name="allocated", vlan_id={"from_pool": {"id": vlan_pool.id}})

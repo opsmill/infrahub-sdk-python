@@ -150,6 +150,28 @@ async def number_pool_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
+async def range_policy_schema() -> NodeSchemaAPI:
+    """A schema with its own relationship to CoreNumberPoolRange nodes."""
+    data: dict[str, Any] = {
+        "name": "RangePolicy",
+        "namespace": "Testing",
+        "label": "Range Policy",
+        "attributes": [{"name": "name", "kind": "Text", "unique": True}],
+        "relationships": [
+            {
+                "name": "allowed_ranges",
+                "peer": "CoreNumberPoolRange",
+                "kind": "Attribute",
+                "identifier": "rangepolicy__allowed_range",
+                "cardinality": "many",
+                "optional": True,
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
 async def vlan_schema_with_pool_hfid() -> NodeSchemaAPI:
     """VLAN schema where vlan_id (NumberPool-sourced) is part of the human_friendly_id."""
     data: dict[str, Any] = {

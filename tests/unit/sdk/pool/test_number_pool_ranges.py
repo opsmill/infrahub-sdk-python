@@ -3,20 +3,29 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.exceptions import FeatureNotSupportedError
+from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, RelatedNode, RelatedNodeSync
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
-    from infrahub_sdk.schema import NodeSchemaAPI
+    from infrahub_sdk.schema import NodeSchemaAPI, RelationshipSchemaAPI
     from tests.unit.sdk.conftest import BothClients
 
 client_types = ["standard", "sync"]
+
+REFUSAL_MESSAGE = re.escape(
+    "The peers of 'ranges' cannot be edited one at a time, because the mutation takes the fields of a "
+    "CoreNumberPoolRange and not a reference to one. To set them, pass the complete list of 'ranges' to "
+    "client.create() and save the node with allow_upsert=True, or create, update or delete the "
+    "CoreNumberPoolRange node itself."
+)
 
 POOL_ID = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
 POOL_DATA: dict[str, Any] = {"name": "VLAN IDs", "node": "InfraVLAN", "node_attribute": "vlan_id"}
@@ -36,12 +45,20 @@ FETCHED_POOL_DATA: dict[str, Any] = {
 }
 
 
-def _make_pool(
+def _make_node(
     clients: BothClients, client_type: str, schema: NodeSchemaAPI, data: dict[str, Any]
 ) -> InfrahubNode | InfrahubNodeSync:
     if client_type == "standard":
         return InfrahubNode(client=clients.standard, schema=schema, data=data)
     return InfrahubNodeSync(client=clients.sync, schema=schema, data=data)
+
+
+def _make_peer(
+    clients: BothClients, client_type: str, schema: RelationshipSchemaAPI, data: object
+) -> RelatedNode | RelatedNodeSync:
+    if client_type == "standard":
+        return RelatedNode(client=clients.standard, branch="main", schema=schema, data=data)
+    return RelatedNodeSync(client=clients.sync, branch="main", schema=schema, data=data)
 
 
 async def _save(node: InfrahubNode | InfrahubNodeSync, allow_upsert: bool = False) -> None:
@@ -56,7 +73,7 @@ async def test_create_sends_declared_ranges(
     clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
 ) -> None:
     ranges = [{"start": 64512, "end": 65000, "allocation_weight": 10}, {"start": 65001}]
-    pool = _make_pool(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": ranges})
+    pool = _make_node(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": ranges})
 
     input_data = pool._generate_input_data()["data"]["data"]
 
@@ -72,7 +89,7 @@ async def test_upsert_renders_declared_ranges(
         json={"data": {"CoreNumberPoolUpsert": {"ok": True, "object": {"id": POOL_ID}}}},
         match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"},
     )
-    pool = _make_pool(
+    pool = _make_node(
         clients,
         client_type,
         number_pool_schema,
@@ -89,7 +106,7 @@ async def test_upsert_renders_declared_ranges(
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_empty_ranges_are_sent(clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str) -> None:
-    pool = _make_pool(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": []})
+    pool = _make_node(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": []})
 
     input_data = pool._generate_input_data()["data"]["data"]
 
@@ -100,7 +117,7 @@ async def test_empty_ranges_are_sent(clients: BothClients, number_pool_schema: N
 async def test_ranges_left_out_are_not_sent(
     clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    pool = _make_pool(clients, client_type, number_pool_schema, POOL_DATA)
+    pool = _make_node(clients, client_type, number_pool_schema, POOL_DATA)
 
     input_data = pool._generate_input_data()["data"]["data"]
 
@@ -124,7 +141,7 @@ RANGE_REFERENCE_CASES = [
 async def test_range_given_by_id_is_sent_as_reference(
     clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str, case: RangeReferenceCase
 ) -> None:
-    pool = _make_pool(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": [case.declared]})
+    pool = _make_node(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": [case.declared]})
 
     input_data = pool._generate_input_data()["data"]["data"]
 
@@ -140,7 +157,7 @@ async def test_declared_ranges_are_not_resent_after_save(
         json={"data": {"CoreNumberPoolCreate": {"ok": True, "object": {"id": POOL_ID}}}},
         match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-create"},
     )
-    pool = _make_pool(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": [{"start": 1, "end": 10}]})
+    pool = _make_node(clients, client_type, number_pool_schema, {**POOL_DATA, "ranges": [{"start": 1, "end": 10}]})
 
     await _save(pool)
 
@@ -151,7 +168,122 @@ async def test_declared_ranges_are_not_resent_after_save(
 async def test_fetched_pool_keeps_range_peers_and_sends_no_ranges(
     clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
 ) -> None:
-    pool = _make_pool(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
 
     assert pool._get_relationship_many("ranges").peer_ids == ["range-1"]
     assert pool._generate_input_data(exclude_unmodified=True)["data"]["data"] == {"id": POOL_ID}
+
+
+def _assert_the_pool_is_unchanged(pool: InfrahubNode | InfrahubNodeSync) -> None:
+    assert pool._get_relationship_many("ranges").peer_ids == ["range-1"]
+    assert pool._generate_input_data(exclude_unmodified=True)["data"]["data"] == {"id": POOL_ID}
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_adding_bounds_to_the_ranges_of_a_pool_is_refused(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+
+    with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+        pool._get_relationship_many("ranges").add({"start": 3000, "end": 3999})
+
+    _assert_the_pool_is_unchanged(pool)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_adding_a_range_by_reference_to_a_pool_is_refused(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+
+    with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+        pool._get_relationship_many("ranges").add("range-2")
+
+    _assert_the_pool_is_unchanged(pool)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_extending_the_ranges_of_a_pool_is_refused(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+
+    with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+        pool._get_relationship_many("ranges").extend([{"start": 3000}, {"start": 5000}])
+
+    _assert_the_pool_is_unchanged(pool)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_extending_the_ranges_of_a_pool_with_nothing_is_refused(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    """An empty iterable never reaches add(), so extend() has to refuse on its own."""
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+
+    with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+        pool._get_relationship_many("ranges").extend([])
+
+    _assert_the_pool_is_unchanged(pool)
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_removing_a_range_from_a_pool_is_refused(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI, client_type: str
+) -> None:
+    pool = _make_node(clients, client_type, number_pool_schema, FETCHED_POOL_DATA)
+
+    with pytest.raises(FeatureNotSupportedError, match=REFUSAL_MESSAGE):
+        pool._get_relationship_many("ranges").remove("range-1")
+
+    _assert_the_pool_is_unchanged(pool)
+
+
+async def test_changing_the_peer_list_of_a_pool_that_exists_sends_nothing(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI
+) -> None:
+    """A save of a pool Infrahub already holds sends the peers it was fetched with."""
+    pool = InfrahubNode(client=clients.standard, schema=number_pool_schema, data=FETCHED_POOL_DATA)
+    ranges = pool._get_relationship_many("ranges")
+
+    ranges.peers.append(
+        RelatedNode(client=clients.standard, branch="main", schema=ranges.schema, data={"start": 50, "end": 60})
+    )
+
+    assert pool._generate_input_data(exclude_unmodified=True)["data"]["data"] == {"id": POOL_ID}
+
+
+async def test_changing_the_peer_list_before_the_pool_exists_sets_what_is_sent(
+    clients: BothClients, number_pool_schema: NodeSchemaAPI
+) -> None:
+    """The create sends the list as it stands, so the peer list still decides the ranges."""
+    pool = InfrahubNode(
+        client=clients.standard, schema=number_pool_schema, data={**POOL_DATA, "ranges": [{"start": 1, "end": 10}]}
+    )
+    ranges = pool._get_relationship_many("ranges")
+
+    ranges.peers.append(
+        RelatedNode(client=clients.standard, branch="main", schema=ranges.schema, data={"start": 50, "end": 60})
+    )
+
+    assert pool._generate_input_data()["data"]["data"]["ranges"] == [
+        {"start": 1, "end": 10},
+        {"start": 50, "end": 60},
+    ]
+
+
+async def test_another_relationship_to_a_range_stays_editable(
+    clients: BothClients, range_policy_schema: NodeSchemaAPI
+) -> None:
+    """Only the relationship Infrahub takes as bounds is refused, not every relationship to a range."""
+    policy = InfrahubNode(
+        client=clients.standard, schema=range_policy_schema, data={"name": "Even numbers", "allowed_ranges": []}
+    )
+    allowed = policy._get_relationship_many("allowed_ranges")
+
+    allowed.add("range-1")
+    allowed.peers.append(RelatedNode(client=clients.standard, branch="main", schema=allowed.schema, data="range-2"))
+
+    assert allowed.peer_ids == ["range-1", "range-2"]
+    assert policy._generate_input_data()["data"]["data"]["allowed_ranges"] == [{"id": "range-1"}, {"id": "range-2"}]

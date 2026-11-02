@@ -6,12 +6,18 @@ from typing import TYPE_CHECKING, Any, Generic, cast
 
 from ..exceptions import (
     Error,
+    FeatureNotSupportedError,
     UninitializedError,
 )
 from ..schema import GenericSchemaAPI
 from ..types import Order
 from ._only import check_only_names, check_only_names_on_every_kind
-from .constants import PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .constants import (
+    INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE,
+    PROPERTIES_FLAG,
+    PROPERTIES_OBJECT,
+    _peers_are_inline_input,
+)
 from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
@@ -71,7 +77,9 @@ class RelationshipManagerBase(Generic[PeerT]):
         """Return the peer set.
 
         The list returned is the one the relationship holds, so changing it in place changes the
-        relationship.
+        relationship. For a relationship that takes its peers as fields instead of references, that
+        holds only until the node exists: a create sends the list as it stands, while a save of a node
+        Infrahub already holds sends the peers it was fetched with.
 
         Returns:
             list[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
@@ -102,6 +110,14 @@ class RelationshipManagerBase(Generic[PeerT]):
 
         """
         return self.initialized or self._peers_assigned or self.node is None or not self.node.id
+
+    @property
+    def _inline_input_message(self) -> str:
+        return INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE.format(name=self.name, peer=self.schema.peer)
+
+    def _raise_if_peers_are_inline_input(self) -> None:
+        if _peers_are_inline_input(self.schema):
+            raise FeatureNotSupportedError(self._inline_input_message)
 
     def _raise_if_not_loaded(self) -> None:
         if not self.is_loaded and self.node is not None and self.node._only_marker is not None:
@@ -404,9 +420,11 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 or ``hfid`` keys, plus optional relationship properties).
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
 
         """
+        self._raise_if_peers_are_inline_input()
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(
@@ -430,9 +448,11 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 formats accepted by :meth:`add`.
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
 
         """
+        self._raise_if_peers_are_inline_input()
         for d in data:
             self.add(d)
 
@@ -447,10 +467,12 @@ class RelationshipManager(RelationshipManagerBase[PeerT]):
                 existing :class:`RelatedNode`, or a dict describing the peer.
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
             IndexError: If the internal peer index is inconsistent with the lookup result.
 
         """
+        self._raise_if_peers_are_inline_input()
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNode(schema=self.schema, client=self.client, branch=self.branch, data=data)
@@ -628,9 +650,11 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 ``id`` or ``hfid`` keys, plus optional relationship properties).
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
 
         """
+        self._raise_if_peers_are_inline_input()
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         new_node = cast(
@@ -655,9 +679,11 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 formats accepted by :meth:`add`.
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
 
         """
+        self._raise_if_peers_are_inline_input()
         for d in data:
             self.add(d)
 
@@ -672,10 +698,12 @@ class RelationshipManagerSync(RelationshipManagerBase[PeerTSync]):
                 an existing :class:`RelatedNodeSync`, or a dict describing the peer.
 
         Raises:
+            FeatureNotSupportedError: If the relationship takes its peers as fields instead of references.
             UninitializedError: If :meth:`fetch` has not been called on this manager yet.
             IndexError: If the internal peer index is inconsistent with the lookup result.
 
         """
+        self._raise_if_peers_are_inline_input()
         if not self.initialized:
             raise UninitializedError("Must call fetch() on RelationshipManager before editing members")
         node_to_remove = RelatedNodeSync(schema=self.schema, client=self.client, branch=self.branch, data=data)
