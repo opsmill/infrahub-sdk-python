@@ -1,0 +1,29 @@
+infrahub_sdk/node/attribute.py
+  s_3d89cc37cb4ed4::t_510527acfb839a 240-241
+  s_3d89cc37cb4ed4::t_7d3004cda017f0 194-195,205,207-210
+tests/unit/sdk/test_attribute_generate_input_data.py
+  s_3d89cc37cb4ed4::t_d1173df9a9f8d0 379-384
+  s_3d89cc37cb4ed4::t_7e9daf95c85218 407,412
+  s_3d89cc37cb4ed4::t_654d19b684e938 429
+tests/unit/sdk/pool/test_attribute_from_pool.py
+  s_3d89cc37cb4ed4::t_3a09d8ea65712d 412-427
+  s_3d89cc37cb4ed4::t_cde344d7a10364 411
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/attribute.mdx
+  s_3d89cc37cb4ed4::t_5e5b7ea5d127da 88-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "863aefff74807a7030edc80bb965324af2ea52fb",
+  "prompts": {},
+  "sessions": {
+    "s_3d89cc37cb4ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79103755-077e-4541-ab08-bcfed6153b4f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}

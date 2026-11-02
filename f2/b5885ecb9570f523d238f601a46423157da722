@@ -1,0 +1,23 @@
+tests/integration/test_number_pool_attach_ranges.py
+  s_3d89cc37cb4ed4::t_81a4d6b401b0ae 116-171
+  s_3d89cc37cb4ed4::t_8be4a7367c907f 172-174
+  s_3d89cc37cb4ed4::t_bb16b5ddefbe97 1-9,11-115,175-177,179-193
+  s_3d89cc37cb4ed4::t_8b831b35eaa80a 178
+  s_3d89cc37cb4ed4::t_b9fe2b348a563f 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f2b5885ecb9570f523d238f601a46423157da722",
+  "prompts": {},
+  "sessions": {
+    "s_3d89cc37cb4ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79103755-077e-4541-ab08-bcfed6153b4f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}

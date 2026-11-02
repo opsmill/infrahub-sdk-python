@@ -1,0 +1,73 @@
+changelog/+number-pool-detach-attach.added.md
+  s_3d89cc37cb4ed4::t_a28fc00f618ef3 1
+changelog/+number-pool-attach-on-create.fixed.md
+  s_3d89cc37cb4ed4::t_13c96b71efb132 1
+infrahub_sdk/node/attribute.py
+  s_3d89cc37cb4ed4::t_ea7319057f4221 185-193,196-204,206,211-226,229-230,235-237,239,242-258,260
+  s_3d89cc37cb4ed4::t_3897089d481b78 19
+  s_3d89cc37cb4ed4::t_abb5f5cc0e7a77 238
+  s_3d89cc37cb4ed4::t_76541b4df91d5b 90,96,102
+  s_3d89cc37cb4ed4::t_a268d5210a3b8a 333-335
+  s_3d89cc37cb4ed4::t_40d790d2d41c45 351-352
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/attribute.mdx
+  s_3d89cc37cb4ed4::t_50ca073c96ada6 72-87,90-100,109-111,129-130
+docs/docs/python-sdk/guides/resource-manager.mdx
+  s_3d89cc37cb4ed4::t_f67b71d8ff2b1e 330-331,333-356,358-366,368-369,371-379,383-400,402-403
+  s_3d89cc37cb4ed4::t_4571669436ed19 326-329,332,357,367,370,380-382,401,404-406
+infrahub_sdk/protocols_base.py
+  s_3d89cc37cb4ed4::t_aac664454a09b3 128-131,136-138
+  s_3d89cc37cb4ed4::t_b231d5316a2bb4 139
+tests/unit/sdk/test_attribute_generate_input_data.py
+  s_3d89cc37cb4ed4::t_e200c816f544d1 330-378,385-406,408-411,413-428,430-439
+tests/unit/sdk/pool/test_attribute_from_pool.py
+  s_3d89cc37cb4ed4::t_5e2718ae99afbb 19,27
+  s_3d89cc37cb4ed4::t_488e0e950156b6 338-340,346,349
+  s_3d89cc37cb4ed4::t_dd9341aba0d243 328-337,341-345,347-348,350-410,428-463
+infrahub_sdk/node/node.py
+  s_3d89cc37cb4ed4::t_57f00ff6627050 655-662,676,1898,3245
+  s_3d89cc37cb4ed4::t_ed6869a4f20818 9
+  s_3d89cc37cb4ed4::t_156975b298f4b6 464-479
+  s_3d89cc37cb4ed4::t_7a6ab556fde990 2159-2161,2163-2164,2166-2193,2195,2197-2201,2203,2214,2216-2217
+  s_3d89cc37cb4ed4::t_597475352d1a8d 3506-3508,3510-3511,3513-3540,3542,3544-3548,3550,3561,3563-3564
+  s_3d89cc37cb4ed4::t_9b0339d887b16d 34-36
+  s_3d89cc37cb4ed4::t_f91ef3cc935008 80-105
+  s_3d89cc37cb4ed4::t_f5f395d52da821 480-481
+  s_3d89cc37cb4ed4::t_9e5e7275f32f16 2218
+  s_3d89cc37cb4ed4::t_65e4c26946d87a 3565
+infrahub_sdk/constants.py
+  s_3d89cc37cb4ed4::t_95f1a228ed49ba 12-18
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/node.mdx
+  s_3d89cc37cb4ed4::t_50ca073c96ada6 474-497,1033-1056,1148-1158
+  s_3d89cc37cb4ed4::t_8db4e9945c2333 1159
+infrahub_sdk/node/__init__.py
+  s_3d89cc37cb4ed4::t_3719a54316af69 17
+  s_3d89cc37cb4ed4::t_c3d8814ba21a7c 46
+tests/unit/sdk/pool/conftest.py
+  s_3d89cc37cb4ed4::t_f4b173f0460dc0 120-151
+  s_3d89cc37cb4ed4::t_1d701bf5e63ac4 119
+tests/unit/sdk/pool/test_pool_queries.py
+  s_3d89cc37cb4ed4::t_06fe8f3225a468 7-8
+  s_3d89cc37cb4ed4::t_5b0defb2ae386a 192-301
+  s_3d89cc37cb4ed4::t_66c44f43641b39 119-122
+  s_3d89cc37cb4ed4::t_3941d0586b91b8 123
+infrahub_sdk/node/constants.py
+  s_3d89cc37cb4ed4::t_63ec2826dd2277 45-48
+changelog/+pool-allocations-provenance.added.md
+  s_3d89cc37cb4ed4::t_cb43e95869c1a1 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef09423f16503b979bc24f5149a8379235abc11e",
+  "prompts": {},
+  "sessions": {
+    "s_3d89cc37cb4ed4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79103755-077e-4541-ab08-bcfed6153b4f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
