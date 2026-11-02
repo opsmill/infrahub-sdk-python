@@ -48,10 +48,13 @@ UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE = (
 
 HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
 
+# The reason both the SDK and the CLI give for refusing an edit; each adds the way out of its own.
+INLINE_INPUT_REASON = "the mutation takes the fields of a {peer} and not a reference to one"
+
 INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE = (
-    "The peers of '{name}' cannot be edited one at a time, because the mutation takes the fields of a {peer} "
-    "and not a reference to one. To set them, pass the complete list of '{name}' to client.create() and save "
-    "the node with allow_upsert=True, or create, update or delete the {peer} node itself."
+    "The peers of '{name}' cannot be edited one at a time, because " + INLINE_INPUT_REASON + ". "
+    "To set them, pass the complete list of '{name}' to client.create() and save the node with "
+    "allow_upsert=True, or create, update or delete the {peer} node itself."
 )
 
 # Relationships whose input in a mutation takes the peer's fields, not a reference to an existing peer,

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from infrahub_sdk.exceptions import NodeNotFoundError
+from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
+from infrahub_sdk.node.constants import INLINE_INPUT_REASON, _peers_are_inline_input
 from infrahub_sdk.schema import NodeSchemaAPI
 from infrahub_sdk.utils import is_valid_uuid
 
@@ -127,3 +128,67 @@ def _to_relationship_value(value: Any) -> Any:
         return str_value
     # Treat as HFID — split on / for multi-component HFIDs
     return str_value.split("/") if "/" in str_value else [str_value]
+
+
+def _names_peers_by_reference(value: Any) -> bool:
+    """Return whether a ``--set`` value points at existing peers instead of carrying their fields.
+
+    ``--set`` reads a value between brackets as JSON, so a list of objects carries the fields of
+    each peer. Every other shape names peers: a UUID, an HFID, or a list of either.
+    """
+    return not isinstance(value, list) or any(not isinstance(item, dict) for item in value)
+
+
+def _inline_peer_relationships(data: dict[str, Any], schema: MainSchemaTypesAPI) -> list[tuple[str, Any, str]]:
+    """Return the key, the value and the peer kind of every relationship whose mutation takes the peers' fields."""
+    found = []
+    for key, value in data.items():
+        rel_schema = schema.get_relationship_or_none(key)
+        if rel_schema and _peers_are_inline_input(rel_schema):
+            found.append((key, value, rel_schema.peer))
+    return found
+
+
+def raise_if_set_names_inline_peers_by_reference(data: dict[str, Any], schema: MainSchemaTypesAPI) -> None:
+    """Refuse a reference to a peer whose fields the mutation takes, before the node is created.
+
+    The fields themselves are what the mutation takes, so a list of objects goes through.
+
+    Args:
+        data: Parsed data from ``--set`` arguments.
+        schema: Schema for the kind being created.
+
+    Raises:
+        FeatureNotSupportedError: If such a relationship is given a reference.
+
+    """
+    for key, value, peer in _inline_peer_relationships(data, schema):
+        if _names_peers_by_reference(value):
+            raise FeatureNotSupportedError(
+                f"'{key}' cannot be set with --set to a reference, because "
+                f"{INLINE_INPUT_REASON.format(peer=peer)}. Pass the fields of every {peer} instead, "
+                f"as a JSON list of objects."
+            )
+
+
+def raise_if_set_edits_inline_peers(data: dict[str, Any], schema: MainSchemaTypesAPI) -> None:
+    """Refuse every value for a relationship whose mutation takes the peers' fields, before any change is applied.
+
+    An update sends the peers the node was fetched with, so a value given here never reaches Infrahub,
+    whether it names the peers or carries their fields.
+
+    Args:
+        data: Parsed data from ``--set`` arguments.
+        schema: Schema for the kind being updated.
+
+    Raises:
+        FeatureNotSupportedError: If a key names such a relationship.
+
+    """
+    for key, _value, peer in _inline_peer_relationships(data, schema):
+        raise FeatureNotSupportedError(
+            f"'{key}' cannot be changed with --set, because {INLINE_INPUT_REASON.format(peer=peer)}. "
+            f"To set the complete list, run infrahubctl object create with it, which upserts the node. "
+            f"To add, change or delete one, run infrahubctl object create, update or delete on the "
+            f"{peer} node itself."
+        )
