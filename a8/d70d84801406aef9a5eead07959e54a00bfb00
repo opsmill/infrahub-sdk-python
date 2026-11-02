@@ -1,0 +1,21 @@
+dev/specs/infp-532-only-field-selection/spec.md
+  s_77cfad131bf0c8::t_0f179075494121 1-148
+dev/specs/infp-532-only-field-selection/checklists/requirements.md
+  s_77cfad131bf0c8::t_756fd3f1f10cd7 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8d70d84801406aef9a5eead07959e54a00bfb00",
+  "prompts": {},
+  "sessions": {
+    "s_77cfad131bf0c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e2de5b82-947a-43f1-ab2d-467758a17f7d",
+        "model": "unknown"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

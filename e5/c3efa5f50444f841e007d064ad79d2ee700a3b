@@ -1,0 +1,33 @@
+tests/unit/sdk/test_node_only_query.py
+  s_ff2fe7610915b8::t_4e6eeddc9badea 1-635
+  s_ff2fe7610915b8::t_2b594fa6416abe 636-671
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_cb864f1d32a654 48
+  s_ff2fe7610915b8::t_b0712cb3fcf057 1600-1711,1713-1733
+  s_ff2fe7610915b8::t_2bb399e8c69561 726-767
+  s_ff2fe7610915b8::t_290cd923787b4d 2971-3104
+  s_ff2fe7610915b8::t_a7370bd176ad7e 26
+  s_ff2fe7610915b8::t_12d6c38feb65e7 1712
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_4ecc7467763f91 55-87
+  s_ff2fe7610915b8::t_960a4f76fdc7e5 165-252,254-261
+  s_ff2fe7610915b8::t_71d14aa2e360d6 9
+dev/specs/infp-532-only-field-selection/tasks.md
+  s_ff2fe7610915b8::t_6e818b2e0c9f3e 98,113,144,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e5c3efa5f50444f841e007d064ad79d2ee700a3b",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

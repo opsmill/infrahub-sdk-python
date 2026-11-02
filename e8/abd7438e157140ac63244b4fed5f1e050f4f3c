@@ -1,0 +1,27 @@
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_73f67583f30c90 1-118
+dev/specs/infp-532-only-field-selection/plan.md
+  s_ff2fe7610915b8::t_0c40dee549ab02 1-159
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_8a5cac889b8465 1-200
+dev/specs/infp-532-only-field-selection/data-model.md
+  s_ff2fe7610915b8::t_22d6ae177bc8fe 1-88
+dev/specs/infp-532-only-field-selection/quickstart.md
+  s_ff2fe7610915b8::t_4bd1f02b1c6c31 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8abd7438e157140ac63244b4fed5f1e050f4f3c",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+.github/workflows/repository-dispatch.yml
+  s_a245e7f734a5d5::t_cb1c10b3e64895 40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "bf8ecc9b28bd366bc0072ab0ee6c6f2653641e14",
+  "prompts": {},
+  "sessions": {
+    "s_a245e7f734a5d5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "88f092a8-cc99-4deb-9ade-4a1e7241b593",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+docs/docs/python-sdk/guides/query_data.mdx
+  s_ff2fe7610915b8::t_8c58ee2d7fef9c 254,498,558,589,705
+docs/docs/python-sdk/guides/store.mdx
+  s_ff2fe7610915b8::t_7ec46760eda6e9 138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e8cb0ed6a1bcbf317759a2aa3c9d601863e0dc93",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

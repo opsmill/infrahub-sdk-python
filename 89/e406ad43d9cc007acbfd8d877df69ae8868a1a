@@ -1,0 +1,39 @@
+changelog/+bare-iphost-attribute.added.md
+  s_a512379035f48d::t_dc3436e7dd4911 1-8
+docs/_templates/sdk_compatibility.j2
+  s_a512379035f48d::t_3c9d2dfb0b8009 58-67
+docs/docs/python-sdk/reference/compatibility.mdx
+  s_a512379035f48d::t_8cfb6d6828e6d7 156,163-172
+docs/docs_generation/compatibility.py
+  s_a512379035f48d::t_b60adc011f3e47 195
+infrahub_sdk/node/attribute.py
+  s_a512379035f48d::t_9a6e1b9e69ce21 78,112,131-142
+infrahub_sdk/protocols_generator/generator.py
+  s_a512379035f48d::t_9c9c3925cfa1e3 21,122-127
+infrahub_sdk/schema/generated/read.py
+  s_a512379035f48d::t_51be8c83f744ef 84-91,295-306,342-347
+infrahub_sdk/schema/generated/write.py
+  s_a512379035f48d::t_73d1670316c5d2 84-91,291-302,338-343
+tests/unit/sdk/conftest.py
+  s_a512379035f48d::t_bb39c5b2ba1557 898
+tests/unit/sdk/test_node.py
+  s_a512379035f48d::t_18f2a94a90a8b4 7,28,1793,2202-2278,2280
+tests/unit/sdk/test_protocols_generator.py
+  s_a512379035f48d::t_017e345447c3f5 76-145,160-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "89e406ad43d9cc007acbfd8d877df69ae8868a1a",
+  "prompts": {},
+  "sessions": {
+    "s_a512379035f48d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_a512379035f48d",
+        "model": "unknown"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+infrahub_sdk/node/relationship.py
+  s_65009ef9c97ec4::t_784972562d25b5 199-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc1e5d8d3e5fb320c14dff25709c3c5eef552609",
+  "prompts": {},
+  "sessions": {
+    "s_65009ef9c97ec4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "26b37fac-c018-44b8-a39f-3eb967f624ea",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

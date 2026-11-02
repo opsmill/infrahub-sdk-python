@@ -1,0 +1,19 @@
+changelog/+only-field-selection.added.md
+  s_2ea2a1594067df::t_d5c46ca386a64a 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ca76bcafff70281ed59397dab1bcbcf1cd0f5b0",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

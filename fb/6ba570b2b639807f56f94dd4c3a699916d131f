@@ -1,0 +1,47 @@
+dev/specs/infp-532-only-field-selection/critiques/critique-20261014-1.md
+  s_ff2fe7610915b8::t_6386377b1d1b30 1-13,15-53,55-115,117-132,134-195,197-203
+  s_ff2fe7610915b8::t_e02b8a8cbe4f08 54
+  s_ff2fe7610915b8::t_4fdb6b483259b9 14
+  s_ff2fe7610915b8::t_ecc1feb6e764c5 116
+  s_ff2fe7610915b8::t_35c1429ab27ff1 133
+  s_ff2fe7610915b8::t_3800d8caaf3e38 196
+  s_ff2fe7610915b8::t_4ea27aa87d2702 204-235
+dev/specs/infp-532-only-field-selection/spec.md
+  s_ff2fe7610915b8::t_4a0a9742b596ac 34
+  s_ff2fe7610915b8::t_a1e68978f20c20 119
+  s_ff2fe7610915b8::t_d3f676d0e54cf6 83
+  s_ff2fe7610915b8::t_1c17cb196b4fcc 79
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_ad5dd8d38f854e 37-41
+  s_ff2fe7610915b8::t_54ba51b79ee795 177
+  s_ff2fe7610915b8::t_f678223bc8b93b 144,146
+  s_ff2fe7610915b8::t_9542f49b7defdc 178
+  s_ff2fe7610915b8::t_a4b41ed00c8563 69
+  s_ff2fe7610915b8::t_2710c227a61800 100-105
+  s_ff2fe7610915b8::t_3c2497507b5a49 81-85,88-91
+  s_ff2fe7610915b8::t_47d6295316bd21 130-135
+  s_ff2fe7610915b8::t_1b51da77f2ff13 155-159,161-164
+  s_ff2fe7610915b8::t_2219351c0f3740 200-204,211-213
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_eaf899409e9719 35,47,62,65-69,84
+dev/specs/infp-532-only-field-selection/data-model.md
+  s_ff2fe7610915b8::t_efae9b2420fdea 12-13,66-69
+dev/specs/infp-532-only-field-selection/plan.md
+  s_ff2fe7610915b8::t_b149c3955d9670 13,15,20-21,25-33,114-115,152-153,157,162
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb6ba570b2b639807f56f94dd4c3a699916d131f",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+dev/specs/infp-532-only-field-selection/alignment-check.md
+  s_ff2fe7610915b8::t_bb3db5dbcd884c 3,29,36-37,52-55,58
+dev/specs/infp-532-only-field-selection/contracts/public-api.md
+  s_ff2fe7610915b8::t_889688a1ec16a5 40-43,64,99,103
+dev/specs/infp-532-only-field-selection/data-model.md
+  s_ff2fe7610915b8::t_81a1daa8a9890e 21,66,68,77
+dev/specs/infp-532-only-field-selection/opsmill-implement-report.md
+  s_ff2fe7610915b8::t_1edef6afa99c52 21,137-152
+dev/specs/infp-532-only-field-selection/plan.md
+  s_ff2fe7610915b8::t_c22c1a82399059 16,20,24-26,73,108,111,127,154
+dev/specs/infp-532-only-field-selection/quickstart.md
+  s_ff2fe7610915b8::t_f6a4659e341eff 34
+dev/specs/infp-532-only-field-selection/research.md
+  s_ff2fe7610915b8::t_b57ffc915ca44d 63,77-82,84-85,124,137,153,155,186,193-200,204,223
+dev/specs/infp-532-only-field-selection/spec.md
+  s_ff2fe7610915b8::t_87d29c4e7233df 65-66,68,80,83,153
+docs/docs/python-sdk/guides/query_data.mdx
+  s_ff2fe7610915b8::t_49be745fd370bc 529,558,581-583,589,698
+docs/docs/python-sdk/guides/store.mdx
+  s_ff2fe7610915b8::t_19db04017e7809 138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b9162f22cc09ab68b4f9acb91e01901e76879a0",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

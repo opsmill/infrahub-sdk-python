@@ -1,0 +1,19 @@
+dev/guides/testing-against-infrahub-ci.md
+  s_dfae823eacbc95::t_899ed003d60b1f 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b8fa1ac79b496b5c1c36b65797fd87afe3958b6c",
+  "prompts": {},
+  "sessions": {
+    "s_dfae823eacbc95": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "457e34b8-e098-42bb-ab30-76458fc68cfc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/client.mdx
+  s_ff2fe7610915b8::t_9c8d77d0288e0f 100-101,693-694
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/attribute.mdx
+  s_ff2fe7610915b8::t_91c0478e7db397 26
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/related_node.mdx
+  s_ff2fe7610915b8::t_85d66c35318368 17,26,227,311
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/relationship.mdx
+  s_ff2fe7610915b8::t_b06c4612ffae12 28,171,272
+infrahub_sdk/client.py
+  s_ff2fe7610915b8::t_ad8f8e8bfe8731 50,71,824-825,928,958-961,971,977-985,987,989-990,3281,3311-3314,3324,3330-3338,3340,3342-3343,3769-3770
+infrahub_sdk/exceptions/base.py
+  s_ff2fe7610915b8::t_d88102d037c31a 374-384,396,405-407,418-420,429-431
+infrahub_sdk/node/_only.py
+  s_ff2fe7610915b8::t_6da8cebcd1a5ee 62-68,71,87-90,93,100,102-104,107-108,145,148-149,204,234,241,243-246,264-268,300,318
+infrahub_sdk/node/attribute.py
+  s_ff2fe7610915b8::t_5b0bc8603645e8 65
+infrahub_sdk/node/node.py
+  s_ff2fe7610915b8::t_a7bd9371b5ddd0 3,26,48,812-824,1675,1685,1687-1690,1709-1711,2062,3047,3057,3059-3062,3081-3083,3438
+infrahub_sdk/node/related_node.py
+  s_ff2fe7610915b8::t_e77fa009b83357 33,41,424,541
+infrahub_sdk/node/relationship.py
+  s_ff2fe7610915b8::t_b5a8598da0aae6 40,312,539
+tests/unit/sdk/test_client_only.py
+  s_ff2fe7610915b8::t_a4db3d23a8b83d 296-305,356-370
+tests/unit/sdk/test_exceptions.py
+  s_ff2fe7610915b8::t_642065b532d017 5,7,539,567-572,591-605
+tests/unit/sdk/test_node_only_query.py
+  s_ff2fe7610915b8::t_4b903544c6f510 12-15,225-229,232,243-245,248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be2203577f93ef792b2dfb981fe2225a199e7db4",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

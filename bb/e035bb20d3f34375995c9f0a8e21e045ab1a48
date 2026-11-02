@@ -1,0 +1,25 @@
+infrahub_sdk/node/relationship.py
+  s_5d1327b6d8b60e::t_f14ec2119fb05e 464,469
+  s_5d1327b6d8b60e::t_fd9a270c6a891e 389-390
+  s_5d1327b6d8b60e::t_e79a876236b87f 122,129-131,133-134
+  s_5d1327b6d8b60e::t_b966d876ec3310 39-41
+  s_5d1327b6d8b60e::t_43e4a6b14f9986 123-128
+  s_5d1327b6d8b60e::t_f5fa9822e05947 191-192
+  s_5d1327b6d8b60e::t_75377d0df932b3 266,271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbe035bb20d3f34375995c9f0a8e21e045ab1a48",
+  "prompts": {},
+  "sessions": {
+    "s_5d1327b6d8b60e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "46df596b-e7c0-4000-b100-7b822574e327",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

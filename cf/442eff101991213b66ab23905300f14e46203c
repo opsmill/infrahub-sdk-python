@@ -1,0 +1,19 @@
+infrahub_sdk/client.py
+  s_2ea2a1594067df::t_a84cc18e699b02 84-96,914,3249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf442eff101991213b66ab23905300f14e46203c",
+  "prompts": {},
+  "sessions": {
+    "s_2ea2a1594067df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f56920a1-a775-4914-a90c-34b089e171ed",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}

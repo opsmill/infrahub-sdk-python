@@ -1,0 +1,23 @@
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/client.mdx
+  s_ff2fe7610915b8::t_434b1a348cef84 85-86,308-309,366-367,672-673,940-941,998-999
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/node.mdx
+  s_ff2fe7610915b8::t_7e02c72dd3586e 1167-1168
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/related_node.mdx
+  s_ff2fe7610915b8::t_77974cc641a28a 58-60,79-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fecbd043c61b2dc59b290e5ba5272a03a527502f",
+  "prompts": {},
+  "sessions": {
+    "s_ff2fe7610915b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "86564303-30a2-4f89-b279-6ea143e7e65b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
