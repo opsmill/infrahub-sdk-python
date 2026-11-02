@@ -1,0 +1,27 @@
+infrahub_sdk/ctl/object/create.py
+  s_925be3af9440ae::t_b7a062fc09bb7a 15,71
+infrahub_sdk/ctl/object/update.py
+  s_925be3af9440ae::t_b7a062fc09bb7a 16,108
+tests/unit/ctl/object/test_utils.py
+  s_925be3af9440ae::t_f275dfdfded581 6,14-15,249-250,253-264,269-270,279-334
+  s_925be3af9440ae::t_23d1ef7696ccb8 251-252
+infrahub_sdk/ctl/object/utils.py
+  s_925be3af9440ae::t_23d1ef7696ccb8 133-134,136-151,153-155,159,162,165-166,168-170,175-194
+  s_925be3af9440ae::t_5637e009182a91 152,172-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d66f5558cd56d8b3f852985b3a374232200cfd72",
+  "prompts": {},
+  "sessions": {
+    "s_925be3af9440ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "826b2587-9339-4524-ba65-29a898c9510c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
