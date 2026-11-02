@@ -38,7 +38,9 @@ peers(self) -> list[RelatedNode[PeerT] | RelatedNodeSync[PeerT]]
 Return the peer set.
 
 The list returned is the one the relationship holds, so changing it in place changes the
-relationship.
+relationship. For a relationship that takes its peers as fields instead of references, that
+holds only until the node exists: a create sends the list as it stands, while a save of a node
+Infrahub already holds sends the peers it was fetched with.
 
 **Returns:**
 
@@ -209,6 +211,7 @@ or ``hfid`` keys, plus optional relationship properties).
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `extend`
@@ -229,6 +232,7 @@ formats accepted by \:meth\:`add`.
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `remove`
@@ -249,6 +253,7 @@ existing \:class\:`RelatedNode`, or a dict describing the peer.
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 - `IndexError`: If the internal peer index is inconsistent with the lookup result.
 
@@ -312,6 +317,7 @@ an existing \:class\:`RelatedNodeSync`, or a dict describing the peer (with
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `extend`
@@ -332,6 +338,7 @@ formats accepted by \:meth\:`add`.
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 
 #### `remove`
@@ -352,5 +359,6 @@ an existing \:class\:`RelatedNodeSync`, or a dict describing the peer.
 
 **Raises:**
 
+- `FeatureNotSupportedError`: If the relationship takes its peers as fields instead of references.
 - `UninitializedError`: If \:meth\:`fetch` has not been called on this manager yet.
 - `IndexError`: If the internal peer index is inconsistent with the lookup result.
