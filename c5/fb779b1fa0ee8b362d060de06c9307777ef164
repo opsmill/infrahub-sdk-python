@@ -1,0 +1,42 @@
+tests/unit/sdk/pool/conftest.py
+  s_925be3af9440ae::t_9be4295e542be4 153-173
+  s_925be3af9440ae::t_fdb30b99411af2 152
+tests/integration/test_number_pool_attach_ranges.py
+  s_925be3af9440ae::t_9be4295e542be4 5,11-12,20-22,91-117
+  s_925be3af9440ae::t_91ee13d582b579 118
+infrahub_sdk/node/related_node.py
+  s_925be3af9440ae::t_9be4295e542be4 10,37
+tests/unit/sdk/pool/test_number_pool_ranges.py
+  s_925be3af9440ae::t_9be4295e542be4 6-7,13-15,20,25-28,47,50-60,62-63,78,94,111,122,146,162,173,177-179,182-258
+  s_925be3af9440ae::t_d64f4dc4f0a63f 180-181
+infrahub_sdk/node/relationship.py
+  s_925be3af9440ae::t_9be4295e542be4 9,15-20,80-81,113-119,422,426,450,454,469,474,652,656,681,685,700,705
+  s_74ac4acddd24a9::t_5c9bf84edf53f6 120
+infrahub_sdk/node/constants.py
+  s_925be3af9440ae::t_eff2a82500f3ce 65
+  s_925be3af9440ae::t_9be4295e542be4 1-2,5-8,51-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c5fb779b1fa0ee8b362d060de06c9307777ef164",
+  "prompts": {},
+  "sessions": {
+    "s_74ac4acddd24a9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8b22b3b-01aa-429a-b864-618f066bb59c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    },
+    "s_925be3af9440ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "826b2587-9339-4524-ba65-29a898c9510c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
