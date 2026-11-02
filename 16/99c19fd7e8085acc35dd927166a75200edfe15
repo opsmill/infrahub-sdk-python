@@ -1,0 +1,21 @@
+infrahub_sdk/spec/object.py
+  s_925be3af9440ae::t_fe19fe685e12c8 11,123-136,509-513
+changelog/+number-pool-ranges-in-object-files.fixed.md
+  s_925be3af9440ae::t_faa28fb12a4bcd 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1699c19fd7e8085acc35dd927166a75200edfe15",
+  "prompts": {},
+  "sessions": {
+    "s_925be3af9440ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "826b2587-9339-4524-ba65-29a898c9510c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
