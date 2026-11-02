@@ -1,0 +1,3 @@
+Reading the variables of a string Jinja2 template is now cached per template text. `Jinja2Template.get_variables()` uses the cache for string templates, and the new function `get_template_variables()` in `infrahub_sdk.template` returns the same sorted list without building a `Jinja2Template`. A file-based template is still parsed on every call.
+
+For a string template, `get_variables()` no longer raises `JinjaTemplateSyntaxError` when the template uses a filter that the template object does not provide. `validate()` and `render()` still reject that filter. A test name that Jinja2 does not provide still raises.

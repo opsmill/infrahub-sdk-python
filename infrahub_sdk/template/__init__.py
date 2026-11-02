@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import linecache
 from collections.abc import Callable
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn
 
@@ -27,6 +28,35 @@ if TYPE_CHECKING:
     from infrahub_sdk.client import InfrahubClient
 
 netutils_filters = jinja2_convenience_function()
+
+
+def _parse_only_filter(*_args: Any, **_kwargs: Any) -> NoReturn:
+    raise NotImplementedError("Stands in for a filter while a template is parsed, and is never rendered")
+
+
+@lru_cache(maxsize=1024)
+def _parse_template_variables(template: str) -> tuple[str, ...]:
+    env = SandboxedEnvironment(enable_async=True, undefined=jinja2.StrictUndefined)
+    ast = env.parse(template)
+    # Collecting variables compiles the template, which fails on an unknown filter; filters are checked by validation instead.
+    for filter_node in ast.find_all(nodes.Filter):
+        env.filters.setdefault(filter_node.name, _parse_only_filter)
+    return tuple(sorted(meta.find_undeclared_variables(ast)))
+
+
+def get_template_variables(template: str) -> list[str]:
+    """Return the sorted names of the variables a string Jinja2 template reads.
+
+    The result is cached per template text, so reading the variables of the same template again does not parse it again.
+
+    Raises:
+        JinjaTemplateSyntaxError: When the template is not valid Jinja2.
+
+    """
+    try:
+        return list(_parse_template_variables(template))
+    except jinja2.TemplateSyntaxError as exc:
+        raise JinjaTemplateSyntaxError(message=exc.message, lineno=exc.lineno) from exc
 
 
 class Jinja2Template:
@@ -96,6 +126,9 @@ class Jinja2Template:
         return template
 
     def get_variables(self) -> list[str]:
+        if self.is_string_based:
+            return get_template_variables(self._template)
+
         env = self.get_environment()
 
         template_source = self._template
