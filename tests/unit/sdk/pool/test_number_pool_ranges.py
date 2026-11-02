@@ -415,3 +415,41 @@ async def test_object_file_sends_the_ranges_its_parameters_expand(
     assert request is not None
     query = " ".join(json.loads(request.content)["query"].split())
     assert 'ranges: [ { start: "1000" end: 2000 }, { start: "1001" end: 2000 }, { start: "1002" end: 2000 }, ]' in query
+
+
+async def test_object_file_sends_the_ranges_the_file_parameters_expand(
+    clients: BothClients,
+    number_pool_schema: NodeSchemaAPI,
+    number_pool_range_schema: NodeSchemaAPI,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """Parameters set for the whole file reach the ranges, as they reach the validation pass."""
+    client = clients.standard
+    client.schema.set_cache(
+        schema={"nodes": [number_pool_schema.model_dump(), number_pool_range_schema.model_dump()]}, branch="main"
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json={"data": {"CoreNumberPoolUpsert": {"ok": True, "object": {"id": POOL_ID}}}},
+        match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"},
+    )
+    obj = ObjectFile(
+        location=Path("inline"),
+        content={
+            "apiVersion": "infrahub.app/v1",
+            "kind": "Object",
+            "spec": {
+                "kind": "CoreNumberPool",
+                "parameters": {"expand_range": True},
+                "data": [{**POOL_DATA, "ranges": {"data": [{"start": "100[0-2]", "end": 2000}]}}],
+            },
+        },
+    )
+    await obj.validate_format(client=client)
+
+    await obj.process(client=client)
+
+    request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": "mutation-corenumberpool-upsert"})
+    assert request is not None
+    query = " ".join(json.loads(request.content)["query"].split())
+    assert 'ranges: [ { start: "1000" end: 2000 }, { start: "1001" end: 2000 }, { start: "1002" end: 2000 }, ]' in query

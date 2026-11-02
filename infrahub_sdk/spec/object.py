@@ -522,9 +522,11 @@ class InfrahubObjectFileData(BaseModel):
                     # object already holds.
                     clean_data[key] = await rel_info.inline_peer_fields(
                         value,
+                        # The validation pass falls back to the parameters of the whole file, so this
+                        # one does too, or it would send peers it validated expanded.
                         parameters=InfrahubObjectParameters(**value["parameters"])
                         if isinstance(value, dict) and "parameters" in value
-                        else None,
+                        else parameters,
                     )
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
