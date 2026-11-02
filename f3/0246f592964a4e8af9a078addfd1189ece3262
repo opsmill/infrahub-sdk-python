@@ -1,0 +1,25 @@
+infrahub_sdk/node/constants.py
+  s_0a8328b9180e0a::t_8e9bd875cbb846 60-62
+infrahub_sdk/node/related_node.py
+  s_0a8328b9180e0a::t_8e9bd875cbb846 10-16,43
+infrahub_sdk/ctl/object/utils.py
+  s_0a8328b9180e0a::t_8e9bd875cbb846 8,137-138,140-142
+tests/unit/ctl/object/test_utils.py
+  s_0a8328b9180e0a::t_5bc407f7174ad8 291-294
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f30246f592964a4e8af9a078addfd1189ece3262",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
