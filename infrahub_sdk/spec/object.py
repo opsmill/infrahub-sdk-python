@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import ObjectValidationError, ValidationError
+from ..node.constants import _peers_are_inline_input
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
@@ -118,6 +119,20 @@ class RelationshipInfo(BaseModel):
     @property
     def is_reference(self) -> bool:
         return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
+
+    @property
+    def peers_are_inline_fields(self) -> bool:
+        """Indicate whether the mutation takes the peers' fields, which this value declares as objects."""
+        return _peers_are_inline_input(self.rel_schema) and self.format in {
+            RelationshipDataFormat.MANY_OBJ_DICT_LIST,
+            RelationshipDataFormat.MANY_OBJ_LIST_DICT,
+        }
+
+    def inline_peer_fields(self, value: Any) -> list[dict[str, Any]]:
+        """Return the fields of every peer, from either form that declares them as objects."""
+        if self.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
+            return list(value["data"])
+        return [item["data"] for item in value]
 
     def get_context(self, value: Any) -> dict:
         """Return a dict to insert to the context if the relationship is mandatory."""
@@ -491,6 +506,11 @@ class InfrahubObjectFileData(BaseModel):
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
                     # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
                     clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+                elif rel_info.peers_are_inline_fields:
+                    # The mutation takes the peers' fields, so they travel with this object. Creating them
+                    # afterwards as nodes of their own makes Infrahub refuse them against the ones the
+                    # object already holds.
+                    clean_data[key] = rel_info.inline_peer_fields(value)
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
