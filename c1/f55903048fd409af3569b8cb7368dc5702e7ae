@@ -1,0 +1,23 @@
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/relationship.mdx
+  s_0a8328b9180e0a::t_bba631921cacfb 41-42
+infrahub_sdk/node/relationship.py
+  s_0a8328b9180e0a::t_bba631921cacfb 80-81
+docs/docs/python-sdk/guides/resource-manager.mdx
+  s_0a8328b9180e0a::t_bba631921cacfb 356
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1f55903048fd409af3569b8cb7368dc5702e7ae",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
