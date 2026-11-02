@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from infrahub_sdk.exceptions import FeatureNotSupportedError, NodeNotFoundError
-from infrahub_sdk.node.constants import INLINE_INPUT_REASON, _peers_are_inline_input
+from infrahub_sdk.node.constants import INLINE_INPUT_REASON, PEER_REFERENCE_KEYS, _peers_are_inline_input
 from infrahub_sdk.schema import NodeSchemaAPI
 from infrahub_sdk.utils import is_valid_uuid
 
@@ -134,9 +134,12 @@ def _names_peers_by_reference(value: Any) -> bool:
     """Return whether a ``--set`` value points at existing peers instead of carrying their fields.
 
     ``--set`` reads a value between brackets as JSON, so a list of objects carries the fields of
-    each peer. Every other shape names peers: a UUID, an HFID, or a list of either.
+    each peer. Every other shape names peers: a UUID, an HFID, a list of either, or an object
+    holding one of the keys a peer is named by.
     """
-    return not isinstance(value, list) or any(not isinstance(item, dict) for item in value)
+    if not isinstance(value, list):
+        return True
+    return any(not isinstance(item, dict) or item.keys() & PEER_REFERENCE_KEYS for item in value)
 
 
 def _inline_peer_relationships(data: dict[str, Any], schema: MainSchemaTypesAPI) -> list[tuple[str, Any, str]]:

@@ -288,6 +288,10 @@ REFERENCE_CASES = [
     ReferenceCase(name="list-of-hfids", value=["range-1", "range-2"]),
     ReferenceCase(name="list-of-hfid-parts", value=[["Core", "range-1"]]),
     ReferenceCase(name="uuid", value="550e8400-e29b-41d4-a716-446655440000"),
+    ReferenceCase(name="object-holding-an-id", value=[{"id": "550e8400-e29b-41d4-a716-446655440000"}]),
+    ReferenceCase(name="object-holding-an-hfid", value=[{"hfid": ["range-1"]}]),
+    ReferenceCase(name="object-holding-a-node", value=[{"node": {"start": 1}}]),
+    ReferenceCase(name="fields-and-a-reference", value=[{"start": 1, "end": 10}, {"id": "range-2"}]),
 ]
 
 FIELDS_CASES = [

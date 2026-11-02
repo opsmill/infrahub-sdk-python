@@ -7,7 +7,13 @@ from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
-from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT, _peers_are_inline_input
+from .constants import (
+    PEER_REFERENCE_KEYS,
+    PROFILE_KIND_PREFIX,
+    PROPERTIES_FLAG,
+    PROPERTIES_OBJECT,
+    _peers_are_inline_input,
+)
 from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
@@ -34,7 +40,7 @@ def _is_peer_node(data: Any) -> bool:
 
 def _inline_input(schema: RelationshipSchemaAPI, data: Any) -> dict[str, Any] | None:
     """Return the peer's fields when its relationship takes them as mutation input instead of a reference."""
-    if _peers_are_inline_input(schema) and isinstance(data, dict) and not data.keys() & {"id", "hfid", "node"}:
+    if _peers_are_inline_input(schema) and isinstance(data, dict) and not data.keys() & PEER_REFERENCE_KEYS:
         return dict(data)
     return None
 

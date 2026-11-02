@@ -57,6 +57,9 @@ INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE = (
     "allow_upsert=True, or create, update or delete the {peer} node itself."
 )
 
+# Keys that name an existing peer rather than carry its fields.
+PEER_REFERENCE_KEYS = frozenset({"id", "hfid", "node"})
+
 # Relationships whose input in a mutation takes the peer's fields, not a reference to an existing peer,
 # as (name, peer) pairs.
 INLINE_INPUT_RELATIONSHIPS = frozenset({("ranges", "CoreNumberPoolRange")})
