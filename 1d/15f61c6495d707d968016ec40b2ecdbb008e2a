@@ -1,0 +1,41 @@
+infrahub_sdk/ctl/object/update.py
+  s_925be3af9440ae::t_75d541b8fbc187 110
+  s_925be3af9440ae::t_2a13304213b7c2 20-21
+  s_925be3af9440ae::t_f37240ae51f4c6 171-186
+tests/unit/ctl/object/test_update.py
+  s_925be3af9440ae::t_cc6b577780e8fd 5,12-15,305-321,326,332
+  s_925be3af9440ae::t_e45c1839722d3a 322-325,327-331,333-336
+tests/unit/sdk/pool/conftest.py
+  s_925be3af9440ae::t_8d110a7c6dc0e6 154
+infrahub_sdk/node/relationship.py
+  s_925be3af9440ae::t_125788d420eda6 43
+  s_925be3af9440ae::t_dac5684ffc4ae6 80-81
+  s_925be3af9440ae::t_0b554e273274d7 5
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/relationship.mdx
+  s_925be3af9440ae::t_4caa5f45f7f664 25,41-42
+infrahub_sdk/node/constants.py
+  s_925be3af9440ae::t_013bb09cfe849f 57-59,64
+  s_925be3af9440ae::t_3453db08fe15b0 51-55
+tests/unit/sdk/pool/test_number_pool_ranges.py
+  s_925be3af9440ae::t_945204bc9bdf12 45
+changelog/+number-pool-ranges-add-remove.changed.md
+  s_925be3af9440ae::t_6a1120fb16b4b2 1
+docs/docs/python-sdk/guides/resource-manager.mdx
+  s_925be3af9440ae::t_9c49a1b97e7dcf 356-360
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d15f61c6495d707d968016ec40b2ecdbb008e2a",
+  "prompts": {},
+  "sessions": {
+    "s_925be3af9440ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "826b2587-9339-4524-ba65-29a898c9510c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
