@@ -353,7 +353,7 @@ A number pool allocates from its ranges. Pass `ranges` as a list of dictionaries
 
 The declared list is the complete set of ranges. Saving the same pool with `allow_upsert=True` sets the ranges of an existing pool to that list: Infrahub keeps the ranges whose bounds match, creates the new ones and deletes the others.
 
-To add, change or delete a single range, work with its `CoreNumberPoolRange` node. The pool takes its ranges as bounds, not as references to range nodes, so `add()`, `extend()` and `remove()` on its `ranges` relationship raise `FeatureNotSupportedError`, `infrahubctl object update --set ranges=...` reports the same refusal, and changing the list `pool.ranges.peers` holds no longer reaches Infrahub once the pool exists.
+To add, change or delete a single range, work with its `CoreNumberPoolRange` node. The pool takes its ranges as bounds, not as references to range nodes, so `add()`, `extend()` and `remove()` on its `ranges` relationship raise `FeatureNotSupportedError`, and `infrahubctl object update --set ranges=...` reports the same refusal. Editing the list held by `pool.ranges.peers` is not supported either, and the SDK does not report it.
 
 <Tabs groupId="async-sync">
   <TabItem value="Async" default>

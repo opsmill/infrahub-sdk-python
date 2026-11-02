@@ -77,9 +77,8 @@ class RelationshipManagerBase(Generic[PeerT]):
         """Return the peer set.
 
         The list returned is the one the relationship holds, so changing it in place changes the
-        relationship. For a relationship that takes its peers as fields instead of references, that
-        holds only until the node exists: a create sends the list as it stands, while a save of a node
-        Infrahub already holds sends the peers it was fetched with.
+        relationship. Editing it is not supported for a relationship that takes its peers as fields
+        instead of references: declare the complete list on the node instead.
 
         Returns:
             list[RelatedNode | RelatedNodeSync]: The peers, in insertion order.
