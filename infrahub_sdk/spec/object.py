@@ -517,13 +517,11 @@ class InfrahubObjectFileData(BaseModel):
                     # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
                     clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
                 elif rel_info.peers_are_inline_fields:
-                    # The mutation takes the peers' fields, so they travel with this object. Creating them
-                    # afterwards as nodes of their own makes Infrahub refuse them against the ones the
-                    # object already holds.
+                    # Infrahub refuses these peers when they are created afterwards as nodes of
+                    # their own, against the ones the object already holds.
                     clean_data[key] = await rel_info.inline_peer_fields(
                         value,
-                        # The validation pass falls back to the parameters of the whole file, so this
-                        # one does too, or it would send peers it validated expanded.
+                        # The validation pass falls back to the file's parameters, so this one must too.
                         parameters=InfrahubObjectParameters(**value["parameters"])
                         if isinstance(value, dict) and "parameters" in value
                         else parameters,
