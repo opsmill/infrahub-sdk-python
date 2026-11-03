@@ -127,6 +127,37 @@ class TestNumberPoolAttachRanges(TestInfrahubDockerClient):
         ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
         assert _bounds(ranges) == [(2000, 2099, None), (2100, 2199, None)]
 
+    async def test_a_range_node_is_added_changed_and_deleted_on_its_own(
+        self, client: InfrahubClient, load_vlan_schema: None
+    ) -> None:
+        """The other way out the refusal names: work with the CoreNumberPoolRange node itself."""
+        pool = await client.create(
+            kind="CoreNumberPool",
+            name="Range Node Pool",
+            node=VLAN_KIND,
+            node_attribute="vlan_id",
+            ranges=[{"start": 4000, "end": 4099}],
+        )
+        await pool.save()
+
+        added = await client.create(kind="CoreNumberPoolRange", start=4100, end=4199, pool=pool.id)
+        await added.save()
+
+        ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
+        assert _bounds(ranges) == [(4000, 4099, None), (4100, 4199, None)]
+
+        fetched = await client.get(kind="CoreNumberPoolRange", id=added.id)
+        fetched.end.value = 4149
+        await fetched.save()
+
+        ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
+        assert _bounds(ranges) == [(4000, 4099, None), (4100, 4149, None)]
+
+        await fetched.delete()
+
+        ranges = await client.filters(kind="CoreNumberPoolRange", pool__ids=[pool.id])
+        assert _bounds(ranges) == [(4000, 4099, None)]
+
     async def test_an_object_file_sets_the_ranges_of_a_new_and_of_an_existing_pool(
         self, client: InfrahubClient, load_vlan_schema: None
     ) -> None:
@@ -144,6 +175,7 @@ class TestNumberPoolAttachRanges(TestInfrahubDockerClient):
         )
         await obj.validate_format(client=client)
 
+        # Once against a pool that does not exist, once against the pool the first pass created.
         await obj.process(client=client)
         await obj.process(client=client)
 

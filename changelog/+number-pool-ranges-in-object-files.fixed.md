@@ -1,1 +1,0 @@
-An object file that declares the `ranges` of a `CoreNumberPool` as objects now sets them. Before, the loader created the pool first and each range afterwards as a node of its own, and Infrahub refused the range as overlapping: the default range of the new pool, or, when the pool already existed, the range it already held.
