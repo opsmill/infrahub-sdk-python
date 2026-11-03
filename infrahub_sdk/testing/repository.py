@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 from dataclasses import dataclass, field
 from enum import Enum
@@ -43,6 +44,8 @@ class GitRepo:
     directories_to_ignore: list[str] = field(default_factory=list)
     remote_directory_name: str = "/remote"
     _branches: list[str] = field(default_factory=list)
+    shared: bool = False
+    """Give every user read and write access to the repository, for Infrahub containers that run as another user."""
 
     @property
     def repo(self) -> GitRepoManager:
@@ -74,6 +77,33 @@ class GitRepo:
             porcelain.add(repo=self._repo.git.path, paths=files_to_add)
             porcelain.commit(repo=self._repo.git.path, message="First commit")
             porcelain.checkout(repo=self._repo.git, target=self.initial_branch)
+
+        if self.shared:
+            self._share()
+
+    def _share(self) -> None:
+        """Give every user read and write access to the repository, now and to the files Git adds later.
+
+        `core.sharedRepository` makes Git create the files of a later commit or push with the same access.
+        The files that exist already, including those copied from `src_directory`, get it here.
+        """
+        config = self.repo.git.get_config()
+        config.set((b"core",), b"sharedRepository", b"0666")
+        config.write_to_path()
+
+        root_directory = self.dst_directory / self.name
+        root_directory.chmod(0o777)
+        for root, directories, files in os.walk(root_directory):
+            for directory in directories:
+                directory_path = Path(root) / directory
+                if not directory_path.is_symlink():
+                    directory_path.chmod(0o777)
+            for file in files:
+                file_path = Path(root) / file
+                if file_path.is_symlink():
+                    continue
+                mode = file_path.stat().st_mode
+                file_path.chmod(mode | 0o666 | (0o111 if mode & 0o111 else 0))
 
     async def add_to_infrahub(self, client: InfrahubClient, branch: str | None = None) -> dict:
         input_data = {
