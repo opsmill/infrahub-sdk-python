@@ -538,7 +538,7 @@ class InfrahubObjectFileData(BaseModel):
             ):
                 candidates.append(kind)
 
-        # ponytail: one query per candidate kind, add a (kind, hfid) cache if large files become slow
+        # One query per candidate kind; a (kind, hfid) cache could reduce this for large files.
         matches = [
             node
             for kind in candidates
