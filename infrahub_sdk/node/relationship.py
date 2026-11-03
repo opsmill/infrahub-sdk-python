@@ -13,11 +13,10 @@ from ..schema import GenericSchemaAPI
 from ..types import Order
 from ._only import check_only_names, check_only_names_on_every_kind
 from .constants import (
-    INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE,
     PROPERTIES_FLAG,
     PROPERTIES_OBJECT,
-    _peers_are_inline_input,
 )
+from .inline_peers import INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE, peers_are_inline_input
 from .metadata import NodeMetadata, RelationshipMetadata
 from .related_node import PeerT, PeerTSync, RelatedNode, RelatedNodeSync
 
@@ -115,7 +114,7 @@ class RelationshipManagerBase(Generic[PeerT]):
         return INLINE_INPUT_PEERS_FEATURE_NOT_SUPPORTED_MESSAGE.format(name=self.name, peer=self.schema.peer)
 
     def _raise_if_peers_are_inline_input(self) -> None:
-        if _peers_are_inline_input(self.schema):
+        if peers_are_inline_input(self.schema):
             raise FeatureNotSupportedError(self._inline_input_message)
 
     def _raise_if_not_loaded(self) -> None:

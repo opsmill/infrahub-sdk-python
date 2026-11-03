@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import ObjectValidationError, ValidationError
-from ..node.constants import _peers_are_inline_input
+from ..node.inline_peers import peers_are_inline_input
 from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
@@ -123,7 +123,7 @@ class RelationshipInfo(BaseModel):
     @property
     def peers_are_inline_fields(self) -> bool:
         """Indicate whether the mutation takes the peers' fields, which this value declares as objects."""
-        return _peers_are_inline_input(self.rel_schema) and self.format in {
+        return peers_are_inline_input(self.rel_schema) and self.format in {
             RelationshipDataFormat.MANY_OBJ_DICT_LIST,
             RelationshipDataFormat.MANY_OBJ_LIST_DICT,
         }
