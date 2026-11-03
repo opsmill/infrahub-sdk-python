@@ -13,6 +13,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.object.inline_peers import raise_if_set_edits_inline_peers
 from infrahub_sdk.ctl.object.utils import prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
@@ -105,6 +106,7 @@ async def _update_with_set_args(
     attr_names = schema.attribute_names
     rel_names = schema.relationship_names
     validate_set_fields(data, attr_names, rel_names)
+    raise_if_set_edits_inline_peers(data, schema)
 
     node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 

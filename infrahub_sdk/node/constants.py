@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ipaddress
 import re
 
@@ -41,9 +43,6 @@ UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE = (
 )
 
 HIERARCHY_FETCH_FEATURE_NOT_SUPPORTED_MESSAGE = "Hierarchical fields are not supported for this node."
-
-# Peer kinds whose relationship input in a mutation takes the peer's fields, not a reference to an existing peer.
-INLINE_INPUT_PEER_KINDS = frozenset({"CoreNumberPoolRange"})
 
 POOL_ALLOCATED_QUERY_NAME = "InfrahubResourcePoolAllocated"
 POOL_ALLOCATION_FIELDS = ["id", "kind", "branch", "display_label", "identifier", "provenance"]
