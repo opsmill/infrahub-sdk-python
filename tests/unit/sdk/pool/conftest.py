@@ -150,6 +150,56 @@ async def number_pool_schema() -> NodeSchemaAPI:
 
 
 @pytest.fixture
+async def number_pool_range_schema() -> NodeSchemaAPI:
+    """The peer of the ranges relationship, whose own pool relationship is mandatory."""
+    data: dict[str, Any] = {
+        "name": "NumberPoolRange",
+        "namespace": "Core",
+        "label": "Number Pool Range",
+        "branch": BranchSupportType.AGNOSTIC.value,
+        "attributes": [
+            {"name": "start", "kind": "Number"},
+            {"name": "end", "kind": "Number", "optional": True},
+            {"name": "allocation_weight", "kind": "Number", "optional": True},
+        ],
+        "relationships": [
+            {
+                "name": "pool",
+                "peer": "CoreNumberPool",
+                "kind": "Parent",
+                "identifier": "numberpool__range",
+                "cardinality": "one",
+                "branch": BranchSupportType.AGNOSTIC.value,
+                "optional": False,
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
+async def range_policy_schema() -> NodeSchemaAPI:
+    """A schema with its own relationship to CoreNumberPoolRange nodes."""
+    data: dict[str, Any] = {
+        "name": "RangePolicy",
+        "namespace": "Testing",
+        "label": "Range Policy",
+        "attributes": [{"name": "name", "kind": "Text", "unique": True}],
+        "relationships": [
+            {
+                "name": "allowed_ranges",
+                "peer": "CoreNumberPoolRange",
+                "kind": "Attribute",
+                "identifier": "rangepolicy__allowed_range",
+                "cardinality": "many",
+                "optional": True,
+            },
+        ],
+    }
+    return NodeSchema(**data).convert_api()
+
+
+@pytest.fixture
 async def vlan_schema_with_pool_hfid() -> NodeSchemaAPI:
     """VLAN schema where vlan_id (NumberPool-sourced) is part of the human_friendly_id."""
     data: dict[str, Any] = {

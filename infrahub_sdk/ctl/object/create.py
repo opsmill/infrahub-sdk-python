@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.object.inline_peers import raise_if_set_names_inline_peers_by_reference
 from infrahub_sdk.ctl.object.utils import prepare_relationship_data
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
@@ -68,6 +69,7 @@ async def create_command(
         data = parse_set_args(set_args)
         schema = await client.schema.get(kind=kind, branch=branch)
         validate_set_fields(data, schema.attribute_names, schema.relationship_names)
+        raise_if_set_names_inline_peers_by_reference(data, schema)
         data = prepare_relationship_data(data, schema)
 
         node = await client.create(kind=kind, data=data, branch=branch)
