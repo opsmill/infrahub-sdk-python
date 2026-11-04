@@ -122,6 +122,37 @@ class DropdownChoiceWrite(BaseModel):
     )
 
 
+class ContainerSchemaWrite(BaseModel):
+    model_config = ConfigDict(extra="ignore", use_enum_values=True)
+    name: str = Field(
+        ...,
+        description="Name of the section, must be unique within the node.",
+        pattern=r"^[a-z0-9\_]+$",
+        min_length=2,
+        max_length=32,
+    )
+    label: str = Field(
+        ...,
+        description="Title of the section.",
+    )
+    description: str | None = Field(
+        default=None,
+        description="Description shown under the title of the section.",
+    )
+    order_weight: int | None = Field(
+        default=None,
+        description="Position of the section among the sections of the node, lowest first.",
+    )
+    collapsed: bool = Field(
+        default=False,
+        description="Whether the section starts collapsed on the detail page.",
+    )
+    state: SchemaState = Field(
+        default=SchemaState.PRESENT,
+        description="Expected state of the container after loading the schema",
+    )
+
+
 class ComputedAttributeUserWrite(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     kind: Literal[ComputedAttributeKind.USER] = Field(
@@ -249,6 +280,10 @@ class AttributeSchemaBaseWrite(BaseModel):
     display: SchemaAttributeDisplay = Field(
         default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the attribute is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
+    )
+    container: str | None = Field(
+        default=None,
+        description="Section that shows this attribute: a name from the node's 'containers' or 'advanced'. Unset, it shows in the main section.",
     )
 
 
@@ -441,6 +476,10 @@ class RelationshipSchemaWrite(BaseModel):
         default=SchemaAttributeDisplay.DEFAULT,
         description="Controls where the relationship is displayed. 'default' shows in the main view, 'extra' shows in an expanded/secondary section.",
     )
+    container: str | None = Field(
+        default=None,
+        description="Section that shows this relationship: a name from the node's 'containers' or 'advanced'. Unset, it shows in the main section.",
+    )
 
 
 class BaseNodeSchemaWrite(BaseModel):
@@ -509,6 +548,10 @@ class BaseNodeSchemaWrite(BaseModel):
     order_by: list[str] | None = Field(
         default=None,
         description="List of entries to order results by. Supports attributes, relationship attributes, and node_metadata with __asc/__desc.",
+    )
+    containers: list[ContainerSchemaWrite] = Field(
+        default_factory=list,
+        description="Named sections that group the attributes and relationships of this node in the UI; a field joins one through 'container'.",
     )
     uniqueness_constraints: list[list[str]] | None = Field(
         default=None,

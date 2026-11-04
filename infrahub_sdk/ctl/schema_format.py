@@ -94,6 +94,7 @@ NODE_ORDER = [
     "display_label",
     "display_labels",
     "uniqueness_constraints",
+    "containers",
     "generate_profile",
     "generate_template",
     "used_by",
@@ -123,6 +124,7 @@ ATTRIBUTE_ORDER = [
     "branch",
     "deprecation",
     "state",
+    "container",
 ]
 ATTRIBUTE_LAST = ["order_weight"]
 
@@ -147,10 +149,13 @@ RELATIONSHIP_ORDER = [
     "deprecation",
     "state",
     "description",
+    "container",
 ]
 RELATIONSHIP_LAST = ["order_weight"]
 
 CHOICE_ORDER = ["name", "label", "description", "color"]
+
+CONTAINER_ORDER = ["name", "label", "description", "order_weight", "collapsed", "state"]
 
 EXTENSION_NODE_ORDER = ["kind", "inherit_from"]
 EXTENSION_NODE_LAST = ["attributes", "relationships"]
@@ -281,6 +286,10 @@ def _format_entity(entity: Any, leading: list[str], trailing: list[str], options
     if options.strip_defaults:
         _strip_default_keys(entity, ENTITY_DEFAULTS)
     reorder_mapping(entity, leading, trailing)
+    containers = entity.get("containers")
+    if isinstance(containers, list):
+        for container in containers:
+            reorder_mapping(container, CONTAINER_ORDER, [])
     _format_item_list(entity.get("attributes"), ATTRIBUTE_DEFAULTS, ATTRIBUTE_ORDER, options)
     _format_item_list(entity.get("relationships"), RELATIONSHIP_DEFAULTS, RELATIONSHIP_ORDER, options)
 
