@@ -197,6 +197,33 @@ class TestTracking(TestInfrahubDockerClient, SchemaAnimal):
         with pytest.raises(NodeNotFoundError, match=person_name):
             await client.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
 
+    async def test_unused_owner_and_animal_are_deleted_in_one_run(
+        self, client: InfrahubClient, base_dataset: None
+    ) -> None:
+        """The person is created first, so the group lists it before the cat that holds it."""
+        person_name = "TrackingOrderedPerson"
+        params = {"person_name": person_name}
+
+        async with client.start_tracking(identifier=self.IDENTIFIER, params=params, delete_unused_nodes=True) as clt:
+            person = await clt.create(kind=TESTING_PERSON, name=person_name)
+            await person.save(allow_upsert=True)
+            cat = await clt.create(kind=TESTING_CAT, name="TrackingOrderedCat", breed="Bengal", owner=person)
+            await cat.save(allow_upsert=True)
+
+        group_name = client.group_context._generate_group_name()
+        group = await client.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
+        assert group.members.peer_ids == [person.id, cat.id]
+
+        async with client.start_tracking(identifier=self.IDENTIFIER, params=params, delete_unused_nodes=True):
+            pass
+
+        group = await client.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
+        assert len(group.members.peers) == 0
+        with pytest.raises(NodeNotFoundError):
+            await client.get(kind=TESTING_CAT, id=cat.id)
+        with pytest.raises(NodeNotFoundError):
+            await client.get(kind=TESTING_PERSON, id=person.id)
+
 
 class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
     BRANCH = "sync-tracking-branch01"
@@ -366,3 +393,30 @@ class TestTrackingSync(TestInfrahubDockerClient, SchemaAnimal):
             client_sync.get(kind="BuiltinTag", name__value=tag_name, branch=self.BRANCH)
         with pytest.raises(NodeNotFoundError, match=person_name):
             client_sync.get(kind=TESTING_PERSON, name__value=person_name, branch=self.BRANCH)
+
+    def test_unused_owner_and_animal_are_deleted_in_one_run(
+        self, client_sync: InfrahubClientSync, base_dataset: None
+    ) -> None:
+        """The person is created first, so the group lists it before the cat that holds it."""
+        person_name = "SyncTrackingOrderedPerson"
+        params = {"person_name": person_name}
+
+        with client_sync.start_tracking(identifier=self.IDENTIFIER, params=params, delete_unused_nodes=True) as clt:
+            person = clt.create(kind=TESTING_PERSON, name=person_name)
+            person.save(allow_upsert=True)
+            cat = clt.create(kind=TESTING_CAT, name="SyncTrackingOrderedCat", breed="Bengal", owner=person)
+            cat.save(allow_upsert=True)
+
+        group_name = client_sync.group_context._generate_group_name()
+        group = client_sync.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
+        assert group.members.peer_ids == [person.id, cat.id]
+
+        with client_sync.start_tracking(identifier=self.IDENTIFIER, params=params, delete_unused_nodes=True):
+            pass
+
+        group = client_sync.get(kind="CoreStandardGroup", name__value=group_name, include=["members"])
+        assert len(group.members.peers) == 0
+        with pytest.raises(NodeNotFoundError):
+            client_sync.get(kind=TESTING_CAT, id=cat.id)
+        with pytest.raises(NodeNotFoundError):
+            client_sync.get(kind=TESTING_PERSON, id=person.id)
