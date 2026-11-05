@@ -249,15 +249,15 @@ class DeletionOrder:
             if not self._is_cyclic(block):
                 continue
             block_kinds = set(block)
+            # Every kind in a cyclic block has at least one mandatory relationship into the block.
             for kind in block:
                 relationships = {
                     name: self.cardinality_many[kind][name]
                     for name, peer_kinds in self.relationships[kind].items()
                     if peer_kinds & block_kinds
                 }
-                if relationships:
-                    ids = [member_id for candidate_kind, member_id in self.candidates if candidate_kind == kind]
-                    lookups.append(PeerLookup(kind=kind, ids=ids, relationships=relationships))
+                ids = [member_id for candidate_kind, member_id in self.candidates if candidate_kind == kind]
+                lookups.append(PeerLookup(kind=kind, ids=ids, relationships=relationships))
         return lookups
 
     def order(self, member_peers: Mapping[str, set[str]] | None = None) -> list[tuple[str, str]]:

@@ -806,3 +806,53 @@ async def test_failed_peer_query_stops_the_reap_and_keeps_every_member(
     assert _deleted_ids(requests, CHAIN_IDS) == []
     upsert = requests[-1].read().decode()
     assert all(member_id in upsert for member_id in CHAIN_IDS)
+
+
+def test_deletion_order_ignores_a_mandatory_peer_that_is_not_a_candidate() -> None:
+    """A peer kind the run is not deleting adds no dependency between the candidates."""
+    schemas = _schemas(
+        _node_schema("Target"),
+        _node_schema("Dependent", relationships=[_mandatory("target", "ReproTarget")]),
+    )
+    candidates = [("ReproDependent", DEPENDENT_ID), ("ReproDependent", CHAIN_IDS[0])]
+    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
+
+    assert order.peer_lookups == []
+    assert order.order() == candidates
+
+
+def test_deletion_order_keeps_group_order_when_the_peers_form_a_cycle() -> None:
+    """The server cannot store such a cycle; if the peers read back describe one, the group order is kept."""
+    schemas = _schemas(_node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")]))
+    candidates = [("ReproChain", member_id) for member_id in CHAIN_IDS[:2]]
+    member_peers = {CHAIN_IDS[0]: {CHAIN_IDS[1]}, CHAIN_IDS[1]: {CHAIN_IDS[0]}}
+
+    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
+
+    assert order.order(member_peers=member_peers) == candidates
+
+
+def test_mandatory_peer_ids_reads_both_cardinalities(clients: BothClients) -> None:
+    from infrahub_sdk.node import InfrahubNode  # noqa: PLC0415
+
+    schema = _schemas(
+        _node_schema(
+            "Left",
+            relationships=[
+                _mandatory("rights", "ReproRight", cardinality="many"),
+                _mandatory("anchor", "ReproRight"),
+                _mandatory("spare", "ReproRight"),
+            ],
+        )
+    )["ReproLeft"]
+    node = InfrahubNode(
+        client=clients.standard,
+        schema=schema,
+        data={"id": TARGET_ID, "rights": [{"id": CHAIN_IDS[0]}, {"id": CHAIN_IDS[1]}], "anchor": {"id": CHAIN_IDS[2]}},
+    )
+
+    peer_ids = query_groups._mandatory_peer_ids(
+        node=node, relationships={"rights": True, "anchor": False, "spare": False}
+    )
+
+    assert peer_ids == set(CHAIN_IDS)
