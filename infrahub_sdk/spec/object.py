@@ -8,14 +8,8 @@ from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import ObjectValidationError, ValidationError
-<<<<<<< HEAD
 from ..node.inline_peers import peers_are_inline_input
-from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
-||||||| 45cb1b1
-from ..schema import GenericSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
-=======
 from ..schema import GenericSchemaAPI, NodeSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
->>>>>>> origin/develop
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
 from .models import InfrahubObjectParameters
@@ -655,9 +649,7 @@ class InfrahubObjectFileData(BaseModel):
                         for idx, item in enumerate(value)
                     ]
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
-<<<<<<< HEAD
-                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
-                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
+                    clean_data[key] = await cls._clean_reference(client, rel_info, value, [*position, key], branch)
                 elif rel_info.peers_are_inline_fields:
                     # Infrahub refuses these peers when they are created afterwards as nodes of
                     # their own, against the ones the object already holds.
@@ -668,12 +660,6 @@ class InfrahubObjectFileData(BaseModel):
                         if isinstance(value, dict) and "parameters" in value
                         else parameters,
                     )
-||||||| 45cb1b1
-                    # Cardinality-one reference: normalize string to HFID list if peer has HFID, else pass as-is
-                    clean_data[key] = normalize_hfid_reference(value) if rel_info.peer_has_hfid else value
-=======
-                    clean_data[key] = await cls._clean_reference(client, rel_info, value, [*position, key], branch)
->>>>>>> origin/develop
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
