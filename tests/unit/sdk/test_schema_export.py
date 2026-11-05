@@ -211,6 +211,39 @@ def test_export_preserves_non_default_ordered_flag() -> None:
     assert "ordered" not in attrs["tags_ordered"]
 
 
+def test_export_skips_containers_inherited_from_a_generic() -> None:
+    node = NodeSchemaAPI(
+        **{
+            **_BASE_NODE,
+            "namespace": "Infra",
+            "name": "LagInterfaceL2",
+            "inherit_from": ["InfraLagInterface"],
+            "containers": [
+                {"name": "lacp", "label": "LACP", "order_weight": 100, "inherited": True},
+                {"name": "spare", "label": "Spare"},
+            ],
+        }
+    )
+
+    exported = schema_to_export_dict(node)
+
+    assert exported["containers"] == [{"name": "spare", "label": "Spare", "collapsed": False}]
+
+
+def test_export_omits_containers_when_all_are_inherited() -> None:
+    node = NodeSchemaAPI(
+        **{
+            **_BASE_NODE,
+            "namespace": "Infra",
+            "name": "LagInterfaceL2",
+            "inherit_from": ["InfraLagInterface"],
+            "containers": [{"name": "lacp", "label": "LACP", "inherited": True}],
+        }
+    )
+
+    assert "containers" not in schema_to_export_dict(node)
+
+
 # ---------------------------------------------------------------------------
 # Integration tests for export() method on client.schema
 # ---------------------------------------------------------------------------

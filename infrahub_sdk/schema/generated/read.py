@@ -155,6 +155,10 @@ class ContainerSchemaRead(BaseModel):
         default=SchemaState.PRESENT,
         description="Expected state of the container after loading the schema",
     )
+    inherited: bool = Field(
+        default=False,
+        description="Internal value to indicate if the container was inherited from a Generic node.",
+    )
 
 
 class ComputedAttributeUserRead(BaseModel):
