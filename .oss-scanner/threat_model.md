@@ -34,8 +34,7 @@ stored in Git repositories, and to render Jinja2 templates. The Infrahub Ansible
 
 ## How we rate severity
 
-- **Critical:** code execution on the machine that runs the SDK, caused by data from the server or by a string
-  template.
+- **Critical:** code execution on the machine that runs the SDK, caused by data from the server.
 - **High:** escaping the Jinja2 sandbox for string templates, sending credentials to a host other than the
   configured server or writing them to logs, and writing files outside the directory the caller chose.
 - **Medium:** denial of service caused by a server response, and TLS certificate checks being skipped even though

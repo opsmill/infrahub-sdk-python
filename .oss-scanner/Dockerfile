@@ -20,3 +20,7 @@ RUN uv sync --frozen --all-groups --all-extras
 
 # Run the unit tests so a broken image is visible in the build log, without failing the build on a test failure.
 RUN uv run pytest -q -p no:cacheprovider tests/unit/ || echo "WARNING: unit tests reported failures"
+
+# The scan runs offline: `uv run` must use the environment built above instead of trying to sync it.
+ENV UV_NO_SYNC=1 \
+    UV_OFFLINE=1
