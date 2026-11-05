@@ -1,0 +1,26 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingDevice
+  data:
+    - name: router1
+    - name: router2
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPhysicalInterface
+  data:
+    - name: Gi0/0/3
+      device: router1
+    - name: Gi0/0/3
+      device: router2
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingPortChannelInterface
+  data:
+    - name: Po1
+      device: router1
