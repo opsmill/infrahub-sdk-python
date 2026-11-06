@@ -23,7 +23,7 @@ dependencies = [
     # `\_` escape in the model field patterns, so `import infrahub_sdk` fails outright.
     "pydantic>=2.0.3,!=2.1.0,<3.0.0",
     "pydantic-settings>=2.0",
-    "graphql-core>=3.1,<3.3",
+    "graphql-core>=3.2.12,<3.3",
     "httpx>=0.20",
     "anyio>=3.3.0", # 3.3.0 introduced `anyio.Path`, used by the async file handler
     "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
