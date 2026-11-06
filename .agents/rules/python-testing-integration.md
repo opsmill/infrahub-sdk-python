@@ -41,3 +41,7 @@ async def created_branch(self, client: InfrahubClient) -> AsyncGenerator[str, No
     yield "test-branch"
     await client.branch.delete(branch_name="test-branch")
 ```
+
+## CI shards
+
+CI runs the integration tests in two parallel jobs. A new test file runs in the `other` shard with no change needed. Each test class starts its own Infrahub instance, which adds 40 to 70 seconds to the job, so add tests to an existing class when they can share its schema and data. To move files between shards, follow "Integration test shards" in `tests/AGENTS.md`.

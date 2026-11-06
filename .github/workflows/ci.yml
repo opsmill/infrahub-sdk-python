@@ -22,7 +22,6 @@ env:
   INFRAHUB_LOG_LEVEL: CRITICAL
   INFRAHUB_IMAGE_NAME: "opsmill/infrahub"
   INFRAHUB_IMAGE_VER: "local"
-  PYTEST_XDIST_WORKER_COUNT: 4
   INFRAHUB_TEST_IN_DOCKER: 1
   VALE_VERSION: "3.7.1"
   GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -319,9 +318,15 @@ jobs:
       !contains(needs.*.result, 'cancelled') &&
       needs.files-changed.outputs.python == 'true'
     needs: ["prepare-environment", "files-changed", "yaml-lint", "python-lint", "unit-tests"]
+    strategy:
+      fail-fast: false
+      matrix:
+        # The files in each shard are listed in INTEGRATION_TEST_SHARDS in tasks.py;
+        # keep this list in sync with it ("other" runs every file not listed there).
+        shard: [listed, other]
     runs-on:
       group: "huge-runners"
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - name: "Check out repository code"
         uses: "actions/checkout@v7"
@@ -339,8 +344,10 @@ jobs:
           version: "${{ needs.prepare-environment.outputs.UV_VERSION }}"
       - name: Install dependencies
         run: uv sync --all-groups --all-extras
-      - name: Integration Tests
-        run: uv run pytest --cov infrahub_sdk tests/integration/
+      - name: "Integration Tests (${{ matrix.shard }})"
+        run: uv run invoke tests-integration --shard ${{ matrix.shard }}
+      # Both shards upload with the same flag; Codecov merges the uploads for a
+      # commit, so the integration-tests flag covers the whole suite.
       - name: "Upload coverage to Codecov"
         run: |
           uv run codecov --flags integration-tests
