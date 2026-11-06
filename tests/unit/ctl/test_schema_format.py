@@ -83,6 +83,28 @@ def test_attribute_relationship_and_choice_inner_order() -> None:
     assert _keys_of(text, ["nodes", 0, "relationships", 0]) == ["name", "peer"]
 
 
+def test_choice_state_follows_the_known_keys() -> None:
+    doc = """\
+---
+version: "1.0"
+nodes:
+  - namespace: Dcim
+    name: Device
+    attributes:
+      - name: status
+        kind: Dropdown
+        choices:
+          - id: "1234"
+            state: absent
+            color: "#fff"
+            name: active
+"""
+
+    text = format_schema_text(doc)
+
+    assert _keys_of(text, ["nodes", 0, "attributes", 0, "choices", 0]) == ["name", "color", "state", "id"]
+
+
 def test_restricted_namespace_nodes_are_untouched() -> None:
     doc = """\
 ---
