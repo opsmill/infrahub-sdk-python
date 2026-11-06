@@ -572,6 +572,7 @@ exclude = [
     ".claude/skills",
     ".specify/templates",
     ".specify/extensions",
+    ".specify/presets",
 ]
 
 [tool.rumdl.MD025]
