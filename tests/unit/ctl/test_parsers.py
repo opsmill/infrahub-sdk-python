@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock
+
 import pytest
 import typer
 
@@ -155,6 +158,51 @@ class TestParseFilterArgs:
         """Test that only the first = splits the filter argument."""
         result = parse_filter_args(["description__value=x=y"])
         assert result == {"description__value": "x=y"}
+
+    @pytest.mark.parametrize(
+        ("arg", "expected"),
+        [
+            ("interfaces__isnull=true", {"interfaces__isnull": True}),
+            ("interfaces__isnull=false", {"interfaces__isnull": False}),
+            ("description__isnull=TRUE", {"description__isnull": True}),
+            ("name__is_visible=false", {"name__is_visible": False}),
+            ("name__is_protected=yes", {"name__is_protected": True}),
+        ],
+    )
+    def test_boolean_filter_suffixes_become_bool(self, arg: str, expected: dict[str, bool]) -> None:
+        """Test that __isnull, __is_visible and __is_protected values become booleans without a schema."""
+        assert parse_filter_args([arg]) == expected
+
+    def test_invalid_boolean_filter_value_raises_bad_parameter(self) -> None:
+        """Test that a value that is not a boolean raises BadParameter for a boolean filter."""
+        with pytest.raises(typer.BadParameter, match="Expected true or false"):
+            parse_filter_args(["interfaces__isnull=maybe"])
+
+    @pytest.mark.parametrize(
+        ("arg", "expected"),
+        [
+            ("enabled__value=true", {"enabled__value": True}),
+            ("asn__value=65000", {"asn__value": 65000}),
+            ("name__value=123", {"name__value": "123"}),
+            ("name__value=true", {"name__value": "true"}),
+            ("site__name__value=true", {"site__name__value": "true"}),
+        ],
+    )
+    def test_attribute_value_filters_follow_schema_kind(self, arg: str, expected: dict[str, object]) -> None:
+        """Test that __value filters are typed by the attribute kind and other values stay strings."""
+        kinds = {"enabled": "Boolean", "asn": "Number", "name": "Text"}
+        schema = MagicMock()
+        schema.get_attribute_or_none.side_effect = lambda name: (
+            SimpleNamespace(kind=kinds[name]) if name in kinds else None
+        )
+        assert parse_filter_args([arg], schema=schema) == expected
+
+    def test_invalid_integer_filter_value_raises_bad_parameter(self) -> None:
+        """Test that a value that is not an integer raises BadParameter for a Number attribute filter."""
+        schema = MagicMock()
+        schema.get_attribute_or_none.return_value = SimpleNamespace(kind="Number")
+        with pytest.raises(typer.BadParameter, match="Expected an integer"):
+            parse_filter_args(["asn__value=abc"], schema=schema)
 
 
 class TestValidateSetFields:
