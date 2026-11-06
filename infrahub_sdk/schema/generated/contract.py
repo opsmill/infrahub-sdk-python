@@ -16,6 +16,7 @@ READ_ONLY_FIELDS: dict[str, frozenset[str]] = {
     "ComputedAttributeJinja2Write": frozenset({"id", "state", "transform"}),
     "ComputedAttributeTransformPythonWrite": frozenset({"id", "jinja2_template", "state"}),
     "ComputedAttributeUserWrite": frozenset({"id", "jinja2_template", "state", "transform"}),
+    "ContainerSchemaWrite": frozenset({"id", "inherited"}),
     "DropdownChoiceWrite": frozenset({"id", "state"}),
     "GenericAttributeWrite": frozenset({"inherited"}),
     "GenericSchemaWrite": frozenset({"hash", "kind", "used_by"}),

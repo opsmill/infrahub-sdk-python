@@ -134,6 +134,23 @@ def test_valid_payload_passes() -> None:
     result.raise_for_status()
 
 
+def test_valid_payload_with_containers_passes() -> None:
+    schema = _valid_schema()
+    node = schema["nodes"][0]
+    node["containers"] = [
+        {"name": "inventory", "label": "Inventory", "description": "Serial details.", "order_weight": 1000},
+        {"name": "monitoring", "label": "Monitoring", "collapsed": True},
+    ]
+    node["attributes"][0]["container"] = "inventory"
+    node["relationships"][0]["container"] = "monitoring"
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert result.errors == []
+    assert result.warnings == []
+
+
 def test_valid_payload_with_extensions_block_passes() -> None:
     schema = _valid_schema()
     schema["extensions"] = {

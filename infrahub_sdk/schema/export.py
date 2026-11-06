@@ -75,6 +75,16 @@ def schema_to_export_dict(schema: NodeSchemaAPI | GenericSchemaAPI) -> dict[str,
     data.pop("attributes", None)
     data.pop("relationships", None)
 
+    containers = [
+        container.model_dump(exclude=_FIELD_EXPORT_EXCLUDE, exclude_none=True)
+        for container in schema.containers
+        if not container.inherited
+    ]
+    if containers:
+        data["containers"] = containers
+    else:
+        data.pop("containers", None)
+
     # Generics with Hierarchy relationships were defined with `hierarchical: true`.
     # Restore that flag and drop the auto-generated rels so the schema round-trips cleanly.
     if isinstance(schema, GenericSchemaAPI) and any(

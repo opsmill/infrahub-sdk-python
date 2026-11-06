@@ -22,6 +22,7 @@ from .generated.read import (
     AttributeSchemaBaseRead,
     BaseNodeSchemaRead,
     ComputedAttributeRead,  # noqa: F401  (re-exported here to resolve the inherited forward reference)
+    ContainerSchemaRead,
     GenericSchemaRead,
     NodeSchemaRead,
     ProfileSchemaRead,
@@ -31,6 +32,7 @@ from .generated.read import (
 from .generated.write import (
     AttributeSchemaBaseWrite,
     ComputedAttributeWrite,  # noqa: F401  (re-exported here to resolve the inherited forward reference)
+    ContainerSchemaWrite,
     GenericSchemaWrite,
     NodeSchemaWrite,
     RelationshipSchemaWrite,
@@ -54,6 +56,8 @@ __all__ = [
     "BranchSchema",
     "BranchSupportType",
     "ComputedAttributeKind",
+    "ContainerSchemaRead",
+    "ContainerSchemaWrite",
     "GenericSchema",
     "GenericSchemaAPI",
     "NodeSchema",
