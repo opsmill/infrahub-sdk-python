@@ -66,7 +66,6 @@ class Attribute:
             the attribute does not belong to a node, or the node has no ``id`` yet.
         is_default (bool | None): True when the value comes from the schema default.
         is_from_profile (bool | None): True when the value is inherited from a profile.
-        is_inherited (bool | None): True when the attribute is inherited from a generic.
         is_protected (bool | None): True when the attribute is protected from modification.
         updated_at (str | None): ISO-8601 timestamp of the most recent update.
         source (NodeProperty | None): The node that supplied this attribute value.
@@ -107,8 +106,6 @@ class Attribute:
         self._properties_flag = PROPERTIES_FLAG
         self._properties_object = PROPERTIES_OBJECT
         self._properties = self._properties_flag + self._properties_object
-
-        self._read_only = ["updated_at"]
 
         self.id: str | None = data.get("id")
 
