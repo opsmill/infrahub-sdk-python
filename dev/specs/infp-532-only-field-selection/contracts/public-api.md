@@ -85,7 +85,7 @@ A read raises only when the field is not loaded (`is_loaded` is `False`) **and**
 
 | Field object | Raises on | Never raises `FieldNotLoadedError` on |
 |---|---|---|
-| `Attribute` | `value` | `is_loaded`, `name`, `id`, `is_default`, `is_from_profile`, `is_inherited`, `updated_at`, `is_protected`, `source`, `owner`, `updated_by` |
+| `Attribute` | `value` | `is_loaded`, `name`, `id`, `is_default`, `is_from_profile`, `updated_at`, `is_protected`, `source`, `owner`, `updated_by` |
 | `RelatedNode`, `RelatedNodeSync` (cardinality one, `parent`) | `id`, `hfid`, `hfid_str`, `display_label`, `typename`, `kind`, `peer`, `get()`, `fetch()` | `is_loaded`, `initialized`, `is_resource_pool`, `is_from_profile`, `name`, `schema`, relationship properties |
 | `RelationshipManager`, `RelationshipManagerSync` (cardinality many, `children`, `ancestors`, `descendants`) | `peers`, `peer_ids`, `peer_hfids`, `peer_hfids_str`, indexing, iteration, `is_from_profile` | `is_loaded`, `initialized`, `has_update`, `name`, `schema`, `fetch()` |
 
