@@ -4,7 +4,8 @@ description: >-
   Watches an open pull request's CI until green and fixes failing checks. TRIGGER when: the user
   wants to watch a pull request's CI, babysit a PR until it goes green, or fix failing CI checks
   on an open PR. DO NOT TRIGGER when: opening the PR in the first place → opsmill-dev-pr; rebasing the branch
-  onto its base → opsmill-dev-rebase.
+  onto its base → opsmill-dev-rebase; addressing a reviewer's or review bot's comments rather than CI
+  failures → opsmill-dev-addressing-review.
 argument-hint: Optional PR number or URL (defaults to the PR for the current branch)
 compatibility: Requires a Git working tree and GitHub access (gh CLI authenticated). Local reproduction uses whatever toolchain the project itself defines.
 metadata:
@@ -36,7 +37,7 @@ This skill is designed to run as a **background agent**, not in the user's foreg
 
 **Supported arguments:**
 
-- _(no args)_ — Use the PR for the current branch.
+- *(no args)* — Use the PR for the current branch.
 - `<PR-number>` — Use the PR with that number on the current repo.
 - `<PR-URL>` — Use the PR at that GitHub URL.
 
@@ -111,7 +112,9 @@ Every fix attempt produces exactly one new commit on the branch, appended to `fi
    - The test runner(s) and how to target a single test.
    - Any code-generation steps whose outputs are checked in (GraphQL schemas, OpenAPI clients, protobufs, generated SDKs) — CI often fails when these are stale.
 
-7. **Report to the user:** PR number, title, branch, baseline commit short SHA, current statusCheckRollup summary (counts of pending/success/failure). Then proceed.
+7. **Report to the user:** PR number, title, branch, baseline commit short SHA, whether the PR is a draft (`isDraft` from step 2), and the current statusCheckRollup summary (counts of pending/success/failure). Then proceed.
+
+**Draft PRs are monitored exactly like ready-for-review PRs** — CI runs on drafts, so this skill watches, reproduces, fixes, and retries identically. Never skip or short-circuit monitoring just because the PR is a draft, and never mark a draft as ready-for-review yourself (that is the user's call, like merging). The only draft-specific nuance is the check-gating caveat in Phase 1 step 2.
 
 ---
 
@@ -132,6 +135,7 @@ The goal of this phase is to discover whether the CI is currently passing, faili
    - Poll every 60 seconds: `gh run list --branch <branch> --limit 10 --json databaseId,status,conclusion,headSha`. Where available, prefer a single blocking `gh run watch <run-id>` over polling.
    - Be patient — CI can take 30+ minutes on repos with heavy integration or end-to-end suites.
    - If nothing has appeared after 5 minutes from a fresh push, investigate whether the push triggered a workflow at all (`gh run list --branch <branch> --limit 5`). Stalled webhooks happen.
+   - **Draft-gated checks:** if the PR is a draft and expected checks never appear, inspect the workflow triggers (`.github/workflows/`) for a `draft == false` guard (e.g. `if: github.event.pull_request.draft == false`, or a `types:` list that omits draft events). Such checks are *designed* not to run until the PR is marked ready — do **not** treat their absence as a failure or as green, and do **not** mark the PR ready to force them. Monitor the checks that do run on drafts, and call out the draft-gated ones in the final report so the user knows they'll run when they flip the PR to ready.
 
 3. **Once all runs for the SHA are `completed`:**
 
@@ -256,9 +260,7 @@ Don't push until the relevant local checks are green. This is where most "blind 
 
 1. **Run the project's local validation gate** before every push — the lint/format command discovered in Phase 0 step 6 (the same checks that gate every PR). If the project defines no such gate, skip this step. If it fails, fix and re-run before pushing.
 
-2. **Re-run the specific track's local check** that failed in Phase 3 (the targeted test, hook, or build) to confirm the fix sticks.
-
-> **Gate (T2-verify · P1):** paste both the local reproduction of the CI failure and the local run showing your fix resolves it, before pushing. See `../quality-gates/gates/primitives/evidence-before-done.md`.
+2. **Re-run the specific track's local check** that failed in Phase 3 (the targeted test, hook, or build) to confirm the fix sticks. Keep both runs — the local reproduction of the CI failure and the passing run after the fix — in the report.
 
 3. **Generated-artefact guard.** If the project checks in generated artefacts (GraphQL schemas, OpenAPI clients, generated SDK types, protobufs) and the diff touches their sources, regenerate using the project's documented commands before committing — CI commonly fails on stale generated files.
 
@@ -273,7 +275,7 @@ Don't push until the relevant local checks are green. This is where most "blind 
 
 5. **Push to origin** (no force-push; these are new commits, not history rewrites):
 
-   > **Ship gate (T2 · P2 + P3) — before declaring CI resolved / the final push.** Run the ship gate per `../quality-gates/gates/primitives/independent-judge.md` (judge → on-FAIL STOP → R2 degrade → write receipt on PASS, all defined there). R1 criteria: the failing CI job's logs verbatim (the failure being fixed — NOT your summary). Artifact: the diff of your fix commits. Forbidden evasions: the CI-fix-gate evasions from `../quality-gates/gates/primitives/anti-gaming.md`. The judge confirms the fix addresses the failure's cause, not flake-suppression. Paste the green CI run as evidence.
+   > **Optional independent verdict:** run `/opsmill-dev-judging-changes <the pre-fix failing CI log> artifact: <diff of the fix commits>` (gate kind `ci-fix`) before the final push. Only repos that enforce ship-gate receipts (`.claude/quality-gates/enabled`) require it.
 
    ```bash
    git push origin <branch>
@@ -375,6 +377,8 @@ gathered before pushing speculatively.>
 ### Current State
 
 - Branch: `<branch>` at `<final sha>`
+- Draft: yes / no
+- Draft-gated checks not yet run: <list checks that will only run once the PR is marked ready, or "none">
 - Uncommitted changes: <yes/no — `git status --short`>
 - Reverted: yes / no
 
@@ -396,17 +400,9 @@ docs to update.>
 - **No `--no-verify`.** Pre-commit hooks are typically the same checks CI runs. Bypassing them locally just delays the failure; fix the underlying issue.
 - **No force-push outside revert.** Each fix is a new commit appended to the branch. The only force-push this skill performs is the Phase 6 revert, and only after explicit user approval.
 - **Don't merge.** Even when CI goes green, this skill does not merge the PR. Report and stop.
+- **Don't change draft status.** Draft PRs are monitored the same as ready-for-review ones, but marking a draft ready (or a ready PR back to draft) is always the user's call — never do it to force draft-gated checks to run.
 - **Stay on the PR's branch.** Never switch branches mid-loop; never edit files while a debugger or paused test run holds state on a different branch.
 - **Respect project conventions.** If the project's context (`AGENTS.md`, a constitution, contribution guide) requires test coverage or docs for new behaviour, and a fix introduces new behaviour rather than just patching an existing path, flag this in the final report so the user knows additional coverage is owed.
-
-## Quality gates
-
-Gates for this skill follow `../quality-gates/gates/gate-model.md`. `monitoring-pull-requests` is **Tier 2 — it watches CI and pushes fixes in a loop**.
-
-| Gate | Step / trigger | Tier | Primitives | Pass criteria | On-fail |
-|---|---|---|---|---|---|
-| Local-repro | each CI-fix iteration | T2-verify | P1 | The failure reproduces locally and the fix resolves it. Paste both runs. | STOP; do not push |
-| CI-resolved | before declaring the PR green / final push | T2-ship | P2 + P3 | A fresh judge confirms the fix addresses the CI failure's cause, not a flake-suppression. Paste the green CI run. R1 criteria: the failing CI job's log from the pre-fix run, fetched fresh — this is the "original criteria" the judge receives verbatim to satisfy the R1 contract. | STOP; keep iterating or revert per the skill's retry policy |
 
 ## Expected Outcome
 

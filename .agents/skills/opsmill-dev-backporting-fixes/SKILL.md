@@ -75,15 +75,13 @@ If either is ambiguous (direction unclear, or only a ticket given), confirm the 
    - Do **not** ship code that emits the right signal but is silently ignored downstream — that *looks* fixed and is worse than an honest gap.
    - Land the part that works, and capture the rest as a linked follow-up (use `creating-issues`), recording the root cause and the architectural constraint.
 
-7. **Validate the ported fix on the target.** Re-run the reproduction test and the reconciled tests **on the target worktree** — passing on the source branch proves nothing here. For runtime-behavioral fixes, exercise it for real (build/run) the way the source fix was validated, not just unit tests.
-
-   > **Gate (T2-verify · P1):** paste the test/run output from the target worktree showing the ported fix actually works there. See `../quality-gates/gates/primitives/evidence-before-done.md`.
+7. **Validate the ported fix on the target.** Re-run the reproduction test and the reconciled tests **on the target worktree** — passing on the source branch proves nothing here. Keep the target-worktree run's output in the report. For runtime-behavioral fixes, exercise it for real (build/run) the way the source fix was validated, not just unit tests.
 
 8. **Changelog: don't duplicate an entry that will sync over.** If the project uses fragment-based changelogs and the source fix already carries a fragment, that fragment usually arrives on the target through the normal release→development sync. Adding your own duplicates it (and can collide on the next sync). Check whether the fragment already exists on the source branch; if so, omit it here. Add a fragment only when the target genuinely needs one the source won't provide. (Confirm against the project's changelog convention.)
 
 9. **Commit and open the PR** against the **target base** (not the repo default). Delegate branch/commit discipline to `/opsmill-dev-commit` and PR creation to `/opsmill-dev-pr`, then drive CI with `/opsmill-dev-monitoring-pull-requests`.
 
-   > **Ship gate (T2 · P2 + P3) — before `gh pr create`.** Run the ship gate per `../quality-gates/gates/primitives/independent-judge.md` (judge → on-FAIL STOP → R2 degrade → write receipt on PASS). R1 criteria: the source fix's diff and its tests verbatim, plus the target's current code in the touched area (NOT your summary). Artifact: `git diff origin/<target-base>...HEAD`. Forbidden evasions: the merge/rebase-gate evasions in `../quality-gates/gates/primitives/anti-gaming.md`. The judge confirms the fix was **adapted to the target's actual code** (not blindly cherry-picked), is **re-validated on the target**, and any **target-blocked sub-case was descoped into a follow-up**, not shipped as a silent no-op.
+   > **Optional independent verdict:** run `/opsmill-dev-judging-changes <the source fix's PR or issue> artifact: <the target-branch diff>` (gate kind `fix`) before `gh pr create` to confirm the fix was adapted to the target's code, not blindly cherry-picked. Only repos that enforce ship-gate receipts (`.claude/quality-gates/enabled`) require it.
 
 10. **Report**: the PR URL and base branch, the final CI status from `/opsmill-dev-monitoring-pull-requests`, what was adapted vs applied as-is, what (if anything) was descoped and the follow-up issue link, and the changelog decision.
 
@@ -96,15 +94,6 @@ If either is ambiguous (direction unclear, or only a ticket given), confirm the 
 - **Target the right base branch** — usually not the repo default for a backport.
 - **Don't duplicate a changelog fragment** that the normal branch sync will carry over.
 - The skill's only outputs are the backport branch and its PR; it never pushes to the source, target, or any long-lived branch directly (that is `/opsmill-dev-commit`'s discipline).
-
-## Quality gates
-
-Gates for this skill follow `../quality-gates/gates/gate-model.md`. `backporting-fixes` is **Tier 2 — it lands an adapted fix and opens a PR**.
-
-| Gate | Step / trigger | Tier | Primitives | Pass criteria | On-fail |
-|---|---|---|---|---|---|
-| Validated-on-target | before opening the PR | T2-verify | P1 | Reproduction + reconciled tests pass **on the target worktree** (paste output); runtime fixes exercised for real. | STOP |
-| Adapted-not-copied | before `gh pr create` | T2-ship | P2 + P3 | A fresh judge confirms the fix was adapted to the target's current code (not blindly cherry-picked), re-validated on the target, and any target-blocked sub-case was descoped into a follow-up rather than shipped as a silent no-op. | STOP; adapt/descope; do not open the PR |
 
 ## Per-Project Specifics
 
