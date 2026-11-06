@@ -41,3 +41,6 @@ infrahub_sdk/_version.py
 # SpecKit internal cache
 .specify/**/.cache/
 .specify/feature.json
+
+# Review receipts written by the OpsMill quality-gates/judging-changes skill; tied to one commit, never committed
+.claude/quality-gates/receipts/
