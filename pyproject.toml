@@ -125,6 +125,11 @@ addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dis
 
 [tool.ty]
 
+[tool.ty.src]
+exclude = [
+    ".specify/**",
+]
+
 [tool.ty.environment]
 python-version = "3.10"
 
@@ -304,6 +309,7 @@ exclude = [
     "dist",
     "examples",
     "tests/fixtures/unit/test_graphql_plugin",
+    ".specify",
 ]
 
 
