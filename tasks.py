@@ -466,3 +466,51 @@ def schema_drift_update(context: Context) -> None:  # noqa: ARG001
 
     write_baseline(fetch_live_properties())
     print(f"Updated {BASELINE_PATH}")
+
+
+INTEGRATION_TEST_DIRECTORY = "tests/integration"
+
+# CI runs one job per shard (keep in sync with the shard matrix in .github/workflows/ci.yml).
+# Unlisted files run in the catch-all shard. Files are grouped only to balance job
+# durations; to rebalance, see "Integration test shards" in tests/AGENTS.md.
+INTEGRATION_TEST_SHARDS: dict[str, list[str]] = {
+    "listed": [
+        "test_enduser_cli.py",
+        "test_export_import.py",
+        "test_infrahubctl.py",
+        "test_repository.py",
+        "test_schema.py",
+        "test_spec_object.py",
+    ],
+}
+INTEGRATION_TEST_CATCHALL_SHARD = "other"
+
+
+def _integration_shard_targets(shard: str) -> str:
+    """Build the pytest path arguments for an integration test shard.
+
+    The catch-all shard uses --ignore flags only: pytest drops an explicit child path
+    when its parent directory is also passed.
+
+    Raises:
+        Exit: If the shard name is unknown.
+
+    """
+    if shard == INTEGRATION_TEST_CATCHALL_SHARD:
+        ignored = [path for paths in INTEGRATION_TEST_SHARDS.values() for path in paths]
+        ignore_args = " ".join(f"--ignore={INTEGRATION_TEST_DIRECTORY}/{path}" for path in ignored)
+        return f"{INTEGRATION_TEST_DIRECTORY} {ignore_args}"
+    if shard not in INTEGRATION_TEST_SHARDS:
+        valid_shards = ", ".join([*INTEGRATION_TEST_SHARDS, INTEGRATION_TEST_CATCHALL_SHARD])
+        raise Exit(f"Unknown integration test shard '{shard}', expected one of: {valid_shards}", code=1)
+    return " ".join(f"{INTEGRATION_TEST_DIRECTORY}/{path}" for path in INTEGRATION_TEST_SHARDS[shard])
+
+
+@task(name="tests-integration", help={"shard": "Run only this CI shard: listed or other"})
+def run_integration_tests(context: Context, shard: str | None = None) -> None:
+    """Run the integration tests with coverage, optionally restricted to one CI shard."""
+    targets = _integration_shard_targets(shard) if shard else INTEGRATION_TEST_DIRECTORY
+    exec_cmd = f"pytest --cov infrahub_sdk --durations=0 --durations-min=1.0 {targets}"
+    print(f" - Run integration tests: {exec_cmd}")
+    with context.cd(MAIN_DIRECTORY_PATH):
+        context.run(exec_cmd)
