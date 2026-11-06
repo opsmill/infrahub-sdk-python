@@ -411,6 +411,9 @@ max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
 
+# Agent hooks are standalone scripts run by Claude Code and Codex, outside the project's code.
+".agents/hooks/*.py" = ["ALL"]
+
 "infrahub_sdk/schema/generated/*.py" = [
     # Generated pydantic models use `from __future__ import annotations`, so the enum imports
     # they reference are required at runtime for pydantic to resolve the annotations; moving
