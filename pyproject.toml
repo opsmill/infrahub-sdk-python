@@ -125,6 +125,11 @@ addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dis
 
 [tool.ty]
 
+[tool.ty.src]
+exclude = [
+    ".specify/**",
+]
+
 [tool.ty.environment]
 python-version = "3.10"
 
@@ -304,6 +309,7 @@ exclude = [
     "dist",
     "examples",
     "tests/fixtures/unit/test_graphql_plugin",
+    ".specify",
 ]
 
 
@@ -404,6 +410,9 @@ max-line-length = 150
 max-complexity = 14
 
 [tool.ruff.lint.per-file-ignores]
+
+# Agent hooks are standalone scripts run by Claude Code and Codex, outside the project's code.
+".agents/hooks/*.py" = ["ALL"]
 
 "infrahub_sdk/schema/generated/*.py" = [
     # Generated pydantic models use `from __future__ import annotations`, so the enum imports
@@ -563,6 +572,7 @@ exclude = [
     ".claude/skills",
     ".specify/templates",
     ".specify/extensions",
+    ".specify/presets",
 ]
 
 [tool.rumdl.MD025]
