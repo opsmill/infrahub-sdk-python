@@ -18,6 +18,7 @@ from infrahub_sdk.schema import GenericSchema, NodeSchema, ProfileSchemaAPI
 from infrahub_sdk.task.models import Task, TaskFilter, TaskLog, TaskState
 from infrahub_sdk.testing.docker import TestInfrahubDockerClient
 from infrahub_sdk.testing.schemas.animal import TESTING_ANIMAL, TESTING_CAT, TESTING_DOG, TESTING_PERSON, SchemaAnimal
+from infrahub_sdk.timestamp import Timestamp
 from infrahub_sdk.types import Order
 
 
@@ -350,7 +351,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
 
     async def test_node_metadata_with_all(self, client: InfrahubClient, base_dataset: None) -> None:
         nodes = await client.all(kind=TESTING_CAT, include_metadata=True)
-        assert nodes
+        assert {"Bella", "Luna"} <= {node.name.value for node in nodes}
 
         for node in nodes:
             metadata = node.get_node_metadata()
@@ -367,26 +368,26 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
         )
         await disposable.save()
 
-        node = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+        try:
+            node = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
 
-        assert node.name.updated_by.display_label == "Admin"
-        assert node.breed.updated_by.display_label == "Admin"
-        original_name_updated_at = node.name.updated_at
-        original_breed_updated_at = node.breed.updated_at
+            assert node.name.updated_by.display_label == "Admin"
+            assert node.breed.updated_by.display_label == "Admin"
+            original_name_updated_at = node.name.updated_at
+            original_breed_updated_at = node.breed.updated_at
+            assert original_name_updated_at is not None
 
-        node.name.value = "MetadataTestCat Updated"
-        await node.save()
+            node.name.value = "MetadataTestCat Updated"
+            await node.save()
 
-        assert original_name_updated_at is not None
-
-        node_after = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
-        assert node_after.name.value == "MetadataTestCat Updated"
-        assert node_after.name.updated_by.display_label == "Admin"
-        assert node_after.name.updated_at is not None
-        assert node_after.name.updated_at > original_name_updated_at
-        assert node_after.breed.updated_at == original_breed_updated_at
-
-        await node_after.delete()
+            node_after = await client.get(kind=TESTING_CAT, id=disposable.id, include_metadata=True)
+            assert node_after.name.value == "MetadataTestCat Updated"
+            assert node_after.name.updated_by.display_label == "Admin"
+            assert node_after.name.updated_at is not None
+            assert Timestamp(node_after.name.updated_at) > Timestamp(original_name_updated_at)
+            assert node_after.breed.updated_at == original_breed_updated_at
+        finally:
+            await disposable.delete()
 
     async def test_relationship_metadata_cardinality_one(
         self, client: InfrahubClient, base_dataset: None, cat_luna: InfrahubNode
@@ -401,20 +402,7 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
     async def test_relationship_metadata_cardinality_many(
         self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
     ) -> None:
-        # Use include=["animals"] rather than prefetch_relationships=True.
-        # prefetch_relationships=True recursively fetches each animal's peer relationships,
-        # which in turn include person_ethan's null favorite_animal cardinality-one relationship.
-        # The server GraphQL schema marks NestedEdgedTestingAnimal.node_metadata as non-nullable,
-        # so requesting include_metadata=True on that null edge causes the server to silently
-        # return empty edges. include=["animals"] fetches only the animals relationship shallowly.
-        # Also exclude favorite_animal (null cardinality-one inbound) for the same reason.
-        node = await client.get(
-            kind=TESTING_PERSON,
-            id=person_ethan.id,
-            include_metadata=True,
-            include=["animals"],
-            exclude=["favorite_animal"],
-        )
+        node = await client.get(kind=TESTING_PERSON, id=person_ethan.id, include_metadata=True, include=["animals"])
 
         assert node.animals.peers
         for peer in node.animals.peers:
@@ -422,6 +410,16 @@ class TestInfrahubNode(TestInfrahubDockerClient, SchemaAnimal):
             assert isinstance(rel_metadata, RelationshipMetadata)
             assert rel_metadata.updated_at is not None
             assert rel_metadata.updated_by.display_label == "Admin"
+
+    async def test_relationship_metadata_empty_cardinality_one_to_generic(
+        self, client: InfrahubClient, base_dataset: None, person_ethan: InfrahubNode
+    ) -> None:
+        # favorite_animal has a generic peer and is empty for this person
+        node = await client.get(kind=TESTING_PERSON, id=person_ethan.id, include_metadata=True)
+
+        assert isinstance(node.get_node_metadata(), NodeMetadata)
+        assert not node.favorite_animal.id
+        assert node.favorite_animal.get_relationship_metadata() is None
 
     @pytest.mark.xfail(reason="https://github.com/opsmill/infrahub-sdk-python/issues/733")
     async def test_recorder_with_playback_rewrite_host(
