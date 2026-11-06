@@ -1,0 +1,19 @@
+changelog/995.removed.md
+  s_a498b06f83da8b::t_c46b52b679825c 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b98aecec283ff33bc3a2768652119a13b9faf14c",
+  "prompts": {},
+  "sessions": {
+    "s_a498b06f83da8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "842f3e03-3314-490b-994b-d59c5c40335c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Saltaferis Dimitrios <d.saltaferis@gmail.com>"
+    }
+  }
+}
