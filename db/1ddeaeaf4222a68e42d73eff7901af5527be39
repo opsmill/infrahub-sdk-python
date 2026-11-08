@@ -1,0 +1,21 @@
+.claude/settings.json
+  s_49a51a4d0c7bfa::t_cf1221fc5062ff 1-15
+.codex/hooks.json
+  s_49a51a4d0c7bfa::t_43e796c6e81a21 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db1ddeaeaf4222a68e42d73eff7901af5527be39",
+  "prompts": {},
+  "sessions": {
+    "s_49a51a4d0c7bfa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e7d51f1-c81d-40a7-9a00-6ff7ac07a921",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
