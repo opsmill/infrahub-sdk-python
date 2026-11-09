@@ -1,1 +1,0 @@
-Added support for the new `IPAddress` attribute kind. Values are exposed as bare `ipaddress.IPv4Address`/`IPv6Address` objects (no prefix) and serialized to a bare-address string when writing, alongside the existing `IPHost` and `IPNetwork` kinds.

@@ -11,6 +11,192 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
 
 <!-- towncrier release notes start -->
 
+## [1.24.0](https://github.com/opsmill/infrahub-sdk-python/tree/v1.24.0) - 2026-11-09
+
+### Security
+
+- Raised the `graphql-core` requirement from `>=3.1` to `>=3.2.12`, so installing the SDK can no longer resolve a release affected by CVE-2026-75507 or CVE-2026-75508. Both are denial-of-service bugs: one in the validation rule that checks for conflicting fields, which `infrahubctl graphql generate-return-types` runs, and one in the parser, which ignored comments when counting tokens. With 3.2.12 or later, a query that would make field-conflict validation run for minutes now fails validation with an error instead.
+
+### Removed
+
+- `numpy` and `mdxify` are no longer installed by the `ctl` and `all` extras.
+
+  Neither is used by the SDK. `numpy` was only ever needed because older `pyarrow` releases required it, and `pyarrow` still installs it itself on the versions that do. `mdxify` is a documentation tool used when building these docs, not at runtime.
+
+  If your project imports either package directly, add it to your own dependencies rather than relying on `infrahub-sdk[ctl]` to supply it.
+
+### Deprecated
+
+- Deprecated support for Python 3.10. Python 3.10 is end of life, and `infrahub-sdk` 1.24.0 is the last release that supports Python 3.10. The next release removes that support.
+
+### Added
+
+- A `CoreNumberPool` can be created with its ranges in one call, by passing `ranges` as a list of dictionaries with `start`, `end` and `allocation_weight`, any of which can be left out. Saving with `allow_upsert=True` sets the ranges of an existing pool to the declared list. Before, the SDK sent each range as an empty object, which Infrahub read as one range without a start or an end. A single range of an existing pool is still created, changed or deleted through its `CoreNumberPoolRange` node. An object file declares the same list under `ranges`, as objects holding the bounds, on a new pool and on one that already exists. Requires Infrahub 1.12 or later.
+- Add the `connect_timeout` setting (`INFRAHUB_CONNECT_TIMEOUT`, default 10 seconds) so the TCP/TLS connection phase of every request is bounded separately from the request `timeout`. An unreachable address now fails fast instead of consuming the whole request budget, which lets endpoints published through DNS round robin fall over to the next address quickly.
+- Add the `infrahubctl troubleshooting trace-sample-ratio` commands to read, set and clear the temporary trace sampling ratio of an Infrahub instance.
+- Add the `shared` option to `GitRepo` in `infrahub_sdk.testing.repository`. With `shared=True`, every user on the machine can read and write the Git repository that `GitRepo` creates, so Infrahub containers that run as another user than the test process can fetch from it and push to it. The default, `False`, keeps the current behavior.
+- Added support for Python 3.15. The `requires-python` range now allows 3.15, and the unit tests run on 3.15 in CI.
+- Added the `only` argument to `get`, `all`, `filters` and relationship `fetch`, to fetch only the named attributes and relationships; reading a field that was not fetched raises `FieldNotLoadedError`, and `is_loaded` tells whether a field was fetched.
+- Added the location, the received value and the reason as separate fields (`loc`, `input`, `reason`) on every schema validation error, next to the unchanged `field` and `message`, so a consumer can report each problem without parsing the message text.
+- Codes in Infrahub's error catalogue now raise an exception class of their own, importable from `infrahub_sdk.exceptions`, carrying the failure's payload as directly typed attributes. Identifying a specific failure no longer means matching words in a message:
+
+  ```python
+  from infrahub_sdk.exceptions import ApiError, UniquenessViolationError
+
+  try:
+      await node.save()
+  except UniquenessViolationError as exc:
+      print(exc.node_kind, exc.fields)   # "TestPerson", ["name"]
+  except ApiError as exc:
+      print("some other failure:", exc.code)
+  ```
+
+  The new classes are `AttributeConstraintViolationError`, `AttributeInvalidTypeError`, `AttributeRequiredError`, `BranchAlreadyMergedError`, `BranchNeedsRebaseError`, `MergeInProgressError`, `MergeRecoveryRequiredError`, `UndefinedError`, and `UniquenessViolationError`. Each is typed exactly as the catalogue declares the payload, so a required field is never optional and needs no guard. They all descend from `GraphQLError`, so no `except` clause stops catching what it catches today. `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND` and `SCHEMA_NOT_FOUND` reach the classes the SDK already had for them, listed under Changed.
+
+  `exc.http_status` reads the status the envelope declares. Where the envelope omits one, a generated class supplies the status the catalogue gives its code; the three lookup-miss classes declare none, since they are also raised with no server behind them, and stay `None` there.
+
+  `AUTHENTICATION_REQUIRED`, `TOKEN_EXPIRED`, and `PERMISSION_DENIED` deliberately have no class of their own: each of them reaches the SDK on two transports, and which generic class it raises follows the transport the SDK observed rather than the status the code declares. Catch `ApiError` and test `exc.code` to handle one of the three whichever way it arrived.
+
+  A server predating a code, or one whose payload does not match what the catalogue declares for it, still raises the generic class for the transport with `exc.code` readable, so an SDK of any version keeps working against a server of any version.
+
+  `docs/python-sdk/topics/error_handling` covers the hierarchy, the attributes readable on a caught error, and the cross-version guarantees.
+- Number attributes have `attach_to_pool()` and `detach_from_pool()`. `attach_to_pool()` makes a number pool track the number the attribute holds, without allocating a new one, and `detach_from_pool()` makes the pool stop tracking it while the attribute keeps its number. Both take effect when the node is saved, and require Infrahub 1.12 or later.
+- Object files can now reference an existing node through a relationship whose peer is a generic, by giving the node's `kind` and `hfid`. When the generic has no HFID, a reference can also be an HFID alone, and the load uses the single node that matches it among the kinds that inherit from the generic. The load fails when no node or more than one node matches.
+- Resource pool nodes have `get_pool_allocations()`, which lists the resources a pool holds and, for a number pool, whether the pool allocated each number or a user attached it. Requires Infrahub 1.12 or later. `get_pool_allocated_resources()` is unchanged.
+- The SDK sends the W3C `traceparent` header with each request to Infrahub when OpenTelemetry is installed and a span is active, so the Infrahub server records its spans in the caller's trace. The new `tracing` extra installs the OpenTelemetry API.
+- The schema models accept `parameters.ranges` on NumberPool attributes, a list of ranges with an optional `start`, `end` and `weight`; a range without a `start` or an `end` is open on that side. The `start_range`/`end_range` shorthand is now optional and deprecated. `ranges` is `None` when a NumberPool attribute declares no range, which Infrahub reads as one range without a start or an end, and an empty list declares no range.
+- `query` and `variables` are now readable on every `ApiError`, not only on the GraphQL branch. Reading either off an `AuthenticationError` previously raised `AttributeError`:
+
+  ```python
+  try:
+      await client.execute_graphql(query=query)
+  except ApiError as exc:
+      log.error("request failed", code=exc.code, query=exc.query)   # no longer raises on a 401
+  ```
+
+  That clause is the one the SDK recommends for the three authentication codes, since each of them can arrive either on a real 401 or 403 or inside a GraphQL `errors` array, so it is exactly where the attributes had to exist. They join `code`, `http_status`, `extensions` and `errors`, which were already declared there for the same reason.
+
+  `None` means the failed request was not recorded on the exception rather than that there was no query: an authentication failure is observed at the transport, which has neither to hand. Nothing that reads these attributes today changes - `GraphQLError` still populates both from the request it was raised for.
+
+### Changed
+
+- `InfrahubGroupContext.delete_unused()` and its sync counterpart no longer raise. They attempt every unused member and return a `ReapResult`, importable from `infrahub_sdk.query_groups`, that lists the members the server refused to delete, the members the cleanup never reached, and the failure that stopped it, if any. A caller that invoked `delete_unused()` directly and relied on it raising must now inspect that result. `update_group()` and the tracking context manager still raise, as described below.
+
+  Leaving a tracking context whose cleanup was refused now raises `TrackingGroupCleanupError` once every member has been attempted and the tracking group has been written, in place of the first `GraphQLError`. If the group write itself fails, its error is raised instead. `TrackingGroupCleanupError` is not a `GraphQLError`, so a caller that caught the cleanup failure with `except GraphQLError` must catch it explicitly. A cleanup stopped by a failure that is not about a member, such as a timeout, still raises that failure itself. ([#572](https://github.com/opsmill/infrahub-sdk-python/issues/572))
+- Generators, transforms and checks run without an explicit branch now target the configured `default_branch` (`INFRAHUB_DEFAULT_BRANCH`, `main` by default) instead of the active branch of the local Git checkout. If you run `infrahubctl transform`, `generator` or `check` locally and relied on them following your Git branch, set `INFRAHUB_DEFAULT_BRANCH_FROM_GIT=true` or pass `--branch` explicitly. ([#1290](https://github.com/opsmill/infrahub-sdk-python/issues/1290))
+- A failure the server's error catalogue describes now carries a message naming that code and the server's own words, in place of the query text. `GraphQLError` previously rendered as `An error occurred while executing the GraphQL Query <query>, <errors>` and now reads `UNIQUENESS_VIOLATION: Node of kind TestPerson already has name 'John'`; `AuthenticationError` reads `AUTHENTICATION_REQUIRED: <reason>`. On both transports the code names the first error only, which is the one that determines the exception raised; the complete list stays on `exc.errors`, and the query and variables stay on `exc.query` and `exc.variables`.
+
+  A failure the catalogue does **not** describe keeps today's message exactly, query text and full error list included, as does one of the lookup-miss classes raised without a server behind it. That covers a server predating the catalogue, an error carrying no `extensions`, and, since a current server codes every error it reports, anything the server coded `UNDEFINED_ERROR`. `exc.code` is readable in every case, so it is not the test for which message form you are holding: `code_names_the_failure(exc.code)`, importable from `infrahub_sdk.exceptions`, is.
+
+  In `infrahubctl`, a described failure is now reported by its code and message rather than prefixed with `Authentication failure:` or rendered as a bare error list. An undescribed one renders exactly as before, so a GraphQL validation error still shows the line and column it failed on. Code matching on any of these strings should branch on `exc.code` instead.
+- A lookup miss the server reports - `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND` or `SCHEMA_NOT_FOUND` - now raises `NodeNotFoundError`, `BranchNotFoundError` or `SchemaNotFoundError` built from the payload the server sent, where it previously raised a generic `GraphQLError`:
+
+  ```python
+  try:
+      await client.delete(kind="NetworkDevice", id=device_id)
+  except NodeNotFoundError:
+      ...  # already gone
+  ```
+
+  These three are the only catalogued classes the SDK also raises on its own, for a lookup that returned nothing and for the REST 404 behind a missing file. A ladder that handles one of them specifically will now see server-reported failures arrive there alongside the SDK's own, and `exc.code is not None` tells the two apart.
+- Authentication failures now surface the server's error envelope. `AuthenticationError` and `GraphQLError` share a new `ApiError` base carrying `code`, `http_status`, `extensions`, and `errors`, so a caller can branch on the server's catalogue code instead of matching on message text.
+
+  A 401 or 403 whose body the SDK cannot read as an error envelope now raises `AuthenticationError` carrying the best reason available: the REST API's bare `detail` string where the body has one, and otherwise the plain status. Previously the same responses raised `JsonDecodeError` (or, from the object store and file handler, a raw `json.JSONDecodeError`) when the body was not JSON, and `TypeError` when the body carried an `errors` array whose entries had no `message`. A body that was JSON but carried no `errors` key raised `AuthenticationError` with its generic default message, dropping the status the server sent. Code that catches those types around `object_store`, `file_handler`, or a client request should catch `AuthenticationError` instead.
+
+  `from infrahub_sdk.exceptions import *` now yields exactly the exception classes. It previously also carried whatever the module imported for its own annotations, such as `Mapping` and `Any`. Every exception class keeps its name and its import path.
+- Changed `number_pool_id` in the parameters of a NumberPool attribute to a read-only field: schema validation now warns that the value is ignored instead of accepting it.
+- Generated protocols are now ordered by the class name they render rather than by the schema name without its namespace, so `BuiltinIPPrefix` no longer sorts under `IPPrefix`. Regenerating with `infrahubctl protocols` reorders the classes in your file and changes nothing else. The ordering is also total now. Kinds that the old key compared equal, two sharing a name and differing only in namespace, or two whose names differ only in case, previously fell back to whatever order the schema was supplied in, which could make the same schema render differently from one run to the next.
+- Raised the `rich` requirement from `>=12` to `>=12.6`, the first release that honours `FORCE_COLOR`. Earlier releases ignore the variable, so the test suite's rendering guard could not describe them; nothing in the SDK itself changes.
+- The `rich` requirement is now `>=12.6` with no upper bound, so the SDK can be installed alongside rich 14 and later.
+
+  The previous `<14` cap would otherwise have applied to every install rather than only those using the `infrahubctl` CLI, and would have conflicted with any project already on a newer rich. The SDK's unit tests pass against rich 13, 14 and 15.
+- The protocols shipped in `infrahub_sdk.protocols` now carry the peer type of every relationship, so `node.rel.peer` and `node.many_rel.peers[0].peer` resolve to the peer's protocol instead of a bare `InfrahubNode`, and a cardinality-one relationship can be assigned an id, an HFID, a peer node or `None`. They are generated by the same renderer as `infrahubctl protocols` rather than by a separate template, which also adds the relationships the API exposes implicitly (`member_of_groups`, `subscriber_of_groups`, `profiles`) and the `ProfileBuiltinIPAddress`, `ProfileBuiltinIPPrefix`, `ProfileBuiltinTag` and `ProfileIpamNamespace` kinds. Attributes that always hold a value are no longer typed as optional, and each attribute now follows its schema kind, so `CoreGlobalPermission.decision` and `CoreObjectPermission.decision` are `Integer` rather than `Enum`. Two relationships that the API never exposed, `CoreGenericAccount.tokens` and `CoreGenericAccount.external_identities`, are gone. Protocols generated for your own schema now import the four `Profile*` kinds above instead of redefining them.
+- Two extras now cover testing, replacing the `tests` extra.
+
+  `pip install 'infrahub-sdk[testing]'` installs pytest and enables the bundled `pytest-infrahub` plugin, which is what you want to test your own Transforms, Queries and Checks. `pip install 'infrahub-sdk[testcontainers]'` additionally provides `infrahub_sdk.testing.docker`, which starts a real Infrahub in containers so your tests can run against a live instance instead of mocked responses.
+
+  They are kept apart because the container tooling is a much heavier install. `[testing]` adds four packages on top of a plain install; `[testcontainers]` adds around sixty, among them Docker, FastAPI and Prefect client libraries. Previously you would have had to take all of it to get either.
+
+  The `tests` extra is gone. It stopped installing anything in 1.16.0 while the documentation carried on advertising it, so since then `pip install 'infrahub-sdk[tests]'` has warned about an unknown extra and installed only the base package. If you are coming from 1.15.2 or earlier, `[testing]` is the direct replacement for what `[tests]` gave you.
+- `NodeNotFoundError.identifier` is now annotated `Mapping[str, list[str]] | str`. The SDK already raised it with a plain string to name a missing file, so this documents behaviour that was always there; no runtime behaviour changes and no existing caller needs updating.
+- `NodeNotFoundError`, `BranchNotFoundError`, and `SchemaNotFoundError` now descend from `GraphQLError`, so that one class covers a lookup miss however it arose: reported by the server, decided by the SDK, or turned from a REST 404.
+
+  An `except GraphQLError` clause therefore also catches lookup misses that involved no GraphQL request at all. Code that relied on those escaping such a clause should catch the specific class ahead of it, as an ordered `except` ladder already must. Each class keeps its name, its constructor, and the message it produces when no server reported the failure, and `errors`, `query`, and `variables` are now readable on every one of them rather than missing on a client-side raise.
+
+  `NodeInvalidError` inherits the re-rooting but not the adopted code: it means a node of the wrong kind rather than a lookup miss, so `NodeInvalidError.CODE` is `None` where `NodeNotFoundError.CODE` is `NODE_NOT_FOUND`.
+- `ObjectFile.validate_content()` and `MenuFile.validate_content()`, their `spec` properties, and `InfrahubFile.validate_content()` now raise `infrahub_sdk.exceptions.ValidationError` when a file has one of these problems:
+
+  - a `kind` of the other file type, such as `kind: Menu` in an object file, which previously raised `ValueError`
+  - an unknown `kind` or `apiVersion`, or a missing `spec`, which previously raised a pydantic `ValidationError`
+  - a `spec` that does not match the object or menu format, which previously raised a pydantic `ValidationError` for menu files
+
+  The exception's `identifier` is the file location. `messages` holds one line per problem, such as `kind | Input should be 'Menu' or 'Object', received 'Schema' (enum)`. The line names the field and includes the wrong value when that value is a single string, number or boolean. `infrahubctl object load`, `object validate`, `menu load` and `menu validate` therefore report these problems as a validation error for the file instead of stopping with a Python traceback. `infrahubctl` also no longer drops text in square brackets from these messages.
+
+  The SDK `ValidationError` does not subclass `ValueError` or the pydantic `ValidationError`. Code that catches either of those around these methods should catch `infrahub_sdk.exceptions.ValidationError` instead.
+- `add()`, `extend()` and `remove()` on the `ranges` relationship of a `CoreNumberPool` now raise `FeatureNotSupportedError`, and `infrahubctl object update --set ranges=...` reports the same refusal before it changes anything. Before, `add()` and `extend()` dropped the range without an error, and `remove()` sent the remaining ranges as references, which Infrahub refused with a GraphQL error. To set the ranges of an existing pool, pass the complete list of ranges to `client.create()` and save the pool with `allow_upsert=True`, or declare them in an object file. To add, change or delete a single range, create, update or delete its `CoreNumberPoolRange` node.
+- `infrahub-sdk` now requires `pydantic>=2.0.3`, up from `>=2.0.0`.
+
+  If you pin `pydantic` to 2.0, 2.0.1 or 2.0.2, installing the SDK now fails while resolving dependencies. Those versions never actually worked: `import infrahub_sdk` raised a `SchemaError` on them, because their regex engine rejects a pattern used by the schema models. Pin `pydantic>=2.0.3` to resolve it.
+
+  `anyio` and `typing-extensions` are now installed as direct requirements of the SDK itself. It has always imported them but relied on other packages to pull them in, so a minimal or heavily constrained environment could end up with the SDK installed and unusable. No action is needed, installs simply become reliable.
+
+  `packaging` is now a direct requirement of the `testcontainers` extra, which is where the `infrahub_sdk.testing.docker` helper that imports it lives. A plain `pip install infrahub-sdk` does not install it.
+
+### Fixed
+
+- Tracking groups now reconcile correctly when a run saves no nodes at all. Previously `update_group()` returned early on an empty member list, so a generator that produced nothing (a decommissioning run) or a repository whose last object file was removed left every previously tracked node behind as an orphan, still listed in the group. With `delete_unused_nodes=True`, as generators and repository imports use it, a run that tracks nothing but has an existing group now prunes it; a run that tracks nothing and has no group still creates none. With `delete_unused_nodes=False` the existing group is not read, so a run that tracks nothing still leaves it unchanged.
+
+  The cleanup now deletes unused members on the branch the tracking context targets. It previously deleted them on the client's default branch, so on any other branch it removed the wrong node or found nothing to remove.
+
+  Cleanup is also no longer aborted by a single refused delete. `delete_unused()` attempts every unused member and reports the refusals together as `TrackingGroupCleanupError` instead of propagating the first one and silently skipping the rest. Members that could not be deleted are kept in the tracking group so a later run retries them. A refusal that persists, such as a node outside the run that still points at the member through a mandatory relationship, is raised again on every run until whatever blocks the deletion is removed; previously the member dropped out of the group after the first failure and stayed behind unnoticed.
+
+  A failure that is about the request rather than the member being deleted, such as a timeout, an expired token, or a branch that is gone or locked by a merge, stops the cleanup and is raised as itself rather than recorded against every remaining member in turn. The tracking group write is still attempted before that failure surfaces, listing the members the cleanup never reached along with the nodes the run created, so an interrupted cleanup no longer leaves those nodes in no group at all whenever the server can still accept the write. The member whose delete was interrupted stays in the group when the server answered, since a rejected delete removed nothing. When no answer came back, such as on a timeout, the delete may have gone through, so that member is left out of the group; if the delete in fact did not happen, it stays behind as before. When the write fails as well, usually for the same reason, the failure that stopped the cleanup is the one raised, with the write's failure as its cause.
+
+  `infrahubctl` renders `TrackingGroupCleanupError` as a table of each member and the server's reason instead of a traceback, and the exception can be serialized so it survives a task orchestrator's failure handling. ([#572](https://github.com/opsmill/infrahub-sdk-python/issues/572))
+- Sync protocols generated by `infrahubctl protocols` now inherit the `*Sync` variant of every base class that has one, instead of only `CoreNode`, `CoreProfile` and `CoreObjectTemplate`. A class inheriting another core kind (for example `BuiltinIPAddress` or `LineageSource`) previously kept the async base in its sync output, so its `save`, `delete` and `create` methods were typed as async and a correct sync call was reported as a missing `await`. Regenerate with `infrahubctl protocols`: sync classes that inherited an async base will now expose the sync methods, which may surface new type errors in code that relied on the old async signatures. ([#1276](https://github.com/opsmill/infrahub-sdk-python/issues/1276))
+- Fixed `infrahubctl generator`, which exited with `The node doesn't have an attribute for name` instead of running when the target group contained members of a kind without a `name` attribute. The generator definition parameters are now resolved the same way Infrahub resolves them when it runs a generator, so those targets work and every declared parameter reaches the query instead of only the first one. ([#1289](https://github.com/opsmill/infrahub-sdk-python/issues/1289))
+- Fixed `infrahubctl generator`, `transform` and `check` failing with `BranchNotFoundError` when run without `--branch` while the active local Git branch did not exist in Infrahub. ([#1290](https://github.com/opsmill/infrahub-sdk-python/issues/1290))
+- Fixed a requested branch being replaced by the local Git branch when `default_branch_from_git` is enabled. This affected `client.clone(branch=...)`, generators and transforms created with `branch=...`, and the `--branch` option of `infrahubctl`. Calls that did not pass a branch went to the Git branch, so a generator run with `--branch` could read from the requested branch and create or update nodes on the Git branch. ([#1295](https://github.com/opsmill/infrahub-sdk-python/issues/1295))
+- Corrected the return type annotations of `rebase()` and `validate()` on both `InfrahubClient.branch` and `InfrahubClientSync.branch`. They were declared as `-> BranchData` but have always returned the mutation's `ok` boolean, so the annotations now read `-> bool` to match the actual behaviour and align with `merge()`. ([#1308](https://github.com/opsmill/infrahub-sdk-python/issues/1308))
+- Fixed `get_diff_summary()` reporting its request under the GraphQL `operationName` `GetDiffTree`, the same name used by `get_diff_tree()`. The summary query now sends `GetDiffSummary`, so the two methods are distinguishable in server-side query logs, traces, and observability tooling keyed on `operationName`. ([#1313](https://github.com/opsmill/infrahub-sdk-python/issues/1313))
+- Fixed `fetch()` raising `ValueError` on the `ancestors` and `descendants` of a node that was retrieved without them, on both the async and the sync client. ([#1425](https://github.com/opsmill/infrahub-sdk-python/issues/1425))
+- A `from_pool` request is sent once: after a successful save, the next update no longer sends it again.
+- A client authenticating with an API token no longer replays a request after a 401 that reports an expired token. Only a client configured with a username and password can obtain a new token, so on the request paths that retry automatically the retry sent the same rejected token a second time, doubling the cost of the failure. Streaming downloads never retried and are unaffected.
+- A file download answered with HTTP 404 now raises `NodeNotFoundError` whatever the response body contains. Previously a body that was not a JSON object - an HTML error page from an intermediary, an empty body, or a JSON array - escaped as a raw `json.JSONDecodeError` or `AttributeError` instead.
+- An attribute created with both `value` and `from_pool` now sends both, so the number pool tracks the given number instead of allocating a new one.
+- Fixed `fetch()` on a cardinality-many relationship that was not loaded, such as `children`, replacing the node in the client store with a copy that has no attribute values, on both the async and the sync client. `fetch()` on a node that has not been saved now raises `UninitializedError` instead of `ValueError: At least one filter must be provided to get()`; code that catches `ValueError` for this case must catch `UninitializedError` instead.
+- Fixed an `AttributeError` escaping the client when a 401 response carried a body that was valid JSON but not an object, such as the bare array or string a proxy or gateway may return. The silent token refresh now treats any body it cannot read as an envelope as carrying no refresh signal, and the request surfaces `AuthenticationError` as it does for every other unreadable 401.
+- Fixed peers given as `RelatedNode` objects, such as a peer taken from another node's relationship, being stored with the `RelatedNode` object as their ID, which made the save request invalid and made `remove()` remove nothing. This affected lists of peers for a cardinality-many relationship, `add()` and `remove()` on a cardinality-many relationship, and assignment to a cardinality-one relationship.
+- Parts of the SDK no longer fail to import on a plain `pip install infrahub-sdk`.
+
+  `infrahub_sdk.template`, `infrahub_sdk.yaml`, `infrahub_sdk.spec`, `infrahub_sdk.transfer` and `infrahub_sdk.protocols_generator` import Jinja2, PyYAML and rich, but those three were only installed by the `ctl` extra. Using any of them without that extra raised `ModuleNotFoundError`, even though none of it is CLI-specific: `template` renders your Transforms, and rich supplies the traceback types carried in Jinja error reporting.
+
+  All three are now installed with the SDK itself, so a plain install grows from 19 to 26 packages. The `ctl` extra is correspondingly smaller and now covers only what `infrahubctl` genuinely needs.
+- Protocols generated for a hierarchical kind no longer declare `parent` and `children` twice. When the schema already exposes them as relationships, which is the case for any schema read from the API, they were emitted once from the relationship list and once more from the hierarchy, and the second pair overrode the first. Regenerate with `infrahubctl protocols` to drop the duplicates.
+- Two declared lower bounds were wrong and have been corrected.
+
+  `typer` now requires `>=0.16.0`, up from `>=0.15.0`. Combined with the `click>=8.3` the SDK already required, typer 0.15 crashed on any `infrahubctl --help` with `TypeError: Parameter.make_metavar() missing 1 required positional argument`, because click 8.3 changed that signature and typer only adapted in 0.16. The old floor advertised a combination that could not work.
+
+  `Jinja2` now requires `>=3.1.5`, up from `>=3`. On 3.1.4 and earlier, template error reporting points at the wrong template when a nested template uses an undefined variable, and omits the source path when an imported template is missing.
+
+  If you pin either package below its new floor, installing the SDK now fails while resolving instead of breaking once you run it.
+- `GraphQLError` and every exception under it now survive `pickle` and `copy.deepcopy` intact. An exception that crosses a process boundary - a task queue, a parallel test runner, a process pool - previously came back wrong in one of two ways, because Python rebuilds an exception by calling its class with the message as a lone positional argument.
+
+  `GraphQLError` takes the server's error list first, so that call filed the message under `errors` and the message a caller read came back as the placeholder built from it: `An error occurred while executing the GraphQL Query None, UNIQUENESS_VIOLATION: ...` in place of the real one. The per-code classes take their payload fields as required keyword arguments, so the same call raised `TypeError: __init__() takes 1 positional argument but 2 were given` and the original failure was lost entirely.
+
+  Both are fixed at the root of the GraphQL branch, so the type, the message, the payload attributes, `code`, `http_status`, `extensions`, `errors`, `query` and `variables` all come back as they went in, and an `except` clause still catches a restored exception by its own class.
+
+  `NodeNotFoundError`, `BranchNotFoundError` and `SchemaNotFoundError` were affected more quietly: their attributes and `str()` came back correct, but `exc.args` was rebuilt as the class's own default sentence rather than the message the exception was raised with. `AuthenticationError`, whose constructor takes the message first, was the only one unaffected.
+- `infrahubctl` no longer deletes bracketed text from an error message. A message such as `The requested branch was not found on the server [main]` was printed without the branch name, because rich read the brackets as a style tag. Everything the shared error handler prints is now escaped, including the traceback the fallback branch emits. Affects branch, schema, and node lookup misses, authentication failures, HTTP transport failures, and the fallback handler.
+- `infrahubctl` no longer exits non-zero with no output when a GraphQL failure arrives in a shape the SDK cannot read as an error envelope. `infrahubctl run`, `infrahubctl validate graphql-query`, and every command wrapped by the shared error handler now fall back to printing the exception's message, which keeps the server's payload verbatim.
+
+### Housekeeping
+
+- Added two CI jobs covering the declared dependency ranges, which the existing test matrix never exercised because it installs exactly what `uv.lock` pins. One re-resolves at the declared lower bounds and runs the unit tests; the other builds the wheel and confirms it installs, imports and runs the CLI on every supported Python with a fresh resolution. Upper bounds are tracked separately, since any upstream release could otherwise turn an unrelated pull request red.
+- Added unit tests over the packaging metadata so the declared dependencies stay honest. They check that every requirement has a lower bound, that the `all` extra keeps covering the other extras, and that the packages the SDK imports and the packages it declares match each other.
+- Pinned Rich's colour and width for the test suite from `pytest_configure`, so CLI-output assertions render identically regardless of the developer's `FORCE_COLOR`/`COLUMNS` environment.
+- Routed the two remaining `existing_group.members.peer_ids` accesses in `infrahub_sdk/query_groups.py` through the typed `_get_relationship_many(name="members")` accessor, removing the last two `# type: ignore[union-attr]` suppressions in that module. Internal typing hygiene with no behavioural change.
+
 ## [1.23.2](https://github.com/opsmill/infrahub-sdk-python/tree/v1.23.2) - 2026-09-08
 
 ### Added
