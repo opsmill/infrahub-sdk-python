@@ -1,0 +1,9 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingSubInterface
+  data:
+    - name: Gi0/0/3.20
+      vlan_id: 20
+      parent_interface: [router2, Gi0/0/3]

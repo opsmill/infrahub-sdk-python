@@ -1,0 +1,16 @@
+---
+apiVersion: infrahub.app/v1
+kind: Object
+spec:
+  kind: TestingSubInterface
+  data:
+    - name: Gi0/0/3.100
+      vlan_id: 100
+      parent_interface:
+        kind: TestingPhysicalInterface
+        hfid: [router1, Gi0/0/3]
+    - name: Po1.200
+      vlan_id: 200
+      parent_interface:
+        kind: TestingPortChannelInterface
+        hfid: [router1, Po1]

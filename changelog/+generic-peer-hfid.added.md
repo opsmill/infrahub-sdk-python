@@ -1,0 +1,1 @@
+Object files can now reference an existing node through a relationship whose peer is a generic, by giving the node's `kind` and `hfid`. When the generic has no HFID, a reference can also be an HFID alone, and the load uses the single node that matches it among the kinds that inherit from the generic. The load fails when no node or more than one node matches.

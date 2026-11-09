@@ -326,6 +326,22 @@ class TestProperties:
         assert result.payload["from_pool"] == {"id": "pool-uuid"}
         assert result.payload["is_protected"] is True
 
+    def test_is_inherited_not_queried_exposed_or_sent(self) -> None:
+        """Infrahub's schema no longer has is_inherited on attributes, so data that still contains it is ignored."""
+        attr = Attribute(
+            name="test_attr",
+            schema=_make_schema(AttributeKind.TEXT),
+            data={"value": "hello", "is_inherited": True, "is_protected": True},
+        )
+
+        query_data = attr._generate_query_data(property=True, include_metadata=True)
+        result = attr._generate_input_data()
+
+        assert query_data is not None
+        assert "is_inherited" not in query_data
+        assert not hasattr(attr, "is_inherited")
+        assert result.payload == {"value": "hello", "is_protected": True}
+
 
 # ──────────────────────────────────────────────
 # Attaching a held number to a pool
