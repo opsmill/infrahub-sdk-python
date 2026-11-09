@@ -31,6 +31,7 @@ from infrahub_sdk.query_groups import (
     ReapResult,
 )
 from tests.helpers.fixtures import read_fixture
+from tests.helpers.schemas import mandatory, node_schema, node_schemas
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -537,120 +538,6 @@ CHAIN_IDS = [
 ]
 
 
-def _node_schema(
-    name: str, relationships: list[dict[str, Any]] | None = None, inherit_from: list[str] | None = None
-) -> dict[str, Any]:
-    return {
-        "name": name,
-        "namespace": "Repro",
-        "inherit_from": inherit_from or [],
-        "attributes": [{"name": "name", "kind": "Text"}],
-        "relationships": relationships or [],
-    }
-
-
-def _mandatory(name: str, peer: str, cardinality: str = "one") -> dict[str, Any]:
-    return {"name": name, "peer": peer, "optional": False, "cardinality": cardinality}
-
-
-def _schemas(*nodes: dict[str, Any]) -> dict[str, NodeSchemaAPI]:
-    from infrahub_sdk.schema import NodeSchemaAPI  # noqa: PLC0415
-
-    schemas = [NodeSchemaAPI(**node) for node in nodes]
-    return {schema.kind: schema for schema in schemas}
-
-
-def test_deletion_order_deletes_the_holder_before_the_node_it_holds() -> None:
-    """Group order is creation order, so the node that is held comes first and must be moved last."""
-    schemas = _schemas(
-        _node_schema("Target"), _node_schema("Dependent", relationships=[_mandatory("target", "ReproTarget")])
-    )
-    order = query_groups.DeletionOrder(
-        candidates=[("ReproTarget", TARGET_ID), ("ReproDependent", DEPENDENT_ID)], schemas=schemas
-    )
-
-    assert order.peer_lookups == []
-    assert order.order() == [("ReproDependent", DEPENDENT_ID), ("ReproTarget", TARGET_ID)]
-
-
-def test_deletion_order_resolves_a_generic_peer_to_the_kinds_inheriting_it() -> None:
-    schemas = _schemas(
-        _node_schema("Address", inherit_from=["ReproEndpoint"]),
-        _node_schema("Session", relationships=[_mandatory("src", "ReproEndpoint")]),
-    )
-    order = query_groups.DeletionOrder(
-        candidates=[("ReproAddress", TARGET_ID), ("ReproSession", DEPENDENT_ID)], schemas=schemas
-    )
-
-    assert order.order() == [("ReproSession", DEPENDENT_ID), ("ReproAddress", TARGET_ID)]
-
-
-def test_deletion_order_follows_a_chain_of_kinds() -> None:
-    schemas = _schemas(
-        _node_schema("First"),
-        _node_schema("Second", relationships=[_mandatory("first", "ReproFirst")]),
-        _node_schema("Third", relationships=[_mandatory("second", "ReproSecond")]),
-    )
-    candidates = [("ReproFirst", CHAIN_IDS[0]), ("ReproSecond", CHAIN_IDS[1]), ("ReproThird", CHAIN_IDS[2])]
-
-    assert query_groups.DeletionOrder(candidates=candidates, schemas=schemas).order() == candidates[::-1]
-
-
-def test_deletion_order_ignores_optional_relationships() -> None:
-    schemas = _schemas(
-        _node_schema("Target"),
-        _node_schema("Dependent", relationships=[{"name": "target", "peer": "ReproTarget", "optional": True}]),
-    )
-    candidates = [("ReproTarget", TARGET_ID), ("ReproDependent", DEPENDENT_ID)]
-
-    assert query_groups.DeletionOrder(candidates=candidates, schemas=schemas).order() == candidates
-
-
-def test_deletion_order_orders_members_of_the_same_kind_by_their_peers() -> None:
-    """Each chain link holds the previous one, so the last created is deleted first."""
-    schemas = _schemas(_node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")]))
-    candidates = [("ReproChain", member_id) for member_id in CHAIN_IDS]
-    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
-
-    assert order.peer_lookups == [
-        query_groups.PeerLookup(kind="ReproChain", ids=CHAIN_IDS, relationships={"previous": False})
-    ]
-    member_peers = {CHAIN_IDS[1]: {CHAIN_IDS[0]}, CHAIN_IDS[2]: {CHAIN_IDS[1]}}
-    assert order.order(member_peers=member_peers) == candidates[::-1]
-
-
-def test_deletion_order_orders_kinds_that_hold_each_other_by_their_peers() -> None:
-    schemas = _schemas(
-        _node_schema("Left", relationships=[_mandatory("rights", "ReproRight", cardinality="many")]),
-        _node_schema("Right", relationships=[_mandatory("lefts", "ReproLeft", cardinality="many")]),
-    )
-    candidates = [("ReproLeft", TARGET_ID), ("ReproRight", DEPENDENT_ID)]
-    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
-
-    assert {lookup.kind for lookup in order.peer_lookups} == {"ReproLeft", "ReproRight"}
-    assert order.order(member_peers={DEPENDENT_ID: {TARGET_ID}}) == candidates[::-1]
-
-
-def test_deletion_order_keeps_group_order_without_peers_for_a_self_referencing_kind() -> None:
-    schemas = _schemas(_node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")]))
-    candidates = [("ReproChain", member_id) for member_id in CHAIN_IDS]
-
-    assert query_groups.DeletionOrder(candidates=candidates, schemas=schemas).order() == candidates
-
-
-def test_deletion_order_puts_a_kind_missing_from_the_schema_last() -> None:
-    schemas = _schemas(
-        _node_schema("Target"), _node_schema("Dependent", relationships=[_mandatory("target", "ReproTarget")])
-    )
-    candidates = [("ReproRemoved", CHAIN_IDS[0]), ("ReproTarget", TARGET_ID), ("ReproDependent", DEPENDENT_ID)]
-
-    assert query_groups.DeletionOrder(candidates=candidates, schemas=schemas).order() == [
-        ("ReproDependent", DEPENDENT_ID),
-        ("ReproTarget", TARGET_ID),
-        ("ReproRemoved", CHAIN_IDS[0]),
-    ]
-
-
 def _schema_with(base: dict, *nodes: dict[str, Any]) -> dict:
     return {**base, "nodes": [*base["nodes"], *nodes]}
 
@@ -688,8 +575,8 @@ async def test_reap_deletes_the_holder_before_the_node_it_holds(
     """One run deletes both unused nodes, without a refused delete and without an extra request."""
     schema = _schema_with(
         schema_query_05_data,
-        _node_schema("Target"),
-        _node_schema("Dependent", relationships=[_mandatory("target", "ReproTarget")]),
+        node_schema("Target"),
+        node_schema("Dependent", relationships=[mandatory("target", "ReproTarget")]),
     )
     httpx_mock.add_response(
         method="POST",
@@ -713,7 +600,7 @@ async def test_reap_reads_peers_to_order_members_of_a_self_referencing_kind(
 ) -> None:
     """One query reads the chain links' peers, then the last link is deleted first."""
     schema = _schema_with(
-        schema_query_05_data, _node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")])
+        schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
     )
     previous = {CHAIN_IDS[1]: CHAIN_IDS[0], CHAIN_IDS[2]: CHAIN_IDS[1]}
     chain_response = {
@@ -767,7 +654,7 @@ async def test_member_held_from_outside_the_group_is_kept_and_reported(
     clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
 ) -> None:
     """Ordering cannot help when a node the run does not delete holds the member."""
-    schema = _schema_with(schema_query_05_data, _node_schema("Target"))
+    schema = _schema_with(schema_query_05_data, node_schema("Target"))
     httpx_mock.add_response(
         method="POST", url="http://mock/graphql/main", json=_group_with_members([("ReproTarget", TARGET_ID)])
     )
@@ -791,7 +678,7 @@ async def test_failed_peer_query_stops_the_reap_and_keeps_every_member(
 ) -> None:
     """Without the order nothing is deleted: every member stays in the group and the failure is raised."""
     schema = _schema_with(
-        schema_query_05_data, _node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")])
+        schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
     )
     members = [("ReproChain", member_id) for member_id in CHAIN_IDS]
     httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_group_with_members(members))
@@ -808,40 +695,16 @@ async def test_failed_peer_query_stops_the_reap_and_keeps_every_member(
     assert all(member_id in upsert for member_id in CHAIN_IDS)
 
 
-def test_deletion_order_ignores_a_mandatory_peer_that_is_not_a_candidate() -> None:
-    """A peer kind the run is not deleting adds no dependency between the candidates."""
-    schemas = _schemas(
-        _node_schema("Target"),
-        _node_schema("Dependent", relationships=[_mandatory("target", "ReproTarget")]),
-    )
-    candidates = [("ReproDependent", DEPENDENT_ID), ("ReproDependent", CHAIN_IDS[0])]
-    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
-
-    assert order.peer_lookups == []
-    assert order.order() == candidates
-
-
-def test_deletion_order_keeps_group_order_when_the_peers_form_a_cycle() -> None:
-    """The server cannot store such a cycle; if the peers read back describe one, the group order is kept."""
-    schemas = _schemas(_node_schema("Chain", relationships=[_mandatory("previous", "ReproChain")]))
-    candidates = [("ReproChain", member_id) for member_id in CHAIN_IDS[:2]]
-    member_peers = {CHAIN_IDS[0]: {CHAIN_IDS[1]}, CHAIN_IDS[1]: {CHAIN_IDS[0]}}
-
-    order = query_groups.DeletionOrder(candidates=candidates, schemas=schemas)
-
-    assert order.order(member_peers=member_peers) == candidates
-
-
 def test_mandatory_peer_ids_reads_both_cardinalities(clients: BothClients) -> None:
     from infrahub_sdk.node import InfrahubNode  # noqa: PLC0415
 
-    schema = _schemas(
-        _node_schema(
+    schema = node_schemas(
+        node_schema(
             "Left",
             relationships=[
-                _mandatory("rights", "ReproRight", cardinality="many"),
-                _mandatory("anchor", "ReproRight"),
-                _mandatory("spare", "ReproRight"),
+                mandatory("rights", "ReproRight", cardinality="many"),
+                mandatory("anchor", "ReproRight"),
+                mandatory("spare", "ReproRight"),
             ],
         )
     )["ReproLeft"]

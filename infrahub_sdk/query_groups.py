@@ -14,7 +14,7 @@ from .exceptions import (
     URLNotFoundError,
     code_names_the_failure,
 )
-from .topological_sort import DependencyCycleExistsError, topological_sort
+from .schema.dependencies import DeletionOrder
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -119,187 +119,6 @@ class ReapResult:
         if self.refused:
             return TrackingGroupCleanupError(failures=self.refused)
         return None
-
-
-@dataclass
-class PeerLookup:
-    """The members of one kind whose mandatory peers must be read to order them among themselves.
-
-    Attributes:
-        kind: The kind of the members.
-        ids: The ids of the members of that kind.
-        relationships: The name of each mandatory relationship to read, mapped to whether it has cardinality many.
-
-    """
-
-    kind: str
-    ids: list[str]
-    relationships: dict[str, bool]
-
-
-def _mandatory_peer_kinds(schema: MainSchemaTypesAPI, schemas: Mapping[str, MainSchemaTypesAPI]) -> dict[str, set[str]]:
-    """The name of each mandatory relationship of `schema`, mapped to the kinds in `schemas` its peer can be.
-
-    A peer that is a generic matches every kind in `schemas` that inherits from it.
-    """
-    peer_kinds: dict[str, set[str]] = {}
-    for relationship in schema.relationships:
-        if relationship.optional:
-            continue
-        kinds = {
-            kind
-            for kind, peer_schema in schemas.items()
-            if relationship.peer == kind or relationship.peer in getattr(peer_schema, "inherit_from", [])
-        }
-        if kinds:
-            peer_kinds[relationship.name] = kinds
-    return peer_kinds
-
-
-def _strongly_connected_components(graph: Mapping[str, set[str]], order: Sequence[str]) -> list[list[str]]:
-    """Group the keys of `graph` into components where every key can reach every other one (Tarjan).
-
-    Keys and components follow `order`, so the result does not depend on set iteration order.
-    """
-    position = {key: index for index, key in enumerate(order)}
-    index: dict[str, int] = {}
-    low: dict[str, int] = {}
-    stack: list[str] = []
-    on_stack: set[str] = set()
-    components: list[list[str]] = []
-
-    def visit(key: str) -> None:
-        index[key] = low[key] = len(index)
-        stack.append(key)
-        on_stack.add(key)
-        for peer in sorted(graph[key], key=position.__getitem__):
-            if peer not in index:
-                visit(peer)
-                low[key] = min(low[key], low[peer])
-            elif peer in on_stack:
-                low[key] = min(low[key], index[peer])
-        if low[key] == index[key]:
-            component: list[str] = []
-            while True:
-                member = stack.pop()
-                on_stack.discard(member)
-                component.append(member)
-                if member == key:
-                    break
-            components.append(sorted(component, key=position.__getitem__))
-
-    for key in order:
-        if key not in index:
-            visit(key)
-    return components
-
-
-def _dependents_first(dependencies: Mapping[str, set[str]], order: Sequence[str]) -> list[str] | None:
-    """Sort the keys of `dependencies` so each key comes before the keys it depends on.
-
-    Keys with no dependency between them keep their place in `order`. Returns None on a cycle.
-    """
-    position = {key: index for index, key in enumerate(order)}
-    try:
-        levels = topological_sort(dependencies)
-    except DependencyCycleExistsError:
-        return None
-    return [key for level in reversed(levels) for key in sorted(level, key=position.__getitem__)]
-
-
-class DeletionOrder:
-    """Orders the members to delete so that no member is deleted while another one still holds it.
-
-    The server refuses to delete a node that another node holds through a mandatory relationship, so
-    the node that holds it has to be deleted first. Kinds are ordered from the schema alone. Members of
-    the same kind, or of kinds that hold each other, can only be ordered from their actual peers, which
-    `peer_lookups` names and `order` takes.
-
-    A kind missing from the schema cannot be ordered, so its members go last.
-    """
-
-    def __init__(self, candidates: list[tuple[str, str]], schemas: Mapping[str, MainSchemaTypesAPI]) -> None:
-        self.candidates = candidates
-        kinds = list(dict.fromkeys(kind for kind, _ in candidates))
-        self.kinds = [kind for kind in kinds if kind in schemas]
-        self.unknown_kinds = {kind for kind in kinds if kind not in schemas}
-
-        candidate_schemas = {kind: schemas[kind] for kind in self.kinds}
-        self.relationships = {
-            kind: _mandatory_peer_kinds(candidate_schemas[kind], candidate_schemas) for kind in self.kinds
-        }
-        self.cardinality_many = {
-            kind: {
-                name: candidate_schemas[kind].get_relationship(name).cardinality_is_many
-                for name in self.relationships[kind]
-            }
-            for kind in self.kinds
-        }
-        self.graph: dict[str, set[str]] = {kind: set().union(*self.relationships[kind].values()) for kind in self.kinds}
-        self.blocks = _strongly_connected_components(graph=self.graph, order=self.kinds)
-
-    def _is_cyclic(self, block: list[str]) -> bool:
-        return len(block) > 1 or block[0] in self.graph[block[0]]
-
-    @property
-    def peer_lookups(self) -> list[PeerLookup]:
-        """The members whose mandatory peers are needed, one entry per kind. Empty in the common case."""
-        lookups: list[PeerLookup] = []
-        for block in self.blocks:
-            if not self._is_cyclic(block):
-                continue
-            block_kinds = set(block)
-            # Every kind in a cyclic block has at least one mandatory relationship into the block.
-            for kind in block:
-                relationships = {
-                    name: self.cardinality_many[kind][name]
-                    for name, peer_kinds in self.relationships[kind].items()
-                    if peer_kinds & block_kinds
-                }
-                ids = [member_id for candidate_kind, member_id in self.candidates if candidate_kind == kind]
-                lookups.append(PeerLookup(kind=kind, ids=ids, relationships=relationships))
-        return lookups
-
-    def order(self, member_peers: Mapping[str, set[str]] | None = None) -> list[tuple[str, str]]:
-        """The candidates in the order to delete them.
-
-        Args:
-            member_peers: The mandatory peer ids of each member named by `peer_lookups`.
-
-        """
-        member_peers = member_peers or {}
-        block_key = {kind: block[0] for block in self.blocks for kind in block}
-        block_graph = {
-            block[0]: {block_key[peer_kind] for kind in block for peer_kind in self.graph[kind]} - {block[0]}
-            for block in self.blocks
-        }
-        block_order = _dependents_first(dependencies=block_graph, order=self.kinds) or []
-        blocks = {block[0]: block for block in self.blocks}
-
-        ordered: list[tuple[str, str]] = []
-        for key in block_order:
-            ordered.extend(self._order_block(block=blocks[key], member_peers=member_peers))
-        ordered.extend(candidate for candidate in self.candidates if candidate[0] in self.unknown_kinds)
-        return ordered
-
-    def _order_block(self, block: list[str], member_peers: Mapping[str, set[str]]) -> list[tuple[str, str]]:
-        block_kinds = set(block)
-        members = [candidate for candidate in self.candidates if candidate[0] in block_kinds]
-        if not self._is_cyclic(block):
-            return members
-
-        member_ids = [member_id for _, member_id in members]
-        id_set = set(member_ids)
-        dependencies = {
-            member_id: (member_peers.get(member_id, set()) & id_set) - {member_id} for member_id in member_ids
-        }
-        # A cycle of mandatory relationships between nodes cannot be stored, but keep the
-        # group order rather than fail if the peers read back describe one.
-        ordered_ids = _dependents_first(dependencies=dependencies, order=member_ids)
-        if ordered_ids is None:
-            return members
-        kind_of = {member_id: kind for kind, member_id in members}
-        return [(kind_of[member_id], member_id) for member_id in ordered_ids]
 
 
 def _mandatory_peer_ids(node: InfrahubNode | InfrahubNodeSync, relationships: Mapping[str, bool]) -> set[str]:
@@ -477,7 +296,7 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
                 populate_store=False,
             )
             member_peers.update(_member_peers(nodes=nodes, relationships=lookup.relationships))
-        return deletion_order.order(member_peers=member_peers)
+        return deletion_order.order(node_peers=member_peers)
 
     async def delete_unused(self) -> ReapResult:
         """Delete the members that this run no longer uses.
@@ -635,7 +454,7 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
                 populate_store=False,
             )
             member_peers.update(_member_peers(nodes=nodes, relationships=lookup.relationships))
-        return deletion_order.order(member_peers=member_peers)
+        return deletion_order.order(node_peers=member_peers)
 
     def delete_unused(self) -> ReapResult:
         """Delete the members that this run no longer uses.
