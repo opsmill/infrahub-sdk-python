@@ -130,6 +130,15 @@ class NodeNotSavedError(Error):
         super().__init__(self.message)
 
 
+class ReadOnlyAttributeError(Error):
+    """Raised when attempting to modify the value of a read-only attribute."""
+
+    def __init__(self, name: str, message: str | None = None) -> None:
+        self.name = name
+        self.message = message or f"The attribute '{name}' is read-only and cannot be modified."
+        super().__init__(self.message)
+
+
 class ResourceNotDefinedError(Error):
     """Raised when trying to access a resource that hasn't been defined."""
 
