@@ -1572,7 +1572,7 @@ class InfrahubClient(BaseClient):
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
-        """Return a new client with a copy of this client's configuration.
+        """Return a new client with a copy of this client's configuration and request context.
 
         Args:
             branch: Branch that the new client targets by default. When set, it takes
@@ -1580,7 +1580,9 @@ class InfrahubClient(BaseClient):
                 read its branch from the local Git repository. When not set, the new
                 client finds its default branch the same way this client did.
         """
-        return InfrahubClient(config=self.config.clone(branch=branch))
+        clone = InfrahubClient(config=self.config.clone(branch=branch))
+        clone._request_context = self._request_context
+        return clone
 
     async def execute_graphql(
         self,
@@ -2667,7 +2669,7 @@ class InfrahubClientSync(BaseClient):
         node.delete()
 
     def clone(self, branch: str | None = None) -> InfrahubClientSync:
-        """Return a new client with a copy of this client's configuration.
+        """Return a new client with a copy of this client's configuration and request context.
 
         Args:
             branch: Branch that the new client targets by default. When set, it takes
@@ -2675,7 +2677,9 @@ class InfrahubClientSync(BaseClient):
                 read its branch from the local Git repository. When not set, the new
                 client finds its default branch the same way this client did.
         """
-        return InfrahubClientSync(config=self.config.clone(branch=branch))
+        clone = InfrahubClientSync(config=self.config.clone(branch=branch))
+        clone._request_context = self._request_context
+        return clone
 
     def execute_graphql(
         self,
