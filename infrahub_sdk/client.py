@@ -1581,7 +1581,7 @@ class InfrahubClient(BaseClient):
                 client finds its default branch the same way this client did.
         """
         clone = InfrahubClient(config=self.config.clone(branch=branch))
-        clone._request_context = self._request_context
+        clone._request_context = self._request_context.model_copy(deep=True) if self._request_context else None
         return clone
 
     async def execute_graphql(
@@ -2678,7 +2678,7 @@ class InfrahubClientSync(BaseClient):
                 client finds its default branch the same way this client did.
         """
         clone = InfrahubClientSync(config=self.config.clone(branch=branch))
-        clone._request_context = self._request_context
+        clone._request_context = self._request_context.model_copy(deep=True) if self._request_context else None
         return clone
 
     def execute_graphql(

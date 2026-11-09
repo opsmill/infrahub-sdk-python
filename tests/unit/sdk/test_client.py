@@ -763,6 +763,18 @@ async def test_clone_keeps_request_context(clients: BothClients, client_type: st
 
 
 @pytest.mark.parametrize("client_type", client_types)
+async def test_clone_request_context_is_independent(clients: BothClients, client_type: str) -> None:
+    """Changing the account of a cloned client does not change the account of the original client."""
+    client = getattr(clients, client_type)
+    client.request_context = RequestContext(account=ContextAccount(id="account-1"))
+
+    clone = client.clone()
+    clone.request_context.account = ContextAccount(id="account-2")
+
+    assert client.request_context == RequestContext(account=ContextAccount(id="account-1"))
+
+
+@pytest.mark.parametrize("client_type", client_types)
 async def test_clone_define_branch(clients: BothClients, client_type: str) -> None:
     """Validate that the clone branch parameter sets the correct branch of the cloned client."""
     clone_branch = "my_other_branch"
