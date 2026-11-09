@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
+from infrahub_sdk.context import ContextAccount, RequestContext
 from infrahub_sdk.exceptions import (
     ApiError,
     NodeNotFoundError,
@@ -748,6 +749,17 @@ async def test_clone(clients: BothClients, client_type: str) -> None:
         assert clone.config == clients.sync.config
         assert isinstance(clone, InfrahubClientSync)
         assert clients.sync.default_branch == clone.default_branch
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_clone_keeps_request_context(clients: BothClients, client_type: str) -> None:
+    """A cloned client sends its requests with the same account as the original client."""
+    client = getattr(clients, client_type)
+    client.request_context = RequestContext(account=ContextAccount(id="account-1"))
+
+    clone = client.clone(branch="my_other_branch")
+
+    assert clone.request_context == RequestContext(account=ContextAccount(id="account-1"))
 
 
 @pytest.mark.parametrize("client_type", client_types)
