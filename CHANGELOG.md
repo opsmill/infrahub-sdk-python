@@ -51,7 +51,7 @@ This project uses [*towncrier*](https://towncrier.readthedocs.io/) and the chang
       print("some other failure:", exc.code)
   ```
 
-  The new classes are `AttributeConstraintViolationError`, `AttributeInvalidTypeError`, `AttributeRequiredError`, `BranchAlreadyMergedError`, `BranchNeedsRebaseError`, `MergeInProgressError`, `MergeRecoveryRequiredError`, `UndefinedError`, and `UniquenessViolationError`. Each is typed exactly as the catalogue declares the payload, so a required field is never optional and needs no guard. They all descend from `GraphQLError`, so no `except` clause stops catching what it catches today. `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND` and `SCHEMA_NOT_FOUND` reach the classes the SDK already had for them, listed under Changed.
+  The new classes are `AttributeConstraintViolationError`, `AttributeInvalidTypeError`, `AttributeRequiredError`, `BranchAlreadyMergedError`, `BranchNeedsRebaseError`, `MergeInProgressError`, `MergeRecoveryRequiredError`, `UndefinedError`, `UniquenessViolationError`, and `WorkerTimeoutError`. Each is typed exactly as the catalogue declares the payload, so a required field is never optional and needs no guard. They all descend from `GraphQLError`, so no `except` clause stops catching what it catches today. `NODE_NOT_FOUND`, `BRANCH_NOT_FOUND` and `SCHEMA_NOT_FOUND` reach the classes the SDK already had for them, listed under Changed.
 
   `exc.http_status` reads the status the envelope declares. Where the envelope omits one, a generated class supplies the status the catalogue gives its code; the three lookup-miss classes declare none, since they are also raised with no server behind them, and stay `None` there.
 
