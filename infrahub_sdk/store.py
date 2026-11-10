@@ -50,7 +50,8 @@ class NodeStoreBranch:
         self._lock = threading.RLock()
 
     def count(self) -> int:
-        return len(self._objs)
+        with self._lock:
+            return len(self._objs)
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
         with self._lock:
