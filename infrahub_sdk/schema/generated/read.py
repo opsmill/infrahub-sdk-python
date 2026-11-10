@@ -295,7 +295,7 @@ class AttributeSchemaBaseRead(BaseModel):
     )
     container: str | None = Field(
         default=None,
-        description="Section that shows this attribute: a name from the node's 'containers' or 'advanced'. Unset, it shows in the main section.",
+        description="Section that shows this attribute: a name from the node's 'containers'. Unset, it shows in the main section.",
     )
 
 
@@ -498,7 +498,7 @@ class RelationshipSchemaRead(BaseModel):
     )
     container: str | None = Field(
         default=None,
-        description="Section that shows this relationship: a name from the node's 'containers' or 'advanced'. Unset, it shows in the main section.",
+        description="Section that shows this relationship: a name from the node's 'containers'. Unset, it shows in the main section.",
     )
 
 
