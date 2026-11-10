@@ -199,6 +199,40 @@ def test_node_store_set_same_id_replaces_previous_copy(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_without_hfid_keeps_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    second = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "type": {"value": "SITE"}},
+    )
+    assert second.get_human_friendly_id() is None
+
+    store.set(node=first)
+    store.set(node=second)
+
+    assert store.count() == 1
+    assert store.get(key="BuiltinLocation__JFK1") is second
+    assert store.get(kind="BuiltinLocation", key="JFK1") is second
+
+
+@pytest.mark.parametrize("client_type", client_types)
 def test_node_store_get_unknown_branch_does_not_create_it(client_type: str, clients: BothClients) -> None:
     store = NodeStore(default_branch="main") if client_type == "standard" else NodeStoreSync(default_branch="main")
 

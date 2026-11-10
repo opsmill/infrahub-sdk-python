@@ -50,8 +50,13 @@ class NodeStoreBranch:
             existing = self._objs[existing_internal_id]
             kept = self._resolve_existing(existing=existing, new=node)
             if kept is not existing:
+                # A copy without a HFID, e.g. from a query with `only`, stays reachable by the previous HFID.
+                carried_hfid = None if kept.get_human_friendly_id() else existing.get_human_friendly_id()
                 for previous_key in self._unindex(existing_internal_id):
                     self._keys[previous_key] = kept._internal_id
+                if carried_hfid:
+                    for kind in existing.get_all_kinds():
+                        self._hfids.setdefault(kind, {})[tuple(carried_hfid)] = kept._internal_id
             node = kept
 
         self._index(node=node, key=key)
