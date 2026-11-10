@@ -28,6 +28,9 @@ class RelatedNodeBase(Protocol):
     def initialized(self) -> bool: ...
 
     @property
+    def is_loaded(self) -> bool: ...
+
+    @property
     def display_label(self) -> str | None: ...
 
     @property
@@ -58,6 +61,9 @@ class Attribute(Protocol):
     is_inherited: bool | None
     updated_at: str | None
     is_protected: bool | None
+
+    @property
+    def is_loaded(self) -> bool: ...
 
 
 class String(Attribute):
@@ -119,9 +125,17 @@ class EnumOptional(Attribute):
 class Integer(Attribute):
     value: int
 
+    def attach_to_pool(self, pool: CoreNodeBase | str) -> None: ...
+
+    def detach_from_pool(self) -> None: ...
+
 
 class IntegerOptional(Attribute):
     value: int | None
+
+    def attach_to_pool(self, pool: CoreNodeBase | str) -> None: ...
+
+    def detach_from_pool(self) -> None: ...
 
 
 class IPHost(Attribute):

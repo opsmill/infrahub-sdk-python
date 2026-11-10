@@ -1,0 +1,26 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "No worker answered git.repository.connectivity within 30 seconds",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "CoreRepositoryCreate"
+      ],
+      "extensions": {
+        "code": "WORKER_TIMEOUT",
+        "http_status": 504,
+        "data": {
+          "operation": "git.repository.connectivity",
+          "timeout_seconds": 30,
+          "retry_after_seconds": 30
+        }
+      }
+    }
+  ]
+}

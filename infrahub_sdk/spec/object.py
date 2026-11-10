@@ -5,8 +5,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from ..exceptions import ObjectValidationError, ValidationError
+from ..node.inline_peers import peers_are_inline_input
 from ..schema import GenericSchemaAPI, NodeSchemaAPI, RelationshipCardinality, RelationshipKind, RelationshipSchemaAPI
 from ..utils import is_valid_uuid
 from ..yaml import InfrahubFile, InfrahubFileKind
@@ -120,6 +122,30 @@ class RelationshipInfo(BaseModel):
     @property
     def is_reference(self) -> bool:
         return self.format in {RelationshipDataFormat.ONE_REF, RelationshipDataFormat.MANY_REF}
+
+    @property
+    def peers_are_inline_fields(self) -> bool:
+        """Indicate whether the mutation takes the peers' fields, which this value declares as objects."""
+        return peers_are_inline_input(self.rel_schema) and self.format in {
+            RelationshipDataFormat.MANY_OBJ_DICT_LIST,
+            RelationshipDataFormat.MANY_OBJ_LIST_DICT,
+        }
+
+    async def inline_peer_fields(
+        self, value: Any, parameters: InfrahubObjectParameters | None = None
+    ) -> list[dict[str, Any]]:
+        """Return the fields of every peer, from either form that declares them as objects.
+
+        A list under ``data`` goes through the processors the validation pass runs over it, so both
+        passes read the same peers.
+        """
+        if self.format == RelationshipDataFormat.MANY_OBJ_DICT_LIST:
+            return await DataProcessorFactory.process_data(
+                kind=value.get("kind") or self.peer_kind,
+                data=list(value["data"]),
+                parameters=parameters or InfrahubObjectParameters(),
+            )
+        return [item["data"] for item in value]
 
     def get_context(self, value: Any) -> dict:
         """Return a dict to insert to the context if the relationship is mandatory."""
@@ -624,6 +650,16 @@ class InfrahubObjectFileData(BaseModel):
                     ]
                 elif rel_info.format == RelationshipDataFormat.ONE_REF:
                     clean_data[key] = await cls._clean_reference(client, rel_info, value, [*position, key], branch)
+                elif rel_info.peers_are_inline_fields:
+                    # Infrahub refuses these peers when they are created afterwards as nodes of
+                    # their own, against the ones the object already holds.
+                    clean_data[key] = await rel_info.inline_peer_fields(
+                        value,
+                        # The validation pass falls back to the file's parameters, so this one must too.
+                        parameters=InfrahubObjectParameters(**value["parameters"])
+                        if isinstance(value, dict) and "parameters" in value
+                        else parameters,
+                    )
                 elif not rel_info.is_reference and rel_info.is_bidirectional and rel_info.is_mandatory:
                     remaining_rels.append(key)
                 elif not rel_info.is_reference and not rel_info.is_mandatory:
@@ -817,19 +853,19 @@ class ObjectFile(InfrahubFile):
     def spec(self) -> InfrahubObjectFileData:
         if not self._spec:
             try:
-                self._spec = InfrahubObjectFileData(**self.data.spec)
-            except Exception as exc:
-                raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
+                self._spec = InfrahubObjectFileData.model_validate(self.data.spec)
+            except PydanticValidationError as exc:
+                raise self._content_error(exc) from exc
         return self._spec
 
     def validate_content(self) -> None:
         super().validate_content()
         if self.kind != InfrahubFileKind.OBJECT:
-            raise ValueError("File is not an Infrahub Object file")
+            raise ValidationError(identifier=str(self.location), message="File is not an Infrahub Object file")
         try:
-            self._spec = InfrahubObjectFileData(**self.data.spec)
-        except Exception as exc:
-            raise ValidationError(identifier=str(self.location), message=str(exc)) from exc
+            self._spec = InfrahubObjectFileData.model_validate(self.data.spec)
+        except PydanticValidationError as exc:
+            raise self._content_error(exc) from exc
 
     async def validate_format(self, client: InfrahubClient, branch: str | None = None) -> None:
         self.validate_content()

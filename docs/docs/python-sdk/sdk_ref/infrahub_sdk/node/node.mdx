@@ -162,6 +162,8 @@ The node must have been saved (have an id) before calling this method.
 - `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
 - `ValueError`: If the node hasn't been saved yet, file not found, or
   ``skip_if_unchanged=True`` was passed without a ``dest``.
+- `FieldNotLoadedError`: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+  was queried with ``only`` without fetching ``checksum``.
 - `AuthenticationError`: If authentication fails.
 
 **Examples:**
@@ -213,6 +215,7 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: Node has no server-side checksum yet (unsaved or
 file never attached).
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `upload_if_changed`
 
@@ -253,6 +256,7 @@ from ``source.name`` when ``name`` is omitted.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: ``source`` is ``bytes`` or ``BinaryIO`` and no
 ``name`` was supplied.
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `delete`
 
@@ -467,6 +471,30 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - `ValueError`: If the node is not a resource pool.
 
+#### `get_pool_allocations`
+
+```python
+get_pool_allocations(self, resource: InfrahubNode) -> list[PoolAllocation]
+```
+
+Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+allocated nodes.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated\: the pool itself, or one of
+its ranges or prefixes.
+
+**Returns:**
+
+- list\[PoolAllocation]: One entry per resource the pool holds.
+
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -510,6 +538,8 @@ rather than bulk traversal.
 
 - `ValueError`: If a component does not match an attribute or relationship, or if
 a relationship hop targets a non cardinality-one relationship.
+- `FieldNotLoadedError`: This node or a related node was queried with ``only`` and a field
+the key reads was not fetched.
 
 **Examples:**
 
@@ -691,6 +721,8 @@ The node must have been saved (have an id) before calling this method.
 - `FeatureNotSupportedError`: If this node doesn't inherit from CoreFileObject.
 - `ValueError`: If the node hasn't been saved yet, file not found, or
   ``skip_if_unchanged=True`` was passed without a ``dest``.
+- `FieldNotLoadedError`: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+  was queried with ``only`` without fetching ``checksum``.
 - `AuthenticationError`: If authentication fails.
 
 **Examples:**
@@ -742,6 +774,7 @@ shapes as \:func\:`infrahub_sdk.file_handler.sha1_of_source`.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: Node has no server-side checksum yet (unsaved or
 file never attached).
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `upload_if_changed`
 
@@ -782,6 +815,7 @@ from ``source.name`` when ``name`` is omitted.
 - `FeatureNotSupportedError`: Node is not a ``CoreFileObject``.
 - `ValueError`: ``source`` is ``bytes`` or ``BinaryIO`` and no
 ``name`` was supplied.
+- `FieldNotLoadedError`: The node was queried with ``only`` without fetching ``checksum``.
 
 #### `delete`
 
@@ -996,6 +1030,30 @@ Fetch all nodes that were allocated for the pool and a given resource.
 
 - `ValueError`: If the node is not a resource pool.
 
+#### `get_pool_allocations`
+
+```python
+get_pool_allocations(self, resource: InfrahubNodeSync) -> list[PoolAllocation]
+```
+
+Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+allocated nodes.
+
+**Args:**
+
+- `resource`: The resource from which the nodes were allocated\: the pool itself, or one
+of its ranges or prefixes.
+
+**Returns:**
+
+- list\[PoolAllocation]: One entry per resource the pool holds.
+
+**Raises:**
+
+- `ValueError`: If the node is not a resource pool.
+
 #### `get_pool_resources_utilization`
 
 ```python
@@ -1039,6 +1097,8 @@ rather than bulk traversal.
 
 - `ValueError`: If a component does not match an attribute or relationship, or if
 a relationship hop targets a non cardinality-one relationship.
+- `FieldNotLoadedError`: This node or a related node was queried with ``only`` and a field
+the key reads was not fetched.
 
 **Examples:**
 
@@ -1084,6 +1144,18 @@ The comparison used by ``upload_if_changed`` reads the node's
 fetched via ``client.get(...)``. A server-side change to the file
 between the fetch and the call will not be detected unless the
 caller re-fetches the node first.
+
+### `PoolAllocation`
+
+One resource a pool holds, as returned by :meth:`InfrahubNode.get_pool_allocations` and its sync twin.
+
+**Methods:**
+
+#### `from_graphql`
+
+```python
+from_graphql(cls, data: dict[str, Any]) -> PoolAllocation
+```
 
 ### `InfrahubNodeBase`
 
@@ -1135,7 +1207,12 @@ cardinality-one related node (``parent``), an attribute of that related node
 **Returns:**
 
 - The resolved value, or ``None`` when any path component cannot be
-- resolved (for example, an unfetched related node not present in the store).
+- resolved (for example, a related node that is not in the store).
+
+**Raises:**
+
+- `FieldNotLoadedError`: This node or the related node was queried with ``only`` and a field
+the path reads was not fetched.
 
 #### `get_human_friendly_id`
 
@@ -1147,7 +1224,9 @@ Compute the human-friendly ID for this node from its schema.
 
 The HFID is composed of the values addressed by the schema's
 ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
-considered invalid and ``None`` is returned.
+considered invalid and ``None`` is returned. A node from a query that named ``hfid`` in
+``only`` returns the HFID the server stores instead, or ``None`` when that value is empty,
+until a field the HFID is built from is changed on the node.
 
 **Returns:**
 

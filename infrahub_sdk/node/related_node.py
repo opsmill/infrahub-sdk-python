@@ -7,7 +7,12 @@ from typing_extensions import TypeVar
 
 from ..exceptions import Error
 from ..protocols_base import CoreNodeBase
-from .constants import PROFILE_KIND_PREFIX, PROPERTIES_FLAG, PROPERTIES_OBJECT
+from .constants import (
+    PROFILE_KIND_PREFIX,
+    PROPERTIES_FLAG,
+    PROPERTIES_OBJECT,
+)
+from .inline_peers import PEER_REFERENCE_KEYS, peers_are_inline_input
 from .metadata import NodeMetadata, RelationshipMetadata
 
 if TYPE_CHECKING:
@@ -24,19 +29,56 @@ PeerT = TypeVar("PeerT", default="InfrahubNode")
 PeerTSync = TypeVar("PeerTSync", default="InfrahubNodeSync")
 
 
+def _is_peer_node(data: Any) -> bool:
+    """True when the data is a peer node instance rather than raw relationship data."""
+    # Imported lazily to avoid a circular import: node.py imports this module at load time.
+    from .node import InfrahubNodeBase  # noqa: PLC0415
+
+    return isinstance(data, (CoreNodeBase, InfrahubNodeBase))
+
+
+def _inline_input(schema: RelationshipSchemaAPI, data: Any) -> dict[str, Any] | None:
+    """Return the peer's fields when its relationship takes them as mutation input instead of a reference."""
+    if peers_are_inline_input(schema) and isinstance(data, dict) and not data.keys() & PEER_REFERENCE_KEYS:
+        return dict(data)
+    return None
+
+
+def _peer_input(data: Any) -> Any:
+    """Narrow another related node to its peer identifiers; pass anything else through.
+
+    The edge properties of the source relationship do not carry over to the new one.
+    """
+    if not isinstance(data, RelatedNodeBase):
+        return data
+    return {
+        key: value
+        for key, value in (
+            ("id", data.id),
+            ("hfid", data.hfid),
+            ("__typename", data.typename),
+            ("kind", data.kind),
+            ("display_label", data.display_label),
+        )
+        if value is not None
+    }
+
+
 class RelatedNodeBase:
     """Base class for representing a related node in a relationship.
 
     A ``RelatedNodeBase`` is the peer end of a cardinality-one relationship. It carries
     the lightweight identification of the peer (``id``, ``hfid``, ``typename``, ...) along
     with the relationship-edge properties (``source``, ``owner``, ``is_protected``, ...).
-    The full peer node is fetched lazily through :meth:`RelatedNode.fetch` /
+    The peer node is fetched lazily through :meth:`RelatedNode.fetch` /
     :meth:`RelatedNodeSync.fetch`.
 
     Attributes:
         schema (RelationshipSchemaAPI): The schema describing the relationship.
         name (str | None): The name of the relationship slot on the parent node.
         updated_at (str | None): ISO-8601 timestamp of the most recent edge update.
+        is_loaded (bool): True when the node's data contained the relationship, it was assigned since,
+            it does not belong to a node, or the node has no ``id`` yet.
 
     """
 
@@ -57,6 +99,8 @@ class RelatedNodeBase:
         self.name = name
 
         self._branch = branch
+        self._node: InfrahubNodeBase | None = None
+        self._has_data = False
 
         self._properties_flag = PROPERTIES_FLAG
         self._properties_object = PROPERTIES_OBJECT
@@ -75,29 +119,13 @@ class RelatedNodeBase:
         # so we don't silently null-clear unfetched relationships on save.
         self._peer_has_been_mutated: bool = False
 
-        # Copy only the peer identifiers: the edge properties belong to the source relationship.
-        if isinstance(data, RelatedNodeBase):
-            data = {
-                key: value
-                for key, value in (
-                    ("id", data.id),
-                    ("hfid", data.hfid),
-                    ("__typename", data.typename),
-                    ("kind", data.kind),
-                    ("display_label", data.display_label),
-                )
-                if value is not None
-            }
+        data = _peer_input(data)
+        self._inline_input = _inline_input(schema=schema, data=data)
 
-        # Detect node instances. InfrahubNodeBase is imported lazily here to avoid a
-        # circular import (node.py imports this module at load time).
-        from .node import InfrahubNodeBase as _InfrahubNodeBase  # noqa: PLC0415
-
-        if isinstance(data, (CoreNodeBase, _InfrahubNodeBase)):
+        if _is_peer_node(data):
             self._peer = cast("InfrahubNodeBase | CoreNodeBase", data)
             for prop in self._properties:
                 setattr(self, prop, None)
-            self._relationship_metadata = None
 
         elif isinstance(data, list):
             data = {"hfid": data}
@@ -149,7 +177,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer node ID, or ``None`` when neither the peer nor an ID is set.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.id
         return self._id
@@ -158,12 +190,23 @@ class RelatedNodeBase:
     def hfid(self) -> list[Any] | None:
         """Return the human-friendly ID of the related node.
 
+        When the cached peer was fetched with ``only`` and has no HFID, because the response did not
+        contain one and the fields it carries do not give one, the HFID the relationship was loaded with
+        is returned instead.
+
         Returns:
             list[Any] | None: The peer HFID as a list of components, or ``None`` when not set.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
-            return self._peer.hfid
+            peer_hfid = self._peer.hfid
+            if peer_hfid is None and self._peer_is_from_only:
+                return self._hfid
+            return peer_hfid
         return self._hfid
 
     @property
@@ -171,16 +214,31 @@ class RelatedNodeBase:
         """Return the human-friendly ID of the related node as a separator-joined string.
 
         The returned string includes the kind prefix and is therefore suitable as a key
-        for the client store.
+        for the client store. When the cached peer was fetched with ``only`` and has no HFID,
+        because the response did not contain one and the fields it carries do not give one, the
+        string is built from the HFID the relationship was loaded with.
 
         Returns:
             str | None: The peer HFID joined with the HFID separator, or ``None`` when
             unavailable (no resolved peer or missing HFID).
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
-        if self._peer and self.hfid:
+        self._raise_if_not_loaded()
+        if not self._peer:
+            return None
+        if self._peer.hfid:
             return self._peer.get_human_friendly_id_as_string(include_kind=True)
+        if self._peer_is_from_only and self._hfid:
+            return "__".join([self._peer.get_kind(), *(str(part) for part in self._hfid)])
         return None
+
+    @property
+    def _peer_is_from_only(self) -> bool:
+        # The cached peer can be typed as a protocol, which does not declare the marker.
+        return getattr(self._peer, "_only_marker", None) is not None
 
     @property
     def is_resource_pool(self) -> bool:
@@ -202,7 +260,32 @@ class RelatedNodeBase:
             bool: ``True`` when an ID or HFID is known and the relationship can be referenced.
 
         """
-        return bool(self.id) or bool(self.hfid)
+        if self._peer:
+            return bool(self._peer.id) or bool(self._peer.hfid)
+        return bool(self._id) or bool(self._hfid)
+
+    @property
+    def is_loaded(self) -> bool:
+        """Return whether this relationship holds the peer from its node's data or from an assignment.
+
+        Never raises and sends no request.
+
+        Returns:
+            bool: ``True`` when the data the node was built from contained the relationship, even
+            without a peer, when the relationship was assigned since, when it does not belong to a
+            node (such as a peer inside a cardinality-many relationship), or when its node has no
+            ``id`` yet. ``False`` otherwise.
+
+        """
+        return self._has_data or self._node is None or not self._node.id
+
+    def _bind(self, node: InfrahubNodeBase, present: bool) -> None:
+        self._node = node
+        self._has_data = present
+
+    def _raise_if_not_loaded(self) -> None:
+        if not self.is_loaded and self._node is not None and self._node._only_marker is not None:
+            raise self._node._only_marker.not_loaded_error(kind=self._node.get_kind(), field=self.schema.name)
 
     @property
     def display_label(self) -> str | None:
@@ -211,7 +294,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer display label, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.display_label
         return self._display_label
@@ -223,7 +310,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer typename, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.typename
         return self._typename
@@ -235,7 +326,11 @@ class RelatedNodeBase:
         Returns:
             str | None: The peer schema kind, or ``None`` when not provided.
 
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return self._peer.get_kind()
         return self._kind
@@ -268,6 +363,9 @@ class RelatedNodeBase:
         return self._relationship_metadata
 
     def _generate_input_data(self, allocate_from_pool: bool = False) -> dict[str, Any]:
+        if self._inline_input is not None:
+            return dict(self._inline_input)
+
         data: dict[str, Any] = {}
 
         if self.is_resource_pool and allocate_from_pool:
@@ -363,8 +461,10 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    async def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+    async def fetch(
+        self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
+    ) -> None:
+        """Fetch the peer with its default fields, or only the fields named in ``only``, and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
         available via :attr:`peer` or :meth:`get`.
@@ -373,16 +473,32 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): The only attributes and relationships to fetch on the peer, which also gets
+                its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+                raises FieldNotLoadedError.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+            FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+                queried.
+            TypeError: ``only`` is a string instead of a list of field names; raised before the peer is queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        self._raise_if_not_loaded()
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         self._peer = await self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            **only_kwargs,
         )
 
     @property
@@ -394,6 +510,9 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
 
         Returns:
             PeerT: The resolved peer node.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return self.get()
@@ -415,9 +534,11 @@ class RelatedNode(RelatedNodeBase, Generic[PeerT]):
             PeerT: The resolved peer node.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return cast("PeerT", self._peer)
 
@@ -460,8 +581,10 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
         self._client = client
         super().__init__(branch=branch, schema=schema, data=data, name=name)
 
-    def fetch(self, timeout: int | None = None, priority: Priority | None = None) -> None:
-        """Fetch the full peer node from the backend and cache it on this object.
+    def fetch(
+        self, timeout: int | None = None, priority: Priority | None = None, only: list[str] | None = None
+    ) -> None:
+        """Fetch the peer with its default fields, or only the fields named in ``only``, and cache it on this object.
 
         After ``fetch()`` completes, attribute and relationship access on the peer is
         available via :attr:`peer` or :meth:`get`.
@@ -470,16 +593,32 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             timeout (int, optional): Overrides the default timeout used when querying the
                 GraphQL API. Specified in seconds.
             priority: Override the client-wide request priority for this fetch. When None, the client default is used.
+            only (list[str], optional): The only attributes and relationships to fetch on the peer, which also gets
+                its ``id``, ``display_label`` and ``__typename``. Reading a field of the peer that was not fetched
+                raises FieldNotLoadedError.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
+            FieldNotFoundError: A name in ``only`` is not a field of the peer's kind; raised before the peer is
+                queried.
+            TypeError: ``only`` is a string instead of a list of field names; raised before the peer is queried.
             Error: If neither ``id`` nor ``typename`` is set on this related node.
 
         """
+        self._raise_if_not_loaded()
         if not self.id or not self.typename:
             raise Error("Unable to fetch the peer, id and/or typename are not defined")
 
+        # Pass `only` only when set, so client overrides written before it keep working.
+        only_kwargs: dict[str, Any] = {} if only is None else {"only": only}
         self._peer = self._client.get(
-            kind=self.typename, id=self.id, populate_store=True, branch=self._branch, timeout=timeout, priority=priority
+            kind=self.typename,
+            id=self.id,
+            populate_store=True,
+            branch=self._branch,
+            timeout=timeout,
+            priority=priority,
+            **only_kwargs,
         )
 
     @property
@@ -491,6 +630,9 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
 
         Returns:
             PeerTSync: The resolved peer node.
+
+        Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
 
         """
         return self.get()
@@ -512,9 +654,11 @@ class RelatedNodeSync(RelatedNodeBase, Generic[PeerTSync]):
             PeerTSync: The resolved peer node.
 
         Raises:
+            FieldNotLoadedError: The node was queried with ``only`` and the relationship was not fetched.
             ValueError: If neither an ID nor an HFID is available to look up the peer.
 
         """
+        self._raise_if_not_loaded()
         if self._peer:
             return cast("PeerTSync", self._peer)
 

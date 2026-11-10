@@ -12,6 +12,7 @@ import asyncio
 import errno
 import io
 import logging
+import re
 import tempfile
 import threading
 import time
@@ -605,15 +606,27 @@ async def test_graphql_and_transport_retries_share_one_attempt_counter(
 class NonTransientCase:
     name: str
     errors: list[dict]
+    expected_message: str
 
 
+# A governing error carrying a catalogue code names the failure with it; one the catalogue could not
+# describe keeps the message this call site has always produced.
 NON_TRANSIENT_CASES = [
     NonTransientCase(
         name="non-transient-status",
         errors=[{"message": "Unknown field", "extensions": {"code": "GRAPHQL_VALIDATION", "http_status": 400}}],
+        expected_message="GRAPHQL_VALIDATION: Unknown field",
     ),
-    NonTransientCase(name="mixed", errors=[_transient_error(503), {"message": "Unknown field"}]),
-    NonTransientCase(name="unclassified", errors=[{"message": "legacy error without extensions"}]),
+    NonTransientCase(
+        name="mixed",
+        errors=[_transient_error(503), {"message": "Unknown field"}],
+        expected_message="DATABASE_UNAVAILABLE: Unable to connect to the database",
+    ),
+    NonTransientCase(
+        name="unclassified",
+        errors=[{"message": "legacy error without extensions"}],
+        expected_message="An error occurred while executing the GraphQL Query",
+    ),
 ]
 
 
@@ -626,7 +639,7 @@ async def test_non_transient_graphql_errors_raise_immediately(
     requester = ScriptedRequester([_graphql_errors(*case.errors), _ok()])
     client = _build_client(client_type, requester, retry_on_failure=True, max_retry_duration=0)
 
-    with pytest.raises(GraphQLError, match="An error occurred while executing the GraphQL Query") as exc:
+    with pytest.raises(GraphQLError, match=re.escape(case.expected_message)) as exc:
         await _execute_graphql(client)
 
     assert exc.value.errors == case.errors
@@ -926,7 +939,7 @@ async def test_multipart_mutation_raises_non_transient_graphql_errors_immediatel
     httpx_mock.add_response(status_code=200, json={"data": None, "errors": errors})
     client = _build_client_over_httpx(client_type, retry_on_failure=True, max_retry_duration=0)
 
-    with pytest.raises(GraphQLError, match="An error occurred while executing the GraphQL Query") as exc:
+    with pytest.raises(GraphQLError, match="GRAPHQL_VALIDATION: Unknown field") as exc:
         await _upload(client, io.BytesIO(MULTIPART_FILE_CONTENT))
 
     assert exc.value.errors == errors

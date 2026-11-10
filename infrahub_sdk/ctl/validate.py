@@ -11,7 +11,7 @@ from rich.markup import escape
 from ..async_typer import AsyncTyper
 from ..ctl.client import initialize_client_sync
 from ..ctl.exceptions import QueryNotFoundError
-from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars
+from ..ctl.utils import catch_exception, find_graphql_query, parse_cli_vars, print_graphql_query_errors
 from ..exceptions import GraphQLError
 from ..schema import validate_schema as validate_schema_offline
 from ..utils import write_to_file
@@ -86,14 +86,7 @@ def validate_graphql(
             variables=variables_dict,
         )
     except GraphQLError as exc:
-        console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")
-        for error in exc.errors:
-            if isinstance(error, dict) and "message" in error and "locations" in error:
-                console.print(f"[yellow] - Message: {error['message']}")
-                console.print(f"[yellow]   Location: {error['locations']}")
-            elif isinstance(error, str) and "Branch:" in error:
-                console.print(f"[yellow] - {error}")
-                console.print("[yellow]   you can specify a different branch with --branch")
+        print_graphql_query_errors(console=console, exc=exc)
         sys.exit(1)
 
     console.print("[green] Query executed successfully.")

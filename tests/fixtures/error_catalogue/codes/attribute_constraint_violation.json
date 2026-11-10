@@ -1,0 +1,27 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Value for TestPerson.name does not conform to the regex '^[A-Z]'",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonCreate"
+      ],
+      "extensions": {
+        "code": "ATTRIBUTE_CONSTRAINT_VIOLATION",
+        "http_status": 422,
+        "data": {
+          "node_kind": "TestPerson",
+          "field_name": "name",
+          "constraint": "regex",
+          "detail": "^[A-Z]"
+        }
+      }
+    }
+  ]
+}

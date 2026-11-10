@@ -14,6 +14,7 @@ import ujson
 from infrahub_sdk import Config, InfrahubClient, InfrahubClientSync
 from infrahub_sdk.schema import BranchSupportType, NodeSchema, NodeSchemaAPI
 from infrahub_sdk.utils import get_fixtures_dir
+from tests.helpers.only_data import SCHEMA as ONLY_SCHEMA
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -60,6 +61,13 @@ async def echo_clients(clients: BothClients) -> AsyncGenerator[BothClients, None
 
     clients.standard.config.echo_graphql_queries = False
     clients.sync.config.echo_graphql_queries = False
+
+
+@pytest.fixture
+def only_clients(clients: BothClients) -> BothClients:
+    clients.standard.schema.set_cache(ONLY_SCHEMA)
+    clients.sync.schema.set_cache(ONLY_SCHEMA)
+    return clients
 
 
 @pytest.fixture

@@ -9,6 +9,13 @@ class InfrahubClientMode(str, enum.Enum):
     # IDEMPOTENT = "idempotent"
 
 
+class PoolAllocationProvenance(str, enum.Enum):
+    """Whether a number pool allocated a number or a user provided it and attached it to the pool."""
+
+    ALLOCATED = "allocated"
+    PROVIDED = "provided"
+
+
 class Priority(str, enum.Enum):
     """Request priority emitted as the ``X-Priority`` header.
 

@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {
+      "message": "Authentication is required",
+      "extensions": {
+        "code": 401
+      }
+    }
+  ]
+}

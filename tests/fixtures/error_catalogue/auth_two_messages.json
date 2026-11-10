@@ -1,0 +1,14 @@
+{
+  "errors": [
+    {
+      "message": "first problem",
+      "extensions": {
+        "code": "AUTHENTICATION_REQUIRED",
+        "http_status": 401
+      }
+    },
+    {
+      "message": "second problem"
+    }
+  ]
+}

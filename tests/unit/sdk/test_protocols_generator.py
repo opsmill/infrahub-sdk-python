@@ -5,10 +5,19 @@ import pytest
 
 from infrahub_sdk import InfrahubClient
 from infrahub_sdk.protocols_generator.generator import CodeGenerator
-from infrahub_sdk.schema import AttributeSchemaAPI
+from infrahub_sdk.protocols_generator.target import ProtocolTarget
+from infrahub_sdk.schema import (
+    AttributeSchemaAPI,
+    GenericSchemaAPI,
+    RelationshipCardinality,
+    RelationshipSchemaAPI,
+)
+from tests.helpers.fixtures import read_fixture
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
+
+GOLDEN_SUBDIR = "protocols_generator"
 
 
 @dataclass
@@ -25,7 +34,7 @@ SYNCIFY_TEST_CASES = [
         name="sync-list",
         sync=True,
         input=["LineageSource", "CoreNode", "CoreObjectTemplate"],
-        output=["LineageSource", "CoreObjectTemplateSync", "CoreNodeSync"],
+        output=["LineageSourceSync", "CoreObjectTemplateSync", "CoreNodeSync"],
     ),
     SyncifyTestCase(name="async-str", sync=False, input=["CoreNode"], output=["CoreNode"]),
     SyncifyTestCase(
@@ -73,6 +82,107 @@ RENDER_ATTRIBUTE_TEST_CASES = [
 ]
 
 
+@dataclass
+class RenderRelationshipTestCase:
+    name: str
+    sync: bool
+    peer: str
+    cardinality: RelationshipCardinality
+    expected: str
+
+
+RENDER_RELATIONSHIP_TEST_CASES = [
+    RenderRelationshipTestCase(
+        name="sync-core-node-peer",
+        sync=True,
+        peer="CoreNode",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManagerSync[CoreNodeSync]",
+    ),
+    RenderRelationshipTestCase(
+        name="async-core-node-peer",
+        sync=False,
+        peer="CoreNode",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManager[CoreNode]",
+    ),
+    RenderRelationshipTestCase(
+        name="sync-peer-with-sync-twin",
+        sync=True,
+        peer="CoreGroup",
+        cardinality=RelationshipCardinality.MANY,
+        expected="members: RelationshipManagerSync[CoreGroupSync]",
+    ),
+    RenderRelationshipTestCase(
+        name="sync-peer-without-sync-twin",
+        sync=True,
+        peer="LocationRack",
+        cardinality=RelationshipCardinality.ONE,
+        expected="members: RelationshipAttributeSync[LocationRack]",
+    ),
+]
+
+
+@dataclass
+class HierarchyTestCase:
+    name: str
+    declared_relationships: list[str]
+
+
+HIERARCHY_TEST_CASES = [
+    HierarchyTestCase(name="neither-declared", declared_relationships=[]),
+    HierarchyTestCase(name="only-parent-declared", declared_relationships=["parent"]),
+    HierarchyTestCase(name="only-children-declared", declared_relationships=["children"]),
+    HierarchyTestCase(name="both-declared", declared_relationships=["parent", "children"]),
+]
+
+
+@dataclass
+class OrderTestCase:
+    name: str
+    first_namespace: str
+    first_name: str
+    second_namespace: str
+    second_name: str
+    expected_first: str
+    expected_second: str
+
+
+ORDER_TEST_CASES = [
+    OrderTestCase(
+        name="same-name-different-namespace",
+        first_namespace="Location",
+        first_name="Site",
+        second_namespace="Network",
+        second_name="Site",
+        expected_first="LocationSite",
+        expected_second="NetworkSite",
+    ),
+    OrderTestCase(
+        name="names-differing-only-in-case",
+        first_namespace="Infra",
+        first_name="DEvice",
+        second_namespace="Infra",
+        second_name="Device",
+        expected_first="InfraDEvice",
+        expected_second="InfraDevice",
+    ),
+]
+
+
+@dataclass
+class GoldenTestCase:
+    name: str
+    sync: bool
+    fixture: str
+
+
+GOLDEN_TEST_CASES = [
+    GoldenTestCase(name="async", sync=False, fixture="user_schema_async.txt"),
+    GoldenTestCase(name="sync", sync=True, fixture="user_schema_sync.txt"),
+]
+
+
 @pytest.mark.parametrize(
     "test_case",
     [pytest.param(tc, id=tc.name) for tc in RENDER_ATTRIBUTE_TEST_CASES],
@@ -89,11 +199,34 @@ async def test_filter_render_attribute(test_case: RenderAttributeTestCase) -> No
 
 @pytest.mark.parametrize(
     "test_case",
+    [pytest.param(tc, id=tc.name) for tc in RENDER_RELATIONSHIP_TEST_CASES],
+)
+async def test_filter_render_relationship(test_case: RenderRelationshipTestCase) -> None:
+    """A peer is referenced by its ``*Sync`` variant in sync output whenever one exists.
+
+    ``CoreNode`` is the implicit base and is excluded from ``base_protocols``, so a relationship
+    whose peer is exactly ``CoreNode`` still has to switch to ``CoreNodeSync`` here; a peer with no
+    sync twin keeps its name because it already is the sync class.
+    """
+    generator = CodeGenerator(schema={})
+    relationship = RelationshipSchemaAPI(
+        name="members",
+        peer=test_case.peer,
+        cardinality=test_case.cardinality,
+    )
+
+    assert generator._jinja2_filter_render_relationship(relationship, sync=test_case.sync) == test_case.expected
+
+
+@pytest.mark.parametrize(
+    "test_case",
     [pytest.param(tc, id=tc.name) for tc in SYNCIFY_TEST_CASES],
 )
 async def test_filter_syncify(test_case: SyncifyTestCase) -> None:
-    assert CodeGenerator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
-    assert CodeGenerator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
+    generator = CodeGenerator(schema={})
+
+    assert generator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
+    assert generator._jinja2_filter_syncify(value=test_case.input, sync=test_case.sync) == test_case.output
 
 
 async def test_generator(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:
@@ -104,7 +237,7 @@ async def test_generator(client: InfrahubClient, mock_schema_query_05: "HTTPXMoc
 
     assert "class LocationGeneric(CoreNodeSync)" in sync_protocols
     assert "class LocationCountry(LocationGeneric)" in sync_protocols
-    assert "class TemplateInfraDevice(LineageSource, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
+    assert "class TemplateInfraDevice(LineageSourceSync, CoreObjectTemplateSync, CoreNodeSync)" in sync_protocols
 
     location_site_sync = """
 class LocationSite(LocationGeneric):
@@ -128,3 +261,105 @@ class LocationSite(LocationGeneric):
     assert "class LocationGeneric(CoreNode)" in async_protocols
     assert "class LocationCountry(LocationGeneric)" in async_protocols
     assert "class TemplateInfraDevice(LineageSource, CoreObjectTemplate, CoreNode)" in async_protocols
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in GOLDEN_TEST_CASES],
+)
+async def test_render_user_schema_matches_golden(
+    test_case: GoldenTestCase, client: InfrahubClient, mock_schema_query_05: "HTTPXMock"
+) -> None:
+    """Rendering a user schema produces output byte-identical to the committed reference.
+
+    The output of `infrahubctl protocols` is checked into user repositories and type-checked
+    there, so any change to it - a renamed annotation, a reordered member, a different import
+    line - is a change to something users depend on. Comparing the whole file makes that
+    surface as a diff a reviewer has to accept on purpose, rather than passing unnoticed
+    because the assertions only sampled a few lines.
+    """
+    schemas = await client.schema.fetch(branch="main")
+
+    rendered = CodeGenerator(schema=schemas).render(sync=test_case.sync)
+
+    assert rendered == read_fixture(test_case.fixture, GOLDEN_SUBDIR)
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in HIERARCHY_TEST_CASES],
+)
+async def test_hierarchy_members_are_declared_once(test_case: HierarchyTestCase) -> None:
+    """A hierarchical kind declares `parent` and `children` exactly once.
+
+    Both come from the hierarchy unless the schema already exposes them as relationships, which
+    it does for anything read from the API. Emitting either one twice is not a type error, so a
+    duplicate silently overrides the first declaration with whatever the second one says.
+    """
+    relationships = [
+        RelationshipSchemaAPI(
+            name=name,
+            peer="LocationSite",
+            cardinality=RelationshipCardinality.ONE if name == "parent" else RelationshipCardinality.MANY,
+        )
+        for name in test_case.declared_relationships
+    ]
+    generic = GenericSchemaAPI(name="Site", namespace="Location", hierarchical=True, relationships=relationships)
+
+    rendered = CodeGenerator(schema={"LocationSite": generic}).render(sync=False)
+
+    body = rendered[rendered.index("class LocationSite") :]
+    assert body.count("parent:") == 1
+    assert body.count("children:") == 1
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in ORDER_TEST_CASES],
+)
+async def test_render_order_does_not_depend_on_input_order(test_case: OrderTestCase) -> None:
+    """Kinds a sort key could compare equal render in the same order however they are supplied.
+
+    The rendered file is committed and validated by regenerating it and diffing, so an ordering
+    that depends on how the schema was handed over turns into a build that fails intermittently.
+    Ordering on the kind is total, because that is the name the class renders as.
+    """
+    first = GenericSchemaAPI(name=test_case.first_name, namespace=test_case.first_namespace)
+    second = GenericSchemaAPI(name=test_case.second_name, namespace=test_case.second_namespace)
+
+    forwards = CodeGenerator(schema={first.kind: first, second.kind: second}).render(sync=False)
+    backwards = CodeGenerator(schema={second.kind: second, first.kind: first}).render(sync=False)
+
+    assert forwards == backwards
+    assert forwards.index(f"class {test_case.expected_first}(") < forwards.index(f"class {test_case.expected_second}(")
+
+
+async def test_render_sdk_core_emits_both_variants(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:
+    """Generating infrahub_sdk.protocols itself puts both variants in one module.
+
+    Every kind is local there, so the module cannot import the kinds it defines, the sync classes
+    need a suffix to keep their names distinct, and a peer has to be referenced by its own sync
+    class rather than by an imported one.
+    """
+    schemas = await client.schema.fetch(branch="main")
+
+    rendered = CodeGenerator(schema=schemas, target=ProtocolTarget.SDK_CORE).render()
+
+    assert "from infrahub_sdk.protocols import" not in rendered
+    assert "from .protocols_base import CoreNode, CoreNodeSync" in rendered
+
+    assert "class LocationGeneric(CoreNode):" in rendered
+    assert "class LocationGenericSync(CoreNodeSync):" in rendered
+    assert "class LocationSite(LocationGeneric):" in rendered
+    assert "class LocationSiteSync(LocationGenericSync):" in rendered
+
+    assert "parent: RelationshipAttribute[LocationCountry]" in rendered
+    assert "parent: RelationshipAttributeSync[LocationCountrySync]" in rendered
+
+
+async def test_render_sdk_core_ignores_sync_argument(client: InfrahubClient, mock_schema_query_05: "HTTPXMock") -> None:
+    """The async/sync choice does not apply when both variants land in the same module."""
+    schemas = await client.schema.fetch(branch="main")
+    generator = CodeGenerator(schema=schemas, target=ProtocolTarget.SDK_CORE)
+
+    assert generator.render(sync=True) == generator.render(sync=False)
