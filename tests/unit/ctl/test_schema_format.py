@@ -21,11 +21,14 @@ NODE_DOC = """\
 version: "1.0"
 
 nodes:
-  - relationships:
+  - generate_profile: false
+    relationships:
       - peer: BuiltinTag
+        container: inventory
         name: tags
     attributes:
       - order_weight: 1500
+        container: inventory
         optional: true
         name: status
         kind: Dropdown
@@ -34,6 +37,17 @@ nodes:
             name: active
             label: Active
     namespace: Dcim
+    containers:
+      - state: present
+        collapsed: true
+        order_weight: 2000
+        description: Rack and serial details.
+        label: Inventory
+        name: inventory
+      - label: Monitoring
+        name: monitoring
+    uniqueness_constraints:
+      - [name__value]
     name: Device
     label: Device
     description: A device.
@@ -67,6 +81,9 @@ def test_node_key_order_is_canonical() -> None:
         "namespace",
         "description",
         "label",
+        "uniqueness_constraints",
+        "containers",
+        "generate_profile",
         "attributes",
         "relationships",
     ]
@@ -76,11 +93,25 @@ def test_attribute_relationship_and_choice_inner_order() -> None:
     text = format_schema_text(NODE_DOC)
 
     attr_keys = _keys_of(text, ["nodes", 0, "attributes", 0])
-    assert attr_keys == ["name", "kind", "choices", "optional", "order_weight"]
+    assert attr_keys == ["name", "kind", "choices", "optional", "container", "order_weight"]
     assert attr_keys[-1] == "order_weight"
 
     assert _keys_of(text, ["nodes", 0, "attributes", 0, "choices", 0]) == ["name", "label", "color"]
-    assert _keys_of(text, ["nodes", 0, "relationships", 0]) == ["name", "peer"]
+    assert _keys_of(text, ["nodes", 0, "relationships", 0]) == ["name", "peer", "container"]
+
+
+def test_container_item_key_order_is_canonical() -> None:
+    text = format_schema_text(NODE_DOC)
+
+    assert _keys_of(text, ["nodes", 0, "containers", 0]) == [
+        "name",
+        "label",
+        "description",
+        "order_weight",
+        "collapsed",
+        "state",
+    ]
+    assert _keys_of(text, ["nodes", 0, "containers", 1]) == ["name", "label"]
 
 
 def test_restricted_namespace_nodes_are_untouched() -> None:
