@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import threading
 import warnings
 from typing import TYPE_CHECKING, Literal, overload
 
@@ -45,22 +46,25 @@ class NodeStoreBranch:
         # Entries written per internal id: a node's HFID can change after it is indexed, so it cannot be recomputed.
         self._keys_by_internal_id: dict[str, set[str]] = {}
         self._hfids_by_internal_id: dict[str, set[tuple[str, tuple]]] = {}
+        # The sync batch saves nodes from several threads. Re-entrant because computing an HFID can read this store.
+        self._lock = threading.RLock()
 
     def count(self) -> int:
         return len(self._objs)
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
-        existing_internal_id = self._uuids.get(node.id) if node.id else None
-        existing = self._objs.get(existing_internal_id) if existing_internal_id else None
-        previous_keys: list[str] = []
-        previous_hfids: list[tuple[str, tuple]] = []
-        if existing is not None and existing is not node:
-            kept = self._resolve_existing(existing=existing, new=node)
-            if kept is not existing:
-                previous_keys, previous_hfids = self._unindex(existing._internal_id)
-            node = kept
+        with self._lock:
+            existing_internal_id = self._uuids.get(node.id) if node.id else None
+            existing = self._objs.get(existing_internal_id) if existing_internal_id else None
+            previous_keys: list[str] = []
+            previous_hfids: list[tuple[str, tuple]] = []
+            if existing is not None and existing is not node:
+                kept = self._resolve_existing(existing=existing, new=node)
+                if kept is not existing:
+                    previous_keys, previous_hfids = self._unindex(existing._internal_id)
+                node = kept
 
-        self._index(node=node, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
+            self._index(node=node, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
 
     def _resolve_existing(
         self,
@@ -121,6 +125,15 @@ class NodeStoreBranch:
         return keys, hfids
 
     def get(
+        self,
+        key: str | list[str],
+        kind: type[SchemaType | SchemaTypeSync] | str | None = None,
+        raise_when_missing: bool = True,
+    ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync | None:
+        with self._lock:
+            return self._get(key=key, kind=kind, raise_when_missing=raise_when_missing)
+
+    def _get(
         self,
         key: str | list[str],
         kind: type[SchemaType | SchemaTypeSync] | str | None = None,
@@ -291,11 +304,8 @@ class NodeStoreBase:
         branch: str | None = None,
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
-
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
-
-        self._branches[branch].set(node=node, key=key)
+        store_branch = self._branches.get(branch) or self._branches.setdefault(branch, NodeStoreBranch(name=branch))
+        store_branch.set(node=node, key=key)
 
     def _get(  # type: ignore[no-untyped-def]
         self,
