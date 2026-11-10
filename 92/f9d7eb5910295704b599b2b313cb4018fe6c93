@@ -1,0 +1,19 @@
+tests/unit/sdk/test_generator.py
+  s_98c95252a4903f::t_2e1e062e351de5 16-30,58-63,71-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92f9d7eb5910295704b599b2b313cb4018fe6c93",
+  "prompts": {},
+  "sessions": {
+    "s_98c95252a4903f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d6dccc06-7d3d-4665-8fdf-ce064be343bd",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
