@@ -58,10 +58,10 @@ class NodeStoreBranch:
             existing = self._objs.get(existing_internal_id) if existing_internal_id else None
             previous_keys: list[str] = []
             previous_hfids: list[tuple[str, tuple]] = []
-            if existing is not None and existing is not node:
-                kept = self._resolve_existing(existing=existing, new=node)
-                if kept is not existing:
-                    previous_keys, previous_hfids = self._unindex(existing._internal_id)
+            if existing is not None:
+                # Re-index even the same object: its HFID may have changed since it was stored.
+                kept = node if existing is node else self._resolve_existing(existing=existing, new=node)
+                previous_keys, previous_hfids = self._unindex(existing._internal_id)
                 node = kept
 
             self._index(node=node, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
