@@ -69,7 +69,9 @@ class NodeStoreBranch:
     ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
         """Return the node to keep when the store already holds another object with the same id.
 
-        The newest copy replaces the previous one. Merging ``new`` into ``existing`` would be implemented here.
+        The newest copy replaces the previous one, so fields that only the previous copy holds are lost.
+        This is to be reworked to merge ``new`` into ``existing`` and keep ``existing``, so that a later
+        query returning fewer fields does not drop attributes or relationships fetched earlier.
         """
         return new
 
@@ -117,12 +119,6 @@ class NodeStoreBranch:
         for kind, hfid in hfids:
             del self._hfids[kind][hfid]
         return keys, hfids
-
-    def _remove(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync) -> None:
-        """Remove the node, and any other object stored for the same id."""
-        self._unindex(node._internal_id)
-        if node.id and (internal_id := self._uuids.get(node.id)):
-            self._unindex(internal_id)
 
     def get(
         self,
@@ -312,13 +308,6 @@ class NodeStoreBase:
         store_branch = self._branches.get(branch) or NodeStoreBranch(name=branch)
 
         return store_branch.get(key=key, kind=kind, raise_when_missing=raise_when_missing)
-
-    def _remove(
-        self, node: InfrahubNode | InfrahubNodeSync | SchemaType | SchemaTypeSync, branch: str | None = None
-    ) -> None:
-        branch = self._get_branch(branch or node.get_branch())
-        if branch in self._branches:
-            self._branches[branch]._remove(node=node)
 
     def count(self, branch: str | None = None) -> int:
         branch = self._get_branch(branch)

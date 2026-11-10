@@ -1439,7 +1439,6 @@ class InfrahubNode(InfrahubNodeBase):
             tracker=f"mutation-{str(self._schema.kind).lower()}-delete",
             priority=priority,
         )
-        self._client.store._remove(node=self)
 
     async def save(
         self,
@@ -2792,7 +2791,6 @@ class InfrahubNodeSync(InfrahubNodeBase):
             timeout=timeout,
             priority=priority,
         )
-        self._client.store._remove(node=self)
 
     def save(
         self,

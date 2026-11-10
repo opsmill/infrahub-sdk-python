@@ -11,8 +11,6 @@ from infrahub_sdk.protocols import BuiltinIPAddressSync, BuiltinIPPrefix
 from infrahub_sdk.store import NodeStore, NodeStoreSync, get_schema_name
 
 if TYPE_CHECKING:
-    from pytest_httpx import HTTPXMock
-
     from infrahub_sdk.schema import NodeSchemaAPI
 
     from .conftest import BothClients
@@ -310,28 +308,6 @@ def test_node_store_get_unknown_branch_does_not_create_it(client_type: str, clie
         store.get(key="mykey", branch="unknown")
 
     assert "unknown" not in store._branches
-
-
-@pytest.mark.parametrize("client_type", client_types)
-async def test_node_delete_removes_node_from_store(
-    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, httpx_mock: HTTPXMock
-) -> None:
-    httpx_mock.add_response(method="POST", json={"data": {"BuiltinLocationDelete": {"ok": True}}})
-    node_id = "17aec828-9814-ce00-3f20-1a053670f1c8"
-    data = {"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}}
-
-    if client_type == "standard":
-        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
-        clients.standard.store.set(node=node)
-        await node.delete()
-        assert clients.standard.store.count() == 0
-        assert clients.standard.store.get(key=node_id, raise_when_missing=False) is None
-    else:
-        node_sync = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
-        clients.sync.store.set(node=node_sync)
-        node_sync.delete()
-        assert clients.sync.store.count() == 0
-        assert clients.sync.store.get(key=node_id, raise_when_missing=False) is None
 
 
 def test_store_get_schema_name() -> None:
