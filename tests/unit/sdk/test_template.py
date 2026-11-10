@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -6,7 +7,7 @@ import pytest
 from rich.syntax import Syntax
 from rich.traceback import Frame
 
-from infrahub_sdk.template import Jinja2Template
+from infrahub_sdk.template import Jinja2Template, get_template_variables
 from infrahub_sdk.template.exceptions import (
     JinjaTemplateError,
     JinjaTemplateNotFoundError,
@@ -90,6 +91,77 @@ async def test_render_string(test_case: JinjaTestCase) -> None:
     jinja = Jinja2Template(template=test_case.template)
     assert test_case.expected == await jinja.render(variables=test_case.variables)
     assert test_case.expected_variables == jinja.get_variables()
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in SUCCESSFUL_STRING_TEST_CASES],
+)
+def test_get_template_variables(test_case: JinjaTestCase) -> None:
+    assert get_template_variables(test_case.template) == test_case.expected_variables
+
+
+@dataclass
+class TemplateVariablesTestCase:
+    name: str
+    template: str
+    expected_variables: list[str]
+
+
+TEMPLATE_VARIABLES_TEST_CASES = [
+    TemplateVariablesTestCase(
+        name="unknown-filter",
+        template="{{ name | not_a_filter }}",
+        expected_variables=["name"],
+    ),
+    TemplateVariablesTestCase(
+        name="unknown-filter-on-constant",
+        template="{{ 'fixed' | not_a_filter }} {{ name }}",
+        expected_variables=["name"],
+    ),
+    TemplateVariablesTestCase(
+        name="unknown-filter-block",
+        template="{% filter not_a_filter %}{{ name }}{% endfilter %}",
+        expected_variables=["name"],
+    ),
+    TemplateVariablesTestCase(
+        name="local-variable-excluded",
+        template="{% set suffix = 'x' %}{{ name }}{{ suffix }}",
+        expected_variables=["name"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in TEMPLATE_VARIABLES_TEST_CASES],
+)
+def test_get_template_variables_ignores_filter_names(test_case: TemplateVariablesTestCase) -> None:
+    assert get_template_variables(test_case.template) == test_case.expected_variables
+    assert Jinja2Template(template=test_case.template).get_variables() == test_case.expected_variables
+
+
+def test_get_template_variables_unknown_test_raises() -> None:
+    with pytest.raises(JinjaTemplateSyntaxError, match="No test named 'not_a_test'"):
+        get_template_variables("{{ name is not_a_test }}")
+
+
+async def test_render_uses_instance_filters_after_variables_are_cached() -> None:
+    template = "{{ name | decorate }}"
+    get_template_variables(template)
+
+    first = Jinja2Template(template=template, filters={"decorate": lambda value: f"<{value}>"})
+    second = Jinja2Template(template=template, filters={"decorate": lambda value: f"[{value}]"})
+
+    assert await first.render(variables={"name": "a"}) == "<a>"
+    assert await second.render(variables={"name": "a"}) == "[a]"
+
+
+def test_get_template_variables_returns_a_new_list_each_call() -> None:
+    template = "{{ first }} {{ second }}"
+    get_template_variables(template).append("extra")
+
+    assert get_template_variables(template) == ["first", "second"]
 
 
 SUCCESSFUL_FILE_TEST_CASES = [
@@ -295,6 +367,21 @@ def test_get_variables_syntax_error(test_case: JinjaSyntaxErrorTestCase) -> None
 
     assert exc.value.message == test_case.expected_message
     assert exc.value.lineno == test_case.expected_lineno
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [pytest.param(tc, id=tc.name) for tc in SYNTAX_ERROR_TEST_CASES],
+)
+def test_get_template_variables_syntax_error(test_case: JinjaSyntaxErrorTestCase) -> None:
+    get_template_variables("{{ valid }}")
+    for _ in range(2):
+        with pytest.raises(JinjaTemplateSyntaxError, match=re.escape(test_case.expected_message)) as exc:
+            get_template_variables(test_case.template)
+
+        assert exc.value.message == test_case.expected_message
+        assert exc.value.lineno == test_case.expected_lineno
+        assert exc.value.filename is None
 
 
 @pytest.mark.parametrize(
