@@ -10,6 +10,8 @@ from infrahub_sdk.protocols import BuiltinIPAddressSync, BuiltinIPPrefix
 from infrahub_sdk.store import NodeStore, NodeStoreSync, get_schema_name
 
 if TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
     from infrahub_sdk.schema import NodeSchemaAPI
 
     from .conftest import BothClients
@@ -158,6 +160,75 @@ def test_node_store_get_with_hfid(
         store.get(kind="BuiltinLocation", key="anotherkey")
     with pytest.raises(NodeNotFoundError):
         store.get(key="anotherkey")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_replaces_previous_copy(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    second = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK2"}, "type": {"value": "SITE"}},
+    )
+
+    store.set(key="mykey", node=first)
+    store.set(node=second)
+
+    assert store.count() == 1
+    assert store.get(key=node_id) is second
+    assert store.get(key="mykey") is second
+    assert store.get(key="BuiltinLocation__JFK2") is second
+    assert store.get(key="BuiltinLocation__JFK1", raise_when_missing=False) is None
+    assert store.get(key=first._internal_id, raise_when_missing=False) is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_get_unknown_branch_does_not_create_it(client_type: str, clients: BothClients) -> None:
+    store = NodeStore(default_branch="main") if client_type == "standard" else NodeStoreSync(default_branch="main")
+
+    assert store.get(key="mykey", branch="unknown", raise_when_missing=False) is None
+    with pytest.raises(NodeNotFoundError, match=r"Unable to find the node 'mykey' in the store \(unknown\)"):
+        store.get(key="mykey", branch="unknown")
+
+    assert "unknown" not in store._branches
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_node_delete_removes_node_from_store(
+    client_type: str, clients: BothClients, location_schema: NodeSchemaAPI, httpx_mock: HTTPXMock
+) -> None:
+    httpx_mock.add_response(method="POST", json={"data": {"BuiltinLocationDelete": {"ok": True}}})
+    node_id = "17aec828-9814-ce00-3f20-1a053670f1c8"
+    data = {"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+
+    if client_type == "standard":
+        node = InfrahubNode(client=clients.standard, schema=location_schema, data=data)
+        clients.standard.store.set(node=node)
+        await node.delete()
+        assert clients.standard.store.count() == 0
+        assert clients.standard.store.get(key=node_id, raise_when_missing=False) is None
+    else:
+        node_sync = InfrahubNodeSync(client=clients.sync, schema=location_schema, data=data)
+        clients.sync.store.set(node=node_sync)
+        node_sync.delete()
+        assert clients.sync.store.count() == 0
+        assert clients.sync.store.get(key=node_id, raise_when_missing=False) is None
 
 
 def test_store_get_schema_name() -> None:
