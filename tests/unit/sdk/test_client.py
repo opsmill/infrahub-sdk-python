@@ -16,6 +16,7 @@ from infrahub_sdk.exceptions import (
     UniquenessViolationError,
 )
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.protocols import CoreRepository, CoreRepositorySync
 from infrahub_sdk.repository import GitRepoManager
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory
@@ -275,6 +276,47 @@ async def test_method_all_with_limit(
         repos = clients.sync.all(kind="CoreRepository", limit=3)
         assert clients.sync.store.count() == 3
     assert len(repos) == 3
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_all_twice_keeps_one_store_entry_per_node(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
+) -> None:
+    repository_id = "9486cfce-87db-479d-ad73-07d80ba96a0f"
+    for commit in ("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb"):
+        httpx_mock.add_response(
+            method="POST",
+            json={
+                "data": {
+                    "CoreRepository": {
+                        "count": 1,
+                        "edges": [
+                            {
+                                "node": {
+                                    "__typename": "CoreRepository",
+                                    "id": repository_id,
+                                    "name": {"value": "infrahub-demo-edge"},
+                                    "location": {"value": "git@github.com:opsmill/infrahub-demo-edge.git"},
+                                    "commit": {"value": commit},
+                                }
+                            }
+                        ],
+                    }
+                }
+            },
+            match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        )
+
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository")
+        await clients.standard.all(kind="CoreRepository")
+        assert clients.standard.store.count() == 1
+        assert clients.standard.store.get(key=repository_id, kind=CoreRepository).commit.value == "bbbbbbbbbbbbbbbbbbbb"
+    else:
+        clients.sync.all(kind="CoreRepository")
+        clients.sync.all(kind="CoreRepository")
+        assert clients.sync.store.count() == 1
+        assert clients.sync.store.get(key=repository_id, kind=CoreRepositorySync).commit.value == "bbbbbbbbbbbbbbbbbbbb"
 
 
 @pytest.mark.parametrize("client_type", client_types)
