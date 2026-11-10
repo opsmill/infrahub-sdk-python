@@ -126,7 +126,7 @@ class ContainerSchemaWrite(BaseModel):
     model_config = ConfigDict(extra="ignore", use_enum_values=True)
     name: str = Field(
         ...,
-        description="Name of the section, must be unique within the node.",
+        description="Name of the section, must be unique within the node. 'details' and names that start with 'builtin_' are reserved.",
         pattern=r"^[a-z0-9\_]+$",
         min_length=2,
         max_length=32,
@@ -141,7 +141,7 @@ class ContainerSchemaWrite(BaseModel):
     )
     order_weight: int | None = Field(
         default=None,
-        description="Position of the section among the sections of the node, lowest first.",
+        description="Position of the section among the sections of the node, lowest first. A negative weight places the section above Details.",
     )
     collapsed: bool = Field(
         default=False,
