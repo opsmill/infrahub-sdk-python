@@ -55,17 +55,24 @@ class NodeStoreBranch:
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
         with self._lock:
-            existing_internal_id = self._uuids.get(node.id) if node.id else None
-            existing = self._objs.get(existing_internal_id) if existing_internal_id else None
+            # Re-index even the same object, also one stored before it had an id: its HFID may have changed.
+            replaced = [node._internal_id] if node._internal_id in self._objs else []
+            other_internal_id = self._uuids.get(node.id) if node.id else None
+            other = self._objs.get(other_internal_id) if other_internal_id else None
+            if other is not None and other is not node:
+                node = self._resolve_existing(existing=other, new=node)
+                replaced.append(other._internal_id)
+
+            # Computed before unindexing, so an error leaves the previous entries in place.
+            hfid = node.get_human_friendly_id()
             previous_keys: list[str] = []
             previous_hfids: list[tuple[str, tuple]] = []
-            if existing is not None:
-                # Re-index even the same object: its HFID may have changed since it was stored.
-                kept = node if existing is node else self._resolve_existing(existing=existing, new=node)
-                previous_keys, previous_hfids = self._unindex(existing._internal_id)
-                node = kept
+            for internal_id in replaced:
+                keys, hfids = self._unindex(internal_id)
+                previous_keys.extend(keys)
+                previous_hfids.extend(hfids)
 
-            self._index(node=node, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
+            self._index(node=node, hfid=hfid, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
 
     def _resolve_existing(
         self,
@@ -83,6 +90,7 @@ class NodeStoreBranch:
     def _index(
         self,
         node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        hfid: list[str] | None,
         key: str | None = None,
         previous_keys: Iterable[str] = (),
         previous_hfids: Iterable[tuple[str, tuple]] = (),
@@ -98,7 +106,7 @@ class NodeStoreBranch:
         if node.id:
             self._uuids[node.id] = internal_id
 
-        if hfid := node.get_human_friendly_id():
+        if hfid:
             hfid_entries: Iterable[tuple[str, tuple]] = [(kind, tuple(hfid)) for kind in node.get_all_kinds()]
         else:
             # A copy without a HFID, e.g. from a query with `only`, stays reachable by the previous HFID.
