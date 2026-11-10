@@ -1,0 +1,22 @@
+changelog/1506.fixed.md
+  s_2f2ec711392616::t_5fb34ed6799116 1
+docs/docs/python-sdk/guides/store.mdx
+  s_2f2ec711392616::t_bcdfc14d2953eb 139-140
+  s_2f2ec711392616::t_5fb34ed6799116 138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "345f9f572b5dd7351daae8fb3060bbaef5781034",
+  "prompts": {},
+  "sessions": {
+    "s_2f2ec711392616": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a35ec51-bed6-467a-84e1-e8ff0bb9c912",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}
