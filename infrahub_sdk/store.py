@@ -45,6 +45,26 @@ class NodeStoreBranch:
         return len(self._objs)
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
+        existing_internal_id = self._uuids.get(node.id) if node.id else None
+        if existing_internal_id and existing_internal_id != node._internal_id:
+            existing = self._objs[existing_internal_id]
+            kept = self._resolve_existing(existing=existing, new=node)
+            if kept is not existing:
+                for previous_key in self._unindex(existing_internal_id):
+                    self._keys[previous_key] = kept._internal_id
+            node = kept
+
+        self._index(node=node, key=key)
+
+    def _resolve_existing(
+        self,
+        existing: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        new: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+    ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
+        """Return the node to keep when the store already holds another object with the same id."""
+        return new
+
+    def _index(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
         self._objs[node._internal_id] = node
 
         if key:
@@ -58,6 +78,31 @@ class NodeStoreBranch:
                 if kind not in self._hfids:
                     self._hfids[kind] = {}
                 self._hfids[kind][tuple(hfid)] = node._internal_id
+
+    def _unindex(self, internal_id: str) -> list[str]:
+        """Remove a node and the index entries that point to it, and return the keys that pointed to it."""
+        node = self._objs.pop(internal_id, None)
+        if node is None:
+            return []
+
+        if node.id and self._uuids.get(node.id) == internal_id:
+            del self._uuids[node.id]
+
+        if hfid := node.get_human_friendly_id():
+            for kind in node.get_all_kinds():
+                if self._hfids.get(kind, {}).get(tuple(hfid)) == internal_id:
+                    del self._hfids[kind][tuple(hfid)]
+
+        keys = [key for key, value in self._keys.items() if value == internal_id]
+        for key in keys:
+            del self._keys[key]
+        return keys
+
+    def _remove(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync) -> None:
+        """Remove the node, and any other object stored for the same id."""
+        self._unindex(node._internal_id)
+        if node.id and (internal_id := self._uuids.get(node.id)):
+            self._unindex(internal_id)
 
     def get(
         self,
@@ -242,11 +287,16 @@ class NodeStoreBase:
         branch: str | None = None,
     ):
         branch = self._get_branch(branch)
+        store_branch = self._branches.get(branch) or NodeStoreBranch(name=branch)
 
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
+        return store_branch.get(key=key, kind=kind, raise_when_missing=raise_when_missing)
 
-        return self._branches[branch].get(key=key, kind=kind, raise_when_missing=raise_when_missing)
+    def _remove(
+        self, node: InfrahubNode | InfrahubNodeSync | SchemaType | SchemaTypeSync, branch: str | None = None
+    ) -> None:
+        branch = self._get_branch(branch or node.get_branch())
+        if branch in self._branches:
+            self._branches[branch]._remove(node=node)
 
     def count(self, branch: str | None = None) -> int:
         branch = self._get_branch(branch)
