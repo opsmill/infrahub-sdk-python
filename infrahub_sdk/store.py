@@ -58,10 +58,13 @@ class NodeStoreBranch:
 
     def _resolve_existing(
         self,
-        existing: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        existing: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,  # noqa: ARG002
         new: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
     ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
-        """Return the node to keep when the store already holds another object with the same id."""
+        """Return the node to keep when the store already holds another object with the same id.
+
+        The newest copy replaces the previous one. Merging ``new`` into ``existing`` would be implemented here.
+        """
         return new
 
     def _index(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
