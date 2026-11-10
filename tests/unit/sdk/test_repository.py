@@ -1,3 +1,4 @@
+import stat
 import tempfile
 from collections.abc import Generator
 from pathlib import Path
@@ -92,3 +93,43 @@ def test_gitrepo_init(temp_dir: str) -> None:
     commit = repo._repo.git[repo._repo.git.head()]
     assert isinstance(commit, Commit)
     assert commit.message.decode("utf-8") == "First commit"
+
+
+def _private_source(temp_dir: str) -> Path:
+    """A source directory that only its owner can access, as pytest's `tmp_path` creates them."""
+    source = Path(temp_dir) / "source"
+    source.mkdir(mode=0o700)
+    (source / ".infrahub.yml").write_text("---\n", encoding="utf-8")
+    (source / "script.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    (source / "script.sh").chmod(0o700)
+    return source
+
+
+def _permissions(path: Path) -> int:
+    return stat.S_IMODE(path.stat().st_mode)
+
+
+def test_gitrepo_keeps_the_permissions_of_the_source_by_default(temp_dir: str) -> None:
+    destination = Path(temp_dir) / "remotes"
+    repo = GitRepo(name="private", src_directory=_private_source(temp_dir), dst_directory=destination)
+
+    assert _permissions(destination / "private") == 0o700
+    with pytest.raises(KeyError):
+        repo.repo.git.get_config().get((b"core",), b"sharedRepository")
+
+
+def test_gitrepo_shared_gives_every_user_read_and_write_access(temp_dir: str) -> None:
+    destination = Path(temp_dir) / "remotes"
+    repo = GitRepo(name="shared", src_directory=_private_source(temp_dir), dst_directory=destination, shared=True)
+    root = destination / "shared"
+
+    assert repo.repo.git.get_config().get((b"core",), b"sharedRepository") == b"0666"
+    for path in [root, *root.rglob("*")]:
+        if path.is_symlink():
+            continue
+        if path.is_dir():
+            assert _permissions(path) == 0o777, path
+        else:
+            assert _permissions(path) & 0o666 == 0o666, path
+    assert _permissions(root / "script.sh") == 0o777
+    assert _permissions(root / ".infrahub.yml") == 0o666

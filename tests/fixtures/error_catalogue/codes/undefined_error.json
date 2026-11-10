@@ -1,0 +1,19 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Cannot query field 'nope' on type 'Query'.",
+      "locations": [
+        {
+          "line": 1,
+          "column": 9
+        }
+      ],
+      "extensions": {
+        "code": "UNDEFINED_ERROR",
+        "http_status": 500,
+        "data": {}
+      }
+    }
+  ]
+}

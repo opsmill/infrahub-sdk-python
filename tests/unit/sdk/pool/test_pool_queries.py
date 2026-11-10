@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.constants import PoolAllocationProvenance
+from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync, PoolAllocation
 
 if TYPE_CHECKING:
     from typing import Any
@@ -115,6 +116,11 @@ async def test_get_pool_allocated_resources(
             "17d9bd8e-31ee-acf0-2786-179fb76f2f67",
         ]
 
+    # Servers older than 1.12 reject the provenance field.
+    allocated_request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": "get-allocated-resources-page1"})
+    assert allocated_request is not None
+    assert b"provenance" not in allocated_request.content
+
 
 @pytest.mark.parametrize("client_type", client_types)
 async def test_get_pool_resources_utilization(
@@ -183,3 +189,113 @@ async def test_get_pool_resources_utilization(
         utilizations = ip_pool.get_pool_resources_utilization()
         assert len(utilizations) == 1
         assert utilizations[0]["utilization"] == pytest.approx(93.75)
+
+
+NUMBER_POOL_ID = "nnnnnnnn-nnnn-nnnn-nnnn-nnnnnnnnnnnn"
+
+
+def _allocation_row(node_id: str, number: int, provenance: str | None) -> dict[str, Any]:
+    return {
+        "node": {
+            "id": node_id,
+            "kind": "InfraVLAN",
+            "branch": "main",
+            "display_label": str(number),
+            "identifier": None,
+            "provenance": provenance,
+        }
+    }
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_get_pool_allocations(
+    httpx_mock: HTTPXMock,
+    clients: BothClients,
+    number_pool_schema: NodeSchemaAPI,
+    client_type: str,
+) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "InfrahubResourcePoolAllocated": {
+                    "count": 4,
+                    "edges": [
+                        _allocation_row(node_id="vlan-1", number=100, provenance="ALLOCATED"),
+                        _allocation_row(node_id="vlan-2", number=101, provenance="PROVIDED"),
+                        _allocation_row(node_id="vlan-3", number=102, provenance="ALLOCATED"),
+                    ],
+                }
+            }
+        },
+        match_headers={"X-Infrahub-Tracker": "get-pool-allocations-page1"},
+    )
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "InfrahubResourcePoolAllocated": {
+                    "count": 4,
+                    "edges": [_allocation_row(node_id="vlan-4", number=103, provenance=None)],
+                }
+            }
+        },
+        match_headers={"X-Infrahub-Tracker": "get-pool-allocations-page2"},
+    )
+    pool_data = {"id": NUMBER_POOL_ID, "name": "VLAN IDs", "node": "InfraVLAN", "node_attribute": "vlan_id"}
+
+    if client_type == "standard":
+        pool = InfrahubNode(client=clients.standard, schema=number_pool_schema, data=pool_data)
+        allocations = await pool.get_pool_allocations(resource=pool)
+    else:
+        pool_sync = InfrahubNodeSync(client=clients.sync, schema=number_pool_schema, data=pool_data)
+        allocations = pool_sync.get_pool_allocations(resource=pool_sync)
+
+    assert allocations == [
+        PoolAllocation(
+            node_id="vlan-1",
+            kind="InfraVLAN",
+            branch="main",
+            display_label="100",
+            identifier=None,
+            provenance=PoolAllocationProvenance.ALLOCATED,
+        ),
+        PoolAllocation(
+            node_id="vlan-2",
+            kind="InfraVLAN",
+            branch="main",
+            display_label="101",
+            identifier=None,
+            provenance=PoolAllocationProvenance.PROVIDED,
+        ),
+        PoolAllocation(
+            node_id="vlan-3",
+            kind="InfraVLAN",
+            branch="main",
+            display_label="102",
+            identifier=None,
+            provenance=PoolAllocationProvenance.ALLOCATED,
+        ),
+        PoolAllocation(
+            node_id="vlan-4", kind="InfraVLAN", branch="main", display_label="103", identifier=None, provenance=None
+        ),
+    ]
+    first_request = httpx_mock.get_request(match_headers={"X-Infrahub-Tracker": "get-pool-allocations-page1"})
+    assert first_request is not None
+    assert b"provenance" in first_request.content
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_get_pool_allocations_requires_a_pool(
+    clients: BothClients,
+    vlan_schema: NodeSchemaAPI,
+    client_type: str,
+) -> None:
+    if client_type == "standard":
+        vlan = InfrahubNode(client=clients.standard, schema=vlan_schema, data={"id": "vlan-1", "name": "VLAN 1"})
+        with pytest.raises(ValueError, match="can only be fetched from resource pool nodes"):
+            await vlan.get_pool_allocations(resource=vlan)
+    else:
+        vlan_sync = InfrahubNodeSync(client=clients.sync, schema=vlan_schema, data={"id": "vlan-1", "name": "VLAN 1"})
+        with pytest.raises(ValueError, match="can only be fetched from resource pool nodes"):
+            vlan_sync.get_pool_allocations(resource=vlan_sync)

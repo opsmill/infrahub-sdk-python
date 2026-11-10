@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from copy import copy, deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, overload
 
-from ..constants import InfrahubClientMode, Priority
+from ..constants import InfrahubClientMode, PoolAllocationProvenance, Priority
 from ..exceptions import (
     FeatureNotSupportedError,
     NodeNotFoundError,
@@ -23,6 +23,7 @@ from ..schema import (
     RelationshipSchemaAPI,
 )
 from ..utils import compare_lists, generate_short_id
+from ._only import HIERARCHY_FIELD_NAMES
 from .attribute import Attribute
 from .constants import (
     ARTIFACT_DEFINITION_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
@@ -30,6 +31,9 @@ from .constants import (
     ARTIFACT_GENERATE_FEATURE_NOT_SUPPORTED_MESSAGE,
     FILE_DOWNLOAD_FEATURE_NOT_SUPPORTED_MESSAGE,
     MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE,
+    POOL_ALLOCATED_QUERY_NAME,
+    POOL_ALLOCATED_RESOURCE_FIELDS,
+    POOL_ALLOCATION_FIELDS,
     PROPERTIES_OBJECT,
     UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE,
 )
@@ -44,6 +48,7 @@ if TYPE_CHECKING:
     from ..context import RequestContext
     from ..schema import MainSchemaTypesAPI
     from ..types import Order
+    from ._only import KindFields, OnlyMarker, OnlyPeerRelationships, OnlyQueryFields
 
 
 @dataclass(frozen=True)
@@ -70,6 +75,32 @@ class UploadResult:
 
     was_uploaded: bool
     checksum: str | None
+
+
+@dataclass(frozen=True)
+class PoolAllocation:
+    """One resource a pool holds, as returned by :meth:`InfrahubNode.get_pool_allocations` and its sync twin."""
+
+    node_id: str
+    kind: str
+    branch: str
+    display_label: str
+    """The allocated resource; for a number pool, the number itself."""
+    identifier: str | None
+    provenance: PoolAllocationProvenance | None
+    """``None`` for IP pools, which do not record it."""
+
+    @classmethod
+    def from_graphql(cls, data: dict[str, Any]) -> PoolAllocation:
+        provenance = data.get("provenance")
+        return cls(
+            node_id=data["id"],
+            kind=data["kind"],
+            branch=data["branch"],
+            display_label=data["display_label"],
+            identifier=data.get("identifier"),
+            provenance=PoolAllocationProvenance[provenance] if provenance else None,
+        )
 
 
 class InfrahubNodeBase:
@@ -103,6 +134,9 @@ class InfrahubNodeBase:
         self._existing: bool = True
         self._attribute_data: dict[str, Attribute] = {}
         self._metadata: NodeMetadata | None = None
+        self._only_marker: OnlyMarker | None = None
+        # Set only on a node from `only` whose response contained `hfid`, so default nodes keep calculating theirs.
+        self._server_hfid: list[Any] | None = None
 
         # Generate a unique ID only to be used inside the SDK
         # The format if this ID is purposely different from the ID used by the API
@@ -154,7 +188,11 @@ class InfrahubNodeBase:
 
         Returns:
             Any: The resolved value, or ``None`` when any path component cannot be
-            resolved (for example, an unfetched related node not present in the store).
+            resolved (for example, a related node that is not in the store).
+
+        Raises:
+            FieldNotLoadedError: This node or the related node was queried with ``only`` and a field
+                the path reads was not fetched.
 
         """
         path_parts = path.split("__")
@@ -193,18 +231,76 @@ class InfrahubNodeBase:
 
         return return_value
 
+    def _get_path_value_if_loaded(self, path: str) -> Any:
+        """Resolve a dunder-separated path like the public path lookup, without raising for unfetched fields.
+
+        Used for the HFID of every node. A field that a node from `only` did not fetch counts as missing,
+        including on a peer from the store; any other field is read as the public lookup reads it. The
+        peer of a relationship comes from the peer cached on the relationship or the store.
+
+        Returns:
+            Any: The resolved value, or ``None`` when a path component is missing or was not fetched.
+
+        """
+        path_parts = path.split("__")
+
+        if path_parts[0] in self._schema.relationship_names:
+            peer = self._get_loaded_peer(name=path_parts[0])
+            if peer is None:
+                return None
+            if len(path_parts) == 1:
+                return peer.hfid or peer.id
+            return self._get_loaded_attribute_value(node=peer, path_parts=path_parts[1:])
+
+        if path_parts[0] in self._schema.attribute_names:
+            return self._get_loaded_attribute_value(node=self, path_parts=path_parts)
+
+        return None
+
+    def _get_loaded_peer(self, name: str) -> Any:
+        related_node = getattr(self, name, None)
+        if not related_node or not related_node.is_loaded:
+            return None
+
+        try:
+            return related_node.get()
+        except (NodeNotFoundError, ValueError):
+            # The store is not populated yet while nodes are created in a batch.
+            return None
+
+    @staticmethod
+    def _get_loaded_attribute_value(node: Any, path_parts: list[str]) -> Any:
+        attribute = getattr(node, path_parts[0], None)
+        # Only a node from `only` raises on an unfetched attribute; any other node reads it as before.
+        if (
+            isinstance(attribute, Attribute)
+            and not attribute.is_loaded
+            and getattr(node, "_only_marker", None) is not None
+        ):
+            return None
+        if len(path_parts) == 1:
+            return attribute
+        if path_parts[1] == "value" and isinstance(attribute, Attribute):
+            return attribute._value
+        return getattr(attribute, path_parts[1], None)
+
     def get_human_friendly_id(self) -> list[str] | None:
         """Compute the human-friendly ID for this node from its schema.
 
         The HFID is composed of the values addressed by the schema's
         ``human_friendly_id`` paths. When any component cannot be resolved, the HFID is
-        considered invalid and ``None`` is returned.
+        considered invalid and ``None`` is returned. A node from a query that named ``hfid`` in
+        ``only`` returns the HFID the server stores instead, or ``None`` when that value is empty,
+        until a field the HFID is built from is changed on the node.
 
         Returns:
             list[str] | None: The HFID as a list of stringified components, or ``None``
             when the schema does not define an HFID or a component is missing.
 
         """
+        if self._server_hfid is not None and not self._hfid_field_changed():
+            return [str(part) for part in self._server_hfid] or None
+
         if not hasattr(self._schema, "human_friendly_id"):
             return None
 
@@ -212,10 +308,20 @@ class InfrahubNodeBase:
             return None
 
         # If an HFID component is missing we assume that it is invalid and not usable for this node
-        hfid_components = [self.get_path_value(path=item) for item in self._schema.human_friendly_id]
+        hfid_components = [self._get_path_value_if_loaded(path=item) for item in self._schema.human_friendly_id]
         if None in hfid_components:
             return None
         return [str(hfid) for hfid in hfid_components]
+
+    def _hfid_field_changed(self) -> bool:
+        # The stored HFID no longer matches the node once a field it is built from changes locally.
+        for path in getattr(self._schema, "human_friendly_id", None) or []:
+            field = getattr(self, path.split("__")[0], None)
+            if isinstance(field, Attribute) and field.value_has_been_mutated:
+                return True
+            if isinstance(field, RelatedNodeBase) and field._peer_has_been_mutated:
+                return True
+        return False
 
     def get_human_friendly_id_as_string(self, include_kind: bool = False) -> str | None:
         """Return the human-friendly ID joined into a single string.
@@ -271,9 +377,9 @@ class InfrahubNodeBase:
     def _init_attributes(self, data: dict | None = None) -> None:
         for attr_schema in self._schema.attributes:
             attr_data = data.get(attr_schema.name, None) if isinstance(data, dict) else None
-            self._attribute_data[attr_schema.name] = Attribute(
-                name=attr_schema.name, schema=attr_schema, data=attr_data
-            )
+            attribute = Attribute(name=attr_schema.name, schema=attr_schema, data=attr_data)
+            attribute._bind(node=self, present=isinstance(data, dict) and attr_schema.name in data)
+            self._attribute_data[attr_schema.name] = attribute
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Set values for attributes that exist or revert to normal behaviour."""
@@ -354,6 +460,24 @@ class InfrahubNodeBase:
 
         """
         return hasattr(self._schema, "inherit_from") and "CoreResourcePool" in self._schema.inherit_from  # type: ignore[union-attr]
+
+    def _pool_allocated_query(self, edge_fields: Sequence[str]) -> str:
+        return Query(
+            query={
+                POOL_ALLOCATED_QUERY_NAME: {
+                    "@filters": {
+                        "pool_id": "$pool_id",
+                        "resource_id": "$resource_id",
+                        "offset": "$offset",
+                        "limit": "$limit",
+                    },
+                    "count": None,
+                    "edges": {"node": dict.fromkeys(edge_fields)},
+                }
+            },
+            name="GetAllocatedResourceForPool",
+            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        ).render()
 
     def is_file_object(self) -> bool:
         """Return whether this node inherits from ``CoreFileObject`` and supports file uploads.
@@ -529,6 +653,14 @@ class InfrahubNodeBase:
         }
 
     @staticmethod
+    def _keeps_unmodified_key(data_item: dict, item_key: str) -> bool:
+        # Related nodes typically require an ID, so it is only removed when it is the last key in the context.
+        if item_key == "id":
+            return len(data_item.keys()) > 1
+        # Without the value, naming a pool over a held number asks to replace it, not attach it.
+        return item_key == "value" and "from_pool" in data_item
+
+    @staticmethod
     def _strip_unmodified_dict(data: dict, original_data: dict, variables: dict, item: str) -> None:
         data_item = data.get(item)
         if item in original_data and isinstance(original_data[item], dict) and isinstance(data_item, dict):
@@ -541,9 +673,7 @@ class InfrahubNodeBase:
                     ):
                         original_data[item][property_name] = original_data[item][property_name]["id"]
                 if item_key in data[item]:
-                    if item_key == "id" and len(data[item].keys()) > 1:
-                        # Related nodes typically require an ID. So the ID is only
-                        # removed if it's the last key in the current context
+                    if InfrahubNodeBase._keeps_unmodified_key(data_item=data[item], item_key=item_key):
                         continue
 
                     variable_key = None
@@ -718,6 +848,68 @@ class InfrahubNodeBase:
             data["@filters"]["partial_match"] = True
 
         return data
+
+    def _generate_only_query_data_init(
+        self,
+        filters: dict[str, Any] | None,
+        offset: int | str | None,
+        limit: int | str | None,
+        partial_match: bool,
+        order: Order | None,
+        include_metadata: bool,
+        hfid: bool,
+    ) -> dict[str, Any]:
+        data = self.generate_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+        )
+        if not hfid:
+            del data["edges"]["node"]["hfid"]
+        return data
+
+    def _generate_only_attribute_data(
+        self, names: Iterable[str], property: bool, include_metadata: bool
+    ) -> dict[str, Any]:
+        return {
+            name: self._attribute_data[name]._generate_query_data(property=property, include_metadata=include_metadata)
+            for name in names
+        }
+
+    def _mark_from_only(self, plan: OnlyPeerRelationships, peers: Mapping[str, Sequence[InfrahubNodeBase]]) -> None:
+        """Mark this node and the peers built from its data as coming from a query with `only`.
+
+        `peers` maps each relationship in `plan` to the peers built for it. When the node's data contains
+        `hfid`, which the query requests only when `only` names it, the node keeps that value as its HFID.
+        """
+        self._only_marker = plan.marker
+        if isinstance(self._data, dict) and "hfid" in self._data:
+            self._server_hfid = list(self._data["hfid"] or [])
+        for rel_name, rel_peers in peers.items():
+            for peer in rel_peers:
+                peer._only_marker = plan.peer_markers[rel_name]
+
+    def _hierarchy_peer_kind(self, name: str, hierarchy_kind: str) -> str:
+        """The kind of the peers of a hierarchy field: the declared peer when the kind has the field as a relationship."""
+        if name in self._schema.relationship_names:
+            return self._schema.get_relationship(name=name).peer
+        return hierarchy_kind
+
+    @staticmethod
+    def _build_hierarchy_query_data(
+        name: str, peer_kind: str, peer_data: dict[str, Any], property: bool
+    ) -> dict[str, Any]:
+        # `parent` is cardinality one, the other hierarchy fields are cardinality many.
+        if name == "parent":
+            rel_data = RelatedNodeBase._generate_query_data(peer_data=peer_data, property=property)
+            rel_data["node"] = {f"...on {peer_kind}": rel_data["node"]}
+        else:
+            rel_data = RelationshipManagerBase._generate_query_data(peer_data=peer_data, property=property)
+            rel_data["edges"]["node"] = {f"...on {peer_kind}": rel_data["edges"]["node"]}
+        return rel_data
 
     def __hash__(self) -> int:
         return hash(self.id)
@@ -901,11 +1093,14 @@ class InfrahubNode(InfrahubNodeBase):
     def _init_relationships(self, data: dict | RelatedNode | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNode(
+                related_node = RelatedNode(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(node=self, present=present)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
@@ -919,13 +1114,15 @@ class InfrahubNode(InfrahubNodeBase):
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNode(
+                hierarchy_node = RelatedNode(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManager(
                     name=rel_schema.name,
@@ -967,6 +1164,7 @@ class InfrahubNode(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(node=self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
@@ -1069,6 +1267,8 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
             ValueError: If the node hasn't been saved yet, file not found, or
                   ``skip_if_unchanged=True`` was passed without a ``dest``.
+            FieldNotLoadedError: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+                  was queried with ``only`` without fetching ``checksum``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -1125,6 +1325,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -1173,6 +1374,7 @@ class InfrahubNode(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -1323,21 +1525,12 @@ class InfrahubNode(InfrahubNodeBase):
                 property=property,
             )
 
-            # Parent is cardinality one, others are cardinality many
-            if hierarchical_name == "parent":
-                hierarchical_data = RelatedNode._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["node"]
-                hierarchical_data["node"] = {}
-                hierarchical_data["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-            else:
-                hierarchical_data = RelationshipManager._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["edges"]["node"]
-                hierarchical_data["edges"]["node"] = {}
-                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-
-            data[hierarchical_name] = hierarchical_data
+            data[hierarchical_name] = self._build_hierarchy_query_data(
+                name=hierarchical_name,
+                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_data=peer_data,
+                property=property,
+            )
 
             if insert_alias:
                 data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
@@ -1528,6 +1721,117 @@ class InfrahubNode(InfrahubNodeBase):
 
         return data
 
+    async def _generate_only_query_data(
+        self,
+        fields: OnlyQueryFields,
+        filters: dict[str, Any] | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
+        prefetch_relationships: bool = False,
+        partial_match: bool = False,
+        property: bool = False,
+        order: Order | None = None,
+        include_metadata: bool = False,
+    ) -> dict[str, Any | dict]:
+        """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
+
+        The node gets `id`, `display_label` and `__typename`, `hfid` when `fields.hfid` is set, plus the fields
+        of `fields.node`. Named relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
+        are requested in an aliased `...on Kind` block.
+        """
+        data = self._generate_only_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+            hfid=fields.hfid,
+        )
+        node_data = data["edges"]["node"]
+        node_data.update(
+            await self._generate_only_query_data_node(
+                fields=fields.node,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+        )
+        for kind_fields in fields.implementing_kinds.values():
+            kind_node = InfrahubNode(client=self._client, schema=kind_fields.schema, branch=self._branch)
+            node_data[f"...on {kind_fields.schema.kind}"] = await kind_node._generate_only_query_data_node(
+                fields=kind_fields,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+                insert_alias=True,
+            )
+
+        return {self._schema.kind: data}
+
+    async def _generate_only_query_data_node(
+        self,
+        fields: KindFields,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        insert_alias: bool = False,
+    ) -> dict[str, Any]:
+        data = self._generate_only_attribute_data(
+            names=fields.attributes, property=property, include_metadata=include_metadata
+        )
+
+        for rel_name in fields.relationships:
+            rel_schema = self._schema.get_relationship(name=rel_name)
+            peer_data = await self._generate_only_peer_data(
+                peer_kind=rel_schema.peer,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is not None:
+                data[rel_name] = rel_data
+
+        if fields.hierarchy_kind is not None:
+            for hierarchical_name in fields.hierarchy_fields:
+                peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
+                # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
+                peer_data = await self._generate_only_peer_data(
+                    peer_kind=peer_kind,
+                    prefetch_relationships=prefetch_relationships,
+                    property=property,
+                    include_metadata=False,
+                    exclude=list(HIERARCHY_FIELD_NAMES),
+                )
+                data[hierarchical_name] = self._build_hierarchy_query_data(
+                    name=hierarchical_name, peer_kind=peer_kind, peer_data=peer_data, property=property
+                )
+
+        if insert_alias:
+            for name, field_data in data.items():
+                field_data["@alias"] = f"__alias__{self._schema.kind}__{name}"
+
+        return data
+
+    async def _generate_only_peer_data(
+        self,
+        peer_kind: str,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        exclude: list[str] | None = None,
+    ) -> dict[str, Any]:
+        if not prefetch_relationships:
+            return {}
+
+        peer_schema = await self._client.schema.get(kind=peer_kind, branch=self._branch)
+        peer_node = InfrahubNode(client=self._client, schema=peer_schema, branch=self._branch)
+        return await peer_node.generate_query_data_node(
+            exclude=exclude, property=property, include_metadata=include_metadata
+        )
+
     async def add_relationships(self, relation_to_update: str, related_nodes: list[str]) -> None:
         """Add peers to a cardinality-many relationship through a dedicated mutation.
 
@@ -1591,6 +1895,7 @@ class InfrahubNode(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
@@ -1776,6 +2081,7 @@ class InfrahubNode(InfrahubNodeBase):
         related_nodes: list[InfrahubNode],
         timeout: int | None = None,
         recursive: bool = False,
+        names: Iterable[str] | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNode and add Related Nodes to a list.
 
@@ -1785,12 +2091,21 @@ class InfrahubNode(InfrahubNodeBase):
             related_nodes (list[InfrahubNode]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+            names (Iterable[str], optional): Process only these relationships, reading their peers from the node's
+                own data, where the fields that only an implementing kind has carry their plain names.
 
         """
-        for rel_name in self._relationships:
+        if names is None:
+            relationship_names: Iterable[str] = self._relationships
+            data: dict[str, Any] = node_data["node"]
+        else:
+            relationship_names = names
+            data = self._data or {}
+
+        for rel_name in relationship_names:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNode):
-                relation = node_data["node"].get(rel_name, None)
+                relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = await InfrahubNode.from_graphql(
                         client=self._client,
@@ -1807,7 +2122,7 @@ class InfrahubNode(InfrahubNodeBase):
                             recursive=recursive,
                         )
             elif rel and isinstance(rel, RelationshipManager):
-                peers = node_data["node"].get(rel_name, None)
+                peers = data.get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = await InfrahubNode.from_graphql(
@@ -1841,32 +2156,52 @@ class InfrahubNode(InfrahubNodeBase):
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
-        graphql_query_name = "InfrahubResourcePoolAllocated"
-        node_ids_per_kind: dict[str, list[str]] = {}
-
-        query = Query(
-            query={
-                graphql_query_name: {
-                    "@filters": {
-                        "pool_id": "$pool_id",
-                        "resource_id": "$resource_id",
-                        "offset": "$offset",
-                        "limit": "$limit",
-                    },
-                    "count": None,
-                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                }
-            },
-            name="GetAllocatedResourceForPool",
-            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        rows = await self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATED_RESOURCE_FIELDS, tracker="get-allocated-resources"
         )
-        query_str = query.render()
+        node_ids_per_kind: dict[str, list[str]] = {}
+        for row in rows:
+            node_ids_per_kind.setdefault(row["kind"], []).append(row["id"])
 
-        has_remaining_items = True
+        nodes: list[InfrahubNode] = []
+        for kind, node_ids in node_ids_per_kind.items():
+            nodes.extend(await self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
+
+        return nodes
+
+    async def get_pool_allocations(self, resource: InfrahubNode) -> list[PoolAllocation]:
+        """Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+        Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+        allocated nodes.
+
+        Args:
+            resource (InfrahubNode): The resource from which the nodes were allocated: the pool itself, or one of
+                its ranges or prefixes.
+
+        Returns:
+            list[PoolAllocation]: One entry per resource the pool holds.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
+        """
+        if not self.is_resource_pool():
+            raise ValueError("Pool allocations can only be fetched from resource pool nodes.")
+
+        rows = await self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATION_FIELDS, tracker="get-pool-allocations"
+        )
+        return [PoolAllocation.from_graphql(row) for row in rows]
+
+    async def _get_pool_allocated_rows(
+        self, resource: InfrahubNode, edge_fields: Sequence[str], tracker: str
+    ) -> list[dict[str, Any]]:
+        query_str = self._pool_allocated_query(edge_fields=edge_fields)
+        rows: list[dict[str, Any]] = []
         page_number = 1
-        while has_remaining_items:
+        while True:
             page_offset = (page_number - 1) * self._client.pagination_size
-
             response = await self._client.execute_graphql(
                 query=query_str,
                 variables={
@@ -1876,26 +2211,12 @@ class InfrahubNode(InfrahubNodeBase):
                     "limit": self._client.pagination_size,
                 },
                 branch_name=self._branch,
-                tracker=f"get-allocated-resources-page{page_number}",
+                tracker=f"{tracker}-page{page_number}",
             )
-
-            for edge in response[graphql_query_name]["edges"]:
-                node = edge["node"]
-                node_ids_per_kind.setdefault(node["kind"], []).append(node["id"])
-
-            remaining_items = response[graphql_query_name].get("count", 0) - (
-                page_offset + self._client.pagination_size
-            )
-            if remaining_items <= 0:
-                has_remaining_items = False
-
+            rows.extend(edge["node"] for edge in response[POOL_ALLOCATED_QUERY_NAME]["edges"])
+            if response[POOL_ALLOCATED_QUERY_NAME].get("count", 0) <= page_offset + self._client.pagination_size:
+                return rows
             page_number += 1
-
-        nodes: list[InfrahubNode] = []
-        for kind, node_ids in node_ids_per_kind.items():
-            nodes.extend(await self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
-
-        return nodes
 
     async def get_pool_resources_utilization(self) -> list[dict[str, Any]]:
         """Fetch the utilization of each resource for the pool.
@@ -1973,6 +2294,8 @@ class InfrahubNode(InfrahubNodeBase):
         Raises:
             ValueError: If a component does not match an attribute or relationship, or if
                 a relationship hop targets a non cardinality-one relationship.
+            FieldNotLoadedError: This node or a related node was queried with ``only`` and a field
+                the key reads was not fetched.
 
         Examples:
             name__value
@@ -2124,11 +2447,14 @@ class InfrahubNodeSync(InfrahubNodeBase):
     def _init_relationships(self, data: dict | RelatedNodeSync | None = None) -> None:
         for rel_schema in self._schema.relationships:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
+            present = isinstance(data, dict) and rel_schema.name in data
 
             if rel_schema.cardinality == RelationshipCardinality.ONE:
-                self._relationship_cardinality_one_data[rel_schema.name] = RelatedNodeSync(
+                related_node = RelatedNodeSync(
                     name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=rel_data
                 )
+                related_node._bind(node=self, present=present)
+                self._relationship_cardinality_one_data[rel_schema.name] = related_node
             else:
                 self._relationship_cardinality_many_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
@@ -2143,13 +2469,15 @@ class InfrahubNodeSync(InfrahubNodeBase):
         for rel_schema in self._schema.hierarchical_relationship_schemas:
             rel_data = data.get(rel_schema.name, None) if isinstance(data, dict) else None
             if rel_schema.cardinality_is_one:
-                self._hierarchical_data[rel_schema.name] = RelatedNodeSync(
+                hierarchy_node = RelatedNodeSync(
                     name=rel_schema.name,
                     client=self._client,
                     branch=self._branch,
                     schema=rel_schema,
                     data=rel_data,
                 )
+                hierarchy_node._bind(node=self, present=isinstance(data, dict) and rel_schema.name in data)
+                self._hierarchical_data[rel_schema.name] = hierarchy_node
             else:
                 self._hierarchical_data[rel_schema.name] = RelationshipManagerSync(
                     name=rel_schema.name,
@@ -2191,6 +2519,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 name=rel_schema.name, branch=self._branch, client=self._client, schema=rel_schema, data=value
             )
             new_rel._peer_has_been_mutated = True
+            new_rel._bind(node=self, present=True)
             self._relationship_cardinality_one_data[name] = new_rel
             return
 
@@ -2290,6 +2619,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: If this node doesn't inherit from CoreFileObject.
             ValueError: If the node hasn't been saved yet, file not found, or
                   ``skip_if_unchanged=True`` was passed without a ``dest``.
+            FieldNotLoadedError: ``skip_if_unchanged=True``, ``dest`` is an existing file, and the node
+                  was queried with ``only`` without fetching ``checksum``.
             AuthenticationError: If authentication fails.
 
         Examples:
@@ -2346,6 +2677,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: Node has no server-side checksum yet (unsaved or
                 file never attached).
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=MATCHES_LOCAL_CHECKSUM_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -2394,6 +2726,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
             FeatureNotSupportedError: Node is not a ``CoreFileObject``.
             ValueError: ``source`` is ``bytes`` or ``BinaryIO`` and no
                 ``name`` was supplied.
+            FieldNotLoadedError: The node was queried with ``only`` without fetching ``checksum``.
 
         """
         self._validate_file_object_support(message=UPLOAD_IF_CHANGED_FEATURE_NOT_SUPPORTED_MESSAGE)
@@ -2538,21 +2871,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                 property=property,
             )
 
-            # Parent is cardinality one, others are cardinality many
-            if hierarchical_name == "parent":
-                hierarchical_data = RelatedNodeSync._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["node"]
-                hierarchical_data["node"] = {}
-                hierarchical_data["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-            else:
-                hierarchical_data = RelationshipManagerSync._generate_query_data(peer_data=peer_data, property=property)
-                # Use fragment for hierarchical fields similar to hierarchy relationships
-                data_node = hierarchical_data["edges"]["node"]
-                hierarchical_data["edges"]["node"] = {}
-                hierarchical_data["edges"]["node"][f"...on {self._schema.hierarchy}"] = data_node  # type: ignore[union-attr]
-
-            data[hierarchical_name] = hierarchical_data
+            data[hierarchical_name] = self._build_hierarchy_query_data(
+                name=hierarchical_name,
+                peer_kind=self._schema.hierarchy,  # type: ignore[union-attr, arg-type]
+                peer_data=peer_data,
+                property=property,
+            )
 
             if insert_alias:
                 data[hierarchical_name]["@alias"] = f"__alias__{self._schema.kind}__{hierarchical_name}"
@@ -2742,6 +3066,115 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         return data
 
+    def _generate_only_query_data(
+        self,
+        fields: OnlyQueryFields,
+        filters: dict[str, Any] | None = None,
+        offset: int | str | None = None,
+        limit: int | str | None = None,
+        prefetch_relationships: bool = False,
+        partial_match: bool = False,
+        property: bool = False,
+        order: Order | None = None,
+        include_metadata: bool = False,
+    ) -> dict[str, Any | dict]:
+        """Generate the GraphQL query payload that requests the fields in `fields` and nothing else.
+
+        The node gets `id`, `display_label` and `__typename`, `hfid` when `fields.hfid` is set, plus the fields
+        of `fields.node`. Named relationships are references, and their peers get their default fields with
+        `prefetch_relationships`. For a generic kind, the fields of each kind in `fields.implementing_kinds`
+        are requested in an aliased `...on Kind` block.
+        """
+        data = self._generate_only_query_data_init(
+            filters=filters,
+            offset=offset,
+            limit=limit,
+            partial_match=partial_match,
+            order=order,
+            include_metadata=include_metadata,
+            hfid=fields.hfid,
+        )
+        node_data = data["edges"]["node"]
+        node_data.update(
+            self._generate_only_query_data_node(
+                fields=fields.node,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+        )
+        for kind_fields in fields.implementing_kinds.values():
+            kind_node = InfrahubNodeSync(client=self._client, schema=kind_fields.schema, branch=self._branch)
+            node_data[f"...on {kind_fields.schema.kind}"] = kind_node._generate_only_query_data_node(
+                fields=kind_fields,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+                insert_alias=True,
+            )
+
+        return {self._schema.kind: data}
+
+    def _generate_only_query_data_node(
+        self,
+        fields: KindFields,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        insert_alias: bool = False,
+    ) -> dict[str, Any]:
+        data = self._generate_only_attribute_data(
+            names=fields.attributes, property=property, include_metadata=include_metadata
+        )
+
+        for rel_name in fields.relationships:
+            rel_schema = self._schema.get_relationship(name=rel_name)
+            peer_data = self._generate_only_peer_data(
+                peer_kind=rel_schema.peer,
+                prefetch_relationships=prefetch_relationships,
+                property=property,
+                include_metadata=include_metadata,
+            )
+            rel_data = self._build_rel_query_data(rel_schema, peer_data, property, include_metadata)
+            if rel_data is not None:
+                data[rel_name] = rel_data
+
+        if fields.hierarchy_kind is not None:
+            for hierarchical_name in fields.hierarchy_fields:
+                peer_kind = self._hierarchy_peer_kind(name=hierarchical_name, hierarchy_kind=fields.hierarchy_kind)
+                # With prefetch, hierarchy peers get their default fields except their own hierarchy fields.
+                peer_data = self._generate_only_peer_data(
+                    peer_kind=peer_kind,
+                    prefetch_relationships=prefetch_relationships,
+                    property=property,
+                    include_metadata=False,
+                    exclude=list(HIERARCHY_FIELD_NAMES),
+                )
+                data[hierarchical_name] = self._build_hierarchy_query_data(
+                    name=hierarchical_name, peer_kind=peer_kind, peer_data=peer_data, property=property
+                )
+
+        if insert_alias:
+            for name, field_data in data.items():
+                field_data["@alias"] = f"__alias__{self._schema.kind}__{name}"
+
+        return data
+
+    def _generate_only_peer_data(
+        self,
+        peer_kind: str,
+        prefetch_relationships: bool,
+        property: bool,
+        include_metadata: bool,
+        exclude: list[str] | None = None,
+    ) -> dict[str, Any]:
+        if not prefetch_relationships:
+            return {}
+
+        peer_schema = self._client.schema.get(kind=peer_kind, branch=self._branch)
+        peer_node = InfrahubNodeSync(client=self._client, schema=peer_schema, branch=self._branch)
+        return peer_node.generate_query_data_node(exclude=exclude, property=property, include_metadata=include_metadata)
+
     def add_relationships(
         self,
         relation_to_update: str,
@@ -2809,6 +3242,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
 
         for attr_name in self._attributes:
             attr = getattr(self, attr_name)
+            attr._mark_pool_write_sent()
             if attr_name not in object_response or not attr.is_from_pool_attribute():
                 continue
 
@@ -2994,6 +3428,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
         related_nodes: list[InfrahubNodeSync],
         timeout: int | None = None,
         recursive: bool = False,
+        names: Iterable[str] | None = None,
     ) -> None:
         """Processes the Relationships of a InfrahubNodeSync and add Related Nodes to a list.
 
@@ -3003,12 +3438,21 @@ class InfrahubNodeSync(InfrahubNodeBase):
             related_nodes (list[InfrahubNodeSync]): The list to which related nodes will be appended.
             timeout (int, optional): Overrides default timeout used when querying the graphql API. Specified in seconds.
             recursive:(bool): Whether to recursively process relationships of related nodes.
+            names (Iterable[str], optional): Process only these relationships, reading their peers from the node's
+                own data, where the fields that only an implementing kind has carry their plain names.
 
         """
-        for rel_name in self._relationships:
+        if names is None:
+            relationship_names: Iterable[str] = self._relationships
+            data: dict[str, Any] = node_data["node"]
+        else:
+            relationship_names = names
+            data = self._data or {}
+
+        for rel_name in relationship_names:
             rel = getattr(self, rel_name)
             if rel and isinstance(rel, RelatedNodeSync):
-                relation = node_data["node"].get(rel_name, None)
+                relation = data.get(rel_name, None)
                 if relation and relation.get("node", None):
                     related_node = InfrahubNodeSync.from_graphql(
                         client=self._client,
@@ -3025,7 +3469,7 @@ class InfrahubNodeSync(InfrahubNodeBase):
                             recursive=recursive,
                         )
             elif rel and isinstance(rel, RelationshipManagerSync):
-                peers = node_data["node"].get(rel_name, None)
+                peers = data.get(rel_name, None)
                 if peers and peers["edges"]:
                     for peer in peers["edges"]:
                         related_node = InfrahubNodeSync.from_graphql(
@@ -3059,32 +3503,52 @@ class InfrahubNodeSync(InfrahubNodeBase):
         if not self.is_resource_pool():
             raise ValueError("Allocated resources can only be fetched from resource pool nodes.")
 
-        graphql_query_name = "InfrahubResourcePoolAllocated"
-        node_ids_per_kind: dict[str, list[str]] = {}
-
-        query = Query(
-            query={
-                graphql_query_name: {
-                    "@filters": {
-                        "pool_id": "$pool_id",
-                        "resource_id": "$resource_id",
-                        "offset": "$offset",
-                        "limit": "$limit",
-                    },
-                    "count": None,
-                    "edges": {"node": {"id": None, "kind": None, "branch": None, "identifier": None}},
-                }
-            },
-            name="GetAllocatedResourceForPool",
-            variables={"pool_id": str, "resource_id": str, "offset": int, "limit": int},
+        rows = self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATED_RESOURCE_FIELDS, tracker="get-allocated-resources"
         )
-        query_str = query.render()
+        node_ids_per_kind: dict[str, list[str]] = {}
+        for row in rows:
+            node_ids_per_kind.setdefault(row["kind"], []).append(row["id"])
 
-        has_remaining_items = True
+        nodes: list[InfrahubNodeSync] = []
+        for kind, node_ids in node_ids_per_kind.items():
+            nodes.extend(self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
+
+        return nodes
+
+    def get_pool_allocations(self, resource: InfrahubNodeSync) -> list[PoolAllocation]:
+        """Fetch the resources the pool holds for a given resource, with how each one came to be held.
+
+        Requires Infrahub 1.12 or later. Unlike :meth:`get_pool_allocated_resources`, it does not fetch the
+        allocated nodes.
+
+        Args:
+            resource (InfrahubNodeSync): The resource from which the nodes were allocated: the pool itself, or one
+                of its ranges or prefixes.
+
+        Returns:
+            list[PoolAllocation]: One entry per resource the pool holds.
+
+        Raises:
+            ValueError: If the node is not a resource pool.
+
+        """
+        if not self.is_resource_pool():
+            raise ValueError("Pool allocations can only be fetched from resource pool nodes.")
+
+        rows = self._get_pool_allocated_rows(
+            resource=resource, edge_fields=POOL_ALLOCATION_FIELDS, tracker="get-pool-allocations"
+        )
+        return [PoolAllocation.from_graphql(row) for row in rows]
+
+    def _get_pool_allocated_rows(
+        self, resource: InfrahubNodeSync, edge_fields: Sequence[str], tracker: str
+    ) -> list[dict[str, Any]]:
+        query_str = self._pool_allocated_query(edge_fields=edge_fields)
+        rows: list[dict[str, Any]] = []
         page_number = 1
-        while has_remaining_items:
+        while True:
             page_offset = (page_number - 1) * self._client.pagination_size
-
             response = self._client.execute_graphql(
                 query=query_str,
                 variables={
@@ -3094,26 +3558,12 @@ class InfrahubNodeSync(InfrahubNodeBase):
                     "limit": self._client.pagination_size,
                 },
                 branch_name=self._branch,
-                tracker=f"get-allocated-resources-page{page_number}",
+                tracker=f"{tracker}-page{page_number}",
             )
-
-            for edge in response[graphql_query_name]["edges"]:
-                node = edge["node"]
-                node_ids_per_kind.setdefault(node["kind"], []).append(node["id"])
-
-            remaining_items = response[graphql_query_name].get("count", 0) - (
-                page_offset + self._client.pagination_size
-            )
-            if remaining_items <= 0:
-                has_remaining_items = False
-
+            rows.extend(edge["node"] for edge in response[POOL_ALLOCATED_QUERY_NAME]["edges"])
+            if response[POOL_ALLOCATED_QUERY_NAME].get("count", 0) <= page_offset + self._client.pagination_size:
+                return rows
             page_number += 1
-
-        nodes: list[InfrahubNodeSync] = []
-        for kind, node_ids in node_ids_per_kind.items():
-            nodes.extend(self._client.filters(kind=kind, branch=self._branch, ids=node_ids))
-
-        return nodes
 
     def get_pool_resources_utilization(self) -> list[dict[str, Any]]:
         """Fetch the utilization of each resource for the pool.
@@ -3191,6 +3641,8 @@ class InfrahubNodeSync(InfrahubNodeBase):
         Raises:
             ValueError: If a component does not match an attribute or relationship, or if
                 a relationship hop targets a non cardinality-one relationship.
+            FieldNotLoadedError: This node or a related node was queried with ``only`` and a field
+                the key reads was not fetched.
 
         Examples:
             name__value

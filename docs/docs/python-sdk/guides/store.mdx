@@ -135,6 +135,8 @@ You can retrieve objects from the store using their `id` or `hfid`. When using t
   </TabItem>
 </Tabs>
 
+A node returned by a [query with `only`](../../python-sdk/guides/query_data#fetching-only-the-named-attributes-and-relationships), or a peer returned with it, replaces the copy stored under the same `id`, even one that contains more fields, so check `is_loaded` on a field of a node from the store before you read it. A lookup by human-friendly ID returns the earlier copy when the new node has no human-friendly ID, for example when the query named neither `hfid` nor the fields that make up the human-friendly ID.
+
 ## Manually storing objects in the store
 
 You can store objects in the store manually using the `set` method. This has the advantage that you can choose a key that you want to use to reference the object in the store, besides the `id` or `hfid`. For example, we could use the name attribute value of the node as the key.

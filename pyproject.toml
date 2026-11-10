@@ -19,10 +19,19 @@ classifiers = [
     "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
-    "pydantic>=2.0.0,!=2.0.1,!=2.1.0,<3.0.0",
+    # 2.0 and 2.0.2 cannot build the generated schema models: their regex engine rejects the
+    # `\_` escape in the model field patterns, so `import infrahub_sdk` fails outright.
+    "pydantic>=2.0.3,!=2.1.0,<3.0.0",
     "pydantic-settings>=2.0",
     "graphql-core>=3.2.12,<3.3",
     "httpx>=0.20",
+    "anyio>=3.3.0", # 3.3.0 introduced `anyio.Path`, used by the async file handler
+    "typing-extensions>=4.4.0", # 4.4.0 introduced PEP 696 `TypeVar(default=...)`
+    # 3.1.5 for the error positions the template error reporting relies on; 3.1.4 reports
+    # the wrong template for a nested undefined and omits the source path on a missing file.
+    "Jinja2>=3.1.5", # template rendering in `template/` and `protocols_generator/`
+    "pyyaml>=6", # YAML parsing in `yaml.py`, `spec/`, `template/infrahub_filters.py` and the pytest plugin
+    "rich>=12.6", # `Traceback`/`Frame`/`Syntax` in the Jinja error model, and transfer progress bars
     "ujson>=5",
     "dulwich>=0.24.7",
     "whenever>=0.9.3,<0.10.0",
@@ -43,31 +52,40 @@ infrahubctl = "infrahub_sdk.ctl.cli:app"
 
 [project.optional-dependencies]
 ctl = [
-    "Jinja2>=3",
-    "numpy>=1.24.2; python_version<'3.12'",
-    "numpy>=1.26.2; python_version>='3.12'",
     "pyarrow>=14",
-    "pyyaml>=6",
-    "ruamel.yaml>=0.18",
-    "rich>=12.6,<14",
-    "typer>=0.15.0",
+    "ruamel.yaml>=0.18", # round-trip mode preserves comments when `schema format` rewrites a file
+    # 0.16 is the first release that calls click's `Parameter.make_metavar()` with the `ctx`
+    # argument click 8.3 made mandatory. Below it, any `--help` raises TypeError against the
+    # `click` floor below. Widening this means lowering that floor, not this one.
+    "typer>=0.16.0",
+    # Not imported directly; constrains the `click` that `typer` resolves to.
     "click>=8.3,<9",
     "ariadne-codegen==0.18.0",
-    "mdxify>=0.2.23; python_version>='3.10'",
 ]
 
+# The bundled `pytest-infrahub` plugin and the schemas under `infrahub_sdk.testing`, for writing
+# tests against your own Transforms, Queries and Checks.
+testing = [
+    "pytest>=7.0",
+]
+
+# `infrahub_sdk.testing.docker`, which starts a real Infrahub in containers. Kept apart from
+# `testing` because it is the only module that needs it and it is a far heavier install.
+testcontainers = [
+    "infrahub-sdk[testing]",
+    "infrahub-testcontainers>=1.7.3",
+    "packaging>=21.0",
+]
+
+# Sends the W3C trace context with each request when the caller's process traces with OpenTelemetry.
+# 1.33 is the first release that accepts `OTEL_PROPAGATORS=none`; older releases raise on it.
+tracing = [
+    "opentelemetry-api>=1.33",
+]
+
+# Self-referential so it cannot drift out of sync with the extras it aggregates.
 all = [
-    "Jinja2>=3",
-    "numpy>=1.24.2; python_version<'3.12'",
-    "numpy>=1.26.2; python_version>='3.12'",
-    "pyarrow>=14",
-    "pytest",
-    "pyyaml>=6",
-    "ruamel.yaml>=0.18",
-    "rich>=12.6,<14",
-    "typer>=0.15.0",
-    "click>=8.3,<9",
-    "ariadne-codegen==0.18.0",
+    "infrahub-sdk[ctl,testing,testcontainers,tracing]",
 ]
 
 [dependency-groups]
@@ -75,6 +93,7 @@ all = [
 tests = [
     "infrahub-testcontainers>=1.7.3",
     "jsonschema>=4.25.1",
+    "opentelemetry-api>=1.33",
     "pytest>=9.0,<9.1",
     "pytest-asyncio>=1.3,<1.4",
     "pytest-clarity>=1.0.1",
@@ -83,26 +102,30 @@ tests = [
     "pytest-xdist>=3.3.1",
 ]
 lint = [
-    "yamllint",
+    "yamllint>=1.35",
     "mypy==2.3.1",
     "ruff==0.15.12",
     "astroid>=3.1,<4.0",
-    "ty==0.0.14",
+    "ty==0.0.74",
     "rumdl==0.2.28",
 ]
 types = [
-    "types-ujson",
-    "types-pyyaml",
+    "types-ujson>=5.10",
+    "types-pyyaml>=6.0.12",
     "types-python-slugify>=8.0.0.3",
+]
+docs = [
+    "mdxify>=0.2.23",
 ]
 dev = [
     {include-group = "tests"},
     {include-group = "lint"},
     {include-group = "types"},
-    "ipython",
+    {include-group = "docs"},
+    "ipython>=8.18",
     "requests>=2.33.0",
     "prek>=0.3.0",
-    "codecov",
+    "codecov>=2.1",
     "invoke>=2.2.1",
     "towncrier>=24.8.0",
 ]
@@ -120,6 +143,12 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore:Module already imported so cannot be rewritten",
     "ignore:Deprecated call to",
+]
+markers = [
+    "catalogue: Drives a catalogued failure through a real server, proving the envelope shape",
+    "crossversion: Parses an envelope from a server whose version differs from the SDK's",
+    "malformed: Parses an envelope that violates the shape the SDK expects",
+    "message: Pins an exception's message text, in either the catalogued or the uncatalogued direction",
 ]
 addopts = "-vs --strict-markers --cov-report term-missing --cov-report xml --dist loadscope"
 
@@ -165,13 +194,50 @@ include = ["infrahub_sdk/node/node.py"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # 8 violations
+unresolved-attribute = "ignore" # 22 violations - `_schema` is a union and only some members carry the attribute
+unsupported-operator = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/pytest_plugin/**"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 35 violations - resource_config is a union of repository config element types
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/node/attribute.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 2 violations
+
+[[tool.ty.overrides]]
+include = ["infrahub_sdk/config.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+# Mirrors the module-level mypy `return-value` override for the same code.
+include = ["infrahub_sdk/utils.py"]
+
+[tool.ty.overrides.rules]
+invalid-return-type = "ignore" # 1 violation
+
+[[tool.ty.overrides]]
+# Mirrors the module-level mypy `call-overload` override for the same code.
+include = ["infrahub_sdk/ctl/check.py"]
+
+[tool.ty.overrides.rules]
+no-matching-overload = "ignore" # 1 violation - `**filters` cannot be matched against `get()` overloads
 
 
 [[tool.ty.overrides]]
-include = ["infrahub_sdk/ctl/config.py"]
+# Both files fall back to `import tomli as tomllib` below Python 3.11. The `tomli` dependency is
+# marked `python_version<'3.11'`, so on a newer interpreter it is absent from site-packages and ty
+# cannot resolve the import. Retire alongside Python 3.10 support.
+include = ["infrahub_sdk/ctl/config.py", "tests/unit/test_packaging_metadata.py"]
 
 [tool.ty.overrides.rules]
-unresolved-import = "ignore" # import tomli as tomllib when running on later versions of Python
+unresolved-import = "ignore"
 
 
 [[tool.ty.overrides]]
@@ -185,6 +251,7 @@ include = ["tests/fixtures/**"]
 
 [tool.ty.overrides.rules]
 possibly-missing-attribute = "ignore" # Test fixtures use dynamic attributes
+unresolved-attribute = "ignore" # 5 violations - fixtures use dynamic node attributes
 
 # Test-specific overrides - tests have more lenient type checking
 # Fix these incrementally, starting with files that have fewer violations
@@ -194,6 +261,12 @@ include = ["tests/unit/sdk/conftest.py"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # 434 violations - test fixtures with dynamic types
+
+[[tool.ty.overrides]]
+include = ["tests/unit/ctl/test_utils.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 1 violation - a narrowed Console file
 
 [[tool.ty.overrides]]
 include = [
@@ -222,6 +295,7 @@ invalid-argument-type = "ignore" # ~120 violations across integration tests
 invalid-assignment = "ignore"
 no-matching-overload = "ignore"
 possibly-missing-attribute = "ignore" # Tests use dynamic node attributes
+unresolved-attribute = "ignore" # ~205 violations - `node.<field>.value` resolves to a union of attribute/relationship types
 
 [[tool.ty.overrides]]
 include = [
@@ -234,6 +308,7 @@ include = [
 invalid-argument-type = "ignore" # 25 violations
 invalid-assignment = "ignore"
 possibly-missing-attribute = "ignore"
+unresolved-attribute = "ignore" # 1 violation in test_client.py
 
 [[tool.ty.overrides]]
 include = [
@@ -246,12 +321,38 @@ include = [
     "tests/unit/sdk/test_schema_sorter.py",
     "tests/unit/sdk/test_topological_sort.py",
     "tests/unit/sdk/test_schema_export.py",
+    "tests/unit/ctl/formatters/test_init.py",
+    "tests/unit/ctl/test_marketplace_app.py",
+    "tests/unit/sdk/test_file_handler.py",
+    "tests/unit/sdk/test_graph_traversal.py",
+    "tests/unit/sdk/test_store.py",
 ]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "ignore" # Remaining files with 1-5 violations each
 invalid-method-override = "ignore"
 no-matching-overload = "ignore"
+
+[[tool.ty.overrides]]
+include = ["tests/__init__.py", "tests/unit/__init__.py", "tests/unit/sdk/pool/test_allocate.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore" # 5 violations - `builtins` is patched with rich helpers for tests
+
+[[tool.ty.overrides]]
+include = ["tests/conftest.py", "tests/unit/sdk/test_file_object.py"]
+
+[tool.ty.overrides.rules]
+invalid-assignment = "ignore" # 21 violations - assigning to `node.<field>.value` through a union
+
+[[tool.ty.overrides]]
+include = ["tests/unit/sdk/test_priority.py"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore" # 22 violations total
+invalid-await = "ignore"
+unknown-argument = "ignore"
+unresolved-attribute = "ignore"
 
 [[tool.ty.overrides]]
 include = ["docs/**"]

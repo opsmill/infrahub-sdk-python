@@ -28,7 +28,7 @@ class InfraHubTaskManagerBase:
         limit: int | None = None,
         count: bool = False,
     ) -> Query:
-        query: dict[str, Any] = {
+        query: dict[str, dict[str, Any]] = {
             "InfrahubTask": {
                 "edges": {
                     "node": {
@@ -92,7 +92,7 @@ class InfraHubTaskManagerBase:
 
     @classmethod
     def _generate_count_query(cls, filters: TaskFilter | None = None) -> Query:
-        query: dict[str, Any] = {
+        query: dict[str, dict[str, Any]] = {
             "InfrahubTask": {
                 "count": None,
             }

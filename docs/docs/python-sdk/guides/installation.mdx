@@ -29,15 +29,47 @@ pip install 'infrahub-sdk[ctl]'
 
 <!-- vale off -->
 
-### tests
+### testing
 
 <!-- vale on -->
 
-The `tests` extra provides all the components for the testing framework of Transforms, Queries and Checks.
+The `testing` extra provides the components for the testing framework of Transforms, Queries and Checks. It installs `pytest` and enables the bundled `pytest-infrahub` plugin, which discovers the `infrahub_tests` blocks in your repository's `.infrahub.yml` and turns them into test cases.
 
 ```shell
-pip install 'infrahub-sdk[tests]'
+pip install 'infrahub-sdk[testing]'
 ```
+
+<!-- vale off -->
+
+### testcontainers
+
+<!-- vale on -->
+
+The `testcontainers` extra provides `infrahub_sdk.testing.docker`, which starts a real Infrahub in containers so your tests can run against a live instance rather than mocked responses. Inherit `TestInfrahubDockerClient` to get a client connected to that instance.
+
+```shell
+pip install 'infrahub-sdk[testcontainers]'
+```
+
+:::note
+
+This extra is considerably larger than the others, since running Infrahub in containers pulls in Docker, FastAPI and Prefect client libraries. Install `testing` on its own if you only need to test Transforms, Queries and Checks.
+
+:::
+
+<!-- vale off -->
+
+### tracing
+
+<!-- vale on -->
+
+The `tracing` extra installs the OpenTelemetry API, so the SDK can send the W3C `traceparent` header with each request and the Infrahub server records its spans in your application's trace. The SDK sends the header only when both conditions are true: OpenTelemetry is installed, and the request runs inside an active span of your application.
+
+```shell
+pip install 'infrahub-sdk[tracing]'
+```
+
+You do not need this extra if your application already installs OpenTelemetry.
 
 <!-- vale off -->
 

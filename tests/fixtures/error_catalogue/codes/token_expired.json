@@ -1,0 +1,21 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Expired Signature",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "extensions": {
+        "code": "TOKEN_EXPIRED",
+        "http_status": 401,
+        "data": {
+          "expired_at": "2026-09-18T09:30:00+00:00"
+        }
+      }
+    }
+  ]
+}

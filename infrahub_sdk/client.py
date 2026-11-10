@@ -25,7 +25,6 @@ from .convert_object_type import CONVERT_OBJECT_MUTATION, ConversionFieldInput
 from .data import RepositoryBranchInfo, RepositoryData, ServerInfo
 from .diff import DiffTreeData, NodeDiff, diff_tree_node_to_node_diff, get_diff_summary_query, get_diff_tree_query
 from .exceptions import (
-    AuthenticationError,
     Error,
     GraphQLError,
     NodeNotFoundError,
@@ -34,7 +33,10 @@ from .exceptions import (
     ServerNotResponsiveError,
     URLNotFoundError,
     VersionNotSupportedError,
+    authentication_error_from_response,
+    graphql_error_from_response,
 )
+from .exceptions.factory import token_expired_in
 from .graph_traversal.models import PathTraversalResult, ReachableNodesResult
 from .graph_traversal.query import (
     PATH_TRAVERSAL_QUERY,
@@ -45,16 +47,18 @@ from .graph_traversal.query import (
 )
 from .graphql import MultipartBuilder, Mutation, Query
 from .node import InfrahubNode, InfrahubNodeSync
+from .node._only import check_only_conflict, only_peer_relationships, only_query_fields
 from .object_store import ObjectStore, ObjectStoreSync
 from .protocols_base import CoreNode, CoreNodeSync
 from .queries import QUERY_USER, get_commit_update_mutation
 from .query_groups import InfrahubGroupContext, InfrahubGroupContextSync
 from .rate_limit import RateLimitRetryHandler
 from .retry import CONNECTION_LOST_EXCEPTIONS, RetryState, TransientRetryHandler
-from .schema import InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
+from .schema import GenericSchemaAPI, InfrahubSchema, InfrahubSchemaSync, NodeSchemaAPI
 from .store import NodeStore, NodeStoreSync
 from .task.manager import InfrahubTaskManager, InfrahubTaskManagerSync
 from .timestamp import Timestamp
+from .trace_context import trace_context_headers
 from .types import AsyncRequester, HTTPMethod, Order, SyncRequester
 from .utils import decode_json, get_user_permissions, is_valid_uuid
 
@@ -65,6 +69,8 @@ if TYPE_CHECKING:
     from httpx._types import ProxyTypes
 
     from .context import RequestContext
+    from .node._only import OnlyPeerRelationships, OnlyQueryFields
+    from .schema import MainSchemaTypesAPI
 
 
 SchemaType = TypeVar("SchemaType", bound=CoreNode)
@@ -74,6 +80,19 @@ SchemaTypeSync = TypeVar("SchemaTypeSync", bound=CoreNodeSync)
 class ProcessRelationsNode(TypedDict):
     nodes: list[InfrahubNode]
     related_nodes: list[InfrahubNode]
+
+
+class _QueryBuilderArgs(TypedDict):
+    """The arguments that the default query builder and the builder for `only` share."""
+
+    offset: int | str | None
+    limit: int | str | None
+    filters: dict[str, Any] | None
+    prefetch_relationships: bool
+    partial_match: bool
+    property: bool
+    order: Order | None
+    include_metadata: bool
 
 
 class ProxyConfig(TypedDict):
@@ -177,17 +196,42 @@ class ProcessRelationsNodeSync(TypedDict):
     related_nodes: list[InfrahubNodeSync]
 
 
+def _should_refresh_token(response: httpx.Response) -> bool:
+    """Decide whether a 401 is a stale token worth one silent refresh and retry.
+
+    The wrapper also sees REST responses, and a proxy can answer with anything at all, so a body that
+    is not a JSON object carries no refresh signal rather than raising.
+    """
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+
+    if not isinstance(body, dict):
+        return False
+
+    return token_expired_in(body.get("errors", []))
+
+
+def _can_refresh_token(client: InfrahubClient | InfrahubClientSync) -> bool:
+    """Whether this client has a login it could refresh into a working token.
+
+    `login(refresh=True)` returns without touching the auth header unless the client authenticates
+    with a username and password, so retrying an API-token client would replay the same stale token
+    and earn a second 401 for nothing.
+    """
+    return client.config.password_authentication
+
+
 def handle_relogin(
     func: Callable[..., Coroutine[Any, Any, httpx.Response]],
 ) -> Callable[..., Coroutine[Any, Any, httpx.Response]]:
     @wraps(func)
     async def wrapper(client: InfrahubClient, *args: Any, **kwargs: Any) -> httpx.Response:
         response = await func(client, *args, **kwargs)
-        if response.status_code == 401:
-            errors = response.json().get("errors", [])
-            if "Expired Signature" in [error.get("message") for error in errors]:
-                await client.login(refresh=True)
-                return await func(client, *args, **kwargs)
+        if response.status_code == 401 and _can_refresh_token(client) and _should_refresh_token(response=response):
+            await client.login(refresh=True)
+            return await func(client, *args, **kwargs)
         return response
 
     return wrapper
@@ -197,11 +241,9 @@ def handle_relogin_sync(func: Callable[..., httpx.Response]) -> Callable[..., ht
     @wraps(func)
     def wrapper(client: InfrahubClientSync, *args: Any, **kwargs: Any) -> httpx.Response:
         response = func(client, *args, **kwargs)
-        if response.status_code == 401:
-            errors = response.json().get("errors", [])
-            if "Expired Signature" in [error.get("message") for error in errors]:
-                client.login(refresh=True)
-                return func(client, *args, **kwargs)
+        if response.status_code == 401 and _can_refresh_token(client) and _should_refresh_token(response=response):
+            client.login(refresh=True)
+            return func(client, *args, **kwargs)
         return response
 
     return wrapper
@@ -369,13 +411,14 @@ class BaseClient:
         return headers
 
     def _merge_request_headers(self, headers: dict | None) -> dict:
-        """Merge a per-request header delta over the client's current base headers.
+        """Merge a per-request header delta over the client's current base headers and the active trace context.
 
         Per-request entries take precedence over the client-wide base headers, so a caller may
         override any header (including auth) for a single request, and a token refreshed mid-flight
         during the automatic relogin retry is picked up from the freshly-copied ``self.headers``.
         """
         merged = copy.copy(self.headers or {})
+        merged.update(trace_context_headers())
         if headers:
             merged.update(headers)
         return merged
@@ -617,6 +660,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType | None: ...
 
@@ -639,6 +683,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -661,6 +706,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaType: ...
 
@@ -683,6 +729,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode | None: ...
 
@@ -705,6 +752,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -727,6 +775,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNode: ...
 
@@ -748,8 +797,50 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> InfrahubNode | SchemaType | None:
+        """Retrieve a single node of a given kind, by ID, human-friendly ID or other filters.
+
+        Args:
+            kind (str): kind of the node to query
+            raise_when_missing (bool, optional): Raise NodeNotFoundError when no node matches, instead of returning
+                None. Defaults to True.
+            at (Timestamp, optional): Time of the query. Defaults to Now.
+            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            id (str, optional): ID of the node. A value that is not a UUID is matched against the kind's default
+                filter when it has one.
+            hfid (list[str], optional): Human-friendly ID of the node.
+            include (list[str], optional): List of attributes or relationships to include in the query.
+            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
+            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
+            property (bool, optional): Flag to include the properties of the attributes and relationships.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+            **kwargs (Any): Additional filter criteria for the query.
+
+        Returns:
+            InfrahubNode | None: The node, or None when no node matches and `raise_when_missing` is False.
+
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
+            ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
+                human-friendly ID.
+            NodeNotFoundError: No node matches and `raise_when_missing` is True.
+            IndexError: More than one node matches.
+
+        """
+        check_only_conflict(only=only, include=include, exclude=exclude)
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -786,6 +877,7 @@ class InfrahubClient(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
             **filters,
         )
 
@@ -798,6 +890,56 @@ class InfrahubClient(BaseClient):
 
         return results[0]
 
+    async def _build_filters_query(
+        self,
+        schema: MainSchemaTypesAPI,
+        branch: str,
+        query_name: str,
+        filters: dict[str, Any],
+        include: list[str] | None,
+        exclude: list[str] | None,
+        fragment: bool,
+        prefetch_relationships: bool,
+        partial_match: bool,
+        property: bool,
+        order: Order | None,
+        include_metadata: bool,
+        only: list[str] | None,
+    ) -> tuple[Query, OnlyQueryFields | None]:
+        """Build the query for every page of a filters call, and, with `only`, where it requests each field.
+
+        Raises:
+            FieldNotFoundError: A name in `only` is not a field of the kind or of any kind implementing it.
+
+        """
+        node = InfrahubNode(client=self, schema=schema, branch=branch)
+        query_args: _QueryBuilderArgs = {
+            # Pagination is passed as GraphQL variables so the rendered query text stays
+            # identical across pages and can hit the server-side query cache.
+            "offset": "$offset",
+            "limit": "$limit",
+            "filters": filters,
+            "prefetch_relationships": prefetch_relationships,
+            "partial_match": partial_match,
+            "property": property,
+            "order": order,
+            "include_metadata": include_metadata,
+        }
+        if only is None:
+            only_fields = None
+            query_data = await node.generate_query_data(
+                include=include, exclude=exclude, fragment=fragment, **query_args
+            )
+        else:
+            implementing_schemas = (
+                [await self.schema.get(kind=implementing_kind, branch=branch) for implementing_kind in schema.used_by]
+                if isinstance(schema, GenericSchemaAPI)
+                else []
+            )
+            only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
+            query_data = await node._generate_only_query_data(fields=only_fields, **query_args)
+        return Query(query=query_data, name=query_name, variables={"offset": int, "limit": int}), only_fields
+
     async def _process_nodes_and_relationships(
         self,
         response: dict[str, Any],
@@ -806,6 +948,7 @@ class InfrahubClient(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
+        only_fields: OnlyQueryFields | None = None,
     ) -> ProcessRelationsNode:
         """Processes InfrahubNode and their Relationships from the GraphQL query response.
 
@@ -815,6 +958,9 @@ class InfrahubClient(BaseClient):
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
+                every node and every peer built with it records the `only` list, and peers are built only for the
+                relationships named in `only` when `prefetch_relationships` is set.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -824,12 +970,27 @@ class InfrahubClient(BaseClient):
         """
         nodes: list[InfrahubNode] = []
         related_nodes: list[InfrahubNode] = []
+        only_plans: dict[str, OnlyPeerRelationships] = {}
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = await InfrahubNode.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
+            if only_fields is not None:
+                kind = node.get_kind()
+                if kind not in only_plans:
+                    only_plans[kind] = only_peer_relationships(
+                        fields=only_fields, kind=kind, prefetch_relationships=prefetch_relationships
+                    )
+                peers: dict[str, list[InfrahubNode]] = {}
+                for rel_name in only_plans[kind].peer_markers:
+                    peers[rel_name] = []
+                    await node._process_relationships(
+                        node_data=item, branch=branch, related_nodes=peers[rel_name], timeout=timeout, names=[rel_name]
+                    )
+                node._mark_from_only(plan=only_plans[kind], peers=peers)
+                related_nodes.extend(peer for rel_peers in peers.values() for peer in rel_peers)
+            elif prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 await node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -1091,6 +1252,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[SchemaType]: ...
 
     @overload
@@ -1113,6 +1275,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[InfrahubNode]: ...
 
     async def all(
@@ -1134,6 +1297,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve all nodes of a given kind.
 
@@ -1147,6 +1311,9 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -1158,6 +1325,11 @@ class InfrahubClient(BaseClient):
 
         Returns:
             list[InfrahubNode]: List of Nodes
+
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         if query_name is None:
@@ -1180,6 +1352,7 @@ class InfrahubClient(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
         )
 
     @overload
@@ -1203,6 +1376,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[SchemaType]: ...
 
@@ -1227,6 +1401,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNode]: ...
 
@@ -1250,6 +1425,7 @@ class InfrahubClient(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNode] | list[SchemaType]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -1264,6 +1440,9 @@ class InfrahubClient(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -1278,7 +1457,13 @@ class InfrahubClient(BaseClient):
         Returns:
             list[InfrahubNode]: List of Nodes that match the given filters.
 
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
+
         """
+        check_only_conflict(only=only, include=include, exclude=exclude)
         branch = branch or self.default_branch
         schema = await self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -1289,11 +1474,10 @@ class InfrahubClient(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
-        # Pagination is passed as GraphQL variables so the rendered query text stays
-        # identical across pages and can hit the server-side query cache.
-        query_data = await InfrahubNode(client=self, schema=schema, branch=branch).generate_query_data(
-            offset="$offset",
-            limit="$limit",
+        query, only_fields = await self._build_filters_query(
+            schema=schema,
+            branch=branch,
+            query_name=query_name,
             filters=filters,
             include=include,
             exclude=exclude,
@@ -1303,8 +1487,8 @@ class InfrahubClient(BaseClient):
             property=property,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
-        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
         query_str = query.render()
 
         async def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNode]:
@@ -1330,6 +1514,7 @@ class InfrahubClient(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
+                only_fields=only_fields,
             )
             return response, process_result
 
@@ -1436,7 +1621,7 @@ class InfrahubClient(BaseClient):
             AuthenticationError: If the server returns a 401 or 403 response.
             URLNotFoundError: If the server returns a 404 response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -1457,10 +1642,7 @@ class InfrahubClient(BaseClient):
                 resp.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code in {401, 403}:
-                    response = decode_json(response=exc.response)
-                    errors = response.get("errors", [])
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
                 if exc.response.status_code == 404:
                     raise URLNotFoundError(url=url) from exc
                 # Any other status falls through: the body is expected to carry a GraphQL error envelope.
@@ -1476,7 +1658,7 @@ class InfrahubClient(BaseClient):
                         state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
                     )
                     continue
-                raise GraphQLError(errors=errors, query=query, variables=variables)
+                raise graphql_error_from_response(errors=errors, query=query, variables=variables)
 
             return response["data"]
 
@@ -1518,8 +1700,10 @@ class InfrahubClient(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            httpx.HTTPStatusError: For any other non-2xx response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
 
@@ -1548,7 +1732,12 @@ class InfrahubClient(BaseClient):
                     retry_state=retry_state,
                 )
 
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code in {401, 403}:
+                        raise authentication_error_from_response(response=exc.response) from exc
+                    raise
                 response = decode_json(response=resp)
 
                 if "errors" in response:
@@ -1560,7 +1749,7 @@ class InfrahubClient(BaseClient):
                             state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
                         )
                         continue
-                    raise GraphQLError(errors=errors, query=query, variables=variables)
+                    raise graphql_error_from_response(errors=errors, query=query, variables=variables)
 
                 return response["data"]
 
@@ -1695,6 +1884,49 @@ class InfrahubClient(BaseClient):
         return await self._request(
             url=url,
             method=HTTPMethod.GET,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+        )
+
+    @handle_relogin
+    async def _put(
+        self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None
+    ) -> httpx.Response:
+        """Execute a HTTP PUT with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        await self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return await self._request(
+            url=url,
+            method=HTTPMethod.PUT,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+            payload=payload,
+        )
+
+    @handle_relogin
+    async def _delete(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP DELETE with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        await self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return await self._request(
+            url=url,
+            method=HTTPMethod.DELETE,
             headers=headers,
             timeout=timeout or self.default_timeout,
         )
@@ -1859,10 +2091,7 @@ class InfrahubClient(BaseClient):
                 # If we got a 401 while trying to refresh a token we must restart the authentication process
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
-                    response = exc.response.json()
-                    errors = response.get("errors")
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
 
         url = f"{self.address}/api/auth/login"
         response = await self._request(
@@ -2316,10 +2545,13 @@ class InfrahubClient(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
-            await self.group_context.update_group()
-
-        self.mode = InfrahubClientMode.DEFAULT
+        try:
+            if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
+                await self.group_context.update_group()
+        finally:
+            # update_group() can raise, and leaving the client in tracking mode would
+            # silently enroll every later save into the stale context.
+            self.mode = InfrahubClientMode.DEFAULT
 
     async def convert_object_type(
         self,
@@ -2484,7 +2716,7 @@ class InfrahubClientSync(BaseClient):
             AuthenticationError: If the server returns a 401 or 403 response.
             URLNotFoundError: If the server returns a 404 response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name, at=at)
 
@@ -2505,10 +2737,7 @@ class InfrahubClientSync(BaseClient):
                 resp.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code in {401, 403}:
-                    response = decode_json(response=exc.response)
-                    errors = response.get("errors", [])
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
                 if exc.response.status_code == 404:
                     raise URLNotFoundError(url=url) from exc
                 # Any other status falls through: the body is expected to carry a GraphQL error envelope.
@@ -2524,7 +2753,7 @@ class InfrahubClientSync(BaseClient):
                         state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
                     )
                     continue
-                raise GraphQLError(errors=errors, query=query, variables=variables)
+                raise graphql_error_from_response(errors=errors, query=query, variables=variables)
 
             return response["data"]
 
@@ -2566,8 +2795,10 @@ class InfrahubClientSync(BaseClient):
 
         Raises:
             GraphQLError: When the GraphQL response contains errors.
+            AuthenticationError: If the server returns a 401 or 403 response.
+            httpx.HTTPStatusError: For any other non-2xx response.
 
-        """
+        """  # noqa: DOC501  # raises via a factory, whose name ruff reads as the exception's
         branch_name = branch_name or self.default_branch
         url = self._graphql_url(branch_name=branch_name)
 
@@ -2596,7 +2827,12 @@ class InfrahubClientSync(BaseClient):
                     retry_state=retry_state,
                 )
 
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code in {401, 403}:
+                        raise authentication_error_from_response(response=exc.response) from exc
+                    raise
                 response = decode_json(response=resp)
 
                 if "errors" in response:
@@ -2608,7 +2844,7 @@ class InfrahubClientSync(BaseClient):
                             state=retry_state, url=url, reason=self._retry_handler.describe_graphql_errors(errors)
                         )
                         continue
-                    raise GraphQLError(errors=errors, query=query, variables=variables)
+                    raise graphql_error_from_response(errors=errors, query=query, variables=variables)
 
                 return response["data"]
 
@@ -2945,6 +3181,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[SchemaTypeSync]: ...
 
     @overload
@@ -2967,6 +3204,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
     ) -> list[InfrahubNodeSync]: ...
 
     def all(
@@ -2988,6 +3226,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve all nodes of a given kind.
 
@@ -3001,6 +3240,9 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             parallel (bool, optional): Whether to use parallel processing for the query.
@@ -3012,6 +3254,11 @@ class InfrahubClientSync(BaseClient):
 
         Returns:
             list[InfrahubNodeSync]: List of Nodes
+
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
 
         """
         if query_name is None:
@@ -3034,7 +3281,56 @@ class InfrahubClientSync(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
         )
+
+    def _build_filters_query(
+        self,
+        schema: MainSchemaTypesAPI,
+        branch: str,
+        query_name: str,
+        filters: dict[str, Any],
+        include: list[str] | None,
+        exclude: list[str] | None,
+        fragment: bool,
+        prefetch_relationships: bool,
+        partial_match: bool,
+        property: bool,
+        order: Order | None,
+        include_metadata: bool,
+        only: list[str] | None,
+    ) -> tuple[Query, OnlyQueryFields | None]:
+        """Build the query for every page of a filters call, and, with `only`, where it requests each field.
+
+        Raises:
+            FieldNotFoundError: A name in `only` is not a field of the kind or of any kind implementing it.
+
+        """
+        node = InfrahubNodeSync(client=self, schema=schema, branch=branch)
+        query_args: _QueryBuilderArgs = {
+            # Pagination is passed as GraphQL variables so the rendered query text stays
+            # identical across pages and can hit the server-side query cache.
+            "offset": "$offset",
+            "limit": "$limit",
+            "filters": filters,
+            "prefetch_relationships": prefetch_relationships,
+            "partial_match": partial_match,
+            "property": property,
+            "order": order,
+            "include_metadata": include_metadata,
+        }
+        if only is None:
+            only_fields = None
+            query_data = node.generate_query_data(include=include, exclude=exclude, fragment=fragment, **query_args)
+        else:
+            implementing_schemas = (
+                [self.schema.get(kind=implementing_kind, branch=branch) for implementing_kind in schema.used_by]
+                if isinstance(schema, GenericSchemaAPI)
+                else []
+            )
+            only_fields = only_query_fields(only=only, schema=schema, implementing_schemas=implementing_schemas)
+            query_data = node._generate_only_query_data(fields=only_fields, **query_args)
+        return Query(query=query_data, name=query_name, variables={"offset": int, "limit": int}), only_fields
 
     def _process_nodes_and_relationships(
         self,
@@ -3044,6 +3340,7 @@ class InfrahubClientSync(BaseClient):
         prefetch_relationships: bool,
         include: list[str] | None,
         timeout: int | None = None,
+        only_fields: OnlyQueryFields | None = None,
     ) -> ProcessRelationsNodeSync:
         """Processes InfrahubNodeSync and their Relationships from the GraphQL query response.
 
@@ -3053,6 +3350,9 @@ class InfrahubClientSync(BaseClient):
             branch (str): The branch name.
             prefetch_relationships (bool): Flag to indicate whether to pre-fetch relationship data.
             timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            only_fields (OnlyQueryFields, optional): Where the query with `only` requested each field. When given,
+                every node and every peer built with it records the `only` list, and peers are built only for the
+                relationships named in `only` when `prefetch_relationships` is set.
 
         Returns:
             ProcessRelationsNodeSync: A TypedDict containing two lists:
@@ -3062,12 +3362,27 @@ class InfrahubClientSync(BaseClient):
         """
         nodes: list[InfrahubNodeSync] = []
         related_nodes: list[InfrahubNodeSync] = []
+        only_plans: dict[str, OnlyPeerRelationships] = {}
 
         for item in response.get(schema_kind, {}).get("edges", []):
             node = InfrahubNodeSync.from_graphql(client=self, branch=branch, data=item, timeout=timeout)
             nodes.append(node)
 
-            if prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
+            if only_fields is not None:
+                kind = node.get_kind()
+                if kind not in only_plans:
+                    only_plans[kind] = only_peer_relationships(
+                        fields=only_fields, kind=kind, prefetch_relationships=prefetch_relationships
+                    )
+                peers: dict[str, list[InfrahubNodeSync]] = {}
+                for rel_name in only_plans[kind].peer_markers:
+                    peers[rel_name] = []
+                    node._process_relationships(
+                        node_data=item, branch=branch, related_nodes=peers[rel_name], timeout=timeout, names=[rel_name]
+                    )
+                node._mark_from_only(plan=only_plans[kind], peers=peers)
+                related_nodes.extend(peer for rel_peers in peers.values() for peer in rel_peers)
+            elif prefetch_relationships or (include and any(rel in include for rel in node._relationships)):
                 node._process_relationships(
                     node_data=item,
                     branch=branch,
@@ -3098,6 +3413,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[SchemaTypeSync]: ...
 
@@ -3122,6 +3438,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync]: ...
 
@@ -3145,6 +3462,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> list[InfrahubNodeSync] | list[SchemaTypeSync]:
         """Retrieve nodes of a given kind based on provided filters.
@@ -3159,6 +3477,9 @@ class InfrahubClientSync(BaseClient):
             limit (int, optional): The limit for pagination.
             include (list[str], optional): List of attributes or relationships to include in the query.
             exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
             fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
             prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
             partial_match (bool, optional): Allow partial match of filter criteria for the query.
@@ -3173,7 +3494,13 @@ class InfrahubClientSync(BaseClient):
         Returns:
             list[InfrahubNodeSync]: List of Nodes that match the given filters.
 
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
+
         """
+        check_only_conflict(only=only, include=include, exclude=exclude)
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -3184,11 +3511,10 @@ class InfrahubClientSync(BaseClient):
         filters = kwargs
         pagination_size = self.pagination_size
 
-        # Pagination is passed as GraphQL variables so the rendered query text stays
-        # identical across pages and can hit the server-side query cache.
-        query_data = InfrahubNodeSync(client=self, schema=schema, branch=branch).generate_query_data(
-            offset="$offset",
-            limit="$limit",
+        query, only_fields = self._build_filters_query(
+            schema=schema,
+            branch=branch,
+            query_name=query_name,
             filters=filters,
             include=include,
             exclude=exclude,
@@ -3198,8 +3524,8 @@ class InfrahubClientSync(BaseClient):
             property=property,
             order=order,
             include_metadata=include_metadata,
+            only=only,
         )
-        query = Query(query=query_data, name=query_name, variables={"offset": int, "limit": int})
         query_str = query.render()
 
         def process_page(page_offset: int, page_number: int) -> tuple[dict, ProcessRelationsNodeSync]:
@@ -3225,6 +3551,7 @@ class InfrahubClientSync(BaseClient):
                 prefetch_relationships=prefetch_relationships,
                 timeout=timeout,
                 include=include,
+                only_fields=only_fields,
             )
             return response, process_result
 
@@ -3302,6 +3629,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync | None: ...
 
@@ -3324,6 +3652,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3346,6 +3675,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> SchemaTypeSync: ...
 
@@ -3368,6 +3698,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync | None: ...
 
@@ -3390,6 +3721,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3412,6 +3744,7 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = ...,
         query_name: str | None = ...,
         priority: Priority | None = ...,
+        only: list[str] | None = ...,
         **kwargs: Any,
     ) -> InfrahubNodeSync: ...
 
@@ -3433,8 +3766,50 @@ class InfrahubClientSync(BaseClient):
         include_metadata: bool = False,
         query_name: str | None = None,
         priority: Priority | None = None,
+        only: list[str] | None = None,
         **kwargs: Any,
     ) -> InfrahubNodeSync | SchemaTypeSync | None:
+        """Retrieve a single node of a given kind, by ID, human-friendly ID or other filters.
+
+        Args:
+            kind (str): kind of the node to query
+            raise_when_missing (bool, optional): Raise NodeNotFoundError when no node matches, instead of returning
+                None. Defaults to True.
+            at (Timestamp, optional): Time of the query. Defaults to Now.
+            branch (str, optional): Name of the branch to query from. Defaults to default_branch.
+            timeout (int, optional): Overrides default timeout used when querying the GraphQL API. Specified in seconds.
+            id (str, optional): ID of the node. A value that is not a UUID is matched against the kind's default
+                filter when it has one.
+            hfid (list[str], optional): Human-friendly ID of the node.
+            include (list[str], optional): List of attributes or relationships to include in the query.
+            exclude (list[str], optional): List of attributes or relationships to exclude from the query.
+            populate_store (bool, optional): Flag to indicate whether to populate the store with the retrieved node.
+            fragment (bool, optional): Flag to use GraphQL fragments for generic schemas.
+            prefetch_relationships (bool, optional): Flag to indicate whether to pre-fetch related node data.
+            property (bool, optional): Flag to include the properties of the attributes and relationships.
+            include_metadata (bool, optional): If True, includes node_metadata and relationship_metadata in the query.
+            query_name (str, optional): If provided is used as the GraphQL operation name else Get_<kind> is used.
+            priority (Priority, optional): Per-request priority emitted as the X-Priority header, overriding the
+                client default for these requests only. When None, the client default (if any) is used.
+            only (list[str], optional): Fetch only these attributes and relationships, plus `id`, `display_label`
+                and `__typename`; name `hfid` to fetch the HFID the server stores. Reading a field that was not
+                fetched raises FieldNotLoadedError. Cannot be combined with `include` or `exclude`.
+            **kwargs (Any): Additional filter criteria for the query.
+
+        Returns:
+            InfrahubNodeSync | None: The node, or None when no node matches and `raise_when_missing` is False.
+
+        Raises:
+            FieldSelectionConflictError: `only` is combined with `include` or `exclude`; raised before any request.
+            FieldNotFoundError: A name in `only` is not a field of the kind; raised before the data query.
+            TypeError: `only` is a string instead of a list of field names; raised before the data query.
+            ValueError: No filter was given, or `hfid` was given for a generic kind or a kind without a
+                human-friendly ID.
+            NodeNotFoundError: No node matches and `raise_when_missing` is True.
+            IndexError: More than one node matches.
+
+        """
+        check_only_conflict(only=only, include=include, exclude=exclude)
         branch = branch or self.default_branch
         schema = self.schema.get(kind=kind, branch=branch)
         if query_name is None:
@@ -3471,6 +3846,7 @@ class InfrahubClientSync(BaseClient):
             include_metadata=include_metadata,
             query_name=query_name,
             priority=priority,
+            only=only,
             **filters,
         )
 
@@ -3896,6 +4272,47 @@ class InfrahubClientSync(BaseClient):
             timeout=timeout or self.default_timeout,
         )
 
+    @handle_relogin_sync
+    def _put(self, url: str, payload: dict, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP PUT with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return self._request(
+            url=url,
+            method=HTTPMethod.PUT,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+            payload=payload,
+        )
+
+    @handle_relogin_sync
+    def _delete(self, url: str, headers: dict | None = None, timeout: int | None = None) -> httpx.Response:
+        """Execute a HTTP DELETE with HTTPX.
+
+        Raises:
+            ServerNotReachableError: If we are not able to connect to the server.
+            ServerNotResponsiveError: If the server didn't respond before the timeout expired.
+
+        """
+        self.login()
+
+        headers = self._merge_request_headers(headers)
+
+        return self._request(
+            url=url,
+            method=HTTPMethod.DELETE,
+            headers=headers,
+            timeout=timeout or self.default_timeout,
+        )
+
     @contextmanager
     def _get_streaming(
         self,
@@ -4088,10 +4505,7 @@ class InfrahubClientSync(BaseClient):
                 # If we got a 401 while trying to refresh a token we must restart the authentication process
                 # Other status codes indicate other errors
                 if exc.response.status_code != 401:
-                    response = exc.response.json()
-                    errors = response.get("errors")
-                    messages = [error.get("message") for error in errors]
-                    raise AuthenticationError(" | ".join(messages)) from exc
+                    raise authentication_error_from_response(response=exc.response) from exc
 
         url = f"{self.address}/api/auth/login"
         response = self._request(
@@ -4120,10 +4534,13 @@ class InfrahubClientSync(BaseClient):
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
-            self.group_context.update_group()
-
-        self.mode = InfrahubClientMode.DEFAULT
+        try:
+            if exc_type is None and self.mode == InfrahubClientMode.TRACKING:
+                self.group_context.update_group()
+        finally:
+            # update_group() can raise, and leaving the client in tracking mode would
+            # silently enroll every later save into the stale context.
+            self.mode = InfrahubClientMode.DEFAULT
 
     def convert_object_type(
         self,

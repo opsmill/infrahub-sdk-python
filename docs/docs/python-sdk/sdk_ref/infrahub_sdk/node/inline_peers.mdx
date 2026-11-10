@@ -1,0 +1,18 @@
+---
+title: inline_peers
+sidebarTitle: inline_peers
+---
+
+# `infrahub_sdk.node.inline_peers`
+
+Relationships whose mutation takes the fields of their peers instead of a reference to one.
+
+## Functions
+
+### `peers_are_inline_input`
+
+```python
+peers_are_inline_input(schema: RelationshipSchemaAPI) -> bool
+```
+
+Return whether a mutation takes this relationship's peers as fields instead of as references.

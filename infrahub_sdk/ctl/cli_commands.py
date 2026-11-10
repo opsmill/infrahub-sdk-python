@@ -38,14 +38,22 @@ from ..ctl.schema import app as schema_app
 from ..ctl.task import app as task_app
 from ..ctl.telemetry import app as telemetry_app
 from ..ctl.transform import list_transforms
+from ..ctl.troubleshooting import app as troubleshooting_app
 from ..ctl.utils import (
     catch_exception,
     execute_graphql_query,
     load_yamlfile_from_disk_and_exit,
     parse_cli_vars,
+    print_graphql_query_errors,
 )
 from ..ctl.validate import app as validate_app
-from ..exceptions import GraphQLError, ModuleImportError
+from ..exceptions import (
+    BranchNotFoundError,
+    GraphQLError,
+    ModuleImportError,
+    NodeNotFoundError,
+    SchemaNotFoundError,
+)
 from ..graphql.query_renderer import render_query
 from ..node import InfrahubNode
 from ..protocols_generator.generator import CodeGenerator
@@ -74,6 +82,7 @@ app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
 app.add_typer(marketplace_app, name="marketplace")
 app.add_typer(telemetry_app, name="telemetry")
+app.add_typer(troubleshooting_app, name="troubleshooting")
 
 app.command(name="dump")(dump)
 app.command(name="load")(load)
@@ -234,16 +243,13 @@ async def _run_transform(
     except QueryNotFoundError as exc:
         console.print(f"[red]Unable to find query : {exc}")
         raise typer.Exit(1) from exc
+    except (NodeNotFoundError, BranchNotFoundError, SchemaNotFoundError):
+        # A lookup miss descends from GraphQLError but carries no server error list, so the clause
+        # below would render an empty one in place of its message. The shared handler renders these.
+        raise
     except GraphQLError as exc:
-        console.print(f"[red]{len(exc.errors)} error(s) occurred while executing the query")
-        for error in exc.errors:
-            if isinstance(error, dict) and "message" in error and "locations" in error:
-                console.print(f"[yellow] - Message: {error['message']}")  # type: ignore[typeddict-item]
-                console.print(f"[yellow]   Location: {error['locations']}")  # type: ignore[typeddict-item]
-            elif isinstance(error, str) and "Branch:" in error:
-                console.print(f"[yellow] - {error}")
-                console.print("[yellow]   you can specify a different branch with --branch")
-        raise typer.Abort from None
+        print_graphql_query_errors(console=console, exc=exc)
+        raise typer.Exit(1) from None
 
     if inspect.iscoroutinefunction(transform_func):
         output = await transform_func(response)

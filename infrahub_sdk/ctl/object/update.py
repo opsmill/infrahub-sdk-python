@@ -13,6 +13,7 @@ import typer
 from rich.console import Console
 
 from infrahub_sdk.ctl.client import initialize_client
+from infrahub_sdk.ctl.object.inline_peers import raise_if_set_edits_inline_peers
 from infrahub_sdk.ctl.object.utils import prepare_relationship_data, resolve_node
 from infrahub_sdk.ctl.parameters import CONFIG_PARAM
 from infrahub_sdk.ctl.parsers import parse_set_args, validate_set_fields
@@ -24,6 +25,7 @@ from infrahub_sdk.spec.object import ObjectFile
 if TYPE_CHECKING:
     from infrahub_sdk import InfrahubClient
     from infrahub_sdk.node import InfrahubNode
+    from infrahub_sdk.node.relationship import RelationshipManager
     from infrahub_sdk.schema import MainSchemaTypesAPI
 
 console = Console()
@@ -104,6 +106,7 @@ async def _update_with_set_args(
     attr_names = schema.attribute_names
     rel_names = schema.relationship_names
     validate_set_fields(data, attr_names, rel_names)
+    raise_if_set_edits_inline_peers(data, schema)
 
     node = await resolve_node(client, kind, identifier, schema=schema, branch=branch)
 
@@ -205,7 +208,7 @@ def _apply_relationship(
         return
 
     # Cardinality many: access the RelationshipManager from internal storage
-    many_data: dict[str, object] = getattr(node, "_relationship_cardinality_many_data", {})
+    many_data: dict[str, RelationshipManager] = getattr(node, "_relationship_cardinality_many_data", {})
     rel_manager = many_data.get(key)
     if rel_manager is None or not hasattr(rel_manager, "peers"):
         return

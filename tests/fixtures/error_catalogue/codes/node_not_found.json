@@ -1,0 +1,25 @@
+{
+  "data": null,
+  "errors": [
+    {
+      "message": "Unable to find the node john / TestPerson in the database.",
+      "locations": [
+        {
+          "line": 2,
+          "column": 3
+        }
+      ],
+      "path": [
+        "TestPersonDelete"
+      ],
+      "extensions": {
+        "code": "NODE_NOT_FOUND",
+        "http_status": 404,
+        "data": {
+          "node_kind": "TestPerson",
+          "identifier": "john"
+        }
+      }
+    }
+  ]
+}
