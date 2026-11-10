@@ -1567,9 +1567,8 @@ class InfrahubClient(BaseClient):
                     self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
-                # A peer copy can hold fewer fields than a node already stored, so it does not replace it.
-                if node.id and self.store.get(key=node.id, branch=node.get_branch(), raise_when_missing=False) is None:
-                    self.store.set(node=node)
+                if node.id:
+                    self.store._set_related(node=node)
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -3607,9 +3606,8 @@ class InfrahubClientSync(BaseClient):
                     self.store.set(node=node)
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
-                # A peer copy can hold fewer fields than a node already stored, so it does not replace it.
-                if node.id and self.store.get(key=node.id, branch=node.get_branch(), raise_when_missing=False) is None:
-                    self.store.set(node=node)
+                if node.id:
+                    self.store._set_related(node=node)
         return nodes
 
     @overload

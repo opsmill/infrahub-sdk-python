@@ -368,6 +368,47 @@ def test_node_store_set_object_stored_before_it_had_an_id_removes_previous_hfid(
 
 
 @pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_related_replaces_only_a_related_copy(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+
+    def build(name: str) -> InfrahubNode | InfrahubNodeSync:
+        return node_class(
+            client=client,
+            schema=schema_with_hfid["location"],
+            data={"id": node_id, "name": {"value": name}, "type": {"value": "SITE"}},
+        )
+
+    def stored_name() -> str | None:
+        name = store.get(key=node_id).name
+        assert isinstance(name, Attribute)
+        return name.value
+
+    store._set_related(node=build("JFK1"))
+    store._set_related(node=build("JFK2"))
+    assert stored_name() == "JFK2"
+
+    store.set(node=build("JFK3"))
+    store._set_related(node=build("JFK4"))
+    assert store.count() == 1
+    assert stored_name() == "JFK3"
+    assert store.get(key="BuiltinLocation__JFK4", raise_when_missing=False) is None
+
+    store.set(node=build("JFK5"))
+    assert stored_name() == "JFK5"
+
+
+@pytest.mark.parametrize("client_type", client_types)
 def test_node_store_get_unknown_branch_does_not_create_it(client_type: str) -> None:
     store = NodeStore(default_branch="main") if client_type == "standard" else NodeStoreSync(default_branch="main")
 
