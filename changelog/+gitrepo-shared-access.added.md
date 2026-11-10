@@ -1,1 +1,0 @@
-Add the `shared` option to `GitRepo` in `infrahub_sdk.testing.repository`. With `shared=True`, every user on the machine can read and write the Git repository that `GitRepo` creates, so Infrahub containers that run as another user than the test process can fetch from it and push to it. The default, `False`, keeps the current behavior.

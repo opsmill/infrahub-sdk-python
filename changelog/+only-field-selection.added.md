@@ -1,1 +1,0 @@
-Added the `only` argument to `get`, `all`, `filters` and relationship `fetch`, to fetch only the named attributes and relationships; reading a field that was not fetched raises `FieldNotLoadedError`, and `is_loaded` tells whether a field was fetched.
