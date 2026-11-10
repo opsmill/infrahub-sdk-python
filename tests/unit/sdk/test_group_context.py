@@ -31,6 +31,7 @@ from infrahub_sdk.query_groups import (
     ReapResult,
 )
 from tests.helpers.fixtures import read_fixture
+from tests.helpers.schemas import mandatory, node_schema, node_schemas
 
 if TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
@@ -526,3 +527,195 @@ def test_reap_result_retains_refused_and_unattempted_members() -> None:
     result = ReapResult(refused={"refused1": MANDATORY_RELATIONSHIP_ERROR}, unattempted=["unattempted1"])
     assert result.retained_member_ids == ["refused1", "unattempted1"]
     assert ReapResult().retained_member_ids == []
+
+
+TARGET_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+DEPENDENT_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+CHAIN_IDS = [
+    "c1c1c1c1-c1c1-c1c1-c1c1-c1c1c1c1c1c1",
+    "c2c2c2c2-c2c2-c2c2-c2c2-c2c2c2c2c2c2",
+    "c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3",
+]
+
+
+def _schema_with(base: dict, *nodes: dict[str, Any]) -> dict:
+    return {**base, "nodes": [*base["nodes"], *nodes]}
+
+
+def _group_with_members(members: list[tuple[str, str]]) -> dict[str, Any]:
+    response = _group_query_response(member_ids=[])
+    group = response["data"]["CoreStandardGroup"]["edges"][0]["node"]
+    group["members"] = {
+        "count": len(members),
+        "edges": [
+            {"node": {"id": member_id, "display_label": member_id, "__typename": kind}} for kind, member_id in members
+        ],
+    }
+    return response
+
+
+def _delete_response(kind: str) -> dict[str, Any]:
+    return {"data": {f"{kind}Delete": {"ok": True}}}
+
+
+def _deleted_ids(requests: list[httpx.Request], ids: list[str]) -> list[str]:
+    """The ids named by the delete mutations, in the order they were sent."""
+    deleted: list[str] = []
+    for request in requests:
+        body = request.read().decode()
+        if "Delete" in body:
+            deleted.extend(member_id for member_id in ids if member_id in body)
+    return deleted
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_reap_deletes_the_holder_before_the_node_it_holds(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """One run deletes both unused nodes, without a refused delete and without an extra request."""
+    schema = _schema_with(
+        schema_query_05_data,
+        node_schema("Target"),
+        node_schema("Dependent", relationships=[mandatory("target", "ReproTarget")]),
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_group_with_members([("ReproTarget", TARGET_ID), ("ReproDependent", DEPENDENT_ID)]),
+    )
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproDependent"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproTarget"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 4
+    assert _deleted_ids(requests, [TARGET_ID, DEPENDENT_ID]) == [DEPENDENT_ID, TARGET_ID]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_reap_reads_peers_to_order_members_of_a_self_referencing_kind(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """One query reads the chain links' peers, then the last link is deleted first."""
+    schema = _schema_with(
+        schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
+    )
+    previous = {CHAIN_IDS[1]: CHAIN_IDS[0], CHAIN_IDS[2]: CHAIN_IDS[1]}
+    chain_response = {
+        "data": {
+            "ReproChain": {
+                "count": len(CHAIN_IDS),
+                "edges": [
+                    {
+                        "node": {
+                            "id": member_id,
+                            "display_label": member_id,
+                            "__typename": "ReproChain",
+                            "name": {"value": member_id},
+                            "previous": {
+                                "node": {"id": previous[member_id], "__typename": "ReproChain"}
+                                if member_id in previous
+                                else None
+                            },
+                        }
+                    }
+                    for member_id in CHAIN_IDS
+                ],
+            }
+        }
+    }
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json=_group_with_members([("ReproChain", member_id) for member_id in CHAIN_IDS]),
+    )
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=chain_response)
+    # The test clients page by 3 items, so a full first page is followed by an empty one.
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json={"data": {"ReproChain": {"count": len(CHAIN_IDS), "edges": []}}},
+    )
+    for _ in CHAIN_IDS:
+        httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_delete_response("ReproChain"))
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 7
+    assert _deleted_ids(requests, CHAIN_IDS) == CHAIN_IDS[::-1]
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_member_held_from_outside_the_group_is_kept_and_reported(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """Ordering cannot help when a node the run does not delete holds the member."""
+    schema = _schema_with(schema_query_05_data, node_schema("Target"))
+    httpx_mock.add_response(
+        method="POST", url="http://mock/graphql/main", json=_group_with_members([("ReproTarget", TARGET_ID)])
+    )
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json={"data": None, "errors": [{"message": MANDATORY_RELATIONSHIP_ERROR}]},
+    )
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    with pytest.raises(TrackingGroupCleanupError) as exc_info:
+        await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    assert list(exc_info.value.failures) == [TARGET_ID]
+    assert TARGET_ID in httpx_mock.get_requests()[-1].read().decode()
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_failed_peer_query_stops_the_reap_and_keeps_every_member(
+    clients: BothClients, client_type: str, schema_query_05_data: dict, httpx_mock: HTTPXMock
+) -> None:
+    """Without the order nothing is deleted: every member stays in the group and the failure is raised."""
+    schema = _schema_with(
+        schema_query_05_data, node_schema("Chain", relationships=[mandatory("previous", "ReproChain")])
+    )
+    members = [("ReproChain", member_id) for member_id in CHAIN_IDS]
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=_group_with_members(members))
+    httpx_mock.add_exception(httpx.ReadTimeout("read timed out"), method="POST", url="http://mock/graphql/main")
+    httpx_mock.add_response(method="POST", url="http://mock/graphql/main", json=UPSERT_RESPONSE)
+
+    with pytest.raises(ServerNotResponsiveError, match="Unable to read from"):
+        await _track_nothing(clients=clients, client_type=client_type, schema=schema)
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 3
+    assert _deleted_ids(requests, CHAIN_IDS) == []
+    upsert = requests[-1].read().decode()
+    assert all(member_id in upsert for member_id in CHAIN_IDS)
+
+
+def test_mandatory_peer_ids_reads_both_cardinalities(clients: BothClients) -> None:
+    from infrahub_sdk.node import InfrahubNode  # noqa: PLC0415
+
+    schema = node_schemas(
+        node_schema(
+            "Left",
+            relationships=[
+                mandatory("rights", "ReproRight", cardinality="many"),
+                mandatory("anchor", "ReproRight"),
+                mandatory("spare", "ReproRight"),
+            ],
+        )
+    )["ReproLeft"]
+    node = InfrahubNode(
+        client=clients.standard,
+        schema=schema,
+        data={"id": TARGET_ID, "rights": [{"id": CHAIN_IDS[0]}, {"id": CHAIN_IDS[1]}], "anchor": {"id": CHAIN_IDS[2]}},
+    )
+
+    peer_ids = query_groups._mandatory_peer_ids(
+        node=node, relationships={"rights": True, "anchor": False, "spare": False}
+    )
+
+    assert peer_ids == set(CHAIN_IDS)

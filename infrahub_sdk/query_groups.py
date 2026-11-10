@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -14,6 +14,7 @@ from .exceptions import (
     URLNotFoundError,
     code_names_the_failure,
 )
+from .schema.dependencies import DeletionOrder
 from .utils import dict_hash
 
 if TYPE_CHECKING:
@@ -118,6 +119,26 @@ class ReapResult:
         if self.refused:
             return TrackingGroupCleanupError(failures=self.refused)
         return None
+
+
+def _mandatory_peer_ids(node: InfrahubNode | InfrahubNodeSync, relationships: Mapping[str, bool]) -> set[str]:
+    """The ids of the peers `node` holds through the named relationships."""
+    peer_ids: set[str] = set()
+    for name, cardinality_many in relationships.items():
+        if cardinality_many:
+            peer_ids.update(node._get_relationship_many(name=name).peer_ids)
+        elif (peer_id := node._get_relationship_one(name=name).id) is not None:
+            peer_ids.add(peer_id)
+    return peer_ids
+
+
+def _member_peers(
+    nodes: Sequence[InfrahubNode | InfrahubNodeSync], relationships: Mapping[str, bool]
+) -> dict[str, set[str]]:
+    """The mandatory peer ids of each node, by node id."""
+    return {
+        node.id: _mandatory_peer_ids(node=node, relationships=relationships) for node in nodes if node.id is not None
+    }
 
 
 class InfrahubGroupContextBase:
@@ -256,8 +277,33 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
+    async def _order_for_deletion(self, candidates: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        """The candidates in the order given by `DeletionOrder`.
+
+        The schema comes from the client's cache, so ordering sends a request only for members that
+        must be ordered among themselves.
+        """
+        if len(candidates) < 2:
+            return candidates
+        deletion_order = DeletionOrder(candidates=candidates, schemas=await self.client.schema.all(branch=self.branch))
+        member_peers: dict[str, set[str]] = {}
+        for lookup in deletion_order.peer_lookups:
+            nodes = await self.client.filters(
+                kind=lookup.kind,
+                ids=lookup.ids,
+                only=list(lookup.relationships),
+                branch=self.branch,
+                populate_store=False,
+            )
+            member_peers.update(_member_peers(nodes=nodes, relationships=lookup.relationships))
+        return deletion_order.order(node_peers=member_peers)
+
     async def delete_unused(self) -> ReapResult:
         """Delete the members that this run no longer uses.
+
+        Members are deleted in an order where no member is deleted while another member
+        still holds it through a mandatory relationship (see `DeletionOrder`). If that order
+        cannot be worked out, nothing is deleted and the failure stops the reap.
 
         A refusal by the server is a fact about the member, so it is recorded against it
         and the remaining candidates are still attempted. Any other failure is not a fact
@@ -273,6 +319,13 @@ class InfrahubGroupContext(InfrahubGroupContextBase):
         """
         result = ReapResult()
         candidates = self._reap_candidates()
+        try:
+            candidates = await self._order_for_deletion(candidates)
+        except Exception as exc:
+            # Deleting unordered would only trade this failure for refusals; nothing was deleted yet.
+            result.error = exc
+            result.unattempted = [member_id for _, member_id in candidates]
+            return result
 
         for position, (kind, member_id) in enumerate(candidates):
             try:
@@ -382,8 +435,33 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         self.previous_members = group._get_relationship_many(name="members").peers
         return group
 
+    def _order_for_deletion(self, candidates: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        """The candidates in the order given by `DeletionOrder`.
+
+        The schema comes from the client's cache, so ordering sends a request only for members that
+        must be ordered among themselves.
+        """
+        if len(candidates) < 2:
+            return candidates
+        deletion_order = DeletionOrder(candidates=candidates, schemas=self.client.schema.all(branch=self.branch))
+        member_peers: dict[str, set[str]] = {}
+        for lookup in deletion_order.peer_lookups:
+            nodes = self.client.filters(
+                kind=lookup.kind,
+                ids=lookup.ids,
+                only=list(lookup.relationships),
+                branch=self.branch,
+                populate_store=False,
+            )
+            member_peers.update(_member_peers(nodes=nodes, relationships=lookup.relationships))
+        return deletion_order.order(node_peers=member_peers)
+
     def delete_unused(self) -> ReapResult:
         """Delete the members that this run no longer uses.
+
+        Members are deleted in an order where no member is deleted while another member
+        still holds it through a mandatory relationship (see `DeletionOrder`). If that order
+        cannot be worked out, nothing is deleted and the failure stops the reap.
 
         A refusal by the server is a fact about the member, so it is recorded against it
         and the remaining candidates are still attempted. Any other failure is not a fact
@@ -399,6 +477,13 @@ class InfrahubGroupContextSync(InfrahubGroupContextBase):
         """
         result = ReapResult()
         candidates = self._reap_candidates()
+        try:
+            candidates = self._order_for_deletion(candidates)
+        except Exception as exc:
+            # Deleting unordered would only trade this failure for refusals; nothing was deleted yet.
+            result.error = exc
+            result.unattempted = [member_id for _, member_id in candidates]
+            return result
 
         for position, (kind, member_id) in enumerate(candidates):
             try:
