@@ -1,1 +1,0 @@
-The SDK sends the W3C `traceparent` header with each request to Infrahub when OpenTelemetry is installed and a span is active, so the Infrahub server records its spans in the caller's trace. The new `tracing` extra installs the OpenTelemetry API.

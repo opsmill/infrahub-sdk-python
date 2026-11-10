@@ -1,1 +1,0 @@
-Resource pool nodes have `get_pool_allocations()`, which lists the resources a pool holds and, for a number pool, whether the pool allocated each number or a user attached it. Requires Infrahub 1.12 or later. `get_pool_allocated_resources()` is unchanged.
