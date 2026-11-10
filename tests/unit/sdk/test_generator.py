@@ -13,6 +13,21 @@ if TYPE_CHECKING:
 
     from infrahub_sdk.schema import NodeSchemaAPI
 
+GENERATOR_GROUP_SCHEMA = {
+    "generics": [{"name": "Node", "namespace": "Core"}],
+    "nodes": [
+        {
+            "name": "GeneratorGroup",
+            "namespace": "Core",
+            "attributes": [
+                {"name": "name", "kind": "Text", "unique": True},
+                {"name": "description", "kind": "Text", "optional": True},
+            ],
+            "relationships": [{"name": "members", "peer": "CoreNode", "cardinality": "many", "optional": True}],
+        }
+    ],
+}
+
 
 class LocationGenerator(InfrahubGenerator):
     location_schema: NodeSchemaAPI
@@ -40,6 +55,12 @@ async def test_generator_writes_carry_the_client_request_context(
             "data": {"BuiltinLocationCreate": {"ok": True, "object": {"id": "17aec828-9814-ce00-3f20-1a053670f1c8"}}}
         },
     )
+    httpx_mock.add_response(method="GET", url="http://mock/api/schema?branch=main", json=GENERATOR_GROUP_SCHEMA)
+    httpx_mock.add_response(
+        method="POST",
+        url="http://mock/graphql/main",
+        json={"data": {"CoreGeneratorGroup": {"count": 0, "edges": []}}},
+    )
     client = InfrahubClient(config=Config(address="http://mock"))
     client.request_context = RequestContext(account=ContextAccount(id="account-1"))
 
@@ -47,7 +68,7 @@ async def test_generator_writes_carry_the_client_request_context(
     generator.location_schema = location_schema
     await generator.run(identifier="location-generator")
 
-    request = httpx_mock.get_request(url="http://mock/graphql/main")
-    assert request
-    query = " ".join(json.loads(request.content)["query"].split())
+    mutation = httpx_mock.get_requests(url="http://mock/graphql/main")[0]
+    query = " ".join(json.loads(mutation.content)["query"].split())
+    assert "BuiltinLocationCreate" in query
     assert 'context: { account: { id: "account-1" } }' in query
