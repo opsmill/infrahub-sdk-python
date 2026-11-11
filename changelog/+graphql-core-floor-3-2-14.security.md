@@ -1,0 +1,1 @@
+Raised the `graphql-core` requirement from `>=3.2.12` to `>=3.2.14`, which fixes four denial-of-service bugs in the GraphQL validator and parser. Queries nested more than 200 levels deep are now rejected with a syntax error.
