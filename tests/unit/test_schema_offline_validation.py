@@ -60,6 +60,7 @@ def _schema_with_computed_attribute(computed_attribute: dict) -> dict:
 
 def _schema_with_choices(choices: list[dict]) -> dict:
     schema = _valid_schema()
+    schema["nodes"][0]["attributes"][0]["kind"] = "Dropdown"
     schema["nodes"][0]["attributes"][0]["choices"] = choices
     return schema
 
@@ -300,7 +301,7 @@ READ_ONLY_CASES = [
         expected_fields={"main", "profiles", "templates", "namespaces"},
     ),
     # Every internal schema model carries `id` and `state`, so they appear on the nested value
-    # models of a schema dumped from those models even though they are not settable there.
+    # models of a schema dumped from those models; only `state` on a choice is settable there.
     ReadOnlyCase(
         name="parameters-bookkeeping-fields",
         schema=_schema_with_parameters({"min_length": 1, "id": None, "state": "present"}),
@@ -312,10 +313,7 @@ READ_ONLY_CASES = [
     ReadOnlyCase(
         name="choice-bookkeeping-fields",
         schema=_schema_with_choices([{"name": "active", "id": None, "state": "present"}]),
-        expected_fields={
-            "nodes[0].attributes[0].choices[0].id",
-            "nodes[0].attributes[0].choices[0].state",
-        },
+        expected_fields={"nodes[0].attributes[0].choices[0].id"},
     ),
     ReadOnlyCase(
         name="number-pool-range-bookkeeping-fields",
@@ -345,6 +343,15 @@ def test_read_only_field_is_accepted_with_a_warning(case: ReadOnlyCase) -> None:
 
     assert result.valid is True, result.messages
     assert {warning.field for warning in result.warnings} == case.expected_fields
+
+
+def test_absent_choice_is_accepted_without_a_warning() -> None:
+    schema = _schema_with_choices([{"name": "active"}, {"name": "passive", "state": "absent"}])
+
+    result = validate_schema(schema=schema)
+
+    assert result.valid is True, result.messages
+    assert result.warnings == []
 
 
 def test_read_only_warning_names_the_owning_kind_and_element() -> None:
@@ -546,6 +553,12 @@ OUT_OF_ENUM_CASES = [
         schema=_schema_with_computed_attribute({"kind": "NotARealKind"}),
         expected_field="nodes[0].attributes[0].Text.computed_attribute",
         invalid_value="NotARealKind",
+    ),
+    OutOfEnumCase(
+        name="dropdown-choice-state",
+        schema=_schema_with_choices([{"name": "active", "state": "removed"}]),
+        expected_field="nodes[0].attributes[0].Dropdown.choices[0].state",
+        invalid_value="removed",
     ),
     OutOfEnumCase(
         name="extension-attribute-kind",

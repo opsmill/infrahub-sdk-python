@@ -1,0 +1,1 @@
+Fixed schema validation treating `state` on a dropdown choice as a read-only field: `state: absent`, which removes the choice when Infrahub loads the schema, is now accepted without a warning, and a value other than `present` or `absent` is now reported as an error.

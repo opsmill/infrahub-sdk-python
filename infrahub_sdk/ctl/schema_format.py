@@ -150,7 +150,7 @@ RELATIONSHIP_ORDER = [
 ]
 RELATIONSHIP_LAST = ["order_weight"]
 
-CHOICE_ORDER = ["name", "label", "description", "color"]
+CHOICE_ORDER = ["name", "label", "description", "color", "state"]
 
 EXTENSION_NODE_ORDER = ["kind", "inherit_from"]
 EXTENSION_NODE_LAST = ["attributes", "relationships"]

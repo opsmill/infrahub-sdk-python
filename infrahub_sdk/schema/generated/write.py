@@ -120,6 +120,10 @@ class DropdownChoiceWrite(BaseModel):
         default=None,
         description="Human friendly representation of the choice.",
     )
+    state: SchemaState = Field(
+        default=SchemaState.PRESENT,
+        description="Expected state of the choice after loading the schema",
+    )
 
 
 class ComputedAttributeUserWrite(BaseModel):
