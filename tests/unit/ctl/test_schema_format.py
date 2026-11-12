@@ -40,6 +40,7 @@ nodes:
     containers:
       - state: present
         collapsed: true
+        collapsible: true
         order_weight: 2000
         description: Rack and serial details.
         label: Inventory
@@ -108,6 +109,7 @@ def test_container_item_key_order_is_canonical() -> None:
         "label",
         "description",
         "order_weight",
+        "collapsible",
         "collapsed",
         "state",
     ]

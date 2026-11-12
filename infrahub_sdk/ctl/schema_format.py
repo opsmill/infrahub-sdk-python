@@ -155,7 +155,7 @@ RELATIONSHIP_LAST = ["order_weight"]
 
 CHOICE_ORDER = ["name", "label", "description", "color"]
 
-CONTAINER_ORDER = ["name", "label", "description", "order_weight", "collapsed", "state"]
+CONTAINER_ORDER = ["name", "label", "description", "order_weight", "collapsible", "collapsed", "state"]
 
 EXTENSION_NODE_ORDER = ["kind", "inherit_from"]
 EXTENSION_NODE_LAST = ["attributes", "relationships"]

@@ -147,9 +147,13 @@ class ContainerSchemaRead(BaseModel):
         default=None,
         description="Position of the section among the sections of the node, lowest first. A negative weight places the section above Details.",
     )
+    collapsible: bool = Field(
+        default=True,
+        description="Whether the section can be collapsed on the detail page.",
+    )
     collapsed: bool = Field(
         default=False,
-        description="Whether the section starts collapsed on the detail page.",
+        description="Whether the section starts collapsed on the detail page. Requires collapsible.",
     )
     state: SchemaState = Field(
         default=SchemaState.PRESENT,

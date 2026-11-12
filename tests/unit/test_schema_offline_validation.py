@@ -138,7 +138,13 @@ def test_valid_payload_with_containers_passes() -> None:
     schema = _valid_schema()
     node = schema["nodes"][0]
     node["containers"] = [
-        {"name": "inventory", "label": "Inventory", "description": "Serial details.", "order_weight": 1000},
+        {
+            "name": "inventory",
+            "label": "Inventory",
+            "description": "Serial details.",
+            "order_weight": 1000,
+            "collapsible": False,
+        },
         {"name": "monitoring", "label": "Monitoring", "collapsed": True},
     ]
     node["attributes"][0]["container"] = "inventory"

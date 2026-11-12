@@ -227,7 +227,7 @@ def test_export_skips_containers_inherited_from_a_generic() -> None:
 
     exported = schema_to_export_dict(node)
 
-    assert exported["containers"] == [{"name": "spare", "label": "Spare", "collapsed": False}]
+    assert exported["containers"] == [{"name": "spare", "label": "Spare", "collapsible": True, "collapsed": False}]
 
 
 def test_export_omits_containers_when_all_are_inherited() -> None:
