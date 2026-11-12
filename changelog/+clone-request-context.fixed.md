@@ -1,0 +1,1 @@
+Fixed `clone()` returning a client without the original client's request context. Changes saved by generators, transforms and checks were therefore sent without that account, and Infrahub recorded them against the account of the client's token.

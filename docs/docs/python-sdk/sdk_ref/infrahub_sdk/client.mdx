@@ -394,7 +394,7 @@ client default for these requests only. When None, the client default (if any) i
 clone(self, branch: str | None = None) -> InfrahubClient
 ```
 
-Return a new client with a copy of this client's configuration.
+Return a new client with a copy of this client's configuration and request context.
 
 **Args:**
 
@@ -763,7 +763,7 @@ Return user permissions.
 clone(self, branch: str | None = None) -> InfrahubClientSync
 ```
 
-Return a new client with a copy of this client's configuration.
+Return a new client with a copy of this client's configuration and request context.
 
 **Args:**
 
