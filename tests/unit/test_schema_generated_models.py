@@ -181,6 +181,32 @@ _EXPECTED_ENUM_VALUES = {
     "SchemaState": ["present", "absent"],
     "SchemaAttributeDisplay": ["default", "extra"],
     "ComputedAttributeKind": ["User", "Jinja2", "TransformPython"],
+    # The deprecated "String" kind is dropped from the generated enum.
+    "AttributeKind": [
+        "ID",
+        "Dropdown",
+        "Text",
+        "TextArea",
+        "DateTime",
+        "Email",
+        "Password",
+        "HashedPassword",
+        "URL",
+        "File",
+        "MacAddress",
+        "Color",
+        "Number",
+        "NumberPool",
+        "Bandwidth",
+        "IPHost",
+        "IPNetwork",
+        "IPAddress",
+        "Boolean",
+        "Checkbox",
+        "List",
+        "JSON",
+        "Any",
+    ],
 }
 
 
@@ -190,15 +216,6 @@ def test_generated_enums_are_str_enum_classes_with_expected_values(enum_name: st
     assert issubclass(enum_cls, Enum), f"{enum_name} must be an Enum class"
     assert issubclass(enum_cls, str), f"{enum_name} must be a str-backed enum"
     assert [member.value for member in enum_cls] == _EXPECTED_ENUM_VALUES[enum_name]
-
-
-def test_attribute_kind_enum_present_without_deprecated_string_member() -> None:
-    assert issubclass(enums_module.AttributeKind, Enum)
-    assert issubclass(enums_module.AttributeKind, str)
-    values = [member.value for member in enums_module.AttributeKind]
-    # The deprecated "String" kind is dropped from the generated enum.
-    assert "String" not in values
-    assert "Text" in values
 
 
 def test_constrained_fields_are_typed_with_generated_enums() -> None:
