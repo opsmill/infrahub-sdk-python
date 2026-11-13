@@ -526,33 +526,45 @@ class OutOfEnumCase:
     # Exact dotted path expected among the reported error fields. For a discriminated union the
     # unknown discriminator is reported against the container (attribute), not a leaf field.
     expected_field: str
-    invalid_value: str
+    # Exact value reported as received. For a discriminated union this is the whole container.
+    expected_input: object
+    # Start of the reported reason. For a literal enum it is the whole reason. For a discriminated
+    # union pydantic then lists every accepted tag in the union's order, which is not pinned here.
+    expected_reason: str
 
+
+_UNKNOWN_KIND_TAG = "Input tag 'NotARealKind' found using 'kind' does not match any of the expected tags: "
 
 OUT_OF_ENUM_CASES = [
     OutOfEnumCase(
         name="attribute-kind",
         schema=_attribute_out_of_enum_kind("NotARealKind"),
         expected_field="nodes[0].attributes[0]",
-        invalid_value="NotARealKind",
+        expected_input={"name": "hostname", "kind": "NotARealKind"},
+        expected_reason=_UNKNOWN_KIND_TAG,
     ),
     OutOfEnumCase(
         name="relationship-kind",
         schema=_relationship_out_of_enum("kind", "NotARealKind"),
         expected_field="nodes[0].relationships[0].kind",
-        invalid_value="NotARealKind",
+        expected_input="NotARealKind",
+        expected_reason=(
+            "Input should be 'Generic', 'Attribute', 'Component', 'Parent', 'Group', 'Hierarchy', 'Profile' or 'Template'"
+        ),
     ),
     OutOfEnumCase(
         name="relationship-cardinality",
         schema=_relationship_out_of_enum("cardinality", "both"),
         expected_field="nodes[0].relationships[0].cardinality",
-        invalid_value="both",
+        expected_input="both",
+        expected_reason="Input should be 'one' or 'many'",
     ),
     OutOfEnumCase(
         name="computed-attribute-kind",
         schema=_schema_with_computed_attribute({"kind": "NotARealKind"}),
         expected_field="nodes[0].attributes[0].Text.computed_attribute",
-        invalid_value="NotARealKind",
+        expected_input={"kind": "NotARealKind"},
+        expected_reason=_UNKNOWN_KIND_TAG,
     ),
     OutOfEnumCase(
         name="dropdown-choice-state",
@@ -566,7 +578,8 @@ OUT_OF_ENUM_CASES = [
             {"kind": "InfraDevice", "attributes": [{"name": "extra", "kind": "NotARealKind"}]}
         ),
         expected_field="extensions.nodes[0].attributes[0]",
-        invalid_value="NotARealKind",
+        expected_input={"name": "extra", "kind": "NotARealKind"},
+        expected_reason=_UNKNOWN_KIND_TAG,
     ),
     OutOfEnumCase(
         name="extension-relationship-cardinality",
@@ -574,7 +587,8 @@ OUT_OF_ENUM_CASES = [
             {"kind": "InfraDevice", "relationships": [{"name": "peers", "peer": "InfraDevice", "cardinality": "both"}]}
         ),
         expected_field="extensions.nodes[0].relationships[0].cardinality",
-        invalid_value="both",
+        expected_input="both",
+        expected_reason="Input should be 'one' or 'many'",
     ),
 ]
 
@@ -584,8 +598,12 @@ def test_out_of_enum_value_is_rejected_naming_field_and_value(case: OutOfEnumCas
     result = validate_schema(schema=case.schema)
 
     assert result.valid is False
-    assert case.expected_field in _fields_named(result), result.messages
-    assert any(case.invalid_value in message for message in result.messages), result.messages
+    assert len(result.errors) == 1, result.messages
+    error = result.errors[0]
+    assert error.field == case.expected_field
+    assert error.input == case.expected_input
+    assert error.reason.startswith(case.expected_reason), error.reason
+    assert error.message == f"{case.expected_field}: {error.reason} (received: {case.expected_input!r})"
 
 
 def test_enum_backed_relationship_cardinality_out_of_enum_value_is_rejected() -> None:
@@ -595,7 +613,9 @@ def test_enum_backed_relationship_cardinality_out_of_enum_value_is_rejected() ->
     result = validate_schema(schema=schema)
 
     assert result.valid is False
-    assert any("cardinality" in message for message in result.messages), result.messages
+    assert result.messages == [
+        "nodes[0].relationships[0].cardinality: Input should be 'one' or 'many' (received: 'both')"
+    ]
 
 
 def test_missing_version_is_rejected() -> None:
@@ -688,14 +708,16 @@ def test_computed_attribute_jinja2_without_template_is_rejected() -> None:
     result = validate_schema(schema=_schema_with_computed_attribute({"kind": "Jinja2"}))
 
     assert result.valid is False
-    assert any("jinja2_template" in message for message in result.messages), result.messages
+    assert result.messages == ["nodes[0].attributes[0].Text.computed_attribute.Jinja2.jinja2_template: Field required"]
 
 
 def test_computed_attribute_transform_python_without_transform_is_rejected() -> None:
     result = validate_schema(schema=_schema_with_computed_attribute({"kind": "TransformPython"}))
 
     assert result.valid is False
-    assert any("transform" in message for message in result.messages), result.messages
+    assert result.messages == [
+        "nodes[0].attributes[0].Text.computed_attribute.TransformPython.transform: Field required"
+    ]
 
 
 def test_valid_choice_passes() -> None:
@@ -708,7 +730,9 @@ def test_choice_bad_color_is_rejected() -> None:
     result = validate_schema(schema=_schema_with_choices([{"name": "active", "color": "not-a-color"}]))
 
     assert result.valid is False
-    assert any("color" in message for message in result.messages), result.messages
+    assert result.messages == [
+        r"nodes[0].attributes[0].Text.choices[0].color: String should match pattern '#[0-9a-fA-F]{6}\b' (received: 'not-a-color')"
+    ]
 
 
 def test_valid_text_parameters_pass() -> None:
