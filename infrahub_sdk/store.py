@@ -46,8 +46,6 @@ class NodeStoreBranch:
         # Entries written per internal id: a node's HFID can change after it is indexed, so it cannot be recomputed.
         self._keys_by_internal_id: dict[str, set[str]] = {}
         self._hfids_by_internal_id: dict[str, set[tuple[str, tuple]]] = {}
-        # Nodes stored from relationship data, which a later related copy may replace.
-        self._related_internal_ids: set[str] = set()
         # The sync batch saves nodes from several threads. Re-entrant because computing an HFID can read this store.
         self._lock = threading.RLock()
 
@@ -57,19 +55,9 @@ class NodeStoreBranch:
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
         with self._lock:
-            self._store(node=node, key=key, related=False)
+            self._store(node=node, key=key)
 
-    def _set_related(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync) -> None:
-        """Store a node built from relationship data, unless a node from a direct query or a save is stored."""
-        with self._lock:
-            stored_internal_id = self._uuids.get(node.id) if node.id else None
-            if stored_internal_id and stored_internal_id not in self._related_internal_ids:
-                return
-            self._store(node=node, key=None, related=True)
-
-    def _store(
-        self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None, related: bool
-    ) -> None:
+    def _store(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None) -> None:
         # Re-index even the same object, also one stored before it had an id: its HFID may have changed.
         replaced = [node._internal_id] if node._internal_id in self._objs else []
         other_internal_id = self._uuids.get(node.id) if node.id else None
@@ -88,8 +76,6 @@ class NodeStoreBranch:
             previous_hfids.extend(hfids)
 
         self._index(node=node, hfid=hfid, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
-        if related:
-            self._related_internal_ids.add(node._internal_id)
 
     def _resolve_existing(
         self,
@@ -135,7 +121,6 @@ class NodeStoreBranch:
     def _unindex(self, internal_id: str) -> tuple[list[str], list[tuple[str, tuple]]]:
         """Remove a node and the index entries that point to it, and return the keys and HFIDs that pointed to it."""
         node = self._objs.pop(internal_id, None)
-        self._related_internal_ids.discard(internal_id)
         keys = [key for key in self._keys_by_internal_id.pop(internal_id, ()) if self._keys.get(key) == internal_id]
         hfids = [
             (kind, hfid)
@@ -333,12 +318,6 @@ class NodeStoreBase:
         branch = self._get_branch(branch or node.get_branch())
         store_branch = self._branches.get(branch) or self._branches.setdefault(branch, NodeStoreBranch(name=branch))
         store_branch.set(node=node, key=key)
-
-    def _set_related(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync) -> None:
-        """Store a node built from relationship data without replacing a node from a direct query or a save."""
-        branch = self._get_branch(node.get_branch())
-        store_branch = self._branches.get(branch) or self._branches.setdefault(branch, NodeStoreBranch(name=branch))
-        store_branch._set_related(node=node)
 
     def _get(  # type: ignore[no-untyped-def]
         self,

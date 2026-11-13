@@ -1568,7 +1568,7 @@ class InfrahubClient(BaseClient):
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store._set_related(node=node)
+                    self.store.set(node=node)
         return nodes
 
     def clone(self, branch: str | None = None) -> InfrahubClient:
@@ -3607,7 +3607,7 @@ class InfrahubClientSync(BaseClient):
             related_nodes = list(set(related_nodes))
             for node in related_nodes:
                 if node.id:
-                    self.store._set_related(node=node)
+                    self.store.set(node=node)
         return nodes
 
     @overload

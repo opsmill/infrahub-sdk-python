@@ -321,14 +321,15 @@ async def test_method_all_twice_keeps_one_store_entry_per_node(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-async def test_method_all_with_prefetch_keeps_stored_node_over_peer_copy(
+async def test_method_all_with_prefetch_replaces_saved_node_with_peer_copy(
     httpx_mock: HTTPXMock, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI], client_type: str
 ) -> None:
     location_id = "4c8e1a6f-2b5d-4e7a-9c3f-1d2e3f4a5b6c"
     rack_id = "7f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
     location_schema = schema_with_hfid["location"]
     cache_data = {"version": "1.0", "nodes": [schema.model_dump() for schema in schema_with_hfid.values()]}
-    location_data = {"id": location_id, "name": {"value": "Paris"}, "type": {"value": "SITE"}}
+    # Like a node built locally and stored by save(): only the attributes that were set.
+    location_data = {"id": location_id, "name": {"value": "Paris"}}
 
     httpx_mock.add_response(
         method="POST",
@@ -343,7 +344,14 @@ async def test_method_all_with_prefetch_keeps_stored_node_over_peer_copy(
                                 "id": rack_id,
                                 "display_label": "R1",
                                 "facility_id": {"value": "R1"},
-                                "location": {"node": {"__typename": "BuiltinLocation", "id": location_id}},
+                                "location": {
+                                    "node": {
+                                        "__typename": "BuiltinLocation",
+                                        "id": location_id,
+                                        "name": {"value": "Paris"},
+                                        "type": {"value": "SITE"},
+                                    }
+                                },
                             }
                         }
                     ],
@@ -367,9 +375,9 @@ async def test_method_all_with_prefetch_keeps_stored_node_over_peer_copy(
 
     store = clients.standard.store if client_type == "standard" else clients.sync.store
     assert store.count() == 2
-    assert store.get(key="paris").name.value == "Paris"
-    assert store.get(key=["Paris"], kind="BuiltinLocation").name.value == "Paris"
-    assert store.get(key=location_id).name.value == "Paris"
+    assert store.get(key=location_id).type.value == "SITE"
+    assert store.get(key="paris") is store.get(key=location_id)
+    assert store.get(key=["Paris"], kind="BuiltinLocation") is store.get(key=location_id)
 
 
 @pytest.mark.parametrize("client_type", client_types)

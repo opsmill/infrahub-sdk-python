@@ -368,7 +368,7 @@ def test_node_store_set_object_stored_before_it_had_an_id_removes_previous_hfid(
 
 
 @pytest.mark.parametrize("client_type", client_types)
-def test_node_store_set_related_replaces_only_a_related_copy(
+def test_node_store_set_later_copy_replaces_stored_node(
     client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
 ) -> None:
     if client_type == "standard":
@@ -394,18 +394,13 @@ def test_node_store_set_related_replaces_only_a_related_copy(
         assert isinstance(name, Attribute)
         return name.value
 
-    store._set_related(node=build("JFK1"))
-    store._set_related(node=build("JFK2"))
-    assert stored_name() == "JFK2"
-
+    store.set(node=build("JFK1"))
+    store.set(node=build("JFK2"))
     store.set(node=build("JFK3"))
-    store._set_related(node=build("JFK4"))
+
     assert store.count() == 1
     assert stored_name() == "JFK3"
-    assert store.get(key="BuiltinLocation__JFK4", raise_when_missing=False) is None
-
-    store.set(node=build("JFK5"))
-    assert stored_name() == "JFK5"
+    assert store.get(key="BuiltinLocation__JFK2", raise_when_missing=False) is None
 
 
 @pytest.mark.parametrize("client_type", client_types)
