@@ -6,6 +6,7 @@ import pytest
 
 from infrahub_sdk.exceptions import NodeInvalidError, NodeNotFoundError
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.node.attribute import Attribute
 from infrahub_sdk.protocols import BuiltinIPAddressSync, BuiltinIPPrefix
 from infrahub_sdk.store import NodeStore, NodeStoreSync, get_schema_name
 
@@ -158,6 +159,259 @@ def test_node_store_get_with_hfid(
         store.get(kind="BuiltinLocation", key="anotherkey")
     with pytest.raises(NodeNotFoundError):
         store.get(key="anotherkey")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_replaces_previous_copy(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    second = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK2"}, "type": {"value": "SITE"}},
+    )
+
+    store.set(key="mykey", node=first)
+    store.set(node=second)
+
+    assert store.count() == 1
+    assert store.get(key=node_id) is second
+    assert store.get(key="mykey") is second
+    assert store.get(key="BuiltinLocation__JFK2") is second
+    assert store.get(key="BuiltinLocation__JFK1", raise_when_missing=False) is None
+    assert store.get(key=first._internal_id, raise_when_missing=False) is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_without_hfid_keeps_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    second = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "type": {"value": "SITE"}},
+    )
+    assert second.get_human_friendly_id() is None
+
+    store.set(node=first)
+    store.set(node=second)
+
+    assert store.count() == 1
+    assert store.get(key="BuiltinLocation__JFK1") is second
+    assert store.get(kind="BuiltinLocation", key="JFK1") is second
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_twice_without_hfid_keeps_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    second = node_class(client=client, schema=schema_with_hfid["location"], data={"id": node_id})
+    third = node_class(client=client, schema=schema_with_hfid["location"], data={"id": node_id})
+
+    store.set(node=first)
+    store.set(node=second)
+    store.set(node=third)
+
+    assert store.count() == 1
+    assert store.get(key="BuiltinLocation__JFK1") is third
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_id_after_local_rename_removes_every_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    first = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    store.set(node=first)
+    name = first.name
+    assert isinstance(name, Attribute)
+    name.value = "JFK2"
+    store.set(node=first)
+    second = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK2"}, "type": {"value": "SITE"}},
+    )
+    store.set(node=second)
+
+    assert store.count() == 1
+    assert store.get(key="BuiltinLocation__JFK2") is second
+    assert store.get(key="BuiltinLocation__JFK1", raise_when_missing=False) is None
+    with pytest.raises(NodeNotFoundError, match=r"Unable to find the node 'BuiltinLocation__JFK1' in the store"):
+        store.get(key="BuiltinLocation__JFK1")
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_same_object_after_rename_removes_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": "54f3108c-1f21-44c4-93cf-ec5737587b48", "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    store.set(key="mykey", node=node)
+    name = node.name
+    assert isinstance(name, Attribute)
+    name.value = "JFK2"
+    store.set(node=node)
+
+    assert store.count() == 1
+    assert store.get(key="BuiltinLocation__JFK2") is node
+    assert store.get(key="mykey") is node
+    assert store.get(key="BuiltinLocation__JFK1", raise_when_missing=False) is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_object_stored_before_it_had_an_id_removes_previous_hfid(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+    queried = node_class(
+        client=client,
+        schema=schema_with_hfid["location"],
+        data={"id": node_id, "name": {"value": "JFK1"}, "type": {"value": "SITE"}},
+    )
+    store.set(node=queried)
+    node = node_class(
+        client=client, schema=schema_with_hfid["location"], data={"name": {"value": "JFK1"}, "type": {"value": "SITE"}}
+    )
+    store.set(key="mykey", node=node)
+    name = node.name
+    assert isinstance(name, Attribute)
+    name.value = "JFK2"
+    node.id = node_id
+    store.set(node=node)
+
+    assert store.count() == 1
+    assert store.get(key=node_id) is node
+    assert store.get(key="mykey") is node
+    assert store.get(key="BuiltinLocation__JFK2") is node
+    assert store.get(key="BuiltinLocation__JFK1", raise_when_missing=False) is None
+    assert store.get(key=queried._internal_id, raise_when_missing=False) is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_set_later_copy_replaces_stored_node(
+    client_type: str, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI]
+) -> None:
+    if client_type == "standard":
+        client = clients.standard
+        store = NodeStore(default_branch="main")
+        node_class = InfrahubNode
+    else:
+        client = clients.sync
+        store = NodeStoreSync(default_branch="main")
+        node_class = InfrahubNodeSync
+
+    node_id = "54f3108c-1f21-44c4-93cf-ec5737587b48"
+
+    def build(name: str) -> InfrahubNode | InfrahubNodeSync:
+        return node_class(
+            client=client,
+            schema=schema_with_hfid["location"],
+            data={"id": node_id, "name": {"value": name}, "type": {"value": "SITE"}},
+        )
+
+    def stored_name() -> str | None:
+        name = store.get(key=node_id).name
+        assert isinstance(name, Attribute)
+        return name.value
+
+    store.set(node=build("JFK1"))
+    store.set(node=build("JFK2"))
+    store.set(node=build("JFK3"))
+
+    assert store.count() == 1
+    assert stored_name() == "JFK3"
+    assert store.get(key="BuiltinLocation__JFK2", raise_when_missing=False) is None
+
+
+@pytest.mark.parametrize("client_type", client_types)
+def test_node_store_get_unknown_branch_does_not_create_it(client_type: str) -> None:
+    store = NodeStore(default_branch="main") if client_type == "standard" else NodeStoreSync(default_branch="main")
+
+    assert store.get(key="mykey", branch="unknown", raise_when_missing=False) is None
+    with pytest.raises(NodeNotFoundError, match=r"Unable to find the node 'mykey' in the store \(unknown\)"):
+        store.get(key="mykey", branch="unknown")
+
+    assert "unknown" not in store._branches
 
 
 def test_store_get_schema_name() -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import threading
 import warnings
 from typing import TYPE_CHECKING, Literal, overload
 
@@ -10,6 +11,8 @@ from .exceptions import NodeInvalidError, NodeNotFoundError
 from .node.parsers import parse_human_friendly_id
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from .client import SchemaType, SchemaTypeSync
     from .node import InfrahubNode, InfrahubNodeSync
     from .protocols_base import CoreNode, CoreNodeSync
@@ -40,26 +43,109 @@ class NodeStoreBranch:
         self._hfids: dict[str, dict[tuple, str]] = {}
         self._keys: dict[str, str] = {}
         self._uuids: dict[str, str] = {}
+        # Entries written per internal id: a node's HFID can change after it is indexed, so it cannot be recomputed.
+        self._keys_by_internal_id: dict[str, set[str]] = {}
+        self._hfids_by_internal_id: dict[str, set[tuple[str, tuple]]] = {}
+        # The sync batch saves nodes from several threads. Re-entrant because computing an HFID can read this store.
+        self._lock = threading.RLock()
 
     def count(self) -> int:
-        return len(self._objs)
+        with self._lock:
+            return len(self._objs)
 
     def set(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None = None) -> None:
-        self._objs[node._internal_id] = node
+        with self._lock:
+            self._store(node=node, key=key)
 
-        if key:
-            self._keys[key] = node._internal_id
+    def _store(self, node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync, key: str | None) -> None:
+        # Re-index even the same object, also one stored before it had an id: its HFID may have changed.
+        replaced = [node._internal_id] if node._internal_id in self._objs else []
+        other_internal_id = self._uuids.get(node.id) if node.id else None
+        other = self._objs.get(other_internal_id) if other_internal_id else None
+        if other is not None and other is not node:
+            node = self._resolve_existing(existing=other, new=node)
+            replaced.append(other._internal_id)
+
+        # Computed before unindexing, so an error leaves the previous entries in place.
+        hfid = node.get_human_friendly_id()
+        previous_keys: list[str] = []
+        previous_hfids: list[tuple[str, tuple]] = []
+        for internal_id in replaced:
+            keys, hfids = self._unindex(internal_id)
+            previous_keys.extend(keys)
+            previous_hfids.extend(hfids)
+
+        self._index(node=node, hfid=hfid, key=key, previous_keys=previous_keys, previous_hfids=previous_hfids)
+
+    def _resolve_existing(
+        self,
+        existing: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,  # noqa: ARG002
+        new: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+    ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync:
+        """Return the node to keep when the store already holds another object with the same id.
+
+        The newest copy replaces the previous one, so fields that only the previous copy holds are lost.
+        This is to be reworked to merge ``new`` into ``existing`` and keep ``existing``, so that a later
+        query returning fewer fields does not drop attributes or relationships fetched earlier.
+        """
+        return new
+
+    def _index(
+        self,
+        node: InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync,
+        hfid: list[str] | None,
+        key: str | None = None,
+        previous_keys: Iterable[str] = (),
+        previous_hfids: Iterable[tuple[str, tuple]] = (),
+    ) -> None:
+        internal_id = node._internal_id
+        self._objs[internal_id] = node
+
+        keys = [*previous_keys, key] if key else previous_keys
+        for node_key in keys:
+            self._keys[node_key] = internal_id
+            self._keys_by_internal_id.setdefault(internal_id, set()).add(node_key)
 
         if node.id:
-            self._uuids[node.id] = node._internal_id
+            self._uuids[node.id] = internal_id
 
-        if hfid := node.get_human_friendly_id():
-            for kind in node.get_all_kinds():
-                if kind not in self._hfids:
-                    self._hfids[kind] = {}
-                self._hfids[kind][tuple(hfid)] = node._internal_id
+        if hfid:
+            hfid_entries: Iterable[tuple[str, tuple]] = [(kind, tuple(hfid)) for kind in node.get_all_kinds()]
+        else:
+            # A copy without a HFID, e.g. from a query with `only`, stays reachable by the previous HFID.
+            hfid_entries = previous_hfids
+        for kind, hfid_key in hfid_entries:
+            self._hfids.setdefault(kind, {})[hfid_key] = internal_id
+            self._hfids_by_internal_id.setdefault(internal_id, set()).add((kind, hfid_key))
+
+    def _unindex(self, internal_id: str) -> tuple[list[str], list[tuple[str, tuple]]]:
+        """Remove a node and the index entries that point to it, and return the keys and HFIDs that pointed to it."""
+        node = self._objs.pop(internal_id, None)
+        keys = [key for key in self._keys_by_internal_id.pop(internal_id, ()) if self._keys.get(key) == internal_id]
+        hfids = [
+            (kind, hfid)
+            for kind, hfid in self._hfids_by_internal_id.pop(internal_id, ())
+            if self._hfids.get(kind, {}).get(hfid) == internal_id
+        ]
+
+        if node is not None and node.id and self._uuids.get(node.id) == internal_id:
+            del self._uuids[node.id]
+        for key in keys:
+            del self._keys[key]
+        for kind, hfid in hfids:
+            del self._hfids[kind][hfid]
+        return keys, hfids
 
     def get(
+        self,
+        key: str | list[str],
+        kind: type[SchemaType | SchemaTypeSync] | str | None = None,
+        raise_when_missing: bool = True,
+    ) -> InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync | None:
+        with self._lock:
+            return self._get(key=key, kind=kind, raise_when_missing=raise_when_missing)
+
+    def _get(
         self,
         key: str | list[str],
         kind: type[SchemaType | SchemaTypeSync] | str | None = None,
@@ -193,8 +279,10 @@ class NodeStoreBranch:
         if tuple(node_hfid) not in self._hfids[node_kind]:
             raise exception_to_raise_if_not_found
 
-        internal_id = self._hfids[node_kind][tuple(node_hfid)]
-        return self._objs[internal_id]
+        node = self._objs.get(self._hfids[node_kind][tuple(node_hfid)])
+        if node is None:
+            raise exception_to_raise_if_not_found
+        return node
 
 
 class NodeStoreBase:
@@ -228,11 +316,8 @@ class NodeStoreBase:
         branch: str | None = None,
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
-
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
-
-        self._branches[branch].set(node=node, key=key)
+        store_branch = self._branches.get(branch) or self._branches.setdefault(branch, NodeStoreBranch(name=branch))
+        store_branch.set(node=node, key=key)
 
     def _get(  # type: ignore[no-untyped-def]
         self,
@@ -242,11 +327,9 @@ class NodeStoreBase:
         branch: str | None = None,
     ):
         branch = self._get_branch(branch)
+        store_branch = self._branches.get(branch) or NodeStoreBranch(name=branch)
 
-        if branch not in self._branches:
-            self._branches[branch] = NodeStoreBranch(name=branch)
-
-        return self._branches[branch].get(key=key, kind=kind, raise_when_missing=raise_when_missing)
+        return store_branch.get(key=key, kind=kind, raise_when_missing=raise_when_missing)
 
     def count(self, branch: str | None = None) -> int:
         branch = self._get_branch(branch)

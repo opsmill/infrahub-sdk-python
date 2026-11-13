@@ -17,6 +17,7 @@ from infrahub_sdk.exceptions import (
     UniquenessViolationError,
 )
 from infrahub_sdk.node import InfrahubNode, InfrahubNodeSync
+from infrahub_sdk.protocols import CoreRepository, CoreRepositorySync
 from infrahub_sdk.repository import GitRepoManager
 from tests.helpers.fixtures import read_fixture
 from tests.helpers.utils import change_directory
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
 
     from pytest_httpx import HTTPXMock
 
+    from infrahub_sdk.schema import NodeSchemaAPI
     from tests.unit.sdk.conftest import BothClients
 
 pytestmark = pytest.mark.httpx_mock(can_send_already_matched_responses=True)
@@ -276,6 +278,107 @@ async def test_method_all_with_limit(
         repos = clients.sync.all(kind="CoreRepository", limit=3)
         assert clients.sync.store.count() == 3
     assert len(repos) == 3
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_all_twice_keeps_one_store_entry_per_node(
+    httpx_mock: HTTPXMock, clients: BothClients, mock_schema_query_01: HTTPXMock, client_type: str
+) -> None:
+    repository_id = "9486cfce-87db-479d-ad73-07d80ba96a0f"
+    for commit in ("aaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbb"):
+        httpx_mock.add_response(
+            method="POST",
+            json={
+                "data": {
+                    "CoreRepository": {
+                        "count": 1,
+                        "edges": [
+                            {
+                                "node": {
+                                    "__typename": "CoreRepository",
+                                    "id": repository_id,
+                                    "name": {"value": "infrahub-demo-edge"},
+                                    "location": {"value": "git@github.com:opsmill/infrahub-demo-edge.git"},
+                                    "commit": {"value": commit},
+                                }
+                            }
+                        ],
+                    }
+                }
+            },
+            match_headers={"X-Infrahub-Tracker": "query-corerepository-page1"},
+        )
+
+    if client_type == "standard":
+        await clients.standard.all(kind="CoreRepository")
+        await clients.standard.all(kind="CoreRepository")
+        assert clients.standard.store.count() == 1
+        assert clients.standard.store.get(key=repository_id, kind=CoreRepository).commit.value == "bbbbbbbbbbbbbbbbbbbb"
+    else:
+        clients.sync.all(kind="CoreRepository")
+        clients.sync.all(kind="CoreRepository")
+        assert clients.sync.store.count() == 1
+        assert clients.sync.store.get(key=repository_id, kind=CoreRepositorySync).commit.value == "bbbbbbbbbbbbbbbbbbbb"
+
+
+@pytest.mark.parametrize("client_type", client_types)
+async def test_method_all_with_prefetch_replaces_saved_node_with_peer_copy(
+    httpx_mock: HTTPXMock, clients: BothClients, schema_with_hfid: dict[str, NodeSchemaAPI], client_type: str
+) -> None:
+    location_id = "4c8e1a6f-2b5d-4e7a-9c3f-1d2e3f4a5b6c"
+    rack_id = "7f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+    location_schema = schema_with_hfid["location"]
+    cache_data = {"version": "1.0", "nodes": [schema.model_dump() for schema in schema_with_hfid.values()]}
+    # Like a node built locally and stored by save(): only the attributes that were set.
+    location_data = {"id": location_id, "name": {"value": "Paris"}}
+
+    httpx_mock.add_response(
+        method="POST",
+        json={
+            "data": {
+                "BuiltinRack": {
+                    "count": 1,
+                    "edges": [
+                        {
+                            "node": {
+                                "__typename": "BuiltinRack",
+                                "id": rack_id,
+                                "display_label": "R1",
+                                "facility_id": {"value": "R1"},
+                                "location": {
+                                    "node": {
+                                        "__typename": "BuiltinLocation",
+                                        "id": location_id,
+                                        "name": {"value": "Paris"},
+                                        "type": {"value": "SITE"},
+                                    }
+                                },
+                            }
+                        }
+                    ],
+                }
+            }
+        },
+    )
+
+    if client_type == "standard":
+        client = clients.standard
+        client.schema.set_cache(cache_data)
+        client.store.set(key="paris", node=InfrahubNode(client=client, schema=location_schema, data=location_data))
+        await client.all(kind="BuiltinRack", prefetch_relationships=True)
+    else:
+        client_sync = clients.sync
+        client_sync.schema.set_cache(cache_data)
+        client_sync.store.set(
+            key="paris", node=InfrahubNodeSync(client=client_sync, schema=location_schema, data=location_data)
+        )
+        client_sync.all(kind="BuiltinRack", prefetch_relationships=True)
+
+    store = clients.standard.store if client_type == "standard" else clients.sync.store
+    assert store.count() == 2
+    assert store.get(key=location_id).type.value == "SITE"
+    assert store.get(key="paris") is store.get(key=location_id)
+    assert store.get(key=["Paris"], kind="BuiltinLocation") is store.get(key=location_id)
 
 
 @pytest.mark.parametrize("client_type", client_types)
