@@ -43,7 +43,7 @@ async def test_branch_list(clients: BothClients, client_type: str, mock_branch_l
     assert list(branches.keys()) == ["main", "branch01"]
 ```
 
-Assert the actual expected value. Assertions like `assert result is not None` or `assert result` do not verify behaviour — they only confirm something was returned.
+Assert the actual expected value for each variant, per [Assert exact expectations](./python-testing.md).
 
 ## Test file layout
 
