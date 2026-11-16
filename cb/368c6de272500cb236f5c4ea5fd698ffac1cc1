@@ -1,0 +1,19 @@
+pyproject.toml
+  s_e2176ce2fba659::t_80b17084e43121 575
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb368c6de272500cb236f5c4ea5fd698ffac1cc1",
+  "prompts": {},
+  "sessions": {
+    "s_e2176ce2fba659": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99127975-a76f-4076-b6b1-bf6678ebabae",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
