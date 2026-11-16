@@ -1,0 +1,21 @@
+tests/integration/test_store_related_copies.py
+  s_1111f6dbd737f5::t_2a9163d02c2f2a 1-70,72-82,85-116
+  s_1111f6dbd737f5::t_ed5785b4f97236 71
+  s_1111f6dbd737f5::t_e6b1aa9b7058a9 83-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3ca271ce72568cce9daea1c2c4d360aec7228cf9",
+  "prompts": {},
+  "sessions": {
+    "s_1111f6dbd737f5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb484fa3-0d94-4e27-8670-3a08dcbcbe64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
