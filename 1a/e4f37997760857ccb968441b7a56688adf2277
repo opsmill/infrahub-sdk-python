@@ -1,0 +1,27 @@
+infrahub_sdk/node/relationship.py
+  s_0a8328b9180e0a::t_12eab761250064 19,117
+infrahub_sdk/spec/object.py
+  s_0a8328b9180e0a::t_12eab761250064 11,126
+docs/docs/python-sdk/sdk_ref/infrahub_sdk/node/inline_peers.mdx
+  s_0a8328b9180e0a::t_b000b80d11787b 1-18
+infrahub_sdk/node/inline_peers.py
+  s_0a8328b9180e0a::t_5918b037cc10a6 1-28
+infrahub_sdk/node/related_node.py
+  s_0a8328b9180e0a::t_12eab761250064 15,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1ae4f37997760857ccb968441b7a56688adf2277",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

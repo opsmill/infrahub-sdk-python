@@ -1,0 +1,23 @@
+tests/unit/sdk/test_store.py
+  s_2f2ec711392616::t_d5d435baa4054a 236-285,289-303
+  s_2f2ec711392616::t_056f7993f30fad 286-288
+  s_2f2ec711392616::t_76198ddf13da8a 9
+infrahub_sdk/store.py
+  s_2f2ec711392616::t_0eea1d33812d83 13-14,45-47,54-57,60,63,76-89,92,95-104,106-113,117-119,261-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "34fcb9c4ed563ca10f4d6f14cbc466fa5ae27f46",
+  "prompts": {},
+  "sessions": {
+    "s_2f2ec711392616": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8a35ec51-bed6-467a-84e1-e8ff0bb9c912",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Benoit Kohler <Kohler.benoit@bearchitek.com>"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+infrahub_sdk/store.py
+  s_1111f6dbd737f5::t_fbb6fde45c6a7c 14-15
+  s_1111f6dbd737f5::t_b3bbb5ad731a44 326,329-331
+  s_1111f6dbd737f5::t_99c4536ab1e44e 296-300,302-303
+  s_1111f6dbd737f5::t_ca8d97d452260a 341
+  s_1111f6dbd737f5::t_1bf985357f918b 51
+  s_1111f6dbd737f5::t_02378d91b1cc82 40
+  s_1111f6dbd737f5::t_5f8156e1531b6e 6
+  s_1111f6dbd737f5::t_7b510dee5ef39a 332
+tests/unit/sdk/test_store_lock.py
+  s_1111f6dbd737f5::t_19fac24e320182 57-65,70
+  s_1111f6dbd737f5::t_7194a84ada3dca 39
+  s_1111f6dbd737f5::t_406621cd22dee0 3,5-7
+  s_1111f6dbd737f5::t_0bc930377518e9 133
+  s_1111f6dbd737f5::t_50834c169c65e4 141
+  s_1111f6dbd737f5::t_bcfc599167c716 144
+  s_1111f6dbd737f5::t_d360049eebde0d 1-2,4,8-38,40-56,66-69,71-132,134-140,142-143,145-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d87b7929805401a6047912fa1205f3f8a18b1a81",
+  "prompts": {},
+  "sessions": {
+    "s_1111f6dbd737f5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb484fa3-0d94-4e27-8670-3a08dcbcbe64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

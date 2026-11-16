@@ -1,0 +1,30 @@
+changelog/+number-pool-ranges-in-object-files.fixed.md
+  s_925be3af9440ae::t_faa28fb12a4bcd 1
+tests/unit/sdk/pool/test_number_pool_ranges.py
+  s_925be3af9440ae::t_fad9333c41df36 311-344
+  s_925be3af9440ae::t_9327e4fb1ccc42 9,17,261-310
+tests/integration/test_number_pool_attach_ranges.py
+  s_925be3af9440ae::t_7ff7bc37e766e2 6,14,46-52,128-150
+  s_925be3af9440ae::t_91ee13d582b579 151
+infrahub_sdk/spec/object.py
+  s_925be3af9440ae::t_bedfde27819b94 11,123-136,509-513
+tests/unit/sdk/pool/conftest.py
+  s_925be3af9440ae::t_82c9198ba0b9f9 153-179
+  s_925be3af9440ae::t_fdb30b99411af2 152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72ed012d008545e9efbb9f2ea7131f9792d9ad57",
+  "prompts": {},
+  "sessions": {
+    "s_925be3af9440ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "826b2587-9339-4524-ba65-29a898c9510c",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

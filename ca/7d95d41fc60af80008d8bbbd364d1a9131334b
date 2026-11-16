@@ -1,0 +1,19 @@
+infrahub_sdk/spec/object.py
+  s_0a8328b9180e0a::t_c79a5905f29940 520-521
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca7d95d41fc60af80008d8bbbd364d1a9131334b",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

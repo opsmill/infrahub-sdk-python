@@ -1,0 +1,19 @@
+infrahub_sdk/store.py
+  s_1111f6dbd737f5::t_b67a824448aa95 6,14,39,50,295,319,330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "100ed6a52cbf5d470762896534bd7e0188ad7171",
+  "prompts": {},
+  "sessions": {
+    "s_1111f6dbd737f5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bb484fa3-0d94-4e27-8670-3a08dcbcbe64",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}

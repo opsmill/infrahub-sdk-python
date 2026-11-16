@@ -1,0 +1,21 @@
+infrahub_sdk/spec/object.py
+  s_0a8328b9180e0a::t_511aa96086fe27 525-526,529
+tests/unit/sdk/pool/test_number_pool_ranges.py
+  s_0a8328b9180e0a::t_f9626fb9721f54 418-455
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "43121244d9dc3eabe128675fcf5a4cae6dda15df",
+  "prompts": {},
+  "sessions": {
+    "s_0a8328b9180e0a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b4577351-70b7-452f-b45e-31a44c6c8609",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
