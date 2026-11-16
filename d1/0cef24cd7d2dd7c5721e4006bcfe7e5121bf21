@@ -1,0 +1,21 @@
+tests/unit/test_schema_offline_validation.py
+  s_a00da892ddb2b4::t_9982b7e54b72df 574
+  s_a00da892ddb2b4::t_c65dd3e6d68530 735
+  s_a00da892ddb2b4::t_bcb8412686849d 573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d10cef24cd7d2dd7c5721e4006bcfe7e5121bf21",
+  "prompts": {},
+  "sessions": {
+    "s_a00da892ddb2b4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b1dd88e9-eca0-4933-b7f5-f7d41ea49608",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pol Michel <polmichel29@gmail.com>"
+    }
+  }
+}
