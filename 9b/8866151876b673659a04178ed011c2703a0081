@@ -1,0 +1,19 @@
+changelog/+template-variables-cache.changed.md
+  s_87e9d1371d3c56::t_ba793b44188a16 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b8866151876b673659a04178ed011c2703a0081",
+  "prompts": {},
+  "sessions": {
+    "s_87e9d1371d3c56": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c706d387-c4f2-4dea-81b2-894dfd2e3621",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
