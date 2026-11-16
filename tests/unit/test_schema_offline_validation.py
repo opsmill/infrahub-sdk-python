@@ -570,7 +570,8 @@ OUT_OF_ENUM_CASES = [
         name="dropdown-choice-state",
         schema=_schema_with_choices([{"name": "active", "state": "removed"}]),
         expected_field="nodes[0].attributes[0].Dropdown.choices[0].state",
-        invalid_value="removed",
+        expected_input="removed",
+        expected_reason="Input should be 'present' or 'absent'",
     ),
     OutOfEnumCase(
         name="extension-attribute-kind",
@@ -731,7 +732,7 @@ def test_choice_bad_color_is_rejected() -> None:
 
     assert result.valid is False
     assert result.messages == [
-        r"nodes[0].attributes[0].Text.choices[0].color: String should match pattern '#[0-9a-fA-F]{6}\b' (received: 'not-a-color')"
+        r"nodes[0].attributes[0].Dropdown.choices[0].color: String should match pattern '#[0-9a-fA-F]{6}\b' (received: 'not-a-color')"
     ]
 
 
