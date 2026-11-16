@@ -1,10 +1,9 @@
 ---
 name: speckit-opsmill-retrospect
-description: Run a session retrospective that surfaces context-management gaps and
-  routes them to approved follow-up actions.
+description: Run a session retrospective that surfaces context-management gaps and routes them to approved follow-up actions.
 compatibility: Requires spec-kit project structure with .specify/ directory
 metadata:
-  author: github-spec-kit
+  author: opsmill
   source: opsmill:commands/retrospect.md
 ---
 
@@ -118,7 +117,7 @@ Before writing any files, present the retrospective in chat using this structure
 
 #### local-only
 
-- R4: <memory/report note>
+- R4: <.specify/memory/report note>
 
 ### Approval Request
 
