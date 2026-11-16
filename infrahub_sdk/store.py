@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 import threading
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from infrahub_sdk.protocols_base import CoreNodeBase
 
@@ -11,8 +11,7 @@ from .exceptions import NodeInvalidError, NodeNotFoundError
 from .node.parsers import parse_human_friendly_id
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
-    from contextlib import AbstractContextManager
+    from collections.abc import Iterable
 
     from .client import SchemaType, SchemaTypeSync
     from .node import InfrahubNode, InfrahubNodeSync
@@ -37,7 +36,7 @@ def get_schema_name(schema: type[SchemaType | SchemaTypeSync] | str | None = Non
 
 
 class NodeStoreBranch:
-    def __init__(self, name: str, lock: AbstractContextManager[Any] | None = None) -> None:
+    def __init__(self, name: str) -> None:
         self.branch_name = name
 
         self._objs: dict[str, InfrahubNode | InfrahubNodeSync | CoreNode | CoreNodeSync] = {}
@@ -48,7 +47,7 @@ class NodeStoreBranch:
         self._keys_by_internal_id: dict[str, set[str]] = {}
         self._hfids_by_internal_id: dict[str, set[tuple[str, tuple]]] = {}
         # The sync batch saves nodes from several threads. Re-entrant because computing an HFID can read this store.
-        self._lock = lock if lock is not None else threading.RLock()
+        self._lock = threading.RLock()
 
     def count(self) -> int:
         with self._lock:
@@ -293,14 +292,8 @@ class NodeStoreBase:
     we need to save them in order to reuse them later to associate them with another node for example.
     """
 
-    def __init__(
-        self,
-        default_branch: str | None = None,
-        lock_factory: Callable[[str], AbstractContextManager[Any]] | None = None,
-    ) -> None:
+    def __init__(self, default_branch: str | None = None) -> None:
         self._branches: dict[str, NodeStoreBranch] = {}
-        # Builds the lock of each branch store from the branch name; tests pass fakes to control the locking.
-        self._lock_factory = lock_factory
 
         if default_branch is None:
             default_branch = "main"
@@ -323,12 +316,8 @@ class NodeStoreBase:
         branch: str | None = None,
     ) -> None:
         branch = self._get_branch(branch or node.get_branch())
-        store_branch = self._branches.get(branch) or self._branches.setdefault(branch, self._new_branch(branch))
+        store_branch = self._branches.get(branch) or self._branches.setdefault(branch, NodeStoreBranch(name=branch))
         store_branch.set(node=node, key=key)
-
-    def _new_branch(self, name: str) -> NodeStoreBranch:
-        lock = self._lock_factory(name) if self._lock_factory else None
-        return NodeStoreBranch(name=name, lock=lock)
 
     def _get(  # type: ignore[no-untyped-def]
         self,
@@ -338,7 +327,7 @@ class NodeStoreBase:
         branch: str | None = None,
     ):
         branch = self._get_branch(branch)
-        store_branch = self._branches.get(branch) or self._new_branch(branch)
+        store_branch = self._branches.get(branch) or NodeStoreBranch(name=branch)
 
         return store_branch.get(key=key, kind=kind, raise_when_missing=raise_when_missing)
 
