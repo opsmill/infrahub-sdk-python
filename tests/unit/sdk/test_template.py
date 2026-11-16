@@ -1,9 +1,12 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import jinja2
 import pytest
+from jinja2 import nodes
+from jinja2.sandbox import SandboxedEnvironment
 from rich.syntax import Syntax
 from rich.traceback import Frame
 
@@ -162,6 +165,80 @@ def test_get_template_variables_returns_a_new_list_each_call() -> None:
     get_template_variables(template).append("extra")
 
     assert get_template_variables(template) == ["first", "second"]
+
+
+@pytest.fixture
+def parse_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    calls: list[str] = []
+    original_parse = SandboxedEnvironment.parse
+
+    def counting_parse(self: SandboxedEnvironment, source: str) -> nodes.Template:
+        calls.append(source)
+        return original_parse(self, source)
+
+    monkeypatch.setattr(SandboxedEnvironment, "parse", counting_parse)
+    return calls
+
+
+def test_get_template_variables_parses_a_template_once(parse_calls: list[str]) -> None:
+    template = "{{ parsed_once_first }} {{ parsed_once_second }}"
+
+    assert get_template_variables(template) == ["parsed_once_first", "parsed_once_second"]
+    assert Jinja2Template(template=template).get_variables() == ["parsed_once_first", "parsed_once_second"]
+
+    assert parse_calls == [template]
+
+
+def test_get_variables_uses_cache_after_validate_builds_the_environment(parse_calls: list[str]) -> None:
+    template = "{{ cached_after_validate | upper }}"
+    jinja = Jinja2Template(template=template)
+    jinja.validate()
+
+    assert jinja.get_variables() == ["cached_after_validate"]
+    assert jinja.get_variables() == ["cached_after_validate"]
+
+    assert parse_calls == [template, template]
+
+
+@pytest.mark.parametrize("template", [Path("report.j2"), None, b"{{ name }}"])
+def test_get_template_variables_rejects_non_string(template: Any) -> None:  # noqa: ANN401
+    with pytest.raises(TypeError, match="A string template is required"):
+        get_template_variables(template)
+
+
+def test_get_variables_excludes_globals_added_to_the_environment() -> None:
+    template = "{{ now }} {{ name }}"
+    assert get_template_variables(template) == ["name", "now"]
+
+    jinja = Jinja2Template(template=template)
+    cast("dict[str, Any]", jinja.get_environment().globals)["now"] = "2026-01-01"
+
+    assert jinja.get_variables() == ["name"]
+
+
+def test_get_variables_accepts_tests_added_to_the_environment() -> None:
+    jinja = Jinja2Template(template="{{ name is shiny }}")
+
+    def shiny(value: Any) -> bool:  # noqa: ANN401
+        return bool(value)
+
+    jinja.get_environment().tests["shiny"] = shiny
+
+    assert jinja.get_variables() == ["name"]
+
+
+def test_get_variables_uses_environment_of_a_subclass() -> None:
+    class TemplateWithGlobal(Jinja2Template):
+        def _get_string_based_environment(self) -> jinja2.Environment:
+            env = super()._get_string_based_environment()
+            cast("dict[str, Any]", env.globals)["now"] = "2026-01-01"
+            return env
+
+    assert TemplateWithGlobal(template="{{ now }} {{ name }}").get_variables() == ["name"]
+
+
+def test_get_template_variables_unknown_test_in_condition_is_not_checked() -> None:
+    assert get_template_variables("{% if name is not_a_test %}x{% endif %}") == ["name"]
 
 
 SUCCESSFUL_FILE_TEST_CASES = [
