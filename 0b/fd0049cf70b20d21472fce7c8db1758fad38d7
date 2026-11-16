@@ -1,0 +1,23 @@
+changelog/+template-variables-cache.changed.md
+  s_87e9d1371d3c56::t_ed9c434184e965 1,3-6
+infrahub_sdk/template/__init__.py
+  s_87e9d1371d3c56::t_31ae6d4946daf3 11,34-39,46,61,64-65,139,155-167,225
+tests/unit/sdk/test_template.py
+  s_87e9d1371d3c56::t_1d88e09ab5e982 4,6,8-9,170-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0bfd0049cf70b20d21472fce7c8db1758fad38d7",
+  "prompts": {},
+  "sessions": {
+    "s_87e9d1371d3c56": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c706d387-c4f2-4dea-81b2-894dfd2e3621",
+        "model": "claude-fable-5-2"
+      },
+      "human_author": "Aaron McCarty <aaron@opsmill.com>"
+    }
+  }
+}
