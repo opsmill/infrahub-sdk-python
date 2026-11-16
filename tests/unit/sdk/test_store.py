@@ -456,7 +456,7 @@ class PersonFromStoreTransform(InfrahubTransform):
 
     async def transform(self, data: dict) -> dict:
         person = self.store.get(key="John", kind="TestingPerson")
-        return {"name": person.name.value, "age": person.age.value}
+        return {"name": person._get_attribute("name").value, "age": person._get_attribute("age").value}
 
 
 async def test_transform_store_returns_main_node_by_hfid_when_its_peer_references_it_back(
@@ -543,4 +543,4 @@ async def test_get_group_with_members_keeps_values_of_node_stored_under_a_key(
         client.store.set(key="red-tag", node=tag)
         client.get(kind="CoreStandardGroup", name__value="tracking", include=["members"])
 
-    assert client.store.get(key="red-tag").name.value == "red"
+    assert client.store.get(key="red-tag")._get_attribute("name").value == "red"
