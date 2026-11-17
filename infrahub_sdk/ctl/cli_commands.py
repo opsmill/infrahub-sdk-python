@@ -35,6 +35,7 @@ from ..ctl.render import list_jinja2_transforms, print_template_errors
 from ..ctl.repository import app as repository_app
 from ..ctl.repository import find_repository_config_file, get_repository_config
 from ..ctl.schema import app as schema_app
+from ..ctl.storage import app as storage_app
 from ..ctl.task import app as task_app
 from ..ctl.telemetry import app as telemetry_app
 from ..ctl.transform import list_transforms
@@ -81,6 +82,7 @@ app.add_typer(object_app, name="object")
 app.add_typer(graphql_app, name="graphql")
 app.add_typer(task_app, name="task")
 app.add_typer(marketplace_app, name="marketplace")
+app.add_typer(storage_app, name="storage")
 app.add_typer(telemetry_app, name="telemetry")
 app.add_typer(troubleshooting_app, name="troubleshooting")
 
